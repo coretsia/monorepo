@@ -141,13 +141,15 @@ For the complete canonical command catalog and rail composition, see:
 - Tooling output **MUST NOT** leak secrets/PII (no `.env` values, tokens, auth/session ids, raw payloads, raw SQL).
 - Prefer stable error codes and safe diagnostics tokens over “pretty” text.
 
-## Dependency SSoT (Phase 0, MUST)
+## Dependency SSoT (MUST)
 
-Phase 0 compile-time dependency truth lives only in:
+Canonical direct compile-time dependency truth between layered packages lives only in:
 
-- `docs/roadmap/phase0/00_2-dependency-table.md`
+- `docs/architecture/DEPENDENCIES.md`
 
-Other docs may describe *build order*, but **MUST NOT** claim dependency truth; they must link to the dependency SSoT.
+Other docs MAY explain the dependency model or describe implementation order, but MUST NOT introduce alternative package-level dependency edges.
+
+Dependencies of special public distributions remain owned by their Composer manifests and the applicable packaging/distribution contracts.
 
 ## Release process (MUST)
 

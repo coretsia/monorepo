@@ -109,20 +109,20 @@ composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac
 If package scaffold, `composer package:new`, package compliance, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `packages/**` structure changed:
 
 ```bash
-composer package-scaffold:check -- framework       # read-only scaffold/legal drift check
+composer package-scaffold:check                    # read-only scaffold/legal drift check
 ```
 
 If scaffold drift is reported:
 
 ```bash
-composer package-scaffold:sync -- framework        # create/fix canonical scaffold artifacts
-composer package-scaffold:check -- framework       # verify scaffold/legal drift again
+composer package-scaffold:sync                     # create/fix canonical scaffold artifacts
+composer package-scaffold:check                    # verify scaffold/legal drift again
 ```
 
 For targeted package compliance verification:
 
 ```bash
-composer package-compliance:gate -- framework      # targeted package compliance gate; also included in composer gates
+composer package-compliance:gate                   # package compliance gate; also included in composer gates
 ```
 
 If `tools/release/release-line.json`, internal `coretsia/*` Composer constraints, `.github/split-publish-packages.json`, or split/Packagist publication readiness changed:

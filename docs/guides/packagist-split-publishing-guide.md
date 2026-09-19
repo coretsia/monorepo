@@ -45,6 +45,24 @@ composer name:  coretsia/core-contracts
 split repo:     github.com/coretsia/core-contracts
 ```
 
+Special distribution examples:
+
+```text
+package path:   packages/framework/
+package_id:     coretsia/framework
+composer name:  coretsia/framework
+split repo:     github.com/coretsia/framework
+```
+
+```text
+package path:   packages/applications/skeleton/
+package_id:     coretsia/skeleton
+composer name:  coretsia/skeleton
+split repo:     github.com/coretsia/skeleton
+```
+
+Special distributions use their canonical Composer package names as split-publishing package identifiers. They do not use layered `<layer>/<slug>` package ids.
+
 ## Core rule
 
 The monorepo is the source of truth.

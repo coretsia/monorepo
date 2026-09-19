@@ -156,10 +156,16 @@ Verify the package matches the packaging law:
 
 ### 4.4 Sync repositories (optional, safe; rerun-no-diff)
 
-You normally do NOT need this for package creation alone (glob repos already cover packages), but it is always safe to rerun:
+After creating or relocating a package, synchronize the managed root Composer repositories so the new package is included in the workspace:
 
 ```bash
 composer sync:repos
+```
+
+Verify that the managed repositories are synchronized:
+
+```bash
+composer sync:check
 ```
 
 ### 4.5 If you added/changed dependencies (MUST follow lock policy)

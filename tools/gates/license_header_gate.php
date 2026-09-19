@@ -145,7 +145,10 @@ function coretsia_license_header_gate_expected_project(string $relativePath): st
 {
     $path = \str_replace('\\', '/', $relativePath);
 
-    if (\str_starts_with($path, 'packages/applications/skeleton/')) {
+    if (
+        \str_starts_with($path, 'packages/applications/skeleton/')
+        && $path !== 'packages/applications/skeleton/SECURITY.md'
+    ) {
         return 'Coretsia Skeleton';
     }
 

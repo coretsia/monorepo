@@ -66,6 +66,34 @@ require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
             $allowlist,
         );
 
+        $specialScope = $options['path'] === null
+            ? null
+            : $repository->resolveExistingDirectory($options['path']);
+
+        foreach ($catalog->specialDistributions() as $product) {
+            if (
+                $specialScope !== null
+                && $specialScope !== $product['absolutePath']
+                && !RepositoryContext::containsPath(
+                    $specialScope,
+                    $product['absolutePath'],
+                )
+            ) {
+                continue;
+            }
+
+            foreach (
+                coretsia_package_compliance_gate_validate_special_distribution(
+                    $product,
+                    $repository,
+                ) as $diagnostic
+            ) {
+                $diagnostics[] = $diagnostic;
+            }
+        }
+
+        $diagnostics = coretsia_package_compliance_gate_unique_sorted($diagnostics);
+
         if ($diagnostics === []) {
             exit(0);
         }
@@ -517,6 +545,67 @@ function coretsia_package_compliance_gate_validate_package(
         ) {
             $diagnostics[] = $diagnostic;
         }
+    }
+
+    return coretsia_package_compliance_gate_unique_sorted($diagnostics);
+}
+
+/**
+ * @param array{
+ *     kind:string,
+ *     relativePath:string,
+ *     absolutePath:string,
+ *     composerJsonPath:string,
+ *     composerName:string,
+ *     layer:null,
+ *     slug:null,
+ *     packageId:null
+ * } $product
+ *
+ * @return list<string>
+ */
+function coretsia_package_compliance_gate_validate_special_distribution(
+    array $product,
+    RepositoryContext $repository,
+): array {
+    $packageRoot = $product['absolutePath'];
+    $relativeRoot = $product['relativePath'];
+
+    $requiredFiles = [
+        'composer.json',
+        'README.md',
+        'LICENSE',
+        'NOTICE',
+        'SECURITY.md',
+    ];
+
+    $diagnostics = coretsia_package_compliance_gate_validate_symlink_paths(
+        $packageRoot,
+        $relativeRoot,
+        $requiredFiles,
+    );
+
+    if ($diagnostics !== []) {
+        return $diagnostics;
+    }
+
+    foreach ($requiredFiles as $file) {
+        if (!is_file($packageRoot . '/' . $file)) {
+            $diagnostics[] = $relativeRoot
+                . '/'
+                . $file
+                . ': missing-required-file';
+        }
+    }
+
+    foreach (
+        coretsia_package_compliance_gate_validate_canonical_package_files(
+            $packageRoot,
+            $relativeRoot,
+            $repository,
+        ) as $diagnostic
+    ) {
+        $diagnostics[] = $diagnostic;
     }
 
     return coretsia_package_compliance_gate_unique_sorted($diagnostics);

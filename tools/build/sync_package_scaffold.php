@@ -171,11 +171,14 @@ function coretsia_sync_package_scaffold_resolve_options(array $argv): array
 
 /**
  * @param list<array{
+ *     kind:string,
  *     relativePath:string,
  *     absolutePath:string,
- *     layer:string,
- *     slug:string,
- *     packageId:string
+ *     composerJsonPath:string,
+ *     composerName:string,
+ *     layer:string|null,
+ *     slug:string|null,
+ *     packageId:string|null
  * }> $products
  * @param array<string,string> $canonicalPackageFiles
  *
@@ -205,11 +208,14 @@ function coretsia_sync_package_scaffold_run(
 
 /**
  * @param array{
+ *     kind:string,
  *     relativePath:string,
  *     absolutePath:string,
- *     layer:string,
- *     slug:string,
- *     packageId:string
+ *     composerJsonPath:string,
+ *     composerName:string,
+ *     layer:string|null,
+ *     slug:string|null,
+ *     packageId:string|null
  * } $product
  * @param array<string,string> $canonicalPackageFiles
  *
@@ -222,15 +228,36 @@ function coretsia_sync_package_scaffold_sync_package(
 ): array {
     $packageRoot = $product['absolutePath'];
     $relativeRoot = $product['relativePath'];
-    $layer = $product['layer'];
-    $slug = $product['slug'];
-
-    $diagnostics = [];
 
     coretsia_sync_package_scaffold_assert_safe_path(
         $packageRoot,
         'composer.json',
     );
+
+    if ($product['kind'] === WorkspacePackageCatalog::KIND_SPECIAL_DISTRIBUTION) {
+        foreach (array_keys($canonicalPackageFiles) as $relativePath) {
+            coretsia_sync_package_scaffold_assert_safe_path(
+                $packageRoot,
+                $relativePath,
+            );
+        }
+
+        return coretsia_sync_package_scaffold_sync_canonical_package_files(
+            $packageRoot,
+            $relativeRoot,
+            $canonicalPackageFiles,
+            $check,
+        );
+    }
+
+    $layer = $product['layer'];
+    $slug = $product['slug'];
+
+    if (!is_string($layer) || !is_string($slug)) {
+        throw new LogicException('package-scaffold-layered-product-invalid');
+    }
+
+    $diagnostics = [];
 
     $kind = coretsia_sync_package_scaffold_package_kind($packageRoot);
 
@@ -307,11 +334,14 @@ function coretsia_sync_package_scaffold_sync_package(
 
 /**
  * @return list<array{
+ *     kind:string,
  *     relativePath:string,
  *     absolutePath:string,
- *     layer:string,
- *     slug:string,
- *     packageId:string
+ *     composerJsonPath:string,
+ *     composerName:string,
+ *     layer:string|null,
+ *     slug:string|null,
+ *     packageId:string|null
  * }>
  */
 function coretsia_sync_package_scaffold_products(
@@ -319,19 +349,10 @@ function coretsia_sync_package_scaffold_products(
     ?string $path,
 ): array {
     $catalog = WorkspacePackageCatalog::discover($repository);
-    $products = $catalog->layeredPackages();
+    $products = $catalog->all();
 
     if ($path === null) {
-        return array_map(
-            static fn (array $product): array => [
-                'relativePath' => $product['relativePath'],
-                'absolutePath' => $product['absolutePath'],
-                'layer' => $product['layer'],
-                'slug' => $product['slug'],
-                'packageId' => $product['packageId'],
-            ],
-            $products,
-        );
+        return $products;
     }
 
     $scope = $repository->resolveExistingDirectory($path);
@@ -341,15 +362,7 @@ function coretsia_sync_package_scaffold_products(
             continue;
         }
 
-        return [
-            [
-                'relativePath' => $product['relativePath'],
-                'absolutePath' => $product['absolutePath'],
-                'layer' => $product['layer'],
-                'slug' => $product['slug'],
-                'packageId' => $product['packageId'],
-            ]
-        ];
+        return [$product];
     }
 
     $selected = [];
@@ -359,13 +372,7 @@ function coretsia_sync_package_scaffold_products(
             continue;
         }
 
-        $selected[] = [
-            'relativePath' => $product['relativePath'],
-            'absolutePath' => $product['absolutePath'],
-            'layer' => $product['layer'],
-            'slug' => $product['slug'],
-            'packageId' => $product['packageId'],
-        ];
+        $selected[] = $product;
     }
 
     if ($selected !== []) {
@@ -390,8 +397,11 @@ function coretsia_sync_package_scaffold_products(
 
 /**
  * @return array{
+ *     kind:string,
  *     relativePath:string,
  *     absolutePath:string,
+ *     composerJsonPath:string,
+ *     composerName:string,
  *     layer:string,
  *     slug:string,
  *     packageId:string
@@ -440,8 +450,11 @@ function coretsia_sync_package_scaffold_explicit_candidate(
     }
 
     return [
+        'kind' => WorkspacePackageCatalog::KIND_LAYERED_PACKAGE,
         'relativePath' => 'packages/' . $layer . '/' . $slug,
         'absolutePath' => $packageRoot,
+        'composerJsonPath' => $packageRoot . '/composer.json',
+        'composerName' => $composerName,
         'layer' => $layer,
         'slug' => $slug,
         'packageId' => $layer . '/' . $slug,

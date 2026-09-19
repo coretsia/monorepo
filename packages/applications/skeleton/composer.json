@@ -29,7 +29,7 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/framework": "^0.6.0"
+    "coretsia/framework": "^0.7.0"
   },
   "config": {
     "sort-packages": true

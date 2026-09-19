@@ -47,6 +47,54 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.7.0
+
+### Added
+
+- Introduced the public `coretsia/framework` aggregate runtime distribution as a standalone Composer metapackage.
+- Introduced the public `coretsia/skeleton` application template for creating consumer applications through Composer.
+- Added canonical repository tooling support for package discovery, release-line management, repository context resolution, and deterministic gate execution.
+- Extended split publishing to support the framework and skeleton distributions alongside existing Coretsia packages.
+- Added a repository-wide canonical license-header compliance gate with deterministic diagnostics for source code, documentation, configuration, metadata, and Graphviz artifacts.
+- Added the canonical `kernel.modules_resolve` operation span with stable outcomes and observability-isolated tracing failures.
+- Documented the cross-cutting production determinism contract in `DETERMINISM.md`, including semantic equivalence, artifact reproducibility, and explicitly excluded nondeterministic operational inputs.
+
+### Changed
+
+- Migrated publishable Composer products to the canonical `packages/**` repository topology.
+- Consolidated development dependencies, Composer repositories, repository scripts, and the committed lock file under the root development workspace.
+- Moved repository tooling to `tools/**` and mutable/generated repository state to `var/**`.
+- Removed monorepo topology assumptions from runtime packages and separated repository source paths from consumer application paths.
+- Migrated package discovery, split publishing, architecture checks, CI workflows, Git hooks, repository launchers, fixtures, and tests to the new topology.
+- Updated canonical architecture, packaging, development, release, and operational documentation.
+- Moved the monorepo release line to `0.7`, with workspace versions synchronized to `0.7.x-dev` and public internal package constraints to `^0.7.0`.
+- Replaced the Kernel runtime-driver entrypoint compatibility boundary with `RuntimeDriverResolver`, retaining selector and driver-conflict policy in Kernel while assigning Worker module participation and runtime prerequisites to the Worker-owned entrypoint boundary.
+- Consolidated configuration compilation, fingerprinting, artifact production, and cache verification around shared canonical module-resolution and configuration-source inputs.
+- Preserved deterministic provider tag metadata across definition graphs, fingerprints, compiled containers, and runtime `TagRegistry` hydration.
+- Graduated production-valid Phase 0 spike assets into their canonical Foundation, Kernel, Worker, and repository-tooling owners.
+- Aligned architecture documentation, generated artifacts, package indexes, Deptrac graphs, and CI checks with the updated runtime, determinism, license-policy, and production ownership boundaries.
+
+### Removed
+
+- Removed the legacy root `framework/` and `skeleton/` workspace topology.
+- Removed obsolete framework-local and skeleton-local development workspace assumptions and Composer lock files.
+- Removed obsolete Phase 0 spike implementations, compatibility rails, and superseded repository-tooling paths after migrating their production-valid behavior to canonical owners.
+
+### Fixed
+
+- Canonicalized repository paths before containment checks to avoid false repository-path-outside-root failures on Windows CI.
+- Made Worker PROC-host readiness marker publication atomic to prevent partial JSON reads during cross-process integration tests.
+- Enforced single-active `UnitOfWork` ownership in `KernelRuntime`, deterministic overlap rejection, exact low-level handle tracking, and lifecycle release only after required reset cleanup.
+- Closed the production compile-to-runtime lifecycle with end-to-end compilation, immutable generation, clean verification, artifact-only boot, container hydration, `UnitOfWork`, and reset coverage.
+- Made immutable generation directory publication safe under concurrent creation.
+- Strengthened production determinism across Foundation, Kernel, and Worker with canonical module-graph permutations, fixed cross-platform artifact vectors, physical-layout-independent generation, deterministic runtime verification projections, and stable worker-child ordering.
+
+### Security
+
+- Replaced executable interpretation of Kernel-generated PHP artifacts with strict canonical data parsing that rejects arbitrary PHP syntax before artifact contents are trusted.
+- Secured Supervisor-to-Guardian and Guardian-to-ProcHost bootstrap through an authenticated child-launch boundary with parent-owned loopback listeners, private credentials, child connect-back authentication, and deterministic pre-auth cleanup.
+- Removed the reserve-close-rebind authority gap while preserving Guardian generation fencing and worker-process containment.
+
 ## v0.6.0
 
 ### Added

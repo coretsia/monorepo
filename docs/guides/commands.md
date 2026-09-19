@@ -581,7 +581,7 @@ Id: `tool.package_scaffold_sync` \
 Entrypoint: `composer package-scaffold:sync` \
 Category: build tooling / scaffolding \
 Outputs:
-- Creates or updates package scaffold artifacts under `packages/<layer>/<slug>/**` or under the package path passed as an argument.
+- Creates or updates package scaffold artifacts under discovered layered-package and special-distribution paths, or under the package path passed as an argument.
 - Exact-canonical sync is allowed only for:
   - `LICENSE`
   - `NOTICE`
@@ -593,14 +593,15 @@ Outputs:
 
 Determinism:
 
-| Mode / flags                               | Determinism   | Notes                                                                                         |
-|--------------------------------------------|---------------|-----------------------------------------------------------------------------------------------|
-| `composer package-scaffold:sync`           | deterministic | Mutating; scans `packages/<layer>/<slug>` and creates/fixes scaffold files.                   |
-| `composer package-scaffold:sync -- <path>` | deterministic | Mutating; narrows the discovered layered-package scope to `<path>` or one discovered package. |
+| Mode / flags                               | Determinism   | Notes                                                                                                  |
+|--------------------------------------------|---------------|--------------------------------------------------------------------------------------------------------|
+| `composer package-scaffold:sync`           | deterministic | Mutating; scans layered packages and special distributions, creating/fixing applicable scaffold files. |
+| `composer package-scaffold:sync -- <path>` | deterministic | Mutating; narrows the discovered package scope to `<path>` or one discovered package.                  |
 
 Notes:
 - This is the single source of truth for package scaffold completion.
-- Default scope is layered packages discovered by `WorkspacePackageCatalog::layeredPackages()`; special distributions `packages/framework` and `packages/applications/skeleton` are not scaffold-sync targets.
+- Default scope includes layered packages and special distributions discovered by `WorkspacePackageCatalog::all()`.
+- Special distributions `packages/framework` and `packages/applications/skeleton` synchronize only canonical `LICENSE`, `NOTICE`, and `SECURITY.md`; layered-package baseline scaffolding does not apply to them.
 - The command is deterministic but mutating.
 - Apply mode MUST be rerun-no-diff for the same repo state after the first successful run.
 - It MUST NOT rewrite existing user-owned README/config/code/test content once present.
@@ -608,7 +609,7 @@ Notes:
   - `LICENSE` is synchronized exactly from repo-root `LICENSE`.
   - `NOTICE` is synchronized exactly from repo-root `NOTICE`.
   - `SECURITY.md` is synchronized exactly from repo-root `SECURITY.md`.
-- Runtime-only scaffold is created only for packages with `composer.json > extra.coretsia.kind = runtime`.
+- Runtime-only scaffold is created only for layered packages with `composer.json > extra.coretsia.kind = runtime`; special distributions do not receive runtime-only scaffolding.
 - Implementation detail: `@php tools/build/sync_package_scaffold.php`.
 - Failure output policy:
   - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED`.
@@ -616,6 +617,8 @@ Notes:
 Usage (repo root):
 - `composer package-scaffold:sync`
 - `composer package-scaffold:sync -- packages/core/example`
+- `composer package-scaffold:sync -- packages/framework`
+- `composer package-scaffold:sync -- packages/applications/skeleton`
 
 ---
 
@@ -630,16 +633,16 @@ Outputs:
 
 Determinism:
 
-| Mode / flags                                | Determinism   | Notes                                                                                          |
-|---------------------------------------------|---------------|------------------------------------------------------------------------------------------------|
-| `composer package-scaffold:check`           | deterministic | Read-only; scans `packages/<layer>/<slug>`.                                                    |
-| `composer package-scaffold:check -- <path>` | deterministic | Read-only; narrows the discovered layered-package scope to `<path>` or one discovered package. |
+| Mode / flags                                | Determinism   | Notes                                                                                      |
+|---------------------------------------------|---------------|--------------------------------------------------------------------------------------------|
+| `composer package-scaffold:check`           | deterministic | Read-only; checks applicable scaffold files in layered packages and special distributions. |
+| `composer package-scaffold:check -- <path>` | deterministic | Read-only; narrows the discovered package scope to `<path>` or one discovered package.     |
 
 Notes:
 - This is the read-only verification mode for package scaffold sync.
 - It MUST NOT create, modify, or delete files.
-- It fails on missing or drifted canonical legal files.
-- It fails on missing create-if-missing scaffold artifacts.
+- It fails on missing or drifted canonical `LICENSE`, `NOTICE`, and `SECURITY.md` files in layered packages and special distributions.
+- It fails on missing create-if-missing scaffold artifacts in layered packages; these additional scaffold requirements do not apply to special distributions.
 - Output policy:
   - scaffold drift: line 1 is stable code `CORETSIA_PACKAGE_SCAFFOLD_OUT_OF_SYNC`
   - unexpected failure: line 1 starts with stable code `CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED`
@@ -649,6 +652,8 @@ Notes:
 Usage (repo root):
 - `composer package-scaffold:check`
 - `composer package-scaffold:check -- packages/platform/example`
+- `composer package-scaffold:check -- packages/framework`
+- `composer package-scaffold:check -- packages/applications/skeleton`
 
 ---
 

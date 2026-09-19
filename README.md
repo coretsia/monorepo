@@ -257,23 +257,25 @@ Coretsia should not currently be selected for a production application that requ
 ## Repository layout
 
 ```text
-framework/
-  packages/
-    core/
-    platform/
-    integrations/
-    enterprise/
-    devtools/
-    presets/
-  tools/
+packages/
+  framework/
+  applications/
+    skeleton/
+  core/
+  platform/
+  integrations/
+  devtools/
 
-skeleton/
+tools/
+var/
 docs/
 ```
 
-- `framework/packages/<layer>/<slug>/` — publishable framework packages;
-- `framework/tools/**` — repository tooling, generators, and CI support;
-- `skeleton/**` — local application workspace, fixtures, entrypoints, E2E tests, and runtime caches;
+- `packages/framework/` — public `coretsia/framework` distribution;
+- `packages/applications/skeleton/` — public `coretsia/skeleton` application template;
+- `packages/{core,platform,integrations,devtools}/**` — publishable split Composer packages;
+- `tools/**` — repository tooling, generators, and CI support;
+- `var/**` — mutable/generated repository workspace state;
 - `docs/ssot/**` — canonical invariants, schemas, ownership, and policies;
 - `docs/architecture/**` — architecture guidance that refers to SSoT for normative truth;
 - `docs/ops/**` — operational and repository-maintenance documentation.
@@ -284,24 +286,31 @@ Canonical package layers are:
 core
 platform
 integrations
-enterprise
 devtools
-presets
 ```
 
 ## Package and release model
 
-Framework packages are developed in this monorepo and published as split Composer packages.
+Coretsia packages are developed in this monorepo and published as split Composer packages.
 
-Canonical package identity:
+Canonical package identity is defined by package metadata.
+
+Layered package source:
 
 ```text
-path: framework/packages/<layer>/<slug>/
+path: packages/<layer>/<slug>/
 package id: <layer>/<slug>
-Composer name: coretsia/<layer>-<slug>
+Composer name: composer.json `name`
 ```
 
-All Coretsia packages use one framework release train:
+Special distributions:
+
+```text
+packages/framework/              → coretsia/framework
+packages/applications/skeleton/ → coretsia/skeleton
+```
+
+All Coretsia packages use one monorepo-wide release train:
 
 ```text
 vMAJOR.MINOR.PATCH
@@ -309,7 +318,7 @@ vMAJOR.MINOR.PATCH
 
 Independent per-package version streams are intentionally not supported.
 
-This keeps framework packages, runtime contracts, generated artifact schemas, documentation, and tooling aligned under one compatibility line.
+This keeps Coretsia packages, runtime contracts, generated artifact schemas, documentation, and tooling aligned under one compatibility line.
 
 See:
 

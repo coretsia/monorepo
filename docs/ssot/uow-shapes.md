@@ -40,17 +40,17 @@ Coretsia\Contracts\Runtime\UnitOfWorkHandle
 The implementation paths are:
 
 ```text
-framework/packages/core/contracts/src/Runtime/UnitOfWorkHandle.php
-framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
-framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php
-framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php
+packages/core/contracts/src/Runtime/UnitOfWorkHandle.php
+packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
+packages/core/kernel/src/Runtime/UnitOfWorkContext.php
+packages/core/kernel/src/Runtime/UnitOfWorkResult.php
 ```
 
 The validation exception paths are:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php
-framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php
+packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php
+packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php
 ```
 
 This document complements:
@@ -106,7 +106,7 @@ core/kernel
 The package path is:
 
 ```text
-framework/packages/core/kernel/
+packages/core/kernel/
 ```
 
 The Composer package is:
@@ -880,7 +880,7 @@ Nested maps inside `attributes`, `extensions`, and exported `error` maps MUST be
 Kernel centralizes UoW-specific shape validation in an internal runtime helper:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
+packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
 ```
 
 The canonical internal wrapper is:
@@ -896,7 +896,7 @@ It is not a public API, not a DI service, and not a transport extension point.
 It MUST NOT be exposed through:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 The Kernel wrapper MUST delegate baseline json-like validation and recursive deterministic normalization to:
@@ -1457,13 +1457,13 @@ kernel
 The defaults file is:
 
 ```text
-framework/packages/core/kernel/config/kernel.php
+packages/core/kernel/config/kernel.php
 ```
 
 The rules file is:
 
 ```text
-framework/packages/core/kernel/config/rules.php
+packages/core/kernel/config/rules.php
 ```
 
 The defaults file MUST return the `kernel` subtree only and MUST NOT repeat the root wrapper.
@@ -1623,13 +1623,13 @@ The last example is invalid because floats are forbidden. Use integer millisecon
 Expected Kernel contract enforcement includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
+packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php
 ```
 
 These tests are expected to verify:
@@ -1668,7 +1668,7 @@ These tests are expected to verify:
 Outcome mapping policy is enforced separately by:
 
 ```text
-framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
+packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
 ```
 
 ## Non-goals

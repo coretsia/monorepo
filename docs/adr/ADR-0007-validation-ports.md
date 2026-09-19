@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.130.0` introduces stable validation contracts under:
 
 ```text
-framework/packages/core/contracts/src/Validation/
+packages/core/contracts/src/Validation/
 ```
 
 Validation must be usable across HTTP, CLI, worker, scheduler, queue consumer, and custom runtime boundaries without coupling `core/contracts` to transport-specific APIs or runtime implementations.
@@ -37,8 +37,8 @@ It must not depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - worker runtime packages
 - queue vendor clients
 - scheduler vendor clients
@@ -46,7 +46,8 @@ It must not depend on:
 - concrete exception mapper implementations
 - concrete problem-details renderers
 - concrete service container implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 The detailed normative policy for this ADR is defined by:
@@ -67,7 +68,7 @@ Relevant reserved tag:
 error.mapper
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -130,8 +131,8 @@ The validation port intentionally does not require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -309,7 +310,7 @@ That tag is owned by:
 platform/errors
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -345,7 +346,7 @@ Future runtime owners may introduce artifacts only through their own owner epics
 
 ## Json-like payload decision
 
-Validation metadata follows the Phase 0 json-like policy:
+Validation metadata follows the canonical json-like runtime value policy defined by `docs/ssot/json-like-runtime-values.md`:
 
 - allowed scalars are `string`, `int`, `bool`, and `null`;
 - floats are forbidden, including `NaN`, `INF`, and `-INF`;
@@ -517,7 +518,7 @@ This ADR does not implement:
 - executable validators;
 - validator DI registration;
 - DI tag identifier constants in `core/contracts`;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - error mapper implementation;
 - mapper registry implementation;
 - mapper priority algorithm;

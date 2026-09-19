@@ -18,10 +18,12 @@ This repository is **SSoT-first**, **deterministic-by-default**, and **boundary-
 
 ## Repository layout (canonical)
 
-- `framework/` — framework meta-package + all framework packages
-- `skeleton/` — local workspace app sandbox (fixtures, E2E, entrypoints)
-- `docs/` — SSoT (`docs/ssot/**`) + task-first roadmap (`docs/roadmap/**`)
-- `framework/tools/` — gates, generators, CI rails, and tooling support
+- `packages/**` — publishable Composer products
+  - `packages/framework/` — `coretsia/framework`
+  - `packages/applications/skeleton/` — `coretsia/skeleton`
+- `tools/**` — gates, generators, CI rails, and tooling support
+- `var/**` — mutable/generated repository workspace state
+- `docs/**` — SSoT (`docs/ssot/**`) + task-first roadmap (`docs/roadmap/**`)
 
 ## Ground rules (SSoT, MUST)
 
@@ -58,12 +60,14 @@ Implementation pull requests that follow from an accepted discussion should link
 
 ## Packaging law (MUST)
 
-- Packages **MUST** live at: `framework/packages/<layer>/<slug>/`
-- Package id **MUST** be: `<layer>/<slug>`
-- Composer name **MUST** be: `coretsia/<layer>-<slug>`
-- Namespace mapping **MUST** be deterministic:
-  - `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
-  - `src/` for sources, `tests/` for tests (`...\Tests\...`)
+- Publishable Composer products **MUST** live under `packages/**`.
+- Special package locations are:
+  - `packages/framework/` → `coretsia/framework`
+  - `packages/applications/skeleton/` → `coretsia/skeleton`
+- Layered packages **MUST** live at `packages/<layer>/<slug>/`.
+- Package identity **MUST** be read from each package `composer.json`; filesystem location **MUST NOT** be used as the Composer-name source of truth.
+- `packages/devtools/<slug>/` publishes `coretsia/devtools-<slug>`.
+- Namespace and package-shape rules **MUST** comply with `docs/architecture/PACKAGING.md`.
 - Versioning is **monorepo-wide** via tags: `vMAJOR.MINOR.PATCH` (per-package independent versions **MUST NOT** be used).
 
 ## Canonical entrypoints (MUST)
@@ -80,11 +84,7 @@ composer ci
 
 ## Managed composer repositories (MUST NOT edit by hand)
 
-`repositories` blocks in these files are **managed** and **MUST NOT** be manually edited:
-
-- `composer.json`
-- `framework/composer.json`
-- `skeleton/composer.json`
+The `repositories` block in root `composer.json` is **managed** and **MUST NOT** be manually edited.
 
 Single source of truth tool:
 
@@ -95,12 +95,13 @@ composer sync:repos
 
 Policy (MUST):
 
-- The tool is idempotent (rerun-no-diff), supports `--check`, is runnable without `vendor/autoload`, and writes backups under `framework/var/backups/*` (ignored).
+- The tool is idempotent (rerun-no-diff), supports `--check`, is runnable without `vendor/autoload`, and writes backups under `var/backups/*` (ignored).
 - Pre-commit guard **MUST** enforce drift check (`--check`) and fail on drift.
 
 ## Lock determinism (MUST)
 
-- Lock files **MUST** be committed for: root / framework / skeleton.
+- The root workspace `composer.lock` **MUST** be committed.
+- Consumer applications own their own `composer.lock`.
 - CI **MUST** use `composer install` (not update) and **MUST NOT** modify lock files.
 - CI **MUST** fail on lock drift.
 - CI **MUST** run managed-repos drift check **before** installs.

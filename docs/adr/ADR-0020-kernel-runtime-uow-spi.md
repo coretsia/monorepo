@@ -126,7 +126,7 @@ Coretsia\Kernel\Runtime\KernelRuntime
 The canonical interface path is:
 
 ```text
-framework/packages/core/contracts/src/Runtime/KernelRuntimeInterface.php
+packages/core/contracts/src/Runtime/KernelRuntimeInterface.php
 ```
 
 The canonical interface is:
@@ -309,7 +309,7 @@ After the reset-responsibility boundary is crossed:
 The canonical implementation path is:
 
 ```text
-framework/packages/core/kernel/src/Runtime/KernelRuntime.php
+packages/core/kernel/src/Runtime/KernelRuntime.php
 ```
 
 The canonical implementation class is:
@@ -436,7 +436,7 @@ Secondary after-phase or reset failures are not aggregated into the surfaced lif
 The canonical internal normalizer path is:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php
+packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php
 ```
 
 Kernel hook payload production converts Kernel-owned runtime shapes into normalized json-like arrays.
@@ -574,7 +574,7 @@ The reserved default reset discovery tag is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -773,23 +773,23 @@ This ADR does not define:
 Verification evidence includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
-framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
-framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php
-framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
-framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php
-framework/packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
-framework/packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
+packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
+packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
+packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php
+packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
+packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php
+packages/core/kernel/tests/Contract/KernelRuntimeResetResponsibilityContractTest.php
+packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidUnitOfWorkHandleTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php
 ```
 
 These tests verify:

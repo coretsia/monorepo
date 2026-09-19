@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.160.0` introduces stable rate limit contracts under:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/
+packages/core/contracts/src/RateLimit/
 ```
 
 Runtime packages need a shared rate limiting boundary that allows HTTP middleware, application runtimes, and future backend integrations to use rate limiting without coupling public APIs to a concrete store implementation.
@@ -488,7 +488,7 @@ If a future runtime owner needs rate limit DI tags, that owner must introduce th
 docs/ssot/tags.md
 ```
 
-Framework-reserved DI tag identifier strings must be declared in:
+Coretsia-reserved DI tag identifier strings must be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags

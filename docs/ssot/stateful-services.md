@@ -69,13 +69,13 @@ It does not own ContextStore safe-write policy, safe value model, or context res
 docs/ssot/context-store.md
 ```
 
-It does not own the canonical reserved tag registry. Tag names, tag ownership rows, reserved prefixes, tag naming rules, and framework-reserved DI tag identifier code-level registry rules are owned by:
+It does not own the canonical reserved tag registry. Tag names, tag ownership rows, reserved prefixes, tag naming rules, and Coretsia-reserved DI tag identifier code-level registry rules are owned by:
 
 ```text
 docs/ssot/tags.md
 ```
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -245,7 +245,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -273,7 +273,7 @@ The fixed enforcement marker is:
 kernel.stateful
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -291,7 +291,7 @@ The reserved default effective reset discovery tag is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -711,7 +711,7 @@ It defines policy that MUST be enforced by owner package tests, integration chec
 The canonical build-time enforcement rail for stateful-service tag discipline is:
 
 ```text
-framework/tools/gates/cross_cutting_contract_gate.php
+tools/gates/cross_cutting_contract_gate.php
 ```
 
 It MUST enforce:

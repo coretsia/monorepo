@@ -24,7 +24,7 @@ owner_path: "docs/roadmap/phase0/"
 
 goal: "Lock a single canonical boundary for Phase 0 spikes: tools-only spikes, with a single devtools exception."
 provides:
-- "Single-choice boundary: spikes live under framework/tools/spikes/**"
+- "Single-choice boundary: spikes live under tools/spikes/**"
 - "Single-choice exception: determinism helpers live only in coretsia/internal-toolkit"
 - "Clear forbidden runtime imports policy for spikes"
 
@@ -100,14 +100,14 @@ N/A
 
 - [x] The boundary doc MUST include:
   - [x] “Examples” section with 3–4 minimal valid/invalid examples (copy-pastable), including:
-    - [x] One invalid example: moving a spike implementation into a runtime package under `framework/packages/**`
-      (e.g. a spike class placed under `framework/packages/core/*` or `framework/packages/platform/*`)
+    - [x] One invalid example: moving a spike implementation into a runtime package under `packages/**`
+      (e.g. a spike class placed under `packages/core/*` or `packages/platform/*`)
       MUST be shown as a boundary violation, even if the CLI can dispatch it.
 - [x] Deliverables complete (creates), paths exact
 - [x] Boundary is **single-choice** (no “either/or”):
-  - [x] Spikes MUST live under `framework/tools/spikes/**`
-  - [x] Spike implementations MUST NOT live under `framework/packages/**` (`production/runtime` area).
-  - [x] Spikes MUST NOT `require|include` any sources from `framework/packages/**/src/**` (no path-based imports).
+  - [x] Spikes MUST live under `tools/spikes/**`
+  - [x] Spike implementations MUST NOT live under `packages/**` (`production/runtime` area).
+  - [x] Spikes MUST NOT `require|include` any sources from `packages/**/src/**` (no path-based imports).
   - [x] Spikes MAY depend on exactly one **Coretsia internal** tooling library:
     - [x] `coretsia/internal-toolkit` (composer dependency), and MUST access it via Composer autoload (namespace-based).
   - [x] Spikes MAY use third-party dev tooling dependencies (e.g., PHPUnit) via the tooling workspace,
@@ -120,11 +120,11 @@ N/A
     - [x] stable JSON encoding helpers (`Json::*`)
   - [x] Clarification (cemented): this exception is CLOSED to only slug/path/json primitives.
     - [x] Deterministic file IO helpers (e.g. Phase 0 `DeterministicFile` for EOL/LF normalization and safe writes)
-      are NOT part of the internal-toolkit primitive set and MAY live under `framework/tools/spikes/_support/**`
+      are NOT part of the internal-toolkit primitive set and MAY live under `tools/spikes/_support/**`
       as Phase 0 rails infrastructure, as long as they do not duplicate `Slug::*`, `Path::*`, or `Json::*`.
-  - [x] Tooling MUST NOT duplicate these primitives anywhere under `framework/tools/**`.
+  - [x] Tooling MUST NOT duplicate these primitives anywhere under `tools/**`.
   - [x] Non-primitive Phase 0 rails infrastructure is explicitly NOT part of this exception and MAY live under
-    `framework/tools/spikes/_support/**` (e.g., ErrorCodes registry, deterministic exception carrier,
+    `tools/spikes/_support/**` (e.g., ErrorCodes registry, deterministic exception carrier,
     CI rails runner, gates scripts), as long as it respects the “no runtime imports / no path-imports from packages/**/src/**” rules.
 - [x] CLI exception is explicit (does NOT change spikes boundary):
   - [x] CLI runtime package `coretsia/cli` MAY exist as UX entrypoint.
@@ -132,7 +132,7 @@ N/A
     - [x] Spike commands MUST live in a devtools-only package (`coretsia/cli-spikes`, epic 0.140.0) or tools-only scripts.
   - [x] Production safety invariant:
     - [x] Installing only `coretsia/cli` MUST NOT include doctor/spike/deptrac/workspace command classes in the package.
-  - [x] This exception does NOT allow spikes to move out of `framework/tools/spikes/**`.
+  - [x] This exception does NOT allow spikes to move out of `tools/spikes/**`.
   - [x] Spikes remain tools-only; CLI only dispatches/executes them and reads fixtures.
   - [x] This boundary decision does not require 0.120/0.130/0.140 to be implemented; it only defines the rule.
 - [x] Out of scope:
@@ -148,11 +148,11 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.20.0"
-owner_path: "framework/tools/spikes/"
+owner_path: "tools/spikes/"
 
 goal: "Provide a stable spikes sandbox + CI rails ensuring deterministic execution across Linux/Windows."
 provides:
-- "Single sandbox root for all spikes: framework/tools/spikes/**"
+- "Single sandbox root for all spikes: tools/spikes/**"
 - "Determinism suite rails (Linux + Windows) with rerun-no-diff policy"
 - "Shared error codes, fixtures, and safe output policy (no secrets)"
 
@@ -175,7 +175,7 @@ ssot_refs: []
 - Required deliverables (exact paths):
   - `.github/workflows/ci.yml` — CI workflow exists to extend with spikes rails
   - `framework/composer.json` — tooling workspace root exists
-  - `framework/tools/testing/phpunit.xml` — monorepo harness exists (spikes add their own config)
+  - `tools/testing/phpunit.xml` — monorepo harness exists (spikes add their own config)
 
 - Required config roots/keys:
   - none
@@ -199,7 +199,7 @@ Forbidden:
 - `integrations/*`
 - `devtools/cli-spikes`
   - (Phase 0 spike implementations MUST NOT depend on devtools command packs; cli-spikes dispatches into tools-only spikes, never the other way around)
-- `framework/packages/**/src/**`
+- `packages/**/src/**`
   - (spikes sandbox MUST NOT import runtime code nor path-import tooling libs; internal-toolkit is used via Composer autoload only)
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -217,18 +217,18 @@ N/A
   - job `determinism` (Linux+Windows): runs `composer spike:test:determinism`
 
 - Artifacts:
-  - reads: `framework/tools/spikes/fixtures/**`
+  - reads: `tools/spikes/fixtures/**`
   - writes: test temp dirs only (no repo writes except committed fixtures)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [x] `framework/tools/spikes/README.md` — Phase 0 spikes rules + how to run locally/CI
-- [x] `framework/tools/spikes/phpunit.spikes.xml` — dedicated PHPUnit config for spikes:
+- [x] `tools/spikes/README.md` — Phase 0 spikes rules + how to run locally/CI
+- [x] `tools/spikes/phpunit.spikes.xml` — dedicated PHPUnit config for spikes:
   - [x] MUST set `bootstrap` to `_support/bootstrap.php` (single-choice; config-file-relative, CWD-independent).
   - [x] Rationale: the same config MUST work when invoked either from repo root
-    (`phpunit -c framework/tools/spikes/phpunit.spikes.xml`) or from `framework/` workspace
+    (`phpunit -c tools/spikes/phpunit.spikes.xml`) or from `framework/` workspace
     (`phpunit -c tools/spikes/phpunit.spikes.xml`) without path rewrites.
   - [x] MUST NOT write any caches/artifacts into the git worktree during `spike:test` or `spike:test:determinism`.
   - [x] MUST NOT configure any report outputs that write files into the repo (junit/coverage/testdox/html/xml).
@@ -237,25 +237,25 @@ N/A
     - [x] The canonical mechanism is single-choice:
       - [x] `phpunit` MUST be invoked with `--do-not-cache-result`.
     - [x] `phpunit.spikes.xml` MUST NOT declare any cache directory/file paths (no `.phpunit.result.cache`, no `.phpunit.cache`, no `cacheDirectory` pointing into the repo).
-- [x] `framework/tools/spikes/fixtures/` — base fixtures namespace
-  - [x] `framework/tools/spikes/fixtures/repo_min/.gitkeep` — inputs for fingerprint/config spikes
-  - [x] `framework/tools/spikes/fixtures/payloads_min/.gitkeep` — inputs for payload spike
-  - [x] `framework/tools/spikes/fixtures/deptrac_min/.gitkeep` — inputs for deptrac spike
-  - [x] `framework/tools/spikes/fixtures/workspace_min/.gitkeep` — inputs for workspace spike
-- [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` — SSoT fixture: canonical middleware catalog
-- [x] `framework/tools/spikes/_support/ConsoleOutput.php` — stable console writer (no secrets):
+- [x] `tools/spikes/fixtures/` — base fixtures namespace
+  - [x] `tools/spikes/fixtures/repo_min/.gitkeep` — inputs for fingerprint/config spikes
+  - [x] `tools/spikes/fixtures/payloads_min/.gitkeep` — inputs for payload spike
+  - [x] `tools/spikes/fixtures/deptrac_min/.gitkeep` — inputs for deptrac spike
+  - [x] `tools/spikes/fixtures/workspace_min/.gitkeep` — inputs for workspace spike
+- [x] `tools/spikes/fixtures/http_middleware_catalog.php` — SSoT fixture: canonical middleware catalog
+- [x] `tools/spikes/_support/ConsoleOutput.php` — stable console writer (no secrets):
   - [x] This file is the ONLY allowlisted stdout/stderr writer for Phase 0 tooling rails:
-    - [x] under `framework/tools/spikes/**`
-    - [x] and under `framework/tools/gates/**`
+    - [x] under `tools/spikes/**`
+    - [x] and under `tools/gates/**`
   - [x] Rationale: Phase 0 gates and determinism runner require diagnostics output, but spikes business logic MUST remain output-free.
   - [x] Reserved usage (single-choice):
     - [x] ONLY Phase 0 rails code MAY use it:
-      - [x] gates under `framework/tools/gates/**` (when they need to emit diagnostics)
-      - [x] `framework/tools/spikes/_support/DeterminismRunner.php`
+      - [x] gates under `tools/gates/**` (when they need to emit diagnostics)
+      - [x] `tools/spikes/_support/DeterminismRunner.php`
       - [x] spikes bootstrap/runner diagnostics (not business logic)
   - [x] Spike business logic MUST NOT use `ConsoleOutput` (enforced separately by `SpikeModulesDoNotUseConsoleOutputTest`).
   - [x] MUST NOT print secrets/PII; diagnostics are code + normalized repo-relative paths only.
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — deterministic string error codes shared across spikes
+- [x] `tools/spikes/_support/ErrorCodes.php` — deterministic string error codes shared across spikes
   - [x] MUST define initial registry content (cemented in this epic):
     - [x] `CORETSIA_DETERMINISM_GIT_REQUIRED`
     - [x] `CORETSIA_DETERMINISM_WORKTREE_DIRTY`
@@ -271,8 +271,8 @@ N/A
     - [x] `has(string $code): bool`
     - [x] `all(): array` (cemented stable order):
       - [x] MUST return `list<string>` sorted ascending by byte-order (`strcmp`)
-- [x] `framework/tools/spikes/_support/DeterministicException.php` — canonical deterministic exception carrier (string code):
-  - [x] MUST carry a deterministic string error code from `framework/tools/spikes/_support/ErrorCodes.php`
+- [x] `tools/spikes/_support/DeterministicException.php` — canonical deterministic exception carrier (string code):
+  - [x] MUST carry a deterministic string error code from `tools/spikes/_support/ErrorCodes.php`
   - [x] MUST expose:
     - [x] `code(): string` (returns the deterministic string code)
   - [x] Construction rules (single-choice; enforceable):
@@ -282,8 +282,8 @@ N/A
       - [x] MUST NOT contain dotenv values, tokens, passwords, raw payloads
       - [x] allowed content: short fixed reason + safe ids / normalized repo-relative paths provided by the caller
   - [x] Rationale: spikes/gates/runner share a single deterministic “code-first” failure semantic; no ad-hoc RuntimeException("CODE") patterns.
-- [x] `framework/tools/gates/repo_text_normalization_gate.php`
-- [x] `framework/tools/gates/spikes_output_gate.php` — deterministic spikes output bypass gate:
+- [x] `tools/gates/repo_text_normalization_gate.php`
+- [x] `tools/gates/spikes_output_gate.php` — deterministic spikes output bypass gate:
   - [x] Scan scope (single-choice; paths are scan-root-relative):
     - [x] include:
       - [x] `spikes/**/*.php`
@@ -360,10 +360,10 @@ N/A
   - [x] Exit code policy (single-choice):
     - [x] exit `0` on pass (print nothing)
     - [x] exit `1` on fail
-- [x] `framework/tools/spikes/_support/FixtureRoot.php` — deterministic fixture root resolver
+- [x] `tools/spikes/_support/FixtureRoot.php` — deterministic fixture root resolver
   - [x] API (single-choice; cemented):
     - [x] `rootDir(): string`
-      - [x] returns an absolute canonical path to `framework/tools/spikes/fixtures` resolved from `__DIR__` (no CWD reliance).
+      - [x] returns an absolute canonical path to `tools/spikes/fixtures` resolved from `__DIR__` (no CWD reliance).
     - [x] `path(string $relative): string`
       - [x] returns an absolute canonical path under `rootDir()` for a **fixtures-root-relative** path
         (e.g. `repo_min/skeleton/.env`).
@@ -381,18 +381,18 @@ N/A
   - [x] Safety (single-choice; enforceable):
     - [x] MUST NOT print/emit output.
     - [x] MUST NOT embed absolute paths in exception messages (message contains only fixed reason tokens).
-- [x] `framework/tools/spikes/fingerprint/.gitkeep` — spike module folder (scaffold)
-- [x] `framework/tools/spikes/payload/.gitkeep` — spike module folder (scaffold)
-- [x] `framework/tools/spikes/deptrac/.gitkeep` — spike module folder (scaffold)
-- [x] `framework/tools/spikes/config_merge/.gitkeep` — spike module folder (scaffold)
-- [x] `framework/tools/spikes/workspace/.gitkeep` — spike module folder (scaffold)
-- [x] `framework/tools/spikes/_support/bootstrap.php` — canonical tools rails bootstrap (spikes + gates):
+- [x] `tools/spikes/fingerprint/.gitkeep` — spike module folder (scaffold)
+- [x] `tools/spikes/payload/.gitkeep` — spike module folder (scaffold)
+- [x] `tools/spikes/deptrac/.gitkeep` — spike module folder (scaffold)
+- [x] `tools/spikes/config_merge/.gitkeep` — spike module folder (scaffold)
+- [x] `tools/spikes/workspace/.gitkeep` — spike module folder (scaffold)
+- [x] `tools/spikes/_support/bootstrap.php` — canonical tools rails bootstrap (spikes + gates):
   - [x] MUST load Composer autoload deterministically (ordered fallback; single-choice), and MUST be CWD-independent:
     - [x] Let `$bootstrapDir = __DIR__` (directory of this bootstrap file).
     - [x] Let `$frameworkRoot = realpath($bootstrapDir . '/../../..')` (resolves to `framework/`).
     - [x] Let `$repoRoot = realpath($frameworkRoot . '/..')`.
     - [x] Candidate autoload paths (single-choice order):
-      1) [x] `$frameworkRoot . '/vendor/autoload.php'`   (equivalent of `framework/vendor/autoload.php`)
+      1) [x] `$frameworkRoot . '/vendor/autoload.php'`   (equivalent of `vendor/autoload.php`)
       2) [x] `$repoRoot . '/vendor/autoload.php'`       (equivalent of `vendor/autoload.php`)
     - [x] MUST NOT perform any directory probing beyond checking the two candidate paths above in order.
     - [x] MUST `require_once` the first readable candidate; if none exist:
@@ -403,7 +403,7 @@ N/A
           - [x] Line 1: `CORETSIA_SPIKES_BOOTSTRAP_AUTOLOAD_MISSING`
           - [x] Line 2: `autoload-missing`
         - [x] MUST exit `1`.
-- [x] `framework/tools/spikes/_support/DeterminismRunner.php` — deterministic rerun-no-diff orchestrator (single canonical mechanism):
+- [x] `tools/spikes/_support/DeterminismRunner.php` — deterministic rerun-no-diff orchestrator (single canonical mechanism):
   - [x] MUST create a fresh runner temp root for each run and expose it to child processes:
     - [x] env var `CORETSIA_SPIKES_TMP` MUST be set for `composer spike:test` runs
     - [x] the temp root MUST be outside the repo and MUST be removed before each worktree cleanliness check
@@ -426,20 +426,20 @@ N/A
     - [x] Line 1: deterministic `CODE` only (one of `CORETSIA_DETERMINISM_*`)
     - [x] Next lines (optional): stable short reason tokens only (no absolute paths, no env values, no captured output)
       - [x] examples: `worktree-dirty`, `run1-nonzero`, `run2-nonzero`, `git-required`
-    - [x] Output MUST be emitted via `framework/tools/spikes/_support/ConsoleOutput.php` only.
+    - [x] Output MUST be emitted via `tools/spikes/_support/ConsoleOutput.php` only.
   - [x] Exit code policy (single-choice):
     - [x] exit `0` on success
     - [x] exit `1` on any failure
 
-- [x] `framework/tools/spikes/tests/ErrorCodesRegistryIsConsistentTest.php` — registry cement:
+- [x] `tools/spikes/tests/ErrorCodesRegistryIsConsistentTest.php` — registry cement:
   - [x] all codes are unique
   - [x] all codes are UPPER_SNAKE (A–Z, 0–9, `_`)
   - [x] (optional but recommended) codes used by DeterminismRunner/Gates exist in registry
   - [x] MUST assert that DeterminismRunner codes exist in registry (hard fail if removed)
   - [x] MUST assert `ErrorCodes::all()` is sorted by byte-order (`strcmp`) and contains no duplicates
-- [x] `framework/tools/spikes/tests/SpikesOutputGateDetectsBypassTest.php` — contract evidence:
+- [x] `tools/spikes/tests/SpikesOutputGateDetectsBypassTest.php` — contract evidence:
   - [x] MUST cement CLI override mode:
-    - [x] runs the gate in default mode (no `--path`) on the real repo scan root (`framework/tools`)
+    - [x] runs the gate in default mode (no `--path`) on the real repo scan root (`tools`)
     - [x] runs the gate in `--path=<tempScanRoot>` mode against a synthetic scan root that contains:
       - [x] `<tempScanRoot>/spikes/**/*.php`
       - [x] `<tempScanRoot>/gates/**/*.php`
@@ -453,24 +453,24 @@ N/A
   - [x] given a temp php file containing `fwrite(STDOUT, "x");` → gate MUST fail with `CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED`
   - [x] given a temp php file containing `file_put_contents('php://stderr', "x");` → gate MUST fail with `CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED`
   - [x] given a temp php file containing `error_log("x");` → gate MUST fail with `CORETSIA_SPIKES_OUTPUT_BYPASS_DETECTED`
-- [x] `framework/tools/spikes/tests/SpikeModulesDoNotUseConsoleOutputTest.php` — contract:
-  - [x] token-based scan of `framework/tools/spikes/**` excluding:
-    - [x] `framework/tools/spikes/_support/**`
-    - [x] `framework/tools/spikes/tests/**`
-    - [x] `framework/tools/spikes/fixtures/**`
+- [x] `tools/spikes/tests/SpikeModulesDoNotUseConsoleOutputTest.php` — contract:
+  - [x] token-based scan of `tools/spikes/**` excluding:
+    - [x] `tools/spikes/_support/**`
+    - [x] `tools/spikes/tests/**`
+    - [x] `tools/spikes/fixtures/**`
   - [x] MUST fail if any spike module references `ConsoleOutput` (class name or FQCN) or writes to stdout/stderr
   - [x] Rationale: output authority is owned by CLI OutputInterface; spikes are pure computation
-- [x] `framework/tools/spikes/tests/SpikeModulesDoNotCallExitOrDieTest.php` — contract:
-  - [x] token-based scan of `framework/tools/spikes/**` excluding:
-    - [x] `framework/tools/spikes/_support/**`
-    - [x] `framework/tools/spikes/tests/**`
-    - [x] `framework/tools/spikes/fixtures/**`
+- [x] `tools/spikes/tests/SpikeModulesDoNotCallExitOrDieTest.php` — contract:
+  - [x] token-based scan of `tools/spikes/**` excluding:
+    - [x] `tools/spikes/_support/**`
+    - [x] `tools/spikes/tests/**`
+    - [x] `tools/spikes/fixtures/**`
   - [x] MUST fail if any spike module uses process-termination constructs:
     - [x] `exit`
     - [x] `die`
   - [x] Rationale: spike business logic must be exception-driven (`DeterministicException`) and MUST NOT
     bypass rails/CLI semantics via early process termination.
-- [x] `framework/tools/spikes/tests/DeterministicExceptionIsSafeTest.php` — contract evidence:
+- [x] `tools/spikes/tests/DeterministicExceptionIsSafeTest.php` — contract evidence:
   - [x] creating `DeterministicException` with any registered code MUST be possible
   - [x] the exception message MUST NOT contain:
     - [x] any absolute path fragments (`C:\`, `\\server\share\`, `/home/`, `/Users/`)
@@ -483,7 +483,7 @@ N/A
           - [x] `/home/`
           - [x] `/Users/`
     - [x] dotenv-like patterns (`KEY=VALUE`) for typical secret keys (`TOKEN`, `PASSWORD`, `AUTH`, `COOKIE`)
-- [x] `framework/tools/spikes/tests/FixtureRootRejectsParentTraversalTest.php` — contract evidence:
+- [x] `tools/spikes/tests/FixtureRootRejectsParentTraversalTest.php` — contract evidence:
   - [x] calling `FixtureRoot::path('../x')` MUST throw `DeterministicException` with code `CORETSIA_SPIKES_FIXTURE_PATH_INVALID`
   - [x] calling `FixtureRoot::path('/etc/passwd')` MUST throw `DeterministicException` with code `CORETSIA_SPIKES_FIXTURE_PATH_INVALID`
   - [x] calling `FixtureRoot::path('C:\\x')` MUST throw `DeterministicException` with code `CORETSIA_SPIKES_FIXTURE_PATH_INVALID`
@@ -519,16 +519,16 @@ N/A
   - [x] MUST add cemented `autoload-dev` PSR-4 mapping for spikes (single-choice):
     - [x] `Coretsia\\Tools\\Spikes\\` → `tools/spikes/`
   - [x] PSR-4 path/namespace case-safety (single-choice; cross-OS enforceable):
-    - [x] For any class under `framework/tools/spikes/<dir>/...`, the namespace segment after
+    - [x] For any class under `tools/spikes/<dir>/...`, the namespace segment after
       `Coretsia\Tools\Spikes\` MUST match `<dir>` exactly as it exists on disk (case-sensitive).
     - [x] Canonical examples (cemented):
-      - [x] `framework/tools/spikes/_support/ConsoleOutput.php`
+      - [x] `tools/spikes/_support/ConsoleOutput.php`
         → `Coretsia\Tools\Spikes\_support\ConsoleOutput`
-      - [x] `framework/tools/spikes/config_merge/DirectiveProcessor.php`
+      - [x] `tools/spikes/config_merge/DirectiveProcessor.php`
         → `Coretsia\Tools\Spikes\config_merge\DirectiveProcessor`
-      - [x] `framework/tools/spikes/fingerprint/FingerprintCalculator.php`
+      - [x] `tools/spikes/fingerprint/FingerprintCalculator.php`
         → `Coretsia\Tools\Spikes\fingerprint\FingerprintCalculator`
-      - [x] `framework/tools/spikes/workspace/ComposerRepositoriesSync.php`
+      - [x] `tools/spikes/workspace/ComposerRepositoriesSync.php`
         → `Coretsia\Tools\Spikes\workspace\ComposerRepositoriesSync`
     - [x] Rationale: Linux filesystems are case-sensitive; this prevents autoload drift.
 - [x] `composer.json` — wire determinism runner:
@@ -548,7 +548,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/phpunit.spikes.xml`
   - [x] `composer.json`
   - [x] `framework/composer.json`
 
@@ -574,7 +574,7 @@ N/A
 
 #### Errors
 
-- [x] Spikes use shared `framework/tools/spikes/_support/ErrorCodes.php`
+- [x] Spikes use shared `tools/spikes/_support/ErrorCodes.php`
 - [x] Error output policy: code string + short reason (no secrets)
 - [x] Gate diagnostics output format is canonical (SSoT) for Phase 0 gates:
   - [x] Line 1: the deterministic error `CODE` only
@@ -591,7 +591,7 @@ N/A
   - [x] `<dir>` overrides the **scan root** only.
   - [x] Reported paths MUST be normalized **scan-root-relative** (forward slashes).
   - [x] Rationale: the same gate output is stable across default and `--path` synthetic scan trees.
-- [x] Determinism runner uses shared error codes from `framework/tools/spikes/_support/ErrorCodes.php`:
+- [x] Determinism runner uses shared error codes from `tools/spikes/_support/ErrorCodes.php`:
   - [x] `CORETSIA_DETERMINISM_GIT_REQUIRED`
   - [x] `CORETSIA_DETERMINISM_WORKTREE_DIRTY`
   - [x] `CORETSIA_DETERMINISM_RERUN_FAILED`
@@ -611,7 +611,7 @@ N/A
   - [x] Linux + Windows runs `composer spike:test:determinism`
   - [x] re-run produces no file diffs
 - [x] Output/Error policy is centralized and non-bypassable (enforced):
-  - [x] `composer spike:output:gate` MUST fail on any direct output bypass in `framework/tools/spikes/**`
+  - [x] `composer spike:output:gate` MUST fail on any direct output bypass in `tools/spikes/**`
   - [x] Any bypass is treated as a test failure via `SpikesOutputGateDetectsBypassTest`
 - [x] `composer spike:test:determinism` is proven non-declarative:
   - [x] it MUST fail if any repo writes occur during spike tests
@@ -623,7 +623,7 @@ N/A
   - N/A (owned by individual spike epics)
 
 - Integration:
-  - [x] `framework/tools/spikes/**/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/**/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 - Gates/Arch (CI rails in this epic):
   - [x] `.github/workflows/ci.yml` jobs MUST exist and be green:
@@ -636,13 +636,13 @@ N/A
 - [x] Deliverables complete (creates+modifies), paths exact
 - [x] Determinism suite green on Linux + Windows
 - [x] Spikes do not import runtime code (`core/*`, `platform/*`, `integrations/*`)
-- [x] Docs: `framework/tools/spikes/README.md` explains how to run spikes
+- [x] Docs: `tools/spikes/README.md` explains how to run spikes
 - [x] Out of scope:
   - [x] This epic MUST NOT introduce production runtime behavior (Phase 0 spikes/tooling only)
   - [x] This epic MUST NOT introduce plugin systems / extensibility frameworks
   - [x] This epic MUST NOT depend on `core/kernel` (unless explicitly stated in the epic)
-- [x] Spikes MUST NOT import runtime code from `framework/packages/**/src/**` via any path-based mechanism.
-  - [x] Spikes MUST NOT `require|require_once|include|include_once` any sources from `framework/packages/**` (including `devtools/internal-toolkit`).
+- [x] Spikes MUST NOT import runtime code from `packages/**/src/**` via any path-based mechanism.
+  - [x] Spikes MUST NOT `require|require_once|include|include_once` any sources from `packages/**` (including `devtools/internal-toolkit`).
   - [x] `coretsia/internal-toolkit` MAY be used only via Composer autoload (namespace-based), never via path imports.
 - [x] Canonical bootstrap is enforced (phpunit.spikes.xml uses `_support/bootstrap.php`)
 - [x] Determinism runner is the single canonical mechanism for rerun-no-diff (`spike:test:determinism`)
@@ -658,9 +658,9 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.30.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
-goal: "Enforce Phase 0 spikes boundary by failing fast on forbidden imports/paths in framework/tools/spikes/**."
+goal: "Enforce Phase 0 spikes boundary by failing fast on forbidden imports/paths in tools/spikes/**."
 provides:
 - "Deterministic boundary gate for spikes source files (no runtime imports)"
 - "Deterministic error codes for boundary violations"
@@ -680,14 +680,14 @@ ssot_refs: []
 
 - Epic prerequisites:
   - 0.10.0 — spikes boundary decision is spec-locked
-  - 0.20.0 — spikes sandbox root exists (`framework/tools/spikes/**`)
+  - 0.20.0 — spikes sandbox root exists (`tools/spikes/**`)
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/` — spikes root exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared deterministic codes exist
-  - `framework/tools/gates/` — gates root exists (or is created by this epic)
-  - `framework/tools/spikes/_support/bootstrap.php` — tools rails bootstrap exists (used by gates)
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical rails stdout/stderr writer exists (gates MUST use it)
+  - `tools/spikes/` — spikes root exists
+  - `tools/spikes/_support/ErrorCodes.php` — shared deterministic codes exist
+  - `tools/gates/` — gates root exists (or is created by this epic)
+  - `tools/spikes/_support/bootstrap.php` — tools rails bootstrap exists (used by gates)
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical rails stdout/stderr writer exists (gates MUST use it)
 
 - Required config roots/keys:
   - none
@@ -710,7 +710,7 @@ Forbidden:
 - `platform/*`
 - `integrations/*`
 - `devtools/cli-spikes`
-- Path-based imports from `framework/packages/**` are forbidden by policy and enforced by the gate (no exceptions)
+- Path-based imports from `packages/**` are forbidden by policy and enforced by the gate (no exceptions)
 
 #### Uses ports (API surface, NOT deps) (optional)
 
@@ -727,7 +727,7 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/gates/spikes_boundary_gate.php` — deterministic boundary gate:
+- [x] `tools/gates/spikes_boundary_gate.php` — deterministic boundary gate:
   - [x] scans (single-choice; paths are scan-root-relative):
     - [x] include:
       - [x] `spikes/**/*.php`
@@ -827,7 +827,7 @@ N/A
     - [x] The gate MUST follow the canonical Phase 0 gate output format:
       - [x] Line 1: the deterministic error `CODE` only
       - [x] Next lines: `<scan-root-relative-normalized-path>: <short-reason>` sorted by path using `strcmp`
-    - [x] The gate MUST emit output via `framework/tools/spikes/_support/ConsoleOutput.php` only.
+    - [x] The gate MUST emit output via `tools/spikes/_support/ConsoleOutput.php` only.
   - [x] Deterministic CODE selection (single-choice; cemented):
     - [x] If scanning fails due to an internal error/exception → print `CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED` on line 1.
     - [x] Else if at least one forbidden namespace import/usage is detected → print `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_IMPORT` on line 1.
@@ -841,7 +841,7 @@ N/A
       - [x] `forbidden-import:<root>`
       - [x] `forbidden-path`
   - [x] MUST print deterministic error code + minimal safe diagnostics (no secrets)
-  - [x] Definition (single-choice; cemented): “reference/import of `framework/packages/**/src/**`” means:
+  - [x] Definition (single-choice; cemented): “reference/import of `packages/**/src/**`” means:
     - [x] The gate MUST evaluate each extracted static-literal candidate and each individual string fragment via a
       normalized form (single-choice):
       - [x] Let `$raw` be the candidate or fragment (without surrounding quotes).
@@ -852,9 +852,9 @@ N/A
       - [x] The match MAY include `framework/` prefix, `../` segments, or any additional parts; only the `packages/` and `/src/`
         directory segments are semantically relevant.
       - [x] No exceptions: ANY include/require statement whose literal parts match the definition above MUST be treated
-        as a boundary violation, including references into `framework/packages/devtools/internal-toolkit/**`.
+        as a boundary violation, including references into `packages/devtools/internal-toolkit/**`.
 
-- [x] `framework/tools/spikes/tests/SpikesBoundaryGateDetectsForbiddenImportsTest.php` — contract evidence:
+- [x] `tools/spikes/tests/SpikesBoundaryGateDetectsForbiddenImportsTest.php` — contract evidence:
   - [x] creates a temp tools root and asserts deterministic behavior via `--path=<tempToolsRoot>`:
     - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` importing a forbidden namespace → gate MUST fail deterministically
     - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` importing internal-toolkit (`\Coretsia\Devtools\InternalToolkit\...`) → gate MUST pass
@@ -864,9 +864,9 @@ N/A
       (e.g. `function f(\Coretsia\Foundation\X $x): void {}`) → gate MUST fail with `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_IMPORT`
     - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` containing `use Coretsia\Foundation;`
       → gate MUST fail with `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_IMPORT`
-    - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` containing `require 'framework/packages/' . 'core/x/src/y.php';`
+    - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` containing `require 'packages/' . 'core/x/src/y.php';`
       → gate MUST fail with `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_PATH`
-    - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` containing `require 'framework/packages/devtools/internal-toolkit/src/Json.php';`
+    - [x] writes a PHP file under `<tempToolsRoot>/spikes/...` containing `require 'packages/devtools/internal-toolkit/src/Json.php';`
       → gate MUST fail with `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_PATH`
     - [x] writes a PHP file under `<tempToolsRoot>/spikes/fixtures/...` containing `\Coretsia\Foundation\X::class`
       → gate MUST PASS (fixtures are excluded)
@@ -889,7 +889,7 @@ N/A
   - [x] `spike:test` MUST execute `spike:gate` before running spikes phpunit suite
   - [x] `spike:gate` MUST be first in the Phase 0 spikes rails chain
   - [x] Existing gates introduced earlier (if any) MUST remain in the chain (they MUST NOT be removed by this epic)
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register boundary gate error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register boundary gate error codes:
   - [x] `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_IMPORT`
   - [x] `CORETSIA_SPIKES_BOUNDARY_FORBIDDEN_PATH`
   - [x] `CORETSIA_SPIKES_BOUNDARY_SCAN_FAILED`
@@ -942,7 +942,7 @@ N/A
   - N/A
 
 - Contract:
-  - [x] `framework/tools/spikes/tests/SpikesBoundaryGateDetectsForbiddenImportsTest.php`
+  - [x] `tools/spikes/tests/SpikesBoundaryGateDetectsForbiddenImportsTest.php`
 
 - Gates/Arch:
   - [x] `composer spike:gate` exists and is executed by rails (standalone or pre-step in `spike:test`)
@@ -962,16 +962,16 @@ N/A
 type: package
 phase: 0
 epic_id: "0.40.0"
-owner_path: "framework/packages/devtools/internal-toolkit/"
+owner_path: "packages/devtools/internal-toolkit/"
 
 package_id: "devtools/internal-toolkit"
 composer: "coretsia/devtools-internal-toolkit"
 kind: library
 
-goal: "Provide a single deterministic helper library for tooling and prevent duplication under framework/tools/**."
+goal: "Provide a single deterministic helper library for tooling and prevent duplication under tools/**."
 provides:
 - "Canonical determinism helpers: slug casing, path normalization, stable JSON encoding"
-- "Anti-duplication gate for framework/tools/** (including spikes)"
+- "Anti-duplication gate for tools/** (including spikes)"
 - "Golden vectors cement determinism invariants (Linux/Windows)"
 
 tags_introduced: []
@@ -994,10 +994,10 @@ ssot_refs: []
 
 - Required deliverables (exact paths):
   - `framework/composer.json` — package workspace root exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — Phase 0 deterministic error codes registry exists
-  - `framework/tools/gates/` — gates root exists (or is created earlier in Phase 0)
-  - `framework/tools/spikes/_support/bootstrap.php` — tools rails bootstrap exists (used by gates)
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical rails stdout/stderr writer exists (gates MUST use it)
+  - `tools/spikes/_support/ErrorCodes.php` — Phase 0 deterministic error codes registry exists
+  - `tools/gates/` — gates root exists (or is created earlier in Phase 0)
+  - `tools/spikes/_support/bootstrap.php` — tools rails bootstrap exists (used by gates)
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical rails stdout/stderr writer exists (gates MUST use it)
 
 - Required config roots/keys:
   - none
@@ -1027,9 +1027,9 @@ N/A
 ### Entry points / integration points (MUST)
 
 - Tooling gate:
-  - `php framework/tools/gates/internal_toolkit_no_dup_gate.php` — deterministic failure if duplicates detected
+  - `php tools/gates/internal_toolkit_no_dup_gate.php` — deterministic failure if duplicates detected
 - Library usage policy (invariant):
-  - `coretsia/internal-toolkit` is used by tooling (`framework/tools/**`, spikes, gates, build scripts)
+  - `coretsia/internal-toolkit` is used by tooling (`tools/**`, spikes, gates, build scripts)
   - It MUST NOT be required by runtime presets/modules as a mandatory runtime dependency
 - Composer:
   - `composer toolkit:gate` — runs the anti-duplication gate (MUST be runnable locally)
@@ -1039,24 +1039,24 @@ N/A
 #### Creates
 
 - [x] Package skeleton (MUST; exact paths):
-  - [x] `framework/packages/devtools/internal-toolkit/composer.json`
+  - [x] `packages/devtools/internal-toolkit/composer.json`
     - [x] MUST define PSR-4 autoload:
       - [x] `Coretsia\\Devtools\\InternalToolkit\\` → `src/`
     - [x] MUST NOT require any runtime packages (`core/*`, `platform/*`, `integrations/*`)
-  - [x] `framework/packages/devtools/internal-toolkit/README.md`
+  - [x] `packages/devtools/internal-toolkit/README.md`
     - [x] MUST state scope: tooling-only deterministic helpers (slug/path/json) + anti-dup gate contract
   - [x] (when applicable) PHPUnit config for this package tests:
-    - [x] `framework/packages/devtools/internal-toolkit/phpunit.xml` OR `phpunit.dist.xml`
+    - [x] `packages/devtools/internal-toolkit/phpunit.xml` OR `phpunit.dist.xml`
       (use the repo’s canonical convention; this epic must not introduce a new convention)
-- [x] `framework/packages/devtools/internal-toolkit/src/Slug.php` — deterministic slug casing helpers
+- [x] `packages/devtools/internal-toolkit/src/Slug.php` — deterministic slug casing helpers
   - [x] `toStudly(string $slug): string`
   - [x] `toSnake(string $slug): string`
-- [x] `framework/packages/devtools/internal-toolkit/src/Path.php` — deterministic path normalization
+- [x] `packages/devtools/internal-toolkit/src/Path.php` — deterministic path normalization
   - [x] `normalizeRelative(string $absOrRelPath, string $repoRoot): string`
     - [x] MUST return a repo-relative normalized path (forward slashes)
     - [x] MUST NOT return `..` segments
     - [x] MUST NOT return an absolute path outside `repoRoot`
-- [x] `framework/packages/devtools/internal-toolkit/src/Json.php` — stable JSON encoder
+- [x] `packages/devtools/internal-toolkit/src/Json.php` — stable JSON encoder
   - [x] `encodeStable(array $value): string` (single-choice; cemented):
     - [x] MUST normalize maps by sorting keys ascending by byte-order (`strcmp`) at every nesting level.
     - [x] MUST preserve list order (lists are NOT sorted).
@@ -1067,18 +1067,18 @@ N/A
     - [x] MUST encode using:
       - [x] `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR`
     - [x] MUST NOT rely on locale (`setlocale`, `LC_ALL`) for ordering.
-- [x] `framework/tools/gates/internal_toolkit_no_dup_gate.php` — blocks duplicates in `framework/tools/**`
+- [x] `tools/gates/internal_toolkit_no_dup_gate.php` — blocks duplicates in `tools/**`
   - [x] Anti-duplication policy is **symbol-ownership based** (single-choice):
-    - [x] The following determinism symbols are owned by `coretsia/internal-toolkit` and MUST NOT be declared anywhere under `framework/tools/**`:
+    - [x] The following determinism symbols are owned by `coretsia/internal-toolkit` and MUST NOT be declared anywhere under `tools/**`:
       - [x] `Coretsia\Devtools\InternalToolkit\Slug::{toStudly,toSnake}`
       - [x] `Coretsia\Devtools\InternalToolkit\Path::normalizeRelative`
       - [x] `Coretsia\Devtools\InternalToolkit\Json::encodeStable`
-    - [x] A “duplication” is defined as any PHP file under `framework/tools/**` that declares:
+    - [x] A “duplication” is defined as any PHP file under `tools/**` that declares:
       - [x] any function named exactly: `toStudly`, `toSnake`, `normalizeRelative`, `encodeStable`, OR
       - [x] any class method named exactly: `toStudly`, `toSnake`, `normalizeRelative`, `encodeStable`
       - [x] (Exception) thin wrappers explicitly allowlisted below.
   - [x] Stable JSON usage is enforced (single-choice; NOT optional):
-    - [x] Direct calls to `json_encode(...)` anywhere under `framework/tools/**` are FORBIDDEN.
+    - [x] Direct calls to `json_encode(...)` anywhere under `tools/**` are FORBIDDEN.
     - [x] Rationale: tooling JSON must use `\Coretsia\Devtools\InternalToolkit\Json::encodeStable(...)`
       for deterministic flags/encoding.
     - [x] Allowlisted exception files: none (single-choice; cemented in 0.40.0).
@@ -1091,21 +1091,21 @@ N/A
       - [x] MUST require the next non-whitespace token after the name is `(` to treat it as a call
     - [x] Scan scope exclusions (single-choice):
       - [x] MUST exclude:
-        - [x] `framework/tools/**/tests/**`
-        - [x] `framework/tools/**/fixtures/**`
+        - [x] `tools/**/tests/**`
+        - [x] `tools/**/fixtures/**`
     - [x] Allowlist handling (single-choice; enforceable):
-      - [x] Since the allowlist is empty in 0.40.0, ANY `json_encode(...)` call under `framework/tools/**` MUST fail the gate.
+      - [x] Since the allowlist is empty in 0.40.0, ANY `json_encode(...)` call under `tools/**` MUST fail the gate.
   - [x] Thin wrappers are allowed (single-choice) only if all conditions are true:
     - [x] File path matches allowlist:
       - [x] `spikes/*/StableJsonEncoder.php`
         - [x] Path is evaluated as scan-root-relative.
-        - [x] With default scanRoot=framework/tools this matches framework/tools/spikes/*/StableJsonEncoder.php; with --path=<dir> it matches <scanRoot>/spikes/*/StableJsonEncoder.php.
+        - [x] With default scanRoot=tools this matches tools/spikes/*/StableJsonEncoder.php; with --path=<dir> it matches <scanRoot>/spikes/*/StableJsonEncoder.php.
     - [x] The file MUST NOT call `json_encode` (directly).
     - [x] The wrapper method MAY be named encodeStable, and the wrapper file MUST contain a direct call-token pattern to:
       - [x] `\Coretsia\Devtools\InternalToolkit\Json::encodeStable(` (token-based presence rule; no body validation)
       - [x] The gate MUST NOT attempt to “understand” function bodies beyond the allowlist rules above (no heuristic delegation detection).
-- [x] `framework/tools/gates/internal_toolkit_no_dup_gate.php` MUST:
-  - [x] scan `framework/tools/**/*.php` (including spikes and gates)
+- [x] `tools/gates/internal_toolkit_no_dup_gate.php` MUST:
+  - [x] scan `tools/**/*.php` (including spikes and gates)
   - [x] Scan scope exclusions (single-choice; reduces false positives while keeping enforceability):
     - [x] MUST exclude:
       - [x] `**/tests/**`
@@ -1160,12 +1160,12 @@ N/A
   - [x] Output format + emission (single-choice; SSoT):
     - [x] Line 1: deterministic `CODE` only
     - [x] Next lines: `<scan-root-relative-normalized-path>: <matched-symbol>` sorted by path via `strcmp`
-    - [x] Output MUST be emitted via `framework/tools/spikes/_support/ConsoleOutput.php` only.
+    - [x] Output MUST be emitted via `tools/spikes/_support/ConsoleOutput.php` only.
     - [x] Exit code policy (single-choice):
       - [x] exit `0` on pass
       - [x] exit `1` on fail
 
-- [x] `framework/tools/spikes/tests/InternalToolkitNoDupGateDetectsDuplicationTest.php` — contract evidence:
+- [x] `tools/spikes/tests/InternalToolkitNoDupGateDetectsDuplicationTest.php` — contract evidence:
   - [x] given a temp scan root containing a PHP file under `tools/**` declaring a forbidden symbol name
     (e.g. `function encodeStable(...) {}` or a class method `toSnake`) → gate MUST fail with
     `CORETSIA_TOOLKIT_DUPLICATION_DETECTED`
@@ -1188,7 +1188,7 @@ N/A
 - [x] `framework/composer.json` — ensure tooling can autoload the package:
   - [x] MUST add `coretsia/devtools-internal-toolkit` to `require-dev` (single-choice; Phase 0 tooling dependency)
   - [x] Rationale: spikes/gates run via Composer autoload and MUST be able to import `Coretsia\Devtools\InternalToolkit\*`
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_TOOLKIT_DUPLICATION_DETECTED`
   - [x] `CORETSIA_TOOLKIT_DUP_GATE_SCAN_FAILED`
   - [x] `CORETSIA_TOOLKIT_JSON_ENCODE_FORBIDDEN`
@@ -1197,7 +1197,7 @@ N/A
     1) `spike:gate`          (introduced in 0.30.0)
     2) `toolkit:gate`        (introduced in 0.40.0)
     3) `spike:output:gate`   (introduced in 0.20.0)
-    4) `phpunit -c framework/tools/spikes/phpunit.spikes.xml`
+    4) `phpunit -c tools/spikes/phpunit.spikes.xml`
   - [x] Gate chain extensibility rule (single-choice; cemented):
     - [x] Later Phase 0 epics MAY insert additional gates into `spike:test` ONLY under these constraints:
       - [x] `spike:gate` MUST remain the first gate.
@@ -1255,17 +1255,17 @@ N/A (library; no logging side-effects)
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/devtools/internal-toolkit/tests/Unit/SlugToStudlyGoldenVectorsTest.php`
-  - [x] `framework/packages/devtools/internal-toolkit/tests/Unit/PathNormalizeRelativeGoldenVectorsTest.php`
+  - [x] `packages/devtools/internal-toolkit/tests/Unit/SlugToStudlyGoldenVectorsTest.php`
+  - [x] `packages/devtools/internal-toolkit/tests/Unit/PathNormalizeRelativeGoldenVectorsTest.php`
 - Contract:
-  - [x] `framework/packages/devtools/internal-toolkit/tests/Contract/JsonEncodeStableContractTest.php`
+  - [x] `packages/devtools/internal-toolkit/tests/Contract/JsonEncodeStableContractTest.php`
 - Integration / Gates:
   - N/A (gate is a tooling script; invoked by CI/scripts)
 
 ### DoD (MUST)
 
 - [x] Deliverables complete (creates), paths exact
-- [x] Gate blocks any duplicated slug/path/json logic under `framework/tools/**`
+- [x] Gate blocks any duplicated slug/path/json logic under `tools/**`
 - [x] Toolkit is the only canonical helper for tooling determinism
 - [x] Out of scope:
   - [x] This epic MUST NOT introduce production runtime behavior (Phase 0 spikes/tooling only)
@@ -1280,7 +1280,7 @@ N/A (library; no logging side-effects)
 type: tools
 phase: 0
 epic_id: "0.50.0"
-owner_path: "framework/tools/spikes/_support/"
+owner_path: "tools/spikes/_support/"
 
 goal: "Provide a single canonical deterministic file IO helper for spikes (EOL normalization, LF writes, stable hashing)."
 provides:
@@ -1301,11 +1301,11 @@ ssot_refs: []
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 0.20.0 — spikes sandbox exists (`framework/tools/spikes/**`)
+  - 0.20.0 — spikes sandbox exists (`tools/spikes/**`)
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/_support/` — support folder exists (or is created by 0.20.0)
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared error codes exist
+  - `tools/spikes/_support/` — support folder exists (or is created by 0.20.0)
+  - `tools/spikes/_support/ErrorCodes.php` — shared error codes exist
 
 - Required config roots/keys:
   - none
@@ -1327,9 +1327,9 @@ Forbidden:
 - `core/*`
 - `platform/*`
 - `integrations/*`
-- `framework/packages/**/src/**`
-  - (No exceptions) Spikes tooling code MUST NOT `require|require_once|include|include_once` any sources from `framework/packages/**`
-    (including `framework/packages/devtools/internal-toolkit/**`).
+- `packages/**/src/**`
+  - (No exceptions) Spikes tooling code MUST NOT `require|require_once|include|include_once` any sources from `packages/**`
+    (including `packages/devtools/internal-toolkit/**`).
   - `coretsia/internal-toolkit` MAY be used only via Composer autoload (namespace-based) **if** the executing tooling environment
     has it installed as a Composer dependency. This epic itself MUST NOT require it.
 
@@ -1345,7 +1345,7 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/spikes/_support/DeterministicFile.php` — canonical helper:
+- [x] `tools/spikes/_support/DeterministicFile.php` — canonical helper:
   - [x] `readTextNormalizedEol(string $path): string`
     - [x] normalizes `\r\n` and `\r` to `\n`
   - [x] `hashSha256NormalizedEol(string $path): string`
@@ -1371,14 +1371,14 @@ N/A
     - [x] After the operation, the original error handler MUST be restored deterministically (no global side-effects).
   - [x] Error handling MUST be deterministic and code-first:
     - [x] On any read failure (`readTextNormalizedEol`, `hashSha256NormalizedEol`) the helper MUST throw
-      `framework/tools/spikes/_support/DeterministicException` with code `CORETSIA_SPIKES_IO_READ_FAILED`.
+      `tools/spikes/_support/DeterministicException` with code `CORETSIA_SPIKES_IO_READ_FAILED`.
     - [x] On any write failure (`writeTextLf`, `writeBytesExact`) the helper MUST throw
-      `framework/tools/spikes/_support/DeterministicException` with code `CORETSIA_SPIKES_IO_WRITE_FAILED`.
+      `tools/spikes/_support/DeterministicException` with code `CORETSIA_SPIKES_IO_WRITE_FAILED`.
     - [x] Exception messages MUST be stable and MUST NOT include:
       - [x] the input `$path` string (neither absolute nor relative)
       - [x] OS error messages that include paths
 
-- [x] `framework/tools/spikes/tests/DeterministicFileEolNormalizationContractTest.php` — cement:
+- [x] `tools/spikes/tests/DeterministicFileEolNormalizationContractTest.php` — cement:
   - [x] proves read normalization (`\r\n` and `\r` → `\n`)
   - [x] proves hashing stability for CRLF/LF equivalent content
   - [x] proves write guarantees LF + final newline
@@ -1391,7 +1391,7 @@ N/A
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register deterministic IO error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register deterministic IO error codes:
   - [x] `CORETSIA_SPIKES_IO_READ_FAILED`
   - [x] `CORETSIA_SPIKES_IO_WRITE_FAILED`
 
@@ -1436,7 +1436,7 @@ N/A
 - Unit / Integration / Gates/Arch:
   - N/A
 - Contract:
-  - [x] `framework/tools/spikes/tests/DeterministicFileEolNormalizationContractTest.php`
+  - [x] `tools/spikes/tests/DeterministicFileEolNormalizationContractTest.php`
 
 ### DoD (MUST)
 
@@ -1452,7 +1452,7 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.60.0"
-owner_path: "framework/tools/spikes/fingerprint/"
+owner_path: "tools/spikes/fingerprint/"
 
 goal: "Prototype a cross-OS deterministic fingerprint with safe explain (no secrets)."
 provides:
@@ -1478,9 +1478,9 @@ ssot_refs: []
   - 0.50.0 — canonical DeterministicFile helper exists (EOL normalization + LF writes)
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/repo_min/` — repo_min fixture root exists
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` — middleware catalog fixture exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared deterministic codes exist
+  - `tools/spikes/fixtures/repo_min/` — repo_min fixture root exists
+  - `tools/spikes/fixtures/http_middleware_catalog.php` — middleware catalog fixture exists
+  - `tools/spikes/_support/ErrorCodes.php` — shared deterministic codes exist
 
 - Required config roots/keys:
   - none
@@ -1510,16 +1510,16 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `coretsia spike:fingerprint` → `framework/packages/devtools/cli-spikes/src/Command/SpikeFingerprintCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
+  - `coretsia spike:fingerprint` → `packages/devtools/cli-spikes/src/Command/SpikeFingerprintCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
 
 - Artifacts:
-  - reads: `framework/tools/spikes/fixtures/repo_min/**`
+  - reads: `tools/spikes/fixtures/repo_min/**`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [x] `framework/tools/spikes/fingerprint/DeterministicFileLister.php` — MUST:
+- [x] `tools/spikes/fingerprint/DeterministicFileLister.php` — MUST:
   - [x] normalize paths via `Coretsia\Devtools\InternalToolkit\Path::normalizeRelative(...)` (repo-root based)
   - [x] emit stable lexicographic order (byte-order; no locale-dependent sorting)
   - [x] hard-fail on any symlink with deterministic code `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
@@ -1531,8 +1531,8 @@ N/A
       (no partial results, no best-effort continuation).
   - [x] emit stable lexicographic order (byte-order; no locale-dependent sorting):
     - [x] sorting MUST be implemented via `strcmp` on normalized repo-relative paths only
-- [x] `framework/tools/spikes/fingerprint/StableJsonEncoder.php` — thin wrapper over `InternalToolkit\Json::encodeStable`
-- [x] `framework/tools/spikes/fingerprint/FingerprintCalculator.php` — computes a single sha256 from canonical buckets:
+- [x] `tools/spikes/fingerprint/StableJsonEncoder.php` — thin wrapper over `InternalToolkit\Json::encodeStable`
+- [x] `tools/spikes/fingerprint/FingerprintCalculator.php` — computes a single sha256 from canonical buckets:
   - [x] `code`: deterministic file list + sha256 over file contents with EOL normalized to LF:
     - [x] For each matched code file: compute `sha256` over normalized-LF content via
       `DeterministicFile::hashSha256NormalizedEol()` (single canonical helper).
@@ -1545,7 +1545,7 @@ N/A
       (via `DeterministicFile::hashSha256NormalizedEol()`)
     - [x] combine per-file hashes in stable file path order (byte-order on normalized repo-relative paths)
     - [x] NEVER print dotenv values; explain may list file paths only (repo-relative)
-  - [x] `tracked_env`: allowlist is loaded from `framework/tools/spikes/fixtures/repo_min/tracked_env_allowlist.php`:
+  - [x] `tracked_env`: allowlist is loaded from `tools/spikes/fixtures/repo_min/tracked_env_allowlist.php`:
     - [x] only allowlisted env key names are admitted
     - [x] values are hashed into fingerprint (never printed)
     - [x] allowlist evaluation MUST be deterministic and independent of locale
@@ -1573,48 +1573,48 @@ N/A
     - [x] Encode the buckets map using `StableJsonEncoder` (which delegates to `InternalToolkit\Json::encodeStable`).
     - [x] Compute the final fingerprint as `sha256( encodedBucketsJson )` and output it as lowercase hex.
     - [x] Rationale: prevents ad-hoc concatenation formats and locks a single cross-OS deterministic scheme.
-- [x] `framework/tools/spikes/fingerprint/FingerprintExplainer.php` — MUST:
+- [x] `tools/spikes/fingerprint/FingerprintExplainer.php` — MUST:
   - [x] list changed file paths as normalized repo-relative paths only
   - [x] list changed tracked env keys by name only (no values)
   - [x] NEVER print dotenv values; only safe forms are allowed (`hash(value)`, `len(value)`)
-- [x] Fixtures under `framework/tools/spikes/fixtures/repo_min/`:
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/config/app.php`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/config/modules.php`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/config/http.php`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/apps/web/config/app.php`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/apps/web/config/http.php`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/.env`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/.env.local`
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/.env.local.local`
-  - [x] `framework/tools/spikes/fixtures/repo_min/expected_paths.txt`
-  - [x] `framework/tools/spikes/fixtures/repo_min/tracked_env_allowlist.php` — cemented allowlist (single source of truth):
+- [x] Fixtures under `tools/spikes/fixtures/repo_min/`:
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/config/app.php`
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/config/modules.php`
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/config/http.php`
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/apps/web/config/app.php`
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/apps/web/config/http.php`
+  - [x] `tools/spikes/fixtures/repo_min/skeleton/.env`
+  - [x] `tools/spikes/fixtures/repo_min/skeleton/.env.local`
+  - [x] `tools/spikes/fixtures/repo_min/skeleton/.env.local.local`
+  - [x] `tools/spikes/fixtures/repo_min/expected_paths.txt`
+  - [x] `tools/spikes/fixtures/repo_min/tracked_env_allowlist.php` — cemented allowlist (single source of truth):
     - [x] returns `list<string>` of allowed env key names for `tracked_env`
     - [x] order MUST be deterministic (byte-order; no locale)
     - [x] MUST be unique:
       - [x] duplicate env key names are forbidden and MUST fail tests deterministically
 - [x] Fingerprint hashing MUST be EOL-stable across OS:
   - [x] file content hashing MUST normalize EOL to `\n` before hashing
-  - [x] spike MUST use `framework/tools/spikes/_support/DeterministicFile::hashSha256NormalizedEol()` (single canonical helper)
+  - [x] spike MUST use `tools/spikes/_support/DeterministicFile::hashSha256NormalizedEol()` (single canonical helper)
 - [x] Any text fixtures used as inputs to hashing (e.g. `expected_paths.txt`) MUST be LF-only and end with a final newline
 
 - [x] Tests:
-  - [x] `framework/tools/spikes/fingerprint/tests/FingerprintGoldenHashTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/PathSeparatorNormalizationTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/FileListingDeterministicOrderTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/SymlinkForbiddenTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/FingerprintExplainIsSafeTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/RerunSameInputsSameHashTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/HttpMiddlewareCatalogIsFullyUsedInHttpConfigFixturesTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/TrackedEnvAllowlistIsCementedTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/TrackedEnvAllowlistHasNoDuplicatesTest.php`
-  - [x] `framework/tools/spikes/fingerprint/tests/TrackedEnvBucketMissingVsEmptyIsDeterministicTest.php`
+  - [x] `tools/spikes/fingerprint/tests/FingerprintGoldenHashTest.php`
+  - [x] `tools/spikes/fingerprint/tests/PathSeparatorNormalizationTest.php`
+  - [x] `tools/spikes/fingerprint/tests/FileListingDeterministicOrderTest.php`
+  - [x] `tools/spikes/fingerprint/tests/SymlinkForbiddenTest.php`
+  - [x] `tools/spikes/fingerprint/tests/FingerprintExplainIsSafeTest.php`
+  - [x] `tools/spikes/fingerprint/tests/RerunSameInputsSameHashTest.php`
+  - [x] `tools/spikes/fingerprint/tests/HttpMiddlewareCatalogIsFullyUsedInHttpConfigFixturesTest.php`
+  - [x] `tools/spikes/fingerprint/tests/TrackedEnvAllowlistIsCementedTest.php`
+  - [x] `tools/spikes/fingerprint/tests/TrackedEnvAllowlistHasNoDuplicatesTest.php`
+  - [x] `tools/spikes/fingerprint/tests/TrackedEnvBucketMissingVsEmptyIsDeterministicTest.php`
     - [x] sets an allowlisted key to missing and to empty string in two runs and asserts:
       - [x] hashes differ (missing != empty)
       - [x] each scenario is deterministic across reruns/OS
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register fingerprint error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register fingerprint error codes:
   - [x] `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
 
 #### Configuration (keys + defaults)
@@ -1635,7 +1635,7 @@ N/A
 
 - [x] Deterministic exception codes:
   - [x] `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
-  - [x] other fixed IO/invalid-input codes (if needed) via `framework/tools/spikes/_support/ErrorCodes.php`
+  - [x] other fixed IO/invalid-input codes (if needed) via `tools/spikes/_support/ErrorCodes.php`
 
 #### Security / Redaction
 
@@ -1651,7 +1651,7 @@ N/A
 - Unit / Contract:
   - N/A
 - Integration:
-  - [x] `framework/tools/spikes/fingerprint/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/fingerprint/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 ### DoD (MUST)
 
@@ -1662,10 +1662,10 @@ N/A
 - [x] Same inputs → same fingerprint on Linux/Windows
 - [x] Explain is deterministic + safe
 - [x] Middleware catalog is deterministic and single-source-of-truth:
-  - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` defines:
+  - [x] `tools/spikes/fixtures/http_middleware_catalog.php` defines:
     - [x] all slot keys
     - [x] ordered FQCN lists per slot
-  - [x] `framework/tools/spikes/fixtures/repo_min/skeleton/config/http.php` MUST be derived from the catalog
+  - [x] `tools/spikes/fixtures/repo_min/packages/applications/skeleton/config/http.php` MUST be derived from the catalog
     - [x] MUST `require`/`include` the catalog (no duplicated lists)
     - [x] MUST include all slots:
       - [x] `http.middleware.system_pre`
@@ -1697,7 +1697,7 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.70.0"
-owner_path: "framework/tools/spikes/payload/"
+owner_path: "tools/spikes/payload/"
 
 goal: "Cement deterministic payload normalization and stable JSON encoding with a strict float-forbidden policy."
 provides:
@@ -1722,8 +1722,8 @@ ssot_refs: []
   - 0.40.0 — internal-toolkit exists
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/payloads_min/` — payload fixture root exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared codes exist
+  - `tools/spikes/fixtures/payloads_min/` — payload fixture root exists
+  - `tools/spikes/_support/ErrorCodes.php` — shared codes exist
 
 - Required config roots/keys:
   - none
@@ -1758,33 +1758,33 @@ N/A (phpunit-only spike)
 
 #### Creates
 
-- [x] `framework/tools/spikes/payload/PayloadNormalizer.php` — deterministic normalization for json-like arrays
-- [x] `framework/tools/spikes/payload/StableJsonEncoder.php` — wrapper over `InternalToolkit\Json::encodeStable`
-- [x] `framework/tools/spikes/payload/FloatPolicy.php` — forbids float/NaN/INF anywhere in payload (`CORETSIA_JSON_FLOAT_FORBIDDEN`):
+- [x] `tools/spikes/payload/PayloadNormalizer.php` — deterministic normalization for json-like arrays
+- [x] `tools/spikes/payload/StableJsonEncoder.php` — wrapper over `InternalToolkit\Json::encodeStable`
+- [x] `tools/spikes/payload/FloatPolicy.php` — forbids float/NaN/INF anywhere in payload (`CORETSIA_JSON_FLOAT_FORBIDDEN`):
   - [x] MUST reject any `float` value at any nesting depth (maps/lists)
   - [x] MUST reject `NaN`, `INF`, `-INF` explicitly (not only `is_float`)
   - [x] MUST NOT emit any stdout/stderr output (spike business logic is output-free by Phase 0 rails policy).
   - [x] MUST NOT expose raw payload values on failure.
   - [x] Minimal diagnostics are allowed (single-choice) ONLY via deterministic failure carrier:
-    - [x] If failing, it MUST throw `framework/tools/spikes/_support/DeterministicException`
+    - [x] If failing, it MUST throw `tools/spikes/_support/DeterministicException`
       with code `CORETSIA_JSON_FLOAT_FORBIDDEN`.
     - [x] The exception message MAY include only the *path-to-value* (e.g. `a.b[3].c`) where a float/NaN/INF was found.
     - [x] The exception message MUST NOT include the value itself.
 
 Fixtures:
-- [x] `framework/tools/spikes/fixtures/payloads_min/payloads.php` — mixed map/list payloads + forbidden floats scenario
+- [x] `tools/spikes/fixtures/payloads_min/payloads.php` — mixed map/list payloads + forbidden floats scenario
   - [x] SHOULD include one sample derived from HTTP middleware config arrays (no floats)
   - [x] large nested lists/maps to stress normalization + stable encoding
 
 Tests:
-- [x] `framework/tools/spikes/payload/tests/PayloadNormalizerDeterministicOrderTest.php`
-- [x] `framework/tools/spikes/payload/tests/StableJsonEncoderContractTest.php`
-- [x] `framework/tools/spikes/payload/tests/FloatPolicyTest.php`
-- [x] `framework/tools/spikes/payload/tests/RerunNoDiffTest.php`
+- [x] `tools/spikes/payload/tests/PayloadNormalizerDeterministicOrderTest.php`
+- [x] `tools/spikes/payload/tests/StableJsonEncoderContractTest.php`
+- [x] `tools/spikes/payload/tests/FloatPolicyTest.php`
+- [x] `tools/spikes/payload/tests/RerunNoDiffTest.php`
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register payload/json error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register payload/json error codes:
   - [x] `CORETSIA_JSON_FLOAT_FORBIDDEN`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
@@ -1811,7 +1811,7 @@ N/A
 - Unit / Contract:
   - N/A
 - Integration:
-  - [x] `framework/tools/spikes/payload/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/payload/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 ### DoD (MUST)
 
@@ -1831,7 +1831,7 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.80.0"
-owner_path: "framework/tools/spikes/deptrac/"
+owner_path: "tools/spikes/deptrac/"
 
 goal: "Prototype a deterministic/idempotent deptrac config generator with allowlist policy and graph artifacts."
 provides:
@@ -1857,8 +1857,8 @@ ssot_refs: []
   - 0.50.0 — canonical DeterministicFile helper exists (EOL normalization + LF writes)
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/deptrac_min/` — deptrac fixtures exist
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared codes exist
+  - `tools/spikes/fixtures/deptrac_min/` — deptrac fixtures exist
+  - `tools/spikes/_support/ErrorCodes.php` — shared codes exist
 
 - Required config roots/keys:
   - none
@@ -1888,7 +1888,7 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `coretsia deptrac:graph` → `framework/packages/devtools/cli-spikes/src/Command/DeptracGraphCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
+  - `coretsia deptrac:graph` → `packages/devtools/cli-spikes/src/Command/DeptracGraphCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
 - Artifacts:
   - writes: temp output dirs during tests (no repo writes except committed fixtures)
 
@@ -1896,10 +1896,10 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/spikes/deptrac/DeptracGenerate.php` — MUST:
-  - [x] read package-index from fixture/mock under `framework/tools/spikes/fixtures/deptrac_min/`
+- [x] `tools/spikes/deptrac/DeptracGenerate.php` — MUST:
+  - [x] read package-index from fixture/mock under `tools/spikes/fixtures/deptrac_min/`
   - [x] generate deterministic `deptrac.yaml` (rerun-no-diff)
-- [x] `framework/tools/spikes/deptrac/GraphArtifactBuilder.php` — MUST:
+- [x] `tools/spikes/deptrac/GraphArtifactBuilder.php` — MUST:
   - [x] produce deterministic graph artifacts in formats: `dot`, `svg`, `html`
   - [x] MUST NOT embed absolute machine paths (relative/normalized only)
   - [x] outputs MUST NOT embed timestamps, tool versions, or absolute machine paths
@@ -1913,7 +1913,7 @@ N/A
     - [x] Any per-node adjacency lists MUST also be sorted by target node id using `strcmp`
 
 Fixtures:
-- [x] `framework/tools/spikes/fixtures/deptrac_min/` — includes:
+- [x] `tools/spikes/fixtures/deptrac_min/` — includes:
   - [x] at least 2 packages + 1 cycle scenario
   - [x] allowlist fixture scenario: tests/** only
 
@@ -1924,13 +1924,13 @@ Fixtures:
   - [x] normalization to LF is mandatory before hashing/comparing
 
 Tests:
-- [x] `framework/tools/spikes/deptrac/tests/DeptracGeneratedConfigIsDeterministicTest.php`
-- [x] `framework/tools/spikes/deptrac/tests/DeptracDetectsCycleTest.php`
-- [x] `framework/tools/spikes/deptrac/tests/DeptracAllowlistPolicyTest.php`
-- [x] `framework/tools/spikes/deptrac/tests/RerunGeneratorNoDiffTest.php`
-- [x] `framework/tools/spikes/deptrac/tests/GraphArtifactBuilderDoesNotInvokeExternalProcessFunctionsTest.php` fails if process-exec functions are introduced:
+- [x] `tools/spikes/deptrac/tests/DeptracGeneratedConfigIsDeterministicTest.php`
+- [x] `tools/spikes/deptrac/tests/DeptracDetectsCycleTest.php`
+- [x] `tools/spikes/deptrac/tests/DeptracAllowlistPolicyTest.php`
+- [x] `tools/spikes/deptrac/tests/RerunGeneratorNoDiffTest.php`
+- [x] `tools/spikes/deptrac/tests/GraphArtifactBuilderDoesNotInvokeExternalProcessFunctionsTest.php` fails if process-exec functions are introduced:
   - [x] `exec`, `shell_exec`, `system`, `passthru`, `proc_open`, `popen`
-- [x] `framework/tools/spikes/deptrac/tests/GraphArtifactsContainNoAbsolutePathsTest.php`
+- [x] `tools/spikes/deptrac/tests/GraphArtifactsContainNoAbsolutePathsTest.php`
   - [x] asserts generated `dot/svg/html` contain no absolute paths, including:
     - [x] POSIX absolute (`/home/...`, `/Users/...`) patterns
     - [x] Windows drive-letter absolute (`(?i)\b[A-Z]:(\\|/)...`) patterns
@@ -1938,7 +1938,7 @@ Tests:
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register deptrac spike error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register deptrac spike error codes:
   - [x] `CORETSIA_DEPTRAC_CYCLE_DETECTED`
   - [x] `CORETSIA_DEPTRAC_ALLOWLIST_INVALID`
   - [x] `CORETSIA_DEPTRAC_GRAPH_ARTIFACT_INVALID`
@@ -1947,7 +1947,7 @@ Tests:
 
 #### Errors
 
-- [x] deterministic codes for cycle detection / invalid allowlist via `framework/tools/spikes/_support/ErrorCodes.php`
+- [x] deterministic codes for cycle detection / invalid allowlist via `tools/spikes/_support/ErrorCodes.php`
 
 #### Security / Redaction
 
@@ -1967,7 +1967,7 @@ N/A
 - Unit / Contract:
   - N/A
 - Integration:
-  - [x] `framework/tools/spikes/deptrac/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/deptrac/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 ### DoD (MUST)
 
@@ -1989,7 +1989,7 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.90.0"
-owner_path: "framework/tools/spikes/config_merge/"
+owner_path: "tools/spikes/config_merge/"
 
 goal: "Cement deterministic two-phase config merge, directive semantics, and safe explain trace."
 provides:
@@ -2015,9 +2015,9 @@ ssot_refs: []
   - 0.40.0 — internal-toolkit exists
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/repo_min/` — minimal repo fixtures exist
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` — middleware catalog exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared codes exist
+  - `tools/spikes/fixtures/repo_min/` — minimal repo fixtures exist
+  - `tools/spikes/fixtures/http_middleware_catalog.php` — middleware catalog exists
+  - `tools/spikes/_support/ErrorCodes.php` — shared codes exist
 
 - Required config roots/keys:
   - none
@@ -2047,13 +2047,13 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `coretsia spike:config:debug --key=<dot.key>` → `framework/packages/devtools/cli-spikes/src/Command/SpikeConfigDebugCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
+  - `coretsia spike:config:debug --key=<dot.key>` → `packages/devtools/cli-spikes/src/Command/SpikeConfigDebugCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [x] `framework/tools/spikes/config_merge/DirectiveProcessor.php` — directives allowlist + typing + exclusive-level rule
+- [x] `tools/spikes/config_merge/DirectiveProcessor.php` — directives allowlist + typing + exclusive-level rule
   - [x] Allowed directives (allowlist, cemented): `@append`, `@prepend`, `@remove`, `@merge`, `@replace`
   - [x] Reserved namespace guard (single-choice):
     - [x] Any config key that starts with `@` is reserved for directives only.
@@ -2121,13 +2121,13 @@ N/A
       - [x] If the base value exists and is a non-empty array of the wrong kind (list vs map), it MUST fail with `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`.
     - [x] Unknown directive key (any `@*` not in the allowlist) MUST fail deterministically with
       `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED` (single-choice; no separate code).
-- [x] `framework/tools/spikes/config_merge/ConfigMerger.php` — deterministic merge runner for scenarios
+- [x] `tools/spikes/config_merge/ConfigMerger.php` — deterministic merge runner for scenarios
   - [x] Deterministic map key ordering is single-choice (cemented):
     - [x] Any intermediate and final "map" structures produced by merge MUST be normalized by sorting keys
       using byte-order comparison (`strcmp`) at each map level.
     - [x] Lists MUST preserve element order and MUST NOT be re-sorted.
     - [x] Sorting MUST be locale-independent and MUST NOT rely on environment (`LC_ALL`, `setlocale`, etc.).
-- [x] `framework/tools/spikes/config_merge/ConfigExplainer.php` — deterministic + safe trace (`sourceType,file,keyPath,directiveApplied?`)
+- [x] `tools/spikes/config_merge/ConfigExplainer.php` — deterministic + safe trace (`sourceType,file,keyPath,directiveApplied?`)
   - [x] Explain trace ordering (single-choice; cemented):
     - [x] The explainer MUST produce a deterministic list of trace records.
     - [x] Trace records MUST be sorted by:
@@ -2138,7 +2138,7 @@ N/A
     - [x] No locale-dependent ordering is allowed.
 
 Fixtures:
-- [x] `framework/tools/spikes/config_merge/tests/fixtures/scenarios.php` — 15–30 scenarios matrix (precedence + directives + reserved namespace guard)
+- [x] `tools/spikes/config_merge/tests/fixtures/scenarios.php` — 15–30 scenarios matrix (precedence + directives + reserved namespace guard)
   - [x] MUST include middleware-slot scenarios (keys are cemented):
     - [x] `http.middleware.system_pre`
     - [x] `http.middleware.system`
@@ -2160,18 +2160,18 @@ Fixtures:
     - [x] `["@append" => [...]]` MUST be accepted only when typing rules are satisfied (list directive)
 
 Tests:
-- [x] `framework/tools/spikes/config_merge/tests/ConfigPrecedenceMatrixDataDrivenTest.php`
-- [x] `framework/tools/spikes/config_merge/tests/DirectivesTypingRulesTest.php`
+- [x] `tools/spikes/config_merge/tests/ConfigPrecedenceMatrixDataDrivenTest.php`
+- [x] `tools/spikes/config_merge/tests/DirectivesTypingRulesTest.php`
   - [x] empty-array rule is cemented:
     - [x] `@append` with `[]` MUST be accepted (empty list)
     - [x] `@merge` with `[]` MUST be accepted (empty map by rule)
-- [x] `framework/tools/spikes/config_merge/tests/ExplainTraceDeterministicTest.php`
-- [x] `framework/tools/spikes/config_merge/tests/ExplainTraceSafeNoSecretsTest.php`
-- [x] `framework/tools/spikes/config_merge/tests/RerunNoDiffTest.php`
+- [x] `tools/spikes/config_merge/tests/ExplainTraceDeterministicTest.php`
+- [x] `tools/spikes/config_merge/tests/ExplainTraceSafeNoSecretsTest.php`
+- [x] `tools/spikes/config_merge/tests/RerunNoDiffTest.php`
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register config merge error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register config merge error codes:
   - [x] `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
   - [x] `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
   - [x] `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
@@ -2184,7 +2184,7 @@ Tests:
 
 #### Errors
 
-- [x] deterministic exception codes (via `framework/tools/spikes/_support/ErrorCodes.php`) for:
+- [x] deterministic exception codes (via `tools/spikes/_support/ErrorCodes.php`) for:
   - [x] unknown directive
   - [x] mixed directive+normal keys at same level
   - [x] type mismatch (list-only vs map-only)
@@ -2207,7 +2207,7 @@ N/A
 - Unit / Contract:
   - N/A
 - Integration:
-  - [x] `framework/tools/spikes/config_merge/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/config_merge/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 ### DoD (MUST)
 
@@ -2220,8 +2220,8 @@ N/A
   - [x] This epic MUST NOT introduce plugin systems / extensibility frameworks
   - [x] This epic MUST NOT depend on `core/kernel` (unless explicitly stated in the epic)
 - [x] Canonical paths are cemented (exact paths only):
-  - [x] `framework/tools/spikes/config_merge/**` is the only valid location
-  - [x] PascalCase variants (e.g. `framework/tools/spikes/ConfigMerge/**`) MUST NOT exist
+  - [x] `tools/spikes/config_merge/**` is the only valid location
+  - [x] PascalCase variants (e.g. `tools/spikes/ConfigMerge/**`) MUST NOT exist
 
 ---
 
@@ -2231,7 +2231,7 @@ N/A
 type: tools
 phase: 0
 epic_id: "0.100.0"
-owner_path: "framework/tools/spikes/workspace/"
+owner_path: "tools/spikes/workspace/"
 
 goal: "Prototype deterministic package-index + safe/idempotent composer repositories sync with backups."
 provides:
@@ -2257,8 +2257,8 @@ ssot_refs: []
   - 0.50.0 — canonical DeterministicFile helper exists (EOL normalization + LF writes)
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/workspace_min/` — workspace fixtures root exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — shared codes exist
+  - `tools/spikes/fixtures/workspace_min/` — workspace fixtures root exists
+  - `tools/spikes/_support/ErrorCodes.php` — shared codes exist
 
 - Required config roots/keys:
   - none
@@ -2288,26 +2288,26 @@ N/A
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `coretsia workspace:sync --dry-run` → `framework/packages/devtools/cli-spikes/src/Command/WorkspaceSyncDryRunCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
-  - `coretsia workspace:sync --apply` → `framework/packages/devtools/cli-spikes/src/Command/WorkspaceSyncApplyCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
+  - `coretsia workspace:sync --dry-run` → `packages/devtools/cli-spikes/src/Command/WorkspaceSyncDryRunCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
+  - `coretsia workspace:sync --apply` → `packages/devtools/cli-spikes/src/Command/WorkspaceSyncApplyCommand.php` (via 0.140.0 on top of 0.130.0; available only if `coretsia/cli-spikes` is installed)
 
 - Artifacts:
-  - reads: golden fixtures under `framework/tools/spikes/fixtures/workspace_min/expected_*`
+  - reads: golden fixtures under `tools/spikes/fixtures/workspace_min/expected_*`
   - writes: test temp output dirs only (no repo writes; fixtures are read-only)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [x] `framework/tools/spikes/workspace/PackageIndexBuilder.php` — MUST:
-  - [x] scan pattern: `framework/packages/*/*/composer.json` (on fixture tree)
+- [x] `tools/spikes/workspace/PackageIndexBuilder.php` — MUST:
+  - [x] scan pattern: `packages/*/*/composer.json` (on fixture tree)
   - [x] emit deterministic package-index entries with shape:
     - [x] `{slug, layer, path, composerName, psr4, kind, moduleClass?}`
   - [x] Entry key insertion order is cemented (single-choice) to guarantee deterministic bytes and strict comparisons:
     - [x] `slug`, `layer`, `path`, `composerName`, `psr4`, `kind`, `moduleClass` (if present)
   - [x] Stable ordering is single-choice:
     - [x] package-index entries MUST be sorted by normalized `path` ascending using byte-order comparison (`strcmp`)
-- [x] `framework/tools/spikes/workspace/WorkspacePolicy.php` — MUST:
+- [x] `tools/spikes/workspace/WorkspacePolicy.php` — MUST:
   - [x] define canonical managed marker: `coretsia_managed=true`
   - [x] define managed repositories block invariants (single-choice):
     - [x] `composer.json.repositories` MUST be a JSON list (`list<map>`) when present
@@ -2330,7 +2330,7 @@ N/A
       - [x] URL normalization for sorting is single-choice: replace `\` with `/` (no other normalization)
       - [x] If `url` is missing or not a string on a managed entry → MUST fail with `CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID`
   - [x] define deterministic ordering rules for managed repositories block
-- [x] `framework/tools/spikes/workspace/ComposerRepositoriesSync.php` — MUST:
+- [x] `tools/spikes/workspace/ComposerRepositoriesSync.php` — MUST:
   - [x] правильна точка виклику `WorkspacePolicy::rebuildManagedRepositoriesBlockIfPresent($composerJson)` — так гарантовано виконується “when present” без ризику додавання нового ключа або фейлу через null
   - [x] update ONLY entries marked with `coretsia_managed=true`
   - [x] leave user-owned entries untouched
@@ -2351,14 +2351,14 @@ N/A
       3) [x] then write the updated `composer.json` (canonical format) via `DeterministicFile::writeTextLf()`
     - [x] If there is no change (idempotent run), the sync MUST NOT create a new backup file.
     - [x] Backup bytes MUST match the exact pre-sync bytes (no normalization or rewriting).
-- [x] `framework/tools/spikes/workspace/ComposerJsonCanonicalizer.php` — single canonical composer.json writer:
+- [x] `tools/spikes/workspace/ComposerJsonCanonicalizer.php` — single canonical composer.json writer:
   - [x] MUST expose: `encodeCanonical(array $composerJson): string`
   - [x] MUST implement exactly the canonical encoder pipeline defined in `Cross-cutting → Security / Redaction`
   - [x] MUST NOT reorder keys globally; it operates on the already-prepared associative arrays (insertion order preserved)
   - [x] MUST fail deterministically with `CORETSIA_WORKSPACE_COMPOSER_JSON_ENCODE_FAILED` if canonicalization invariant is violated
-- [x] `framework/tools/spikes/workspace/NewPackageWorkflow.php` — atomic workflow prototype (fixture tree):
+- [x] `tools/spikes/workspace/NewPackageWorkflow.php` — atomic workflow prototype (fixture tree):
   - [x] MUST implement a single deterministic mechanism to model “new package creation” on the fixture workspace:
-    - [x] prepares package directory skeleton under `framework/packages/<layer>/<slug>/`
+    - [x] prepares package directory skeleton under `packages/<layer>/<slug>/`
     - [x] ensures the new package has a minimal `composer.json` (deterministic bytes; LF + final newline)
     - [x] updates package-index via `PackageIndexBuilder` (no ad-hoc scanning logic)
     - [x] updates managed repositories blocks via `ComposerRepositoriesSync` (managed-only; user-owned untouched)
@@ -2380,30 +2380,30 @@ N/A
   - [x] Tests MUST exercise execution from a non-root working directory to prove this invariant (optional but recommended).
 
 Fixtures:
-- [x] `framework/tools/spikes/fixtures/workspace_min/framework/composer.json`
-- [x] `framework/tools/spikes/fixtures/workspace_min/skeleton/composer.json`
-- [x] `framework/tools/spikes/fixtures/workspace_min/framework/packages/**/composer.json`
-- [x] `framework/tools/spikes/fixtures/workspace_min/expected_package_index.php`
-- [x] `framework/tools/spikes/fixtures/workspace_min/expected_composer_framework.json`
-- [x] `framework/tools/spikes/fixtures/workspace_min/expected_composer_skeleton.json`
+- [x] `tools/spikes/fixtures/workspace_min/framework/composer.json`
+- [x] `tools/spikes/fixtures/workspace_min/packages/applications/skeleton/composer.json`
+- [x] `tools/spikes/fixtures/workspace_min/packages/**/composer.json`
+- [x] `tools/spikes/fixtures/workspace_min/expected_package_index.php`
+- [x] `tools/spikes/fixtures/workspace_min/expected_composer_framework.json`
+- [x] `tools/spikes/fixtures/workspace_min/expected_composer_skeleton.json`
 - [x] Fixtures `expected_composer_framework.json` and `expected_composer_skeleton.json` MUST be LF-only and end with final newline
 
 Tests:
-- [x] `framework/tools/spikes/workspace/tests/PackageIndexDeterministicTest.php`
-- [x] `framework/tools/spikes/workspace/tests/ComposerSyncUpdatesManagedOnlyTest.php`
-- [x] `framework/tools/spikes/workspace/tests/ComposerSyncIdempotentNoDiffTest.php`
-- [x] `framework/tools/spikes/workspace/tests/ComposerSyncWritesBackupsTest.php`
-- [x] `framework/tools/spikes/workspace/tests/NewPackageAtomicWorkflowPrototypeTest.php`
-- [x] `framework/tools/spikes/workspace/tests/ComposerJsonCanonicalFormatTest.php`
+- [x] `tools/spikes/workspace/tests/PackageIndexDeterministicTest.php`
+- [x] `tools/spikes/workspace/tests/ComposerSyncUpdatesManagedOnlyTest.php`
+- [x] `tools/spikes/workspace/tests/ComposerSyncIdempotentNoDiffTest.php`
+- [x] `tools/spikes/workspace/tests/ComposerSyncWritesBackupsTest.php`
+- [x] `tools/spikes/workspace/tests/NewPackageAtomicWorkflowPrototypeTest.php`
+- [x] `tools/spikes/workspace/tests/ComposerJsonCanonicalFormatTest.php`
   - [x] asserts output is LF-only and ends with final newline
   - [x] asserts output is pretty-printed with 2 spaces
   - [x] asserts non-managed keys ordering is preserved (input order == output order)
   - [x] asserts managed repositories block ordering matches `WorkspacePolicy`
-- [x] `framework/tools/spikes/workspace/tests/NoImplicitCwdEvidenceTest.php`
+- [x] `tools/spikes/workspace/tests/NoImplicitCwdEvidenceTest.php`
 
 #### Modifies
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register workspace spike error codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register workspace spike error codes:
   - [x] `CORETSIA_WORKSPACE_MANAGED_BLOCK_INVALID`
   - [x] `CORETSIA_WORKSPACE_BACKUP_PATH_MISSING` semantics (cemented):
     - [x] MUST be used when the target `composer.json` file to be synced does not exist at the expected path
@@ -2411,14 +2411,14 @@ Tests:
     - [x] MUST NOT be used for “cannot write backup” IO failures (those MUST fail with parse/encode/write codes as applicable).
   - [x] `CORETSIA_WORKSPACE_COMPOSER_JSON_PARSE_FAILED`
   - [x] `CORETSIA_WORKSPACE_COMPOSER_JSON_ENCODE_FAILED`
-- [x] `framework/tools/gates/internal_toolkit_no_dup_gate.php` — extend allowlist (single-choice; explicit):
+- [x] `tools/gates/internal_toolkit_no_dup_gate.php` — extend allowlist (single-choice; explicit):
   - [x] allow exactly one exception file that MAY call `json_encode(...)`:
     - [x] `spikes/workspace/ComposerJsonCanonicalizer.php`
       - [x] Path is evaluated as **tools-root-relative**.
-      - [x] In the real repo (default tools root = `framework/tools`) this resolves to:
-        `framework/tools/spikes/workspace/ComposerJsonCanonicalizer.php`.
+      - [x] In the real repo (default tools root = `tools`) this resolves to:
+        `tools/spikes/workspace/ComposerJsonCanonicalizer.php`.
   - [x] This exception is path-bound and MUST NOT be generalized to any other file.
-- [x] `framework/tools/spikes/tests/InternalToolkitNoDupGateDetectsDuplicationTest.php` — extend contract evidence for the 0.100 allowlist:
+- [x] `tools/spikes/tests/InternalToolkitNoDupGateDetectsDuplicationTest.php` — extend contract evidence for the 0.100 allowlist:
   - [x] given a temp scan root containing an allowlisted file at
     `spikes/workspace/ComposerJsonCanonicalizer.php` that calls `json_encode(...)`
     → gate MUST pass (path-bound allowlist exception added by this epic).
@@ -2482,7 +2482,7 @@ N/A
 - Unit / Contract:
   - N/A
 - Integration:
-  - [x] `framework/tools/spikes/workspace/tests/*` executed via `framework/tools/spikes/phpunit.spikes.xml`
+  - [x] `tools/spikes/workspace/tests/*` executed via `tools/spikes/phpunit.spikes.xml`
 
 ### DoD (MUST)
 
@@ -2645,7 +2645,7 @@ N/A
   - [x] This validation MUST fail if any required item is missing/invalid.
 - [x] Add a workflow dry-run step that generates `ci/split-plan.json` (single-choice):
   - [x] Package discovery MUST be deterministic:
-    - [x] scan `framework/packages/*/*/composer.json` and derive `<layer>/<slug>` from path
+    - [x] scan `packages/*/*/composer.json` and derive `<layer>/<slug>` from path
     - [x] validate `composer.json:name` MUST equal `coretsia/<layer>-<slug>`
     - [x] sort packages lexicographically by `package_id`
   - [x] Rerun-no-diff MUST be proven in a single workflow run:
@@ -2699,7 +2699,7 @@ N/A
 type: package
 phase: 0
 epic_id: "0.120.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -2728,7 +2728,7 @@ ssot_refs: []
   - core/contracts package exists (composer + autoload)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/composer.json`
+  - `packages/core/contracts/composer.json`
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -2749,13 +2749,13 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Cli/Input/InputInterface.php` — raw tokens only (no parsing semantics frozen):
+- [x] `packages/core/contracts/src/Cli/Input/InputInterface.php` — raw tokens only (no parsing semantics frozen):
   - [x] `tokens(): array` (returns `list<string>`)
-- [x] `framework/packages/core/contracts/src/Cli/Output/OutputInterface.php` — deterministic/redaction-safe output port:
+- [x] `packages/core/contracts/src/Cli/Output/OutputInterface.php` — deterministic/redaction-safe output port:
   - [x] `text(string $text): void`
   - [x] `json(array $payload): void`
   - [x] `error(string $code, string $message): void` (no secrets; output impl enforces redaction)
-- [x] `framework/packages/core/contracts/src/Cli/Command/CommandInterface.php` — command port for `coretsia/cli`:
+- [x] `packages/core/contracts/src/Cli/Command/CommandInterface.php` — command port for `coretsia/cli`:
   - [x] `name(): string`
   - [x] `run(InputInterface $input, OutputInterface $output): int`
 
@@ -2784,7 +2784,7 @@ N/A (contracts-only port types)
 type: package
 phase: 0
 epic_id: "0.130.0"
-owner_path: "framework/packages/platform/cli/"
+owner_path: "packages/platform/cli/"
 
 package_id: "platform/cli"
 composer: "coretsia/platform-cli"
@@ -2849,7 +2849,7 @@ N/A
   - Rationale: works on Linux/Windows and does not depend on executable bits / shebang.
 
 - Framework launcher (implementation detail; still runnable):
-  - `php framework/bin/coretsia ...`
+  - `php tools/bin/coretsia ...`
 
 - Optional convenience (non-normative; allowed on Unix only):
   - `./coretsia ...` if the file is executable.
@@ -2871,7 +2871,7 @@ N/A
     - If `Composer\InstalledVersions` is not available, CLI MUST treat this as “not installed” (Phase 0 assumption).
 
   - Preset source is single-choice (derived from the selected autoload file; no probing):
-    - The launcher (`framework/bin/coretsia`) MUST select the autoload file via the ordered fallback and then pass the
+    - The launcher (`tools/bin/coretsia`) MUST select the autoload file via the ordered fallback and then pass the
       resolved absolute `$autoloadFile` path into `Coretsia\Platform\Cli\Application` (single canonical handoff).
       - Canonical mechanism (single-choice): `Application` MUST accept `$autoloadFile` as a constructor argument
         (or an explicit setter called exactly once before `run()`), and MUST NOT attempt to rediscover it.
@@ -2891,23 +2891,23 @@ N/A
 #### Creates
 
 Package skeleton:
-- [x] `framework/packages/platform/cli/composer.json`
-- [x] `framework/packages/platform/cli/src/Module/CliModule.php` — minimal placeholder (no kernel boot)
-- [x] `framework/packages/platform/cli/src/Provider/CliServiceProvider.php` — minimal placeholder
-- [x] `framework/packages/platform/cli/src/Provider/CliServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [x] `framework/packages/platform/cli/config/cli.php` — defaults (commands empty)
-- [x] `framework/packages/platform/cli/config/rules.php` — shape validation
-- [x] `framework/packages/platform/cli/README.md` — must include: Observability / Errors / Security-Redaction
-- [x] `framework/packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/platform/cli/composer.json`
+- [x] `packages/platform/cli/src/Module/CliModule.php` — minimal placeholder (no kernel boot)
+- [x] `packages/platform/cli/src/Provider/CliServiceProvider.php` — minimal placeholder
+- [x] `packages/platform/cli/src/Provider/CliServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/platform/cli/config/cli.php` — defaults (commands empty)
+- [x] `packages/platform/cli/config/rules.php` — shape validation
+- [x] `packages/platform/cli/README.md` — must include: Observability / Errors / Security-Redaction
+- [x] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Core implementation:
-- [x] `framework/packages/platform/cli/src/Application.php` — minimal CLI runtime:
+- [x] `packages/platform/cli/src/Application.php` — minimal CLI runtime:
   - [x] loads config deterministically
-    - [x] loads package defaults from `framework/packages/platform/cli/config/cli.php`
+    - [x] loads package defaults from `packages/platform/cli/config/cli.php`
     - [x] deterministic devtools preset merge (allowlisted; NOT a plugin system):
       - [x] if package `coretsia/devtools-cli-spikes` is installed, MUST merge its `config/cli.php` subtree into `cli` defaults
       - [x] if absent, base CLI remains usable (no error)
-    - [x] merge skeleton overrides from `skeleton/config/cli.php` IF PRESENT
+    - [x] merge skeleton overrides from `packages/applications/skeleton/config/cli.php` IF PRESENT
       - [x] if file (or directory) is absent → empty overlay;
       - [x] if present but unreadable/invalid → `CORETSIA_CLI_CONFIG_INVALID` / `cli-subtree-invalid`
     - [x] Merge algorithm is single-choice and cemented:
@@ -2936,22 +2936,22 @@ Core implementation:
     - [x] `Application` MUST return exit code `1` for any caught `CliExceptionInterface`
     - [x] Any other `\Throwable` MUST bubble to the launcher catch-all (launcher prints `CORETSIA_CLI_UNCAUGHT_EXCEPTION` + `uncaught-exception`)
   - [x] CLI config merge order is deterministic (single-choice):
-    - [x] Start from package defaults (`framework/packages/platform/cli/config/cli.php` subtree)
+    - [x] Start from package defaults (`packages/platform/cli/config/cli.php` subtree)
     - [x] If present, merge devtools preset subtree (`coretsia/devtools-cli-spikes/config/cli.php`) second
-    - [x] Merge skeleton subtree (`skeleton/config/cli.php`) last
+    - [x] Merge skeleton subtree (`packages/applications/skeleton/config/cli.php`) last
   - [x] Root path resolution is single-choice and deterministic (no directory probing search):
-    - [x] `launcherDir` is the directory of `framework/bin/coretsia`
+    - [x] `launcherDir` is the directory of `tools/bin/coretsia`
     - [x] `frameworkRoot` MUST be `realpath(launcherDir . '/..')`
     - [x] `repoRoot` MUST be `realpath(frameworkRoot . '/..')`
-    - [x] `skeletonRoot` MUST be `repoRoot . '/skeleton'`
+    - [x] `applicationRoot` MUST be `repoRoot . '/skeleton'`
     - [x] If `frameworkRoot` or `repoRoot` resolution fails it MUST be a deterministic CLI error (no absolute paths leaked).
-    - [x] якщо skeletonRoot не існує → трактувати як empty overlay (no error) і НЕ ламати запуск базового CLI
+    - [x] якщо applicationRoot не існує → трактувати як empty overlay (no error) і НЕ ламати запуск базового CLI
   - [x] Phase 0 layout assumption (explicit; single-choice):
     - [x] This CLI base is scoped to the Coretsia monorepo layout in Phase 0.
     - [x] It MUST assume `framework/` and (if present) `skeleton/` are siblings under a common repo root (as derived by the launcher path rules).
     - [x] Running the CLI in arbitrary external project layouts (e.g. vendor-only installs) is out of scope for Phase 0
       and MUST NOT be implied by this epic.
-- [x] `framework/packages/platform/cli/src/Output/CliOutput.php` — implements `Coretsia\Contracts\Cli\Output\OutputInterface`:
+- [x] `packages/platform/cli/src/Output/CliOutput.php` — implements `Coretsia\Contracts\Cli\Output\OutputInterface`:
   - [x] MUST be deterministic + safe (single-choice; cemented in Phase 0):
     - [x] All emitted output MUST end with a single `\n`.
     - [x] MUST NOT emit absolute paths (Windows drive/UNC, `/home/`, `/Users/`) in any error rendering.
@@ -2978,18 +2978,18 @@ Core implementation:
     - [x] JSON encoding MUST use:
       - [x] `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR`
     - [x] JSON output MUST be a single line + trailing `\n` (no pretty print in Phase 0).
-- [x] `framework/packages/platform/cli/src/Input/CliInput.php` — implements `Coretsia\Contracts\Cli\Input\InputInterface`
-- [x] `framework/packages/platform/cli/src/Command/HelpCommand.php` (built-in)
-- [x] `framework/packages/platform/cli/src/Command/ListCommand.php` (built-in)
-- [x] `framework/packages/platform/cli/src/Exception/CliExceptionInterface.php` — internal deterministic failure surface:
+- [x] `packages/platform/cli/src/Input/CliInput.php` — implements `Coretsia\Contracts\Cli\Input\InputInterface`
+- [x] `packages/platform/cli/src/Command/HelpCommand.php` (built-in)
+- [x] `packages/platform/cli/src/Command/ListCommand.php` (built-in)
+- [x] `packages/platform/cli/src/Exception/CliExceptionInterface.php` — internal deterministic failure surface:
   - [x] `code(): string` (CLI-owned code from `ErrorCodes`)
   - [x] `reason(): string` (short fixed token; MUST be stable; MUST NOT contain paths/secrets)
-- [x] `framework/packages/platform/cli/src/Exception/CliException.php` — base exception (`\RuntimeException`) implementing `CliExceptionInterface`
-- [x] `framework/packages/platform/cli/src/Exception/CliConfigInvalidException.php` — `CORETSIA_CLI_CONFIG_INVALID` (+ reason tokens)
-- [x] `framework/packages/platform/cli/src/Exception/CliCommandInvalidException.php` — `CORETSIA_CLI_COMMAND_INVALID` (+ reason tokens)
-- [x] `framework/packages/platform/cli/src/Exception/CliCommandClassMissingException.php` — `CORETSIA_CLI_COMMAND_CLASS_MISSING` (+ reason tokens)
-- [x] `framework/packages/platform/cli/src/Exception/CliCommandFailedException.php` — command-level failure (MAY implement `CliExceptionInterface` if used for deterministic rendering)
-- [x] `framework/packages/platform/cli/src/Error/ErrorCodes.php` — CLI-owned deterministic codes registry (NOT spikes registry):
+- [x] `packages/platform/cli/src/Exception/CliException.php` — base exception (`\RuntimeException`) implementing `CliExceptionInterface`
+- [x] `packages/platform/cli/src/Exception/CliConfigInvalidException.php` — `CORETSIA_CLI_CONFIG_INVALID` (+ reason tokens)
+- [x] `packages/platform/cli/src/Exception/CliCommandInvalidException.php` — `CORETSIA_CLI_COMMAND_INVALID` (+ reason tokens)
+- [x] `packages/platform/cli/src/Exception/CliCommandClassMissingException.php` — `CORETSIA_CLI_COMMAND_CLASS_MISSING` (+ reason tokens)
+- [x] `packages/platform/cli/src/Exception/CliCommandFailedException.php` — command-level failure (MAY implement `CliExceptionInterface` if used for deterministic rendering)
+- [x] `packages/platform/cli/src/Error/ErrorCodes.php` — CLI-owned deterministic codes registry (NOT spikes registry):
   - [x] `CORETSIA_CLI_COMMAND_CLASS_MISSING`
   - [x] `CORETSIA_CLI_COMMAND_INVALID`
   - [x] `CORETSIA_CLI_CONFIG_INVALID`
@@ -3000,13 +3000,13 @@ Core implementation:
 Launcher + repo entrypoint:
 - [x] `coretsia` — repo-root entrypoint (thin wrapper; single-choice):
   - [x] MUST be a PHP file (no extension required).
-  - [x] MUST delegate to `framework/bin/coretsia` as the single canonical launcher implementation.
+  - [x] MUST delegate to `tools/bin/coretsia` as the single canonical launcher implementation.
   - [x] MUST NOT implement its own autoload probing or error rendering beyond delegation.
   - [x] MUST exit with the same exit code as the framework launcher.
 
-- [x] `framework/bin/coretsia` — entry launcher:
+- [x] `tools/bin/coretsia` — entry launcher:
   - [x] MUST load composer autoload deterministically (ordered fallback; single-choice):
-    1) `framework/vendor/autoload.php`
+    1) `vendor/autoload.php`
     2) `vendor/autoload.php`
   - [x] MUST NOT perform directory probing beyond the ordered fallback above.
   - [x] MUST set strict runtime defaults (single-choice):
@@ -3029,25 +3029,25 @@ Launcher + repo entrypoint:
       - [x] short fixed reason (line 2), MUST NOT include absolute paths.
 
 Skeleton config:
-- [x] `skeleton/config/cli.php` — user overrides zone (OPTIONAL file; may be absent):
+- [x] `packages/applications/skeleton/config/cli.php` — user overrides zone (OPTIONAL file; may be absent):
   - [x] `cli.commands` = `[]` (empty by default)
   - [x] `cli.output.format` = `text` - може перекривати defaults пакета
   - [x] `cli.output.redaction.enabled` = `true` - може перекривати defaults пакета
   - [x] якщо файл відсутній — трактувати як empty overlay (no error)
 
 Tests:
-- [x] `framework/packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
-- [x] `framework/packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
-- [x] `framework/packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
-- [x] `framework/packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php`
-  - [x] Contract test MUST be a token-based scan of `framework/packages/platform/cli/src/Command/**/*.php`.
+- [x] `packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
+- [x] `packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
+- [x] `packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
+- [x] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php`
+  - [x] Contract test MUST be a token-based scan of `packages/platform/cli/src/Command/**/*.php`.
   - [x] MUST fail if any command class contains direct output constructs or direct stdout/stderr sinks:
     - [x] `echo`, `print`
     - [x] `var_dump`, `print_r`, `printf`, `vprintf`, `fprintf`, `error_log`
     - [x] `fwrite(STDOUT|STDERR, ...)`, `fputs(STDOUT|STDERR, ...)`
     - [x] `php://stdout`, `php://stderr`, `php://output` used in `file_put_contents` / `fopen` / `popen`
   - [x] MUST ignore occurrences inside comments/strings (token-based; comments/strings excluded).
-- [x] `framework/packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
+- [x] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
   - [x] MUST fail if any `config/cli.php` returns a repeated root key (e.g. `['cli' => ...]`) instead of the `cli` subtree.
   - [x] MUST prove `cli.commands` merge strategy is **append-unique** with stable first-occurrence order:
     - [x] merge order is defaults → preset → skeleton
@@ -3061,20 +3061,20 @@ Tests:
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/platform/cli/config/cli.php`
-  - [x] `skeleton/config/cli.php`
+  - [x] `packages/platform/cli/config/cli.php`
+  - [x] `packages/applications/skeleton/config/cli.php`
 - [x] Config file shape (single-choice; SSoT):
-  - [x] `framework/packages/platform/cli/config/cli.php` MUST return the `cli` subtree (NO repeated root key):
+  - [x] `packages/platform/cli/config/cli.php` MUST return the `cli` subtree (NO repeated root key):
     - [x] ✅ returns: `['commands' => [...], 'output' => [...]]`
     - [x] ❌ forbidden: `['cli' => ['commands' => ...]]`
-  - [x] `skeleton/config/cli.php` MUST return the `cli` subtree (NO repeated root key).
+  - [x] `packages/applications/skeleton/config/cli.php` MUST return the `cli` subtree (NO repeated root key).
   - [x] Any preset merge (e.g. `coretsia/devtools-cli-spikes/config/cli.php`) MUST also return the `cli` subtree (NO repeated root key).
 - [x] Keys (dot):
   - [x] `cli.commands` = `[]`
   - [x] `cli.output.format` = `text`
   - [x] `cli.output.redaction.enabled` = `true`
 - [x] Rules:
-  - [x] `framework/packages/platform/cli/config/rules.php` enforces shape
+  - [x] `packages/platform/cli/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -3117,9 +3117,9 @@ N/A
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [x] `framework/packages/platform/cli/tests/Integration/*`
+  - [x] `packages/platform/cli/tests/Integration/*`
 
 ### DoD (MUST)
 
@@ -3129,7 +3129,7 @@ N/A
 - [x] Repo entrypoint exists:
   - [x] `coretsia` file exists in repo root and is runnable via `php coretsia`.
 - [x] Exit semantics are cemented:
-  - [x] `framework/bin/coretsia` exits with the `Application` exit code (no ambiguous “return” semantics).
+  - [x] `tools/bin/coretsia` exits with the `Application` exit code (no ambiguous “return” semantics).
 - [x] Production safety:
   - [x] `coretsia/cli` ships with NO devtools/spike command classes
 - [x] Output UX contract is cemented:
@@ -3151,7 +3151,7 @@ N/A
 type: package
 phase: 0
 epic_id: "0.140.0"
-owner_path: "framework/packages/devtools/cli-spikes/"
+owner_path: "packages/devtools/cli-spikes/"
 
 package_id: "devtools/cli-spikes"
 composer: "coretsia/devtools-cli-spikes"
@@ -3160,7 +3160,7 @@ kind: library
 goal: "Provide Phase 0 spike command implementations for `coretsia` CLI without shipping them in production runtime."
 provides:
 - "`coretsia doctor` and Phase 0 spike commands as devtools-only classes"
-- "Deterministic safe dispatch to tools-only spikes under `framework/tools/spikes/**`"
+- "Deterministic safe dispatch to tools-only spikes under `tools/spikes/**`"
 - "Config preset that registers command FQCNs into `cli.commands` when package is installed"
 
 tags_introduced: []
@@ -3177,16 +3177,16 @@ ssot_refs: []
 
 - Epic prerequisites:
   - 0.130.0 — CLI base exists (CommandInterface + registry `cli.commands`)
-  - 0.20.0 — spikes sandbox exists (`framework/tools/spikes/**`)
+  - 0.20.0 — spikes sandbox exists (`tools/spikes/**`)
   - 0.60.0 — fingerprint spike exists
   - 0.80.0 — deptrac spike exists
   - 0.90.0 — config_merge spike exists
   - 0.100.0 — workspace spike exists
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/_support/bootstrap.php` — spikes bootstrap exists
-  - `framework/tools/spikes/_support/ErrorCodes.php` — spikes error codes registry exists
-  - `framework/tools/spikes/fixtures/**` — fixtures exist (for commands that use them)
+  - `tools/spikes/_support/bootstrap.php` — spikes bootstrap exists
+  - `tools/spikes/_support/ErrorCodes.php` — spikes error codes registry exists
+  - `tools/spikes/fixtures/**` — fixtures exist (for commands that use them)
 
 - Required config roots/keys:
   - `cli.commands` — must exist (provided by 0.130 defaults)
@@ -3232,38 +3232,38 @@ N/A
 #### Creates
 
 Package skeleton:
-- [x] `framework/packages/devtools/cli-spikes/composer.json`
-- [x] `framework/packages/devtools/cli-spikes/README.md` — must include: Observability / Errors / Security-Redaction
+- [x] `packages/devtools/cli-spikes/composer.json`
+- [x] `packages/devtools/cli-spikes/README.md` — must include: Observability / Errors / Security-Redaction
 
 Config preset (single source of truth for registration):
-- [x] `framework/packages/devtools/cli-spikes/config/cli.php` — returns subtree (no repeated root):
+- [x] `packages/devtools/cli-spikes/config/cli.php` — returns subtree (no repeated root):
   - [x] sets `commands` list (FQCNs) for registration into `cli.commands`
 
 Commands:
-- [x] `framework/packages/devtools/cli-spikes/src/Command/DoctorCommand.php`
-- [x] `framework/packages/devtools/cli-spikes/src/Command/SpikeFingerprintCommand.php`
-- [x] `framework/packages/devtools/cli-spikes/src/Command/SpikeConfigDebugCommand.php`
-- [x] `framework/packages/devtools/cli-spikes/src/Command/DeptracGraphCommand.php`
-- [x] `framework/packages/devtools/cli-spikes/src/Command/WorkspaceSyncDryRunCommand.php`
-- [x] `framework/packages/devtools/cli-spikes/src/Command/WorkspaceSyncApplyCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/DoctorCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/SpikeFingerprintCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/SpikeConfigDebugCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/DeptracGraphCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/WorkspaceSyncDryRunCommand.php`
+- [x] `packages/devtools/cli-spikes/src/Command/WorkspaceSyncApplyCommand.php`
 
 Dispatch helpers (REQUIRED; single canonical mechanism):
-- [x] `framework/packages/devtools/cli-spikes/src/Spikes/SpikesPaths.php` — resolves repo-root + fixture roots safely (no absolute path leaks):
+- [x] `packages/devtools/cli-spikes/src/Spikes/SpikesPaths.php` — resolves repo-root + fixture roots safely (no absolute path leaks):
   - [x] Root resolution MUST be single-choice and MUST NOT use directory probing/search:
     - [x] Let `$launcherPathRaw` be the first available source in this exact order:
       1) `$_SERVER['SCRIPT_FILENAME']` (preferred; most stable in PHP CLI)
       2) `$_SERVER['argv'][0]` (fallback)
     - [x] Let `$launcherPath = realpath($launcherPathRaw)`; if it fails → error reason `launcher-path-unresolvable`
   - [x] Returned display paths (if any) MUST be repo-relative normalized (forward slashes) only.
-- [x] `framework/packages/devtools/cli-spikes/src/Spikes/SpikesBootstrap.php` — loads `framework/tools/spikes/_support/bootstrap.php` deterministically:
+- [x] `packages/devtools/cli-spikes/src/Spikes/SpikesBootstrap.php` — loads `tools/spikes/_support/bootstrap.php` deterministically:
   - [x] MUST load exactly the path computed by `SpikesPaths` (no fallbacks, no probing).
   - [x] MUST use `require_once` for the tools bootstrap file.
   - [x] MUST NOT emit stdout/stderr; all user-visible output is owned by CLI `OutputInterface`.
-- [x] `framework/packages/devtools/cli-spikes/src/Spikes/SpikesExitCodeMapper.php` — stable exit codes mapping (cemented):
+- [x] `packages/devtools/cli-spikes/src/Spikes/SpikesExitCodeMapper.php` — stable exit codes mapping (cemented):
   - [x] Phase 0 policy is single-choice and binary:
     - [x] `0` — success
     - [x] `1` — any failure (including deterministic spike failures and uncaught exceptions)
-- [x] `framework/packages/devtools/cli-spikes/src/Spikes/SpikesBootstrapFailedException.php` — deterministic bootstrap failure carrier:
+- [x] `packages/devtools/cli-spikes/src/Spikes/SpikesBootstrapFailedException.php` — deterministic bootstrap failure carrier:
   - [x] MUST extend `\RuntimeException` (or `\Exception`) but MUST be used as a typed signal (single-choice).
   - [x] MUST expose: `reason(): string` returning one of the cemented reason tokens:
     - [x] `launcher-path-unresolvable`
@@ -3276,16 +3276,16 @@ Dispatch helpers (REQUIRED; single canonical mechanism):
   - [x] MUST NOT include absolute paths or any dynamic OS error text.
 
 Tests:
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/DoctorCommandRunsTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/SpikeFingerprintGoldenOkTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/SpikeConfigDebugStableTraceTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/DeptracGraphRunsTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/WorkspaceSyncDryRunIsSafeTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Integration/WorkspaceSyncApplyCommandTest.php`
-- [x] `framework/packages/devtools/cli-spikes/tests/Contract/CliSpikesIsDevOnlyPolicyTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/DoctorCommandRunsTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/SpikeFingerprintGoldenOkTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/SpikeConfigDebugStableTraceTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/DeptracGraphRunsTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/WorkspaceSyncDryRunIsSafeTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Integration/WorkspaceSyncApplyCommandTest.php`
+- [x] `packages/devtools/cli-spikes/tests/Contract/CliSpikesIsDevOnlyPolicyTest.php`
   - [x] asserts `framework/composer.json` contains `coretsia/devtools-cli-spikes` only in `require-dev` and not in `require`
-- [x] `framework/packages/devtools/cli-spikes/tests/Contract/CommandsDoNotWriteToStdoutTest.php`
-  - [x] token-based scan of `framework/packages/devtools/cli-spikes/src/Command/**/*.php`
+- [x] `packages/devtools/cli-spikes/tests/Contract/CommandsDoNotWriteToStdoutTest.php`
+  - [x] token-based scan of `packages/devtools/cli-spikes/src/Command/**/*.php`
   - [x] MUST fail if any command class contains direct output constructs or direct stdout/stderr sinks:
     - [x] `echo`, `print`
     - [x] `var_dump`, `print_r`, `printf`, `vprintf`, `fprintf`
@@ -3302,7 +3302,7 @@ Tests:
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/devtools/cli-spikes/config/cli.php`
+  - [x] `packages/devtools/cli-spikes/config/cli.php`
 - [x] Keys (dot):
   - [x] `cli.commands` extends with:
     - [x] `DoctorCommand`
@@ -3326,7 +3326,7 @@ N/A (Phase 0: config registry only)
 
 #### Errors
 
-- [x] Commands MUST forward spike error codes from `framework/tools/spikes/_support/ErrorCodes.php` where applicable
+- [x] Commands MUST forward spike error codes from `tools/spikes/_support/ErrorCodes.php` where applicable
 - [x] CLI failures outside spikes MUST use CLI base codes (0.130)
 
 #### Security / Redaction
@@ -3343,7 +3343,7 @@ N/A (Phase 0: config registry only)
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/packages/devtools/cli-spikes/tests/Integration/*`
+  - [x] `packages/devtools/cli-spikes/tests/Integration/*`
 - Unit/Contract:
   - N/A
 
@@ -3364,9 +3364,9 @@ N/A (Phase 0: config registry only)
     - [x] via `Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrap` (REQUIRED)
   - [x] Output authority is single-choice (no bypass):
     - [x] ALL user-visible output MUST be produced via CLI `OutputInterface` only.
-    - [x] Tools-only spike code under `framework/tools/spikes/**` MUST NOT write to stdout/stderr at all
+    - [x] Tools-only spike code under `tools/spikes/**` MUST NOT write to stdout/stderr at all
       (neither directly, nor via `ConsoleOutput`).
-    - [x] `framework/tools/spikes/_support/ConsoleOutput.php` is reserved for **gates/runner diagnostics only**
+    - [x] `tools/spikes/_support/ConsoleOutput.php` is reserved for **gates/runner diagnostics only**
       (CI rails / determinism runner / gate scripts), not for spike business logic.
   - [x] Commands MUST treat spike execution as pure computation:
     - [x] spikes return structured results (arrays/DTOs) or throw deterministic exceptions with stable codes
@@ -3375,7 +3375,7 @@ N/A (Phase 0: config registry only)
   - [x] No duplicated spike logic:
     - [x] commands MUST NOT partially duplicate spike algorithms (no “helper re-implementation” per command)
   - [x] Failure propagation is single-choice:
-    - [x] tools-only spikes MUST throw `framework/tools/spikes/_support/DeterministicException` for deterministic failures
+    - [x] tools-only spikes MUST throw `tools/spikes/_support/DeterministicException` for deterministic failures
     - [x] commands MUST render failures via `OutputInterface->error($code, $message)` and return `SpikesExitCodeMapper` result
   - [x] Bootstrap failure containment (single-choice; REQUIRED):
     - [x] `Coretsia\Devtools\CliSpikes\Spikes\SpikesBootstrap` MUST assume that the CLI launcher (0.130) has already loaded Composer autoload.

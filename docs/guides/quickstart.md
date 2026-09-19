@@ -51,7 +51,7 @@ composer setup
 
 What this MUST achieve (by policy):
 
-- installs dependencies (via committed lockfiles),
+- installs root workspace dependencies from the committed `composer.lock`,
 - configures Git hooks path to `.githooks`,
 - ensures managed Composer repositories policy is respected.
 
@@ -104,7 +104,7 @@ Fix:
 ```bash
 composer sync:repos
 composer sync:check
-git add composer.json framework/composer.json skeleton/composer.json
+git add composer.json
 git commit
 ```
 
@@ -112,14 +112,14 @@ git commit
 
 Policy summary:
 
-- Lock files MUST be committed (root/framework/skeleton).
-- CI MUST use `composer install` (not update) and MUST NOT modify locks.
+- The root workspace `composer.lock` MUST be committed.
+- CI MUST use `composer install` (not update) and MUST NOT modify `composer.lock`.
 
 Fix approach:
 
 - do NOT run `composer update` as a first reaction;
 - re-run `composer setup` and/or ensure you are on the correct branch/commit;
-- if you intentionally changed dependencies, ensure the correct lockfiles are updated and committed.
+- if you intentionally changed dependencies, ensure the root `composer.lock` is updated and committed.
 
 ### C) Wrong PHP binary
 
@@ -134,5 +134,5 @@ PHP=/path/to/php composer setup
 ## 6) Minimal workflow reminder
 
 - Always run commands from the repo root (`composer setup|test|ci`).
-- Do not manually edit managed `repositories` blocks in Composer roots.
+- Do not manually edit the managed `repositories` block in root `composer.json`.
 - Keep your working tree clean; policies rely on deterministic “rerun-no-diff” discipline.

@@ -227,7 +227,7 @@ config root: worker
 The owner path is:
 
 ```text
-framework/packages/platform/worker/
+packages/platform/worker/
 ```
 
 The worker config root is owned by `platform/worker`.
@@ -235,8 +235,8 @@ The worker config root is owned by `platform/worker`.
 The owning config files are:
 
 ```text
-framework/packages/platform/worker/config/worker.php
-framework/packages/platform/worker/config/rules.php
+packages/platform/worker/config/worker.php
+packages/platform/worker/config/rules.php
 ```
 
 The worker defaults file returns the `worker` subtree only.
@@ -364,7 +364,7 @@ They are not public framework extension points and must not be moved to `core/co
 Coretsia\Kernel\Runtime\RuntimePathContext
 ```
 
-It supplies runtime-only skeleton and artifact roots to path-owning Worker services.
+It supplies runtime-only application and artifact roots to path-owning Worker services.
 
 It is not a Worker extension point, canonical definition value, artifact payload, or fingerprint input.
 
@@ -722,7 +722,7 @@ tcp otherwise
 
 Control-transport selection is independent from the selected Worker OS process driver.
 
-The `unix` transport uses a skeleton-root-relative socket path.
+The `unix` transport uses an application-root-relative socket path.
 
 The `tcp` transport uses the canonical IPv4 loopback host `127.0.0.1` and the explicitly configured deterministic TCP port.
 
@@ -755,7 +755,7 @@ The server decodes the exact request schema and validates the credential through
 
 Credential ownership is limited to supervisor memory, the active control server, the private lifecycle locator, and one private request frame. It must not enter state, endpoint hashes, logs, spans, metrics, CLI output, exceptions, child argv, or child environment.
 
-TCP remains restricted to `127.0.0.1`; no non-loopback opt-in exists. A Unix listener is created under `umask(0177)`, verified as mode `0600`, and published only after that verification. On Windows, deployment owns restrictive ACLs for the skeleton and runtime directory.
+TCP remains restricted to `127.0.0.1`; no non-loopback opt-in exists. A Unix listener is created under `umask(0177)`, verified as mode `0600`, and published only after that verification. On Windows, deployment owns restrictive ACLs for the application root and runtime directory.
 
 The credential does not claim isolation from arbitrary processes running under the same compromised operating-system account.
 
@@ -989,7 +989,7 @@ Both drivers delegate process ownership to the guardian. The guardian forks PCNT
 
 Neither child resolves `ApplicationWorker` from the supervisor container.
 
-`WorkerChildCommandBuilder` passes each newly spawned child exactly one skeleton-root-relative Kernel artifact root.
+`WorkerChildCommandBuilder` passes each newly spawned child exactly one application-root-relative Kernel artifact root.
 
 The canonical child argv field is:
 
@@ -1016,7 +1016,7 @@ It MUST reject individual artifact-path arguments:
 The artifact-root argument MUST:
 
 - be non-empty;
-- be skeleton-root-relative;
+- be application-root-relative;
 - use `/` separators;
 - contain no whitespace;
 - contain no control bytes;
@@ -1026,13 +1026,13 @@ The artifact-root argument MUST:
 - contain no absolute-path prefix;
 - contain no `@`-prefixed segment.
 
-The child process uses its working directory as the explicit normalized skeleton root.
+The child process uses its working directory as the explicit normalized application root.
 
-It resolves the validated relative artifact root against that skeleton root and creates:
+It resolves the validated relative artifact root against that application root and creates:
 
 ```php
 new ArtifactRuntimeInput(
-    skeletonRoot: $skeletonRoot,
+    applicationRoot: $applicationRoot,
     artifactRoot: $artifactRoot,
 );
 ```
@@ -1148,7 +1148,7 @@ It processes real acquired tasks sequentially without restarting PHP between tas
 
 `WorkerServiceFactory::applicationWorker(...)` receives `WorkerStopSignal`, `KernelRuntimeInterface`, `WorkerTaskSourceInterface`, `Stopwatch`, `TracerPortInterface`, and `MeterPortInterface`.
 
-`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, a raw skeleton root, or transport-specific queue/HTTP APIs.
+`ApplicationWorker` does not depend on `RuntimePathContext`, `BootstrapConfig`, a raw application root, or transport-specific queue/HTTP APIs.
 
 Before the child readiness frame is published, `ApplicationWorker::assertReady(...)` validates that the resolved source type matches `WorkerPoolSpec` and delegates source preflight to `WorkerTaskSourceInterface::assertReady(...)` using the safe `WorkerTaskSourceContextInterface` boundary.
 
@@ -1345,7 +1345,7 @@ The value must be a positive integer no greater than `86400000`.
 
 ### Path safety
 
-Configured Worker-owned path values remain skeleton-root-relative configuration values.
+Configured Worker-owned path values remain application-root-relative configuration values.
 
 These include:
 
@@ -1380,17 +1380,16 @@ Configured relative Worker paths must:
 - reject parent traversal;
 - reject absolute Unix paths;
 - reject absolute Windows drive paths;
-- reject the `skeleton/` prefix;
 - reject every path segment beginning with `@`.
 
-Phase-B config validation declares the last two Worker-specific restrictions through `forbiddenPrefixes` and `forbiddenSegmentPrefixes` on the generic `relative-safe-path` type. `WorkerPoolSpec` repeats the same checks as a runtime defense-in-depth boundary.
+Phase-B config validation declares the Worker-specific `@` segment restriction through `forbiddenSegmentPrefixes` on the generic `relative-safe-path` type. `WorkerPoolSpec` repeats the same check as a runtime defense-in-depth boundary.
 
 These relative config values are distinct from both:
 
 - the process-child artifact-root argument;
 - runtime roots carried by `RuntimePathContext`.
 
-The process-child artifact root is one launcher-owned, skeleton-root-relative runtime input:
+The process-child artifact root is one launcher-owned, application-root-relative runtime input:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -1404,7 +1403,7 @@ The runtime roots are carried by:
 RuntimePathContext
 ```
 
-`RuntimePathContext::skeletonRoot()` and `RuntimePathContext::artifactRoot()` may be normalized absolute runtime paths.
+`RuntimePathContext::applicationRoot()` and `RuntimePathContext::artifactRoot()` may be normalized absolute runtime paths.
 
 The runtime context object and its path values must never be:
 
@@ -1849,7 +1848,7 @@ Endpoint identity may be represented publicly only as a deterministic hash.
 
 The worker state file is runtime state, not a generated architecture artifact.
 
-It is stored under the skeleton runtime tree by default.
+It is stored under the application runtime tree by default.
 
 Operators may inspect it locally for debugging, but runtime public output must remain redacted.
 
@@ -1975,8 +1974,8 @@ docs/adr/ADR-0029-kernel-container-compile-artifact.md
 docs/ssot/compiled-container.md
 docs/ssot/artifact-generations.md
 docs/adr/ADR-0031-atomic-artifact-generations.md
-framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
-framework/packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
+packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+packages/platform/worker/tests/Integration/CompiledWorkerGraphContainsRequiredRuntimeServicesTest.php
 ```
 
 Changing worker process ownership, supervisor/process-driver/application-worker boundaries, state schema, task-source SPI/selection semantics, or process-driver extension policy requires updating:
@@ -1998,11 +1997,11 @@ docs/architecture/worker.md
 Changing the Worker task-type-to-contribution mapping or Worker entrypoint boundary also requires updating:
 
 ```text
-framework/packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
-framework/packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
-framework/packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
-framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
-framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
+packages/platform/worker/src/Runtime/WorkerRuntimeEntrypointGuard.php
+packages/platform/worker/src/Internal/WorkerRuntimeDriverContributions.php
+packages/platform/worker/tests/Unit/WorkerRuntimeDriverContributionsTest.php
+packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php
+packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php
 ```
 
 Changing the `worker` config root ownership or defaults/rules authority requires updating:
@@ -2017,11 +2016,11 @@ Changing canonical lifecycle paths, locator schema, locator publication, lifecyc
 docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md
 docs/architecture/worker.md
 docs/ssot/observability.md
-framework/packages/platform/worker/README.md
-framework/packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
-framework/packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
-framework/packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
+packages/platform/worker/README.md
+packages/platform/worker/tests/Unit/WorkerLifecycleLocatorTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleLocatorStoreFilesystemTest.php
+packages/platform/worker/tests/Integration/WorkerLifecycleConfigDriftTest.php
+packages/platform/worker/tests/Contract/WorkerLifecycleLocatorOwnershipContractTest.php
 ```
 
 Changing worker spans, metrics, or allowed metric labels requires updating:

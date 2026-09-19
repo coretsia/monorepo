@@ -341,7 +341,7 @@ No generation manifest field may contain:
 - generation directory;
 - staging directory;
 - absolute path;
-- skeleton-relative path;
+- application-root-relative path;
 - configured cache directory;
 - source path;
 - temporary path;
@@ -579,7 +579,7 @@ It MUST NOT independently write production flat artifacts.
 
 `ArtifactRuntimeBooter` MUST:
 
-- receive `skeletonRoot` and one artifact root through `ArtifactRuntimeInput`, with no individual artifact paths;
+- receive `applicationRoot` and one artifact root through `ArtifactRuntimeInput`, with no individual artifact paths;
 - locate `current` through `ArtifactGenerationLocator`;
 - require one valid selected generation;
 - read exact bytes and envelopes for all four generation files;
@@ -587,7 +587,7 @@ It MUST NOT independently write production flat artifacts.
 - hydrate runtime state only from that selected generation;
 - build the container from the already-read `container@1` envelope.
 
-`ProcWorkerProcessDriver` MUST provide the proc Worker launcher with exactly one skeleton-root-relative artifact-location argument:
+`ProcWorkerProcessDriver` MUST provide the proc Worker launcher with exactly one application-root-relative artifact-location argument:
 
 ```text
 --coretsia-worker-artifact-root=<relative-safe-path>
@@ -676,7 +676,7 @@ ArtifactRuntimeBooter
   -> consumes one validated generation
 
 ProcWorkerProcessDriver
-  -> passes one skeleton-root-relative artifact root for every spawn
+  -> passes one application-root-relative artifact root for every spawn
   -> child invokes ArtifactRuntimeBooter
   -> child selects and validates current
 ```

@@ -20,10 +20,6 @@ Coretsia Framework is in active development and DOES NOT provide a stable produc
 
 Until the first stable public release is published, security handling is performed on a best-effort basis for the default development branch.
 
-For implementation status and roadmap planning, see:
-
-- [Roadmap](docs/roadmap/ROADMAP.md)
-
 ## Supported Versions
 
 At the moment, Coretsia DOES NOT provide long-term-supported stable release lines.

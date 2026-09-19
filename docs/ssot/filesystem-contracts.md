@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia filesystem contracts, l
 This document governs contracts introduced by epic `1.140.0` under:
 
 ```text
-framework/packages/core/contracts/src/Filesystem/
+packages/core/contracts/src/Filesystem/
 ```
 
 The canonical filesystem contract introduced by this epic is:
@@ -39,7 +39,7 @@ Coretsia\Contracts\Filesystem\DiskInterface
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Filesystem/DiskInterface.php
+packages/core/contracts/src/Filesystem/DiskInterface.php
 ```
 
 ## Normative language
@@ -60,9 +60,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement filesystem behavior, path normalization, path safety validation, driver selection, disk configuration, filesystem adapters, upload handling, session storage, lock storage, DI registration, config defaults, config rules, or generated artifacts.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to filesystem diagnostics.
 - `0.60.0` missing vs empty MUST remain distinguishable where file contents are read.
@@ -123,8 +123,8 @@ They MUST NOT depend on:
 - S3 concrete APIs
 - cloud SDK clients
 - vendor-specific filesystem clients
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - worker runtime packages
 - queue vendor clients
 - scheduler vendor clients
@@ -133,7 +133,8 @@ They MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 Runtime packages MAY depend on `core/contracts`.
@@ -187,7 +188,7 @@ Interfaces introduced by epic `1.140.0` MUST NOT be treated as DTOs.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Filesystem/DiskInterface.php
+packages/core/contracts/src/Filesystem/DiskInterface.php
 ```
 
 The canonical interface shape is:
@@ -337,7 +338,7 @@ The canonical missing-vs-empty behavior is:
 
 A missing path and an existing empty file MUST remain distinguishable.
 
-This preserves the Phase 0 missing-vs-empty invariant.
+This preserves the canonical missing-vs-empty invariant.
 
 `read()` MUST NOT return `false`.
 
@@ -536,13 +537,13 @@ If a future runtime owner needs filesystem DI tags, that owner MUST introduce th
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved filesystem tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved filesystem DI tag identifiers.
 
 ## Config policy
 
@@ -678,7 +679,7 @@ The concrete filesystem adapter, path policy, disk registry, error mapping, conf
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php
+packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php
 ```
 
 This test is expected to verify:

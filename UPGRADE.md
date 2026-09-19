@@ -37,18 +37,19 @@ If you previously relied on wrapper roots in config files, you must adjust your 
 
 ### 2) Managed Composer repositories (must not drift)
 
-`repositories` blocks are managed only by:
+The root `composer.json` `repositories` block is managed only by:
 
 ```bash
 composer sync:repos
 ```
 
-During upgrades (or rebases), treat manual edits of `repositories` as invalid and expect CI/pre-commit to fail on drift.
+During upgrades (or rebases), treat manual edits of the root `repositories` block as invalid and expect CI/pre-commit to fail on drift.
 
 ### 3) Lock determinism (must not drift)
 
-Lock files are committed for root/framework/skeleton. CI uses `composer install` and fails on lock drift.
-If your upgrade changes dependencies, regenerate locks intentionally and commit them.
+The monorepo root `composer.lock` is committed. Consumer applications own their own `composer.lock`.
+CI uses `composer install` and fails on root workspace lock drift.
+If your upgrade changes dependencies, regenerate the affected lock intentionally and commit it where applicable.
 
 ### 4) Determinism & redaction baseline
 
@@ -84,7 +85,7 @@ composer sync:check
 5. Install dependencies using locks
 
 ```bash
-composer install:all
+composer install
 ```
 
 6. Run the canonical rails

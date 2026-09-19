@@ -218,7 +218,7 @@ Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 These symbols are intentionally listed in:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 The public Kernel runtime-driver API contains no generic runtime-entrypoint compatibility facade.
@@ -366,7 +366,7 @@ This ADR does not define:
 
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
 - [Runtime Driver Resolution Architecture](../architecture/runtime-driver-resolution.md)
-- [Kernel Public API evidence](../../framework/packages/core/kernel/PUBLIC_API.md)
+- [Kernel Public API evidence](../../packages/core/kernel/PUBLIC_API.md)
 - [Worker Architecture](../architecture/worker.md)
 - [ADR-0017: Persistent worker supervisor and application worker](./ADR-0017-persistent-worker-supervisor-application-worker.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](./ADR-0020-kernel-runtime-uow-spi.md)

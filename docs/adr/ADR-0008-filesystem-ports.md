@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.140.0` introduces a stable filesystem contract under:
 
 ```text
-framework/packages/core/contracts/src/Filesystem/
+packages/core/contracts/src/Filesystem/
 ```
 
 Platform packages and integration drivers need a shared filesystem boundary without coupling `core/contracts` to platform implementations, integration packages, HTTP abstractions, local filesystem details, cloud storage SDKs, or vendor-specific filesystem APIs.
@@ -46,7 +46,8 @@ It must not depend on:
 - `RecursiveDirectoryIterator`
 - cloud SDK clients
 - vendor-specific filesystem clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 The detailed normative policy for this ADR is defined by:
@@ -79,7 +80,7 @@ Coretsia\Contracts\Filesystem\DiskInterface
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Filesystem/DiskInterface.php
+packages/core/contracts/src/Filesystem/DiskInterface.php
 ```
 
 `DiskInterface` is the single contracts-level boundary for logical disk operations.
@@ -272,7 +273,7 @@ The canonical missing-vs-empty behavior is:
 
 `read()` must not return `false`.
 
-This preserves the Phase 0 missing-vs-empty invariant and avoids PHP truthiness ambiguity.
+This preserves the canonical missing-vs-empty invariant and avoids PHP truthiness ambiguity.
 
 Append, partial writes, chunked writes, streamed writes, atomic writes, temporary files, and backend-specific write options are out of scope for this contracts epic.
 
@@ -445,7 +446,7 @@ If a future runtime owner needs filesystem DI tags, that owner must introduce th
 docs/ssot/tags.md
 ```
 
-Framework-reserved DI tag identifier strings must be declared in:
+Coretsia-reserved DI tag identifier strings must be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -542,7 +543,7 @@ Rejected.
 
 Symfony Filesystem is a concrete implementation library.
 
-Contracts must define the framework boundary, not expose a specific local filesystem implementation.
+Contracts must define the filesystem abstraction boundary, not expose a specific local filesystem implementation.
 
 ### Put PSR-7 streams in filesystem contracts
 
@@ -608,7 +609,7 @@ Epic `1.140.0` does not need a new discovery tag.
 
 DI tag ownership is governed by `docs/ssot/tags.md`.
 
-Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 A future runtime owner may introduce filesystem tags through its own owner epic.
 

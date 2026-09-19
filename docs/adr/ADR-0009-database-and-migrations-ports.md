@@ -25,8 +25,8 @@ owner: core/contracts
 Epic `1.150.0` introduces stable database and migration contracts under:
 
 ```text
-framework/packages/core/contracts/src/Database/
-framework/packages/core/contracts/src/Migrations/
+packages/core/contracts/src/Database/
+packages/core/contracts/src/Migrations/
 ```
 
 Future `platform/database`, future `platform/migrations`, and future database driver packages need to interoperate through a stable contracts boundary without coupling `core/contracts` to database vendor APIs, runtime platform packages, integration packages, generated artifacts, configuration loading, dependency injection wiring, migration discovery, migration runners, query builders, schema builders, or SQL compiler implementations.
@@ -63,10 +63,11 @@ It must not depend on:
 - vendor query builders
 - vendor schema builders
 - vendor migration classes
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
-Phase 0 also cemented safety and determinism rules that directly affect database and migration contracts:
+Canonical safety and determinism policies also impose rules that directly affect database and migration contracts:
 
 - json-like payloads forbid floats;
 - missing and empty values must remain distinguishable where the boundary needs presence-sensitive behavior;
@@ -599,7 +600,7 @@ Configuration ownership belongs to future runtime owner packages and must go thr
 
 DI tag ownership belongs to runtime owner packages and must go through the tag registry process.
 
-Framework-reserved DI tag identifier strings must be declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings must be declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 Artifact ownership belongs to future runtime owner packages and must go through the artifact registry process.
 
@@ -828,7 +829,7 @@ Rejected.
 
 DI tag ownership is governed by `docs/ssot/tags.md`.
 
-Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 This epic does not need database or migration discovery tags in `core/contracts`.
 
@@ -847,10 +848,10 @@ Those responsibilities belong to future runtime owner packages, not `core/contra
 Epic `1.150.0` must not create:
 
 ```text
-framework/packages/platform/database/*
-framework/packages/platform/migrations/*
-framework/packages/platform/database-driver-*/*
-framework/packages/integrations/*
+packages/platform/database/*
+packages/platform/migrations/*
+packages/platform/database-driver-*/*
+packages/integrations/*
 config/*.php
 provider/module wiring files
 database implementation

@@ -20,7 +20,7 @@
 type: package
 phase: 4
 epic_id: "4.10.0"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -59,14 +59,14 @@ ssot_refs:
   - 2.27.0 — Sensitive data redaction boundary exists.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Validation/ValidatorInterface.php` — public validation port
-  - `framework/packages/core/contracts/src/Validation/ValidationException.php` — canonical exception
-  - `framework/packages/core/contracts/src/Validation/ValidationResult.php` — canonical result shape
-  - `framework/packages/core/contracts/src/Validation/Violation.php` — canonical violation shape
-  - `framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php` — mapper port
-  - `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php` — descriptor shape
-  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracer port
-  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — meter port
+  - `packages/core/contracts/src/Validation/ValidatorInterface.php` — public validation port
+  - `packages/core/contracts/src/Validation/ValidationException.php` — canonical exception
+  - `packages/core/contracts/src/Validation/ValidationResult.php` — canonical result shape
+  - `packages/core/contracts/src/Validation/Violation.php` — canonical violation shape
+  - `packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php` — mapper port
+  - `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php` — descriptor shape
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracer port
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — meter port
   - `docs/adr/ADR-XXXX-validation-engine.md` — ADR locked before impl
 
 - Required config roots/keys:
@@ -133,52 +133,52 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/composer.json` — package manifest
-- [ ] `framework/packages/platform/validation/README.md` — package docs
-- [ ] `framework/packages/platform/validation/src/Module/ValidationModule.php` — runtime module
-- [ ] `framework/packages/platform/validation/src/Provider/ValidationServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/validation/src/Provider/ValidationServiceFactory.php` — stateless factory
-- [ ] `framework/packages/platform/validation/config/validation.php` — defaults subtree
-- [ ] `framework/packages/platform/validation/config/rules.php` — config rules
+- [ ] `packages/platform/validation/composer.json` — package manifest
+- [ ] `packages/platform/validation/README.md` — package docs
+- [ ] `packages/platform/validation/src/Module/ValidationModule.php` — runtime module
+- [ ] `packages/platform/validation/src/Provider/ValidationServiceProvider.php` — DI wiring
+- [ ] `packages/platform/validation/src/Provider/ValidationServiceFactory.php` — stateless factory
+- [ ] `packages/platform/validation/config/validation.php` — defaults subtree
+- [ ] `packages/platform/validation/config/rules.php` — config rules
 - [ ] `docs/guides/validation.md` — guide for rule syntax + determinism policy
 
-- [ ] `framework/packages/platform/validation/src/Validation/Validator.php` — engine implementation
-- [ ] `framework/packages/platform/validation/src/Validation/ViolationSorter.php` — stable ordering
-- [ ] `framework/packages/platform/validation/src/Validation/ValidationRule.php` — normalized parsed rule descriptor
-- [ ] `framework/packages/platform/validation/src/Error/ValidationExceptionMapper.php` — maps exception to descriptor
-- [ ] `framework/packages/platform/validation/src/Support/Arr.php` — dot-notation accessor
+- [ ] `packages/platform/validation/src/Validation/Validator.php` — engine implementation
+- [ ] `packages/platform/validation/src/Validation/ViolationSorter.php` — stable ordering
+- [ ] `packages/platform/validation/src/Validation/ValidationRule.php` — normalized parsed rule descriptor
+- [ ] `packages/platform/validation/src/Error/ValidationExceptionMapper.php` — maps exception to descriptor
+- [ ] `packages/platform/validation/src/Support/Arr.php` — dot-notation accessor
 
-- [ ] `framework/packages/platform/validation/src/Rule/RuleInterface.php` — internal rule contract
-- [ ] `framework/packages/platform/validation/src/Rule/AbstractRule.php` — shared helpers
-- [ ] `framework/packages/platform/validation/src/Rule/RuleParser.php` — parses textual rule entries
-- [ ] `framework/packages/platform/validation/src/Rule/RuleFactory.php` — creates rule instances
-- [ ] `framework/packages/platform/validation/src/Rule/RuleRegistry.php` — explicit registry
+- [ ] `packages/platform/validation/src/Rule/RuleInterface.php` — internal rule contract
+- [ ] `packages/platform/validation/src/Rule/AbstractRule.php` — shared helpers
+- [ ] `packages/platform/validation/src/Rule/RuleParser.php` — parses textual rule entries
+- [ ] `packages/platform/validation/src/Rule/RuleFactory.php` — creates rule instances
+- [ ] `packages/platform/validation/src/Rule/RuleRegistry.php` — explicit registry
 
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredRule.php` — baseline presence rule
-- [ ] `framework/packages/platform/validation/src/Rule/NullableRule.php` — nullable policy
-- [ ] `framework/packages/platform/validation/src/Rule/FilledRule.php` — filled policy
-- [ ] `framework/packages/platform/validation/src/Rule/PresentRule.php` — presence assertion
-- [ ] `framework/packages/platform/validation/src/Rule/MissingRule.php` — missing assertion
-- [ ] `framework/packages/platform/validation/src/Rule/ArrayRule.php` — array type
-- [ ] `framework/packages/platform/validation/src/Rule/ListRule.php` — list shape
-- [ ] `framework/packages/platform/validation/src/Rule/MapRule.php` — map shape
-- [ ] `framework/packages/platform/validation/src/Rule/BoolRule.php` — bool type
-- [ ] `framework/packages/platform/validation/src/Rule/IntRule.php` — int type
-- [ ] `framework/packages/platform/validation/src/Rule/StringRule.php` — string type
-- [ ] `framework/packages/platform/validation/src/Rule/MinRule.php` — min constraint
-- [ ] `framework/packages/platform/validation/src/Rule/MaxRule.php` — max constraint
-- [ ] `framework/packages/platform/validation/src/Rule/BetweenRule.php` — range constraint
-- [ ] `framework/packages/platform/validation/src/Rule/SizeRule.php` — exact size constraint
-- [ ] `framework/packages/platform/validation/src/Rule/InRule.php` — inclusion check
-- [ ] `framework/packages/platform/validation/src/Rule/NotInRule.php` — exclusion check
-- [ ] `framework/packages/platform/validation/src/Rule/SameRule.php` — equality vs another field
-- [ ] `framework/packages/platform/validation/src/Rule/DifferentRule.php` — difference vs another field
-- [ ] `framework/packages/platform/validation/src/Rule/DistinctRule.php` — unique list items
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredIfRule.php` — conditional presence
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredUnlessRule.php` — conditional presence
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredWithRule.php` — conditional presence
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredWithoutRule.php` — conditional presence
-- [ ] `framework/packages/platform/validation/src/Rule/RequiredArrayKeysRule.php` — required map keys
+- [ ] `packages/platform/validation/src/Rule/RequiredRule.php` — baseline presence rule
+- [ ] `packages/platform/validation/src/Rule/NullableRule.php` — nullable policy
+- [ ] `packages/platform/validation/src/Rule/FilledRule.php` — filled policy
+- [ ] `packages/platform/validation/src/Rule/PresentRule.php` — presence assertion
+- [ ] `packages/platform/validation/src/Rule/MissingRule.php` — missing assertion
+- [ ] `packages/platform/validation/src/Rule/ArrayRule.php` — array type
+- [ ] `packages/platform/validation/src/Rule/ListRule.php` — list shape
+- [ ] `packages/platform/validation/src/Rule/MapRule.php` — map shape
+- [ ] `packages/platform/validation/src/Rule/BoolRule.php` — bool type
+- [ ] `packages/platform/validation/src/Rule/IntRule.php` — int type
+- [ ] `packages/platform/validation/src/Rule/StringRule.php` — string type
+- [ ] `packages/platform/validation/src/Rule/MinRule.php` — min constraint
+- [ ] `packages/platform/validation/src/Rule/MaxRule.php` — max constraint
+- [ ] `packages/platform/validation/src/Rule/BetweenRule.php` — range constraint
+- [ ] `packages/platform/validation/src/Rule/SizeRule.php` — exact size constraint
+- [ ] `packages/platform/validation/src/Rule/InRule.php` — inclusion check
+- [ ] `packages/platform/validation/src/Rule/NotInRule.php` — exclusion check
+- [ ] `packages/platform/validation/src/Rule/SameRule.php` — equality vs another field
+- [ ] `packages/platform/validation/src/Rule/DifferentRule.php` — difference vs another field
+- [ ] `packages/platform/validation/src/Rule/DistinctRule.php` — unique list items
+- [ ] `packages/platform/validation/src/Rule/RequiredIfRule.php` — conditional presence
+- [ ] `packages/platform/validation/src/Rule/RequiredUnlessRule.php` — conditional presence
+- [ ] `packages/platform/validation/src/Rule/RequiredWithRule.php` — conditional presence
+- [ ] `packages/platform/validation/src/Rule/RequiredWithoutRule.php` — conditional presence
+- [ ] `packages/platform/validation/src/Rule/RequiredArrayKeysRule.php` — required map keys
 
 #### Modifies
 
@@ -198,14 +198,14 @@ Forbidden:
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] `validation.enabled` = true
   - [ ] `validation.fail_fast` = false
   - [ ] `validation.max_violations` = 50
   - [ ] `validation.rules.registry` = []
 - [ ] Rules:
-  - [ ] `framework/packages/platform/validation/config/rules.php` enforces shape
+  - [ ] `packages/platform/validation/config/rules.php` enforces shape
   - [ ] `validation.rules.registry` MUST be map<string, class-string>
   - [ ] DTO/i18n/file/database keys MUST NOT exist in this epic
 
@@ -278,25 +278,25 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/validation/tests/Unit/Validation/ViolationsDeterministicOrderTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Validation/MaxViolationsCapTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Validation/FailFastStopsAtFirstViolationTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Rule/RuleParserTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Rule/RuleFactoryTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Rule/RuleRegistryTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Support/ArrTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Validation/ViolationsDeterministicOrderTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Validation/MaxViolationsCapTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Validation/FailFastStopsAtFirstViolationTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Rule/RuleParserTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Rule/RuleFactoryTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Rule/RuleRegistryTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Support/ArrTest.php`
   - [ ] baseline rule tests for every rule created in this epic
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/ViolationsStableOrderContractTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/ValidationMapperDoesNotDependOnHttpContractTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/ObservabilityPolicyTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/RedactionDoesNotLeakTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ViolationsStableOrderContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ValidationMapperDoesNotDependOnHttpContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ObservabilityPolicyTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/RedactionDoesNotLeakTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/ValidatorIntegrationTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Integration/ValidationExceptionMapperProduces422DescriptorTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Integration/ValidationExceptionMappedViaErrorMapperTagTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/ValidatorIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/ValidationExceptionMapperProduces422DescriptorTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/ValidationExceptionMappedViaErrorMapperTagTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -324,7 +324,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.1"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -355,10 +355,10 @@ ssot_refs: []
   - 4.10.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Rule/RuleInterface.php` — internal rule contract
-  - `framework/packages/platform/validation/src/Rule/RuleRegistry.php` — rule registry exists
-  - `framework/packages/platform/validation/src/Rule/RuleFactory.php` — factory exists
-  - `framework/packages/platform/validation/config/validation.php` — registry config exists
+  - `packages/platform/validation/src/Rule/RuleInterface.php` — internal rule contract
+  - `packages/platform/validation/src/Rule/RuleRegistry.php` — rule registry exists
+  - `packages/platform/validation/src/Rule/RuleFactory.php` — factory exists
+  - `packages/platform/validation/config/validation.php` — registry config exists
 
 - Required config roots/keys:
   - `validation` / `validation.rules.registry` — registry extension point
@@ -397,37 +397,37 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Rule/TypeRule.php` — generic type comparator
-- [ ] `framework/packages/platform/validation/src/Rule/FloatRule.php` — explicit float rule
-- [ ] `framework/packages/platform/validation/src/Rule/NumericRule.php` — numeric-like rule
-- [ ] `framework/packages/platform/validation/src/Rule/ObjectRule.php` — object type
-- [ ] `framework/packages/platform/validation/src/Rule/CallableRule.php` — callable type
-- [ ] `framework/packages/platform/validation/src/Rule/IterableRule.php` — iterable type
+- [ ] `packages/platform/validation/src/Rule/TypeRule.php` — generic type comparator
+- [ ] `packages/platform/validation/src/Rule/FloatRule.php` — explicit float rule
+- [ ] `packages/platform/validation/src/Rule/NumericRule.php` — numeric-like rule
+- [ ] `packages/platform/validation/src/Rule/ObjectRule.php` — object type
+- [ ] `packages/platform/validation/src/Rule/CallableRule.php` — callable type
+- [ ] `packages/platform/validation/src/Rule/IterableRule.php` — iterable type
 
-- [ ] `framework/packages/platform/validation/src/Rule/LessThanRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/LessThanOrEqualRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/GreaterThanRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/GreaterThanOrEqualRule.php`
+- [ ] `packages/platform/validation/src/Rule/LessThanRule.php`
+- [ ] `packages/platform/validation/src/Rule/LessThanOrEqualRule.php`
+- [ ] `packages/platform/validation/src/Rule/GreaterThanRule.php`
+- [ ] `packages/platform/validation/src/Rule/GreaterThanOrEqualRule.php`
 
-- [ ] `framework/packages/platform/validation/src/Rule/EmailRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/UrlRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/IpRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/MacAddressRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/UuidRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/UlidRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/JsonRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/SlugRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/RegexRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/AlphaRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/AlphaNumRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/AlphaDashRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/PhoneRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/PostalCodeRule.php`
+- [ ] `packages/platform/validation/src/Rule/EmailRule.php`
+- [ ] `packages/platform/validation/src/Rule/UrlRule.php`
+- [ ] `packages/platform/validation/src/Rule/IpRule.php`
+- [ ] `packages/platform/validation/src/Rule/MacAddressRule.php`
+- [ ] `packages/platform/validation/src/Rule/UuidRule.php`
+- [ ] `packages/platform/validation/src/Rule/UlidRule.php`
+- [ ] `packages/platform/validation/src/Rule/JsonRule.php`
+- [ ] `packages/platform/validation/src/Rule/SlugRule.php`
+- [ ] `packages/platform/validation/src/Rule/RegexRule.php`
+- [ ] `packages/platform/validation/src/Rule/AlphaRule.php`
+- [ ] `packages/platform/validation/src/Rule/AlphaNumRule.php`
+- [ ] `packages/platform/validation/src/Rule/AlphaDashRule.php`
+- [ ] `packages/platform/validation/src/Rule/PhoneRule.php`
+- [ ] `packages/platform/validation/src/Rule/PostalCodeRule.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — extend default registry
-- [ ] `framework/packages/platform/validation/README.md` — document extended rules
+- [ ] `packages/platform/validation/config/validation.php` — extend default registry
+- [ ] `packages/platform/validation/README.md` — document extended rules
 - [ ] `docs/guides/validation.md` — add examples for extended rules
 
 #### Package skeleton (if type=package)
@@ -437,7 +437,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] no new root keys
 - [ ] Rules:
@@ -490,9 +490,9 @@ N/A
 - Unit:
   - [ ] unit tests for every rule created in this epic
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/ExtendedFormatRulesIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/ExtendedFormatRulesIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -511,7 +511,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.2"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -542,9 +542,9 @@ ssot_refs: []
   - 4.10.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Rule/RuleInterface.php`
-  - `framework/packages/platform/validation/src/Rule/RuleRegistry.php`
-  - `framework/packages/platform/validation/src/Rule/RuleFactory.php`
+  - `packages/platform/validation/src/Rule/RuleInterface.php`
+  - `packages/platform/validation/src/Rule/RuleRegistry.php`
+  - `packages/platform/validation/src/Rule/RuleFactory.php`
 
 - Required config roots/keys:
   - `validation` / `validation.rules.registry`
@@ -581,18 +581,18 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Rule/DateRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/DateFormatRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/AfterRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/AfterOrEqualRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/BeforeRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/BeforeOrEqualRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/TimezoneRule.php`
+- [ ] `packages/platform/validation/src/Rule/DateRule.php`
+- [ ] `packages/platform/validation/src/Rule/DateFormatRule.php`
+- [ ] `packages/platform/validation/src/Rule/AfterRule.php`
+- [ ] `packages/platform/validation/src/Rule/AfterOrEqualRule.php`
+- [ ] `packages/platform/validation/src/Rule/BeforeRule.php`
+- [ ] `packages/platform/validation/src/Rule/BeforeOrEqualRule.php`
+- [ ] `packages/platform/validation/src/Rule/TimezoneRule.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — extend registry
-- [ ] `framework/packages/platform/validation/README.md` — document date/time rules
+- [ ] `packages/platform/validation/config/validation.php` — extend registry
+- [ ] `packages/platform/validation/README.md` — document date/time rules
 - [ ] `docs/guides/validation.md` — add temporal examples
 
 #### Package skeleton (if type=package)
@@ -602,7 +602,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] no new root keys
 - [ ] Rules:
@@ -654,9 +654,9 @@ N/A
 - Unit:
   - [ ] unit tests for every temporal rule
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/ViolationsAreJsonLikeAndFloatFreeContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/DateTimeRulesIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/DateTimeRulesIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -674,7 +674,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.3"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -706,9 +706,9 @@ ssot_refs: []
   - 4.10.0 — reference engine exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Validation/Validator.php`
-  - `framework/packages/platform/validation/src/Validation/ViolationSorter.php`
-  - `framework/packages/platform/validation/src/Validation/ValidationRule.php`
+  - `packages/platform/validation/src/Validation/Validator.php`
+  - `packages/platform/validation/src/Validation/ViolationSorter.php`
+  - `packages/platform/validation/src/Validation/ValidationRule.php`
 
 - Required config roots/keys:
   - `validation` / `validation.enabled`
@@ -747,14 +747,14 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Message/MessageBag.php` — grouped message access
-- [ ] `framework/packages/platform/validation/src/Message/MessageResolver.php` — deterministic message lookup
-- [ ] `framework/packages/platform/validation/resources/lang/en/validation.php` — default messages catalog
+- [ ] `packages/platform/validation/src/Message/MessageBag.php` — grouped message access
+- [ ] `packages/platform/validation/src/Message/MessageResolver.php` — deterministic message lookup
+- [ ] `packages/platform/validation/resources/lang/en/validation.php` — default messages catalog
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — optional message-related defaults if needed
-- [ ] `framework/packages/platform/validation/README.md` — message layer docs
+- [ ] `packages/platform/validation/config/validation.php` — optional message-related defaults if needed
+- [ ] `packages/platform/validation/README.md` — message layer docs
 - [ ] `docs/guides/validation.md` — custom messages/attributes docs
 
 #### Package skeleton (if type=package)
@@ -764,7 +764,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] optional presentation keys only if introduced here
 - [ ] Rules:
@@ -816,12 +816,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/validation/tests/Unit/Message/MessageBagTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Message/MessageResolverTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Message/MessageBagTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Message/MessageResolverTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/MessagesDoNotAffectViolationOrderContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/MessagesDoNotAffectViolationOrderContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/MessageLayerIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/MessageLayerIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -840,7 +840,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.4"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -873,9 +873,9 @@ ssot_refs: []
   - 1.480.0 — DTO policy/gate exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Validation/Validator.php`
-  - `framework/packages/platform/validation/src/Validation/ValidationRule.php`
-  - `framework/packages/platform/validation/src/Support/Arr.php`
+  - `packages/platform/validation/src/Validation/Validator.php`
+  - `packages/platform/validation/src/Validation/ValidationRule.php`
+  - `packages/platform/validation/src/Support/Arr.php`
   - `docs/guides/validation.md`
 
 - Required config roots/keys:
@@ -915,16 +915,16 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Dto/DtoValidatorInterface.php` — DTO adapter API
-- [ ] `framework/packages/platform/validation/src/Dto/DtoValidator.php` — reflection-based adapter
-- [ ] `framework/packages/platform/validation/src/Dto/DtoValidationResult.php` — optional DTO-oriented wrapper
-- [ ] `framework/packages/platform/validation/src/Attribute/ValidationRule.php` — property attribute for rules
+- [ ] `packages/platform/validation/src/Dto/DtoValidatorInterface.php` — DTO adapter API
+- [ ] `packages/platform/validation/src/Dto/DtoValidator.php` — reflection-based adapter
+- [ ] `packages/platform/validation/src/Dto/DtoValidationResult.php` — optional DTO-oriented wrapper
+- [ ] `packages/platform/validation/src/Attribute/ValidationRule.php` — property attribute for rules
 - [ ] `docs/guides/dto-validation.md` — DTO validation guide
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — add DTO adapter defaults if needed
-- [ ] `framework/packages/platform/validation/README.md` — document DTO adapter
+- [ ] `packages/platform/validation/config/validation.php` — add DTO adapter defaults if needed
+- [ ] `packages/platform/validation/README.md` — document DTO adapter
 - [ ] `docs/guides/validation.md` — cross-link DTO guide
 
 #### Package skeleton (if type=package)
@@ -934,7 +934,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] `validation.dto.enabled` = true
   - [ ] `validation.dto.nullable_as_missing` = false
@@ -993,13 +993,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/validation/tests/Unit/Dto/DtoValidatorTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Dto/DtoValidationResultTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Attribute/ValidationRuleTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Dto/DtoValidatorTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Dto/DtoValidationResultTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Attribute/ValidationRuleTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/DtoAttributesDoNotAffectBaseEngineDeterminismContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/DtoAttributesDoNotAffectBaseEngineDeterminismContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/DtoValidationIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/DtoValidationIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -1018,7 +1018,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.5"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -1049,8 +1049,8 @@ ssot_refs: []
   - 4.10.0 — reference engine exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Rule/RuleInterface.php`
-  - `framework/packages/platform/validation/src/Rule/RuleRegistry.php`
+  - `packages/platform/validation/src/Rule/RuleInterface.php`
+  - `packages/platform/validation/src/Rule/RuleRegistry.php`
 
 - Required config roots/keys:
   - `validation` / `validation.rules.registry`
@@ -1087,18 +1087,18 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Rule/FileRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/ImageRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/MimesRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/MimetypesRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/DimensionsRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/MaxSizeRule.php`
-- [ ] `framework/packages/platform/validation/src/Rule/MinSizeRule.php`
+- [ ] `packages/platform/validation/src/Rule/FileRule.php`
+- [ ] `packages/platform/validation/src/Rule/ImageRule.php`
+- [ ] `packages/platform/validation/src/Rule/MimesRule.php`
+- [ ] `packages/platform/validation/src/Rule/MimetypesRule.php`
+- [ ] `packages/platform/validation/src/Rule/DimensionsRule.php`
+- [ ] `packages/platform/validation/src/Rule/MaxSizeRule.php`
+- [ ] `packages/platform/validation/src/Rule/MinSizeRule.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — extend registry
-- [ ] `framework/packages/platform/validation/README.md` — file rules docs
+- [ ] `packages/platform/validation/config/validation.php` — extend registry
+- [ ] `packages/platform/validation/README.md` — file rules docs
 - [ ] `docs/guides/validation.md` — add file validation examples
 
 #### Package skeleton (if type=package)
@@ -1108,7 +1108,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] no mandatory new root keys
 - [ ] Rules:
@@ -1163,9 +1163,9 @@ N/A
 - Unit:
   - [ ] unit tests for every file rule
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/FileRulesDoNotLeakPathsOrContentsContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/FileRulesDoNotLeakPathsOrContentsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/FileRulesIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/FileRulesIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -1183,7 +1183,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.6"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -1215,9 +1215,9 @@ ssot_refs: []
   - 1.150.0 — database contracts exist
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Rule/RuleInterface.php`
-  - `framework/packages/core/contracts/src/Database/ConnectionInterface.php` — database boundary
-  - `framework/packages/core/contracts/src/Database/QueryResultInterface.php` — query result boundary
+  - `packages/platform/validation/src/Rule/RuleInterface.php`
+  - `packages/core/contracts/src/Database/ConnectionInterface.php` — database boundary
+  - `packages/core/contracts/src/Database/QueryResultInterface.php` — query result boundary
 
 - Required config roots/keys:
   - `validation` / `validation.rules.registry`
@@ -1254,12 +1254,12 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Rule/Database/UniqueRule.php` — DB uniqueness rule
+- [ ] `packages/platform/validation/src/Rule/Database/UniqueRule.php` — DB uniqueness rule
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/config/validation.php` — extend registry
-- [ ] `framework/packages/platform/validation/README.md` — document DB rule boundary
+- [ ] `packages/platform/validation/config/validation.php` — extend registry
+- [ ] `packages/platform/validation/README.md` — document DB rule boundary
 - [ ] `docs/guides/validation.md` — add DB validation examples
 
 #### Package skeleton (if type=package)
@@ -1269,7 +1269,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/validation/config/validation.php`
+  - [ ] `packages/platform/validation/config/validation.php`
 - [ ] Keys (dot):
   - [ ] optional DB rule config only if needed
 - [ ] Rules:
@@ -1322,12 +1322,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/validation/tests/Unit/Rules/Database/UniqueRuleTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Rules/Database/UniqueRuleTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/DatabaseRulesDoNotDependOnConcreteDriversContractTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Contract/DatabaseRulesDoNotLeakSqlContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/DatabaseRulesDoNotDependOnConcreteDriversContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/DatabaseRulesDoNotLeakSqlContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/DatabaseUniqueRuleIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/DatabaseUniqueRuleIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -1345,7 +1345,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.10.7"
-owner_path: "framework/packages/platform/validation/"
+owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
 composer: "coretsia/platform-validation"
@@ -1376,8 +1376,8 @@ ssot_refs: []
   - 4.10.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/validation/src/Validation/Validator.php`
-  - `framework/packages/platform/validation/src/Provider/ValidationServiceProvider.php`
+  - `packages/platform/validation/src/Validation/Validator.php`
+  - `packages/platform/validation/src/Provider/ValidationServiceProvider.php`
 
 - Required config roots/keys:
   - `validation` / `validation.enabled`
@@ -1413,13 +1413,13 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/validation/src/Validation.php` — facade-like convenience class
-- [ ] `framework/packages/platform/validation/src/helpers.php` — global helper `validator()`
+- [ ] `packages/platform/validation/src/Validation.php` — facade-like convenience class
+- [ ] `packages/platform/validation/src/helpers.php` — global helper `validator()`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/validation/composer.json` — autoload helper if accepted
-- [ ] `framework/packages/platform/validation/README.md` — helper/facade docs
+- [ ] `packages/platform/validation/composer.json` — autoload helper if accepted
+- [ ] `packages/platform/validation/README.md` — helper/facade docs
 - [ ] `docs/guides/validation.md` — quick-start sugar examples
 
 #### Package skeleton (if type=package)
@@ -1474,12 +1474,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/validation/tests/Unit/ValidationFacadeTest.php`
-  - [ ] `framework/packages/platform/validation/tests/Unit/Helpers/ValidatorHelperTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/ValidationFacadeTest.php`
+  - [ ] `packages/platform/validation/tests/Unit/Helpers/ValidatorHelperTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/validation/tests/Contract/FacadeAndHelperDelegateToCanonicalValidatorContractTest.php`
+  - [ ] `packages/platform/validation/tests/Contract/FacadeAndHelperDelegateToCanonicalValidatorContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/validation/tests/Integration/FacadeAndHelperIntegrationTest.php`
+  - [ ] `packages/platform/validation/tests/Integration/FacadeAndHelperIntegrationTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -1497,7 +1497,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.20.0"
-owner_path: "framework/packages/platform/http-client/"
+owner_path: "packages/platform/http-client/"
 
 package_id: "platform/http-client"
 composer: "coretsia/platform-http-client"
@@ -1601,7 +1601,7 @@ Forbidden:
     - "http_client.driver"
     - Owner: `platform/http-client`
     - Owner constant MUST exist:
-      - `framework/packages/core/foundation/src/Tag/ReservedTags.php` with `HTTP_CLIENT_DRIVER = 'http_client.driver'`
+      - `packages/core/foundation/src/Tag/ReservedTags.php` with `HTTP_CLIENT_DRIVER = 'http_client.driver'`
 
   **Model B (minimal core):**
   - This package does NOT provide a transport.
@@ -1622,24 +1622,24 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/http-client/src/Module/HttpClientModule.php` — runtime module
-- [ ] `framework/packages/platform/http-client/src/Provider/HttpClientServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/http-client/src/Provider/HttpClientServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/http-client/config/http_client.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/http-client/config/rules.php` — config shape rules
-- [ ] `framework/packages/platform/http-client/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/http-client/src/Module/HttpClientModule.php` — runtime module
+- [ ] `packages/platform/http-client/src/Provider/HttpClientServiceProvider.php` — DI wiring
+- [ ] `packages/platform/http-client/src/Provider/HttpClientServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/http-client/config/http_client.php` — config subtree (no repeated root)
+- [ ] `packages/platform/http-client/config/rules.php` — config shape rules
+- [ ] `packages/platform/http-client/README.md` — docs (Observability / Errors / Security-Redaction)
 - [ ] `docs/guides/http-client.md` — usage examples + retry semantics
 
-- [ ] `framework/packages/platform/http-client/src/Client/HttpClientFactory.php` — builds PSR-18 client + middleware stack
-- [ ] `framework/packages/platform/http-client/src/Policy/HttpClientPolicy.php` — VO (timeouts, retry policy, redaction headers)
-- [ ] `framework/packages/platform/http-client/src/Middleware/TimeoutMiddleware.php`
-- [ ] `framework/packages/platform/http-client/src/Middleware/RetryMiddleware.php`
-- [ ] `framework/packages/platform/http-client/src/Middleware/DefaultHeadersMiddleware.php`
-- [ ] `framework/packages/platform/http-client/src/Middleware/TraceContextInjectMiddleware.php`
-- [ ] `framework/packages/platform/http-client/src/Middleware/RedactingLoggerMiddleware.php`
-- [ ] `framework/packages/platform/http-client/src/Retry/BackoffPolicy.php` — deterministic (ints only)
-- [ ] `framework/packages/platform/http-client/src/Security/Redaction.php` — `hash/len`, header allow/deny lists
-- [ ] `framework/packages/platform/http-client/src/Exception/HttpClientException.php` — errorCode `CORETSIA_HTTP_CLIENT_FAILED`
+- [ ] `packages/platform/http-client/src/Client/HttpClientFactory.php` — builds PSR-18 client + middleware stack
+- [ ] `packages/platform/http-client/src/Policy/HttpClientPolicy.php` — VO (timeouts, retry policy, redaction headers)
+- [ ] `packages/platform/http-client/src/Middleware/TimeoutMiddleware.php`
+- [ ] `packages/platform/http-client/src/Middleware/RetryMiddleware.php`
+- [ ] `packages/platform/http-client/src/Middleware/DefaultHeadersMiddleware.php`
+- [ ] `packages/platform/http-client/src/Middleware/TraceContextInjectMiddleware.php`
+- [ ] `packages/platform/http-client/src/Middleware/RedactingLoggerMiddleware.php`
+- [ ] `packages/platform/http-client/src/Retry/BackoffPolicy.php` — deterministic (ints only)
+- [ ] `packages/platform/http-client/src/Security/Redaction.php` — `hash/len`, header allow/deny lists
+- [ ] `packages/platform/http-client/src/Exception/HttpClientException.php` — errorCode `CORETSIA_HTTP_CLIENT_FAILED`
 
 #### Modifies
 
@@ -1648,18 +1648,18 @@ N/A
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/http-client/composer.json`
-- [ ] `framework/packages/platform/http-client/src/Module/HttpClientModule.php`
-- [ ] `framework/packages/platform/http-client/src/Provider/HttpClientServiceProvider.php`
-- [ ] `framework/packages/platform/http-client/config/http_client.php`
-- [ ] `framework/packages/platform/http-client/config/rules.php`
-- [ ] `framework/packages/platform/http-client/README.md`
-- [ ] `framework/packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/http-client/composer.json`
+- [ ] `packages/platform/http-client/src/Module/HttpClientModule.php`
+- [ ] `packages/platform/http-client/src/Provider/HttpClientServiceProvider.php`
+- [ ] `packages/platform/http-client/config/http_client.php`
+- [ ] `packages/platform/http-client/config/rules.php`
+- [ ] `packages/platform/http-client/README.md`
+- [ ] `packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http-client/config/http_client.php`
+  - [ ] `packages/platform/http-client/config/http_client.php`
 - [ ] Keys (dot):
   - [ ] `http_client.enabled` = true
   - [ ] `http_client.timeout_seconds` = 10
@@ -1671,7 +1671,7 @@ N/A
   - [ ] `http_client.headers.default` = []
   - [ ] `http_client.redaction.headers` = ['Authorization','Cookie','Set-Cookie']
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http-client/config/rules.php` enforces shape + int-only backoff
+  - [ ] `packages/platform/http-client/config/rules.php` enforces shape + int-only backoff
 
 #### Wiring / DI tags (when applicable)
 
@@ -1710,7 +1710,7 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/http-client/src/Exception/HttpClientException.php` — errorCode `CORETSIA_HTTP_CLIENT_FAILED`
+  - [ ] `packages/platform/http-client/src/Exception/HttpClientException.php` — errorCode `CORETSIA_HTTP_CLIENT_FAILED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (DefaultExceptionMapper) *(no dupes)*
 
@@ -1728,28 +1728,28 @@ N/A
 #### Required policy tests matrix
 
 - [ ] If metrics/spans/logs exist → proof:
-  - [ ] `framework/packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → proof:
-  - [ ] `framework/packages/platform/http-client/tests/Contract/RedactionNeverPrintsSensitiveHeadersContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/RedactionNeverPrintsSensitiveHeadersContractTest.php`
 - [ ] If determinism exists → proof:
-  - [ ] `framework/packages/platform/http-client/tests/Unit/RetryBackoffDeterministicTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Contract/BackoffIsIntOnlyDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Contract/MiddlewareOrderDeterministicContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Unit/RetryBackoffDeterministicTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/BackoffIsIntOnlyDeterministicContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/MiddlewareOrderDeterministicContractTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http-client/tests/Unit/RetryBackoffDeterministicTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Unit/RedactionHeaderListAppliedTest.php`
+  - [ ] `packages/platform/http-client/tests/Unit/RetryBackoffDeterministicTest.php`
+  - [ ] `packages/platform/http-client/tests/Unit/RedactionHeaderListAppliedTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http-client/tests/Contract/MiddlewareOrderDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Contract/BackoffIsIntOnlyDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Contract/RedactionNeverPrintsSensitiveHeadersContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/MiddlewareOrderDeterministicContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/BackoffIsIntOnlyDeterministicContractTest.php`
+  - [ ] `packages/platform/http-client/tests/Contract/RedactionNeverPrintsSensitiveHeadersContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http-client/tests/Integration/RetryOnlyOnAllowedMethodsTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Integration/TraceContextIsInjectedNoopSafeTest.php`
-  - [ ] `framework/packages/platform/http-client/tests/Integration/RedactionDoesNotLogAuthorizationTest.php`
+  - [ ] `packages/platform/http-client/tests/Integration/RetryOnlyOnAllowedMethodsTest.php`
+  - [ ] `packages/platform/http-client/tests/Integration/TraceContextIsInjectedNoopSafeTest.php`
+  - [ ] `packages/platform/http-client/tests/Integration/RedactionDoesNotLogAuthorizationTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations satisfied (no forbidden deps)
 
@@ -1768,7 +1768,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.30.0"
-owner_path: "framework/packages/platform/filesystem/"
+owner_path: "packages/platform/filesystem/"
 
 package_id: "platform/filesystem"
 composer: "coretsia/platform-filesystem"
@@ -1805,7 +1805,7 @@ ssot_refs:
   - (policy) runtime MUST NOT depend on `devtools/internal-toolkit` (tooling-only); invariants are proven via runtime tests (golden vectors)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Filesystem/DiskInterface.php` — public port
+  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — public port
   - `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md` — ADR (locked before impl)
 
 - Required config roots/keys:
@@ -1829,7 +1829,7 @@ ssot_refs:
   - `integrations.filesystem-local` may be enabled to provide a `local` disk driver
 
 - External test prerequisite:
-  - `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php` exists in contracts scope (referenced as parity proof)
+  - `packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php` exists in contracts scope (referenced as parity proof)
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -1841,7 +1841,7 @@ Forbidden:
 - `platform/http`
 - `integrations/*` *(for `platform/filesystem` package)*
 
-> NOTE: `framework/packages/integrations/filesystem-local/` MAY depend on `platform/filesystem`,
+> NOTE: `packages/integrations/filesystem-local/` MAY depend on `platform/filesystem`,
 > but `platform/filesystem` MUST NOT depend on integrations.
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -1880,7 +1880,7 @@ Forbidden:
 - HTTP:
   - N/A
 - Kernel hooks/tags:
-  - `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}` → `framework/packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php`
+  - `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}` → `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php`
   - `kernel.reset` *(only if stateful services added; default: none)*
 - Artifacts:
   - N/A
@@ -1907,45 +1907,45 @@ Runtime MUST re-encode Phase 0 path invariants without importing tooling:
 
 **platform/filesystem**
 
-- [ ] `framework/packages/platform/filesystem/src/Module/FilesystemModule.php` — runtime module
-- [ ] `framework/packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/filesystem/src/Provider/FilesystemServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
-- [ ] `framework/packages/platform/filesystem/config/filesystem.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/filesystem/config/rules.php` — config shape rules + path-safety policy
-- [ ] `framework/packages/platform/filesystem/README.md` — docs (Observability / Errors / Security-Redaction + path safety)
+- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php` — runtime module
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php` — DI wiring
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
+- [ ] `packages/platform/filesystem/config/filesystem.php` — config subtree (no repeated root)
+- [ ] `packages/platform/filesystem/config/rules.php` — config shape rules + path-safety policy
+- [ ] `packages/platform/filesystem/README.md` — docs (Observability / Errors / Security-Redaction + path safety)
 - [ ] `docs/ssot/filesystem-path-safety.md` — SSoT traversal/symlink/normalize rules
 - [ ] `docs/guides/filesystem.md` — configure disks; local driver example
 
 Core:
-- [ ] `framework/packages/platform/filesystem/src/Disk/DiskManager.php` — resolve disk by name (config + DI)
+- [ ] `packages/platform/filesystem/src/Disk/DiskManager.php` — resolve disk by name (config + DI)
 
 Path safety:
-- [ ] `framework/packages/platform/filesystem/src/Path/PathPolicy.php` — safety rails (ints/bools only)
-- [ ] `framework/packages/platform/filesystem/src/Path/SafePathJoiner.php` — normalize + forbid traversal + optional symlink check
+- [ ] `packages/platform/filesystem/src/Path/PathPolicy.php` — safety rails (ints/bools only)
+- [ ] `packages/platform/filesystem/src/Path/SafePathJoiner.php` — normalize + forbid traversal + optional symlink check
 
 Exceptions:
-- [ ] `framework/packages/platform/filesystem/src/Exception/FilesystemException.php`
-- [ ] `framework/packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
-- [ ] `framework/packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
-- [ ] `framework/packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
+- [ ] `packages/platform/filesystem/src/Exception/FilesystemException.php`
+- [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
+- [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
+- [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
 
 Observability + redaction:
-- [ ] `framework/packages/platform/filesystem/src/Observability/FilesystemInstrumentation.php` — spans/metrics/logs wrapper
-- [ ] `framework/packages/platform/filesystem/src/Security/Redaction.php` — `hashPath()/len()`
+- [ ] `packages/platform/filesystem/src/Observability/FilesystemInstrumentation.php` — spans/metrics/logs wrapper
+- [ ] `packages/platform/filesystem/src/Security/Redaction.php` — `hashPath()/len()`
 
 **integrations/filesystem-local**
 
-- [ ] `framework/packages/integrations/filesystem-local/src/Module/FilesystemLocalModule.php` — runtime module
-- [ ] `framework/packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceProvider.php` — DI wiring
-- [ ] `framework/packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/integrations/filesystem-local/config/filesystem_local.php` — config subtree (no repeated root)
-- [ ] `framework/packages/integrations/filesystem-local/config/rules.php` — config shape rules
-- [ ] `framework/packages/integrations/filesystem-local/README.md` — docs (config + limitations + redaction)
+- [ ] `packages/integrations/filesystem-local/src/Module/FilesystemLocalModule.php` — runtime module
+- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceProvider.php` — DI wiring
+- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/integrations/filesystem-local/config/filesystem_local.php` — config subtree (no repeated root)
+- [ ] `packages/integrations/filesystem-local/config/rules.php` — config shape rules
+- [ ] `packages/integrations/filesystem-local/README.md` — docs (config + limitations + redaction)
 
 Driver:
-- [ ] `framework/packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php` — implements `DiskInterface`, atomic write where possible
-- [ ] `framework/packages/integrations/filesystem-local/src/Driver/LocalFilesystemPolicy.php` — root dir, chmod policy (no secrets)
+- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php` — implements `DiskInterface`, atomic write where possible
+- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemPolicy.php` — root dir, chmod policy (no secrets)
 
 #### Modifies
 
@@ -1956,21 +1956,21 @@ Driver:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/filesystem/composer.json`
-- [ ] `framework/packages/platform/filesystem/src/Module/FilesystemModule.php`
-- [ ] `framework/packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php`
-- [ ] `framework/packages/platform/filesystem/config/filesystem.php`
-- [ ] `framework/packages/platform/filesystem/config/rules.php`
-- [ ] `framework/packages/platform/filesystem/README.md`
-- [ ] `framework/packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/filesystem/composer.json`
+- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php`
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php`
+- [ ] `packages/platform/filesystem/config/filesystem.php`
+- [ ] `packages/platform/filesystem/config/rules.php`
+- [ ] `packages/platform/filesystem/README.md`
+- [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 *(integration package skeleton is also created by this epic; see “Creates”)*
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/filesystem/config/filesystem.php`
-  - [ ] `framework/packages/integrations/filesystem-local/config/filesystem_local.php`
+  - [ ] `packages/platform/filesystem/config/filesystem.php`
+  - [ ] `packages/integrations/filesystem-local/config/filesystem_local.php`
 - [ ] Keys (dot):
   - [ ] `filesystem.enabled` = true
   - [ ] `filesystem.default` = 'local'
@@ -1980,15 +1980,15 @@ Driver:
   - [ ] `filesystem.path_policy.max_path_length` = 4096
   - [ ] `filesystem.redaction.enabled` = true
   - [ ] `filesystem_local.enabled` = true
-  - [ ] `filesystem_local.root` = 'skeleton/var/tmp'  # reference safe default
+  - [ ] `filesystem_local.root` = 'packages/applications/skeleton/var/tmp'  # reference safe default
 - [ ] Rules:
-  - [ ] `framework/packages/platform/filesystem/config/rules.php` enforces shape + path policy invariants
-  - [ ] `framework/packages/integrations/filesystem-local/config/rules.php` enforces shape
+  - [ ] `packages/platform/filesystem/config/rules.php` enforces shape + path policy invariants
+  - [ ] `packages/integrations/filesystem-local/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [ ] constant(s):
     - [ ] `DISK_DRIVER = 'filesystem.disk_driver'`
 - [ ] ServiceProvider wiring evidence:
@@ -2000,7 +2000,7 @@ Driver:
 
 #### Artifacts / outputs (if applicable)
 
-N/A *(runtime I/O only; `skeleton/var/**` is not an artifact)*
+N/A *(runtime I/O only; `packages/applications/skeleton/var/**` is not an artifact)*
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -2028,9 +2028,9 @@ N/A *(runtime I/O only; `skeleton/var/**` is not an artifact)*
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
-  - [ ] `framework/packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
-  - [ ] `framework/packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
+  - [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
+  - [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
+  - [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
 - [ ] Mapping:
   - [ ] reuse existing mapper (DefaultExceptionMapper) *(no dupes)*
 
@@ -2046,31 +2046,31 @@ N/A *(runtime I/O only; `skeleton/var/**` is not an artifact)*
 #### Required policy tests matrix
 
 - [ ] If metrics/spans/logs exist → proof:
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
 - [ ] If redaction exists → proof:
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
 - [ ] If determinism exists → proof:
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
 - [ ] If path-safety exists → proof:
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/filesystem/tests/Unit/SafePathJoinerNormalizesPosixAndForbidsTraversalTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Unit/PathPolicyDefaultsAreSafeTest.php`
+  - [ ] `packages/platform/filesystem/tests/Unit/SafePathJoinerNormalizesPosixAndForbidsTraversalTest.php`
+  - [ ] `packages/platform/filesystem/tests/Unit/PathPolicyDefaultsAreSafeTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
-  - [ ] `framework/packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
-  - [ ] `framework/packages/integrations/filesystem-local/tests/Integration/LocalDriverUsesSafePathJoinerTest.php`
-  - [ ] `framework/packages/integrations/filesystem-local/tests/Integration/SymlinkForbiddenTest.php`
+  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
+  - [ ] `packages/integrations/filesystem-local/tests/Integration/LocalDriverUsesSafePathJoinerTest.php`
+  - [ ] `packages/integrations/filesystem-local/tests/Integration/SymlinkForbiddenTest.php`
 - Gates/Arch:
   - [ ] deptrac: `platform/filesystem` MUST NOT depend on `integrations/*`
 
@@ -2124,8 +2124,8 @@ ssot_refs:
   - `core/contracts` provides `DiskInterface`
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Filesystem/DiskInterface.php` — driver API surface
-  - `framework/packages/platform/filesystem/README.md` — MUST reference the ownership rule doc after this epic lands
+  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — driver API surface
+  - `packages/platform/filesystem/README.md` — MUST reference the ownership rule doc after this epic lands
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -2150,11 +2150,11 @@ N/A
 
 - [ ] `docs/architecture/filesystem-drivers.md` — drivers table + invariants + tests outline
 - [ ] `docs/ssot/filesystem-driver-parity.md` — contract-like semantics (exists/get/put/delete/list)
-- [ ] `framework/tools/tests/Fixtures/FilesystemS3App/` — framework fixtures plan (Phase 6+, optional)
+- [ ] `tools/tests/Fixtures/FilesystemS3App/` — framework fixtures plan (Phase 6+, optional)
 
 #### Modifies
 
-- [ ] `framework/packages/platform/filesystem/README.md` — reference ownership rule + ssot refs
+- [ ] `packages/platform/filesystem/README.md` — reference ownership rule + ssot refs
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/filesystem-driver-parity.md`
 
@@ -2185,7 +2185,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.50.0"
-owner_path: "framework/packages/platform/uploads/"
+owner_path: "packages/platform/uploads/"
 
 package_id: "platform/uploads"
 composer: "coretsia/platform-uploads"
@@ -2285,12 +2285,12 @@ Forbidden:
   - N/A
 - HTTP:
   - middleware slot/tag: `http.middleware.app_pre` priority `80` meta `{toggle:'uploads.middleware.enabled'}` →
-    `framework/packages/platform/uploads/src/Http/Middleware/MultipartFormDataMiddleware.php`
+    `packages/platform/uploads/src/Http/Middleware/MultipartFormDataMiddleware.php`
 - Kernel hooks/tags:
   - `error.mapper` priority `650` meta `{handles:'uploads exceptions'}` →
-    `framework/packages/platform/uploads/src/Http/UploadsProblemMapper.php`
+    `packages/platform/uploads/src/Http/UploadsProblemMapper.php`
 - Artifacts:
-  - N/A *(quarantine writes are runtime files; fingerprint ignores `skeleton/var/**`)*
+  - N/A *(quarantine writes are runtime files; fingerprint ignores `packages/applications/skeleton/var/**`)*
 
 ### Middleware slot & tag ownership corrections (MUST)
 
@@ -2303,7 +2303,7 @@ Forbidden:
   - `http.middleware.*` tags are owned by `platform/http`.
   - `error.mapper` tag is owned by `platform/errors`.
   - `platform/uploads` MUST NOT claim ownership and MUST NOT duplicate owner constants.
-  - Therefore: remove `framework/packages/core/foundation/src/Tag/ReservedTags.php` **if it only contains** constants for `http.middleware.*` and/or `error.mapper`.
+  - Therefore: remove `packages/core/foundation/src/Tag/ReservedTags.php` **if it only contains** constants for `http.middleware.*` and/or `error.mapper`.
   - Wiring uses string literals in ServiceProvider:
     - `'http.middleware.app_pre'`
     - `'error.mapper'`
@@ -2316,30 +2316,30 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/uploads/src/Module/UploadsModule.php` — runtime module
-- [ ] `framework/packages/platform/uploads/src/Provider/UploadsServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/uploads/src/Provider/UploadsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/uploads/config/uploads.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/uploads/config/rules.php` — config shape rules
-- [ ] `framework/packages/platform/uploads/README.md` — docs (Observability / Errors / Security-Redaction + slot/priority)
+- [ ] `packages/platform/uploads/src/Module/UploadsModule.php` — runtime module
+- [ ] `packages/platform/uploads/src/Provider/UploadsServiceProvider.php` — DI wiring
+- [ ] `packages/platform/uploads/src/Provider/UploadsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/uploads/config/uploads.php` — config subtree (no repeated root)
+- [ ] `packages/platform/uploads/config/rules.php` — config shape rules
+- [ ] `packages/platform/uploads/README.md` — docs (Observability / Errors / Security-Redaction + slot/priority)
 
 Middleware:
-- [ ] `framework/packages/platform/uploads/src/Http/Middleware/MultipartFormDataMiddleware.php` — parse multipart safely (no superglobals)
+- [ ] `packages/platform/uploads/src/Http/Middleware/MultipartFormDataMiddleware.php` — parse multipart safely (no superglobals)
 
 Policy/validation:
-- [ ] `framework/packages/platform/uploads/src/Upload/UploadPolicy.php` — max_files/max_bytes allowlists
-- [ ] `framework/packages/platform/uploads/src/Upload/UploadedFileValidator.php` — mime/ext/size checks
+- [ ] `packages/platform/uploads/src/Upload/UploadPolicy.php` — max_files/max_bytes allowlists
+- [ ] `packages/platform/uploads/src/Upload/UploadedFileValidator.php` — mime/ext/size checks
 
 Quarantine:
-- [ ] `framework/packages/platform/uploads/src/Upload/QuarantineEntry.php` — `{schemaVersion,id,bytes,mime,ext,sha256,createdAt}`
-- [ ] `framework/packages/platform/uploads/src/Upload/QuarantineStorage.php` — uses DiskInterface + SafePathJoiner
+- [ ] `packages/platform/uploads/src/Upload/QuarantineEntry.php` — `{schemaVersion,id,bytes,mime,ext,sha256,createdAt}`
+- [ ] `packages/platform/uploads/src/Upload/QuarantineStorage.php` — uses DiskInterface + SafePathJoiner
 
 Errors + mapping:
-- [ ] `framework/packages/platform/uploads/src/Exception/UploadsException.php` — base
-- [ ] `framework/packages/platform/uploads/src/Exception/BadMultipartException.php` — `CORETSIA_HTTP_BAD_MULTIPART` (400)
-- [ ] `framework/packages/platform/uploads/src/Exception/PayloadTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE` (413)
-- [ ] `framework/packages/platform/uploads/src/Exception/UnsupportedMediaTypeException.php` — `CORETSIA_HTTP_UNSUPPORTED_MEDIA_TYPE` (415)
-- [ ] `framework/packages/platform/uploads/src/Http/UploadsProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
+- [ ] `packages/platform/uploads/src/Exception/UploadsException.php` — base
+- [ ] `packages/platform/uploads/src/Exception/BadMultipartException.php` — `CORETSIA_HTTP_BAD_MULTIPART` (400)
+- [ ] `packages/platform/uploads/src/Exception/PayloadTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE` (413)
+- [ ] `packages/platform/uploads/src/Exception/UnsupportedMediaTypeException.php` — `CORETSIA_HTTP_UNSUPPORTED_MEDIA_TYPE` (415)
+- [ ] `packages/platform/uploads/src/Http/UploadsProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
 
 Docs:
 - [ ] `docs/guides/uploads.md` — policy examples + quarantine layout + security notes
@@ -2353,18 +2353,18 @@ Docs:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/uploads/composer.json`
-- [ ] `framework/packages/platform/uploads/src/Module/UploadsModule.php`
-- [ ] `framework/packages/platform/uploads/src/Provider/UploadsServiceProvider.php`
-- [ ] `framework/packages/platform/uploads/config/uploads.php`
-- [ ] `framework/packages/platform/uploads/config/rules.php`
-- [ ] `framework/packages/platform/uploads/README.md`
-- [ ] `framework/packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/uploads/composer.json`
+- [ ] `packages/platform/uploads/src/Module/UploadsModule.php`
+- [ ] `packages/platform/uploads/src/Provider/UploadsServiceProvider.php`
+- [ ] `packages/platform/uploads/config/uploads.php`
+- [ ] `packages/platform/uploads/config/rules.php`
+- [ ] `packages/platform/uploads/README.md`
+- [ ] `packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/uploads/config/uploads.php`
+  - [ ] `packages/platform/uploads/config/uploads.php`
 - [ ] Keys (dot):
   - [ ] `uploads.enabled` = true
   - [ ] `uploads.middleware.enabled` = true
@@ -2378,7 +2378,7 @@ Docs:
   - [ ] `uploads.quarantine.prefix` = 'quarantine'
   - [ ] `uploads.filename_strategy` = 'content_hash'   # deterministic
 - [ ] Rules:
-  - [ ] `framework/packages/platform/uploads/config/rules.php` enforces shape
+  - [ ] `packages/platform/uploads/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -2393,8 +2393,8 @@ Docs:
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/quarantine/<id>.bin` (opaque bytes; never logged)
-  - [ ] `skeleton/var/quarantine/<id>.json` (schemaVersion, deterministic json-like metadata)
+  - [ ] `packages/applications/skeleton/var/quarantine/<id>.bin` (opaque bytes; never logged)
+  - [ ] `packages/applications/skeleton/var/quarantine/<id>.json` (schemaVersion, deterministic json-like metadata)
 - [ ] Reads:
   - [ ] validates quarantine entry schemaVersion when reading metadata (if read-path exists)
 
@@ -2427,11 +2427,11 @@ Docs:
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/uploads/src/Exception/BadMultipartException.php` — `CORETSIA_HTTP_BAD_MULTIPART` (400)
-  - [ ] `framework/packages/platform/uploads/src/Exception/PayloadTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE` (413)
-  - [ ] `framework/packages/platform/uploads/src/Exception/UnsupportedMediaTypeException.php` — `CORETSIA_HTTP_UNSUPPORTED_MEDIA_TYPE` (415)
+  - [ ] `packages/platform/uploads/src/Exception/BadMultipartException.php` — `CORETSIA_HTTP_BAD_MULTIPART` (400)
+  - [ ] `packages/platform/uploads/src/Exception/PayloadTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE` (413)
+  - [ ] `packages/platform/uploads/src/Exception/UnsupportedMediaTypeException.php` — `CORETSIA_HTTP_UNSUPPORTED_MEDIA_TYPE` (415)
 - [ ] Mapping:
-  - [ ] `framework/packages/platform/uploads/src/Http/UploadsProblemMapper.php` via tag `error.mapper`
+  - [ ] `packages/platform/uploads/src/Http/UploadsProblemMapper.php` via tag `error.mapper`
 
 #### Security / Redaction
 
@@ -2448,31 +2448,31 @@ Docs:
 #### Required policy tests matrix
 
 - [ ] If metrics/spans/logs exist → proof:
-  - [ ] `framework/packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → proof:
-  - [ ] `framework/packages/platform/uploads/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/uploads/tests/Contract/NoSecretLoggingContractTest.php`
 - [ ] If wiring exists → proof:
-  - [ ] `framework/packages/platform/uploads/tests/Integration/Http/UploadsMiddlewareIsActiveWhenModuleEnabledTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/Http/UploadsMiddlewareIsActiveWhenModuleEnabledTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/platform/uploads/tests/Fixtures/UploadsApp/config/modules.php` — enables `platform.uploads`
+  - [ ] `packages/platform/uploads/tests/Fixtures/UploadsApp/config/modules.php` — enables `platform.uploads`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/uploads/tests/Unit/UploadPolicyDefaultsAreSafeTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Unit/UploadedFileValidatorRejectsForbiddenMimeAndExtTest.php`
+  - [ ] `packages/platform/uploads/tests/Unit/UploadPolicyDefaultsAreSafeTest.php`
+  - [ ] `packages/platform/uploads/tests/Unit/UploadedFileValidatorRejectsForbiddenMimeAndExtTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/uploads/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/uploads/tests/Contract/NoSecretLoggingContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/uploads/tests/Integration/MultipartRequestIsParsedWithoutSuperglobalsTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Integration/FileTooLargeReturns413ProblemDetailsTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Integration/MimeNotAllowedReturns415ProblemDetailsTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Integration/QuarantineWritesDeterministicEntryTest.php`
-  - [ ] `framework/packages/platform/uploads/tests/Integration/Http/UploadsMiddlewareIsActiveWhenModuleEnabledTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/MultipartRequestIsParsedWithoutSuperglobalsTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/FileTooLargeReturns413ProblemDetailsTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/MimeNotAllowedReturns415ProblemDetailsTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/QuarantineWritesDeterministicEntryTest.php`
+  - [ ] `packages/platform/uploads/tests/Integration/Http/UploadsMiddlewareIsActiveWhenModuleEnabledTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations satisfied (no forbidden deps)
 
@@ -2502,7 +2502,7 @@ Docs:
 type: package
 phase: 4
 epic_id: "4.60.0"
-owner_path: "framework/packages/platform/database/"
+owner_path: "packages/platform/database/"
 
 package_id: "platform/database"
 composer: "coretsia/platform-database"
@@ -2650,22 +2650,22 @@ It MUST update:
 
 #### Creates
 
-- [ ] `framework/packages/platform/database/src/Dialect/SqlDialectRegistry.php`
+- [ ] `packages/platform/database/src/Dialect/SqlDialectRegistry.php`
   - Отримує dialect від driver/connection, кешує (якщо треба) та гарантує детермінований вибір.
-- [ ] `framework/packages/platform/database/src/Driver/DriverCapabilities.php`
+- [ ] `packages/platform/database/src/Driver/DriverCapabilities.php`
   - Опис можливостей драйвера (supportsLimitOffsetSyntaxX, supportsReturning, needsIdentitySelect, …) — без vendor-deps у core.
 
-- [ ] `framework/packages/platform/database/src/Module/DatabaseModule.php` — runtime module
-- [ ] `framework/packages/platform/database/src/Provider/DatabaseServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/database/src/Provider/DatabaseServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DB_DRIVER = 'database.driver'`)
-- [ ] `framework/packages/platform/database/config/database.php` — config subtree (no repeated root)
-- [ ] `framework/packages/platform/database/config/rules.php` — config shape rules
-- [ ] `framework/packages/platform/database/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/database/src/Module/DatabaseModule.php` — runtime module
+- [ ] `packages/platform/database/src/Provider/DatabaseServiceProvider.php` — DI wiring
+- [ ] `packages/platform/database/src/Provider/DatabaseServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DB_DRIVER = 'database.driver'`)
+- [ ] `packages/platform/database/config/database.php` — config subtree (no repeated root)
+- [ ] `packages/platform/database/config/rules.php` — config shape rules
+- [ ] `packages/platform/database/README.md` — docs (Observability / Errors / Security-Redaction)
 - [ ] `docs/guides/database.md` — configure drivers; sqlite example
 
 Core:
-- [ ] `framework/packages/platform/database/src/Connection/ConnectionManager.php` — resolve `ConnectionInterface` by name MUST:
+- [ ] `packages/platform/database/src/Connection/ConnectionManager.php` — resolve `ConnectionInterface` by name MUST:
   - Алгоритм (детерміністичний):
     - `connection($name ?? database.default)`
     - читаємо `database.connections[$name]`, якщо нема → `DatabaseConnectionNotConfiguredException`
@@ -2699,72 +2699,72 @@ Core:
     - Drivers MUST NOT read global config; therefore platform/database owns base-option merge.
     - Drivers only map canonical string keys to vendor attrs internally (PDO::ATTR_* never appears in public API).
 
-- [ ] `framework/packages/platform/database/src/Query/QueryExecutor.php` — choke point instrumentation + redaction
-- [ ] `framework/packages/platform/database/src/Query/QueryBuilder.php` — MVP CRUD builder (uses QueryExecutor)
-- [ ] `framework/packages/platform/database/src/Query/Sql/SqlPlan.php` (або QueryPlan)
+- [ ] `packages/platform/database/src/Query/QueryExecutor.php` — choke point instrumentation + redaction
+- [ ] `packages/platform/database/src/Query/QueryBuilder.php` — MVP CRUD builder (uses QueryExecutor)
+- [ ] `packages/platform/database/src/Query/Sql/SqlPlan.php` (або QueryPlan)
   - Проміжне IR (operation + table + columns + predicates + limit/offset + returning intent). Core генерує план, driver/dialect допомагає з SQL bytes.
-- [ ] `framework/packages/platform/database/src/Driver/DriverRegistry.php` — resolves `DatabaseDriverInterface` by logical name:
+- [ ] `packages/platform/database/src/Driver/DriverRegistry.php` — resolves `DatabaseDriverInterface` by logical name:
   - `sources: database.driver_services map (override) OR database.driver tag discovery`
   - deterministic resolution; throws `DatabaseDriverNotFoundException` if missing
 
 *(ConnectionManager uses DriverRegistry; QueryExecutor remains choke point for any query execution.)*
 
 Observability:
-- [ ] `framework/packages/platform/database/src/Observability/QueryInstrumentation.php` — spans/metrics/logging helpers
+- [ ] `packages/platform/database/src/Observability/QueryInstrumentation.php` — spans/metrics/logging helpers
 
 Redaction:
-- [ ] `framework/packages/platform/database/src/Security/SqlRedaction.php` — never output SQL; allow `hash/len` only
-- [ ] `framework/packages/platform/database/src/Security/DsnRedaction.php`
+- [ ] `packages/platform/database/src/Security/SqlRedaction.php` — never output SQL; allow `hash/len` only
+- [ ] `packages/platform/database/src/Security/DsnRedaction.php`
   - Утиліта: ніколи не логувати DSN/host/user/pass; дозволено лише hash/len + driver + connection name.
 
 Query blueprint / compiler (core DX):
-- [ ] `framework/packages/platform/database/src/Query/Blueprint/QueryBlueprint.php` — immutable: operation + sql + bindings + meta (no __toString)
-- [ ] `framework/packages/platform/database/src/Query/Blueprint/QueryOperation.php` — enum-like (select|insert|update|delete|transaction)
-- [ ] `framework/packages/platform/database/src/Query/Sql/SqlCompiler.php` — deterministic compilation from builders to QueryBlueprint
+- [ ] `packages/platform/database/src/Query/Blueprint/QueryBlueprint.php` — immutable: operation + sql + bindings + meta (no __toString)
+- [ ] `packages/platform/database/src/Query/Blueprint/QueryOperation.php` — enum-like (select|insert|update|delete|transaction)
+- [ ] `packages/platform/database/src/Query/Sql/SqlCompiler.php` — deterministic compilation from builders to QueryBlueprint
   - Тепер компіляція детермінована але з викликом dialect для частин синтаксису, що відрізняються між драйверами.
-- [ ] `framework/packages/platform/database/src/Query/Sql/Bindings.php` — deterministic bindings normalization + placeholder ordering
-- [ ] `framework/packages/platform/database/src/Query/Sql/Identifier.php` — strict identifier validation (no quoting dependency)
+- [ ] `packages/platform/database/src/Query/Sql/Bindings.php` — deterministic bindings normalization + placeholder ordering
+- [ ] `packages/platform/database/src/Query/Sql/Identifier.php` — strict identifier validation (no quoting dependency)
   - policy: identifiers MUST match allowlisted regex (e.g. `[A-Za-z_][A-Za-z0-9_]*` + optional dot segments)
-- [ ] `framework/packages/platform/database/src/Query/Sql/DeterministicOrder.php` — helper for stable sorting (or reuse Foundation helper if exists)
+- [ ] `packages/platform/database/src/Query/Sql/DeterministicOrder.php` — helper for stable sorting (or reuse Foundation helper if exists)
 
 Fluent QueryBuilder entrypoints:
-- [ ] `framework/packages/platform/database/src/Query/Query.php` — user-facing entrypoint (creates builders bound to connection)
+- [ ] `packages/platform/database/src/Query/Query.php` — user-facing entrypoint (creates builders bound to connection)
   - methods: `connection(?string $name)` / `table(string $table)` / `rawConnection(?string $name)` (optional)
-- [ ] `framework/packages/platform/database/src/Query/Builder/TableQuery.php` — base: bound table + connection
-- [ ] `framework/packages/platform/database/src/Query/Builder/SelectQuery.php`
-- [ ] `framework/packages/platform/database/src/Query/Builder/InsertQuery.php`
-- [ ] `framework/packages/platform/database/src/Query/Builder/UpdateQuery.php`
-- [ ] `framework/packages/platform/database/src/Query/Builder/DeleteQuery.php`
+- [ ] `packages/platform/database/src/Query/Builder/TableQuery.php` — base: bound table + connection
+- [ ] `packages/platform/database/src/Query/Builder/SelectQuery.php`
+- [ ] `packages/platform/database/src/Query/Builder/InsertQuery.php`
+- [ ] `packages/platform/database/src/Query/Builder/UpdateQuery.php`
+- [ ] `packages/platform/database/src/Query/Builder/DeleteQuery.php`
 
 Expression DSL (portable subset; deterministic):
-- [ ] `framework/packages/platform/database/src/Query/Expr/Expr.php` — interface
-- [ ] `framework/packages/platform/database/src/Query/Expr/AndX.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/OrX.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/Cmp.php` — (=, !=, <, <=, >, >=)
-- [ ] `framework/packages/platform/database/src/Query/Expr/InList.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/Between.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/IsNull.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/Like.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/Not.php`
-- [ ] `framework/packages/platform/database/src/Query/Expr/ExprFactory.php` — convenience builders
+- [ ] `packages/platform/database/src/Query/Expr/Expr.php` — interface
+- [ ] `packages/platform/database/src/Query/Expr/AndX.php`
+- [ ] `packages/platform/database/src/Query/Expr/OrX.php`
+- [ ] `packages/platform/database/src/Query/Expr/Cmp.php` — (=, !=, <, <=, >, >=)
+- [ ] `packages/platform/database/src/Query/Expr/InList.php`
+- [ ] `packages/platform/database/src/Query/Expr/Between.php`
+- [ ] `packages/platform/database/src/Query/Expr/IsNull.php`
+- [ ] `packages/platform/database/src/Query/Expr/Like.php`
+- [ ] `packages/platform/database/src/Query/Expr/Not.php`
+- [ ] `packages/platform/database/src/Query/Expr/ExprFactory.php` — convenience builders
 
 Transactions (DX):
-- [ ] `framework/packages/platform/database/src/Transaction/TransactionManager.php`
+- [ ] `packages/platform/database/src/Transaction/TransactionManager.php`
   - runs closure with begin/commit/rollback through ConnectionInterface
   - MUST throw `DatabaseTransactionFailedException` on rollback failure path
 
 Result helpers (if QueryResultInterface is minimal):
-- [ ] `framework/packages/platform/database/src/Query/Result/QueryResult.php` — platform implementation of QueryResultInterface (rows + rowCount + lastInsertId + columns meta if available)
-- [ ] `framework/packages/platform/database/src/Query/Result/Row.php` — optional value object / typed accessors (kept minimal, format-neutral)
+- [ ] `packages/platform/database/src/Query/Result/QueryResult.php` — platform implementation of QueryResultInterface (rows + rowCount + lastInsertId + columns meta if available)
+- [ ] `packages/platform/database/src/Query/Result/Row.php` — optional value object / typed accessors (kept minimal, format-neutral)
 
 Errors:
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseException.php`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseConnectionFailedException.php` — `CORETSIA_DB_CONNECTION_FAILED`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseQueryFailedException.php` — `CORETSIA_DB_QUERY_FAILED`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseTransactionFailedException.php` — `CORETSIA_DB_TRANSACTION_FAILED`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseDriverNotFoundException.php` — `CORETSIA_DB_DRIVER_NOT_FOUND`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseConnectionNotConfiguredException.php` — `CORETSIA_DB_CONNECTION_NOT_CONFIGURED`
-- [ ] `framework/packages/platform/database/src/Exception/DatabaseDriverDisabledException.php` — `CORETSIA_DB_DRIVER_DISABLED`
+- [ ] `packages/platform/database/src/Exception/DatabaseException.php`
+- [ ] `packages/platform/database/src/Exception/DatabaseConnectionFailedException.php` — `CORETSIA_DB_CONNECTION_FAILED`
+- [ ] `packages/platform/database/src/Exception/DatabaseQueryFailedException.php` — `CORETSIA_DB_QUERY_FAILED`
+- [ ] `packages/platform/database/src/Exception/DatabaseTransactionFailedException.php` — `CORETSIA_DB_TRANSACTION_FAILED`
+- [ ] `packages/platform/database/src/Exception/DatabaseDriverNotFoundException.php` — `CORETSIA_DB_DRIVER_NOT_FOUND`
+- [ ] `packages/platform/database/src/Exception/DatabaseConnectionNotConfiguredException.php` — `CORETSIA_DB_CONNECTION_NOT_CONFIGURED`
+- [ ] `packages/platform/database/src/Exception/DatabaseDriverDisabledException.php` — `CORETSIA_DB_DRIVER_DISABLED`
 
 Docs:
 - [ ] `docs/ssot/database-redaction.md` — SSoT: no raw SQL; safe table label policy
@@ -2792,23 +2792,23 @@ Docs:
 - [ ] `docs/ssot/config-roots.md` — add root row:
   - root: `database`
   - owner: `platform/database`
-  - defaults: `framework/packages/platform/database/config/database.php`
-  - rules: `framework/packages/platform/database/config/rules.php`
+  - defaults: `packages/platform/database/config/database.php`
+  - rules: `packages/platform/database/config/rules.php`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database/composer.json`
-- [ ] `framework/packages/platform/database/src/Module/DatabaseModule.php`
-- [ ] `framework/packages/platform/database/src/Provider/DatabaseServiceProvider.php`
-- [ ] `framework/packages/platform/database/config/database.php`
-- [ ] `framework/packages/platform/database/config/rules.php`
-- [ ] `framework/packages/platform/database/README.md`
-- [ ] `framework/packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database/composer.json`
+- [ ] `packages/platform/database/src/Module/DatabaseModule.php`
+- [ ] `packages/platform/database/src/Provider/DatabaseServiceProvider.php`
+- [ ] `packages/platform/database/config/database.php`
+- [ ] `packages/platform/database/config/rules.php`
+- [ ] `packages/platform/database/README.md`
+- [ ] `packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database/config/database.php`
+  - [ ] `packages/platform/database/config/database.php`
 - [ ] Keys (dot):
   - [ ] `database.enabled` = true
   - [ ] `database.default` = 'sqlite'                               # default connection name (NOT driver)
@@ -2895,7 +2895,7 @@ Docs:
   - [ ] `database.connections.sqlserver.config.pdo_options` = []
   - [ ] `database.connections.sqlserver.tuning` = []
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database/config/rules.php` enforces shape (MVP):
+  - [ ] `packages/platform/database/config/rules.php` enforces shape (MVP):
     - [ ] subtree shape (no repeated root)
     - [ ] `database.driver_services` is `map<string, string>` (driverId => serviceId)
     - [ ] `database.drivers` is `map<string, array{enabled:bool, tuning:array}>`
@@ -2991,12 +2991,12 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseConnectionFailedException.php` — `CORETSIA_DB_CONNECTION_FAILED`
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseQueryFailedException.php` — `CORETSIA_DB_QUERY_FAILED`
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseTransactionFailedException.php` — `CORETSIA_DB_TRANSACTION_FAILED`
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseDriverNotFoundException.php` — `CORETSIA_DB_DRIVER_NOT_FOUND`
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseConnectionNotConfiguredException.php` — `CORETSIA_DB_CONNECTION_NOT_CONFIGURED`
-  - [ ] `framework/packages/platform/database/src/Exception/DatabaseDriverDisabledException.php` — `CORETSIA_DB_DRIVER_DISABLED`
+  - [ ] `packages/platform/database/src/Exception/DatabaseConnectionFailedException.php` — `CORETSIA_DB_CONNECTION_FAILED`
+  - [ ] `packages/platform/database/src/Exception/DatabaseQueryFailedException.php` — `CORETSIA_DB_QUERY_FAILED`
+  - [ ] `packages/platform/database/src/Exception/DatabaseTransactionFailedException.php` — `CORETSIA_DB_TRANSACTION_FAILED`
+  - [ ] `packages/platform/database/src/Exception/DatabaseDriverNotFoundException.php` — `CORETSIA_DB_DRIVER_NOT_FOUND`
+  - [ ] `packages/platform/database/src/Exception/DatabaseConnectionNotConfiguredException.php` — `CORETSIA_DB_CONNECTION_NOT_CONFIGURED`
+  - [ ] `packages/platform/database/src/Exception/DatabaseDriverDisabledException.php` — `CORETSIA_DB_DRIVER_DISABLED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (DefaultExceptionMapper) *(no dupes)*
 
@@ -3015,28 +3015,28 @@ N/A
 #### Required policy tests matrix
 
 - [ ] If metrics/spans/logs exist → proof:
-  - [ ] `framework/packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database/tests/Contract/NoRawSqlInMetricsLabelsContractTest.php`
+  - [ ] `packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database/tests/Contract/NoRawSqlInMetricsLabelsContractTest.php`
 - [ ] If redaction exists → proof:
-  - [ ] `framework/packages/platform/database/tests/Contract/SqlNeverPrintedContractTest.php`
+  - [ ] `packages/platform/database/tests/Contract/SqlNeverPrintedContractTest.php`
 - [ ] Deterministic SQL build → proof:
-  - [ ] `framework/packages/platform/database/tests/Unit/QueryBuilderBuildsDeterministicSqlForBasicCrudTest.php`
+  - [ ] `packages/platform/database/tests/Unit/QueryBuilderBuildsDeterministicSqlForBasicCrudTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/database/tests/Unit/SqlRedactionNeverReturnsRawSqlTest.php`
-  - [ ] `framework/packages/platform/database/tests/Unit/QueryBuilderBuildsDeterministicSqlForBasicCrudTest.php`
+  - [ ] `packages/platform/database/tests/Unit/SqlRedactionNeverReturnsRawSqlTest.php`
+  - [ ] `packages/platform/database/tests/Unit/QueryBuilderBuildsDeterministicSqlForBasicCrudTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database/tests/Contract/NoRawSqlInMetricsLabelsContractTest.php`
-  - [ ] `framework/packages/platform/database/tests/Contract/SqlNeverPrintedContractTest.php`
-  - [ ] `framework/packages/platform/database/tests/Contract/MetricsLabelsDoNotContainSqlOrIdsContractTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` *(contracts scope)*
+  - [ ] `packages/platform/database/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database/tests/Contract/NoRawSqlInMetricsLabelsContractTest.php`
+  - [ ] `packages/platform/database/tests/Contract/SqlNeverPrintedContractTest.php`
+  - [ ] `packages/platform/database/tests/Contract/MetricsLabelsDoNotContainSqlOrIdsContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` *(contracts scope)*
 - Integration:
-  - [ ] `framework/packages/platform/database/tests/Integration/CrudOnSqliteTest.php`
-  - [ ] `framework/packages/platform/database/tests/Integration/QueryExecutorEmitsMetricsNoopSafeTest.php`
-  - [ ] `framework/packages/platform/database/tests/Integration/QueryLoggingIsRedactedTest.php`
+  - [ ] `packages/platform/database/tests/Integration/CrudOnSqliteTest.php`
+  - [ ] `packages/platform/database/tests/Integration/QueryExecutorEmitsMetricsNoopSafeTest.php`
+  - [ ] `packages/platform/database/tests/Integration/QueryLoggingIsRedactedTest.php`
 - Gates/Arch:
   - [ ] deptrac: `platform/database` MUST NOT depend on `integrations/*`
 
@@ -3073,7 +3073,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.70.0"
-owner_path: "framework/packages/platform/database-driver-sqlite/"
+owner_path: "packages/platform/database-driver-sqlite/"
 
 package_id: "platform/database-driver-sqlite"
 composer: "coretsia/platform-database-driver-sqlite"
@@ -3192,35 +3192,35 @@ Because we do NOT introduce a shared PDO epic:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/database-driver-sqlite/composer.json` — package definition
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Module/DatabaseDriverSqliteModule.php` — runtime module entry
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database-driver-sqlite/config/database_driver_sqlite.php` — config subtree (MUST return `[]`)
-- [ ] `framework/packages/platform/database-driver-sqlite/config/rules.php` — config shape enforcement (MUST NOT touch `database` root rules)
-- [ ] `framework/packages/platform/database-driver-sqlite/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — runtime-only contract smoke
+- [ ] `packages/platform/database-driver-sqlite/composer.json` — package definition
+- [ ] `packages/platform/database-driver-sqlite/src/Module/DatabaseDriverSqliteModule.php` — runtime module entry
+- [ ] `packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceProvider.php` — DI wiring
+- [ ] `packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/database-driver-sqlite/config/database_driver_sqlite.php` — config subtree (MUST return `[]`)
+- [ ] `packages/platform/database-driver-sqlite/config/rules.php` — config shape enforcement (MUST NOT touch `database` root rules)
+- [ ] `packages/platform/database-driver-sqlite/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — runtime-only contract smoke
 
 Shared PDO infra (duplicated per driver by design):
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoConnection.php` — implements `ConnectionInterface` (thin wrapper)
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoConnector.php` — lazy factory: builds PDO on-demand (MUST NOT connect during container build)
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoConnection.php` — implements `ConnectionInterface` (thin wrapper)
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoConnector.php` — lazy factory: builds PDO on-demand (MUST NOT connect during container build)
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
   - MUST NOT merge global base options (ownership is platform/database)
   - input source is `$config['pdo_options']` (already merged upstream)
   - MUST hard-fail on unknown keys and any float-like values
 
 SQLite implementation:
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/PdoSqliteDriver.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteDialect.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteDsnBuilder.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqlitePdoOptionsMapper.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteValueNormalizer.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteExceptionHygiene.php` — safe exception messages (no DSN/paths/secrets)
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/PdoSqliteDriver.php`
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteDialect.php`
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteDsnBuilder.php`
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqlitePdoOptionsMapper.php`
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteValueNormalizer.php`
+- [ ] `packages/platform/database-driver-sqlite/src/Driver/Sqlite/SqliteExceptionHygiene.php` — safe exception messages (no DSN/paths/secrets)
 
 Tests (non-exhaustive, MUST be enforceable):
-- [ ] `framework/packages/platform/database-driver-sqlite/tests/Integration/CrudOnSqliteTest.php` — Tier A CI real DB test (sqlite)
-- [ ] `framework/packages/platform/database-driver-sqlite/tests/Integration/Wiring/SqliteDriverServiceWiringTest.php` — tag/meta + lazy-connect no side effects
-- [ ] `framework/packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php` — asserts: secrets not present in thrown messages
+- [ ] `packages/platform/database-driver-sqlite/tests/Integration/CrudOnSqliteTest.php` — Tier A CI real DB test (sqlite)
+- [ ] `packages/platform/database-driver-sqlite/tests/Integration/Wiring/SqliteDriverServiceWiringTest.php` — tag/meta + lazy-connect no side effects
+- [ ] `packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php` — asserts: secrets not present in thrown messages
 
 #### Modifies
 
@@ -3228,22 +3228,22 @@ Tests (non-exhaustive, MUST be enforceable):
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database-driver-sqlite/composer.json`
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Module/DatabaseDriverSqliteModule.php` (runtime only)
-- [ ] `framework/packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/database-driver-sqlite/config/database_driver_sqlite.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/database-driver-sqlite/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-sqlite/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/database-driver-sqlite/composer.json`
+- [ ] `packages/platform/database-driver-sqlite/src/Module/DatabaseDriverSqliteModule.php` (runtime only)
+- [ ] `packages/platform/database-driver-sqlite/src/Provider/DatabaseDriverSqliteServiceProvider.php` (runtime only)
+- [ ] `packages/platform/database-driver-sqlite/config/database_driver_sqlite.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/database-driver-sqlite/config/rules.php`
+- [ ] `packages/platform/database-driver-sqlite/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database-driver-sqlite/config/database_driver_sqlite.php`
+  - [ ] `packages/platform/database-driver-sqlite/config/database_driver_sqlite.php`
 - [ ] Keys (dot):
   - [ ] N/A (package does not own keys; MUST return `[]`)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database-driver-sqlite/config/rules.php` enforces shape
+  - [ ] `packages/platform/database-driver-sqlite/config/rules.php` enforces shape
     - MUST return `[]`
     - MUST NOT add/override rules for `database` root (owner rules are in `platform/database`)
 
@@ -3292,7 +3292,7 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If redaction exists → `framework/packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] If redaction exists → `packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -3306,11 +3306,11 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+  - [ ] `packages/platform/database-driver-sqlite/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database-driver-sqlite/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/database-driver-sqlite/tests/Integration/CrudOnSqliteTest.php`
-  - [ ] `framework/packages/platform/database-driver-sqlite/tests/Integration/Wiring/SqliteDriverServiceWiringTest.php`
+  - [ ] `packages/platform/database-driver-sqlite/tests/Integration/CrudOnSqliteTest.php`
+  - [ ] `packages/platform/database-driver-sqlite/tests/Integration/Wiring/SqliteDriverServiceWiringTest.php`
 - Gates/Arch:
   - [ ] deptrac: forbidden deps enforced (no platform/http, no platform/migrations, no other driver packages)
 
@@ -3332,7 +3332,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.71.0"
-owner_path: "framework/packages/platform/database-driver-mysql/"
+owner_path: "packages/platform/database-driver-mysql/"
 
 package_id: "platform/database-driver-mysql"
 composer: "coretsia/platform-database-driver-mysql"
@@ -3448,34 +3448,34 @@ Because we do NOT introduce a shared PDO epic:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/database-driver-mysql/composer.json`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Module/DatabaseDriverMysqlModule.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database-driver-mysql/config/database_driver_mysql.php` — MUST return `[]`
-- [ ] `framework/packages/platform/database-driver-mysql/config/rules.php` — MUST NOT touch `database` root rules
-- [ ] `framework/packages/platform/database-driver-mysql/README.md`
-- [ ] `framework/packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-mysql/composer.json`
+- [ ] `packages/platform/database-driver-mysql/src/Module/DatabaseDriverMysqlModule.php`
+- [ ] `packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceProvider.php`
+- [ ] `packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/database-driver-mysql/config/database_driver_mysql.php` — MUST return `[]`
+- [ ] `packages/platform/database-driver-mysql/config/rules.php` — MUST NOT touch `database` root rules
+- [ ] `packages/platform/database-driver-mysql/README.md`
+- [ ] `packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Shared PDO infra (duplicated per driver by design):
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Pdo/PdoConnection.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Pdo/PdoConnector.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Pdo/PdoConnection.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Pdo/PdoConnector.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
   - MUST NOT merge global base options (ownership is platform/database)
   - input source is `$config['pdo_options']` (already merged upstream)
   - MUST hard-fail on unknown keys and any float-like values
 
 MySQL implementation:
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/PdoMysqlDriver.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlDialect.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlDsnBuilder.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlPdoOptionsMapper.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlValueNormalizer.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlExceptionHygiene.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/PdoMysqlDriver.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlDialect.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlDsnBuilder.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlPdoOptionsMapper.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlValueNormalizer.php`
+- [ ] `packages/platform/database-driver-mysql/src/Driver/Mysql/MysqlExceptionHygiene.php`
 
 Tests:
-- [ ] `framework/packages/platform/database-driver-mysql/tests/Integration/Wiring/MysqlDriverServiceWiringTest.php`
-- [ ] `framework/packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] `packages/platform/database-driver-mysql/tests/Integration/Wiring/MysqlDriverServiceWiringTest.php`
+- [ ] `packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Modifies
 
@@ -3483,22 +3483,22 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database-driver-mysql/composer.json`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Module/DatabaseDriverMysqlModule.php`
-- [ ] `framework/packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-mysql/config/database_driver_mysql.php`
-- [ ] `framework/packages/platform/database-driver-mysql/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-mysql/README.md`
-- [ ] `framework/packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-mysql/composer.json`
+- [ ] `packages/platform/database-driver-mysql/src/Module/DatabaseDriverMysqlModule.php`
+- [ ] `packages/platform/database-driver-mysql/src/Provider/DatabaseDriverMysqlServiceProvider.php`
+- [ ] `packages/platform/database-driver-mysql/config/database_driver_mysql.php`
+- [ ] `packages/platform/database-driver-mysql/config/rules.php`
+- [ ] `packages/platform/database-driver-mysql/README.md`
+- [ ] `packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database-driver-mysql/config/database_driver_mysql.php`
+  - [ ] `packages/platform/database-driver-mysql/config/database_driver_mysql.php`
 - [ ] Keys (dot):
   - [ ] N/A (package does not own keys; MUST return `[]`)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database-driver-mysql/config/rules.php` enforces: MUST return `[]`
+  - [ ] `packages/platform/database-driver-mysql/config/rules.php` enforces: MUST return `[]`
 
 Driver MUST NOT read global config directly.
 It MUST rely exclusively on:
@@ -3543,7 +3543,7 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If redaction exists → `framework/packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] If redaction exists → `packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -3554,10 +3554,10 @@ N/A (wiring-only; no real MySQL server required)
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+  - [ ] `packages/platform/database-driver-mysql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database-driver-mysql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/database-driver-mysql/tests/Integration/Wiring/MysqlDriverServiceWiringTest.php`
+  - [ ] `packages/platform/database-driver-mysql/tests/Integration/Wiring/MysqlDriverServiceWiringTest.php`
 - Gates/Arch:
   - [ ] deptrac: forbidden deps enforced (no platform/http, no platform/migrations, no other driver packages)
 
@@ -3577,7 +3577,7 @@ N/A (wiring-only; no real MySQL server required)
 type: package
 phase: 4
 epic_id: "4.72.0"
-owner_path: "framework/packages/platform/database-driver-mariadb/"
+owner_path: "packages/platform/database-driver-mariadb/"
 
 package_id: "platform/database-driver-mariadb"
 composer: "coretsia/platform-database-driver-mariadb"
@@ -3693,34 +3693,34 @@ Because we do NOT introduce a shared PDO epic:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/database-driver-mariadb/composer.json`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Module/DatabaseDriverMariadbModule.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database-driver-mariadb/config/database_driver_mariadb.php` — MUST return `[]`
-- [ ] `framework/packages/platform/database-driver-mariadb/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/README.md`
-- [ ] `framework/packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-mariadb/composer.json`
+- [ ] `packages/platform/database-driver-mariadb/src/Module/DatabaseDriverMariadbModule.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceProvider.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/database-driver-mariadb/config/database_driver_mariadb.php` — MUST return `[]`
+- [ ] `packages/platform/database-driver-mariadb/config/rules.php`
+- [ ] `packages/platform/database-driver-mariadb/README.md`
+- [ ] `packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Shared PDO infra (duplicated per driver by design):
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoConnection.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoConnector.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoConnection.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoConnector.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
   - MUST NOT merge global base options (ownership is platform/database)
   - input source is `$config['pdo_options']` (already merged upstream)
   - MUST hard-fail on unknown keys and any float-like values
 
 MariaDB implementation:
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/PdoMariadbDriver.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbDialect.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbDsnBuilder.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbPdoOptionsMapper.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbValueNormalizer.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbExceptionHygiene.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/PdoMariadbDriver.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbDialect.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbDsnBuilder.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbPdoOptionsMapper.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbValueNormalizer.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Driver/Mariadb/MariadbExceptionHygiene.php`
 
 Tests:
-- [ ] `framework/packages/platform/database-driver-mariadb/tests/Integration/Wiring/MariadbDriverServiceWiringTest.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] `packages/platform/database-driver-mariadb/tests/Integration/Wiring/MariadbDriverServiceWiringTest.php`
+- [ ] `packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Modifies
 
@@ -3728,22 +3728,22 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database-driver-mariadb/composer.json`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Module/DatabaseDriverMariadbModule.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/config/database_driver_mariadb.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-mariadb/README.md`
-- [ ] `framework/packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-mariadb/composer.json`
+- [ ] `packages/platform/database-driver-mariadb/src/Module/DatabaseDriverMariadbModule.php`
+- [ ] `packages/platform/database-driver-mariadb/src/Provider/DatabaseDriverMariadbServiceProvider.php`
+- [ ] `packages/platform/database-driver-mariadb/config/database_driver_mariadb.php`
+- [ ] `packages/platform/database-driver-mariadb/config/rules.php`
+- [ ] `packages/platform/database-driver-mariadb/README.md`
+- [ ] `packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database-driver-mariadb/config/database_driver_mariadb.php`
+  - [ ] `packages/platform/database-driver-mariadb/config/database_driver_mariadb.php`
 - [ ] Keys (dot):
   - [ ] N/A (package does not own keys; MUST return `[]`)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database-driver-mariadb/config/rules.php` enforces: MUST return `[]`
+  - [ ] `packages/platform/database-driver-mariadb/config/rules.php` enforces: MUST return `[]`
 
 Driver MUST NOT read global config directly.
 It MUST rely exclusively on:
@@ -3786,7 +3786,7 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If redaction exists → `framework/packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] If redaction exists → `packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -3797,10 +3797,10 @@ N/A (wiring-only; no real server required)
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+  - [ ] `packages/platform/database-driver-mariadb/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database-driver-mariadb/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/database-driver-mariadb/tests/Integration/Wiring/MariadbDriverServiceWiringTest.php`
+  - [ ] `packages/platform/database-driver-mariadb/tests/Integration/Wiring/MariadbDriverServiceWiringTest.php`
 - Gates/Arch:
   - [ ] deptrac: forbidden deps enforced (no platform/http, no platform/migrations, no other driver packages)
 
@@ -3820,7 +3820,7 @@ N/A (wiring-only; no real server required)
 type: package
 phase: 4
 epic_id: "4.73.0"
-owner_path: "framework/packages/platform/database-driver-pgsql/"
+owner_path: "packages/platform/database-driver-pgsql/"
 
 package_id: "platform/database-driver-pgsql"
 composer: "coretsia/platform-database-driver-pgsql"
@@ -3936,34 +3936,34 @@ Because we do NOT introduce a shared PDO epic:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/database-driver-pgsql/composer.json`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Module/DatabaseDriverPgsqlModule.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database-driver-pgsql/config/database_driver_pgsql.php` — MUST return `[]`
-- [ ] `framework/packages/platform/database-driver-pgsql/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/README.md`
-- [ ] `framework/packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-pgsql/composer.json`
+- [ ] `packages/platform/database-driver-pgsql/src/Module/DatabaseDriverPgsqlModule.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceProvider.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/database-driver-pgsql/config/database_driver_pgsql.php` — MUST return `[]`
+- [ ] `packages/platform/database-driver-pgsql/config/rules.php`
+- [ ] `packages/platform/database-driver-pgsql/README.md`
+- [ ] `packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Shared PDO infra (duplicated per driver by design):
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoConnection.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoConnector.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoConnection.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoConnector.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
   - MUST NOT merge global base options (ownership is platform/database)
   - input source is `$config['pdo_options']` (already merged upstream)
   - MUST hard-fail on unknown keys and any float-like values
 
 PgSQL implementation:
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PdoPgsqlDriver.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlDialect.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlDsnBuilder.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlPdoOptionsMapper.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlValueNormalizer.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlExceptionHygiene.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PdoPgsqlDriver.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlDialect.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlDsnBuilder.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlPdoOptionsMapper.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlValueNormalizer.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Driver/Pgsql/PgsqlExceptionHygiene.php`
 
 Tests:
-- [ ] `framework/packages/platform/database-driver-pgsql/tests/Integration/Wiring/PgsqlDriverServiceWiringTest.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] `packages/platform/database-driver-pgsql/tests/Integration/Wiring/PgsqlDriverServiceWiringTest.php`
+- [ ] `packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Modifies
 
@@ -3971,22 +3971,22 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database-driver-pgsql/composer.json`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Module/DatabaseDriverPgsqlModule.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/config/database_driver_pgsql.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-pgsql/README.md`
-- [ ] `framework/packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-pgsql/composer.json`
+- [ ] `packages/platform/database-driver-pgsql/src/Module/DatabaseDriverPgsqlModule.php`
+- [ ] `packages/platform/database-driver-pgsql/src/Provider/DatabaseDriverPgsqlServiceProvider.php`
+- [ ] `packages/platform/database-driver-pgsql/config/database_driver_pgsql.php`
+- [ ] `packages/platform/database-driver-pgsql/config/rules.php`
+- [ ] `packages/platform/database-driver-pgsql/README.md`
+- [ ] `packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database-driver-pgsql/config/database_driver_pgsql.php`
+  - [ ] `packages/platform/database-driver-pgsql/config/database_driver_pgsql.php`
 - [ ] Keys (dot):
   - [ ] N/A (package does not own keys; MUST return `[]`)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database-driver-pgsql/config/rules.php` enforces: MUST return `[]`
+  - [ ] `packages/platform/database-driver-pgsql/config/rules.php` enforces: MUST return `[]`
 
 Driver MUST NOT read global config directly.
 It MUST rely exclusively on:
@@ -4029,7 +4029,7 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If redaction exists → `framework/packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] If redaction exists → `packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -4040,10 +4040,10 @@ N/A (wiring-only; no real server required)
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+  - [ ] `packages/platform/database-driver-pgsql/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database-driver-pgsql/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/database-driver-pgsql/tests/Integration/Wiring/PgsqlDriverServiceWiringTest.php`
+  - [ ] `packages/platform/database-driver-pgsql/tests/Integration/Wiring/PgsqlDriverServiceWiringTest.php`
 - Gates/Arch:
   - [ ] deptrac: forbidden deps enforced (no platform/http, no platform/migrations, no other driver packages)
 
@@ -4063,7 +4063,7 @@ N/A (wiring-only; no real server required)
 type: package
 phase: 4
 epic_id: "4.74.0"
-owner_path: "framework/packages/platform/database-driver-sqlserver/"
+owner_path: "packages/platform/database-driver-sqlserver/"
 
 package_id: "platform/database-driver-sqlserver"
 composer: "coretsia/platform-database-driver-sqlserver"
@@ -4179,34 +4179,34 @@ Because we do NOT introduce a shared PDO epic:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/database-driver-sqlserver/composer.json`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Module/DatabaseDriverSqlserverModule.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php` — MUST return `[]`
-- [ ] `framework/packages/platform/database-driver-sqlserver/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/README.md`
-- [ ] `framework/packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-sqlserver/composer.json`
+- [ ] `packages/platform/database-driver-sqlserver/src/Module/DatabaseDriverSqlserverModule.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceProvider.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php` — MUST return `[]`
+- [ ] `packages/platform/database-driver-sqlserver/config/rules.php`
+- [ ] `packages/platform/database-driver-sqlserver/README.md`
+- [ ] `packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Shared PDO infra (duplicated per driver by design):
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoConnection.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoConnector.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoConnection.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoConnector.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Pdo/PdoOptionsCanonicalizer.php` — validates + normalizes EFFECTIVE canonical options map (string keys)
   - MUST NOT merge global base options (ownership is platform/database)
   - input source is `$config['pdo_options']` (already merged upstream)
   - MUST hard-fail on unknown keys and any float-like values
 
 SQL Server implementation:
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/PdoSqlserverDriver.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverDialect.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverDsnBuilder.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverPdoOptionsMapper.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverValueNormalizer.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverExceptionHygiene.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/PdoSqlserverDriver.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverDialect.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverDsnBuilder.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverPdoOptionsMapper.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverValueNormalizer.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Driver/Sqlserver/SqlserverExceptionHygiene.php`
 
 Tests:
-- [ ] `framework/packages/platform/database-driver-sqlserver/tests/Integration/Wiring/SqlserverDriverServiceWiringTest.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] `packages/platform/database-driver-sqlserver/tests/Integration/Wiring/SqlserverDriverServiceWiringTest.php`
+- [ ] `packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Modifies
 
@@ -4214,22 +4214,22 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/database-driver-sqlserver/composer.json`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Module/DatabaseDriverSqlserverModule.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceProvider.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/config/rules.php`
-- [ ] `framework/packages/platform/database-driver-sqlserver/README.md`
-- [ ] `framework/packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/database-driver-sqlserver/composer.json`
+- [ ] `packages/platform/database-driver-sqlserver/src/Module/DatabaseDriverSqlserverModule.php`
+- [ ] `packages/platform/database-driver-sqlserver/src/Provider/DatabaseDriverSqlserverServiceProvider.php`
+- [ ] `packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php`
+- [ ] `packages/platform/database-driver-sqlserver/config/rules.php`
+- [ ] `packages/platform/database-driver-sqlserver/README.md`
+- [ ] `packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php`
+  - [ ] `packages/platform/database-driver-sqlserver/config/database_driver_sqlserver.php`
 - [ ] Keys (dot):
   - [ ] N/A (package does not own keys; MUST return `[]`)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/database-driver-sqlserver/config/rules.php` enforces: MUST return `[]`
+  - [ ] `packages/platform/database-driver-sqlserver/config/rules.php` enforces: MUST return `[]`
 
 Driver MUST NOT read global config directly.
 It MUST rely exclusively on:
@@ -4272,7 +4272,7 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If redaction exists → `framework/packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+- [ ] If redaction exists → `packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -4283,10 +4283,10 @@ N/A (wiring-only; no real SQL Server required)
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
+  - [ ] `packages/platform/database-driver-sqlserver/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/database-driver-sqlserver/tests/Contract/NoDsnOrSecretLeakInDriverExceptionsContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/database-driver-sqlserver/tests/Integration/Wiring/SqlserverDriverServiceWiringTest.php`
+  - [ ] `packages/platform/database-driver-sqlserver/tests/Integration/Wiring/SqlserverDriverServiceWiringTest.php`
 - Gates/Arch:
   - [ ] deptrac: forbidden deps enforced (no platform/http, no platform/migrations, no other driver packages)
 
@@ -4406,7 +4406,7 @@ N/A (doc-only epic)
 type: package
 phase: 4
 epic_id: "4.90.0"
-owner_path: "framework/packages/platform/migrations/"
+owner_path: "packages/platform/migrations/"
 
 package_id: "platform/migrations"
 composer: "coretsia/platform-migrations"
@@ -4488,9 +4488,9 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `db:migrate` → `framework/packages/platform/migrations/src/Console/MigrateCommand.php`
-  - `db:rollback` → `framework/packages/platform/migrations/src/Console/RollbackCommand.php`
-  - `db:status` → `framework/packages/platform/migrations/src/Console/StatusCommand.php`
+  - `db:migrate` → `packages/platform/migrations/src/Console/MigrateCommand.php`
+  - `db:rollback` → `packages/platform/migrations/src/Console/RollbackCommand.php`
+  - `db:status` → `packages/platform/migrations/src/Console/StatusCommand.php`
 - HTTP:
   - N/A
 - Kernel hooks/tags:
@@ -4513,18 +4513,18 @@ Forbidden:
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/migrations/src/Module/MigrationsModule.php`
-- [ ] `framework/packages/platform/migrations/src/Provider/MigrationsServiceProvider.php`
-- [ ] `framework/packages/platform/migrations/src/Provider/MigrationsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/migrations/config/migrations.php` — returns subtree for root `migrations` (no repeated root)
-- [ ] `framework/packages/platform/migrations/config/rules.php`
-- [ ] `framework/packages/platform/migrations/README.md`
-- [ ] `framework/packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/migrations/src/Module/MigrationsModule.php`
+- [ ] `packages/platform/migrations/src/Provider/MigrationsServiceProvider.php`
+- [ ] `packages/platform/migrations/src/Provider/MigrationsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/migrations/config/migrations.php` — returns subtree for root `migrations` (no repeated root)
+- [ ] `packages/platform/migrations/config/rules.php`
+- [ ] `packages/platform/migrations/README.md`
+- [ ] `packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Core implementation:
-- [ ] `framework/packages/platform/migrations/src/Migrator.php` — migrate/rollback orchestration
-- [ ] `framework/packages/platform/migrations/src/Repository/MigrationRepository.php` — stores applied migrations
-- [ ] `framework/packages/platform/migrations/src/Migration/MigrationLoader.php` — deterministic file/class order
+- [ ] `packages/platform/migrations/src/Migrator.php` — migrate/rollback orchestration
+- [ ] `packages/platform/migrations/src/Repository/MigrationRepository.php` — stores applied migrations
+- [ ] `packages/platform/migrations/src/Migration/MigrationLoader.php` — deterministic file/class order
   - Deterministic filesystem policy for `MigrationLoader` (cemented):
     - Inputs: `migrations.paths` is a list (order preserved, no implicit sorting at config-merge time).
     - For each path:
@@ -4534,36 +4534,36 @@ Core implementation:
       - ID = normalized relative path without extension (or explicit class constant), and MUST be stable across OS.
 
 Schema (MVP):
-- [ ] `framework/packages/platform/migrations/src/Schema/Blueprint.php` — create table/columns/indexes (MVP)
-- [ ] `framework/packages/platform/migrations/src/Schema/SchemaBuilder.php` — optional helper
+- [ ] `packages/platform/migrations/src/Schema/Blueprint.php` — create table/columns/indexes (MVP)
+- [ ] `packages/platform/migrations/src/Schema/SchemaBuilder.php` — optional helper
 
 CLI:
-- [ ] `framework/packages/platform/migrations/src/Console/MigrateCommand.php`
-- [ ] `framework/packages/platform/migrations/src/Console/RollbackCommand.php`
-- [ ] `framework/packages/platform/migrations/src/Console/StatusCommand.php`
+- [ ] `packages/platform/migrations/src/Console/MigrateCommand.php`
+- [ ] `packages/platform/migrations/src/Console/RollbackCommand.php`
+- [ ] `packages/platform/migrations/src/Console/StatusCommand.php`
 
 Observability:
-- [ ] `framework/packages/platform/migrations/src/Observability/MigrationsInstrumentation.php` — spans/metrics/logging helpers
+- [ ] `packages/platform/migrations/src/Observability/MigrationsInstrumentation.php` — spans/metrics/logging helpers
 
 Errors:
-- [ ] `framework/packages/platform/migrations/src/Exception/MigrationsException.php`
-- [ ] `framework/packages/platform/migrations/src/Exception/MigrationFailedException.php` — `CORETSIA_DB_MIGRATION_FAILED`
-- [ ] `framework/packages/platform/migrations/src/Exception/MigrationInvalidException.php` — `CORETSIA_DB_MIGRATION_INVALID`
-- [ ] `framework/packages/platform/migrations/src/Exception/MigrationRepositoryException.php` — `CORETSIA_DB_MIGRATION_REPOSITORY_ERROR`
+- [ ] `packages/platform/migrations/src/Exception/MigrationsException.php`
+- [ ] `packages/platform/migrations/src/Exception/MigrationFailedException.php` — `CORETSIA_DB_MIGRATION_FAILED`
+- [ ] `packages/platform/migrations/src/Exception/MigrationInvalidException.php` — `CORETSIA_DB_MIGRATION_INVALID`
+- [ ] `packages/platform/migrations/src/Exception/MigrationRepositoryException.php` — `CORETSIA_DB_MIGRATION_REPOSITORY_ERROR`
 
 Docs:
 - [ ] `docs/ssot/migrations-ordering.md` — deterministic ordering + redaction rules
 
 Tests:
-- [ ] `framework/packages/platform/migrations/tests/Unit/MigrationLoaderDeterministicOrderTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Unit/BlueprintGeneratesDeterministicSqlForCreateTableTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Integration/MigrateAndRollbackOnSqliteTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Integration/MigrationsEmitMetricsNoopSafeTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Integration/CliCommandsProduceStableJsonSchemaWhenFormatJsonTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Integration/Cli/MigrationsWorkInExpressFixtureOnSqliteTest.php`
-- [ ] `framework/packages/platform/migrations/tests/Fixtures/ExpressSqliteApp/config/modules.php`
-- [ ] `framework/packages/platform/migrations/tests/Integration/MigrationsUseConfiguredConnectionNameTest.php`
+- [ ] `packages/platform/migrations/tests/Unit/MigrationLoaderDeterministicOrderTest.php`
+- [ ] `packages/platform/migrations/tests/Unit/BlueprintGeneratesDeterministicSqlForCreateTableTest.php`
+- [ ] `packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
+- [ ] `packages/platform/migrations/tests/Integration/MigrateAndRollbackOnSqliteTest.php`
+- [ ] `packages/platform/migrations/tests/Integration/MigrationsEmitMetricsNoopSafeTest.php`
+- [ ] `packages/platform/migrations/tests/Integration/CliCommandsProduceStableJsonSchemaWhenFormatJsonTest.php`
+- [ ] `packages/platform/migrations/tests/Integration/Cli/MigrationsWorkInExpressFixtureOnSqliteTest.php`
+- [ ] `packages/platform/migrations/tests/Fixtures/ExpressSqliteApp/config/modules.php`
+- [ ] `packages/platform/migrations/tests/Integration/MigrationsUseConfiguredConnectionNameTest.php`
   - asserts:
     - `migrations.connection` overrides `database.default`
     - resolution fails deterministically if connection not configured (proper exception code)
@@ -4579,18 +4579,18 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/migrations/composer.json`
-- [ ] `framework/packages/platform/migrations/src/Module/MigrationsModule.php`
-- [ ] `framework/packages/platform/migrations/src/Provider/MigrationsServiceProvider.php`
-- [ ] `framework/packages/platform/migrations/config/migrations.php`
-- [ ] `framework/packages/platform/migrations/config/rules.php`
-- [ ] `framework/packages/platform/migrations/README.md`
-- [ ] `framework/packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/migrations/composer.json`
+- [ ] `packages/platform/migrations/src/Module/MigrationsModule.php`
+- [ ] `packages/platform/migrations/src/Provider/MigrationsServiceProvider.php`
+- [ ] `packages/platform/migrations/config/migrations.php`
+- [ ] `packages/platform/migrations/config/rules.php`
+- [ ] `packages/platform/migrations/README.md`
+- [ ] `packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/migrations/config/migrations.php`
+  - [ ] `packages/platform/migrations/config/migrations.php`
 - [ ] Keys (dot):
   - [ ] `migrations.enabled` = true
   - [ ] `migrations.connection` = null           # meaning: if null → use `database.default` else: use that explicit connection name
@@ -4599,7 +4599,7 @@ Tests:
   - [ ] `migrations.transactional` = true
   - [ ] `migrations.strict` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/migrations/config/rules.php` enforces shape
+  - [ ] `packages/platform/migrations/config/rules.php` enforces shape
     - `migrations.connection` is `null|string` (string non-empty)
 
 #### Wiring / DI tags (when applicable)
@@ -4667,16 +4667,16 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
   (asserts: no SQL leakage; observability naming/labels follow policy)
-- [ ] If redaction exists → `framework/packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
+- [ ] If redaction exists → `packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
   (asserts: SQL is not emitted raw)
 - [ ] Context reads exist → covered by integration/contract tests that validate logs include only safe correlation id usage (no context writes exist)
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/platform/migrations/tests/Fixtures/ExpressSqliteApp/config/modules.php`
+  - [ ] `packages/platform/migrations/tests/Fixtures/ExpressSqliteApp/config/modules.php`
     - Add enablement of `platform.database-driver-sqlite`
     - Ensure connection driver is `sqlite` under `database.connections.sqlite.driver`
 - [ ] Fake adapters:
@@ -4685,17 +4685,17 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/migrations/tests/Unit/MigrationLoaderDeterministicOrderTest.php`
-  - [ ] `framework/packages/platform/migrations/tests/Unit/BlueprintGeneratesDeterministicSqlForCreateTableTest.php`
+  - [ ] `packages/platform/migrations/tests/Unit/MigrationLoaderDeterministicOrderTest.php`
+  - [ ] `packages/platform/migrations/tests/Unit/BlueprintGeneratesDeterministicSqlForCreateTableTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php` (contracts scope)
+  - [ ] `packages/platform/migrations/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/migrations/tests/Contract/NoRawSqlLoggedContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php` (contracts scope)
 - Integration:
-  - [ ] `framework/packages/platform/migrations/tests/Integration/MigrateAndRollbackOnSqliteTest.php`
-  - [ ] `framework/packages/platform/migrations/tests/Integration/MigrationsEmitMetricsNoopSafeTest.php`
-  - [ ] `framework/packages/platform/migrations/tests/Integration/CliCommandsProduceStableJsonSchemaWhenFormatJsonTest.php`
-  - [ ] `framework/packages/platform/migrations/tests/Integration/Cli/MigrationsWorkInExpressFixtureOnSqliteTest.php`
+  - [ ] `packages/platform/migrations/tests/Integration/MigrateAndRollbackOnSqliteTest.php`
+  - [ ] `packages/platform/migrations/tests/Integration/MigrationsEmitMetricsNoopSafeTest.php`
+  - [ ] `packages/platform/migrations/tests/Integration/CliCommandsProduceStableJsonSchemaWhenFormatJsonTest.php`
+  - [ ] `packages/platform/migrations/tests/Integration/Cli/MigrationsWorkInExpressFixtureOnSqliteTest.php`
 - Gates/Arch:
   - [ ] deptrac: `platform/migrations` MUST NOT depend on `platform/cli`
 
@@ -4724,7 +4724,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.95.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -4793,14 +4793,14 @@ N/A
 
 ### Creates
 
-- [ ] `framework/packages/core/contracts/src/Queue/JobInterface.php` — job contract (shape/metadata; payload правила на рівні contract-очікувань)
-- [ ] `framework/packages/core/contracts/src/Queue/JobSerializerInterface.php` — серіалізація/десеріалізація з інваріантами json-like + детермінізм
-- [ ] `framework/packages/core/contracts/src/Queue/QueueDriverInterface.php` — low-level driver port (reserve/ack/fail/release)
-- [ ] `framework/packages/core/contracts/src/Queue/QueueInterface.php` — high-level queue facade port (dispatch/enqueue поверх driver)
-- [ ] `framework/packages/core/contracts/src/Queue/BackoffStrategyInterface.php` — retry/backoff policy surface (delay computation)
-- [ ] `framework/packages/core/contracts/src/Queue/FailedJobRepositoryInterface.php` — port для зберігання/читання failed jobs
-- [ ] `framework/packages/core/contracts/src/Queue/QueueWorkerRuntimeInterface.php` — worker runtime surface (loop/control без реалізації)
-- [ ] `framework/packages/core/contracts/src/Queue/QueueException.php` — базова доменна exception для queue contracts
+- [ ] `packages/core/contracts/src/Queue/JobInterface.php` — job contract (shape/metadata; payload правила на рівні contract-очікувань)
+- [ ] `packages/core/contracts/src/Queue/JobSerializerInterface.php` — серіалізація/десеріалізація з інваріантами json-like + детермінізм
+- [ ] `packages/core/contracts/src/Queue/QueueDriverInterface.php` — low-level driver port (reserve/ack/fail/release)
+- [ ] `packages/core/contracts/src/Queue/QueueInterface.php` — high-level queue facade port (dispatch/enqueue поверх driver)
+- [ ] `packages/core/contracts/src/Queue/BackoffStrategyInterface.php` — retry/backoff policy surface (delay computation)
+- [ ] `packages/core/contracts/src/Queue/FailedJobRepositoryInterface.php` — port для зберігання/читання failed jobs
+- [ ] `packages/core/contracts/src/Queue/QueueWorkerRuntimeInterface.php` — worker runtime surface (loop/control без реалізації)
+- [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова доменна exception для queue contracts
 
 ### Modifies
 
@@ -4836,7 +4836,7 @@ N/A
 ### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/core/contracts/src/Queue/QueueException.php` — базова помилка домену Queue (конкретні errorCode/мапінг — на стороні імплементаційних пакетів)
+  - [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова помилка домену Queue (конкретні errorCode/мапінг — на стороні імплементаційних пакетів)
 
 ### Security / Redaction (MUST)
 
@@ -4845,20 +4845,20 @@ N/A
 
 ## Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [ ] `framework/packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+- [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
   - asserts: payload is json-like; deterministic invariants (no floats, no objects) are enforced at shape/serializer contract level
-- [ ] `framework/packages/core/contracts/tests/Contract/QueueContractsTest.php`
+- [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
   - asserts: ports are stable/consistent; driver surface supports reserve/ack/fail/release + retry/backoff surfaces are present
-- [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+- [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
   - asserts: contracts remain HTTP-agnostic (no PSR-7/15 deps)
 
 ## Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+  - [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/QueueContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
 - Integration:
   - N/A
 - Gates/Arch:
@@ -4895,7 +4895,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.100.0"
-owner_path: "framework/packages/platform/mail/"
+owner_path: "packages/platform/mail/"
 
 package_id: "platform/mail"
 composer: "coretsia/platform-mail"
@@ -4979,30 +4979,30 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/mail/src/Module/MailModule.php`
-- [ ] `framework/packages/platform/mail/src/Provider/MailServiceProvider.php`
-- [ ] `framework/packages/platform/mail/src/Provider/MailServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/mail/config/mail.php` — returns subtree for root `mail` (no repeated root)
-- [ ] `framework/packages/platform/mail/config/rules.php`
-- [ ] `framework/packages/platform/mail/README.md` (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/mail/src/Mail/Mailer.php` — implements `MailerInterface`
-- [ ] `framework/packages/platform/mail/src/Transport/NullTransport.php` — implements `MailTransportInterface`
-- [ ] `framework/packages/platform/mail/src/Security/Redaction.php` — hash/len helpers for safe logging
-- [ ] `framework/packages/platform/mail/src/Observability/MailInstrumentation.php` — spans/metrics helpers
-- [ ] `framework/packages/platform/mail/src/Exception/MailException.php` — deterministic codes (`CORETSIA_MAIL_SEND_FAILED`)
+- [ ] `packages/platform/mail/src/Module/MailModule.php`
+- [ ] `packages/platform/mail/src/Provider/MailServiceProvider.php`
+- [ ] `packages/platform/mail/src/Provider/MailServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/mail/config/mail.php` — returns subtree for root `mail` (no repeated root)
+- [ ] `packages/platform/mail/config/rules.php`
+- [ ] `packages/platform/mail/README.md` (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/mail/src/Mail/Mailer.php` — implements `MailerInterface`
+- [ ] `packages/platform/mail/src/Transport/NullTransport.php` — implements `MailTransportInterface`
+- [ ] `packages/platform/mail/src/Security/Redaction.php` — hash/len helpers for safe logging
+- [ ] `packages/platform/mail/src/Observability/MailInstrumentation.php` — spans/metrics helpers
+- [ ] `packages/platform/mail/src/Exception/MailException.php` — deterministic codes (`CORETSIA_MAIL_SEND_FAILED`)
 
 Optional async:
-- [ ] `framework/packages/platform/mail/src/Queue/SendMailJob.php` — job payload (NO recipients/body)
-- [ ] `framework/packages/platform/mail/src/Queue/SendMailJobHandler.php` — handler uses Mailer (registered explicitly)
+- [ ] `packages/platform/mail/src/Queue/SendMailJob.php` — job payload (NO recipients/body)
+- [ ] `packages/platform/mail/src/Queue/SendMailJobHandler.php` — handler uses Mailer (registered explicitly)
 
 Docs:
 - [ ] `docs/architecture/mail.md` — canonical mail layer: transports, redaction, async option (SMTP section added by 4.101.0)
 
 Tests:
-- [ ] `framework/packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
-- [ ] `framework/packages/platform/mail/tests/Integration/NullTransportDoesNotThrowTest.php`
-- [ ] `framework/packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php` (if async)
+- [ ] `packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
+- [ ] `packages/platform/mail/tests/Integration/NullTransportDoesNotThrowTest.php`
+- [ ] `packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php` (if async)
 
 #### Modifies
 
@@ -5011,24 +5011,24 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/mail/composer.json`
-- [ ] `framework/packages/platform/mail/src/Module/MailModule.php`
-- [ ] `framework/packages/platform/mail/src/Provider/MailServiceProvider.php`
-- [ ] `framework/packages/platform/mail/config/mail.php`
-- [ ] `framework/packages/platform/mail/config/rules.php`
-- [ ] `framework/packages/platform/mail/README.md`
-- [ ] `framework/packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/mail/composer.json`
+- [ ] `packages/platform/mail/src/Module/MailModule.php`
+- [ ] `packages/platform/mail/src/Provider/MailServiceProvider.php`
+- [ ] `packages/platform/mail/config/mail.php`
+- [ ] `packages/platform/mail/config/rules.php`
+- [ ] `packages/platform/mail/README.md`
+- [ ] `packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/mail/config/mail.php`
+  - [ ] `packages/platform/mail/config/mail.php`
 - [ ] Keys (dot):
   - [ ] `mail.enabled` = `true`
   - [ ] `mail.transport` = `'null'` (`'null'|'smtp'`)
   - [ ] `mail.async.enabled` = `false` (requires queue at runtime)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/mail/config/rules.php` enforces shape
+  - [ ] `packages/platform/mail/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -5070,7 +5070,7 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/mail/src/Exception/MailException.php` — errorCode `CORETSIA_MAIL_SEND_FAILED`
+  - [ ] `packages/platform/mail/src/Exception/MailException.php` — errorCode `CORETSIA_MAIL_SEND_FAILED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (no dupes)
 
@@ -5087,8 +5087,8 @@ N/A
 
 - [ ] If metrics/spans/logs exist → `tests/Contract/ObservabilityPolicyTest.php`
   (asserts: names + label allowlist + no PII)
-- [ ] If redaction exists → `framework/packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
-- [ ] If async payload exists → `framework/packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php`
+- [ ] If redaction exists → `packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
+- [ ] If async payload exists → `packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5098,12 +5098,12 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
+  - [ ] `packages/platform/mail/tests/Unit/RedactionDoesNotLeakRecipientsTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/mail/tests/Integration/NullTransportDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php` (if async)
+  - [ ] `packages/platform/mail/tests/Integration/NullTransportDoesNotThrowTest.php`
+  - [ ] `packages/platform/mail/tests/Integration/AsyncJobPayloadDoesNotContainPiiTest.php` (if async)
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -5124,7 +5124,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.101.0"
-owner_path: "framework/packages/integrations/mail-smtp/"
+owner_path: "packages/integrations/mail-smtp/"
 
 package_id: "integrations/mail-smtp"
 composer: "coretsia/integrations-mail-smtp"
@@ -5208,19 +5208,19 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/integrations/mail-smtp/src/Module/MailSmtpModule.php`
-- [ ] `framework/packages/integrations/mail-smtp/src/Provider/MailSmtpServiceProvider.php`
-- [ ] `framework/packages/integrations/mail-smtp/src/Provider/MailSmtpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/integrations/mail-smtp/config/mail_smtp.php` — returns subtree for root `mail_smtp` (no repeated root)
-- [ ] `framework/packages/integrations/mail-smtp/config/rules.php`
-- [ ] `framework/packages/integrations/mail-smtp/README.md` (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/integrations/mail-smtp/src/Smtp/SmtpTransport.php` — implements `MailTransportInterface`
-- [ ] `framework/packages/integrations/mail-smtp/src/Smtp/SmtpClient.php` — minimal SMTP client (deterministic)
-- [ ] `framework/packages/integrations/mail-smtp/src/Exception/SmtpTransportException.php` — deterministic codes (`CORETSIA_MAIL_SMTP_FAILED`)
+- [ ] `packages/integrations/mail-smtp/src/Module/MailSmtpModule.php`
+- [ ] `packages/integrations/mail-smtp/src/Provider/MailSmtpServiceProvider.php`
+- [ ] `packages/integrations/mail-smtp/src/Provider/MailSmtpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/integrations/mail-smtp/config/mail_smtp.php` — returns subtree for root `mail_smtp` (no repeated root)
+- [ ] `packages/integrations/mail-smtp/config/rules.php`
+- [ ] `packages/integrations/mail-smtp/README.md` (Observability / Errors / Security-Redaction)
+- [ ] `packages/integrations/mail-smtp/src/Smtp/SmtpTransport.php` — implements `MailTransportInterface`
+- [ ] `packages/integrations/mail-smtp/src/Smtp/SmtpClient.php` — minimal SMTP client (deterministic)
+- [ ] `packages/integrations/mail-smtp/src/Exception/SmtpTransportException.php` — deterministic codes (`CORETSIA_MAIL_SMTP_FAILED`)
 
 Tests:
-- [ ] `framework/packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `framework/packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
+- [ ] `packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
 
 #### Modifies
 
@@ -5230,18 +5230,18 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/integrations/mail-smtp/composer.json`
-- [ ] `framework/packages/integrations/mail-smtp/src/Module/MailSmtpModule.php`
-- [ ] `framework/packages/integrations/mail-smtp/src/Provider/MailSmtpServiceProvider.php`
-- [ ] `framework/packages/integrations/mail-smtp/config/mail_smtp.php`
-- [ ] `framework/packages/integrations/mail-smtp/config/rules.php`
-- [ ] `framework/packages/integrations/mail-smtp/README.md`
-- [ ] `framework/packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/integrations/mail-smtp/composer.json`
+- [ ] `packages/integrations/mail-smtp/src/Module/MailSmtpModule.php`
+- [ ] `packages/integrations/mail-smtp/src/Provider/MailSmtpServiceProvider.php`
+- [ ] `packages/integrations/mail-smtp/config/mail_smtp.php`
+- [ ] `packages/integrations/mail-smtp/config/rules.php`
+- [ ] `packages/integrations/mail-smtp/README.md`
+- [ ] `packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/integrations/mail-smtp/config/mail_smtp.php`
+  - [ ] `packages/integrations/mail-smtp/config/mail_smtp.php`
 - [ ] Keys (dot):
   - [ ] `mail_smtp.enabled` = `false`
   - [ ] `mail_smtp.host` = `'localhost'`
@@ -5250,7 +5250,7 @@ Tests:
   - [ ] `mail_smtp.password_secret_ref` = `null`
   - [ ] `mail_smtp.encryption` = `'none'` (`'none'|'tls'|'starttls'`)
 - [ ] Rules:
-  - [ ] `framework/packages/integrations/mail-smtp/config/rules.php` enforces shape
+  - [ ] `packages/integrations/mail-smtp/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -5291,7 +5291,7 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/integrations/mail-smtp/src/Exception/SmtpTransportException.php` — errorCode `CORETSIA_MAIL_SMTP_FAILED`
+  - [ ] `packages/integrations/mail-smtp/src/Exception/SmtpTransportException.php` — errorCode `CORETSIA_MAIL_SMTP_FAILED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (no dupes)
 
@@ -5308,7 +5308,7 @@ N/A
 
 - [ ] If metrics/spans/logs exist → `tests/Contract/ObservabilityPolicyTest.php`
   (asserts: names + label allowlist + no PII)
-- [ ] If secrets resolver is used → `framework/packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
+- [ ] If secrets resolver is used → `packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
   (asserts: resolved password не зʼявляється у signals/logs/exceptions)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (only if tagging is introduced)
 
@@ -5321,9 +5321,9 @@ N/A
 ### Tests (MUST)
 
 - Contract:
-  - [ ] `framework/packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/integrations/mail-smtp/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
+  - [ ] `packages/integrations/mail-smtp/tests/Integration/SmtpTransportDoesNotLeakSecretsTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -5343,7 +5343,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.110.0"
-owner_path: "framework/packages/platform/view/"
+owner_path: "packages/platform/view/"
 
 package_id: "platform/view"
 composer: "coretsia/platform-view"
@@ -5460,59 +5460,59 @@ Given `(area, theme, templateId)` the locator MUST resolve in this deterministic
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/view/src/Module/ViewModule.php`
-- [ ] `framework/packages/platform/view/src/Provider/ViewServiceProvider.php`
-- [ ] `framework/packages/platform/view/src/Provider/ViewServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/view/config/view.php` — returns subtree for root `view` (no repeated root)
-- [ ] `framework/packages/platform/view/config/rules.php`
-- [ ] `framework/packages/platform/view/README.md` (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/view/src/Module/ViewModule.php`
+- [ ] `packages/platform/view/src/Provider/ViewServiceProvider.php`
+- [ ] `packages/platform/view/src/Provider/ViewServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/view/config/view.php` — returns subtree for root `view` (no repeated root)
+- [ ] `packages/platform/view/config/rules.php`
+- [ ] `packages/platform/view/README.md` (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Public API (package-level):
-- [ ] `framework/packages/platform/view/src/View/RendererInterface.php`
+- [ ] `packages/platform/view/src/View/RendererInterface.php`
   - `render(string $template, array $vars = [], ?RenderOptions $opt = null): RenderResult`
-- [ ] `framework/packages/platform/view/src/View/RenderOptions.php`
+- [ ] `packages/platform/view/src/View/RenderOptions.php`
   - fields: `area`, `theme`, `layout`, `strict`, `overridesEnabled`, `traceEnabled`
-- [ ] `framework/packages/platform/view/src/View/RenderResult.php`
+- [ ] `packages/platform/view/src/View/RenderResult.php`
   - fields: `bytes`, `contentType?`, `meta` (safe; no vars)
 
 Core:
-- [ ] `framework/packages/platform/view/src/View/PhpTemplateRenderer.php`
+- [ ] `packages/platform/view/src/View/PhpTemplateRenderer.php`
   - PHP template renderer using output buffering
   - layout support: render content → render layout with `$content` variable
   - provides template scope object with `e()` escaping helpers
-- [ ] `framework/packages/platform/view/src/View/TemplateLocator.php`
+- [ ] `packages/platform/view/src/View/TemplateLocator.php`
   - deterministic resolution order (overrides → theme → fallback themes → base)
   - returns `ResolvedTemplate` (safe metadata)
-- [ ] `framework/packages/platform/view/src/View/ResolvedTemplate.php`
+- [ ] `packages/platform/view/src/View/ResolvedTemplate.php`
   - fields: `templateId`, `rootKey`, `relativePath`, `fullPathHash` (no raw full path in logs)
-- [ ] `framework/packages/platform/view/src/View/TemplateId.php`
+- [ ] `packages/platform/view/src/View/TemplateId.php`
   - parser/validator for `<area>::<name>`; forbids `..`, backslashes, null bytes
 
 Themes + areas:
-- [ ] `framework/packages/platform/view/src/Theme/ThemeManager.php`
+- [ ] `packages/platform/view/src/Theme/ThemeManager.php`
   - computes theme roots for each area deterministically from config
-- [ ] `framework/packages/platform/view/src/Theme/ThemeName.php`
+- [ ] `packages/platform/view/src/Theme/ThemeName.php`
   - validator for theme names (kebab-case; no traversal)
-- [ ] `framework/packages/platform/view/src/Area/AreaRegistry.php`
+- [ ] `packages/platform/view/src/Area/AreaRegistry.php`
   - validates configured areas allowlist; default `user|admin`
 
 Security:
-- [ ] `framework/packages/platform/view/src/Security/Escaper.php`
+- [ ] `packages/platform/view/src/Security/Escaper.php`
   - `escapeHtml`, `escapeAttr`, `escapeUrl`, `escapeJsString` (deterministic)
-- [ ] `framework/packages/platform/view/src/Security/TemplateScope.php`
+- [ ] `packages/platform/view/src/Security/TemplateScope.php`
   - object passed into template scope exposing `e()` and safe helpers only
-- [ ] `framework/packages/platform/view/src/Security/TemplateVariableRedaction.php`
+- [ ] `packages/platform/view/src/Security/TemplateVariableRedaction.php`
   - helper for logging: only `hash/len` diagnostics (never values)
 
 Errors:
-- [ ] `framework/packages/platform/view/src/Exception/ViewException.php`
+- [ ] `packages/platform/view/src/Exception/ViewException.php`
   - deterministic codes:
     - `CORETSIA_VIEW_TEMPLATE_NOT_FOUND`
     - `CORETSIA_VIEW_INVALID_TEMPLATE_ID`
     - `CORETSIA_VIEW_RENDER_FAILED`
     - `CORETSIA_VIEW_PATH_FORBIDDEN`
-- [ ] `framework/packages/platform/view/src/Exception/ViewErrorCodes.php`
+- [ ] `packages/platform/view/src/Exception/ViewErrorCodes.php`
   - string enum (single SSoT for this package)
 
 Docs:
@@ -5525,18 +5525,18 @@ Docs:
   - redaction & observability
 
 Tests:
-- [ ] `framework/packages/platform/view/tests/Unit/TemplateIdValidationTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/TemplateResolutionIsDeterministicTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/ThemeResolutionOrderIsDeterministicTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/AdminVsUserAreasDoNotCrossTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/EscaperIsDeterministicTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/OverridesMappingWorksTest.php`
-- [ ] `framework/packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
-- [ ] `framework/packages/platform/view/tests/Integration/RenderSimpleTemplateTest.php`
-- [ ] `framework/packages/platform/view/tests/Integration/RenderWithLayoutInThemeTest.php`
-- [ ] `framework/packages/platform/view/tests/Integration/ThemeDisabledUsesBasePathsOnlyTest.php`
-- [ ] `framework/packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
-- [ ] `framework/packages/platform/view/tests/Integration/NotFoundIsDeterministicCodeTest.php`
+- [ ] `packages/platform/view/tests/Unit/TemplateIdValidationTest.php`
+- [ ] `packages/platform/view/tests/Unit/TemplateResolutionIsDeterministicTest.php`
+- [ ] `packages/platform/view/tests/Unit/ThemeResolutionOrderIsDeterministicTest.php`
+- [ ] `packages/platform/view/tests/Unit/AdminVsUserAreasDoNotCrossTest.php`
+- [ ] `packages/platform/view/tests/Unit/EscaperIsDeterministicTest.php`
+- [ ] `packages/platform/view/tests/Unit/OverridesMappingWorksTest.php`
+- [ ] `packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
+- [ ] `packages/platform/view/tests/Integration/RenderSimpleTemplateTest.php`
+- [ ] `packages/platform/view/tests/Integration/RenderWithLayoutInThemeTest.php`
+- [ ] `packages/platform/view/tests/Integration/ThemeDisabledUsesBasePathsOnlyTest.php`
+- [ ] `packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
+- [ ] `packages/platform/view/tests/Integration/NotFoundIsDeterministicCodeTest.php`
 
 #### Modifies
 
@@ -5544,18 +5544,18 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/view/composer.json`
-- [ ] `framework/packages/platform/view/src/Module/ViewModule.php`
-- [ ] `framework/packages/platform/view/src/Provider/ViewServiceProvider.php`
-- [ ] `framework/packages/platform/view/config/view.php`
-- [ ] `framework/packages/platform/view/config/rules.php`
-- [ ] `framework/packages/platform/view/README.md`
-- [ ] `framework/packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/view/composer.json`
+- [ ] `packages/platform/view/src/Module/ViewModule.php`
+- [ ] `packages/platform/view/src/Provider/ViewServiceProvider.php`
+- [ ] `packages/platform/view/config/view.php`
+- [ ] `packages/platform/view/config/rules.php`
+- [ ] `packages/platform/view/README.md`
+- [ ] `packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/view/config/view.php`
+  - [ ] `packages/platform/view/config/view.php`
 - [ ] Keys (dot):
   - [ ] `view.enabled` = `true`
   - [ ] `view.default_extension` = `'.php'`
@@ -5574,7 +5574,7 @@ Tests:
   - [ ] `view.allow_custom_file_refs` = `false`
     - if true, allows `@file:<rootKey>:<relpath>` references (still root-restricted)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/view/config/rules.php` enforces shape (union types, list-like, template id validation)
+  - [ ] `packages/platform/view/config/rules.php` enforces shape (union types, list-like, template id validation)
     - `view.theme` union type: bool|string (string must be non-empty; `'disable'` normalized to false)
     - `view.areas` must include at least `user` and `admin` unless explicitly overridden with allowlist
     - all lists are list-like (no associative arrays) and preserve deterministic order
@@ -5622,7 +5622,7 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/view/src/Exception/ViewException.php` — deterministic codes:
+  - [ ] `packages/platform/view/src/Exception/ViewException.php` — deterministic codes:
     - `CORETSIA_VIEW_TEMPLATE_NOT_FOUND`
     - `CORETSIA_VIEW_INVALID_TEMPLATE_ID`
     - `CORETSIA_VIEW_RENDER_FAILED`
@@ -5644,28 +5644,28 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
-- [ ] If redaction exists → `framework/packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
-- [ ] Path safety/traversal forbidden → `framework/packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
+- [ ] If redaction exists → `packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
+- [ ] Path safety/traversal forbidden → `packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/view/tests/Unit/TemplateIdValidationTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/TemplateResolutionIsDeterministicTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/ThemeResolutionOrderIsDeterministicTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/AdminVsUserAreasDoNotCrossTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/EscaperIsDeterministicTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/OverridesMappingWorksTest.php`
-  - [ ] `framework/packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
+  - [ ] `packages/platform/view/tests/Unit/TemplateIdValidationTest.php`
+  - [ ] `packages/platform/view/tests/Unit/TemplateResolutionIsDeterministicTest.php`
+  - [ ] `packages/platform/view/tests/Unit/ThemeResolutionOrderIsDeterministicTest.php`
+  - [ ] `packages/platform/view/tests/Unit/AdminVsUserAreasDoNotCrossTest.php`
+  - [ ] `packages/platform/view/tests/Unit/EscaperIsDeterministicTest.php`
+  - [ ] `packages/platform/view/tests/Unit/OverridesMappingWorksTest.php`
+  - [ ] `packages/platform/view/tests/Unit/PathTraversalIsForbiddenTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/view/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/view/tests/Integration/RenderSimpleTemplateTest.php`
-  - [ ] `framework/packages/platform/view/tests/Integration/RenderWithLayoutInThemeTest.php`
-  - [ ] `framework/packages/platform/view/tests/Integration/ThemeDisabledUsesBasePathsOnlyTest.php`
-  - [ ] `framework/packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
-  - [ ] `framework/packages/platform/view/tests/Integration/NotFoundIsDeterministicCodeTest.php`
+  - [ ] `packages/platform/view/tests/Integration/RenderSimpleTemplateTest.php`
+  - [ ] `packages/platform/view/tests/Integration/RenderWithLayoutInThemeTest.php`
+  - [ ] `packages/platform/view/tests/Integration/ThemeDisabledUsesBasePathsOnlyTest.php`
+  - [ ] `packages/platform/view/tests/Integration/NoVariableLeakInLogsTest.php`
+  - [ ] `packages/platform/view/tests/Integration/NotFoundIsDeterministicCodeTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -5708,7 +5708,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.120.0"
-owner_path: "framework/packages/platform/translation/"
+owner_path: "packages/platform/translation/"
 
 package_id: "platform/translation"
 composer: "coretsia/platform-translation"
@@ -5775,19 +5775,19 @@ N/A
 #### Creates
 
 Package skeleton:
-- [ ] `framework/packages/platform/translation/src/Module/TranslationModule.php`
-- [ ] `framework/packages/platform/translation/src/Provider/TranslationServiceProvider.php`
-- [ ] `framework/packages/platform/translation/src/Provider/TranslationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/translation/config/translation.php` — returns subtree for root `translation` (no repeated root)
-- [ ] `framework/packages/platform/translation/config/rules.php`
-- [ ] `framework/packages/platform/translation/README.md` (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/translation/config/translation.php` — returns subtree for root `translation` (no repeated root)
+- [ ] `packages/platform/translation/config/rules.php`
+- [ ] `packages/platform/translation/README.md` (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 Implementation:
-- [ ] `framework/packages/platform/translation/src/Translation/TranslatorInterface.php` — app-facing translator API
-- [ ] `framework/packages/platform/translation/src/Translation/Translator.php` — reference translator (deterministic)
-- [ ] `framework/packages/platform/translation/src/Loader/TranslationLoaderInterface.php`
-- [ ] `framework/packages/platform/translation/src/Loader/PhpArrayLoader.php` — load `*.php` dictionaries (sorted)
+- [ ] `packages/platform/translation/src/Translation/TranslatorInterface.php` — app-facing translator API
+- [ ] `packages/platform/translation/src/Translation/Translator.php` — reference translator (deterministic)
+- [ ] `packages/platform/translation/src/Loader/TranslationLoaderInterface.php`
+- [ ] `packages/platform/translation/src/Loader/PhpArrayLoader.php` — load `*.php` dictionaries (sorted)
   - Deterministic loading policy (cemented):
     - If loaders read from filesystem/disk, they MUST:
       - normalize relpaths (forward slashes),
@@ -5799,7 +5799,7 @@ Implementation:
       - within a loader: files order = sorted `strcmp`,
       - later files override earlier keys (deterministic).
 
-- [ ] `framework/packages/platform/translation/src/Loader/JsonLoader.php` — load `*.json` dictionaries (sorted)
+- [ ] `packages/platform/translation/src/Loader/JsonLoader.php` — load `*.json` dictionaries (sorted)
   - Deterministic loading policy (cemented):
     - If loaders read from filesystem/disk, they MUST:
       - normalize relpaths (forward slashes),
@@ -5811,18 +5811,18 @@ Implementation:
       - within a loader: files order = sorted `strcmp`,
       - later files override earlier keys (deterministic).
 
-- [ ] `framework/packages/platform/translation/src/Resolver/LocaleResolver.php` — deterministic locale + fallback chain
-- [ ] `framework/packages/platform/translation/src/Observability/TranslationInstrumentation.php` — spans/metrics helper
-- [ ] `framework/packages/platform/translation/src/Exception/TranslationException.php` — deterministic codes
+- [ ] `packages/platform/translation/src/Resolver/LocaleResolver.php` — deterministic locale + fallback chain
+- [ ] `packages/platform/translation/src/Observability/TranslationInstrumentation.php` — spans/metrics helper
+- [ ] `packages/platform/translation/src/Exception/TranslationException.php` — deterministic codes
 
 Docs:
 - [ ] `docs/architecture/translation.md` — format, ordering, redaction, integration patterns
 
 Tests:
-- [ ] `framework/packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
-- [ ] `framework/packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
-- [ ] `framework/packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
-- [ ] `framework/packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+- [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
+- [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
+- [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+- [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
 
 #### Modifies
 
@@ -5830,18 +5830,18 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/translation/composer.json`
-- [ ] `framework/packages/platform/translation/src/Module/TranslationModule.php`
-- [ ] `framework/packages/platform/translation/src/Provider/TranslationServiceProvider.php`
-- [ ] `framework/packages/platform/translation/config/translation.php`
-- [ ] `framework/packages/platform/translation/config/rules.php`
-- [ ] `framework/packages/platform/translation/README.md`
-- [ ] `framework/packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/translation/composer.json`
+- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
+- [ ] `packages/platform/translation/config/translation.php`
+- [ ] `packages/platform/translation/config/rules.php`
+- [ ] `packages/platform/translation/README.md`
+- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/translation/config/translation.php`
+  - [ ] `packages/platform/translation/config/translation.php`
 - [ ] Keys (dot):
   - [ ] `translation.enabled` = `false`
   - [ ] `translation.default_locale` = `'en'`
@@ -5850,7 +5850,7 @@ Tests:
   - [ ] `translation.paths` = `[]` (list-like; deterministic order)
   - [ ] `translation.disk` = `'local'` (optional; resolved at runtime)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/translation/config/rules.php` enforces shape
+  - [ ] `packages/platform/translation/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -5905,20 +5905,20 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
   (asserts: no key/value raw dump; no high-cardinality labels)
-- [ ] Deterministic ordering → `framework/packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+- [ ] Deterministic ordering → `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
-  - [ ] `framework/packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
+  - [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
+  - [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
-  - [ ] `framework/packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+  - [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+  - [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -5949,7 +5949,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.130.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -5985,11 +5985,11 @@ ssot_refs:
   - none
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
-  - `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
-  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
-  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
-  - (optional) `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
+  - `packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
+  - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
+  - (optional) `packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
 
 - Required config roots/keys:
   - none
@@ -6021,34 +6021,34 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Runtime/RequestAttributes.php` — reserved request attribute keys (string constants only; no PSR-7 imports).
+- [ ] `packages/core/contracts/src/Runtime/RequestAttributes.php` — reserved request attribute keys (string constants only; no PSR-7 imports).
   - RequestAttributes reserved keys (single-choice)
     - `RequestAttributes::SESSION` — a request attribute holding `Coretsia\Contracts\Session\SessionInterface`.
     - `RequestAttributes::IDENTITY` — a request attribute holding `Coretsia\Contracts\Auth\IdentityInterface`.
 
-- [ ] `framework/packages/core/contracts/src/Runtime/RequestContext.php` — VO (format-neutral request context)
-- [ ] `framework/packages/core/contracts/src/Auth/IdentityInterface.php`
-- [ ] `framework/packages/core/contracts/src/Auth/UserProviderInterface.php`
-- [ ] `framework/packages/core/contracts/src/Auth/PasswordHasherInterface.php`
-- [ ] `framework/packages/core/contracts/src/Auth/AuthenticatorInterface.php`
-- [ ] `framework/packages/core/contracts/src/Auth/AuthorizationInterface.php`
-- [ ] `framework/packages/core/contracts/src/Auth/AuthException.php`
-- [ ] `framework/packages/core/contracts/src/Auth/UnauthenticatedException.php`
-- [ ] `framework/packages/core/contracts/src/Auth/ForbiddenException.php`
+- [ ] `packages/core/contracts/src/Runtime/RequestContext.php` — VO (format-neutral request context)
+- [ ] `packages/core/contracts/src/Auth/IdentityInterface.php`
+- [ ] `packages/core/contracts/src/Auth/UserProviderInterface.php`
+- [ ] `packages/core/contracts/src/Auth/PasswordHasherInterface.php`
+- [ ] `packages/core/contracts/src/Auth/AuthenticatorInterface.php`
+- [ ] `packages/core/contracts/src/Auth/AuthorizationInterface.php`
+- [ ] `packages/core/contracts/src/Auth/AuthException.php`
+- [ ] `packages/core/contracts/src/Auth/UnauthenticatedException.php`
+- [ ] `packages/core/contracts/src/Auth/ForbiddenException.php`
 
-- [ ] `framework/packages/core/contracts/src/Session/SessionInterface.php`
-- [ ] `framework/packages/core/contracts/src/Session/SessionStorageInterface.php`
-- [ ] `framework/packages/core/contracts/src/Session/SessionManagerInterface.php`
+- [ ] `packages/core/contracts/src/Session/SessionInterface.php`
+- [ ] `packages/core/contracts/src/Session/SessionStorageInterface.php`
+- [ ] `packages/core/contracts/src/Session/SessionManagerInterface.php`
 
-- [ ] `framework/packages/core/contracts/src/Security/CsrfTokenManagerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Security/UrlSignerInterface.php`
+- [ ] `packages/core/contracts/src/Security/CsrfTokenManagerInterface.php`
+- [ ] `packages/core/contracts/src/Security/UrlSignerInterface.php`
 
-- [ ] `framework/packages/core/contracts/src/Lock/LockInterface.php`
-- [ ] `framework/packages/core/contracts/src/Lock/LockFactoryInterface.php`
-- [ ] `framework/packages/core/contracts/src/Lock/LockException.php`
+- [ ] `packages/core/contracts/src/Lock/LockInterface.php`
+- [ ] `packages/core/contracts/src/Lock/LockFactoryInterface.php`
+- [ ] `packages/core/contracts/src/Lock/LockException.php`
 
-- [ ] `framework/packages/core/contracts/README.md` (optional) — boundary docs + policy notes
-- [ ] `framework/packages/core/contracts/config/rules.php` (optional) — package rules (if maintained)
+- [ ] `packages/core/contracts/README.md` (optional) — boundary docs + policy notes
+- [ ] `packages/core/contracts/config/rules.php` (optional) — package rules (if maintained)
 
 #### Modifies
 
@@ -6057,9 +6057,9 @@ N/A
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/contracts/composer.json`
-- [ ] `framework/packages/core/contracts/README.md` (optional)
-- [ ] `framework/packages/core/contracts/config/rules.php` (optional)
+- [ ] `packages/core/contracts/composer.json`
+- [ ] `packages/core/contracts/README.md` (optional)
+- [ ] `packages/core/contracts/config/rules.php` (optional)
 
 #### Configuration (keys + defaults)
 
@@ -6092,17 +6092,17 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/contracts/tests/Unit/RequestContextShapeTest.php`
+  - [ ] `packages/core/contracts/tests/Unit/RequestContextShapeTest.php`
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/AuthContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/SessionContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/LockContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/RequestContextIsFormatNeutralContractTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/AuthContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/SessionContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/LockContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/RequestContextIsFormatNeutralContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
 - Integration:
   - [ ] none
 - Gates/Arch:
-  - [ ] `framework/tools/gates/contracts_only_ports_gate.php` expectations updated (if needed)
+  - [ ] `tools/gates/contracts_only_ports_gate.php` expectations updated (if needed)
 
 ### DoD (MUST)
 
@@ -6113,7 +6113,7 @@ N/A
 - [ ] Tests green: contract tests pass
 - [ ] Docs updated:
   - [ ] `docs/adr/ADR-XXXX-auth-session-security-lock-ports.md`
-  - [ ] `framework/packages/core/contracts/README.md` (if maintained)
+  - [ ] `packages/core/contracts/README.md` (if maintained)
 - [ ] Додавання HTTP-aware типів/Response у contracts (заборонено)
 - [ ] Contracts дозволяють реалізувати session/auth/security/lock у platform layer без змін contracts і без PSR-7 leakage.
 - [ ] When `platform/auth` implements `AuthenticatorInterface`, then `platform/http` can run `AuthMiddleware` without contracts importing PSR-7.
@@ -6126,7 +6126,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.140.0"
-owner_path: "framework/packages/platform/session/"
+owner_path: "packages/platform/session/"
 
 package_id: "platform/session"
 composer: "coretsia/platform-session"
@@ -6162,12 +6162,12 @@ ssot_refs:
   - `4.130.0` — provides `Coretsia\Contracts\Runtime\RequestAttributes` (shared request attribute keys).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Session/SessionInterface.php` — contract port.
-  - `framework/packages/core/contracts/src/Session/SessionStorageInterface.php` — contract port.
-  - `framework/packages/core/contracts/src/Session/SessionManagerInterface.php` — contract port.
-  - `framework/packages/core/contracts/src/Filesystem/DiskInterface.php` — used by file storage.
-  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
-  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
+  - `packages/core/contracts/src/Session/SessionInterface.php` — contract port.
+  - `packages/core/contracts/src/Session/SessionStorageInterface.php` — contract port.
+  - `packages/core/contracts/src/Session/SessionManagerInterface.php` — contract port.
+  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — used by file storage.
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
 
 - Required config roots/keys:
   - `session` / `session.*` — this epic introduces and owns.
@@ -6222,27 +6222,27 @@ Forbidden:
 - HTTP:
   - middleware slots/tags: `http.middleware.app_pre` priority `300` meta `{"reason":"session opens/closes before auth/csrf"}`
 - Artifacts:
-  - reads: `skeleton/var/sessions/*` (runtime data; excluded from fingerprint)
-  - writes: `skeleton/var/sessions/*` (runtime data; excluded from fingerprint)
+  - reads: `packages/applications/skeleton/var/sessions/*` (runtime data; excluded from fingerprint)
+  - writes: `packages/applications/skeleton/var/sessions/*` (runtime data; excluded from fingerprint)
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/packages/platform/session/src/Module/SessionModule.php` — runtime module entry.
-- [ ] `framework/packages/platform/session/src/Provider/SessionServiceProvider.php` — DI wiring.
-- [ ] `framework/packages/platform/session/src/Provider/SessionServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants for used tags/slots.
-- [ ] `framework/packages/platform/session/config/session.php` — config subtree `session` (no repeated root).
-- [ ] `framework/packages/platform/session/config/rules.php` — config shape rules.
-- [ ] `framework/packages/platform/session/README.md` — Observability / Errors / Security-Redaction.
-- [ ] `framework/packages/platform/session/src/Session/SessionManager.php` — implements `SessionManagerInterface`.
-- [ ] `framework/packages/platform/session/src/Session/Session.php` — implements `SessionInterface`.
-- [ ] `framework/packages/platform/session/src/Storage/FileSessionStorage.php` — implements `SessionStorageInterface` (filesystem policy).
-- [ ] `framework/packages/platform/session/src/Http/Middleware/SessionMiddleware.php` — PSR-15 middleware (start/commit).
-- [ ] `framework/packages/platform/session/src/Http/SessionRequestAttributes.php` — OPTIONAL thin-alias only; MUST delegate to `Coretsia\Contracts\Runtime\RequestAttributes::SESSION` (source of truth lives in contracts).
-- [ ] `framework/packages/platform/session/src/Exception/SessionException.php` — deterministic codes (io/corrupt).
-- [ ] `framework/packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/session/src/Module/SessionModule.php` — runtime module entry.
+- [ ] `packages/platform/session/src/Provider/SessionServiceProvider.php` — DI wiring.
+- [ ] `packages/platform/session/src/Provider/SessionServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants for used tags/slots.
+- [ ] `packages/platform/session/config/session.php` — config subtree `session` (no repeated root).
+- [ ] `packages/platform/session/config/rules.php` — config shape rules.
+- [ ] `packages/platform/session/README.md` — Observability / Errors / Security-Redaction.
+- [ ] `packages/platform/session/src/Session/SessionManager.php` — implements `SessionManagerInterface`.
+- [ ] `packages/platform/session/src/Session/Session.php` — implements `SessionInterface`.
+- [ ] `packages/platform/session/src/Storage/FileSessionStorage.php` — implements `SessionStorageInterface` (filesystem policy).
+- [ ] `packages/platform/session/src/Http/Middleware/SessionMiddleware.php` — PSR-15 middleware (start/commit).
+- [ ] `packages/platform/session/src/Http/SessionRequestAttributes.php` — OPTIONAL thin-alias only; MUST delegate to `Coretsia\Contracts\Runtime\RequestAttributes::SESSION` (source of truth lives in contracts).
+- [ ] `packages/platform/session/src/Exception/SessionException.php` — deterministic codes (io/corrupt).
+- [ ] `packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Modifies
 
@@ -6251,18 +6251,18 @@ Forbidden:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/session/composer.json`
-- [ ] `framework/packages/platform/session/src/Module/SessionModule.php`
-- [ ] `framework/packages/platform/session/src/Provider/SessionServiceProvider.php`
-- [ ] `framework/packages/platform/session/config/session.php`
-- [ ] `framework/packages/platform/session/config/rules.php`
-- [ ] `framework/packages/platform/session/README.md`
-- [ ] `framework/packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/session/composer.json`
+- [ ] `packages/platform/session/src/Module/SessionModule.php`
+- [ ] `packages/platform/session/src/Provider/SessionServiceProvider.php`
+- [ ] `packages/platform/session/config/session.php`
+- [ ] `packages/platform/session/config/rules.php`
+- [ ] `packages/platform/session/README.md`
+- [ ] `packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/session/config/session.php`
+  - [ ] `packages/platform/session/config/session.php`
 - [ ] Keys (dot):
   - [ ] `session.enabled` = true
   - [ ] `session.driver` = "file"
@@ -6272,10 +6272,10 @@ Forbidden:
   - [ ] `session.cookie.same_site` = "lax"
   - [ ] `session.cookie.path` = "/"
   - [ ] `session.cookie.ttl_seconds` = 7200
-  - [ ] `session.storage.path` = "skeleton/var/sessions"
+  - [ ] `session.storage.path` = "packages/applications/skeleton/var/sessions"
   - [ ] `session.gc.per_mille` = 10
 - [ ] Rules:
-  - [ ] `framework/packages/platform/session/config/rules.php` enforces shape
+  - [ ] `packages/platform/session/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -6290,7 +6290,7 @@ Forbidden:
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/sessions/<id>.json` (or `.php`/binary; deterministic schemaVersion; atomic write)
+  - [ ] `packages/applications/skeleton/var/sessions/<id>.json` (or `.php`/binary; deterministic schemaVersion; atomic write)
 - [ ] Reads:
   - [ ] validates header + payload schema for the same file(s)
 
@@ -6330,7 +6330,7 @@ Forbidden:
   - [ ] `Coretsia\Session\Exception\SessionException` — errorCode `CORETSIA_SESSION_CORRUPT`
 - [ ] Mapping:
   - [ ] `ExceptionMapperInterface` via tag `error.mapper` OR reuse default mapper (choose one)
-  - [ ] optional create: `framework/packages/platform/session/src/Exception/SessionProblemMapper.php` (if dedicated mapping needed)
+  - [ ] optional create: `packages/platform/session/src/Exception/SessionProblemMapper.php` (if dedicated mapping needed)
 
 #### Security / Redaction
 
@@ -6343,27 +6343,27 @@ Forbidden:
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/session/tests/Contract/ObservabilityPolicyTest.php`
-- [ ] If redaction exists → `framework/packages/platform/session/tests/Contract/RedactionDoesNotLeakTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/session/tests/Contract/ObservabilityPolicyTest.php`
+- [ ] If redaction exists → `packages/platform/session/tests/Contract/RedactionDoesNotLeakTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fake adapters:
   - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (only if boot wiring is asserted)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (only if boot wiring is asserted)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/session/tests/Unit/SessionIdValidationTest.php`
-  - [ ] `framework/packages/platform/session/tests/Unit/FileSessionStorageSafePathTest.php`
+  - [ ] `packages/platform/session/tests/Unit/SessionIdValidationTest.php`
+  - [ ] `packages/platform/session/tests/Unit/FileSessionStorageSafePathTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/session/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/session/tests/Integration/SessionMiddlewareSetsCookieAndPersistsBetweenRequestsTest.php`
-  - [ ] `framework/packages/platform/session/tests/Integration/GcPerMilleDeterministicPolicyTest.php`
-  - [ ] `framework/packages/platform/session/tests/Integration/Http/SessionWorksInEnterprisePresetTest.php`
+  - [ ] `packages/platform/session/tests/Integration/SessionMiddlewareSetsCookieAndPersistsBetweenRequestsTest.php`
+  - [ ] `packages/platform/session/tests/Integration/GcPerMilleDeterministicPolicyTest.php`
+  - [ ] `packages/platform/session/tests/Integration/Http/SessionWorksInEnterprisePresetTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -6375,7 +6375,7 @@ Forbidden:
 - [ ] Verification tests present where applicable
 - [ ] Determinism: storage schema stable + atomic writes; no nondeterministic outputs
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/session/README.md`
+  - [ ] `packages/platform/session/README.md`
   - [ ] `docs/adr/ADR-XXXX-session-layer-file-storage.md`
 - [ ] Non-goals / out of scope
   - [ ] Redis session storage (Phase 6+ integration)
@@ -6404,7 +6404,7 @@ Forbidden:
 type: package
 phase: 4
 epic_id: "4.150.0"
-owner_path: "framework/packages/platform/auth/"
+owner_path: "packages/platform/auth/"
 
 package_id: "platform/auth"
 composer: "coretsia/platform-auth"
@@ -6441,10 +6441,10 @@ ssot_refs:
   - `4.130.0` — provides `Coretsia\Contracts\Runtime\RequestAttributes` (shared request attribute keys).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Auth/*` — ports + exceptions used here.
-  - `framework/packages/core/contracts/src/Runtime/RequestContext.php` — format-neutral request context.
-  - `framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php` + `ErrorDescriptor` — canonical error flow.
-  - `framework/packages/core/foundation/src/Context/ContextStore.php` + `ContextKeys.php` — safe actor_id write target.
+  - `packages/core/contracts/src/Auth/*` — ports + exceptions used here.
+  - `packages/core/contracts/src/Runtime/RequestContext.php` — format-neutral request context.
+  - `packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php` + `ErrorDescriptor` — canonical error flow.
+  - `packages/core/foundation/src/Context/ContextStore.php` + `ContextKeys.php` — safe actor_id write target.
 
 - Required config roots/keys:
   - `auth` / `auth.*` — this epic introduces and owns.
@@ -6518,24 +6518,24 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/auth/src/Module/AuthModule.php` — runtime module entry.
-- [ ] `framework/packages/platform/auth/src/Provider/AuthServiceProvider.php` — DI wiring.
-- [ ] `framework/packages/platform/auth/src/Provider/AuthServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/auth/config/auth.php` — config subtree `auth` (no repeated root).
-- [ ] `framework/packages/platform/auth/config/rules.php` — config shape rules.
-- [ ] `framework/packages/platform/auth/README.md` — Observability / Errors / Security-Redaction.
-- [ ] `framework/packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/auth/src/Module/AuthModule.php` — runtime module entry.
+- [ ] `packages/platform/auth/src/Provider/AuthServiceProvider.php` — DI wiring.
+- [ ] `packages/platform/auth/src/Provider/AuthServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/auth/config/auth.php` — config subtree `auth` (no repeated root).
+- [ ] `packages/platform/auth/config/rules.php` — config shape rules.
+- [ ] `packages/platform/auth/README.md` — Observability / Errors / Security-Redaction.
+- [ ] `packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
-- [ ] `framework/packages/platform/auth/src/Auth/IdentityStore.php` — stateful store (implements `ResetInterface`, tag `kernel.reset`).
-- [ ] `framework/packages/platform/auth/src/Auth/SessionAuthenticator.php` — implements `AuthenticatorInterface`.
-- [ ] `framework/packages/platform/auth/src/Auth/InMemoryUserProvider.php` — reference provider (fixtures/dev).
-- [ ] `framework/packages/platform/auth/src/Auth/RbacAuthorization.php` — implements `AuthorizationInterface`.
+- [ ] `packages/platform/auth/src/Auth/IdentityStore.php` — stateful store (implements `ResetInterface`, tag `kernel.reset`).
+- [ ] `packages/platform/auth/src/Auth/SessionAuthenticator.php` — implements `AuthenticatorInterface`.
+- [ ] `packages/platform/auth/src/Auth/InMemoryUserProvider.php` — reference provider (fixtures/dev).
+- [ ] `packages/platform/auth/src/Auth/RbacAuthorization.php` — implements `AuthorizationInterface`.
 
-- [ ] `framework/packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — PSR-15 (writes actor_id to ContextStore).
-- [ ] `framework/packages/platform/auth/src/Http/Middleware/RequireAuthMiddleware.php` — opt-in.
-- [ ] `framework/packages/platform/auth/src/Http/Middleware/RequireAbilityMiddleware.php` — opt-in.
+- [ ] `packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — PSR-15 (writes actor_id to ContextStore).
+- [ ] `packages/platform/auth/src/Http/Middleware/RequireAuthMiddleware.php` — opt-in.
+- [ ] `packages/platform/auth/src/Http/Middleware/RequireAbilityMiddleware.php` — opt-in.
 
-- [ ] `framework/packages/platform/auth/src/Exception/AuthProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`).
+- [ ] `packages/platform/auth/src/Exception/AuthProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`).
 
 #### Modifies
 
@@ -6544,18 +6544,18 @@ Forbidden:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/auth/composer.json`
-- [ ] `framework/packages/platform/auth/src/Module/AuthModule.php`
-- [ ] `framework/packages/platform/auth/src/Provider/AuthServiceProvider.php`
-- [ ] `framework/packages/platform/auth/config/auth.php`
-- [ ] `framework/packages/platform/auth/config/rules.php`
-- [ ] `framework/packages/platform/auth/README.md`
-- [ ] `framework/packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/auth/composer.json`
+- [ ] `packages/platform/auth/src/Module/AuthModule.php`
+- [ ] `packages/platform/auth/src/Provider/AuthServiceProvider.php`
+- [ ] `packages/platform/auth/config/auth.php`
+- [ ] `packages/platform/auth/config/rules.php`
+- [ ] `packages/platform/auth/README.md`
+- [ ] `packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/auth/config/auth.php`
+  - [ ] `packages/platform/auth/config/auth.php`
 - [ ] Keys (dot):
   - [ ] `auth.enabled` = true
   - [ ] `auth.default_guard` = "session"
@@ -6563,7 +6563,7 @@ Forbidden:
   - [ ] `auth.rbac.roles` = []
   - [ ] `auth.rbac.permissions` = []
 - [ ] Rules:
-  - [ ] `framework/packages/platform/auth/config/rules.php` enforces shape
+  - [ ] `packages/platform/auth/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -6634,29 +6634,29 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `framework/packages/platform/auth/tests/Contract/ContextWriteSafetyTest.php`
-- [ ] If `kernel.reset` used → `framework/packages/platform/auth/tests/Contract/ResetWiringTest.php`
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php`
-- [ ] If redaction exists → `framework/packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php`
+- [ ] If Context writes exist → `packages/platform/auth/tests/Contract/ContextWriteSafetyTest.php`
+- [ ] If `kernel.reset` used → `packages/platform/auth/tests/Contract/ResetWiringTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php`
+- [ ] If redaction exists → `packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fake adapters:
   - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (boot wiring proof)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (boot wiring proof)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/auth/tests/Unit/RbacAuthorizationDeterministicTest.php`
+  - [ ] `packages/platform/auth/tests/Unit/RbacAuthorizationDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/auth/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/auth/tests/Integration/ProtectedRouteReturns401WhenNoIdentityTest.php`
-  - [ ] `framework/packages/platform/auth/tests/Integration/ProtectedRouteReturns403WhenNoAbilityTest.php`
-  - [ ] `framework/packages/platform/auth/tests/Integration/ActorIdWrittenToContextStoreAfterAuthTest.php`
-  - [ ] `framework/packages/platform/auth/tests/Integration/Http/AuthEndToEndTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/ProtectedRouteReturns401WhenNoIdentityTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/ProtectedRouteReturns403WhenNoAbilityTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/ActorIdWrittenToContextStoreAfterAuthTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/Http/AuthEndToEndTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -6668,7 +6668,7 @@ N/A
 - [ ] Verification tests present where applicable
 - [ ] Determinism: mapper outputs deterministic codes/status; no random ids
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/auth/README.md` (incl. middleware slot/priority + opt-in middlewares usage)
+  - [ ] `packages/platform/auth/README.md` (incl. middleware slot/priority + opt-in middlewares usage)
   - [ ] `docs/adr/ADR-XXXX-session-auth-rbac.md`
 - [ ] What problem this epic solves
   - [ ] Reference auth middleware (`AuthMiddleware`) який формує identity для UoW і пише safe `actor_id` у ContextStore
@@ -6704,7 +6704,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.160.0"
-owner_path: "framework/packages/platform/auth/"
+owner_path: "packages/platform/auth/"
 
 package_id: "platform/auth"
 composer: "coretsia/platform-auth"
@@ -6739,9 +6739,9 @@ ssot_refs:
   - `4.130.0` — auth contracts exist (AuthenticatorInterface etc).
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — reused; guard selection extended deterministically.
-  - `framework/packages/platform/auth/config/auth.php` — updated with guards config.
-  - `framework/packages/platform/auth/config/rules.php` — updated shape rules.
+  - `packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — reused; guard selection extended deterministically.
+  - `packages/platform/auth/config/auth.php` — updated with guards config.
+  - `packages/platform/auth/config/rules.php` — updated shape rules.
 
 - Required config roots/keys:
   - `auth` / `auth.guards.*` — must exist from 4.150.0; extended here.
@@ -6795,20 +6795,20 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/auth/src/Auth/BearerTokenAuthenticator.php` — implements `AuthenticatorInterface`
-- [ ] `framework/packages/platform/auth/src/Auth/Token/TokenRepositoryInterface.php` — internal interface (NOT cross-package port)
-- [ ] `framework/packages/platform/auth/src/Auth/Token/InMemoryTokenRepository.php` — reference store (Phase 2)
-- [ ] `framework/packages/platform/auth/src/Auth/Token/TokenHasher.php` — hashes only, no plaintext
-- [ ] `framework/packages/platform/auth/src/Auth/JwtAuthenticator.php` (optional) — implements `AuthenticatorInterface`
-- [ ] `framework/packages/platform/auth/src/Auth/Jwt/JwtVerifier.php` (optional) — issuer/audience/algs policy
+- [ ] `packages/platform/auth/src/Auth/BearerTokenAuthenticator.php` — implements `AuthenticatorInterface`
+- [ ] `packages/platform/auth/src/Auth/Token/TokenRepositoryInterface.php` — internal interface (NOT cross-package port)
+- [ ] `packages/platform/auth/src/Auth/Token/InMemoryTokenRepository.php` — reference store (Phase 2)
+- [ ] `packages/platform/auth/src/Auth/Token/TokenHasher.php` — hashes only, no plaintext
+- [ ] `packages/platform/auth/src/Auth/JwtAuthenticator.php` (optional) — implements `AuthenticatorInterface`
+- [ ] `packages/platform/auth/src/Auth/Jwt/JwtVerifier.php` (optional) — issuer/audience/algs policy
 
 #### Modifies
 
-- [ ] `framework/packages/platform/auth/config/auth.php` — add `auth.guards.*` keys + defaults; keep deterministic selection rules
-- [ ] `framework/packages/platform/auth/config/rules.php` — enforce updated config shape
-- [ ] `framework/packages/platform/auth/src/Provider/AuthServiceProvider.php` — register new authenticators/services; selection wiring config-driven
-- [ ] `framework/packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — deterministic guard selection (no behavior randomness)
-- [ ] `framework/packages/platform/auth/README.md` — document guard selection + redaction policy
+- [ ] `packages/platform/auth/config/auth.php` — add `auth.guards.*` keys + defaults; keep deterministic selection rules
+- [ ] `packages/platform/auth/config/rules.php` — enforce updated config shape
+- [ ] `packages/platform/auth/src/Provider/AuthServiceProvider.php` — register new authenticators/services; selection wiring config-driven
+- [ ] `packages/platform/auth/src/Http/Middleware/AuthMiddleware.php` — deterministic guard selection (no behavior randomness)
+- [ ] `packages/platform/auth/README.md` — document guard selection + redaction policy
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-token-bearer-jwt-guard.md`
 
@@ -6819,7 +6819,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/auth/config/auth.php`
+  - [ ] `packages/platform/auth/config/auth.php`
 - [ ] Keys (dot):
   - [ ] `auth.guards.default` = "session"
   - [ ] `auth.guards.session.enabled` = true
@@ -6834,7 +6834,7 @@ N/A
   - [ ] `auth.guards.jwt.allowed_algs` = ["HS256"]
   - [ ] `auth.guards.jwt.secret_ref` = ""   # resolved via SecretsResolverInterface; raw secrets in config are forbidden
 - [ ] Rules:
-  - [ ] `framework/packages/platform/auth/config/rules.php` enforces shape
+  - [ ] `packages/platform/auth/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -6886,9 +6886,9 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `framework/packages/platform/auth/tests/Contract/ContextWriteSafetyTest.php` (reuse from 4.150.0 if applicable)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php` (reuse; assert driver=token|jwt allowed)
-- [ ] If redaction exists → `framework/packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php` (reuse; assert token never appears raw)
+- [ ] If Context writes exist → `packages/platform/auth/tests/Contract/ContextWriteSafetyTest.php` (reuse from 4.150.0 if applicable)
+- [ ] If metrics/spans/logs exist → `packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php` (reuse; assert driver=token|jwt allowed)
+- [ ] If redaction exists → `packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php` (reuse; assert token never appears raw)
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -6900,10 +6900,10 @@ N/A
 - Unit:
   - [ ] (optional) token parsing/hasher deterministic tests if implemented
 - Contract:
-  - [ ] `framework/packages/platform/auth/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/auth/tests/Contract/NoSecretLoggingContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/auth/tests/Integration/BearerTokenInvalidReturns401Test.php`
-  - [ ] `framework/packages/platform/auth/tests/Integration/BearerTokenValidSetsActorIdTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/BearerTokenInvalidReturns401Test.php`
+  - [ ] `packages/platform/auth/tests/Integration/BearerTokenValidSetsActorIdTest.php`
 - Gates/Arch:
   - N/A
 
@@ -6936,7 +6936,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.170.0"
-owner_path: "framework/packages/platform/security/"
+owner_path: "packages/platform/security/"
 
 package_id: "platform/security"
 composer: "coretsia/platform-security"
@@ -7051,51 +7051,51 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/security/composer.json` — package definition
-- [ ] `framework/packages/platform/security/src/Module/SecurityModule.php` — runtime module entry
-- [ ] `framework/packages/platform/security/src/Provider/SecurityServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/security/src/Provider/SecurityServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/security/config/security.php` — config subtree (`security.*`)
-- [ ] `framework/packages/platform/security/config/rules.php` — config shape enforcement
-- [ ] `framework/packages/platform/security/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/security/src/Csrf/CsrfTokenManager.php` — implements `CsrfTokenManagerInterface` (session-backed)
-- [ ] `framework/packages/platform/security/src/Http/Middleware/CsrfMiddleware.php` — PSR-15 (unsafe methods)
-- [ ] `framework/packages/platform/security/src/SignedUrl/UrlSigner.php` — implements `UrlSignerInterface` (HMAC + TTL; secret via SecretsResolver)
-- [ ] `framework/packages/platform/security/src/Exceptions/SecurityProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
-- [ ] `framework/packages/platform/security/src/Exception/CsrfMissingException.php` — errorCode `CORETSIA_CSRF_MISSING`
-- [ ] `framework/packages/platform/security/src/Exception/CsrfInvalidException.php` — errorCode `CORETSIA_CSRF_INVALID`
-- [ ] `framework/packages/platform/security/src/Exception/SignedUrlInvalidException.php` — errorCode `CORETSIA_SIGNED_URL_INVALID`
-- [ ] `framework/packages/platform/security/src/Exception/SignedUrlExpiredException.php` — errorCode `CORETSIA_SIGNED_URL_EXPIRED`
-- [ ] `framework/packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
-- [ ] `framework/packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php` — redaction/no-secret contract
-- [ ] `framework/packages/platform/security/tests/Unit/SignedUrlCanonicalizationDeterministicTest.php` — determinism proof
-- [ ] `framework/packages/platform/security/tests/Integration/CsrfMiddlewareBlocksMissingTokenTest.php` — behavior proof
-- [ ] `framework/packages/platform/security/tests/Integration/CsrfMiddlewareBlocksInvalidTokenTest.php` — behavior proof
-- [ ] `framework/packages/platform/security/tests/Integration/SignedUrlVerifyDeterministicTest.php` — behavior+determinism proof
-- [ ] `framework/packages/platform/security/tests/Integration/Http/CsrfEndToEndTest.php` — pipeline proof
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` — fixture wiring for E2E
+- [ ] `packages/platform/security/composer.json` — package definition
+- [ ] `packages/platform/security/src/Module/SecurityModule.php` — runtime module entry
+- [ ] `packages/platform/security/src/Provider/SecurityServiceProvider.php` — DI wiring
+- [ ] `packages/platform/security/src/Provider/SecurityServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/security/config/security.php` — config subtree (`security.*`)
+- [ ] `packages/platform/security/config/rules.php` — config shape enforcement
+- [ ] `packages/platform/security/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/security/src/Csrf/CsrfTokenManager.php` — implements `CsrfTokenManagerInterface` (session-backed)
+- [ ] `packages/platform/security/src/Http/Middleware/CsrfMiddleware.php` — PSR-15 (unsafe methods)
+- [ ] `packages/platform/security/src/SignedUrl/UrlSigner.php` — implements `UrlSignerInterface` (HMAC + TTL; secret via SecretsResolver)
+- [ ] `packages/platform/security/src/Exceptions/SecurityProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
+- [ ] `packages/platform/security/src/Exception/CsrfMissingException.php` — errorCode `CORETSIA_CSRF_MISSING`
+- [ ] `packages/platform/security/src/Exception/CsrfInvalidException.php` — errorCode `CORETSIA_CSRF_INVALID`
+- [ ] `packages/platform/security/src/Exception/SignedUrlInvalidException.php` — errorCode `CORETSIA_SIGNED_URL_INVALID`
+- [ ] `packages/platform/security/src/Exception/SignedUrlExpiredException.php` — errorCode `CORETSIA_SIGNED_URL_EXPIRED`
+- [ ] `packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
+- [ ] `packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php` — redaction/no-secret contract
+- [ ] `packages/platform/security/tests/Unit/SignedUrlCanonicalizationDeterministicTest.php` — determinism proof
+- [ ] `packages/platform/security/tests/Integration/CsrfMiddlewareBlocksMissingTokenTest.php` — behavior proof
+- [ ] `packages/platform/security/tests/Integration/CsrfMiddlewareBlocksInvalidTokenTest.php` — behavior proof
+- [ ] `packages/platform/security/tests/Integration/SignedUrlVerifyDeterministicTest.php` — behavior+determinism proof
+- [ ] `packages/platform/security/tests/Integration/Http/CsrfEndToEndTest.php` — pipeline proof
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` — fixture wiring for E2E
 
 #### Modifies
 
-- [ ] `framework/packages/platform/security/config/rules.php` — enforces updated/complete config shape (if expanded during impl)
-- [ ] `framework/packages/platform/security/README.md` — include middleware slot/priority + override/disable in manual HTTP mode
+- [ ] `packages/platform/security/config/rules.php` — enforces updated/complete config shape (if expanded during impl)
+- [ ] `packages/platform/security/README.md` — include middleware slot/priority + override/disable in manual HTTP mode
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-csrf-signed-urls.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/security/composer.json`
-- [ ] `framework/packages/platform/security/src/Module/SecurityModule.php` (runtime only)
-- [ ] `framework/packages/platform/security/src/Provider/SecurityServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/security/config/security.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/security/config/rules.php`
-- [ ] `framework/packages/platform/security/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/security/composer.json`
+- [ ] `packages/platform/security/src/Module/SecurityModule.php` (runtime only)
+- [ ] `packages/platform/security/src/Provider/SecurityServiceProvider.php` (runtime only)
+- [ ] `packages/platform/security/config/security.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/security/config/rules.php`
+- [ ] `packages/platform/security/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/security/config/security.php`
+  - [ ] `packages/platform/security/config/security.php`
 - [ ] Keys (dot):
   - [ ] `security.csrf.enabled` = true
   - [ ] `security.csrf.header_name` = "X-CSRF-Token"
@@ -7105,7 +7105,7 @@ Forbidden:
   - [ ] `security.signed_urls.secret_ref` = ""
   - [ ] `security.signed_urls.ttl_seconds` = 300
 - [ ] Rules:
-  - [ ] `framework/packages/platform/security/config/rules.php` enforces shape
+  - [ ] `packages/platform/security/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -7181,28 +7181,28 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A: no context writes)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (N/A)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] If redaction exists → `framework/packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] If redaction exists → `packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (wiring)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (wiring)
 - [ ] Fake adapters:
   - [ ] FakeTracer / FakeMetrics / FakeLogger capture events for assertions (as needed by contract tests)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/security/tests/Unit/SignedUrlCanonicalizationDeterministicTest.php`
+  - [ ] `packages/platform/security/tests/Unit/SignedUrlCanonicalizationDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/security/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/security/tests/Contract/NoSecretLoggingContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/security/tests/Integration/CsrfMiddlewareBlocksMissingTokenTest.php`
-  - [ ] `framework/packages/platform/security/tests/Integration/CsrfMiddlewareBlocksInvalidTokenTest.php`
-  - [ ] `framework/packages/platform/security/tests/Integration/SignedUrlVerifyDeterministicTest.php`
-  - [ ] `framework/packages/platform/security/tests/Integration/Http/CsrfEndToEndTest.php`
+  - [ ] `packages/platform/security/tests/Integration/CsrfMiddlewareBlocksMissingTokenTest.php`
+  - [ ] `packages/platform/security/tests/Integration/CsrfMiddlewareBlocksInvalidTokenTest.php`
+  - [ ] `packages/platform/security/tests/Integration/SignedUrlVerifyDeterministicTest.php`
+  - [ ] `packages/platform/security/tests/Integration/Http/CsrfEndToEndTest.php`
 - Gates/Arch:
   - N/A
 
@@ -7248,7 +7248,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.180.0"
-owner_path: "framework/packages/platform/encryption/"
+owner_path: "packages/platform/encryption/"
 
 package_id: "platform/encryption"
 composer: "coretsia/platform-encryption"
@@ -7338,46 +7338,46 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Crypto/EncrypterInterface.php`
-- [ ] `framework/packages/core/contracts/src/Crypto/KeyManagerInterface.php`
+- [ ] `packages/core/contracts/src/Crypto/EncrypterInterface.php`
+- [ ] `packages/core/contracts/src/Crypto/KeyManagerInterface.php`
 
-- [ ] `framework/packages/platform/encryption/composer.json` — package definition
-- [ ] `framework/packages/platform/encryption/src/Module/EncryptionModule.php` — runtime module entry
-- [ ] `framework/packages/platform/encryption/src/Provider/EncryptionServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/encryption/src/Provider/EncryptionServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/encryption/config/encryption.php` — config subtree (`encryption.*`)
-- [ ] `framework/packages/platform/encryption/config/rules.php` — config shape enforcement
-- [ ] `framework/packages/platform/encryption/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
-- [ ] `framework/packages/platform/encryption/src/Key/StaticKeyManager.php` — selects active key id (no key bytes in logs)
-- [ ] `framework/packages/platform/encryption/src/Encryption/SodiumEncrypter.php` — ext-sodium implementation
-- [ ] `framework/packages/platform/encryption/src/Encryption/NullEncrypter.php` — noop/dev
-- [ ] `framework/packages/platform/encryption/src/Exception/EncryptionException.php` — deterministic error codes
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — optional constants (if needed)
-- [ ] `framework/packages/platform/encryption/tests/Contract/EncryptDecryptRoundTripTest.php` — round-trip proof
-- [ ] `framework/packages/platform/encryption/tests/Contract/WrongKeyThrowsDeterministicExceptionTest.php` — deterministic failure proof
+- [ ] `packages/platform/encryption/composer.json` — package definition
+- [ ] `packages/platform/encryption/src/Module/EncryptionModule.php` — runtime module entry
+- [ ] `packages/platform/encryption/src/Provider/EncryptionServiceProvider.php` — DI wiring
+- [ ] `packages/platform/encryption/src/Provider/EncryptionServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/encryption/config/encryption.php` — config subtree (`encryption.*`)
+- [ ] `packages/platform/encryption/config/rules.php` — config shape enforcement
+- [ ] `packages/platform/encryption/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
+- [ ] `packages/platform/encryption/src/Key/StaticKeyManager.php` — selects active key id (no key bytes in logs)
+- [ ] `packages/platform/encryption/src/Encryption/SodiumEncrypter.php` — ext-sodium implementation
+- [ ] `packages/platform/encryption/src/Encryption/NullEncrypter.php` — noop/dev
+- [ ] `packages/platform/encryption/src/Exception/EncryptionException.php` — deterministic error codes
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — optional constants (if needed)
+- [ ] `packages/platform/encryption/tests/Contract/EncryptDecryptRoundTripTest.php` — round-trip proof
+- [ ] `packages/platform/encryption/tests/Contract/WrongKeyThrowsDeterministicExceptionTest.php` — deterministic failure proof
 
 #### Modifies
 
-- [ ] `framework/packages/platform/encryption/README.md` — integration expectations + redaction policy
-- [ ] `framework/packages/platform/encryption/config/rules.php` — shape completeness as impl evolves
+- [ ] `packages/platform/encryption/README.md` — integration expectations + redaction policy
+- [ ] `packages/platform/encryption/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-data-encryption-key-management.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/encryption/composer.json`
-- [ ] `framework/packages/platform/encryption/src/Module/EncryptionModule.php` (runtime only)
-- [ ] `framework/packages/platform/encryption/src/Provider/EncryptionServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/encryption/config/encryption.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/encryption/config/rules.php`
-- [ ] `framework/packages/platform/encryption/README.md`
-- [ ] `framework/packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/encryption/composer.json`
+- [ ] `packages/platform/encryption/src/Module/EncryptionModule.php` (runtime only)
+- [ ] `packages/platform/encryption/src/Provider/EncryptionServiceProvider.php` (runtime only)
+- [ ] `packages/platform/encryption/config/encryption.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/encryption/config/rules.php`
+- [ ] `packages/platform/encryption/README.md`
+- [ ] `packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/encryption/config/encryption.php`
+  - [ ] `packages/platform/encryption/config/encryption.php`
 - [ ] Keys (dot):
   - [ ] `encryption.enabled` = false
   - [ ] `encryption.driver` = "null"   # "null"|"sodium"
@@ -7385,7 +7385,7 @@ N/A
   - [ ] `encryption.keys` = []         # map keyId => {secret_ref: string}
   - [ ] `encryption.aad.enabled` = false
 - [ ] Rules:
-  - [ ] `framework/packages/platform/encryption/config/rules.php` enforces shape
+  - [ ] `packages/platform/encryption/config/rules.php` enforces shape
 
 - Types (cemented):
   - `encryption.enabled`: bool
@@ -7455,7 +7455,7 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (only if reset is introduced)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → covered by contract tests (no payload/keys leak)
 
 #### Test harness / fixtures (when integration is needed)
@@ -7468,9 +7468,9 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/encryption/tests/Contract/EncryptDecryptRoundTripTest.php`
-  - [ ] `framework/packages/platform/encryption/tests/Contract/WrongKeyThrowsDeterministicExceptionTest.php`
-  - [ ] `framework/packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/encryption/tests/Contract/EncryptDecryptRoundTripTest.php`
+  - [ ] `packages/platform/encryption/tests/Contract/WrongKeyThrowsDeterministicExceptionTest.php`
+  - [ ] `packages/platform/encryption/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
   - N/A
 - Gates/Arch:
@@ -7513,7 +7513,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.190.0"
-owner_path: "framework/packages/platform/http/"
+owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
 composer: "coretsia/platform-http"
@@ -7548,8 +7548,8 @@ ssot_refs: []
   - N/A
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/http/config/http.php` — config root exists; will be extended
-  - `framework/packages/platform/http/config/rules.php` — rules exist; will be extended
+  - `packages/platform/http/config/http.php` — config root exists; will be extended
+  - `packages/platform/http/config/rules.php` — rules exist; will be extended
 
 - Required config roots/keys:
   - `http.rate_limit.*` — keys will be introduced/extended under existing `http.*` root
@@ -7618,32 +7618,32 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/http/src/RateLimit/RateLimitKeyHasher.php` — implements `RateLimitKeyHasherInterface` (hash-only; no raw identity in logs)
-- [ ] `framework/packages/platform/http/src/RateLimit/Algorithm/TokenBucketLimiter.php` — deterministic limiter
-- [ ] `framework/packages/platform/http/src/RateLimit/Store/InMemoryRateLimitStore.php` — reference store
-- [ ] `framework/packages/platform/http/src/RateLimit/RateLimitKeyBuilder.php` — deterministic key builder (actor_id|client_ip)
-- [ ] `framework/packages/platform/http/src/Middleware/EarlyRateLimitMiddleware.php` — PSR-15 middleware, early anonymous/IP/infra rate-limit middleware:
+- [ ] `packages/platform/http/src/RateLimit/RateLimitKeyHasher.php` — implements `RateLimitKeyHasherInterface` (hash-only; no raw identity in logs)
+- [ ] `packages/platform/http/src/RateLimit/Algorithm/TokenBucketLimiter.php` — deterministic limiter
+- [ ] `packages/platform/http/src/RateLimit/Store/InMemoryRateLimitStore.php` — reference store
+- [ ] `packages/platform/http/src/RateLimit/RateLimitKeyBuilder.php` — deterministic key builder (actor_id|client_ip)
+- [ ] `packages/platform/http/src/Middleware/EarlyRateLimitMiddleware.php` — PSR-15 middleware, early anonymous/IP/infra rate-limit middleware:
   - [ ] MAY be registered ONLY into `http.middleware.system_pre`
   - [ ] MUST run before app identity/session/auth context is available
   - [ ] MUST use only pre-identity inputs (for example: client IP, forwarded client identity after proxy normalization, host, method, route-independent request characteristics)
   - [ ] MUST NOT depend on authenticated actor/tenant/session context
   - [ ] MUST remain low-cost and safe for early rejection
-- [ ] `framework/packages/platform/http/src/Middleware/RateLimitMiddleware.php` — PSR-15 middleware, identity-aware rate-limit middleware:
+- [ ] `packages/platform/http/src/Middleware/RateLimitMiddleware.php` — PSR-15 middleware, identity-aware rate-limit middleware:
   - [ ] MAY be registered ONLY into `http.middleware.app_pre`
   - [ ] MUST run after identity-enriching middleware needed for actor-aware decisions
   - [ ] MAY use actor/tenant/session-derived context when available
   - [ ] MUST NOT be registered into `http.middleware.system_pre|system|system_post`
-- [ ] `framework/packages/platform/http/src/Exception/RateLimitedException.php` — errorCode `CORETSIA_HTTP_RATE_LIMITED`
-- [ ] `framework/packages/platform/http/tests/Unit/RateLimitKeyBuildingDeterministicTest.php` — determinism proof
-- [ ] `framework/packages/platform/http/tests/Integration/RateLimitReturns429WithRetryAfterTest.php` — behavior proof
-- [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php` — noop-safe proof (reuse)
+- [ ] `packages/platform/http/src/Exception/RateLimitedException.php` — errorCode `CORETSIA_HTTP_RATE_LIMITED`
+- [ ] `packages/platform/http/tests/Unit/RateLimitKeyBuildingDeterministicTest.php` — determinism proof
+- [ ] `packages/platform/http/tests/Integration/RateLimitReturns429WithRetryAfterTest.php` — behavior proof
+- [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php` — noop-safe proof (reuse)
 
 #### Modifies
 
-- [ ] `framework/packages/platform/http/config/http.php` — add `http.rate_limit.*` keys
-- [ ] `framework/packages/platform/http/config/rules.php` — enforce shape for rate limit config
-- [ ] `framework/packages/platform/http/README.md` — document middleware slot/priority + override instructions
-- [ ] `framework/packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware + tag (evidence point for DI wiring)
+- [ ] `packages/platform/http/config/http.php` — add `http.rate_limit.*` keys
+- [ ] `packages/platform/http/config/rules.php` — enforce shape for rate limit config
+- [ ] `packages/platform/http/README.md` — document middleware slot/priority + override instructions
+- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware + tag (evidence point for DI wiring)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-rate-limiting-identity-aware.md`
 
@@ -7654,7 +7654,7 @@ N/A (package already exists; epic extends it)
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/http/config/http.php`
+  - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
   - [ ] `http.rate_limit.early.enabled` = false
   - [ ] `http.rate_limit.enabled` = false
@@ -7663,7 +7663,7 @@ N/A (package already exists; epic extends it)
   - [ ] `http.rate_limit.early.response.headers_enabled` = true
   - [ ] `http.rate_limit.identity.response.headers_enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/http/config/rules.php` enforces shape
+  - [ ] `packages/platform/http/config/rules.php` enforces shape
 - [ ] Canonical split alignment (locked by the HTTP middleware taxonomy):
   - [ ] `http.rate_limit.early.enabled` controls the canonical `EarlyRateLimitMiddleware` in `http.middleware.system_pre`
   - [ ] `http.rate_limit.enabled` controls the canonical `RateLimitMiddleware` in `http.middleware.app_pre`
@@ -7734,7 +7734,7 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (N/A unless reset added)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
 - [ ] If redaction exists → proven by integration/contract tests (no raw ip/path/token)
 
 #### Test harness / fixtures (when integration is needed)
@@ -7745,11 +7745,11 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/http/tests/Unit/RateLimitKeyBuildingDeterministicTest.php`
+  - [ ] `packages/platform/http/tests/Unit/RateLimitKeyBuildingDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
+  - [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/http/tests/Integration/RateLimitReturns429WithRetryAfterTest.php`
+  - [ ] `packages/platform/http/tests/Integration/RateLimitReturns429WithRetryAfterTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -7786,7 +7786,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.200.0"
-owner_path: "framework/packages/platform/hashing/"
+owner_path: "packages/platform/hashing/"
 
 package_id: "platform/hashing"
 composer: "coretsia/platform-hashing"
@@ -7865,41 +7865,41 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/hashing/composer.json` — package definition
-- [ ] `framework/packages/platform/hashing/src/Module/HashingModule.php` — runtime module entry
-- [ ] `framework/packages/platform/hashing/src/Provider/HashingServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/hashing/src/Provider/HashingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/hashing/config/hashing.php` — config subtree (`hashing.*`)
-- [ ] `framework/packages/platform/hashing/config/rules.php` — config shape enforcement
-- [ ] `framework/packages/platform/hashing/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
-- [ ] `framework/packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php` — no password/hash leakage contract
-- [ ] `framework/packages/platform/hashing/src/Password/Argon2idPasswordHasher.php`
-- [ ] `framework/packages/platform/hashing/src/Password/BcryptPasswordHasher.php`
-- [ ] `framework/packages/platform/hashing/src/Password/PasswordHasherManager.php`
-- [ ] `framework/packages/platform/hashing/src/Exception/HashingException.php`
-- [ ] `framework/packages/platform/hashing/tests/Unit/VerifyAndNeedsRehashPolicyTest.php` — policy proof
+- [ ] `packages/platform/hashing/composer.json` — package definition
+- [ ] `packages/platform/hashing/src/Module/HashingModule.php` — runtime module entry
+- [ ] `packages/platform/hashing/src/Provider/HashingServiceProvider.php` — DI wiring
+- [ ] `packages/platform/hashing/src/Provider/HashingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/hashing/config/hashing.php` — config subtree (`hashing.*`)
+- [ ] `packages/platform/hashing/config/rules.php` — config shape enforcement
+- [ ] `packages/platform/hashing/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
+- [ ] `packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php` — no password/hash leakage contract
+- [ ] `packages/platform/hashing/src/Password/Argon2idPasswordHasher.php`
+- [ ] `packages/platform/hashing/src/Password/BcryptPasswordHasher.php`
+- [ ] `packages/platform/hashing/src/Password/PasswordHasherManager.php`
+- [ ] `packages/platform/hashing/src/Exception/HashingException.php`
+- [ ] `packages/platform/hashing/tests/Unit/VerifyAndNeedsRehashPolicyTest.php` — policy proof
 
 #### Modifies
 
-- [ ] `framework/packages/platform/hashing/README.md` — document integration expectations for `platform/auth`
+- [ ] `packages/platform/hashing/README.md` — document integration expectations for `platform/auth`
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-password-hashing.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/hashing/composer.json`
-- [ ] `framework/packages/platform/hashing/src/Module/HashingModule.php` (runtime only)
-- [ ] `framework/packages/platform/hashing/src/Provider/HashingServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/hashing/config/hashing.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/hashing/config/rules.php`
-- [ ] `framework/packages/platform/hashing/README.md`
-- [ ] `framework/packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/hashing/composer.json`
+- [ ] `packages/platform/hashing/src/Module/HashingModule.php` (runtime only)
+- [ ] `packages/platform/hashing/src/Provider/HashingServiceProvider.php` (runtime only)
+- [ ] `packages/platform/hashing/config/hashing.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/hashing/config/rules.php`
+- [ ] `packages/platform/hashing/README.md`
+- [ ] `packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/hashing/config/hashing.php`
+  - [ ] `packages/platform/hashing/config/hashing.php`
 - [ ] Keys (dot):
   - [ ] `hashing.password.driver` = "argon2id"
   - [ ] `hashing.password.argon2id.memory_cost` = 65536
@@ -7907,7 +7907,7 @@ N/A
   - [ ] `hashing.password.argon2id.threads` = 2
   - [ ] `hashing.password.bcrypt.cost` = 12
 - [ ] Rules:
-  - [ ] `framework/packages/platform/hashing/config/rules.php` enforces shape
+  - [ ] `packages/platform/hashing/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -7959,8 +7959,8 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (N/A)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] If redaction exists → `framework/packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] If redaction exists → `packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -7970,10 +7970,10 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/hashing/tests/Unit/VerifyAndNeedsRehashPolicyTest.php`
+  - [ ] `packages/platform/hashing/tests/Unit/VerifyAndNeedsRehashPolicyTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/hashing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/hashing/tests/Contract/NoSecretLoggingContractTest.php`
 - Integration:
   - N/A
 - Gates/Arch:
@@ -8009,7 +8009,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.210.0"
-owner_path: "framework/packages/platform/lock/"
+owner_path: "packages/platform/lock/"
 
 package_id: "platform/lock"
 composer: "coretsia/platform-lock"
@@ -8095,49 +8095,49 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/lock/composer.json` — package definition
-- [ ] `framework/packages/platform/lock/src/Module/LockModule.php` — runtime module entry
-- [ ] `framework/packages/platform/lock/src/Provider/LockServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/lock/src/Provider/LockServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/lock/config/lock.php` — config subtree (`lock.*`)
-- [ ] `framework/packages/platform/lock/config/rules.php` — config shape enforcement
-- [ ] `framework/packages/platform/lock/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
-- [ ] `framework/packages/platform/lock/src/Lock/InMemoryLock.php`
-- [ ] `framework/packages/platform/lock/src/Lock/InMemoryLockFactory.php`
-- [ ] `framework/packages/platform/lock/src/Lock/FileLock.php`
-- [ ] `framework/packages/platform/lock/src/Lock/FileLockFactory.php` — uses filesystem SafePathJoiner/Disk
-- [ ] `framework/packages/platform/lock/src/Security/Redaction.php` — `hashKey()`, `len()`
-- [ ] `framework/packages/platform/lock/tests/Integration/InMemoryLockAcquireReleaseTest.php`
-- [ ] `framework/packages/platform/lock/tests/Integration/FileLockAcquireReleaseTest.php`
+- [ ] `packages/platform/lock/composer.json` — package definition
+- [ ] `packages/platform/lock/src/Module/LockModule.php` — runtime module entry
+- [ ] `packages/platform/lock/src/Provider/LockServiceProvider.php` — DI wiring
+- [ ] `packages/platform/lock/src/Provider/LockServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/lock/config/lock.php` — config subtree (`lock.*`)
+- [ ] `packages/platform/lock/config/rules.php` — config shape enforcement
+- [ ] `packages/platform/lock/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
+- [ ] `packages/platform/lock/src/Lock/InMemoryLock.php`
+- [ ] `packages/platform/lock/src/Lock/InMemoryLockFactory.php`
+- [ ] `packages/platform/lock/src/Lock/FileLock.php`
+- [ ] `packages/platform/lock/src/Lock/FileLockFactory.php` — uses filesystem SafePathJoiner/Disk
+- [ ] `packages/platform/lock/src/Security/Redaction.php` — `hashKey()`, `len()`
+- [ ] `packages/platform/lock/tests/Integration/InMemoryLockAcquireReleaseTest.php`
+- [ ] `packages/platform/lock/tests/Integration/FileLockAcquireReleaseTest.php`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/lock/README.md` — driver options + redaction policy
-- [ ] `framework/packages/platform/lock/config/rules.php` — shape completeness as impl evolves
+- [ ] `packages/platform/lock/README.md` — driver options + redaction policy
+- [ ] `packages/platform/lock/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-lock-factory-reference-drivers.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/lock/composer.json`
-- [ ] `framework/packages/platform/lock/src/Module/LockModule.php` (runtime only)
-- [ ] `framework/packages/platform/lock/src/Provider/LockServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/lock/config/lock.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/lock/config/rules.php`
-- [ ] `framework/packages/platform/lock/README.md`
-- [ ] `framework/packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/lock/composer.json`
+- [ ] `packages/platform/lock/src/Module/LockModule.php` (runtime only)
+- [ ] `packages/platform/lock/src/Provider/LockServiceProvider.php` (runtime only)
+- [ ] `packages/platform/lock/config/lock.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/lock/config/rules.php`
+- [ ] `packages/platform/lock/README.md`
+- [ ] `packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/lock/config/lock.php`
+  - [ ] `packages/platform/lock/config/lock.php`
 - [ ] Keys (dot):
   - [ ] `lock.enabled` = true
   - [ ] `lock.default` = "in_memory"
-  - [ ] `lock.file.path` = "skeleton/var/locks"
+  - [ ] `lock.file.path` = "packages/applications/skeleton/var/locks"
 - [ ] Rules:
-  - [ ] `framework/packages/platform/lock/config/rules.php` enforces shape
+  - [ ] `packages/platform/lock/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -8186,7 +8186,7 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (N/A)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → proven by integration tests + logger assertions (no raw key)
 
 #### Test harness / fixtures (when integration is needed)
@@ -8199,10 +8199,10 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/lock/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/lock/tests/Integration/InMemoryLockAcquireReleaseTest.php`
-  - [ ] `framework/packages/platform/lock/tests/Integration/FileLockAcquireReleaseTest.php`
+  - [ ] `packages/platform/lock/tests/Integration/InMemoryLockAcquireReleaseTest.php`
+  - [ ] `packages/platform/lock/tests/Integration/FileLockAcquireReleaseTest.php`
 - Gates/Arch:
   - N/A
 
@@ -8236,7 +8236,7 @@ N/A
 type: package
 phase: 4
 epic_id: "4.220.0"
-owner_path: "framework/packages/platform/cache/"
+owner_path: "packages/platform/cache/"
 
 package_id: "platform/cache"
 composer: "coretsia/platform-cache"
@@ -8315,7 +8315,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - Artifacts:
-  - reads/writes (runtime data, excluded from fingerprint): `skeleton/var/cache-data/*`
+  - reads/writes (runtime data, excluded from fingerprint): `packages/applications/skeleton/var/cache-data/*`
 - CLI:
   - N/A
 - HTTP:
@@ -8327,54 +8327,54 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/cache/composer.json` — package definition
-- [ ] `framework/packages/platform/cache/src/Module/CacheModule.php` — runtime module entry
-- [ ] `framework/packages/platform/cache/src/Provider/CacheServiceProvider.php` — DI wiring
-- [ ] `framework/packages/platform/cache/src/Provider/CacheServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/cache/config/cache.php` — config subtree (`cache.*`)
-- [ ] `framework/packages/platform/cache/config/rules.php` — config shape enforcement
-- [ ] `framework/packages/platform/cache/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
-- [ ] `framework/packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php` — redaction/no-secret contract
-- [ ] `framework/packages/platform/cache/src/Cache/CacheManager.php` — `store()` selects by config
-- [ ] `framework/packages/platform/cache/src/Store/ArrayCacheStore.php` — PSR-16 reference
-- [ ] `framework/packages/platform/cache/src/Store/FileCacheStore.php` — filesystem policy, path `skeleton/var/cache-data`
-- [ ] `framework/packages/platform/cache/src/Store/NullCacheStore.php` — noop
-- [ ] `framework/packages/platform/cache/src/Policy/TtlPolicy.php` — TTL guardrails
-- [ ] `framework/packages/platform/cache/src/Security/Redaction.php` — key hashing
-- [ ] `framework/packages/platform/cache/src/Exception/CacheStoreException.php` — deterministic error codes
-- [ ] `framework/packages/platform/cache/tests/Integration/TtlSemanticsTest.php` — TTL proof
-- [ ] `framework/packages/platform/cache/tests/Integration/FileStoreSafePathTest.php` — safe path proof
+- [ ] `packages/platform/cache/composer.json` — package definition
+- [ ] `packages/platform/cache/src/Module/CacheModule.php` — runtime module entry
+- [ ] `packages/platform/cache/src/Provider/CacheServiceProvider.php` — DI wiring
+- [ ] `packages/platform/cache/src/Provider/CacheServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/cache/config/cache.php` — config subtree (`cache.*`)
+- [ ] `packages/platform/cache/config/rules.php` — config shape enforcement
+- [ ] `packages/platform/cache/README.md` — docs (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — noop-safe contract
+- [ ] `packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php` — redaction/no-secret contract
+- [ ] `packages/platform/cache/src/Cache/CacheManager.php` — `store()` selects by config
+- [ ] `packages/platform/cache/src/Store/ArrayCacheStore.php` — PSR-16 reference
+- [ ] `packages/platform/cache/src/Store/FileCacheStore.php` — filesystem policy, path `packages/applications/skeleton/var/cache-data`
+- [ ] `packages/platform/cache/src/Store/NullCacheStore.php` — noop
+- [ ] `packages/platform/cache/src/Policy/TtlPolicy.php` — TTL guardrails
+- [ ] `packages/platform/cache/src/Security/Redaction.php` — key hashing
+- [ ] `packages/platform/cache/src/Exception/CacheStoreException.php` — deterministic error codes
+- [ ] `packages/platform/cache/tests/Integration/TtlSemanticsTest.php` — TTL proof
+- [ ] `packages/platform/cache/tests/Integration/FileStoreSafePathTest.php` — safe path proof
 
 #### Modifies
 
-- [ ] `framework/packages/platform/cache/README.md` — driver options + redaction policy
-- [ ] `framework/packages/platform/cache/config/rules.php` — shape completeness as impl evolves
+- [ ] `packages/platform/cache/README.md` — driver options + redaction policy
+- [ ] `packages/platform/cache/config/rules.php` — shape completeness as impl evolves
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-cache-psr16-manager-stores.md`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/cache/composer.json`
-- [ ] `framework/packages/platform/cache/src/Module/CacheModule.php` (runtime only)
-- [ ] `framework/packages/platform/cache/src/Provider/CacheServiceProvider.php` (runtime only)
-- [ ] `framework/packages/platform/cache/config/cache.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/cache/config/rules.php`
-- [ ] `framework/packages/platform/cache/README.md`
-- [ ] `framework/packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
+- [ ] `packages/platform/cache/composer.json`
+- [ ] `packages/platform/cache/src/Module/CacheModule.php` (runtime only)
+- [ ] `packages/platform/cache/src/Provider/CacheServiceProvider.php` (runtime only)
+- [ ] `packages/platform/cache/config/cache.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/cache/config/rules.php`
+- [ ] `packages/platform/cache/README.md`
+- [ ] `packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime only)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/cache/config/cache.php`
+  - [ ] `packages/platform/cache/config/cache.php`
 - [ ] Keys (dot):
   - [ ] `cache.enabled` = true
   - [ ] `cache.default` = "array"
   - [ ] `cache.default_ttl_seconds` = 300
   - [ ] `cache.max_ttl_seconds` = 86400
-  - [ ] `cache.file.path` = "skeleton/var/cache-data"
+  - [ ] `cache.file.path` = "packages/applications/skeleton/var/cache-data"
 - [ ] Rules:
-  - [ ] `framework/packages/platform/cache/config/rules.php` enforces shape
+  - [ ] `packages/platform/cache/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -8387,11 +8387,11 @@ Forbidden:
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/cache-data/*` (runtime data; excluded from fingerprint; not a deterministic artifact)
+  - [ ] `packages/applications/skeleton/var/cache-data/*` (runtime data; excluded from fingerprint; not a deterministic artifact)
 - [ ] Reads:
   - [ ] store reads within same runtime policy (TTL + safe path)
 
-- Runtime store path `skeleton/var/cache-data/*`:
+- Runtime store path `packages/applications/skeleton/var/cache-data/*`:
   - MUST be excluded from deterministic fingerprint inputs.
   - MUST NOT be treated as Coretsia artifact (no `_meta` envelope).
 
@@ -8438,8 +8438,8 @@ N/A
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php` (N/A)
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php` (N/A)
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] If redaction exists → `framework/packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] If redaction exists → `packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -8451,11 +8451,11 @@ N/A
 - Unit:
   - N/A
 - Contract:
-  - [ ] `framework/packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php`
+  - [ ] `packages/platform/cache/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/cache/tests/Contract/NoSecretLoggingContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/cache/tests/Integration/TtlSemanticsTest.php`
-  - [ ] `framework/packages/platform/cache/tests/Integration/FileStoreSafePathTest.php`
+  - [ ] `packages/platform/cache/tests/Integration/TtlSemanticsTest.php`
+  - [ ] `packages/platform/cache/tests/Integration/FileStoreSafePathTest.php`
 - Gates/Arch:
   - N/A
 
@@ -8491,7 +8491,7 @@ N/A
 type: tools
 phase: 4
 epic_id: "4.230.0"
-owner_path: "framework/tools/benchmarks/core/"
+owner_path: "tools/benchmarks/core/"
 
 goal: "Оптимізувати найгарячіші internal hot paths у core/foundation та core/kernel без зміни семантики, а факт виграшу довести стабільними microbenchmarks і downstream HTTP benchmarks."
 provides:
@@ -8525,10 +8525,10 @@ ssot_refs:
   - 3.200.0 — HTTP benchmark harness exists and can validate downstream effect
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/foundation/src/` — Foundation hot-path implementation root
-  - `framework/packages/core/kernel/src/` — Kernel hot-path implementation root
-  - `framework/packages/core/foundation/tests/` — existing behavior contracts that MUST remain green
-  - `framework/packages/core/kernel/tests/` — existing behavior contracts that MUST remain green
+  - `packages/core/foundation/src/` — Foundation hot-path implementation root
+  - `packages/core/kernel/src/` — Kernel hot-path implementation root
+  - `packages/core/foundation/tests/` — existing behavior contracts that MUST remain green
+  - `packages/core/kernel/tests/` — existing behavior contracts that MUST remain green
 
 - Required config roots/keys:
   - `foundation.*` — foundation runtime config
@@ -8570,8 +8570,8 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - `composer benchmark:core` → `framework/tools/benchmarks/core/run.php`
-  - `composer benchmark:core:gate` → `framework/tools/gates/core_performance_gate.php`
+  - `composer benchmark:core` → `tools/benchmarks/core/run.php`
+  - `composer benchmark:core:gate` → `tools/gates/core_performance_gate.php`
 
 - HTTP:
   - N/A
@@ -8583,33 +8583,33 @@ Forbidden:
   - N/A
 
 - Artifacts:
-  - reads: `framework/tools/benchmarks/core/core.baseline.json`
-  - writes: `framework/tools/benchmarks/core/core.report.json`
+  - reads: `tools/benchmarks/core/core.baseline.json`
+  - writes: `tools/benchmarks/core/core.report.json`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/benchmarks/core/run.php` — core microbenchmark runner
-- [ ] `framework/tools/benchmarks/core/CoreBenchmarkConfig.php` — scenario list + methodology
-- [ ] `framework/tools/benchmarks/core/core.baseline.json` — baseline for pinned runner
-- [ ] `framework/tools/gates/core_performance_gate.php` — regression comparator
-- [ ] `framework/tools/tests/Integration/Benchmarks/CoreBenchmarkHarnessTest.php`
-- [ ] `framework/tools/tests/Integration/Gates/CorePerformanceGateTest.php`
+- [ ] `tools/benchmarks/core/run.php` — core microbenchmark runner
+- [ ] `tools/benchmarks/core/CoreBenchmarkConfig.php` — scenario list + methodology
+- [ ] `tools/benchmarks/core/core.baseline.json` — baseline for pinned runner
+- [ ] `tools/gates/core_performance_gate.php` — regression comparator
+- [ ] `tools/tests/Integration/Benchmarks/CoreBenchmarkHarnessTest.php`
+- [ ] `tools/tests/Integration/Gates/CorePerformanceGateTest.php`
 - [ ] `docs/architecture/performance-core.md` — hot-path inventory + optimization rules
 
 #### Modifies
 
-- [ ] `framework/packages/core/foundation/src/` — optimize container/registry/serialization hot paths without changing output semantics
-- [ ] `framework/packages/core/kernel/src/` — optimize runtime/config/artifact hot paths without changing output semantics
-- [ ] `framework/packages/core/foundation/tests/` — add behavior-lock proofs where optimization could drift semantics
-- [ ] `framework/packages/core/kernel/tests/` — add behavior-lock proofs where optimization could drift semantics
+- [ ] `packages/core/foundation/src/` — optimize container/registry/serialization hot paths without changing output semantics
+- [ ] `packages/core/kernel/src/` — optimize runtime/config/artifact hot paths without changing output semantics
+- [ ] `packages/core/foundation/tests/` — add behavior-lock proofs where optimization could drift semantics
+- [ ] `packages/core/kernel/tests/` — add behavior-lock proofs where optimization could drift semantics
 - [ ] `framework/composer.json` — add scripts:
   - [ ] `benchmark:core`
   - [ ] `benchmark:core:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated core benchmark job
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_CORE_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_CORE_PERFORMANCE_RUN_FAILED`
 
@@ -8620,7 +8620,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/tools/benchmarks/core/CoreBenchmarkConfig.php`
+  - [ ] `tools/benchmarks/core/CoreBenchmarkConfig.php`
 - [ ] Keys (dot):
   - [ ] `benchmark.core.scenarios.container_get` = true
   - [ ] `benchmark.core.scenarios.tag_registry_all` = true
@@ -8640,7 +8640,7 @@ N/A
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `framework/tools/benchmarks/core/core.report.json` (deterministic bytes)
+  - [ ] `tools/benchmarks/core/core.report.json` (deterministic bytes)
 - [ ] Reads:
   - [ ] validates baseline/report shape before comparison
 
@@ -8698,13 +8698,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/tools/tests/Unit/Benchmarks/CoreBenchmarkConfigTest.php`
+  - [ ] `tools/tests/Unit/Benchmarks/CoreBenchmarkConfigTest.php`
 - Contract:
-  - [ ] `framework/packages/core/foundation/tests/Contract/OptimizationPreservesDeterministicOutputContractTest.php`
-  - [ ] `framework/packages/core/kernel/tests/Contract/OptimizationPreservesArtifactBytesContractTest.php`
+  - [ ] `packages/core/foundation/tests/Contract/OptimizationPreservesDeterministicOutputContractTest.php`
+  - [ ] `packages/core/kernel/tests/Contract/OptimizationPreservesArtifactBytesContractTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/Benchmarks/CoreBenchmarkHarnessTest.php`
-  - [ ] `framework/tools/tests/Integration/Gates/CorePerformanceGateTest.php`
+  - [ ] `tools/tests/Integration/Benchmarks/CoreBenchmarkHarnessTest.php`
+  - [ ] `tools/tests/Integration/Gates/CorePerformanceGateTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -8731,7 +8731,7 @@ N/A
 type: tools
 phase: 4
 epic_id: "4.240.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Додати pinned-runner performance gates для типових database та filesystem операцій, щоб бачити регресії від змін драйверів, query/path shaping або IO policy до виходу релізу."
 provides:
@@ -8760,9 +8760,9 @@ ssot_refs:
   - 4.230.0 — core performance gate exists as same-family methodology
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/database/` — database runtime under test
-  - `framework/packages/platform/migrations/` — schema setup for DB benchmark fixture
-  - `framework/tools/support/` — canonical deterministic tooling helpers
+  - `packages/platform/database/` — database runtime under test
+  - `packages/platform/migrations/` — schema setup for DB benchmark fixture
+  - `tools/support/` — canonical deterministic tooling helpers
 
 - Required config roots/keys:
   - `database.default`
@@ -8809,20 +8809,20 @@ Forbidden:
   - N/A
 
 - Artifacts:
-  - reads: `framework/tools/config/io_performance.baseline.json`
-  - writes: `framework/tools/config/io_performance.report.json`
+  - reads: `tools/config/io_performance.baseline.json`
+  - writes: `tools/config/io_performance.report.json`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/config/io_performance.php` — benchmark scenarios + thresholds
-- [ ] `framework/tools/config/io_performance.baseline.json` — pinned-runner baseline
-- [ ] `framework/tools/gates/database_filesystem_performance_gate.php` — comparator gate
-- [ ] `framework/tools/benchmarks/io/run.php` — benchmark runner
-- [ ] `framework/tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
-- [ ] `framework/tools/tests/Integration/Benchmarks/IoBenchmarkHarnessTest.php`
-- [ ] `framework/tools/tests/Fixtures/IoBench/` — SQLite DB + temp fs fixture root
+- [ ] `tools/config/io_performance.php` — benchmark scenarios + thresholds
+- [ ] `tools/config/io_performance.baseline.json` — pinned-runner baseline
+- [ ] `tools/gates/database_filesystem_performance_gate.php` — comparator gate
+- [ ] `tools/benchmarks/io/run.php` — benchmark runner
+- [ ] `tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
+- [ ] `tools/tests/Integration/Benchmarks/IoBenchmarkHarnessTest.php`
+- [ ] `tools/tests/Fixtures/IoBench/` — SQLite DB + temp fs fixture root
 - [ ] `docs/ops/performance-db-fs.md` — methodology + safe interpretation guide
 
 #### Modifies
@@ -8832,7 +8832,7 @@ Forbidden:
   - [ ] `benchmark:io:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated DB/FS benchmark job
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_DBFS_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_DBFS_PERFORMANCE_RUN_FAILED`
   - [ ] `CORETSIA_DBFS_BENCHMARK_ENV_MISMATCH`
@@ -8844,7 +8844,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/tools/config/io_performance.php`
+  - [ ] `tools/config/io_performance.php`
 - [ ] Keys (dot):
   - [ ] `benchmark.io.database.driver` = `sqlite`
   - [ ] `benchmark.io.database.scenarios.select_one` = true
@@ -8864,7 +8864,7 @@ N/A
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `framework/tools/config/io_performance.report.json` (deterministic bytes)
+  - [ ] `tools/config/io_performance.report.json` (deterministic bytes)
 - [ ] Reads:
   - [ ] validates report/baseline schema before compare
 
@@ -8908,24 +8908,24 @@ N/A
 #### Required policy tests matrix
 
 - [ ] If logs exist → gate/harness tests assert no raw SQL and no absolute paths
-- [ ] If redaction exists → `framework/tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
+- [ ] If redaction exists → `tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture root:
-  - [ ] `framework/tools/tests/Fixtures/IoBench/`
+  - [ ] `tools/tests/Fixtures/IoBench/`
 - [ ] Fake adapters:
   - [ ] FakeLogger
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/tools/tests/Unit/Benchmarks/IoPerformanceConfigTest.php`
+  - [ ] `tools/tests/Unit/Benchmarks/IoPerformanceConfigTest.php`
 - Contract:
-  - [ ] `framework/tools/tests/Contract/Benchmarks/IoBenchmarkOutputDoesNotLeakTest.php`
+  - [ ] `tools/tests/Contract/Benchmarks/IoBenchmarkOutputDoesNotLeakTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/Benchmarks/IoBenchmarkHarnessTest.php`
-  - [ ] `framework/tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
+  - [ ] `tools/tests/Integration/Benchmarks/IoBenchmarkHarnessTest.php`
+  - [ ] `tools/tests/Integration/Gates/DatabaseFilesystemPerformanceGateTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 

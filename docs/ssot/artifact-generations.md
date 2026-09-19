@@ -129,7 +129,7 @@ This document MUST NOT redefine:
 - An existing generation MUST NOT be reused unless it is valid and exactly byte-identical to the staged generation.
 - Cache verification MUST include all four finalized generation files.
 - Artifact-only runtime MUST accept only an artifact root and select one valid generation through `current`.
-- Proc Worker children MUST receive one skeleton-root-relative artifact root and MUST NOT receive independent artifact paths.
+- Proc Worker children MUST receive one application-root-relative artifact root and MUST NOT receive independent artifact paths.
 
 ## Terminology
 
@@ -559,7 +559,7 @@ It MUST NOT:
 `ArtifactPathResolver` MUST derive the final artifact root from:
 
 ```text
-BootstrapConfig::skeletonRoot()
+BootstrapConfig::applicationRoot()
 BootstrapConfig::artifactsCacheDir()
 BootstrapConfig::appTarget()->value
 ```
@@ -1190,7 +1190,7 @@ Production compilation writes only immutable generations.
 
 Production cache verification reads only the generation selected through `current`.
 
-Artifact-only runtime boot receives an explicit skeleton root from its runtime host and exactly one artifact-location input, the artifact root, then consumes one validated generation selected through `current`.
+Artifact-only runtime boot receives an explicit application root from its runtime host and exactly one artifact-location input, the artifact root, then consumes one validated generation selected through `current`.
 
 The active production boundary is:
 
@@ -1283,7 +1283,7 @@ It MUST NOT pass independent module-manifest, config, container, generation-dire
 
 The child MUST:
 
-1. resolve the supplied artifact root against its explicit skeleton root;
+1. resolve the supplied artifact root against its explicit application root;
 2. locate `current`;
 3. validate the selected finalized generation;
 4. read exact snapshots of all four generation files;
@@ -1319,7 +1319,7 @@ Generation diagnostics MUST NOT expose:
 - current paths;
 - lock paths;
 - configured cache directory values;
-- skeleton roots;
+- application roots;
 - absolute paths;
 - relative paths supplied by callers;
 - artifact bytes;
@@ -1507,33 +1507,33 @@ The test suite MUST cover at least:
 ## Implementation Mapping
 
 ```text
-framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php
-framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
-framework/packages/core/kernel/src/Artifacts/Exception/ArtifactGenerationPublishException.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGeneration.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationId.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLock.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLocator.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestBuilder.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestValidator.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPathResolver.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPublisher.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationValidator.php
-framework/packages/core/kernel/src/Artifacts/Generation/ArtifactPublicationSet.php
-framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php
-framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
-framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
-framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
-framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
-framework/packages/platform/worker/bin/coretsia-worker
-framework/packages/platform/worker/src/Process/Driver/ProcWorkerProcessDriver.php
-framework/packages/platform/worker/src/Process/Guardian/WorkerProcessGuardianClient.php
-framework/packages/platform/worker/src/Process/Proc/WorkerProcProcessHostClient.php
-framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
-framework/packages/core/kernel/src/Provider/KernelServiceFactory.php
-framework/packages/core/kernel/src/Provider/KernelServiceProvider.php
+packages/core/kernel/src/Artifacts/ArtifactWriter.php
+packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+packages/core/kernel/src/Artifacts/Exception/ArtifactGenerationPublishException.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGeneration.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationId.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLock.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationLocator.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestBuilder.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationManifestValidator.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPathResolver.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationPublisher.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactGenerationValidator.php
+packages/core/kernel/src/Artifacts/Generation/ArtifactPublicationSet.php
+packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php
+packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php
+packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php
+packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+packages/core/kernel/src/Boot/ArtifactRuntimeInput.php
+packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php
+packages/platform/worker/bin/coretsia-worker
+packages/platform/worker/src/Process/Driver/ProcWorkerProcessDriver.php
+packages/platform/worker/src/Process/Guardian/WorkerProcessGuardianClient.php
+packages/platform/worker/src/Process/Proc/WorkerProcProcessHostClient.php
+packages/platform/worker/src/Provider/WorkerServiceFactory.php
+packages/core/kernel/src/Provider/KernelServiceFactory.php
+packages/core/kernel/src/Provider/KernelServiceProvider.php
 ```
 
 These implementation points do not change this document's authority boundary.

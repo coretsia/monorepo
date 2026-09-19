@@ -44,7 +44,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -776,7 +776,7 @@ The unavailable timer sentinel MUST NOT be passed to `Stopwatch::stop()`.
 The Foundation defaults file remains:
 
 ```text
-framework/packages/core/foundation/config/foundation.php
+packages/core/foundation/config/foundation.php
 ```
 
 It MUST return only the `foundation` subtree.
@@ -806,7 +806,7 @@ use Coretsia\Foundation\Tag\ReservedTags;
 The Foundation rules file remains:
 
 ```text
-framework/packages/core/foundation/config/rules.php
+packages/core/foundation/config/rules.php
 ```
 
 It MUST enforce:
@@ -1221,20 +1221,20 @@ This ADR does not introduce:
 Expected verification includes:
 
 ```text
-framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php
-framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
-framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php
-framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php
+packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php
+packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php
+packages/core/foundation/tests/Integration/ResetGroupWorksTest.php
+packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php
+packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php
+packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php
+packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php
+packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php
+packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php
+packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php
+packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php
 ```
 
 Verification MUST prove:

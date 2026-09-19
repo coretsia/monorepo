@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia rate limit contracts, r
 This document governs contracts introduced by epic `1.160.0` under:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/
+packages/core/contracts/src/RateLimit/
 ```
 
 The canonical rate limit contracts introduced by this epic are:
@@ -42,10 +42,10 @@ Coretsia\Contracts\RateLimit\RateLimitKeyHasherInterface
 The implementation paths are:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php
-framework/packages/core/contracts/src/RateLimit/RateLimitState.php
-framework/packages/core/contracts/src/RateLimit/RateLimitDecision.php
-framework/packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php
+packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php
+packages/core/contracts/src/RateLimit/RateLimitState.php
+packages/core/contracts/src/RateLimit/RateLimitDecision.php
+packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php
 ```
 
 ## Normative language
@@ -68,9 +68,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement rate limiting behavior, HTTP middleware, request inspection, identity resolution, IP parsing, Redis integration, in-memory store behavior, distributed locking, clock sources, policy loading, config defaults, config rules, DI registration, generated artifacts, observability emitters, or error mapping.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to rate limit keys, diagnostics, logs, spans, metrics, CLI output, health output, and worker output.
 - `0.60.0` missing vs empty MUST remain distinguishable when runtime owners build key material or policy inputs.
@@ -145,7 +145,8 @@ They MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 - vendor-specific runtime clients
 
@@ -375,7 +376,7 @@ If a keyed hash or secret salt is used, secret ownership and rotation are runtim
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php
+packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php
 ```
 
 The canonical interface shape is:
@@ -415,7 +416,7 @@ The PHPDoc shape for `hash()` output MUST be:
 - response objects;
 - PSR-7 objects;
 - runtime identity objects;
-- framework context objects;
+- framework-specific context objects;
 - vendor hashing objects;
 - service container objects.
 
@@ -426,7 +427,7 @@ The PHPDoc shape for `hash()` output MUST be:
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/RateLimitState.php
+packages/core/contracts/src/RateLimit/RateLimitState.php
 ```
 
 `RateLimitState` MUST be immutable.
@@ -584,7 +585,7 @@ The exported state shape MUST NOT expose PHP objects, service instances, runtime
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/RateLimitDecision.php
+packages/core/contracts/src/RateLimit/RateLimitDecision.php
 ```
 
 `RateLimitDecision` MUST be immutable.
@@ -755,7 +756,7 @@ The exported decision shape MUST NOT expose PHP objects other than by safe neste
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php
+packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php
 ```
 
 The store port exists so runtime owners can swap backing implementations without changing public APIs.
@@ -1059,13 +1060,13 @@ If a future runtime owner needs rate limit DI tags, that owner MUST introduce th
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved rate limit tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved rate limit DI tag identifiers.
 
 ## Artifact policy
 
@@ -1289,11 +1290,11 @@ Coretsia\Contracts\RateLimit\RateLimitDecision
 Epic `1.160.0` MUST NOT create:
 
 ```text
-framework/packages/platform/http/*
-framework/packages/platform/rate-limit/*
-framework/packages/platform/cache/*
-framework/packages/integrations/*
-config/*.php
+packages/platform/http/*
+packages/platform/rate-limit/*
+packages/platform/cache/*
+packages/integrations/*
+packages/applications/skeleton/config/**
 provider/module wiring files
 rate limit middleware implementation
 early rate limit middleware implementation
@@ -1340,7 +1341,7 @@ The concrete middleware, key builder, store implementation, policy registry, con
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php
+packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php
 ```
 
 This test is expected to verify:

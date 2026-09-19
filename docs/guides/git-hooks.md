@@ -22,13 +22,7 @@ Scope: Local convenience guards for the current monorepo development baseline.
 
 ## 1) What is enforced
 
-The `repositories` blocks in all three Composer roots:
-
-- `composer.json`
-- `framework/composer.json`
-- `skeleton/composer.json`
-
-MUST be managed only by:
+The managed `repositories` block in root `composer.json` MUST be managed only by:
 
 - `composer sync:repos`
 
@@ -78,7 +72,7 @@ Expected output:
 
 If pre-commit fails due to managed repositories drift:
 
-1. Restore canonical managed blocks:
+1. Restore the canonical managed block:
 
 ```bash
 composer sync:repos
@@ -87,7 +81,7 @@ composer sync:repos
 2. Re-stage and commit again:
 
 ```bash
-git add composer.json framework/composer.json skeleton/composer.json
+git add composer.json
 git commit
 ```
 

@@ -32,7 +32,7 @@ It applies to every runtime consumer that obtains ordered service discovery list
 Coretsia\Foundation\Tag\TagRegistry::all(string $tag)
 ```
 
-Framework-reserved DI tag identifier strings are declared separately in:
+Coretsia-reserved DI tag identifier strings are declared separately in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -73,7 +73,7 @@ docs/ssot/runtime-container-definitions.md
 
 The tag registry SSoT remains the canonical owner of reserved DI tag names, semantic owner rows, reserved prefixes, and tag naming rules.
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -93,9 +93,9 @@ This document MUST NOT redefine tag ownership or registry rows from:
 docs/ssot/tags.md
 ```
 
-This document MUST NOT declare or duplicate framework-reserved DI tag identifier constants.
+This document MUST NOT declare or duplicate Coretsia-reserved DI tag identifier constants.
 
-Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for framework-reserved DI tag identifiers.
+Runtime package source MUST use `Coretsia\Foundation\Tag\ReservedTags::*` as the only code-level identifier registry for Coretsia-reserved DI tag identifiers.
 
 This document MUST NOT redefine HTTP middleware catalog ownership, slot contents, middleware class placement, optional package participation, or HTTP middleware implementation rules from:
 
@@ -118,7 +118,7 @@ This document does not define:
 - new reserved tag prefixes;
 - tag owner package IDs;
 - reserved tag identifier constants;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - tag metadata schemas;
 - config roots;
 - config keys;
@@ -470,7 +470,7 @@ The reserved default value is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -553,7 +553,7 @@ Diagnostics output remains introspection-only and MUST NOT be consumed as the ca
 
 Documentation examples may show raw tag strings for readability.
 
-Runtime package source MUST use the corresponding `ReservedTags::*` constant for framework-reserved DI tags.
+Runtime package source MUST use the corresponding `ReservedTags::*` constant for Coretsia-reserved DI tags.
 
 ```php
 $middleware = $tagRegistry->all('http.middleware.app_pre');
@@ -630,25 +630,25 @@ Consumers MUST use `TagRegistry->all($tag)`.
 Foundation ordering behavior SHOULD be locked by tests covering:
 
 ```text
-framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php
-framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php
-framework/packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php
-framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php
-framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php
+packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php
+packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php
+packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php
+packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php
+packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php
 ```
 
 Declarative parity with Foundation collision, tag-dedupe, and lifecycle semantics SHOULD be locked by tests covering:
 
 ```text
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
-framework/packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesLaterBindingTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesTagFirstWinsTest.php
+packages/core/foundation/tests/Integration/ContainerDefinitionApplierPreservesSharedLifecycleTest.php
 ```
 
 Container diagnostics safety SHOULD be locked by tests covering:
 
 ```text
-framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
+packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php
 ```
 
 These tests are expected to verify that container diagnostics keep normal FQCN service ids and safe aliases readable, hash unsafe or suspicious service ids deterministically, do not leak raw unsafe service ids in JSON diagnostics, and do not turn diagnostics output into a runtime discovery source.
@@ -656,9 +656,9 @@ These tests are expected to verify that container diagnostics keep normal FQCN s
 Reset discovery behavior SHOULD be locked by tests covering:
 
 ```text
-framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
-framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php
+packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php
+packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php
+packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php
 ```
 
 HTTP middleware stack tests are owned by the HTTP implementation package epics.

@@ -27,8 +27,8 @@ This document is the Single Source of Truth for Coretsia config/env contracts, e
 This document governs contracts introduced by epic `1.80.0` under:
 
 ```text
-framework/packages/core/contracts/src/Config/
-framework/packages/core/contracts/src/Env/
+packages/core/contracts/src/Config/
+packages/core/contracts/src/Env/
 ```
 
 ## Normative language
@@ -72,7 +72,8 @@ They MUST NOT depend on:
 - S3 concrete APIs
 - Prometheus concrete APIs
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 ## DTO terminology boundary
@@ -602,7 +603,7 @@ The canonical source type values are:
 
 ```text
 package_default
-skeleton_config
+application_config
 app_config
 dotenv
 env
@@ -616,8 +617,8 @@ Meaning:
 | source type          | meaning                                                                   |
 |----------------------|---------------------------------------------------------------------------|
 | `package_default`    | package-owned default config data, normally from package config files     |
-| `skeleton_config`    | skeleton-level config data                                                |
-| `app_config`         | application-specific config data                                          |
+| `application_config` | application-root config data                                              |
+| `app_config`         | app-target-specific config data                                           |
 | `dotenv`             | parsed `.env` source data                                                 |
 | `env`                | process environment source data                                           |
 | `cli`                | explicit CLI override source data                                         |
@@ -781,7 +782,7 @@ sourceId ascending using byte-order strcmp
 
 `keyPath` and `path` are nullable source-tracking fields. For ordering only, `null` MUST be compared as an empty string.
 
-This is the contracts-level safe equivalent of the Phase 0 `0.90.0` explain trace ordering:
+This is the contracts-level safe equivalent of the canonical explain trace ordering:
 
 ```text
 keyPath ascending
@@ -834,7 +835,7 @@ The directive allowlist MUST NOT expand without:
 - ADR update;
 - SSoT update;
 - contract test update;
-- lock-source review against Phase 0 config merge semantics.
+- lock-source review against canonical config merge semantics.
 
 ## Reserved directive namespace
 
@@ -938,7 +939,7 @@ Directive empty-array behavior is locked as follows:
 | `merge`   | deterministic no-op                 |
 | `replace` | replaces target with an empty array |
 
-This rule is part of the Phase 0 config merge lock-source alignment.
+This rule is part of the canonical config merge lock-source alignment.
 
 ## Directive error precedence
 
@@ -953,7 +954,7 @@ When multiple directive problems exist, the first reported category MUST follow 
 
 Unknown `@directive` MUST fail validation before merge.
 
-The first category is the contracts-level equivalent of the Phase 0 `0.90.0` reserved namespace guard:
+The first category is the contracts-level equivalent of the canonical reserved namespace guard:
 
 ```text
 CORETSIA_CONFIG_RESERVED_NAMESPACE_USED
@@ -971,7 +972,7 @@ The canonical contract code for an unknown or otherwise forbidden reserved `@*` 
 CONFIG_DIRECTIVE_UNKNOWN
 ```
 
-This code maps to the Phase 0 `0.90.0` lock-source category:
+This code maps to the canonical lock-source category:
 
 ```text
 CORETSIA_CONFIG_RESERVED_NAMESPACE_USED
@@ -983,7 +984,7 @@ The canonical contract code for an exclusive-level directive violation is:
 CONFIG_DIRECTIVE_EXCLUSIVE_LEVEL_VIOLATION
 ```
 
-This code maps to the Phase 0 `0.90.0` lock-source category:
+This code maps to the canonical lock-source category:
 
 ```text
 CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL
@@ -995,7 +996,7 @@ The canonical contract code for an invalid directive payload shape is:
 CONFIG_DIRECTIVE_INVALID_PAYLOAD
 ```
 
-This code maps to the Phase 0 `0.90.0` lock-source category:
+This code maps to the canonical lock-source category:
 
 ```text
 CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH
@@ -1007,7 +1008,7 @@ The canonical contract code for a forbidden JSON-like value inside directive pay
 CONFIG_DIRECTIVE_INVALID_JSON_LIKE_VALUE
 ```
 
-This code maps to the Phase 0 `0.70.0` lock-source category:
+This code maps to the canonical lock-source category:
 
 ```text
 CORETSIA_JSON_FLOAT_FORBIDDEN

@@ -48,7 +48,7 @@ Canonical packaging law:
 
 - [Packaging strategy](../architecture/PACKAGING.md)
 
-For each split repo `coretsia/<layer>-<slug>` that is submitted to Packagist:
+For each allowlisted public split repository resolved by the deterministic split plan and submitted to Packagist:
 
 - The split repository MUST be connected in Packagist using GitHub integration.
 - Packagist auto-update on tag push MUST be enabled.
@@ -86,7 +86,7 @@ Before cutting a release, ensure these files exist in the repo root:
 The release-line tooling SSoT is:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 This file contains:
@@ -105,7 +105,7 @@ This file contains:
 Patch releases MUST NOT change:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 Example:
@@ -164,7 +164,7 @@ composer package-publish-safety:gate
 These commands synchronize and verify:
 
 - managed Composer path repository `options.versions`;
-- framework workspace internal `coretsia/*` `require-dev` constraints;
+- root workspace internal `coretsia/*` `require-dev` constraints;
 - package `composer.json` internal `coretsia/*` public constraints;
 - Packagist-safe metadata for split-publish allowlisted packages.
 

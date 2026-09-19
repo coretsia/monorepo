@@ -35,9 +35,9 @@ Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 The canonical implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
-framework/packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php
-framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
+packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
+packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php
+packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
 ```
 
 This document also defines how the baseline model is consumed by:
@@ -52,10 +52,10 @@ Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
 The consumer implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
-framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
-framework/packages/core/foundation/src/Context/ContextStorePolicy.php
-framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
+packages/core/foundation/src/Serialization/StableJsonEncoder.php
+packages/core/foundation/src/Serialization/StableJsonDecoder.php
+packages/core/foundation/src/Context/ContextStorePolicy.php
+packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
 ```
 
 This document complements:
@@ -98,7 +98,7 @@ Runtime code, tests, package READMEs, ADRs, SSoT documents, and future runtime p
 
 ## Goal
 
-Runtime packages need one reusable baseline model for values that can safely cross in-process context, diagnostic, serialization, and UnitOfWork shape boundaries without depending on tooling packages or duplicating recursive validation logic.
+Runtime packages need one reusable baseline model for values that can safely cross in-process context, diagnostic, serialization, and UnitOfWork shape boundaries without depending on `devtools/*` packages or repository machinery under `tools/**`, or duplicating recursive validation logic.
 
 The baseline json-like runtime value model provides:
 
@@ -120,7 +120,7 @@ core/foundation
 The package path is:
 
 ```text
-framework/packages/core/foundation/
+packages/core/foundation/
 ```
 
 The Composer package is:
@@ -165,8 +165,9 @@ core/kernel
 platform/*
 integrations/*
 devtools/*
-tools/*
 ```
+
+`core/foundation` runtime source MUST NOT import or consume repository machinery under `tools/**`.
 
 Runtime packages MAY consume the Foundation normalizer only when their package dependency rules allow a dependency on `core/foundation`.
 
@@ -974,7 +975,7 @@ It MUST NOT become public Kernel API.
 It MUST NOT be exposed through:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 Kernel owns UoW-specific policy:
@@ -1167,20 +1168,20 @@ The runtime implementation MUST be native to runtime packages.
 Expected contract verification includes:
 
 ```text
-framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
+packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
+packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
+packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
+packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
 ```
 
 Existing UoW regression tests MUST remain green:
 
 ```text
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 ```
 
 These tests are expected to verify:

@@ -113,9 +113,9 @@ Therefore serialized `[]` is byte-wise identical for both “empty list” and �
 
 ## Tooling Boundary and Runtime Law (MUST)
 
-- `coretsia/devtools-internal-toolkit` is a Phase 0 tooling-only helper library.
+- `coretsia/devtools-internal-toolkit` is a developer-tooling package.
 - It MUST NOT become a mandatory runtime dependency.
-- Runtime packages under `core/*` and `platform/*` that generate or consume artifacts MUST implement the deterministic laws locally, or via runtime-owned shared code.
+- Runtime packages that generate or consume artifacts MUST implement the deterministic laws locally, or via runtime-owned shared code.
 - Runtime implementations MUST still match the same laws exactly:
   - byte-order key sorting for maps and objects
   - preserved list order

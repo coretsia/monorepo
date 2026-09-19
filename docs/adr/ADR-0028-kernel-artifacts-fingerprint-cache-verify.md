@@ -43,7 +43,7 @@ The Kernel artifact work must support:
 - deterministic PHP artifact byte emission;
 - fingerprint-based cache identity;
 - safe fingerprint input construction;
-- explicit generated/operational skeleton exclusions;
+- explicit generated/operational application-root exclusions;
 - cache verification with clean, dirty, and invalid semantics;
 - provider/factory wiring that registers services without executing artifact work.
 
@@ -126,7 +126,7 @@ generation-manifest.php
 The artifact root remains:
 
 ```text
-<skeletonRoot>/<artifactsCacheDir>/<appTarget>
+<applicationRoot>/<artifactsCacheDir>/<appTarget>
 ```
 
 The active generation storage layout is:
@@ -152,7 +152,7 @@ kernel.boot.default_artifacts_cache_dir = var/cache
 Artifact cache directory resolution precedence remains:
 
 1. `BootstrapInput::artifactsCacheDir()`;
-2. `skeleton/config/app.php` `artifactsCacheDir`;
+2. `config/app.php` `artifactsCacheDir`;
 3. `kernel.boot.default_artifacts_cache_dir`.
 
 The canonical resolved value remains:
@@ -193,7 +193,7 @@ ArtifactGenerationPathResolver
 
 Production compilation MUST NOT dual-write the legacy flat layout.
 
-Artifact-only runtime receives only the artifact root, locates `current` through `ArtifactGenerationLocator`, and consumes one validated generation. Proc Worker children forward one skeleton-root-relative artifact-root argument rather than individual artifact paths.
+Artifact-only runtime receives only the artifact root, locates `current` through `ArtifactGenerationLocator`, and consumes one validated generation. Proc Worker children forward one application-root-relative artifact-root argument rather than individual artifact paths.
 
 ## Decision 3: Keep artifact production and cache verification separate
 
@@ -400,11 +400,11 @@ The operation MUST NOT compile config from source set A and fingerprint source s
 Mode-preset source topology inside that source set contains both declared candidates in deterministic precedence order:
 
 ```text
-skeleton override candidate
-framework default candidate
+application override candidate
+Kernel package default candidate
 ```
 
-Both candidates are fingerprint-relevant even when the skeleton override file is absent. Candidate presence is part of fingerprint identity, so two otherwise semantically equivalent operations that differ only in skeleton-override file presence MUST produce different fingerprint input.
+Both candidates are fingerprint-relevant even when the application override file is absent. Candidate presence is part of fingerprint identity, so two otherwise semantically equivalent operations that differ only in application-override file presence MUST produce different fingerprint input.
 
 The supplied `DefinitionGraph` must be the exact graph returned by `RuntimeContainerGraphCompiler` for the current artifact operation.
 
@@ -523,12 +523,12 @@ kernel.env.dotenv.files
 
 It must not be duplicated under `kernel.fingerprint.*`.
 
-## Decision 8: Exclude generated and operational skeleton paths from fingerprint traversal
+## Decision 8: Exclude generated and operational application paths from fingerprint traversal
 
 The fingerprint exclusion policy is configured through:
 
 ```text
-kernel.fingerprint.skeleton_ignore_prefixes
+kernel.fingerprint.application_ignore_prefixes
 ```
 
 The configured baseline exclusion is:
@@ -537,7 +537,7 @@ The configured baseline exclusion is:
 var/maintenance
 ```
 
-The resolved artifact cache directory is not duplicated in `kernel.fingerprint.skeleton_ignore_prefixes`.
+The resolved artifact cache directory is not duplicated in `kernel.fingerprint.application_ignore_prefixes`.
 
 Instead, `ConfigFingerprintInputBuilder` must add:
 
@@ -550,7 +550,7 @@ as a mandatory effective traversal exclusion.
 The effective traversal exclusions are:
 
 ```text
-configured kernel.fingerprint.skeleton_ignore_prefixes
+configured kernel.fingerprint.application_ignore_prefixes
 + resolved BootstrapConfig::artifactsCacheDir()
 ```
 
@@ -570,7 +570,7 @@ only artifactsCacheDir changes
 → fingerprint unchanged
 ```
 
-Ignored skeleton-relative subtrees are skipped before recursive traversal and before symlink inspection.
+Ignored application-root-relative subtrees are skipped before recursive traversal and before symlink inspection.
 
 Therefore ignored generated/operational subtrees:
 
@@ -581,7 +581,7 @@ Therefore ignored generated/operational subtrees:
 
 `DeterministicFileLister` remains policy-free.
 
-It may receive a caller-supplied skip callback, but it does not know about Kernel config, skeleton roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
+It may receive a caller-supplied skip callback, but it does not know about Kernel config, application roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
 
 ## Decision 9: Calculate fingerprint from stable normalized bytes
 
@@ -768,7 +768,7 @@ Verification result data may include safe metadata:
 - boolean state flags;
 - safe artifact name;
 - safe artifact basename;
-- safe skeleton-relative artifact path;
+- safe application-root-relative artifact path;
 - safe status token;
 - safe reason token;
 - expected byte count;
@@ -1038,7 +1038,7 @@ Retention, garbage collection, and stale staging cleanup policy remain separate 
 
 Artifact-only runtime performs its own exact consumed-snapshot read after current-generation location; this adds deliberate validation work so runtime construction uses the same bytes it validates.
 
-Artifact cache relocation supports only portable, bounded, `skeletonRoot`-relative output directories.
+Artifact cache relocation supports only portable, bounded, `applicationRoot`-relative output directories.
 
 Absolute paths and output locations inside source, config, public, dependency, or repository-owned roots are rejected.
 
@@ -1066,7 +1066,7 @@ This ADR does not define:
 - `routes@1` production;
 - platform routing artifact behavior;
 - absolute or external artifact cache roots;
-- artifact output outside `BootstrapConfig::skeletonRoot()`;
+- artifact output outside `BootstrapConfig::applicationRoot()`;
 - artifact location resolution from ConfigKernel Phase B;
 - artifact location resolution from compiled `config@1`;
 - provider/runtime discovery as an implicit source for compiled-container payloads;

@@ -22,19 +22,19 @@ owner: core/kernel
 
 ## Context
 
-Coretsia config Phase B needs a deterministic and explainable pipeline for combining package defaults, skeleton config, application config, and environment overlays.
+Coretsia config Phase B needs a deterministic and explainable pipeline for combining package defaults, application-root config, app-target config, and environment overlays.
 
-The framework must support:
+The Coretsia config runtime must support:
 
 - package-owned default config;
-- skeleton-level shared config;
-- skeleton-level environment config;
-- application-level shared config;
-- application-level environment config;
+- application-root shared config;
+- application-root environment config;
+- app-target-level shared config;
+- app-target-level environment config;
 - env overlays generated from an immutable env snapshot;
 - user-owned/custom config roots;
 - per-file config directives;
-- reserved framework namespaces;
+- Coretsia-reserved namespaces;
 - safe diagnostics and explain output.
 
 The config pipeline must avoid implicit source precedence, directory scanning, raw env reads, unsafe diagnostics, and hidden merge behavior.
@@ -49,15 +49,15 @@ docs/ssot/config-roots.md
 The implementation is split across dedicated runtime components:
 
 ```text
-framework/packages/core/kernel/src/Config/ConfigKernel.php
-framework/packages/core/kernel/src/Config/DirectiveProcessor.php
-framework/packages/core/kernel/src/Config/ConfigMerger.php
-framework/packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php
+packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/DirectiveProcessor.php
+packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php
 ```
 
 The central design tension is that config directives are syntactically present in files, but their effect depends on the previous/base value. Therefore directives cannot be fully applied while reading an individual file. They must first be normalized per file and then applied during merge, when the base value is known.
 
-Another design tension is namespace safety. Coretsia needs reserved top-level namespaces and reserved directive keys, while still allowing user-owned/custom config roots. Unknown user roots must not be rejected just because the framework does not own them.
+Another design tension is namespace safety. Coretsia needs reserved top-level namespaces and reserved directive keys, while still allowing user-owned/custom config roots. Unknown user roots must not be rejected just because Coretsia does not own them.
 
 ## Decision
 
@@ -91,7 +91,7 @@ It coordinates:
 ```text
 ConfigRulesLoader
 PackageDefaultsConfigLoader
-SkeletonConfigLoader
+ApplicationConfigLoader
 EnvironmentOverlayLoader
 ConfigMerger
 ConfigValidator
@@ -114,11 +114,11 @@ It consumes source locations but does not discover package installation roots, c
 
 - infer package filesystem paths from `ModulePlanEntry`;
 - scan package directories;
-- scan skeleton/app config directories;
+- scan application-root/app-target config directories;
 - read `$_ENV`;
 - read `$_SERVER`;
 - call `getenv()`;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - invent source precedence;
 - mutate `ConfigNamespaceGuard`, `DirectiveProcessor`, or `ConfigMerger`;
 - reconfigure `ConfigNamespaceGuard` from the final merged config during the same pipeline run.
@@ -141,7 +141,7 @@ The forbidden top-level root list is provided through Kernel config wiring:
 kernel.config.forbidden_top_level_roots
 ```
 
-The guard MUST NOT reject user-owned/custom top-level roots solely because they are not framework-owned.
+The guard MUST NOT reject user-owned/custom top-level roots solely because they are not Coretsia-owned.
 
 Unknown/custom roots are allowed unless they violate global safety rules.
 
@@ -240,14 +240,14 @@ The active order is:
 
 ```text
 package defaults
-  < skeleton shared aggregate
-  < skeleton shared split root
-  < skeleton environment aggregate
-  < skeleton environment split root
-  < app shared aggregate
-  < app shared split root
-  < app environment aggregate
-  < app environment split root
+  < application-root shared aggregate
+  < application-root shared split root
+  < application-root environment aggregate
+  < application-root environment split root
+  < app-target shared aggregate
+  < app-target shared split root
+  < app-target environment aggregate
+  < app-target environment split root
   < env overlays
 ```
 
@@ -295,19 +295,19 @@ config/rules.php
 
 `ConfigSourceLocationBuilder` constructs both candidates from the same enabled module declaration and exact installed package root.
 
-Package defaults are weaker than skeleton, app, and env overlay config sources.
+Package defaults are weaker than application-root, app-target, and env overlay config sources.
 
-### 7. roots.php is the aggregate root-map file for skeleton/app layers
+### 7. roots.php is the aggregate root-map file for application-root/app-target layers
 
-For skeleton and app config layers, `roots.php` is the aggregate root-map file.
+For application-root and app-target config layers, `roots.php` is the aggregate root-map file.
 
 Examples:
 
 ```text
-skeleton/config/roots.php
-skeleton/config/environments/<appEnv>/roots.php
-skeleton/apps/<appTarget>/config/roots.php
-skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php
+config/roots.php
+config/environments/<appEnv>/roots.php
+apps/<appTarget>/config/roots.php
+apps/<appTarget>/config/environments/<appEnv>/roots.php
 ```
 
 A `roots.php` file returns a global root map.
@@ -319,10 +319,10 @@ A split root file returns only the subtree for that root.
 Examples:
 
 ```text
-skeleton/config/kernel.php
-skeleton/config/environments/<appEnv>/kernel.php
-skeleton/apps/<appTarget>/config/kernel.php
-skeleton/apps/<appTarget>/config/environments/<appEnv>/kernel.php
+config/kernel.php
+config/environments/<appEnv>/kernel.php
+apps/<appTarget>/config/kernel.php
+apps/<appTarget>/config/environments/<appEnv>/kernel.php
 ```
 
 At the same layer, split root files are stronger than aggregate `roots.php` files.
@@ -367,7 +367,7 @@ Validation is ruleset-driven.
 
 Only roots with loaded rulesets are validated.
 
-Framework-owned roots with loaded rulesets are validated strictly.
+Coretsia-owned roots with loaded rulesets are validated strictly.
 
 Module-owned roots with loaded rulesets are validated strictly.
 
@@ -431,7 +431,7 @@ The design requires strong integration tests because correctness emerges from th
 
 The design also requires explicit config-location source builders. Runtime code cannot rely on directory scanning as a shortcut.
 
-The design also requires preserving safe source-file provenance metadata for skeleton/app config candidates so downstream artifact fingerprinting can include file-content influence without making `ConfigKernel` calculate artifact fingerprints.
+The design also requires preserving safe source-file provenance metadata for application-root/app-target config candidates so downstream artifact fingerprinting can include file-content influence without making `ConfigKernel` calculate artifact fingerprints.
 
 ### Neutral consequences
 
@@ -465,7 +465,7 @@ Rejected.
 
 Coretsia must allow user-owned/custom roots.
 
-A root without a framework ruleset is not automatically invalid. It can still be loaded, merged, explained, fingerprinted, and compiled by later stages.
+A root without a Coretsia-owned ruleset is not automatically invalid. It can still be loaded, merged, explained, fingerprinted, and compiled by later stages.
 
 ### Alternative 4: Use config/all.php as the aggregate file
 
@@ -551,7 +551,7 @@ The following invariants are accepted by this ADR.
 
 - `ConfigKernel::compile(...)` returns safe Phase B provenance metadata for downstream artifact/fingerprint stages.
 - `envOverlayMappings` is the exact resolved mapping list produced by `EnvironmentOverlayLoader`.
-- `configSourceFiles` is the safe source-file metadata produced by `SkeletonConfigLoader`.
+- `configSourceFiles` is the safe source-file metadata produced by `ApplicationConfigLoader`.
 - `configSourceFiles` may include only safe bounded fields such as `layer`, `kind`, `root`, `sourceId`, normalized relative `path`, `exists`, `readable`, `hash`, and `len`.
 - `configSourceFiles.hash`, when present, is `sha256` over LF-normalized file bytes.
 - Safe provenance metadata must not expose raw config values, raw env values, raw source file contents, absolute filesystem paths, mtimes, permissions, filesystem owners, hostnames, user names, process ids, or previous throwable messages.
@@ -620,11 +620,11 @@ Coverage SHOULD include:
 - `@remove`;
 - `@merge`;
 - `@replace`;
-- package defaults weaker than skeleton/app/env sources;
+- package defaults weaker than application-root/app-target/env sources;
 - aggregate `roots.php` weaker than same-layer split `<root>.php`;
-- skeleton shared weaker than skeleton environment;
-- skeleton environment weaker than app shared;
-- app shared weaker than app environment;
+- application-root shared weaker than application-root environment;
+- application-root environment weaker than app-target shared;
+- app-target shared weaker than app-target environment;
 - env overlays strongest when mapped and present;
 - unknown env vars ignored;
 - validation after final merge;
@@ -647,16 +647,16 @@ docs/ssot/observability.md
 This ADR requires runtime consistency with:
 
 ```text
-framework/packages/core/kernel/src/Config/ConfigKernel.php
-framework/packages/core/kernel/src/Config/DirectiveProcessor.php
-framework/packages/core/kernel/src/Config/ConfigMerger.php
-framework/packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php
-framework/packages/core/kernel/src/Config/ConfigRulesLoader.php
-framework/packages/core/kernel/src/Config/ConfigValidator.php
-framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php
-framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
+packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/DirectiveProcessor.php
+packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php
+packages/core/kernel/src/Config/ConfigRulesLoader.php
+packages/core/kernel/src/Config/ConfigValidator.php
+packages/core/kernel/src/Config/Explain/ConfigExplainer.php
+packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
+packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
+packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
 ```
 
 ## Maintenance

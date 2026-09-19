@@ -132,17 +132,17 @@ The finalized generation therefore contains exactly four generated files.
 
 The Kernel artifact root is derived exclusively from:
 
-- `BootstrapConfig::skeletonRoot()`;
+- `BootstrapConfig::applicationRoot()`;
 - `BootstrapConfig::artifactsCacheDir()`;
 - `BootstrapConfig::appTarget()->value`.
 
 The canonical artifact-root shape is:
 
 ```text
-<skeletonRoot>/<artifactsCacheDir>/<appTarget>
+<applicationRoot>/<artifactsCacheDir>/<appTarget>
 ```
 
-The canonical skeleton-relative artifact-root shape is:
+The canonical application-root-relative artifact-root shape is:
 
 ```text
 <artifactsCacheDir>/<appTarget>
@@ -183,7 +183,7 @@ Production compilation MUST NOT materialize the three runtime files directly bel
 Artifact cache directory resolution precedence is:
 
 1. explicit `BootstrapInput::artifactsCacheDir()`;
-2. bootstrap-only `skeleton/config/app.php` `artifactsCacheDir`;
+2. bootstrap-only `config/app.php` `artifactsCacheDir`;
 3. package fallback `kernel.boot.default_artifacts_cache_dir`.
 
 The resolved result is stored in:
@@ -213,7 +213,7 @@ Even when `kernel.boot.default_artifacts_cache_dir` is preserved inside merged o
 The application-level override belongs only to:
 
 ```text
-skeleton/config/app.php
+config/app.php
 ```
 
 Its key is:
@@ -239,7 +239,7 @@ It MUST NOT participate in ConfigKernel Phase B merge.
 The resolved artifact cache directory:
 
 - MUST be a non-empty valid UTF-8 string;
-- MUST be relative to `BootstrapConfig::skeletonRoot()`;
+- MUST be relative to `BootstrapConfig::applicationRoot()`;
 - MUST use `/` separators;
 - MUST be no longer than 480 bytes;
 - MUST NOT be absolute;
@@ -258,7 +258,6 @@ apps
 config
 public
 resources
-skeleton
 src
 tests
 vendor
@@ -283,7 +282,6 @@ C:\cache
 ../cache
 var/../cache
 var//cache
-skeleton/var/cache
 config/artifacts
 apps/artifacts
 public/cache
@@ -317,7 +315,7 @@ artifactRoot()
 <artifactsCacheDir>/<appTarget>
 ```
 
-`artifactRoot()` joins that relative root to the normalized `BootstrapConfig::skeletonRoot()`.
+`artifactRoot()` joins that relative root to the normalized `BootstrapConfig::applicationRoot()`.
 
 The bounded portable cache-directory domain MUST already have been validated by Bootstrap Phase A before `ArtifactPathResolver` is called.
 
@@ -333,7 +331,7 @@ ArtifactGenerationPathResolver
 - expose generation-specific artifact paths;
 - read Kernel config;
 - re-read `kernel.boot.default_artifacts_cache_dir`;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - resolve defaults or overrides;
 - read files;
 - write files;
@@ -948,11 +946,11 @@ Fingerprint input MUST include safe deterministic representation of:
 Mode-preset source candidates in `ConfigSourceSet` MUST represent both declared locations in deterministic order:
 
 ```text
-skeleton override candidate
-framework default candidate
+application override candidate
+Kernel package default candidate
 ```
 
-Candidate file presence or absence is fingerprint-relevant state. The fingerprint input MUST distinguish an absent skeleton override from a present skeleton override even when the effective preset payload and resulting `ModulePlan` are semantically identical.
+Candidate file presence or absence is fingerprint-relevant state. The fingerprint input MUST distinguish an absent application override from a present application override even when the effective preset payload and resulting `ModulePlan` are semantically identical.
 
 The container-graph bucket binds all three Kernel-owned artifact envelopes to the canonical runtime graph used to build the REAL `container@1` payload.
 
@@ -1003,10 +1001,10 @@ It MUST NOT be duplicated under `kernel.fingerprint.*`.
 The Kernel fingerprint exclusion policy is configured through:
 
 ```text
-kernel.fingerprint.skeleton_ignore_prefixes
+kernel.fingerprint.application_ignore_prefixes
 ```
 
-Values are `BootstrapConfig::skeletonRoot()`-relative prefixes.
+Values are `BootstrapConfig::applicationRoot()`-relative prefixes.
 
 The configured baseline exclusion is:
 
@@ -1023,13 +1021,13 @@ BootstrapConfig::artifactsCacheDir()
 The effective exclusion list is:
 
 ```text
-kernel.fingerprint.skeleton_ignore_prefixes
+kernel.fingerprint.application_ignore_prefixes
 + BootstrapConfig::artifactsCacheDir()
 ```
 
 The effective list MUST be normalized, deterministically sorted, and deduplicated before source traversal.
 
-The resolved artifact cache directory MUST be excluded even when it is not listed in `kernel.fingerprint.skeleton_ignore_prefixes`.
+The resolved artifact cache directory MUST be excluded even when it is not listed in `kernel.fingerprint.application_ignore_prefixes`.
 
 The mandatory exclusion applies only to the currently resolved artifact cache directory.
 
@@ -1038,24 +1036,23 @@ A previously selected artifact cache directory is not retained automatically as 
 After changing artifact location, callers or deployment tooling MUST either:
 
 - remove stale generated artifacts from the previous directory; or
-- keep the previous directory as an explicit `kernel.fingerprint.skeleton_ignore_prefixes` entry when it may remain under a fingerprinted skeleton-local directory candidate.
+- keep the previous directory as an explicit `kernel.fingerprint.application_ignore_prefixes` entry when it may remain under a fingerprinted directory candidate inside the application root.
 
 Adding the previous directory to configured fingerprint policy is itself a fingerprint-policy change and therefore changes fingerprint input deterministically.
 
 ### Exclusion Rules (MUST)
 
-`skeleton_ignore_prefixes` values:
+`application_ignore_prefixes` values:
 
 - MUST be relative-safe paths;
 - MUST NOT be absolute paths;
 - MUST NOT contain `..`;
 - MUST NOT contain empty path segments;
 - MUST NOT contain whitespace;
-- MUST NOT contain a `skeleton/` prefix;
 - MUST be normalized before use;
 - MUST be sorted deterministically;
 - MUST be deduplicated deterministically;
-- configured `kernel.fingerprint.skeleton_ignore_prefixes` values MUST be included in fingerprint input under fingerprint policy.
+- configured `kernel.fingerprint.application_ignore_prefixes` values MUST be included in fingerprint input under fingerprint policy.
 
 Changing the exclusion policy MUST change the fingerprint input.
 
@@ -1067,9 +1064,9 @@ Changing only the resolved `BootstrapConfig::artifactsCacheDir()` value does not
 
 ### Exclusion Application (MUST)
 
-`skeleton_ignore_prefixes` apply only to skeleton-local directory candidate traversal.
+`application_ignore_prefixes` apply only to traversal of directory candidates inside the application root.
 
-When a directory candidate is inside `BootstrapConfig::skeletonRoot()`, ignored skeleton-relative subtrees MUST be skipped before recursive traversal and before symlink inspection.
+When a directory candidate is inside `BootstrapConfig::applicationRoot()`, ignored application-root-relative subtrees MUST be skipped before recursive traversal and before symlink inspection.
 
 This means ignored generated/operational subtrees:
 
@@ -1078,11 +1075,11 @@ This means ignored generated/operational subtrees:
 - are not traversed;
 - cannot make fingerprint construction fail merely because ignored contents contain symlinks.
 
-`skeleton_ignore_prefixes` MUST NOT apply to explicit dotenv candidates.
+`application_ignore_prefixes` MUST NOT apply to explicit dotenv candidates.
 
 `DeterministicFileLister` MUST remain policy-free.
 
-It may accept a caller-supplied skip callback, but it MUST NOT know about Kernel config, skeleton roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
+It may accept a caller-supplied skip callback, but it MUST NOT know about Kernel config, application roots, `BootstrapConfig::artifactsCacheDir()`, or any specific default artifact directory.
 
 ## Fingerprint Calculation (MUST)
 
@@ -1122,7 +1119,7 @@ It MAY expose safe metadata such as:
 - lengths;
 - counts;
 - validation reason tokens;
-- fingerprint policy entries such as skeleton ignore prefixes.
+- fingerprint policy entries such as application ignore prefixes.
 
 It MUST NOT expose:
 
@@ -1337,7 +1334,7 @@ kernel.boot.default_artifacts_cache_dir
 The configured fingerprint exclusion policy remains:
 
 ```text
-kernel.fingerprint.skeleton_ignore_prefixes
+kernel.fingerprint.application_ignore_prefixes
 ```
 
 These are key namespaces under the existing `kernel` root, not independent config roots.
@@ -1353,7 +1350,7 @@ subtree.
 Application-level artifact cache directory override belongs only to:
 
 ```text
-skeleton/config/app.php artifactsCacheDir
+config/app.php artifactsCacheDir
 ```
 
 The resolved artifact location belongs to:

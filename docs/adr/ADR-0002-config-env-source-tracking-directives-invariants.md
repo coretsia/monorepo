@@ -24,7 +24,7 @@ owner: core/contracts
 
 Coretsia needs stable contracts that allow the future Kernel config engine to load, merge, validate, and explain configuration deterministically without coupling `core/contracts` to filesystem layout, package implementations, platform code, integrations, HTTP abstractions, or vendor-specific infrastructure.
 
-Phase 0 cemented several config/env invariants:
+Canonical config/env policy establishes several invariants:
 
 - tracked env semantics distinguish missing values from present empty strings;
 - config merge is directive-aware and deterministic;
@@ -50,8 +50,8 @@ Contracts introduced by epic `1.80.0` define ports and value objects only. The K
 Introduce config/env contracts under:
 
 ```text
-framework/packages/core/contracts/src/Config/
-framework/packages/core/contracts/src/Env/
+packages/core/contracts/src/Config/
+packages/core/contracts/src/Env/
 ```
 
 The contracts introduced by epic `1.80.0` define:
@@ -201,7 +201,7 @@ The directive allowlist must not expand without:
 - ADR update;
 - SSoT update;
 - contract test update;
-- lock-source review against Phase 0 config merge semantics.
+- lock-source review against canonical config merge semantics.
 
 ## Deterministic directive errors
 
@@ -214,7 +214,7 @@ Error precedence is:
 3. directive payload shape violation;
 4. JSON-like value violation.
 
-The first category maps to the Phase 0 `0.90.0` reserved namespace guard:
+The first category maps to the canonical reserved namespace guard:
 
 ```text
 CORETSIA_CONFIG_RESERVED_NAMESPACE_USED
@@ -324,9 +324,9 @@ len(value)
 
 They must never print raw values.
 
-Contract-level safe trace ordering maps Phase 0 explain ordering to safe contracts metadata.
+Contract-level safe trace ordering maps canonical explain ordering to safe contracts metadata.
 
-Phase 0 explain ordering is:
+Canonical explain ordering is:
 
 ```text
 keyPath ascending
@@ -365,7 +365,7 @@ Positive consequences:
 - Kernel can implement deterministic config merge against stable contracts.
 - Env missing vs empty behavior is locked before runtime implementation.
 - Explain/source traces can be safe by construction.
-- Directives cannot drift silently from Phase 0 semantics.
+- Directives cannot drift silently from canonical config semantics.
 - Contracts stay format-neutral and runtime-safe.
 
 Trade-offs:

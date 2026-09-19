@@ -60,7 +60,7 @@ integration-owned descriptor obligations
 unsupported arbitrary-descriptor claims
 ```
 
-`exec` provides process-image replacement. It does not provide a framework-wide proof that every descriptor is closed.
+`exec` provides process-image replacement. It does not provide a process-wide proof that every descriptor is closed.
 
 ### Decision 2: Request close-on-exec for Coretsia-owned local files
 

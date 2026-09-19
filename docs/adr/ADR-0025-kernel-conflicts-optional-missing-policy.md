@@ -413,7 +413,7 @@ Graph resolution MUST NOT produce a `ModulePlan` where the same module id is exp
 
 `ModulePlan` MUST NOT contain or export:
 
-- skeleton root;
+- application root;
 - app root;
 - defaults path;
 - overrides path;
@@ -464,7 +464,7 @@ Graph exceptions and warnings MAY expose only:
 Graph exceptions and warnings MUST NOT expose:
 
 - filesystem paths;
-- skeleton root;
+- application root;
 - app root;
 - defaults path;
 - overrides path;

@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia migration contracts, mi
 This document governs contracts introduced by epic `1.150.0` under:
 
 ```text
-framework/packages/core/contracts/src/Migrations/
+packages/core/contracts/src/Migrations/
 ```
 
 The canonical migration contract introduced by this epic is:
@@ -39,7 +39,7 @@ Coretsia\Contracts\Migrations\MigrationInterface
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Migrations/MigrationInterface.php
+packages/core/contracts/src/Migrations/MigrationInterface.php
 ```
 
 This document complements and depends on:
@@ -81,9 +81,9 @@ The contracts introduced by this epic define only:
 
 The contracts package MUST NOT implement migration execution, migration discovery, migration ordering, migration registries, migration persistence, migration CLI commands, database driver behavior, SQL compilation, transaction orchestration, configuration loading, DI wiring, generated artifacts, or exception mapping.
 
-## Phase 0 lock-source alignment
+## Canonical lock-source alignment
 
-This SSoT preserves the following Phase 0 invariants:
+This SSoT preserves the following canonical invariants:
 
 - `0.20.0` no-secrets output policy applies to migration diagnostics, migration tooling, SQL diagnostics, driver diagnostics, and CLI output.
 - `0.60.0` missing vs empty MUST remain distinguishable when future migration owners model migration state, registry records, checksums, or execution metadata.
@@ -170,7 +170,8 @@ Migration contracts MUST NOT depend on:
 - concrete logger implementations
 - concrete tracing implementations
 - concrete metrics implementations
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 Runtime packages MAY depend on `core/contracts`.
@@ -257,7 +258,7 @@ The exact SQL syntax, placeholder style, dialect behavior, transactional DDL beh
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Migrations/MigrationInterface.php
+packages/core/contracts/src/Migrations/MigrationInterface.php
 ```
 
 The canonical interface shape is:
@@ -787,13 +788,13 @@ If a future runtime owner needs migration DI tags, that owner MUST introduce the
 docs/ssot/tags.md
 ```
 
-If such tags become framework-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
+If such tags become Coretsia-reserved DI tags, their canonical code-level identifier strings MUST be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
 ```
 
-Runtime packages MUST NOT define additional code-level registries for framework-reserved migration or database tag identifiers.
+Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved migration or database DI tag identifiers.
 
 ## Artifact policy
 
@@ -865,11 +866,11 @@ Coretsia\Contracts\Database\ConnectionInterface
 Epic `1.150.0` MUST NOT create:
 
 ```text
-framework/packages/platform/database/*
-framework/packages/platform/migrations/*
-framework/packages/platform/database-driver-*/*
-framework/packages/integrations/*
-config/*.php
+packages/platform/database/*
+packages/platform/migrations/*
+packages/platform/database-driver-*/*
+packages/integrations/*
+packages/applications/skeleton/config/**
 provider/module wiring files
 database implementation
 migration runner
@@ -942,7 +943,7 @@ The concrete migration runner, discovery implementation, ordering algorithm, reg
 Contracts-level enforcement evidence for this epic includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php
+packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php
 ```
 
 This test is expected to verify:

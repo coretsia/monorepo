@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.180.0` introduces the stable secrets contract under:
 
 ```text
-framework/packages/core/contracts/src/Secrets/
+packages/core/contracts/src/Secrets/
 ```
 
 Runtime packages and downstream packages need a shared contracts-level boundary for requesting secret values without coupling `core/contracts` to a concrete secret backend.
@@ -91,7 +91,7 @@ docs/ssot/tags.md
 docs/ssot/artifacts.md
 ```
 
-Phase 0 cemented the baseline no-secrets output policy, safe explain policy, missing-vs-empty distinction, deterministic json-like payload behavior, and float-forbidden payload model.
+Canonical runtime policy establishes the baseline no-secrets output policy, safe explain policy, missing-vs-empty distinction, deterministic json-like payload behavior, and float-forbidden payload model.
 
 Secrets contracts must preserve those invariants before any runtime secret backend exists.
 
@@ -106,7 +106,7 @@ Coretsia\Contracts\Secrets\SecretsResolverInterface
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php
+packages/core/contracts/src/Secrets/SecretsResolverInterface.php
 ```
 
 The canonical interface shape is:
@@ -544,7 +544,7 @@ A downstream package must not log, print, trace, export, render, or otherwise em
 
 ## Config, DI tag, and artifact decision
 
-If a runtime owner introduces framework-reserved secrets DI tags, their code-level identifier strings must be declared in:
+If a runtime owner introduces Coretsia-reserved secrets DI tags, their code-level identifier strings must be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -739,10 +739,10 @@ Those responsibilities belong to future runtime owner packages, not `core/contra
 Epic `1.180.0` must not create:
 
 ```text
-framework/packages/platform/secrets/*
-framework/packages/platform/config/*
-framework/packages/platform/http/*
-framework/packages/integrations/*
+packages/platform/secrets/*
+packages/platform/config/*
+packages/platform/http/*
+packages/integrations/*
 config/*.php
 provider/module wiring files
 secret resolver implementation

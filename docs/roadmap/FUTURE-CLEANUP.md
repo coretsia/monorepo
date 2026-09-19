@@ -194,11 +194,11 @@ Without this split, `allow_reflection_for_concrete = false` cannot provide a rea
 ### Candidate files
 
 ```text
-framework/packages/core/foundation/src/Container/Container.php
-framework/packages/core/foundation/src/Container/ContainerBuilder.php
-framework/packages/core/foundation/config/foundation.php
-framework/packages/core/foundation/config/rules.php
-framework/packages/core/foundation/README.md
+packages/core/foundation/src/Container/Container.php
+packages/core/foundation/src/Container/ContainerBuilder.php
+packages/core/foundation/config/foundation.php
+packages/core/foundation/config/rules.php
+packages/core/foundation/README.md
 
 docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md
 docs/ssot/di-tags-and-middleware-ordering.md
@@ -207,9 +207,9 @@ docs/ssot/di-tags-and-middleware-ordering.md
 Potential future files, depending on the accepted design:
 
 ```text
-framework/packages/core/foundation/src/Container/Autowire/ContainerAutowirePlan.php
-framework/packages/core/foundation/src/Container/Autowire/ContainerAutowireMetadata.php
-framework/packages/core/foundation/src/Container/Autowire/ContainerAutowirePlanLoader.php
+packages/core/foundation/src/Container/Autowire/ContainerAutowirePlan.php
+packages/core/foundation/src/Container/Autowire/ContainerAutowireMetadata.php
+packages/core/foundation/src/Container/Autowire/ContainerAutowirePlanLoader.php
 ```
 
 ### Candidate tests
@@ -232,11 +232,11 @@ compiled metadata does not depend on environment-specific values
 Candidate test files may include:
 
 ```text
-framework/packages/core/foundation/tests/Unit/ContainerConcreteAutowireRequiresBothFlagsTest.php
-framework/packages/core/foundation/tests/Integration/ContainerAutowireUsesCompiledMetadataWhenReflectionIsDisabledTest.php
-framework/packages/core/foundation/tests/Integration/ContainerAutowireRejectsMissingCompiledMetadataTest.php
-framework/packages/core/foundation/tests/Contract/ContainerAutowireMetadataIsDeterministicContractTest.php
-framework/packages/core/foundation/tests/Contract/ContainerAutowireMetadataDoesNotLeakDiagnosticsContractTest.php
+packages/core/foundation/tests/Unit/ContainerConcreteAutowireRequiresBothFlagsTest.php
+packages/core/foundation/tests/Integration/ContainerAutowireUsesCompiledMetadataWhenReflectionIsDisabledTest.php
+packages/core/foundation/tests/Integration/ContainerAutowireRejectsMissingCompiledMetadataTest.php
+packages/core/foundation/tests/Contract/ContainerAutowireMetadataIsDeterministicContractTest.php
+packages/core/foundation/tests/Contract/ContainerAutowireMetadataDoesNotLeakDiagnosticsContractTest.php
 ```
 
 ### Why not now
@@ -500,33 +500,33 @@ Command-line payload transfer is not acceptable because:
 ### Candidate files
 
 ```text
-framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
-framework/packages/core/kernel/src/Module/ModulePlan.php
-framework/packages/core/kernel/src/Module/ModulePlanEntry.php
-framework/packages/core/kernel/src/Runtime/Entrypoint/RuntimeEntrypointGuard.php
-framework/packages/core/kernel/src/Config/ArrayConfigRepository.php
-framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php
-framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
-framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
+packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php
+packages/core/kernel/src/Module/ModulePlan.php
+packages/core/kernel/src/Module/ModulePlanEntry.php
+packages/core/kernel/src/Runtime/Entrypoint/RuntimeEntrypointGuard.php
+packages/core/kernel/src/Config/ArrayConfigRepository.php
+packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php
+packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php
+packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php
 
-framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php
-framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php
-framework/packages/platform/worker/bin/coretsia-worker
+packages/platform/worker/src/Provider/WorkerServiceProvider.php
+packages/platform/worker/src/Provider/WorkerServiceFactory.php
+packages/platform/worker/bin/coretsia-worker
 ```
 
 Potential future files, depending on the accepted design:
 
 ```text
-framework/packages/core/kernel/src/Artifacts/Builders/ModulePlanBuilder.php
-framework/packages/core/kernel/src/Artifacts/Runtime/ModulePlanArtifactReader.php
-framework/packages/core/kernel/src/Module/ModulePlanHydrator.php
-framework/packages/core/kernel/src/Module/Exception/ModulePlanHydrationException.php
+packages/core/kernel/src/Artifacts/Builders/ModulePlanBuilder.php
+packages/core/kernel/src/Artifacts/Runtime/ModulePlanArtifactReader.php
+packages/core/kernel/src/Module/ModulePlanHydrator.php
+packages/core/kernel/src/Module/Exception/ModulePlanHydrationException.php
 ```
 
 If worker process-driver wiring owns the child command vector at that time, likely candidate files may also include:
 
 ```text
-framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php
+packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php
 ```
 
 ### Candidate tests
@@ -551,14 +551,14 @@ worker child diagnostics do not expose raw paths, payloads, argv dumps, or artif
 Candidate test files may include:
 
 ```text
-framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRunsEntrypointGuardBeforeContainerBuildTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsMissingModulePlanArtifactTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsInvalidModulePlanArtifactTest.php
-framework/packages/core/kernel/tests/Contract/ModulePlanArtifactShapeContractTest.php
-framework/packages/core/kernel/tests/Contract/ModulePlanHydratorContractTest.php
+packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRunsEntrypointGuardBeforeContainerBuildTest.php
+packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsMissingModulePlanArtifactTest.php
+packages/core/kernel/tests/Integration/ArtifactRuntimeBooterRejectsInvalidModulePlanArtifactTest.php
+packages/core/kernel/tests/Contract/ModulePlanArtifactShapeContractTest.php
+packages/core/kernel/tests/Contract/ModulePlanHydratorContractTest.php
 
-framework/packages/platform/worker/tests/Contract/WorkerChildRequiresModulePlanArtifactArgumentTest.php
-framework/packages/platform/worker/tests/Integration/WorkerChildBootRunsEntrypointGuardBeforeWorkerSpecTest.php
+packages/platform/worker/tests/Contract/WorkerChildRequiresModulePlanArtifactArgumentTest.php
+packages/platform/worker/tests/Integration/WorkerChildBootRunsEntrypointGuardBeforeWorkerSpecTest.php
 ```
 
 ### Why not now
@@ -943,12 +943,12 @@ instead of copying an entire vendor-provided diagnostic structure.
 Potential existing files:
 
 ```text
-framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php
-framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php
+packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php
+packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php
 
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
 
 docs/ssot/error-descriptor.md
 docs/ssot/errors-boundary.md
@@ -958,13 +958,13 @@ docs/ssot/observability-and-errors.md
 Potential future files, depending on the accepted design:
 
 ```text
-framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensions.php
+packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensions.php
 ```
 
 or:
 
 ```text
-framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensionsBuilder.php
+packages/core/contracts/src/Observability/Errors/ErrorDescriptorExtensionsBuilder.php
 ```
 
 If implementation-specific construction behavior should remain outside `core/contracts`, a future epic may instead place the builder in the runtime package that owns error normalization while keeping the resulting value contract Contracts-owned.
@@ -1014,10 +1014,10 @@ source-owner tests prove large transport/plugin/vendor payloads are bounded befo
 Potential test files may include:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsBoundedContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsDeterministicContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderPreservesRedactionContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderConsumesIterableIncrementallyContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderIsDeterministicContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderPreservesRedactionContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsBuilderConsumesIterableIncrementallyContractTest.php
 ```
 
 The exact test names depend on the accepted implementation shape.

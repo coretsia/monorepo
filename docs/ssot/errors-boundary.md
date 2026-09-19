@@ -127,8 +127,8 @@ It MUST treat `ErrorDescriptor.httpStatus` as an optional HTTP status hint only.
 It MUST NOT require `core/contracts` to depend on:
 
 - PSR-7;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - concrete middleware implementations;
 - RFC7807-specific classes.
 
@@ -202,7 +202,7 @@ The canonical reserved discovery tag is:
 error.mapper
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
@@ -231,8 +231,8 @@ Non-owner packages using the tag MUST follow the tag registry rules, MUST use `C
 - `platform/*`;
 - `integrations/*`;
 - `Psr\Http\Message\*`;
-- framework HTTP packages;
-- framework CLI packages;
+- `platform/http` package;
+- `platform/cli` package;
 - worker runtime packages;
 - concrete logger implementations;
 - concrete tracing implementations;
@@ -451,20 +451,20 @@ This document is doc-only.
 Current contracts-level enforcement evidence includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
-framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php
+packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreBoundedContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php
+packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
+packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php
 ```
 
 Future runtime evidence may include:
 
 ```text
-framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php
+packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php
 ```
 
 That future runtime evidence is not a precondition for this SSoT document.

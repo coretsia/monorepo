@@ -27,7 +27,7 @@ This document is the Single Source of Truth for Coretsia runtime context key nam
 This document governs the canonical key registry implemented by:
 
 ```text
-framework/packages/core/contracts/src/Context/ContextKeys.php
+packages/core/contracts/src/Context/ContextKeys.php
 ```
 
 It complements:
@@ -76,7 +76,7 @@ core/contracts
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Context/ContextKeys.php
+packages/core/contracts/src/Context/ContextKeys.php
 ```
 
 The canonical code-level registry is:
@@ -409,7 +409,7 @@ The reserved default effective reset tag is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -421,7 +421,7 @@ Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
 kernel.stateful
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -491,7 +491,7 @@ The following changes require an explicit SSoT and test update:
 The stable contract test is:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
+packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 ```
 
 ## Non-goals

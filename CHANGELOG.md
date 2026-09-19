@@ -130,7 +130,7 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 - AppBuilder boot smoke suite for Core Kernel:
   - micro preset resolves, compiles artifacts, and boots through compiled artifacts;
   - express preset fails deterministically with `CORETSIA_MODULE_REQUIRED_MISSING` until `platform.http` exists;
-  - skeleton-only custom preset names such as `worker-only` resolve through skeleton mode files.
+  - application-only custom preset names such as `worker-only` resolve through skeleton mode files.
 - Split publishing coverage for:
   - `framework/packages/core/kernel` -> `coretsia/core-kernel`.
 

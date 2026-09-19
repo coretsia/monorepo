@@ -25,7 +25,7 @@ owner: core/kernel
 Epic `1.270.0` introduces Kernel-owned UnitOfWork runtime shapes and outcome policy under:
 
 ```text
-framework/packages/core/kernel/src/Runtime/
+packages/core/kernel/src/Runtime/
 ```
 
 `ADR-0021` records the decision to introduce `UnitOfWorkContext` as the Kernel-owned format-neutral context shape for the beginning of a UnitOfWork.
@@ -42,8 +42,8 @@ The Kernel package must remain independent of:
 - `integrations/*`
 - `Psr\Http\Message\*`
 - `Psr\Http\Server\*`
-- framework HTTP request/response implementations
-- framework CLI command implementations
+- `platform/http` request/response implementations
+- `platform/cli` command implementations
 - queue vendor message objects
 - scheduler vendor objects
 - generated artifacts
@@ -90,14 +90,14 @@ Coretsia will introduce `Outcome` as the canonical Kernel-owned outcome token ca
 The implementation paths are:
 
 ```text
-framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php
-framework/packages/core/kernel/src/Runtime/Outcome.php
+packages/core/kernel/src/Runtime/UnitOfWorkResult.php
+packages/core/kernel/src/Runtime/Outcome.php
 ```
 
 The result validation exception path is:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php
+packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php
 ```
 
 `UnitOfWorkResultInvalidException` is the canonical Kernel result validation failure type.
@@ -186,8 +186,8 @@ The result must not contain:
 - PSR-7 response objects;
 - PSR-15 middleware objects;
 - PSR-15 request handler objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI command objects;
 - CLI input/output objects;
 - queue message objects;
@@ -666,7 +666,7 @@ docs/ssot/reset-tags.md
 docs/ssot/uow-and-reset-contracts.md
 ```
 
-The canonical code-level registry for framework-reserved DI tag identifier strings is:
+The canonical code-level registry for Coretsia-reserved DI tag identifier strings is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -858,7 +858,7 @@ Result validation failures have a stable machine-readable error code.
 
 Contract tests can assert `CORETSIA_UOW_RESULT_INVALID` instead of relying on generic PHP exception types.
 
-Float-forbidden json-like policy remains aligned with Phase 0 deterministic payload rules.
+Float-forbidden json-like policy remains aligned with the canonical Foundation json-like runtime value policy.
 
 Exactly-once reset policy is documented before the runtime executor is implemented.
 
@@ -1034,7 +1034,7 @@ Rejected.
 
 Reset discovery and reset tag mechanics remain owned by Foundation and the tag SSoTs.
 
-Framework-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
+Coretsia-reserved DI tag identifier strings are declared in `Coretsia\Foundation\Tag\ReservedTags`.
 
 This epic cements only the lifecycle invariant.
 
@@ -1064,7 +1064,7 @@ This ADR does not implement:
 - reset orchestration;
 - reset discovery;
 - reset DI tag identifier constants;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - `TagRegistry` enumeration logic;
 - reset failure aggregation policy;
 - HTTP response construction;
@@ -1106,9 +1106,9 @@ This ADR does not introduce new artifacts.
 Expected verification includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php
 ```
 
 Verification must prove:

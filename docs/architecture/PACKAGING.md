@@ -24,42 +24,58 @@
 This document fixes one canonical packaging strategy for the monorepo:
 
 - Package identity: `path ↔ package_id ↔ composer ↔ namespace`.
-- Publishable units law: what is publishable (packages) vs non-publishable (tools/skeleton/docs).
+- Publishable units law: which Composer products under `packages/**` are publishable vs repository-only tooling/state/docs.
 - Versioning: one release line for the entire repository.
 
 ---
 
 ## 1) Terminology (normative)
 
-- layer — the top package layer under `framework/packages/` (for example: `core`, `platform`).
-- slug — the package identifier within a layer in kebab-case (for example: `problem-details`).
-- package_id — `<layer>/<slug>` (for example: `platform/problem-details`).
-- composer name — `coretsia/<layer>-<slug>` (for example: `coretsia/platform-problem-details`).
-- namespace root — the root PHP namespace for `src/` and `tests/`.
+- publishable product — a Composer distribution explicitly owned under `packages/**`.
+- layered package — a publishable package at `packages/<layer>/<slug>/`.
+- layer — the top layered-package category under `packages/` (for example: `core`, `platform`).
+- slug — the layered package identifier within a layer in kebab-case (for example: `problem-details`).
+- package_id — stable repository tooling identity; for layered packages it is `<layer>/<slug>`. Special-distribution ids are defined by the deterministic package/split plan and MUST NOT be fabricated from fake layer/slug values.
+- composer name — the exact package identity declared by `composer.json` `name`.
+- namespace root — the root PHP namespace for products that own PHP source.
+- special distribution — a publishable product whose source shape is not `packages/<layer>/<slug>/`, currently `packages/framework/` and `packages/applications/skeleton/`.
 
 ---
 
 ## 2) Canonical package location (MUST)
 
-### 2.1. Package path (single-choice)
+### 2.1. Publishable product paths (single-choice)
 
-Every framework package MUST live at the path:
+Publishable Composer products MUST live under `packages/**`.
 
-- `framework/packages/<layer>/<slug>/`
+Canonical source shapes are:
 
-Accordingly:
+- layered packages: `packages/<layer>/<slug>/`
+- framework distribution: `packages/framework/`
+- skeleton distribution: `packages/applications/skeleton/`
 
-- package_id MUST be: `<layer>/<slug>`.
-- composer name MUST be: `coretsia/<layer>-<slug>`.
+For layered packages:
+
+- package_id MUST be `<layer>/<slug>`;
+- Composer naming MUST follow `coretsia/<layer>-<slug>`.
+
+Special public distributions are:
+
+- `packages/framework/` → `coretsia/framework`
+- `packages/applications/skeleton/` → `coretsia/skeleton`
+
+For every publishable product, the authoritative Composer identity is its `composer.json` `name` field. Filesystem location MUST NOT be used as a universal Composer-name derivation mechanism.
 
 Examples:
 
-- `framework/packages/core/contracts/` ↔ `core/contracts` ↔ `coretsia/core-contracts`
-- `framework/packages/platform/problem-details/` ↔ `platform/problem-details` ↔ `coretsia/platform-problem-details`
+- `packages/core/contracts/` ↔ `core/contracts` ↔ `coretsia/core-contracts`
+- `packages/platform/problem-details/` ↔ `platform/problem-details` ↔ `coretsia/platform-problem-details`
+- `packages/framework/` ↔ `coretsia/framework`
+- `packages/applications/skeleton/` ↔ `coretsia/skeleton`
 
 ### 2.2. Allowed layers (single-choice)
 
-`<layer>` MUST be one of:
+For layered packages, `<layer>` MUST be one of:
 
 - `core`
 - `platform`
@@ -87,15 +103,24 @@ Examples:
 
 ## 4) Composer identity mapping (MUST)
 
-Composer package name MUST be derived only from `{layer, slug}` by the formula:
+The package `composer.json` `name` field is the Composer identity source of truth.
+
+For layered packages, the canonical naming convention is:
 
 - `coretsia/<layer>-<slug>`
 
+Special distributions use fixed identities:
+
+- `packages/framework/` → `coretsia/framework`
+- `packages/applications/skeleton/` → `coretsia/skeleton`
+
+Tooling MAY validate that layered package names match their canonical convention, but package discovery and publishing MUST read identity from `composer.json.name` rather than deriving it blindly from filesystem depth.
+
 MUST NOT:
 
-- any other prefixes/naming (such as `coretsia/<slug>` without the layer),
-- “personal” vendor names for framework packages,
-- per-package versioning (see §7).
+- non-`coretsia/*` package identities for Coretsia public products,
+- fake layer/slug identities for special distributions,
+- per-package independent versioning (see §11).
 
 ---
 
@@ -120,7 +145,7 @@ Examples:
 
 ### 5.2. Rule (single-choice)
 
-Namespaces MUST be deterministically derived from `{layer, slug}` — but with a core exception (short canonical namespaces).
+Layered package namespaces MUST be deterministically derived from `{layer, slug}` — with the core exception defined below.
 
 #### A) Core packages (`core/*`) (single-choice)
 
@@ -149,17 +174,17 @@ Examples:
 
 ### 5.3. Source + tests mapping (MUST)
 
-For any package:
+For any layered package:
 
-- `framework/packages/<layer>/<slug>/src` MUST map to the namespace root (see §5.2).
-- `framework/packages/<layer>/<slug>/tests` MUST map to `...\Tests\...` under the same root.
+- `packages/<layer>/<slug>/src` MUST map to the namespace root (see §5.2).
+- `packages/<layer>/<slug>/tests` MUST map to `...\Tests\...` under the same root.
 
 Examples:
 
-- `framework/packages/core/kernel/src` → `Coretsia\Kernel\...`
-- `framework/packages/core/kernel/tests` → `Coretsia\Kernel\Tests\...`
-- `framework/packages/platform/problem-details/src` → `Coretsia\Platform\ProblemDetails\...`
-- `framework/packages/platform/problem-details/tests` → `Coretsia\Platform\ProblemDetails\Tests\...`
+- `packages/core/kernel/src` → `Coretsia\Kernel\...`
+- `packages/core/kernel/tests` → `Coretsia\Kernel\Tests\...`
+- `packages/platform/problem-details/src` → `Coretsia\Platform\ProblemDetails\...`
+- `packages/platform/problem-details/tests` → `Coretsia\Platform\ProblemDetails\Tests\...`
 
 ### 5.4. Canonical namespace/source-path exceptions (MUST)
 
@@ -186,9 +211,7 @@ Because `core/*` uses the short root `Coretsia\<Studly(slug)>`, collisions with 
 
 ### 6.1. Reserved slugs for `core/*` (MUST)
 
-Because for `core/*` the namespace root is defined as `Coretsia\<Studly(slug)>`,
-collisions with non-core layers must be prevented, where the namespace root contains the layer segment
-(for example `Coretsia\Platform\...`).
+Because for `core/*` the namespace root is defined as `Coretsia\<Studly(slug)>`, collisions with non-core layers must be prevented, where the namespace root contains the layer segment (for example `Coretsia\Platform\...`).
 
 #### Normative rule (single-choice)
 
@@ -203,8 +226,7 @@ For `core/*` packages, the value of `Studly(<slug>)` MUST NOT equal any of:
 
 #### Equivalent slug values (derived)
 
-Because `<slug>` MUST be kebab-case (see §3.1), this rule means that
-the following `<slug>` values MUST NOT be used under `core/*`:
+Because `<slug>` MUST be kebab-case (see §3.1), this rule means that the following `<slug>` values MUST NOT be used under `core/*`:
 
 - `core`
 - `platform`
@@ -225,32 +247,44 @@ Rationale:
 
 ### 7.1. Publishable (single-choice)
 
-Publishable units are only packages under:
+Publishable units are explicit Composer products under `packages/**`.
 
-- `framework/packages/<layer>/<slug>/`
+Supported source shapes include:
 
-Each such directory is one Composer package (`coretsia/<layer>-<slug>`).
+- `packages/framework/composer.json`
+- `packages/applications/skeleton/composer.json`
+- `packages/<layer>/<slug>/composer.json`
+
+Package discovery MUST inspect publishable Composer manifests under `packages/**`.
+
+Package identity MUST be read from `composer.json.name`.
+
+A grouping directory without its own `composer.json` is not itself a publishable package.
 
 ### 7.2. Non-publishable (single-choice)
 
 The following parts of the repository MUST NOT be considered publishable packages (and MUST NOT be positioned as such):
 
-- `framework/tools/**` — tooling, gates, CI rails, generators, and tooling support
-- `skeleton/**` — workspace app sandbox, fixtures, runtime caches (`skeleton/var/**`)
+- `tools/**` — tooling, gates, CI rails, generators, and tooling support
+- `var/**` — mutable/generated repository workspace state
+- `vendor/**` — root workspace dependencies
 - `docs/**` — documentation
-- repo root files (`README.md`, `LICENSE`, etc.) — navigation/rules, not packages
+- repo root `composer.json` — developer workspace manifest, not a public package
+- other repo root files (`README.md`, `LICENSE`, etc.) — navigation/rules/legal SSoT, not packages
 
-> If tooling requires a composer package, it MUST be implemented as a normal package under `framework/packages/devtools/*` (as a publishable unit), or explicitly marked as a tooling-only library with its own rule space (outside this document).
+> If tooling requires a composer package, it MUST be implemented as a normal package under `packages/devtools/*` (as a publishable unit), or explicitly marked as a tooling-only library with its own rule space (outside this document).
 
 ---
 
 ## 8) Package scaffold baseline (MUST)
 
-Every publishable package under `framework/packages/<layer>/<slug>/` MUST contain the canonical baseline package scaffold.
+Every layered package under `packages/<layer>/<slug>/` MUST contain the canonical layered-package scaffold.
 
-### 8.1. Required artifacts for every package (single-choice)
+Special distributions `coretsia/framework` and `coretsia/skeleton` are governed by their own distribution contracts and MUST NOT be forced into the layered-package scaffold.
 
-Every package MUST contain:
+### 8.1. Required artifacts for every layered package (single-choice)
+
+Every layered package MUST contain:
 
 - `composer.json`
 - `README.md`
@@ -262,7 +296,7 @@ Every package MUST contain:
 
 ### 8.2. Canonical legal files (single-choice)
 
-Package legal files MUST be byte-identical to the monorepo root legal files:
+Legal files in every publishable product MUST be byte-identical to the monorepo root legal files:
 
 - package `LICENSE` MUST equal repo root `LICENSE`
 - package `NOTICE` MUST equal repo root `NOTICE`
@@ -271,33 +305,37 @@ Package-level legal files MUST NOT drift from the repository canonical legal tex
 
 ### 8.3. README baseline (single-choice)
 
-Every package `README.md` MUST include at minimum the following sections:
+Every layered package `README.md` MUST include at minimum the following sections:
 
 - `## Observability`
 - `## Errors`
 - `## Security / Redaction`
 
-The sections MAY be short for packages where the topic is not applicable, but they MUST exist to keep package policy review uniform.
+The sections MAY be short for layered packages where the topic is not applicable, but they MUST exist to keep package policy review uniform.
 
 ---
 
 ## 9) Composer package metadata (MUST)
 
-Every publishable package MUST define canonical Composer metadata in `composer.json`.
+Every publishable product MUST define canonical Composer metadata in `composer.json`.
 
 ### 9.1. Baseline Composer fields (single-choice)
 
-For every package:
+For every publishable product:
 
-- `"name"` MUST equal `coretsia/<layer>-<slug>` derived from the package path.
-- `"type"` MUST equal `library`.
+- `"name"` MUST contain the canonical Coretsia Composer identity for that product.
 - `"license"` MUST equal `Apache-2.0`.
-- `autoload.psr-4` MUST map the canonical package namespace root to `src/`.
-- `autoload-dev.psr-4`, when present, MUST map the canonical package test namespace root to `tests/`.
+- `coretsia/skeleton` MUST use Composer `"type": "project"`.
+- `coretsia/framework` MUST use Composer `"type": "metapackage"` while it remains a dependency-only distribution with no installable package payload.
+- all currently defined layered Coretsia packages MUST use Composer `"type": "library"`.
+- `autoload.psr-4`, when the product owns PHP source, MUST map its canonical namespace to the owned source path.
+- `autoload-dev.psr-4`, when present, MUST map owned test namespaces to owned test paths.
+
+Layered package naming and namespace rules remain governed by §§4–5.
 
 ### 9.2. Coretsia package kind (single-choice)
 
-Every package MUST declare:
+Every layered package MUST declare:
 
 ```json
 {
@@ -316,7 +354,7 @@ The value of `extra.coretsia.kind` MUST be exactly one of:
 
 ### 9.3. Library packages (MUST)
 
-A package with:
+A layered package with:
 
 ```json
 {
@@ -338,7 +376,7 @@ Library packages:
 
 ### 9.4. Runtime packages (MUST)
 
-A package with:
+A layered package with:
 
 ```json
 {
@@ -362,7 +400,7 @@ Runtime packages MUST declare canonical runtime metadata under `extra.coretsia`:
 For a runtime package at:
 
 ```text
-framework/packages/<layer>/<slug>/
+packages/<layer>/<slug>/
 ```
 
 the metadata MUST be derived as follows:
@@ -430,7 +468,7 @@ This packaging document MUST NOT introduce an alternative config-root ownership 
 
 ### 10.3. Globally forbidden slugs (single-choice)
 
-The following slugs MUST NOT be used for framework packages in any layer:
+The following slugs MUST NOT be used for layered packages:
 
 - `app`
 - `modules`
@@ -458,7 +496,7 @@ Current reserved slug ownership:
 | `kernel`        | `core/kernel`                | Canonical kernel runtime owner package.                                                                                                     |
 | `observability` | none yet                     | Reserved umbrella term; use concrete packages such as logging, metrics, or tracing unless a future owner epic assigns this slug explicitly. |
 
-The existing canonical package `framework/packages/core/kernel/` MUST remain valid and MUST NOT fail package compliance because of the reserved-slug rule.
+The existing canonical package `packages/core/kernel/` MUST remain valid and MUST NOT fail package compliance because of the reserved-slug rule.
 
 ---
 
@@ -491,7 +529,7 @@ Rationale:
 The tooling SSoT for the active package release line is:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 This file owns:
@@ -508,13 +546,13 @@ This file owns:
 
 The monorepo workspace MUST resolve local package changes through Composer path repositories.
 
-Managed package wildcard path repositories MUST contain generated `options.versions` values derived from:
+Managed local path repository entries (`packages/framework` and `packages/*/*`) MUST contain canonical release-line metadata derived from:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
-The generated package version for workspace path repositories MUST be `devVersion`.
+Each discovered local package version in managed workspace path repositories MUST use `devVersion`.
 
 Example:
 
@@ -557,7 +595,7 @@ Example for release line `0.4`:
 The public internal constraint MUST be synchronized from:
 
 ```text
-framework/tools/release/release-line.json
+tools/release/release-line.json
 ```
 
 Do not edit public internal `coretsia/*` dependency constraints manually except as part of changing the release-line SSoT and running the canonical synchronization commands.
@@ -568,45 +606,50 @@ Do not edit public internal `coretsia/*` dependency constraints manually except 
 
 ### 12.1. Canonical publish target (single-choice)
 
-Packagist.org publish target MUST be only split repositories (one package → one VCS repo):
+Packagist.org publish target MUST be split repositories (one publishable product → one VCS repository).
 
-- For every publishable unit `framework/packages/<layer>/<slug>/` there is a separate split repository,
-  where the package itself lives at the repository root (that is, `composer.json` is at the repository root).
-- Monorepo root (`coretsia/`) is the dev workspace / source of truth and MUST NOT be submitted to Packagist
-  as a canonical publishable package.
+For every allowlisted publishable product discovered under `packages/**`:
 
-Rationale (normative):
-Packagist expects `composer.json` at the root of the VCS repository, and versions are taken automatically from git tags.
+- the deterministic split plan owns its source `pathPrefix`, package identity, and target split repository;
+- the contents of `pathPrefix` become the split repository root;
+- `composer.json` therefore lives at the split repository root.
 
-### 12.2. Split repository naming & mapping (single-choice)
+The monorepo root is the developer workspace and source of truth and MUST NOT be submitted to Packagist as a public package.
 
-For every `package_id = <layer>/<slug>`, split repository identity MUST be deterministic:
+Rationale (normative): Packagist expects `composer.json` at the root of the VCS repository, and versions are taken automatically from git tags.
 
-- VCS host (single-choice): GitHub
-- GitHub org/user (single-choice): `coretsia`
-- Repository name (single-choice): `<layer>-<slug>`
-- Repository URL (derived): `https://github.com/coretsia/<layer>-<slug>`
+### 12.2. Split repository identity and mapping (single-choice)
 
-Examples (derived):
+Split repository identity MUST come from the deterministic split plan.
 
-- `core/contracts` → repo `coretsia/core-contracts`
-- `platform/problem-details` → repo `coretsia/platform-problem-details`
-- `integrations/cache-redis` → repo `coretsia/integrations-cache-redis`
+For each publishable product, the plan MUST provide at minimum:
+
+- stable `package_id`
+- source `pathPrefix`
+- Composer package name
+- GitHub repository owner
+- GitHub repository name
+
+Layered packages MAY use their canonical `<layer>-<slug>` repository-name convention.
+
+Special distributions MUST be represented explicitly and MUST NOT require fake layer/slug identities.
+
+Package publishing code MUST NOT derive Composer identity solely from filesystem layout.
 
 ### 12.3. Split content law (single-choice)
 
-Split repository content MUST equal exactly the package subtree:
+Split repository content MUST equal exactly the source distribution subtree selected by the deterministic split plan.
 
-- split repo root == `framework/packages/<layer>/<slug>/` (including `src/`, `config/`, `tests/`, `README.md`, `composer.json`, …)
-- split repo MUST NOT contain anything outside the package (for example: `docs/**`, `framework/tools/**`, `skeleton/**`, monorepo root files).
+- the contents of `pathPrefix` MUST become the split repository root;
+- `pathPrefix` itself MUST NOT appear as a nested directory wrapper;
+- split content MUST NOT include unrelated monorepo content such as `docs/**`, `tools/**`, root `var/**`, root workspace files, or other package source trees.
 
 ### 12.4. Tag/version propagation (single-choice)
 
 Versioning remains monorepo-wide (§11), therefore:
 
 - Monorepo git tags `vMAJOR.MINOR.PATCH` are the single source of version truth.
-- Every split repo MUST receive the same tag `vMAJOR.MINOR.PATCH`,
-  which MUST point to the split commit corresponding to that package.
+- Every split repo MUST receive the same tag `vMAJOR.MINOR.PATCH`, which MUST point to the split commit corresponding to that package.
 - Tags MUST NOT be rewritten/re-tagged (immutability policy).
 
 Packagist picks up new versions automatically from tags in the VCS repository.
@@ -624,11 +667,9 @@ Canonical publishing procedure MUST use auto-update (service hook / GitHub integ
 While the repositories are not public:
 
 - Packagist submission MUST NOT be considered completed, because submission is done via a public repository URL.
-- The roadmap checkbox for Packagist auto-update MUST remain in the `[ ]` state with the semantics:
-  blocked until first public release (or until switching to a private registry / Private Packagist as an explicit architectural change).
+- The roadmap checkbox for Packagist auto-update MUST remain in the `[ ]` state with the semantics: blocked until first public release (or until switching to a private registry / Private Packagist as an explicit architectural change).
 
-At the same time, split automation rails (dry-run / verify) MAY be implemented and verified in CI without Packagist,
-but they MUST NOT change the canonical checkbox status until public evidence exists (see the plan below).
+At the same time, split automation rails (dry-run / verify) MAY be implemented and verified in CI without Packagist, but they MUST NOT change the canonical checkbox status until public evidence exists (see the plan below).
 
 ---
 

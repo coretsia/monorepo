@@ -144,7 +144,7 @@ N/A
     - [x] Any new epic mentioning `http.middleware.user*` MUST treat it only as legacy/renamed terminology and MUST NOT use it as a current tag name anywhere in contracts, SSoT, defaults, or gates.
   - [x] registry table: `tag` | `owner package_id` | `purpose` | `stability` | `notes`
     - [x] stability enum (single-choice): `stable|experimental|deprecated`
-  - [x] rule (single-choice): every reserved tag MUST be declared as a constant in the owner package (usually `framework/packages/core/foundation/src/Tag/ReservedTags.php`)
+  - [x] rule (single-choice): every reserved tag MUST be declared as a constant in the owner package (usually `packages/core/foundation/src/Tag/ReservedTags.php`)
   - [x] ownership split (single-choice):
     - [x] for every reserved tag, the owner package exclusively owns:
       - [x] the registry row in `docs/ssot/tags.md`
@@ -290,14 +290,14 @@ N/A
       - [x] MUST return the subtree (without repeating the root key), e.g. it returns `['container' => [...], ...]`, not `['foundation' => [...]]`.
     - [x] Runtime reads from the global config under the root key, e.g. `foundation.container.*`.
   - [x] registry table: `root` | `owner package_id` | `defaults file` | `rules file` | `notes`
-    - [x] `cli` | `platform/cli` | `framework/packages/platform/cli/config/cli.php` | `framework/packages/platform/cli/config/rules.php` | Phase 0 locked root from 0.130.0
-    - [x] `foundation` | `core/foundation` | `framework/packages/core/foundation/config/foundation.php` | `framework/packages/core/foundation/config/rules.php` | runtime core root
-    - [x] `kernel` | `core/kernel` | `framework/packages/core/kernel/config/kernel.php` | `framework/packages/core/kernel/config/rules.php` | runtime kernel root
-    - [x] `http` | `platform/http` | `framework/packages/platform/http/config/http.php` | `framework/packages/platform/http/config/rules.php` | platform HTTP root
-    - [x] `logging` | `platform/logging` | `framework/packages/platform/logging/config/logging.php` | `framework/packages/platform/logging/config/rules.php` | platform logging root
-    - [x] `metrics` | `platform/metrics` | `framework/packages/platform/metrics/config/metrics.php` | `framework/packages/platform/metrics/config/rules.php` | platform metrics root
-    - [x] `tracing` | `platform/tracing` | `framework/packages/platform/tracing/config/tracing.php` | `framework/packages/platform/tracing/config/rules.php` | platform tracing root
-    - [x] `problem_details` | `platform/problem-details` | `framework/packages/platform/problem-details/config/problem_details.php` | `framework/packages/platform/problem-details/config/rules.php` | platform problem-details root
+    - [x] `cli` | `platform/cli` | `packages/platform/cli/config/cli.php` | `packages/platform/cli/config/rules.php` | Phase 0 locked root from 0.130.0
+    - [x] `foundation` | `core/foundation` | `packages/core/foundation/config/foundation.php` | `packages/core/foundation/config/rules.php` | runtime core root
+    - [x] `kernel` | `core/kernel` | `packages/core/kernel/config/kernel.php` | `packages/core/kernel/config/rules.php` | runtime kernel root
+    - [x] `http` | `platform/http` | `packages/platform/http/config/http.php` | `packages/platform/http/config/rules.php` | platform HTTP root
+    - [x] `logging` | `platform/logging` | `packages/platform/logging/config/logging.php` | `packages/platform/logging/config/rules.php` | platform logging root
+    - [x] `metrics` | `platform/metrics` | `packages/platform/metrics/config/metrics.php` | `packages/platform/metrics/config/rules.php` | platform metrics root
+    - [x] `tracing` | `platform/tracing` | `packages/platform/tracing/config/tracing.php` | `packages/platform/tracing/config/rules.php` | platform tracing root
+    - [x] `problem_details` | `platform/problem-details` | `packages/platform/problem-details/config/problem_details.php` | `packages/platform/problem-details/config/rules.php` | platform problem-details root
   - [x] initial registry rows introduced by this epic: `cli,foundation,kernel,http,logging,metrics,tracing,problem_details`
   - [x] this registry MAY be extended only by later owner epics via direct modification of `docs/ssot/config-roots.md`
   - [x] later additions MUST update the canonical registry rows directly and MUST NOT leave parallel “future reserved identifier” notes in roadmap epics
@@ -578,7 +578,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.50.0"
-owner_path: "framework/tools/"
+owner_path: "tools/"
 
 goal: "It is impossible to merge changes that violate SSoT laws (deps, forbidden skeleton defaults, contracts-only ports, kernel public surface, observability naming, deterministic artifacts, and specialized DTO rails)."
 provides:
@@ -607,7 +607,7 @@ ssot_refs:
 - Epic prerequisites:
   - PRELUDE.30.0 — repo baseline CI + composer entrypoints exist (or equivalent CI baseline)
   - 0.20.0 — Phase 0 tooling rails bootstrap + ConsoleOutput + ErrorCodes exist (gates output policy baseline)
-  - 0.40.0 — internal-toolkit + anti-dup gate exists (`framework/tools/gates/internal_toolkit_no_dup_gate.php`)
+  - 0.40.0 — internal-toolkit + anti-dup gate exists (`tools/gates/internal_toolkit_no_dup_gate.php`)
   - 1.10.0 — Tag registry SSoT exists (`docs/ssot/tags.md`)
   - 1.20.0 — Config roots registry SSoT exists (`docs/ssot/config-roots.md`)
   - 1.30.0 — Artifacts registry SSoT exists (`docs/ssot/artifacts.md`)
@@ -616,15 +616,15 @@ ssot_refs:
 - Required deliverables (exact paths):
   - `.github/workflows/ci.yml` — CI baseline exists (owned/extended here)
   - `framework/composer.json` — workspace scripts baseline exists, including the canonical `test` script consumed by CI
-  - `framework/tools/testing/phpunit.xml` — tooling test harness exists
+  - `tools/testing/phpunit.xml` — tooling test harness exists
   - `composer.json` — repo-root scripts exist (`setup|ci|test`) (PRELUDE.30.0)
-  - `framework/tools/build/sync_composer_repositories.php` — managed repositories sync + `--check` exists (PRELUDE.30.0)
+  - `tools/build/sync_composer_repositories.php` — managed repositories sync + `--check` exists (PRELUDE.30.0)
   - `composer.lock` — committed (PRELUDE.30.0)
   - `framework/composer.lock` — committed (PRELUDE.30.0)
-  - `skeleton/composer.lock` — committed (PRELUDE.30.0)
-  - `framework/tools/spikes/_support/bootstrap.php` — canonical tools bootstrap (CWD-independent)
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — only allowlisted stdout/stderr writer for tooling rails
-  - `framework/tools/spikes/_support/ErrorCodes.php` — deterministic codes registry used by gates/rails
+  - `packages/applications/skeleton/composer.lock` — committed (PRELUDE.30.0)
+  - `tools/spikes/_support/bootstrap.php` — canonical tools bootstrap (CWD-independent)
+  - `tools/spikes/_support/ConsoleOutput.php` — only allowlisted stdout/stderr writer for tooling rails
+  - `tools/spikes/_support/ErrorCodes.php` — deterministic codes registry used by gates/rails
   - `docs/ssot/tags.md` — tag naming + reserved tags source
   - `docs/ssot/config-roots.md` — config invariants source
   - `docs/ssot/artifacts.md` — artifact envelope/header + schema source
@@ -658,7 +658,7 @@ N/A
 - CLI:
   - `composer ci` → runs gates + arch rails + tests
 - Gate commands policy:
-  - every gate created under `framework/tools/gates/*_gate.php` MUST be separately invokable via a dedicated composer script named `<kebab-name>:gate`
+  - every gate created under `tools/gates/*_gate.php` MUST be separately invokable via a dedicated composer script named `<kebab-name>:gate`
   - command name derivation is single-choice:
     - [x] strip suffix `_gate.php`
     - [x] replace `_` with `-`
@@ -671,40 +671,40 @@ N/A
 
 ### Gate (baseline) — No skeleton bundle defaults (MUST)
 
-- Script: `framework/tools/gates/no_skeleton_bundles_default_gate.php`
-- Purpose: skeleton MUST NOT ship `skeleton/config/bundles/*.php` by default (bundles are framework defaults + optional app override only).
+- Script: `tools/gates/no_skeleton_bundles_default_gate.php`
+- Purpose: skeleton MUST NOT ship `packages/applications/skeleton/config/bundles/*.php` by default (bundles are framework defaults + optional app override only).
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
 ### Gate (baseline) — No skeleton HTTP defaults (MUST)
 
-- Script: `framework/tools/gates/no_skeleton_http_default_gate.php`
-- Purpose: skeleton MUST NOT ship `skeleton/config/http.php` by default
+- Script: `tools/gates/no_skeleton_http_default_gate.php`
+- Purpose: skeleton MUST NOT ship `packages/applications/skeleton/config/http.php` by default
   (HTTP defaults are framework/package-owned; skeleton file is app-override only).
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
 ### Gate (baseline) — No skeleton mode presets defaults (MUST)
 
-- Script: `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
-- Purpose: skeleton MUST NOT ship `skeleton/config/modes/*.php` by default
+- Script: `tools/gates/no_skeleton_mode_presets_default_gate.php`
+- Purpose: skeleton MUST NOT ship `packages/applications/skeleton/config/modes/*.php` by default
   (mode presets are framework defaults; skeleton mode files are app-override only).
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
 ### Gate (baseline) — No skeleton modules default (MUST)
 
-- Script: `framework/tools/gates/no_skeleton_modules_default_gate.php`
+- Script: `tools/gates/no_skeleton_modules_default_gate.php`
 - Purpose: skeleton MUST NOT ship any parallel module-selection file:
-  - `skeleton/config/modules.php`
-  - `skeleton/apps/*/config/modules.php`
+  - `packages/applications/skeleton/config/modules.php`
+  - `packages/applications/skeleton/apps/*/config/modules.php`
     (module selection is kernel-owned and resolved only via preset files + composer metadata).
 - Output policy: line1 CODE; line2+ diagnostics (repo-relative paths), sorted `strcmp`.
 - CI: MUST run in `gates` job before tests; deterministic rerun-no-diff.
 
 ### Gate — No runtime tooling artifacts (MUST)
 
-- Script: `framework/tools/gates/no_runtime_tooling_artifacts_gate.php`
+- Script: `tools/gates/no_runtime_tooling_artifacts_gate.php`
 - Purpose: runtime packages MUST NOT import, require, execute, or read Phase 0/Phase 1 tooling code or tooling-generated architecture artifacts at runtime.
 - This is a runtime-purity gate, not a second architecture dependency brain.
 - It complements deptrac because deptrac catches namespace/class dependencies but does not reliably catch string-path reads, require/include paths, shell invocations, or accidental runtime consumption of tooling artifacts.
@@ -713,26 +713,26 @@ N/A
 
 The gate MUST scan runtime source/config only:
 
-- `framework/packages/core/*/src`
-- `framework/packages/core/*/config`
-- `framework/packages/platform/*/src`
-- `framework/packages/platform/*/config`
-- `framework/packages/integrations/*/src`
-- `framework/packages/integrations/*/config`
-- `framework/packages/presets/*/src`
-- `framework/packages/presets/*/config`
-- `framework/packages/enterprise/*/src`
-- `framework/packages/enterprise/*/config`
+- `packages/core/*/src`
+- `packages/core/*/config`
+- `packages/platform/*/src`
+- `packages/platform/*/config`
+- `packages/integrations/*/src`
+- `packages/integrations/*/config`
+- `packages/presets/*/src`
+- `packages/presets/*/config`
+- `packages/enterprise/*/src`
+- `packages/enterprise/*/config`
 
 #### Exclusions (MUST)
 
 The gate MUST exclude:
 
-- `framework/packages/devtools/**`
+- `packages/devtools/**`
 - `**/tests/**`
 - `**/fixtures/**`
 - `**/vendor/**`
-- `framework/tools/**` as scan input, because tools are not runtime packages
+- `tools/**` as scan input, because tools are not runtime packages
 
 #### Forbidden evidence (MUST)
 
@@ -747,11 +747,11 @@ Runtime source/config MUST NOT contain:
   - `coretsia/devtools-internal-toolkit`
   - `coretsia/devtools-cli-spikes`
 - runtime path reads/includes/execs involving:
-  - `framework/tools/`
+  - `tools/`
   - `tools/spikes/`
   - `tools/build/`
   - `tools/gates/`
-  - `framework/var/arch`
+  - `var/arch`
 - PHP include/require patterns that resolve into tooling paths
 - shell command strings that execute tooling paths from runtime code
 
@@ -761,7 +761,7 @@ The gate MAY allow:
 
 - docs-only mentions outside scan scope
 - tests/fixtures mentions outside runtime scan scope
-- CI/tooling code under `framework/tools/**`
+- CI/tooling code under `tools/**`
 - generated architecture artifacts consumed by CI/tooling jobs only, never by runtime packages
 
 #### Output policy (MUST)
@@ -781,7 +781,7 @@ The gate MAY allow:
 
 #### Creates
 
-- [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+- [x] `tools/gates/cross_cutting_contract_gate.php`
   - [x] MUST enforce Kernel/Foundation reset discipline once the required owner-package evidence exists:
     - [x] `kernel.stateful` ⇒ service implements `Coretsia\Contracts\Runtime\ResetInterface`
     - [x] `kernel.stateful` ⇒ service is also discoverable through the effective Foundation reset discovery tag
@@ -830,9 +830,9 @@ The gate MAY allow:
     - [x] no raw config payloads
     - [x] no secrets
     - [x] no absolute paths
-  - [x] MUST NOT create `framework/tools/gates/kernel_reset_discipline_gate.php`.
+  - [x] MUST NOT create `tools/gates/kernel_reset_discipline_gate.php`.
 
-- [x] `framework/tools/gates/no_runtime_tooling_artifacts_gate.php`
+- [x] `tools/gates/no_runtime_tooling_artifacts_gate.php`
   - [x] enforces the “No runtime tooling artifacts” gate policy above
   - [x] deterministic no-op when no runtime package scan roots exist
   - [x] uses `ConsoleOutput`
@@ -846,46 +846,46 @@ The gate MAY allow:
   - [x] MUST NOT duplicate deptrac layer rules
   - [x] MUST NOT parse `docs/roadmap/phase0/00_2-dependency-table.md`
 
-- [x] `framework/tools/gates/kernel_public_api_gate.php`
+- [x] `tools/gates/kernel_public_api_gate.php`
   - [x] this rail MUST exist as a standalone gate script because every created gate MUST be invokable via its own `<command>:gate` composer script
   - [x] optional phpstan/static-analysis rules MAY exist later only as supplemental enforcement, not as a replacement for the gate script
   - [x] If the owning kernel public-surface contract test/package is not present yet, the gate MUST behave as deterministic no-op.
   - [x] Once `core/kernel` public API evidence exists, this rail MUST enforce it without changing output policy.
 
-- [x] `framework/tools/gates/no_skeleton_http_default_gate.php`
-- [x] `framework/tools/gates/no_skeleton_mode_presets_default_gate.php`
-- [x] `framework/tools/gates/no_skeleton_modules_default_gate.php`
-- [x] `framework/tools/gates/no_skeleton_bundles_default_gate.php`
-- [x] `framework/tools/gates/contracts_only_ports_gate.php`
+- [x] `tools/gates/no_skeleton_http_default_gate.php`
+- [x] `tools/gates/no_skeleton_mode_presets_default_gate.php`
+- [x] `tools/gates/no_skeleton_modules_default_gate.php`
+- [x] `tools/gates/no_skeleton_bundles_default_gate.php`
+- [x] `tools/gates/contracts_only_ports_gate.php`
   - [x] deterministic scope:
-    - [x] scans `framework/packages/**/src/**/*.php`
+    - [x] scans `packages/**/src/**/*.php`
     - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
     - [x] output format follows the canonical Phase 0 gate policy
-  - [x] MUST fail if a package outside `framework/packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
+  - [x] MUST fail if a package outside `packages/core/contracts/src/**` declares public ports using canonical port naming/placement:
     - [x] `*PortInterface.php`
     - [x] `src/**/Port/**`
   - [x] MUST NOT fail on ordinary package-internal interfaces that are not presented as cross-package ports
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
 
-- [x] `framework/tools/gates/reserved_tags_registry_gate.php`
+- [x] `tools/gates/reserved_tags_registry_gate.php`
   - [x] validates `docs/ssot/tags.md` as the canonical reserved tag registry source
-  - [x] validates that every framework-reserved DI tag from `docs/ssot/tags.md` has a matching public constant in `Coretsia\Foundation\Tag\ReservedTags`
+  - [x] validates that every Coretsia-reserved DI tag from `docs/ssot/tags.md` has a matching public constant in `Coretsia\Foundation\Tag\ReservedTags`
   - [x] validates that each `ReservedTags` public constant value equals the canonical reserved tag string exactly
   - [x] validates that each `ReservedTags` public constant name is derived deterministically from the canonical tag string
   - [x] fails deterministically when a reserved tag from `docs/ssot/tags.md` is missing from `ReservedTags`
   - [x] fails deterministically when a `ReservedTags` public constant has a mismatched value
   - [x] fails deterministically when `ReservedTags` exposes an extra public tag-like constant outside `docs/ssot/tags.md`
   - [x] fails deterministically when `ReservedTags` exposes an alias constant for an already-declared reserved tag string
-  - [x] fails deterministically when package source defines an additional code-level registry for framework-reserved DI tag identifiers
-  - [x] fails deterministically when package source defines a local constant whose value equals a framework-reserved DI tag string
+  - [x] fails deterministically when package source defines an additional code-level registry for Coretsia-reserved DI tag identifiers
+  - [x] fails deterministically when package source defines a local constant whose value equals a Coretsia-reserved DI tag string
   - [x] fails deterministically when package source defines a local constant that aliases `ReservedTags::*`
-  - [x] treats `Coretsia\Foundation\Tag\ReservedTags` as the only code-level identifier registry for framework-reserved DI tags
+  - [x] treats `Coretsia\Foundation\Tag\ReservedTags` as the only code-level identifier registry for Coretsia-reserved DI tags
   - [x] treats `Coretsia\Foundation\Tag\ReservedTags` as identifier-string ownership only, not runtime discovery ownership
   - [x] preserves runtime tagged-service discovery, ordering, and dedupe ownership in `Coretsia\Foundation\Tag\TagRegistry`
   - [x] outputs no text on success
   - [x] output format follows the canonical Phase 0 gate policy
 
-- [x] `framework/tools/gates/observability_naming_gate.php`
+- [x] `tools/gates/observability_naming_gate.php`
   - [x] MUST enforce at minimum:
     - [x] metric names follow the canonical form from `docs/ssot/observability.md`
     - [x] label keys are limited to the allowlist:
@@ -901,7 +901,7 @@ The gate MAY allow:
   - [x] output format follows the canonical Phase 0 gate policy
   - [x] diagnostics MUST contain only normalized relative paths + fixed reason tokens
 
-- [x] `framework/tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
+- [x] `tools/gates/artifact_header_schema_gate.php` — validates the canonical artifact envelope `{ "_meta", "payload" }`
   - [x] required `_meta` fields (`name`, `schemaVersion`, `fingerprint`, `generator`) in generated artifacts
   - [x] forbids timestamps, absolute paths, and environment-specific bytes in generated artifacts
   - [x] MUST validate kernel-owned PHP artifacts that return arrays (e.g. `module-manifest.php`, `config.php`, `container.php`); the gate MUST NOT assume JSON-only artifacts.
@@ -912,13 +912,13 @@ The gate MAY allow:
     - [x] if no matching artifact file is present yet, the gate MUST behave as a deterministic no-op for that artifact type
     - [x] once an owner epic introduces artifact generation as a required deliverable, malformed produced artifacts MUST fail deterministically
 
-- [x] `framework/tools/testing/deptrac.yaml`
-- [x] `framework/tools/testing/deptrac.allowlist.yaml`
-- [x] `framework/tools/build/deptrac_generate.php`
+- [x] `tools/testing/deptrac.yaml`
+- [x] `tools/testing/deptrac.allowlist.yaml`
+- [x] `tools/build/deptrac_generate.php`
 
 Tooling baseline configs
-- [x] `framework/tools/cs/ecs.php` — code style baseline (or equivalent)
-- [x] `framework/tools/phpstan/phpstan.neon` — static analysis baseline
+- [x] `tools/cs/ecs.php` — code style baseline (or equivalent)
+- [x] `tools/phpstan/phpstan.neon` — static analysis baseline
 
 #### Modifies
 
@@ -932,9 +932,9 @@ Tooling baseline configs
   - [x] `determinism` (Linux+Windows): rerun-no-diff checks (may remain separate workflow or be moved into `ci.yml`)
   - [x] DTO specialized gates MAY run inside `gates` job or dedicated grouped step:
     - [x] `composer -d framework dto:gate`
-- [x] `framework/tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
+- [x] `tools/testing/phpunit.xml` — ensure canonical monorepo PHPUnit settings
 - [x] `skeleton/phpunit.xml` — N/A for 1.50.0; skeleton PHPUnit is not consumed by CI yet.
-- [x] `framework/tools/spikes/_support/ErrorCodes.php`
+- [x] `tools/spikes/_support/ErrorCodes.php`
   - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_FORBIDDEN`
   - [x] adds `CORETSIA_NO_SKELETON_HTTP_DEFAULT_GATE_FAILED`
   - [x] adds `CORETSIA_NO_SKELETON_BUNDLES_DEFAULT_FORBIDDEN`
@@ -1000,9 +1000,9 @@ N/A (tooling output only; must be secret-safe)
 
 - [x] gates output MUST NOT print secrets; only paths + reasons (deterministic)
 - [x] Gate output policy (MUST; aligned with Phase 0 rails):
-  - [x] Any `framework/tools/gates/*.php` gate MUST:
-    - [x] load `framework/tools/spikes/_support/bootstrap.php` before scanning
-    - [x] emit output ONLY via `framework/tools/spikes/_support/ConsoleOutput.php`
+  - [x] Any `tools/gates/*.php` gate MUST:
+    - [x] load `tools/spikes/_support/bootstrap.php` before scanning
+    - [x] emit output ONLY via `tools/spikes/_support/ConsoleOutput.php`
     - [x] follow the canonical Phase 0 format:
       - [x] Line 1: deterministic `CODE` only
       - [x] Line 2+: stable diagnostics (`<scan-root-relative-path>: <reason>`) sorted by `strcmp`
@@ -1011,13 +1011,13 @@ N/A (tooling output only; must be secret-safe)
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Fixture locks promoted to rails (tests reference spike fixtures):
-  - [x] `framework/tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
-  - [x] `framework/tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
+  - [x] `tools/tests/Contract/SpikeDeptracYamlMatchesFixtureContractTest.php`
+  - [x] `tools/tests/Contract/SpikeDeptracAllowlistPolicyContractTest.php`
+  - [x] `tools/tests/Contract/SpikeDeptracCycleDetectionContractTest.php`
+  - [x] `tools/tests/Contract/SpikeWorkspacePackageIndexMatchesFixtureContractTest.php`
+  - [x] `tools/tests/Contract/SpikeComposerRepositoriesSyncManagedOnlyContractTest.php`
+  - [x] `tools/tests/Contract/SpikeComposerRepositoriesSyncWritesBackupsContractTest.php`
+  - [x] `tools/tests/Contract/SpikeWorkspaceSyncLockContractTest.php`
 
 ### Tests (MUST)
 
@@ -1026,20 +1026,20 @@ N/A (tooling output only; must be secret-safe)
 - Integration:
   - [x] gates smoke run in CI job `gates`
   - [x] deptrac generate + analyze in CI job `arch`
-  - [x] `framework/tools/tests/Integration/CrossCuttingContractGateTest.php`
+  - [x] `tools/tests/Integration/CrossCuttingContractGateTest.php`
     - [x] `kernel.stateful` service without `ResetInterface` fails deterministically
     - [x] `kernel.stateful` service without effective reset discovery tag fails deterministically
     - [x] custom `foundation.reset.tag` is respected when Foundation config evidence exists
     - [x] default `kernel.reset` is used when no custom Foundation reset tag is configured
     - [x] gate is deterministic no-op when required owner-package evidence is absent
     - [x] diagnostics do not contain absolute paths, raw config payloads, or secrets
-  - [x] `framework/tools/tests/Integration/NoRuntimeToolingArtifactsGateTest.php`
+  - [x] `tools/tests/Integration/NoRuntimeToolingArtifactsGateTest.php`
     - [x] runtime source importing `Coretsia\Tools\Spikes\*` fails
     - [x] runtime source importing `Coretsia\Devtools\*` fails
-    - [x] runtime config/source referencing `framework/tools/` fails
+    - [x] runtime config/source referencing `tools/` fails
     - [x] runtime source requiring or including `tools/build/*` fails
     - [x] runtime source shelling out to `tools/gates/*` fails
-    - [x] runtime source reading `framework/var/arch` fails
+    - [x] runtime source reading `var/arch` fails
     - [x] docs/tests/fixtures mentions are ignored
     - [x] diagnostics are sorted and repo-relative
     - [x] diagnostics do not contain source snippets, absolute paths, raw file contents, env values, or secrets
@@ -1047,7 +1047,7 @@ N/A (tooling output only; must be secret-safe)
   - [x] deptrac denies forbidden edges (e.g. platform → integrations)
   - [x] contracts-only ports gate blocks ports outside `core/contracts`
   - [x] skeleton defaults gates block forbidden default files
-  - [x] no-skeleton-modules-default gate blocks `skeleton/config/modules.php`
+  - [x] no-skeleton-modules-default gate blocks `packages/applications/skeleton/config/modules.php`
   - [x] observability naming gate blocks label/name drift
   - [x] artifact header/schema gate blocks non-canonical `_meta` and non-deterministic bytes
   - [x] tag constant mirror gate blocks drift between canonical tag strings and local mirror constants
@@ -1066,12 +1066,12 @@ N/A (tooling output only; must be secret-safe)
 - [x] `0.40.0` internal-toolkit no-dup gate is preserved as an immutable rail.
 - [x] `0.80.0` deptrac generator spike is promoted to production locks: deterministic yaml + allowlist policy + cycle detection (fixture-lock tests).
 - [x] `0.100.0` workspace spike is promoted to production locks: managed-only sync + backups + lock contract tests.
-- [x] When a PR adds `skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
-- [x] When a PR adds `skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
-- [x] When a PR adds `skeleton/apps/web/config/modules.php` or any `skeleton/apps/*/config/modules.php`,
+- [x] When a PR adds `packages/applications/skeleton/config/http.php` to the default skeleton, then `no_skeleton_http_default_gate.php` fails deterministically.
+- [x] When a PR adds `packages/applications/skeleton/config/modules.php` to the default skeleton, then `no_skeleton_modules_default_gate.php` fails deterministically.
+- [x] When a PR adds `packages/applications/skeleton/apps/web/config/modules.php` or any `packages/applications/skeleton/apps/*/config/modules.php`,
   then `no_skeleton_modules_default_gate.php` fails deterministically.
 - [x] Prelude rails preserved (MUST):
-  - [x] CI still runs `php framework/tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
+  - [x] CI still runs `php tools/build/sync_composer_repositories.php --check` BEFORE any `composer install`
   - [x] CI uses `composer install` (NOT update) and MUST NOT modify any `composer.lock`
   - [x] Lock drift check remains enforced (job fails if any lock changed)
   - [x] Canonical repo-root entrypoints remain valid: `composer setup|ci|test`
@@ -1091,7 +1091,7 @@ N/A (tooling output only; must be secret-safe)
 type: tools
 phase: 1
 epic_id: "1.50.1"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Establish a canonical DTO policy rail: explicit DTO marker, DTO SSoT, CI entrypoints, deterministic aggregate execution, and shared error-code wiring for specialized DTO gates."
 provides:
@@ -1119,11 +1119,11 @@ ssot_refs:
   - 1.50.0 — tooling baseline + arch-rails exist (CI jobs for deterministic gates)
 
 - Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory exists
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical output writer
-  - `framework/tools/spikes/_support/ErrorCodes.php` — error codes registry
-  - `framework/tools/spikes/_support/bootstrap.php` — tools bootstrap
-  - `framework/packages/` — package tree exists (scan root)
+  - `tools/gates/` — gates directory exists
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical output writer
+  - `tools/spikes/_support/ErrorCodes.php` — error codes registry
+  - `tools/spikes/_support/bootstrap.php` — tools bootstrap
+  - `packages/` — package tree exists (scan root)
   - `.github/workflows/ci.yml` — CI baseline exists
   - `composer.json` — repo-root scripts exist
   - `framework/composer.json` — workspace scripts exist
@@ -1208,7 +1208,7 @@ A compliant DTO in this rail is **not**:
 
 #### Creates
 
-- [x] `framework/tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
+- [x] `tools/gates/dto_gate.php` — deterministic aggregate runner for DTO rail:
   - [x] runs `dto_marker_consistency_gate.php`
   - [x] runs `dto_no_logic_gate.php`
   - [x] runs `dto_shape_gate.php`
@@ -1223,25 +1223,25 @@ A compliant DTO in this rail is **not**:
   - [x] aggregate runner is supplemental and MUST NOT replace per-gate command entrypoints
   - [x] each specialized DTO gate created by later epics MUST also be registered as its own `<command>:gate` composer script at repo root and in `framework/composer.json`
 
-- [x] `framework/packages/core/dto-attribute/composer.json` — DTO marker package:
+- [x] `packages/core/dto-attribute/composer.json` — DTO marker package:
   - [x] package name: `coretsia/core-dto-attribute`
   - [x] package kind: library-only marker package
   - [x] no runtime deps
   - [x] PSR-4:
     - [x] `Coretsia\Dto\Attribute\` → `src/Attribute/`
 
-- [x] `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
+- [x] `packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker:
   - [x] `#[Attribute(Attribute::TARGET_CLASS)]`
   - [x] empty marker attribute
   - [x] no parameters in Phase 1
   - [x] no runtime behavior
 
-- [x] `framework/packages/core/dto-attribute/README.md` — usage and policy note:
+- [x] `packages/core/dto-attribute/README.md` — usage and policy note:
   - [x] explains explicit opt-in
   - [x] explains that marking a class as DTO subjects it to DTO gates
   - [x] explains that DTO is a narrow transport shape, not a general-purpose VO model
 
-- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
 - [x] `docs/ssot/dto-policy.md` — canonical DTO SSoT:
   - [x] already has canonical vocabulary
@@ -1273,7 +1273,7 @@ A compliant DTO in this rail is **not**:
     - [x] unmarked classes are outside DTO gate scope
     - [x] contracts VOs, descriptors, result models, artifact payload models, config trace models, and runtime services MUST NOT be treated as DTOs unless explicitly marked
 
-- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
+- [x] `tools/tests/Integration/DtoGateAggregateRunnerTest.php` — proves aggregate runner order and failure propagation
 
 #### Modifies
 
@@ -1286,7 +1286,7 @@ A compliant DTO in this rail is **not**:
   - [x] runs after install and before tests
   - [x] may run inside existing `gates` job
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_DTO_GATE_FAILED`
   - [x] `CORETSIA_DTO_MARKER_VIOLATION`
   - [x] `CORETSIA_DTO_NO_LOGIC_VIOLATION`
@@ -1342,19 +1342,19 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+- [x] `tools/tests/Integration/DtoGateAggregateRunnerTest.php`
   - [x] proves specialized gates are invoked in deterministic order
   - [x] proves non-zero exit propagates
   - [x] proves aggregate runner does not invent a second diagnostics format
 
-- [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+- [x] `packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
+  - [x] `packages/core/dto-attribute/tests/Contract/AttributeExistsTest.php`
 - Integration:
-  - [x] `framework/tools/tests/Integration/DtoGateAggregateRunnerTest.php`
+  - [x] `tools/tests/Integration/DtoGateAggregateRunnerTest.php`
 - Gates/Arch:
   - [x] `.github/workflows/ci.yml` runs `composer -d framework dto:gate`
 
@@ -1380,7 +1380,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.50.2"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Ensure there is exactly one canonical DTO marker model in the monorepo and that explicitly marked DTOs use that marker consistently."
 provides:
@@ -1408,13 +1408,13 @@ ssot_refs:
   - 1.50.1 — DTO Policy + Compliance Rail exists (marker package + SSoT + aggregate entrypoint)
 
 - Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory exists
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical output writer
-  - `framework/tools/spikes/_support/ErrorCodes.php` — error codes registry
-  - `framework/tools/spikes/_support/bootstrap.php` — tools bootstrap
-  - `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
+  - `tools/gates/` — gates directory exists
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical output writer
+  - `tools/spikes/_support/ErrorCodes.php` — error codes registry
+  - `tools/spikes/_support/bootstrap.php` — tools bootstrap
+  - `packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
   - `docs/ssot/dto-policy.md` — canonical DTO policy exists
-  - `framework/packages/` — package tree exists (scan root)
+  - `packages/` — package tree exists (scan root)
 
 - Required config roots/keys:
   - none
@@ -1448,7 +1448,7 @@ N/A
 - Classes without the canonical marker are ignored by DTO gates.
 - Alias imports are allowed only if they resolve to canonical `Coretsia\Dto\Attribute\Dto`.
 - The canonical marker declaration itself is exempt from custom-marker rejection:
-  - `framework/packages/core/dto-attribute/src/Attribute/Dto.php`
+  - `packages/core/dto-attribute/src/Attribute/Dto.php`
 - The gate MUST NEVER report the canonical marker class as:
   - `custom-dto-marker-class`
   - `multiple-dto-marker-strategies`
@@ -1468,8 +1468,8 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
-  - [x] scans `framework/packages/**/src/**/*.php`
+- [x] `tools/gates/dto_marker_consistency_gate.php` — deterministic marker consistency gate:
+  - [x] scans `packages/**/src/**/*.php`
   - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
   - [x] token-based analysis only
   - [x] detects DTO marker usage only via canonical attribute `#[Coretsia\Dto\Attribute\Dto]`
@@ -1494,7 +1494,7 @@ N/A
     - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
     - [x] any uncaught exception → same code, exit 1
 
-- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+- [x] `tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 #### Modifies
 
@@ -1543,7 +1543,7 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
+- [x] `tools/tests/Integration/DtoMarkerConsistencyGateTest.php`:
   - [x] canonical marker usage passes
   - [x] alias import resolving to canonical marker passes
   - [x] custom DTO marker attribute fails with `custom-dto-marker-class`
@@ -1555,7 +1555,7 @@ N/A
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
+  - [x] `tools/tests/Integration/DtoMarkerConsistencyGateTest.php`
 
 ### DoD (MUST)
 
@@ -1573,7 +1573,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.50.3"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Ensure explicitly marked DTOs contain no executable behavior beyond trivial construction and remain pure transport objects."
 provides:
@@ -1602,13 +1602,13 @@ ssot_refs:
   - 1.50.2 — DTO Marker Consistency Gate exists
 
 - Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory exists
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical output writer
-  - `framework/tools/spikes/_support/ErrorCodes.php` — error codes registry
-  - `framework/tools/spikes/_support/bootstrap.php` — tools bootstrap
-  - `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
+  - `tools/gates/` — gates directory exists
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical output writer
+  - `tools/spikes/_support/ErrorCodes.php` — error codes registry
+  - `tools/spikes/_support/bootstrap.php` — tools bootstrap
+  - `packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
   - `docs/ssot/dto-policy.md` — canonical DTO policy exists
-  - `framework/packages/` — package tree exists (scan root)
+  - `packages/` — package tree exists (scan root)
 
 - Required config roots/keys:
   - none
@@ -1676,8 +1676,8 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
-  - [x] scans `framework/packages/**/src/**/*.php`
+- [x] `tools/gates/dto_no_logic_gate.php` — deterministic no-logic gate:
+  - [x] scans `packages/**/src/**/*.php`
   - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
   - [x] analyzes only explicitly marked DTO classes
   - [x] token-based analysis only
@@ -1712,7 +1712,7 @@ N/A
     - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
     - [x] any uncaught exception → same code, exit 1
 
-- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+- [x] `tools/tests/Integration/DtoNoLogicGateTest.php`
 
 #### Modifies
 
@@ -1767,7 +1767,7 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`:
+- [x] `tools/tests/Integration/DtoNoLogicGateTest.php`:
   - [x] DTO with no constructor passes
   - [x] DTO with promoted public typed properties passes
   - [x] DTO with trivial assignment constructor passes
@@ -1786,7 +1786,7 @@ N/A
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/tools/tests/Integration/DtoNoLogicGateTest.php`
+  - [x] `tools/tests/Integration/DtoNoLogicGateTest.php`
 
 ### DoD (MUST)
 
@@ -1804,7 +1804,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.50.4"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Ensure explicitly marked DTOs follow the canonical structural shape: final class, no inheritance/traits/interfaces, and public typed instance properties only."
 provides:
@@ -1833,13 +1833,13 @@ ssot_refs:
   - 1.50.2 — DTO Marker Consistency Gate exists
 
 - Required deliverables (exact paths):
-  - `framework/tools/gates/` — gates directory exists
-  - `framework/tools/spikes/_support/ConsoleOutput.php` — canonical output writer
-  - `framework/tools/spikes/_support/ErrorCodes.php` — error codes registry
-  - `framework/tools/spikes/_support/bootstrap.php` — tools bootstrap
-  - `framework/packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
+  - `tools/gates/` — gates directory exists
+  - `tools/spikes/_support/ConsoleOutput.php` — canonical output writer
+  - `tools/spikes/_support/ErrorCodes.php` — error codes registry
+  - `tools/spikes/_support/bootstrap.php` — tools bootstrap
+  - `packages/core/dto-attribute/src/Attribute/Dto.php` — canonical DTO marker exists
   - `docs/ssot/dto-policy.md` — canonical DTO policy exists
-  - `framework/packages/` — package tree exists (scan root)
+  - `packages/` — package tree exists (scan root)
 
 - Required config roots/keys:
   - none
@@ -1895,8 +1895,8 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/gates/dto_shape_gate.php` — deterministic shape gate:
-  - [x] scans `framework/packages/**/src/**/*.php`
+- [x] `tools/gates/dto_shape_gate.php` — deterministic shape gate:
+  - [x] scans `packages/**/src/**/*.php`
   - [x] excludes `**/tests/**`, `**/fixtures/**`, `**/vendor/**`
   - [x] analyzes only explicitly marked DTO classes
   - [x] token-based analysis only
@@ -1937,7 +1937,7 @@ N/A
     - [x] internal scanning/parsing failure → `CORETSIA_DTO_GATE_SCAN_FAILED`
     - [x] any uncaught exception → same code, exit 1
 
-- [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`
+- [x] `tools/tests/Integration/DtoShapeGateTest.php`
 
 #### Modifies
 
@@ -1990,7 +1990,7 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`:
+- [x] `tools/tests/Integration/DtoShapeGateTest.php`:
   - [x] compliant DTO with public typed properties passes
   - [x] compliant DTO with public promoted typed properties passes
   - [x] abstract DTO fails with `abstract-class`
@@ -2008,7 +2008,7 @@ N/A
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/tools/tests/Integration/DtoShapeGateTest.php`
+  - [x] `tools/tests/Integration/DtoShapeGateTest.php`
 
 ### DoD (MUST)
 
@@ -2026,7 +2026,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.60.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "It is impossible to create/merge a non-canonical package; the gate fails deterministically with a clear reason."
 provides:
@@ -2094,8 +2094,8 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/build/sync_package_scaffold.php` — package scaffold sync tool:
-  - [x] scans packages under `framework/packages/*/*`
+- [x] `tools/build/sync_package_scaffold.php` — package scaffold sync tool:
+  - [x] scans packages under `packages/*/*`
   - [x] supports apply mode and `--check`
   - [x] exact-canonical sync is allowed only for:
     - [x] `LICENSE`
@@ -2106,12 +2106,12 @@ N/A
     - [x] runtime-only scaffold files/directories
   - [x] MUST NOT rewrite editable package code/docs/config once present
   - [x] MUST be rerun-no-diff
-- [x] `framework/tools/gates/package_compliance_gate.php` — read-only package compliance gate:
+- [x] `tools/gates/package_compliance_gate.php` — read-only package compliance gate:
   - [x] Allowlist application (single-choice):
     - [x] `package_compliance_allowlist.php` is the ONLY grandfathering mechanism
     - [x] allowlisted package_ids MAY be exempt only from explicitly gated strict rules
     - [x] allowlist loading and matching MUST be deterministic
-  - [x] scans publishable packages under `framework/packages/*/*`
+  - [x] scans publishable packages under `packages/*/*`
   - [x] deterministic iteration/order only (`strcmp`, locale-independent)
   - [x] MUST NOT create, modify, or delete files
   - [x] MUST fail on missing required package scaffold artifacts
@@ -2148,7 +2148,7 @@ N/A
     - [x] `extra.coretsia.providers` MUST include canonical runtime provider FQCN
     - [x] `extra.coretsia.defaultsConfigPath` MUST equal `config/<slug>.php`
   - [x] Package identity / slug checks:
-    - [x] package path MUST match canonical `framework/packages/<layer>/<slug>/`
+    - [x] package path MUST match canonical `packages/<layer>/<slug>/`
     - [x] forbidden slugs: `app|modules|shared`
     - [x] reserved slugs: `kernel`, `observability`
       - [x] reserved means these slugs are blocked for arbitrary new packages
@@ -2175,21 +2175,21 @@ N/A
     - [x] deterministic diagnostics only
     - [x] relative paths only; no absolute paths
     - [x] non-zero exit on compliance violations
-- [x] `framework/tools/gates/package_compliance_allowlist.php` — explicit grandfathering list (single-choice):
+- [x] `tools/gates/package_compliance_allowlist.php` — explicit grandfathering list (single-choice):
   - [x] lists canonical package_ids `<layer>/<slug>` temporarily exempt from strict rules
   - [x] MUST be deterministic and sorted by `strcmp`
   - [x] MUST contain data only
   - [x] MUST NOT contain validation logic, derivation rules, or package-shape policy
   - [x] policy: allowlist MUST ONLY shrink over time; additions require an explicit epic/ADR justification
 
-- [x] `framework/tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
-- [x] `framework/tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
-- [x] `framework/tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
-- [x] `framework/tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
+- [x] `tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
+- [x] `tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
+- [x] `tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
+- [x] `tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
 
 #### Modifies
 
-- [x] `framework/tools/build/new-package.php`
+- [x] `tools/build/new-package.php`
   - [x] MUST continue to create the canonical baseline package scaffold
   - [x] MUST create required package artifacts for new packages:
     - [x] `composer.json`
@@ -2203,7 +2203,7 @@ N/A
     - [x] `config/<slug>.php`
     - [x] `config/rules.php`
   - [x] MUST ensure `LICENSE` and `NOTICE` are present in newly created packages
-  - [x] MUST invoke `framework/tools/build/sync_package_scaffold.php` for the newly created package after scaffold creation
+  - [x] MUST invoke `tools/build/sync_package_scaffold.php` for the newly created package after scaffold creation
   - [x] MUST NOT duplicate canonical scaffold-sync policy internally
   - [x] package scaffold completion logic MUST remain single-choice in `sync_package_scaffold.php`
 - [x] `composer.json` — add repo-root mirror scripts:
@@ -2214,7 +2214,7 @@ N/A
   - [x] `package-scaffold:sync` → `@php tools/build/sync_package_scaffold.php`
   - [x] `package-scaffold:check` → `@php tools/build/sync_package_scaffold.php --check`
   - [x] `package-compliance:gate` → `@php tools/gates/package_compliance_gate.php`
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register package compliance/scaffold codes:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register package compliance/scaffold codes:
   - [x] `CORETSIA_PACKAGE_SCAFFOLD_OUT_OF_SYNC`
   - [x] `CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED`
   - [x] `CORETSIA_PACKAGE_COMPLIANCE_VIOLATION`
@@ -2232,8 +2232,8 @@ N/A
 - [x] Rejects invalid composer/path mapping deterministically
 - [x] Allowlist is loaded deterministically and applied consistently
 - [x] Fixtures used by gate integration tests are committed and deterministic:
-  - [x] `framework/tools/tests/Fixtures/package_good/**`
-  - [x] `framework/tools/tests/Fixtures/package_bad/**`
+  - [x] `tools/tests/Fixtures/package_good/**`
+  - [x] `tools/tests/Fixtures/package_bad/**`
 - [x] `sync_package_scaffold.php --check` rejects missing canonical legal files deterministically
 - [x] `sync_package_scaffold.php --check` rejects drifted `LICENSE` / `NOTICE` deterministically
 - [x] `sync_package_scaffold.php` creates missing required scaffold files without rewriting existing user-owned content
@@ -2241,24 +2241,24 @@ N/A
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
-  - [x] `framework/tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
-  - [x] `framework/tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
-  - [x] `framework/tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
+  - [x] `tools/tests/Integration/SyncPackageScaffoldCreatesMissingFilesTest.php`
+  - [x] `tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
+  - [x] `tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
+  - [x] `tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
 
 ### DoD (MUST)
 
 - [x] Deliverables complete (creates+modifies), paths exact
 - [x] Preconditions satisfied (no forward references)
 - [x] Gate enforces (single-choice; MUST match `docs/architecture/PACKAGING.md`):
-  - [x] canonical path: `framework/packages/<layer>/<slug>/`
+  - [x] canonical path: `packages/<layer>/<slug>/`
   - [x] canonical composer name mapping (per PACKAGING):
     - [x] `composer=coretsia/<layer>-<slug>`
   - [x] forbidden slugs: `app|modules|shared`
   - [x] reserved slugs: `kernel`, `observability`
     - [x] reserved means these slugs are blocked for arbitrary new packages
     - [x] they MAY be used only by the canonical owner packages/paths defined by roadmap/SSoT
-    - [x] example: existing canonical package `framework/packages/core/kernel/` remains valid and MUST NOT fail package-compliance because of the reserved-slug rule
+    - [x] example: existing canonical package `packages/core/kernel/` remains valid and MUST NOT fail package-compliance because of the reserved-slug rule
   - [x] runtime packages require module metadata:
     - [x] `extra.coretsia.moduleId`
     - [x] `extra.coretsia.moduleClass`
@@ -2279,7 +2279,7 @@ N/A
 - [x] PSR-4 autoload mapping is canonical and matches `docs/architecture/PACKAGING.md`
 - [x] Allowlist exists and is the ONLY grandfathering mechanism; additions are forbidden without an explicit epic/ADR
 - [x] library-only support packages (e.g. contracts support, marker attributes, pure support libraries) are allowed without runtime module metadata when explicitly canonical in PACKAGING/epic ownership
-  - [x] example: `framework/packages/core/dto-attribute/`
+  - [x] example: `packages/core/dto-attribute/`
 
 ---
 
@@ -2289,7 +2289,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.70.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -2325,7 +2325,7 @@ ssot_refs:
   - `docs/ssot/modules-and-manifests.md` — SSoT entry exists or will be created by this epic
   - `docs/ssot/modes.md` — SSoT entry exists or will be created by this epic
   - `framework/composer.json` — workspace root exists
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
 
 - Required config roots/keys:
   - none
@@ -2369,9 +2369,9 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Module/ModuleInterface.php` — module contract (`descriptor(): ModuleDescriptor`)
-- [x] `framework/packages/core/contracts/src/Module/ModuleId.php` — moduleId VO (validation + normalization rules; no locale)
-- [x] `framework/packages/core/contracts/src/Module/ModuleDescriptor.php` — descriptor VO (schemaVersion + metadata + runtime fields)
+- [x] `packages/core/contracts/src/Module/ModuleInterface.php` — module contract (`descriptor(): ModuleDescriptor`)
+- [x] `packages/core/contracts/src/Module/ModuleId.php` — moduleId VO (validation + normalization rules; no locale)
+- [x] `packages/core/contracts/src/Module/ModuleDescriptor.php` — descriptor VO (schemaVersion + metadata + runtime fields)
   - [x] exported descriptor shape contains only deterministic scalar/json-like values
     - [x] `ModuleDescriptor::toArray()` MUST NOT export PHP objects/resources/closures
     - [x] `ModuleDescriptor::toArray()` MAY export only `null|bool|int|string|list<...>|array<string,...>`
@@ -2379,15 +2379,15 @@ N/A
     - [x] internal VO fields such as `ModuleId $id` are allowed and are not part of the exported descriptor shape
   - [x] exported metadata contains no closures/resources/objects/floats
   - [x] deterministic map ordering expectation for any exported array-like methods
-- [x] `framework/packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module manifest
-- [x] `framework/packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
-- [x] `framework/packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
-- [x] `framework/packages/core/contracts/src/Module/ModuleManifest.php` — installed module manifest VO
+- [x] `packages/core/contracts/src/Module/ManifestReaderInterface.php` — port: read installed module manifest
+- [x] `packages/core/contracts/src/Module/ModePresetInterface.php` — port: preset shape accessor
+- [x] `packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — port: load preset by name
+- [x] `packages/core/contracts/src/Module/ModuleManifest.php` — installed module manifest VO
   - [x] rejects duplicate module ids
   - [x] exposes deterministic module id ordering
   - [x] exports scalar/json-like manifest shape
-- [x] `framework/packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
-- [x] `framework/packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
+- [x] `packages/core/contracts/src/Module/Capability/` — marker interfaces folder (no logic)
+- [x] `packages/core/contracts/src/Module/Capability/CapabilityInterface.php`
 
 - [x] `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
 - [x] `docs/ssot/modules-and-manifests.md` — moduleId format, descriptor schemaVersion policy, “metadata-only discovery” MUST include:
@@ -2398,14 +2398,14 @@ N/A
 - [x] `docs/adr/INDEX.md` — ADR navigation entrypoint (append-only index)
   - [x] register `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
 
-- [x] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
+- [x] `packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
+- [x] `packages/core/contracts/tests/Contract/ModuleDescriptorCanonicalIdentityContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+- [x] `packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -2444,15 +2444,15 @@ N/A (contracts-only; proven by contract tests listed below)
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
+  - [x] `packages/core/contracts/tests/Unit/ModuleIdFormatTest.php`
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ModuleDescriptorIdIsDerivedFromLayerAndSlugTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ModuleDescriptorSchemaVersionTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ModuleDescriptorCanonicalIdentityContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPlatformTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ModuleManifestContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ModePresetInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ModePresetLoaderInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ManifestReaderInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -2488,7 +2488,7 @@ N/A (contracts-only; proven by contract tests listed below)
 type: package
 phase: 1
 epic_id: "1.80.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -2524,7 +2524,7 @@ ssot_refs:
 - Required deliverables (exact paths):
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists
   - `framework/composer.json` — tooling workspace root exists
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists
   - `docs/ssot/dto-policy.md` — canonical DTO vocabulary source for descriptor/result/shape/model terminology
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
 
@@ -2576,34 +2576,34 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+- [x] `packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
   - [x] exposes key existence check
   - [x] exposes default-aware read access
   - [x] exposes full merged config tree
   - [x] exposes safe source lookup
   - [x] exposes deterministic safe explain trace
-- [x] `framework/packages/core/contracts/src/Config/ConfigLoaderInterface.php`
+- [x] `packages/core/contracts/src/Config/ConfigLoaderInterface.php`
   - [x] returns `ConfigRepositoryInterface`, not loose raw config array
-- [x] `framework/packages/core/contracts/src/Config/MergeStrategyInterface.php`
+- [x] `packages/core/contracts/src/Config/MergeStrategyInterface.php`
   - [x] defines deterministic binary node merge boundary
-- [x] `framework/packages/core/contracts/src/Config/ConfigValidatorInterface.php`
+- [x] `packages/core/contracts/src/Config/ConfigValidatorInterface.php`
   - [x] validates a merged global config against loaded declarative rulesets
   - [x] MUST NOT expose package-specific callable validators
-- [x] `framework/packages/core/contracts/src/Config/ConfigSourceType.php`
-- [x] `framework/packages/core/contracts/src/Config/ConfigValueSource.php`
-- [x] `framework/packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
-- [x] `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php`
+- [x] `packages/core/contracts/src/Config/ConfigSourceType.php`
+- [x] `packages/core/contracts/src/Config/ConfigValueSource.php`
+- [x] `packages/core/contracts/src/Config/ConfigDirective.php` — directives allowlist as enum (append/prepend/remove/merge/replace)
+- [x] `packages/core/contracts/src/Env/EnvRepositoryInterface.php`
   - [x] distinguishes present empty string via `EnvValue`
   - [x] exposes `has()`, `get()`, `all()`, and safe `sourceOf()`
-- [x] `framework/packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
-- [x] `framework/packages/core/contracts/src/Env/EnvPolicy.php`
+- [x] `packages/core/contracts/src/Env/EnvValue.php` — VO to represent env lookup result (missing vs present; empty string is present)
+- [x] `packages/core/contracts/src/Env/EnvPolicy.php`
 
-- [x] `framework/packages/core/contracts/src/Config/ConfigValidationResult.php`
+- [x] `packages/core/contracts/src/Config/ConfigValidationResult.php`
   - [x] immutable result
   - [x] exposes schemaVersion in public shape
   - [x] exposes success/failure and deterministic violations
 
-- [x] `framework/packages/core/contracts/src/Config/ConfigValidationViolation.php`
+- [x] `packages/core/contracts/src/Config/ConfigValidationViolation.php`
   - [x] immutable violation shape:
     - [x] `schemaVersion`
     - [x] `root`
@@ -2613,7 +2613,7 @@ N/A
     - [x] optional safe `actualType`
   - [x] MUST NOT contain raw config values
 
-- [x] `framework/packages/core/contracts/src/Config/ConfigRuleset.php`
+- [x] `packages/core/contracts/src/Config/ConfigRuleset.php`
   - [x] optional readonly DTO/shape wrapper for validated declarative rules
   - [x] exposes schemaVersion in public shape
   - [x] MUST represent rules data, not executable validation logic
@@ -2623,27 +2623,27 @@ N/A
   - [x] In this document, `descriptor/result/shape/model` terminology follows `docs/ssot/dto-policy.md`; these models are not DTO-marker classes unless explicitly marked.
 
 Tests:
-- [x] `framework/packages/core/contracts/tests/Contract/EnvPolicyPrecedenceContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/EnvMissingVsEmptyIsDistinctContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveInvariantsContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/DirectivesAllowlistMatchesPhase0ConfigMergeLockContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveErrorPrecedenceMatchesPhase0LockContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeIsStableContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigSourceTypeEnumMatchesPhase0PrecedenceLockContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigValueSourceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigTraceModelNeverContainsRawValuesContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigTraceOrderingIsDeterministicContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigRulesetJsonLikeModelContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/EnvPolicyPrecedenceContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/EnvMissingVsEmptyIsDistinctContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigDirectiveInvariantsContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/DirectivesAllowlistMatchesCanonicalConfigMergeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigDirectiveErrorPrecedenceMatchesCanonicalPolicyContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigDirectiveEmptyArrayRuleIsCementedContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigSourceTypeIsStableContractTest.php`
+- [x] `../../packages/core/contracts/tests/Contract/ConfigSourceTypeEnumMatchesCanonicalSourceTrackingContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigValueSourceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigTraceModelNeverContainsRawValuesContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigTraceOrderingIsDeterministicContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigRulesetJsonLikeModelContractTest.php`
   - [x] locks float-forbidden JSON-like ruleset model against Phase 0 `0.70.0`
   - [x] rejects floats, `NAN`, `INF`, `-INF` at any nesting depth
   - [x] rejects executable/runtime values in declarative rulesets
   - [x] proves deterministic map key ordering and list order preservation
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigRepositoryInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigLoaderInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/MergeStrategyInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/EnvRepositoryInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ConfigValidationShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigRepositoryInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigLoaderInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/MergeStrategyInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/EnvRepositoryInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ConfigValidationShapeContractTest.php`
 
 #### Modifies
 
@@ -2728,7 +2728,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.90.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -2769,7 +2769,7 @@ ssot_refs:
   - `docs/ssot/tags.md` — tags registry exists (1.10.0)
   - `docs/ssot/observability.md` — naming/labels allowlist exists (1.40.0)
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
   - `docs/ssot/dto-policy.md` — canonical DTO vocabulary source for descriptor/result/shape/model terminology
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
 
@@ -2829,43 +2829,43 @@ N/A
 #### Creates
 
 Observability:
-- [x] `framework/packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php`
+- [x] `packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php`
 
 Tracing:
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/SpanExporterInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/SamplerInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Tracing/SamplingDecision.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/SpanExporterInterface.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/SamplerInterface.php`
+- [x] `packages/core/contracts/src/Observability/Tracing/SamplingDecision.php`
 
 Metrics:
-- [x] `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Metrics/MetricsRendererInterface.php`
+- [x] `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php`
+- [x] `packages/core/contracts/src/Observability/Metrics/MetricsRendererInterface.php`
 
 Errors:
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorReporterPortInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorSeverity.php` — severity enum (stable)
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorReporterPortInterface.php`
+- [x] `packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php`
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorSeverity.php` — severity enum (stable)
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
   - [x] extensions strictly json-like
   - [x] stable field set
   - [x] schemaVersion exported in public shape
   - [x] default severity is `ErrorSeverity::Error`
   - [x] no raw throwable payload
-- [x] `framework/packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
 
 Health:
-- [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Health/HealthCheckResult.php`
-- [x] `framework/packages/core/contracts/src/Observability/Health/HealthStatus.php`
+- [x] `packages/core/contracts/src/Observability/Health/HealthCheckInterface.php`
+- [x] `packages/core/contracts/src/Observability/Health/HealthCheckResult.php`
+- [x] `packages/core/contracts/src/Observability/Health/HealthStatus.php`
 
 Profiling:
-- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfilingSessionInterface.php`
-- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
-- [x] `framework/packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
+- [x] `packages/core/contracts/src/Observability/Profiling/ProfilerPortInterface.php`
+- [x] `packages/core/contracts/src/Observability/Profiling/ProfilingSessionInterface.php`
+- [x] `packages/core/contracts/src/Observability/Profiling/ProfileArtifact.php`
+- [x] `packages/core/contracts/src/Observability/Profiling/ProfileExporterInterface.php`
 
 Documentation:
 - [x] `docs/adr/ADR-0003-observability-errordescriptor-health-profiling-ports.md`
@@ -2882,26 +2882,26 @@ Documentation:
 - [x] `docs/ssot/profiling-ports.md` — profiling policy + invariants (payload opaque)
 
 Tests:
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/SpanInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/TracerPortInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ProfilingSessionInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/HealthCheckInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/HealthCheckResultShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorHandlingContextMetadataIsJsonLikeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/MeterPortInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsAreJsonLikeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorSeverityEnumContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/MetricsRendererInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/SpanExporterInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/SpanInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/TracerPortInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/SamplerInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ProfilingContractsShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ProfilingSessionInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/HealthCheckInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/HealthCheckResultShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorHandlingContextShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorHandlingContextMetadataIsJsonLikeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/MeterPortInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -2947,8 +2947,8 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ProfilingContractsDoNotDependOnPsr7ContractTest.php`
 
 ### Tests (MUST)
 
@@ -2978,7 +2978,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.95.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3039,7 +3039,7 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php`
+- [x] `packages/core/contracts/src/Context/ContextAccessorInterface.php`
   - [x] MUST:
     - [x] namespace: `Coretsia\Contracts\Context`
     - [x] signature: `public function has(string $key): bool;`
@@ -3047,7 +3047,7 @@ N/A
     - [x] `get()` MUST NOT have a default parameter
     - [x] `has()` MUST distinguish key presence from a present `null` value
     - [x] MUST NOT: `all()`, default параметр, сеттери, мутація, storage details, full context snapshots
-- [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
   - [x] MUST assert:
     - [x] methods exist: `has`, `get`
     - [x] no `all()` method exists
@@ -3072,7 +3072,7 @@ N/A
 
 ### Tests (MUST)
 
-- [x] `framework/packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContextAccessorInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -3123,10 +3123,10 @@ ssot_refs:
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists
   - `docs/ssot/tags.md` — tags registry exists
   - `docs/ssot/observability-and-errors.md` — contracts payload/redaction policy exists (1.90.0)
-  - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php` — enforcement evidence (contracts)
-  - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php` — enforcement evidence (contracts)
-  - `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php` — exported field set/order evidence (contracts)
-  - `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php` — nullable mapper/context evidence (contracts)
+  - `packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php` — enforcement evidence (contracts)
+  - `packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php` — enforcement evidence (contracts)
+  - `packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php` — exported field set/order evidence (contracts)
+  - `packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php` — nullable mapper/context evidence (contracts)
 
 - Required config roots/keys:
   - none
@@ -3198,15 +3198,15 @@ N/A (doc-only; shape is enforced by existing contract tests)
 
 N/A (doc-only), but MUST reference enforcement evidence in:
 
-- [x] `framework/packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContractsDoNotReferencePsr7ContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorHttpStatusIsOptionalContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorFieldSetIsStableContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php`
 
 Future runtime evidence (NOT a precondition of this doc epic; referenced once available):
 
-- [x] `framework/packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
+- [x] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
 
 ### DoD (MUST)
 
@@ -3225,7 +3225,7 @@ Future runtime evidence (NOT a precondition of this doc epic; referenced once av
 type: package
 phase: 1
 epic_id: "1.110.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3261,7 +3261,7 @@ ssot_refs:
   - `docs/ssot/tags.md` — tags registry exists (1.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -3299,31 +3299,31 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Routing/RouteDefinition.php`
+- [x] `packages/core/contracts/src/Routing/RouteDefinition.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
   - [x] schemaVersion exported in public shape
   - [x] methods normalized to uppercase, unique, sorted list
   - [x] pathTemplate requires leading `/`
-- [x] `framework/packages/core/contracts/src/Routing/RouteMatch.php`
+- [x] `packages/core/contracts/src/Routing/RouteMatch.php`
   - [x] safe scalar/json-like fields only
   - [x] deterministic exported shape/order for descriptor maps
   - [x] schemaVersion exported in public shape
   - [x] parameters are deterministic string map
   - [x] pathTemplate requires leading `/`
-- [x] `framework/packages/core/contracts/src/Routing/RouterInterface.php`
-- [x] `framework/packages/core/contracts/src/Routing/RouteProviderInterface.php`
-- [x] `framework/packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
-- [x] `framework/packages/core/contracts/src/HttpApp/ArgumentResolverInterface.php`
+- [x] `packages/core/contracts/src/Routing/RouterInterface.php`
+- [x] `packages/core/contracts/src/Routing/RouteProviderInterface.php`
+- [x] `packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
+- [x] `packages/core/contracts/src/HttpApp/ArgumentResolverInterface.php`
 
 - [x] `docs/adr/ADR-0005-routing-httpapp-ports.md`
 - [x] `docs/ssot/routing-and-http-app-contracts.md` — boundary rules + examples (no PSR-7)
 
-- [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
-- [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
+- [x] `packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 #### Modifies
 
@@ -3361,11 +3361,11 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
-- [x] `framework/packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
+- [x] `packages/core/contracts/tests/Contract/HttpAppContractsAreFormatNeutralTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteDefinitionShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RouteMatchShapeContractTest.php`
 
 ### Tests (MUST)
 
@@ -3396,7 +3396,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.120.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3432,7 +3432,7 @@ ssot_refs:
   - `docs/ssot/tags.md` — tags registry exists (1.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -3484,15 +3484,15 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Runtime/ResetInterface.php`
-- [x] `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
-- [x] `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
+- [x] `packages/core/contracts/src/Runtime/ResetInterface.php`
+- [x] `packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
+- [x] `packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
 
 - [x] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
 - [x] `docs/ssot/uow-and-reset-contracts.md` — rules: format-neutral hooks, reset discipline, tags used (refer to tag registry)
 
-- [x] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+- [x] `packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
 
 #### Modifies
 
@@ -3523,7 +3523,7 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php`
 
 ### Tests (MUST)
 
@@ -3549,7 +3549,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.130.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3586,7 +3586,7 @@ ssot_refs:
   - `docs/ssot/tags.md` — tags registry exists (1.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -3639,12 +3639,12 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Validation/ValidatorInterface.php`
-- [x] `framework/packages/core/contracts/src/Validation/ValidationResult.php`
+- [x] `packages/core/contracts/src/Validation/ValidatorInterface.php`
+- [x] `packages/core/contracts/src/Validation/ValidationResult.php`
   - [x] contains deterministic violation collection shape
   - [x] exposes violations as ordered list shape
   - [x] carries no raw input payload values
-- [x] `framework/packages/core/contracts/src/Validation/Violation.php`
+- [x] `packages/core/contracts/src/Validation/Violation.php`
   - [x] Violation fields are scalar/json-like only
   - [x] meta/extensions float-forbidden
   - [x] meta must be json-like / float-free / safe only
@@ -3654,15 +3654,15 @@ N/A
     - [x] `code`
     - [x] `rule`
     - [x] `index`
-- [x] `framework/packages/core/contracts/src/Validation/ValidationException.php`
+- [x] `packages/core/contracts/src/Validation/ValidationException.php`
 
 - [x] `docs/adr/ADR-0007-validation-ports.md`
 - [x] `docs/ssot/validation-contracts.md` — shape + deterministic exception code + mapping notes
   - [x] `ValidationResult` and `Violation` are contracts result/descriptor shapes, not DTO-marker classes by default
 
-- [x] `framework/packages/core/contracts/tests/Contract/ValidationContractsTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/ValidationContractsTest.php`
+- [x] `packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
+- [x] `packages/core/contracts/tests/Contract/ValidationViolationShapeIsSafeContractTest.php`
 
 #### Modifies
 
@@ -3701,7 +3701,7 @@ N/A
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
-- [x] `framework/packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
+- [x] `packages/core/contracts/tests/Contract/ValidationExceptionHasDeterministicCodeTest.php`
 
 ### Tests (MUST)
 
@@ -3722,7 +3722,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.140.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3755,7 +3755,7 @@ ssot_refs:
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists (PRELUDE.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -3806,12 +3806,12 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Filesystem/DiskInterface.php`
+- [x] `packages/core/contracts/src/Filesystem/DiskInterface.php`
 
 - [x] `docs/adr/ADR-0008-filesystem-ports.md`
 - [x] `docs/ssot/filesystem-contracts.md` — ports + invariants
 
-- [x] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -3834,7 +3834,7 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -3854,7 +3854,7 @@ N/A (contracts-only; proven by contract test)
 type: package
 phase: 1
 epic_id: "1.150.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -3889,7 +3889,7 @@ ssot_refs:
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists (PRELUDE.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -3943,10 +3943,10 @@ N/A
 #### Creates
 
 Database:
-- [x] `framework/packages/core/contracts/src/Database/SqlQueryInterface.php`
-- [x] `framework/packages/core/contracts/src/Database/SqlQuery.php` — immutable contracts query model for migrations/low-level calls
+- [x] `packages/core/contracts/src/Database/SqlQueryInterface.php`
+- [x] `packages/core/contracts/src/Database/SqlQuery.php` — immutable contracts query model for migrations/low-level calls
   - [x] `SqlQuery` is an immutable contracts VO and is outside DTO marker policy by default
-- [x] `framework/packages/core/contracts/src/Database/DatabaseDriverInterface.php` MUST:
+- [x] `packages/core/contracts/src/Database/DatabaseDriverInterface.php` MUST:
   - [x] MUST treat `$config` as secrets-allowed driver-owned config (connection-scoped)
   - [x] MUST treat `$tuning` as NO-secrets driver tuning (driver default + per-connection override)
   - [x] MUST NOT read global config directly (driver is pure function of inputs)
@@ -3964,7 +3964,7 @@ Database:
       - [x] driver MUST treat `$tuning` as final input (no global reads)
     - [x] PDO canonical options are NOT passed via contract surface as PDO attrs (they remain canonical string-key map inside config/tuning; driver may read them from `config.pdo_options`)
     - [x] для multi-connection `DatabaseDriverInterface::connect(...)` вже приймає `$connectionName`, тож реалізація проста: драйвер зберігає name/driverId у connection object.
-- [x] `framework/packages/core/contracts/src/Database/ConnectionInterface.php` MUST:
+- [x] `packages/core/contracts/src/Database/ConnectionInterface.php` MUST:
   - [x] `execute(SqlQueryInterface $query): QueryResultInterface`
   - [x] `beginTransaction(): void`
   - [x] `commit(): void`
@@ -3978,14 +3978,14 @@ Database:
     - [x] MUST equal `DatabaseDriverInterface::id()` of the driver instance that produced this connection
     - [x] MUST match regex: `^[a-z][a-z0-9_-]*$`
     - [x] Platform-supported allowlist is enforced by `platform/database` config rules (not contracts)
-- [x] `framework/packages/core/contracts/src/Database/QueryResultInterface.php`
+- [x] `packages/core/contracts/src/Database/QueryResultInterface.php`
   - [x] query results expose canonical scalar-only DB value domain (`int|string|bool|null`)
   - [x] contracts never expose float values
-- [x] `framework/packages/core/contracts/src/Database/SqlDialectInterface.php`
+- [x] `packages/core/contracts/src/Database/SqlDialectInterface.php`
   - [x] Bridge для driver-specific SQL діалекту: відповідає за відмінності типу limit/offset (SQL Server), returning/identity, boolean literals, etc. Це робить інтеграції “реальними”.
 
 Migrations:
-- [x] `framework/packages/core/contracts/src/Migrations/MigrationInterface.php`
+- [x] `packages/core/contracts/src/Migrations/MigrationInterface.php`
   - [x] up(ConnectionInterface $connection): void
   - [x] down(ConnectionInterface $connection): void
   - [x] no metadata methods
@@ -4007,7 +4007,7 @@ Documentation:
 - [x] `docs/ssot/migrations-contracts.md` — rules + determinism notes
 
 Tests:
-- [x] `framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php` MUST assert:
+- [x] `packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php` MUST assert:
   - [x] no `__toString` leakage
   - [x] canonical method shapes
   - [x] immutable/final/readonly value object shape
@@ -4020,14 +4020,14 @@ Tests:
   - [x] multiline non-empty SQL strings are accepted
   - [x] raw SQL is not exposed through exception messages
   - [x] structural validation failures throw `InvalidArgumentException`
-- [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` MUST assert that:
+- [x] `packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php` MUST assert that:
   - [x] `ConnectionInterface` exposes `name(): string`
   - [x] `ConnectionInterface` exposes `driverId(): string`
   - [x] a minimal fixture implementation can expose a non-empty `name()`
   - [x] a minimal fixture implementation can expose a non-empty regex-valid `driverId()`
   - [x] actual runtime driver implementations remain responsible for enforcing produced connection invariants
-- [x] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
 
 #### Modifies
 
@@ -4072,10 +4072,10 @@ N/A (contracts-only; proven by contract tests)
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/SqlQueryShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/DatabaseContractsShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/MigrationInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/DatabaseContractsNeverExposeFloatTypeContractTest.php`
 
 ### DoD (MUST)
 
@@ -4094,7 +4094,7 @@ N/A (contracts-only; proven by contract tests)
 type: package
 phase: 1
 epic_id: "1.160.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -4130,7 +4130,7 @@ ssot_refs:
   - `docs/ssot/observability.md` — label allowlist exists (1.40.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -4182,16 +4182,16 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php`
-- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitState.php`
-- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitDecision.php`
-- [x] `framework/packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php`
+- [x] `packages/core/contracts/src/RateLimit/RateLimitStoreInterface.php`
+- [x] `packages/core/contracts/src/RateLimit/RateLimitState.php`
+- [x] `packages/core/contracts/src/RateLimit/RateLimitDecision.php`
+- [x] `packages/core/contracts/src/RateLimit/RateLimitKeyHasherInterface.php`
 
 - [x] `docs/adr/ADR-0011-ratelimit-ports.md`
 - [x] `docs/ssot/rate-limit-contracts.md` — invariants (no correlation_id/request_id in keys; no raw path labels)
   - [x] rate-limit decision/state models are contracts models, not DTO-marker classes by default
 
-- [x] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
 
 #### Modifies
 
@@ -4219,7 +4219,7 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/RateLimitContractsShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -4237,7 +4237,7 @@ N/A (contracts-only; proven by contract test)
 type: package
 phase: 1
 epic_id: "1.170.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -4270,7 +4270,7 @@ ssot_refs:
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists (PRELUDE.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -4321,17 +4321,17 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Mail/MailerInterface.php`
-- [x] `framework/packages/core/contracts/src/Mail/MailTransportInterface.php`
-- [x] `framework/packages/core/contracts/src/Mail/MailMessage.php`
+- [x] `packages/core/contracts/src/Mail/MailerInterface.php`
+- [x] `packages/core/contracts/src/Mail/MailTransportInterface.php`
+- [x] `packages/core/contracts/src/Mail/MailMessage.php`
   - [x] message data shape MUST NOT be logged raw
   - [x] mail message model is a contracts transport model but is outside DTO marker policy unless explicitly marked
-- [x] `framework/packages/core/contracts/src/Mail/MailException.php`
+- [x] `packages/core/contracts/src/Mail/MailException.php`
 
 - [x] `docs/adr/ADR-0012-mail-port.md`
 - [x] `docs/ssot/mail-contracts.md` — ports + redaction rules
 
-- [x] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
 
 #### Modifies
 
@@ -4356,7 +4356,7 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/MailContractsShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -4375,7 +4375,7 @@ N/A (contracts-only; proven by contract test)
 type: package
 phase: 1
 epic_id: "1.180.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -4408,7 +4408,7 @@ ssot_refs:
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists (PRELUDE.10.0)
   - `docs/adr/INDEX.md` — ADR index exists and this epic only appends its ADR registration
   - `framework/composer.json` — tooling workspace root exists (PRELUDE.30.0)
-  - `framework/tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
+  - `tools/testing/phpunit.xml` — monorepo PHPUnit harness exists (PRELUDE.30.0)
 
 - Required config roots/keys:
   - none
@@ -4460,12 +4460,12 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
+- [x] `packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
 
 - [x] `docs/adr/ADR-0013-secrets-port.md`
 - [x] `docs/ssot/secrets-contracts.md` — usage rules + redaction requirements
 
-- [x] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
 
 #### Modifies
 
@@ -4488,7 +4488,7 @@ N/A (contracts-only; proven by contract test)
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/SecretsResolverInterfaceShapeContractTest.php`
 
 ### DoD (MUST)
 
@@ -4556,7 +4556,7 @@ ssot_refs:
   - `docs/architecture/PACKAGING.md`
   - `docs/roadmap/phase0/00_2-dependency-table.md`
   - `framework/composer.json`
-  - `framework/tools/testing/phpunit.xml`
+  - `tools/testing/phpunit.xml`
 
 - Required config roots/keys:
   - none
@@ -4835,15 +4835,15 @@ N/A
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - Future owner-package evidence (reference only; NOT owned by this epic):
-  - [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
-  - [x] `framework/packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-  - [x] `framework/packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [x] `framework/packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+  - [x] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+  - [x] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
 
 ### Tests (MUST)
 
 - Gates/Arch:
-  - [x] CI runs `framework/tools/gates/cross_cutting_contract_gate.php` (from 1.50.0 rails)
+  - [x] CI runs `tools/gates/cross_cutting_contract_gate.php` (from 1.50.0 rails)
 - Referenced owner-package contract/integration tests are evidence inputs for this coordination policy, but they are owned by their respective package epics, not by this epic.
 
 ### DoD (MUST)
@@ -4876,7 +4876,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.200.0"
-owner_path: "framework/packages/core/foundation/"
+owner_path: "packages/core/foundation/"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -4911,7 +4911,7 @@ ssot_refs:
   - 1.190.0 — canonical HTTP middleware catalog SSoT exists (`docs/ssot/http-middleware-catalog.md`)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — provides runtime ports (`ResetInterface`, hooks, etc.)
+  - `packages/core/contracts/` — provides runtime ports (`ResetInterface`, hooks, etc.)
   - `docs/ssot/http-middleware-catalog.md` — canonical HTTP catalog referenced by `docs/ssot/di-tags-and-middleware-ordering.md`
 
 - Required config roots/keys:
@@ -5075,14 +5075,14 @@ Forbidden:
 
 #### Creates
 
-- [x] `framework/packages/core/foundation/src/Module/FoundationModule.php` — runtime module
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — DI wiring entrypoint
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
+- [x] `packages/core/foundation/src/Module/FoundationModule.php` — runtime module
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php` — DI wiring entrypoint
+- [x] `packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction)
 
 Container:
-- [x] `framework/packages/core/foundation/src/Container/Container.php` — PSR-11 container runtime
-- [x] `framework/packages/core/foundation/src/Container/ContainerBuilder.php` — deterministic container build from providers
+- [x] `packages/core/foundation/src/Container/Container.php` — PSR-11 container runtime
+- [x] `packages/core/foundation/src/Container/ContainerBuilder.php` — deterministic container build from providers
   - [x] MUST preserve the caller-supplied provider order exactly (single-choice):
     - [x] `ContainerBuilder` MUST NOT re-sort providers
     - [x] upstream owner (later kernel/module-plan boot) MUST supply a deterministic provider list
@@ -5096,10 +5096,10 @@ Container:
       - [x] `TagRegistry` keeps first occurrence per `(tag, serviceId)`
   - [x] Rationale:
     - [x] makes TagRegistry dedupe (“first wins”) deterministic across OS/runs
-- [x] `framework/packages/core/foundation/src/Container/ServiceProviderInterface.php` — provider contract
-- [x] `framework/packages/core/foundation/src/Container/Exception/ContainerException.php` — implements PSR-11 ContainerExceptionInterface
-- [x] `framework/packages/core/foundation/src/Container/Exception/NotFoundException.php` — implements PSR-11 NotFoundExceptionInterface
-- [x] `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php` — deterministic diagnostics snapshot (services + tags)
+- [x] `packages/core/foundation/src/Container/ServiceProviderInterface.php` — provider contract
+- [x] `packages/core/foundation/src/Container/Exception/ContainerException.php` — implements PSR-11 ContainerExceptionInterface
+- [x] `packages/core/foundation/src/Container/Exception/NotFoundException.php` — implements PSR-11 NotFoundExceptionInterface
+- [x] `packages/core/foundation/src/Container/ContainerDiagnostics.php` — deterministic diagnostics snapshot (services + tags)
   - [x] ContainerDiagnostics / runtime artifacts often require **byte-stable JSON**.
   - [x] MUST be safe by construction:
     - [x] MUST NOT dump service instances, constructor args, or reflection data
@@ -5115,7 +5115,7 @@ Container:
     - [x] output MUST be rerun-no-diff across OS
 
 Serialization:
-- [x] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php` — deterministic JSON encoder (runtime-safe)
+- [x] `packages/core/foundation/src/Serialization/StableJsonEncoder.php` — deterministic JSON encoder (runtime-safe)
   - [x] Purpose:
     - [x] produce stable JSON bytes for diagnostics/artifacts
     - [x] prevent “accidental json_encode drift” (key order, whitespace, newline, floats)
@@ -5137,9 +5137,9 @@ Serialization:
     - [x] MUST NOT leak secrets (encoder itself must not inspect env; redaction is caller responsibility)
 
 Tags + deterministic order:
-- [x] `framework/packages/core/foundation/src/Tag/TagRegistry.php` — add/list tagged services (deterministic)
-- [x] `framework/packages/core/foundation/src/Tag/TaggedService.php` — VO `{id, priority, meta}`
-- [x] `framework/packages/core/foundation/src/Discovery/DeterministicOrder.php` — canonical sort rule (priority DESC, id ASC)
+- [x] `packages/core/foundation/src/Tag/TagRegistry.php` — add/list tagged services (deterministic)
+- [x] `packages/core/foundation/src/Tag/TaggedService.php` — VO `{id, priority, meta}`
+- [x] `packages/core/foundation/src/Discovery/DeterministicOrder.php` — canonical sort rule (priority DESC, id ASC)
 
 ### TagRegistry API (cemented)
 
@@ -5168,7 +5168,7 @@ Tags + deterministic order:
 - [x] Rationale: prevents accidental double-registration while keeping stable results across OS/runs.
 
 Reset orchestration:
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
   - [x] Uses:
     - [x] `Psr\Container\ContainerInterface` — resolve services by id
     - [x] `Coretsia\Foundation\Tag\TagRegistry` — source of truth for the effective reset discovery list
@@ -5192,13 +5192,13 @@ Reset orchestration:
       - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
     - [x] `1.200.0` tests MUST lock deterministic hard-fail behavior only and MUST NOT require the future typed exception class/code.
 
-- [x] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants:
+- [x] `packages/core/foundation/src/Tag/ReservedTags.php` — constants:
   - [x] `public const KERNEL_RESET = 'kernel.reset';` - reserved canonical default reset tag name
   - [x] `public const KERNEL_STATEFUL = 'kernel.stateful';` - fixed reserved enforcement marker
 
 Configuration:
-- [x] `framework/packages/core/foundation/config/foundation.php` — config subtree under `foundation`
-- [x] `framework/packages/core/foundation/config/rules.php` — enforces shape
+- [x] `packages/core/foundation/config/foundation.php` — config subtree under `foundation`
+- [x] `packages/core/foundation/config/rules.php` — enforces shape
 
 Documentation:
 - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
@@ -5230,42 +5230,42 @@ Documentation:
       - [x] MUST NOT apply a different dedupe rule
   - [x] priority bands guidance + reference to the canonical HTTP catalog SSoT:
     - [x] `docs/ssot/http-middleware-catalog.md`
-  - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock-source/alignment input, NOT as SSoT
+  - [x] `tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock-source/alignment input, NOT as SSoT
 
 Tests:
-- [x] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
-- [x] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContainerDefinitionsAreSharedByDefaultTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+- [x] `packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
+- [x] `packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
+- [x] `packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContainerDefinitionsAreSharedByDefaultTest.php`
+- [x] `packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
+- [x] `packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
   - [x] for `1.200.0`: locks deterministic hard-fail behavior and stable message `reset-not-resettable` only
   - [x] MUST NOT require `ResetException` or `CORETSIA_RESET_SERVICE_NOT_RESETTABLE` before `1.250.0`
   - [x] future typed-exception upgrade is deferred to `1.250.0` and tracked there as a `Modifies` item
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContainerBuilderProviderOrderIsDeterministicTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContainerBuilderProviderOrderIsDeterministicTest.php`
   - [x] asserts `ContainerBuilder` preserves the caller-supplied deterministic provider order exactly
   - [x] MUST NOT assert global re-sorting by provider FQCN
-- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
   - [x] asserts stable bytes for the same input container snapshot (sorted map keys at all levels, LF-only, final newline)
-- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
   - [x] asserts diagnostics never includes env values/tokens/Authorization/Cookie-like keys and never dumps constructor args/instances
-- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
   - [x] asserts no `/home/`, `/Users/`, `(?i)\b[A-Z]:(\\|/)`, `\\server\share` patterns appear in serialized diagnostics
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsFloatValuesContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonEncoderRejectsFloatValuesContractTest.php`
   - [x] asserts `float/NaN/INF/-INF` are rejected deterministically and messages do not contain raw values
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonEncoderRejectsNonJsonLikeValuesContractTest.php`
   - [x] asserts `object/resource/Closure/non-string` map keys are rejected deterministically
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderSortsMapKeysRecursivelyContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonEncoderSortsMapKeysRecursivelyContractTest.php`
   - [x] asserts maps are sorted recursively by `strcmp` and lists preserve order
-- [x] `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
+- [x] `packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
   - [x] asserts:
     - [x] missing `config['foundation']` OR missing `config['foundation']['container']`
       → throws `ContainerException` deterministically
-- [x] `framework/packages/core/foundation/tests/Integration/ContainerBuilderLaterBindingOverridesEarlierBindingTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContainerBuilderLaterBindingOverridesEarlierBindingTest.php`
   - [x] asserts later provider binding replaces earlier one deterministically
 
 #### Modifies
@@ -5277,21 +5277,21 @@ Tests:
 
 #### Package skeleton (if type=package)
 
-- [x] `framework/packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
+- [x] `packages/core/foundation/composer.json` - має відповідати `coretsia/core-foundation`
   - [x] MUST require runtime package:
     - [x] `psr/container`
-- [x] `framework/packages/core/foundation/src/Module/FoundationModule.php`
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
-- [x] `framework/packages/core/foundation/config/foundation.php`
-- [x] `framework/packages/core/foundation/config/rules.php`
-- [x] `framework/packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
+- [x] `packages/core/foundation/src/Module/FoundationModule.php`
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+- [x] `packages/core/foundation/config/foundation.php`
+- [x] `packages/core/foundation/config/rules.php`
+- [x] `packages/core/foundation/README.md` — package docs (Observability / Errors / Security-Redaction / Determinism)
   - [x] Observability section MUST describe only the bindings actually introduced by this epic
   - [x] default noop observability/logger bindings are introduced later by `1.205.0` and MUST be documented there once implemented
 
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/foundation/config/foundation.php`
+  - [x] `packages/core/foundation/config/foundation.php`
 - [x] Keys (dot):
   - [x] `foundation.container.autowire_concrete` = true
   - [x] `foundation.container.allow_reflection_for_concrete` = true
@@ -5300,7 +5300,7 @@ Tests:
     - [x] reserved default value is `kernel.reset`
     - [x] consumers outside Foundation MUST NOT read or hardcode this key/string
 - [x] Rules:
-  - [x] `framework/packages/core/foundation/config/rules.php` enforces shape
+  - [x] `packages/core/foundation/config/rules.php` enforces shape
 
 - IMPORTANT:
   - Tag discovery and reset orchestration are baseline runtime safety mechanisms in Foundation.
@@ -5316,7 +5316,7 @@ Tests:
 #### Wiring / DI tags (when applicable)
 
 - [x] Foundation constants for already-canonical tags:
-  - [x] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [x] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [x] constants:
     - [x] `KERNEL_RESET`
     - [x] `KERNEL_STATEFUL`
@@ -5388,15 +5388,15 @@ N/A
 
 #### Referenced enforcement rails (NOT owned by this epic)
 
-- `framework/tools/gates/cross_cutting_contract_gate.php` — referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains in tooling/gates epics.
+- `tools/gates/cross_cutting_contract_gate.php` — referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains in tooling/gates epics.
 - Dedicated PHPStan rule is intentionally not introduced by `1.200.0`; detectable `kernel.stateful` reset-discipline violations are currently enforced by `cross_cutting_contract_gate.php`, not PHPStan.
 
 #### Required policy tests matrix
 
-- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-- [x] If determinism promised → `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` (tag misuse is deterministic hard-fail)
-- [x] if reset discovery tag is config-resolved → `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+- [x] if effective reset discovery is used → `packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+- [x] If determinism promised → `packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+- [x] if effective reset discovery is used → `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` (tag misuse is deterministic hard-fail)
+- [x] if reset discovery tag is config-resolved → `packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5405,24 +5405,24 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
-  - [x] `framework/packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
+  - [x] `packages/core/foundation/tests/Unit/ContainerDoesNotAutowireInterfacesTest.php`
+  - [x] `packages/core/foundation/tests/Unit/DeterministicOrderSortRuleTest.php`
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/DeterministicOrderSortContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsJsonIsDeterministicContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSecretsContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotContainAbsolutePathsContractTest.php`
 - Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
+  - [x] `packages/core/foundation/tests/Integration/TagRegistryReturnsDeterministicOrderTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrchestratorInvokesResetExactlyOncePerServiceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/TagRegistryDedupeFirstWinsTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php`
     - [x] asserts `ResetOrchestrator` discovers resettable services through `foundation.reset.tag`, not a hardcoded `kernel.reset`
 - Gates/Arch:
-  - [x] `framework/tools/gates/cross_cutting_contract_gate.php` passes under `composer gates` as the referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains outside this epic.
+  - [x] `tools/gates/cross_cutting_contract_gate.php` passes under `composer gates` as the referenced external architecture rail for `kernel.stateful` reset discipline; ownership remains outside this epic.
   - [x] Dedicated PHPStan rule is not introduced by `1.200.0`; the invariant is currently enforced by the cross-cutting gate, not PHPStan.
-- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
-  - [x] MUST fail if `framework/packages/core/foundation/config/foundation.php` returns repeated root:
+- [x] `packages/core/foundation/tests/Contract/FoundationConfigSubtreeShapeContractTest.php`
+  - [x] MUST fail if `packages/core/foundation/config/foundation.php` returns repeated root:
     - [x] ✅ returns subtree keys such as: `['container' => [...], 'reset' => [...], ...]`
     - [x] ❌ forbidden: `['foundation' => [...]]`
   - [x] MUST NOT require an exact final namespace set for the `foundation` subtree.
@@ -5431,7 +5431,7 @@ N/A
     - [x] subtree-only return shape (no repeated root)
     - [x] no reserved `@*` keys
     - [x] absence of namespaces explicitly forbidden by the current epic
-- [x] If strict autowire config is promised → `framework/packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
+- [x] If strict autowire config is promised → `packages/core/foundation/tests/Unit/ContainerCanAutowireIsStrictOnMissingConfigTest.php`
 
 ### DoD (MUST)
 
@@ -5441,7 +5441,7 @@ N/A
 - [x] Verification tests present where applicable
 - [x] Determinism: rerun-no-diff (ordering/registry behavior)
 - [x] Docs updated:
-  - [x] `framework/packages/core/foundation/README.md`
+  - [x] `packages/core/foundation/README.md`
   - [x] `docs/ssot/di-tags-and-middleware-ordering.md`
   - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
 - [x] Typical consumers (when enabled in presets/bundles):
@@ -5476,7 +5476,7 @@ N/A
 - [x] **Reserved namespace parity (from config-merge spikes) (MUST):**
   - [x] Будь-який ключ, що починається з `@`, є **reserved**.
   - [x] `foundation` config subtree MUST NOT містити `@*` ключів на будь-якій глибині.
-  - [x] `framework/packages/core/foundation/config/rules.php` MUST enforce: `@*` → hard fail.
+  - [x] `packages/core/foundation/config/rules.php` MUST enforce: `@*` → hard fail.
 - [x] `core/foundation` (runtime) MUST NOT залежати від Phase 0 devtools/tooling пакетів:
   - [x] Forbidden deps: `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
   - [x] Rationale: Phase 0 tooling libs і gates — tools-only; runtime не має тягнути їх як compile-time deps.
@@ -5497,7 +5497,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.205.0"
-owner_path: "framework/packages/core/foundation/"
+owner_path: "packages/core/foundation/"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -5535,9 +5535,9 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
 
 - Required deliverables:
-  - `framework/packages/core/contracts/` — observability ports exist
-  - `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — provider exists and is extended here
-  - `framework/packages/core/foundation/README.md` — package README exists and is extended here
+  - `packages/core/contracts/` — observability ports exist
+  - `packages/core/foundation/src/Provider/FoundationServiceProvider.php` — provider exists and is extended here
+  - `packages/core/foundation/README.md` — package README exists and is extended here
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -5573,37 +5573,37 @@ Forbidden:
 #### Creates
 
 Logging:
-- [x] `framework/packages/core/foundation/src/Logging/NoopLogger.php`
+- [x] `packages/core/foundation/src/Logging/NoopLogger.php`
   - [x] implements `Psr\Log\LoggerInterface`
 
 Tracing:
-- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
+- [x] `packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
   - [x] implements `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
+- [x] `packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
   - [x] implements `Coretsia\Contracts\Observability\Tracing\SpanInterface`
-- [x] `framework/packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
+- [x] `packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
   - [x] implements `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
 
 Metrics:
-- [x] `framework/packages/core/foundation/src/Observability/Metrics/NoopMeter.php`
+- [x] `packages/core/foundation/src/Observability/Metrics/NoopMeter.php`
   - [x] implements `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 
 Errors:
-- [x] `framework/packages/core/foundation/src/Observability/Errors/NoopErrorReporter.php`
+- [x] `packages/core/foundation/src/Observability/Errors/NoopErrorReporter.php`
   - [x] implements `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
 
 Profiling:
-- [x] `framework/packages/core/foundation/src/Observability/Profiling/NoopProfiler.php`
+- [x] `packages/core/foundation/src/Observability/Profiling/NoopProfiler.php`
   - [x] implements `Coretsia\Contracts\Observability\Profiling\ProfilerPortInterface`
-- [x] `framework/packages/core/foundation/src/Observability/Profiling/NoopProfilingSession.php`
+- [x] `packages/core/foundation/src/Observability/Profiling/NoopProfilingSession.php`
   - [x] implements `Coretsia\Contracts\Observability\Profiling\ProfilingSessionInterface`
 
 #### Modifies
 
-- [x] `framework/packages/core/foundation/composer.json`
+- [x] `packages/core/foundation/composer.json`
   - [x] add runtime requirement:
     - [x] `psr/log`
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
   - [x] binds:
     - [x] `Psr\Log\LoggerInterface` → `Coretsia\Foundation\Logging\NoopLogger`
     - [x] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` → `...NoopTracer`
@@ -5613,20 +5613,20 @@ Profiling:
     - [x] `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface` → `...NoopContextPropagation`
       - [x] invariant: noop implementation MUST NOT throw; MUST NOT emit stdout/stderr; MUST NOT log raw headers.
 
-- [x] `framework/packages/core/foundation/README.md`
+- [x] `packages/core/foundation/README.md`
   - [x] MUST mention: "Foundation provides noop bindings; platform packages override them."
 
 ### Tests (MUST)
 
 Contract:
-- [x] `framework/packages/core/foundation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/core/foundation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
   - [x] MUST cover: NoopLogger/NoopTracer/NoopMeter/NoopErrorReporter/NoopProfiler do not throw
   - [x] MUST also cover: `NoopContextPropagation` does not throw
   - [x] MUST also cover: `NoopTracer` returns a noop-safe span (`NoopSpan`) that does not throw on its no-op operations
   - [x] MUST include one case where `NoopLogger` receives arbitrary PSR-3 context and ignores it safely
   - [x] MUST assert: no stdout/stderr sinks in these implementations (token-scan or behavioral)
 Integration:
-- [x] `framework/packages/core/foundation/tests/Integration/FoundationResolvesNoopObservabilityBindingsTest.php`
+- [x] `packages/core/foundation/tests/Integration/FoundationResolvesNoopObservabilityBindingsTest.php`
   - [x] asserts container resolves:
     - [x] `Psr\Log\LoggerInterface`
     - [x] `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
@@ -5652,7 +5652,7 @@ Integration:
 type: package
 phase: 1
 epic_id: "1.210.0"
-owner_path: "framework/packages/core/foundation/"
+owner_path: "packages/core/foundation/"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -5689,7 +5689,7 @@ ssot_refs:
   - `CorrelationIdGenerator` MUST delegate to `UlidGenerator` and MUST NOT implement ULID logic independently.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — provides `CorrelationIdProviderInterface`, `ResetInterface`.
+  - `packages/core/contracts/` — provides `CorrelationIdProviderInterface`, `ResetInterface`.
 
 - Required config roots/keys:
   - `foundation.*` — baseline config root exists.
@@ -5754,7 +5754,7 @@ Forbidden:
     - `docs/ssot/middleware-context-keys-map.md` (reference-only map; MUST NOT redefine lists)
   - The canonical middleware catalog / slot ownership reference is:
     - `docs/ssot/http-middleware-catalog.md`
-  - `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT.
+  - `tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT.
 
 - Kernel hooks/tags:
   - Foundation reset orchestration — ContextStore is tagged with the effective Foundation reset tag (`foundation.reset.tag`, default `kernel.reset`); reset is executed after every UoW.
@@ -5767,17 +5767,17 @@ Forbidden:
 #### Creates
 
 Context keys + store:
-- [x] `framework/packages/core/contracts/src/Context/ContextKeys.php`
+- [x] `packages/core/contracts/src/Context/ContextKeys.php`
   - [x] canonical keys (Phase 0 list + reserved future list)
-- [x] `framework/packages/core/foundation/src/Context/ContextBag.php`
+- [x] `packages/core/foundation/src/Context/ContextBag.php`
   - [x] immutable snapshot view
-- [x] `framework/packages/core/foundation/src/Context/ContextStore.php`
+- [x] `packages/core/foundation/src/Context/ContextStore.php`
   - [x] mutable store
   - [x] implements `Coretsia\Contracts\Context\ContextAccessorInterface`
   - [x] implements `Coretsia\Contracts\Runtime\ResetInterface`
   - [x] MUST implement `ContextAccessorInterface::get(string $key): mixed` exactly
   - [x] MUST NOT add a default parameter to `get(...)`
-- [x] `framework/packages/core/foundation/src/Context/ContextStorePolicy.php`
+- [x] `packages/core/foundation/src/Context/ContextStorePolicy.php`
   - [x] safe-write allowlist + guards (no secrets/PII)
 
 ### ContextStore value model (single-choice; cemented)
@@ -5806,7 +5806,7 @@ Context keys + store:
   - [x] Rationale: prevents uncontrolled key sprawl; `ContextKeys` remains the only SSoT.
 
 Correlation id:
-- [x] `framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php` — stable-format correlation id generation (format-deterministic; value is entropy-based)
+- [x] `packages/core/foundation/src/Id/CorrelationIdGenerator.php` — stable-format correlation id generation (format-deterministic; value is entropy-based)
   - [x] MUST receive `Coretsia\Foundation\Id\UlidGenerator` via constructor injection.
   - [x] MUST delegate generation to `UlidGenerator` and MUST NOT implement ULID logic independently.
   - [x] MUST NOT post-process the generated value in a way that can create format drift.
@@ -5819,15 +5819,15 @@ Correlation id:
     - [x] `CorrelationIdGenerator` MUST NOT implement ULID independently.
     - [x] It MUST delegate ULID generation to `Coretsia\Foundation\Id\UlidGenerator` to prevent format drift.
 
-- [x] `framework/packages/core/foundation/src/Id/UlidGenerator.php` — canonical ULID generator (single source)
+- [x] `packages/core/foundation/src/Id/UlidGenerator.php` — canonical ULID generator (single source)
   - [x] **Single-source ULID rule (cemented):**
     - [x] this generator is the only ULID implementation in the codebase
     - [x] `CorrelationIdGenerator` MUST delegate to it
 
-- [x] `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php` — implements `CorrelationIdProviderInterface`
+- [x] `packages/core/foundation/src/Observability/CorrelationIdProvider.php` — implements `CorrelationIdProviderInterface`
 
 Wiring evidence (in provider):
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds store/accessor/provider
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds store/accessor/provider
   and tags `ContextStore` with the effective Foundation reset discovery tag resolved from
   `foundation.reset.tag` (reserved default `kernel.reset`)
 
@@ -5847,38 +5847,38 @@ Documentation:
     - [x] `docs/ssot/middleware-context-keys-map.md`
 
 Tests:
-- [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php`
-- [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
-- [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
-- [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+- [x] `packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php`
+- [x] `packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
+- [x] `packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
+- [x] `packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
   - [x] writing key `"@foo"` MUST fail deterministically
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php`
   - [x] rejects nested float
   - [x] rejects `NaN`, `INF`, `-INF`
   - [x] error message MUST NOT contain the raw value
   - [x] message MAY contain only path-to-value
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
   - [x] writing key `"unknown_key"` MUST fail deterministically
   - [x] message MUST be safe (no values)
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/FoundationResolvesContextStoreBindingsTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php`
+- [x] `packages/core/foundation/tests/Integration/FoundationResolvesContextStoreBindingsTest.php`
+- [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php`
   - [x] asserts provider wiring tags `ContextStore` using `foundation.reset.tag`
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php`
   - [x] rejects any `object` anywhere (incl. nested)
   - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php`
   - [x] rejects any `resource` anywhere
   - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php`
   - [x] rejects maps with any non-string key (including `int` keys) anywhere
   - [x] message MUST be safe (no raw value), MAY include only path-to-value
 
@@ -5887,7 +5887,7 @@ Tests:
 - [x] `docs/ssot/INDEX.md` — register:
   - [x] `docs/ssot/context-store.md`
   - [x] `docs/ssot/context-keys.md`
-- [x] `framework/packages/core/foundation/README.md` — documents ContextStore usage + redaction rules (if referenced)
+- [x] `packages/core/foundation/README.md` — documents ContextStore usage + redaction rules (if referenced)
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
 
@@ -5968,9 +5968,9 @@ N/A
 
 #### Required policy tests matrix
 
-- [x] If Context writes exist → `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
-- [x] if effective reset discovery is used → `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-- [x] If key stability is promised → `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
+- [x] If Context writes exist → `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- [x] if effective reset discovery is used → `packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+- [x] If key stability is promised → `packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -5979,15 +5979,15 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
-  - [x] `framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
+  - [x] `packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php`
+  - [x] `packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php`
 - Contract:
-  - [x] `framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php`
 - Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
 - Gates/Arch:
   - [x] phpstan/gates enforce no stateful without reset (referenced; owned elsewhere)
 
@@ -6014,7 +6014,7 @@ N/A
   - [x] The canonical key list + writers (high-level) are documented in SSoT:
     - [x] `docs/ssot/context-keys.md`
     - [x] canonical middleware catalog reference: `docs/ssot/http-middleware-catalog.md`
-    - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be used only as a Phase 0 lock/alignment input, NOT as the primary reference
+    - [x] `tools/spikes/fixtures/http_middleware_catalog.php` MAY be used only as a Phase 0 lock/alignment input, NOT as the primary reference
 - [x] Context keys MUST NOT start with `@`.
 - [x] `ContextStorePolicy` MUST reject any write attempt to a key that starts with `@` deterministically.
 - [x] Rationale: `@*` namespace reserved for config directives (Phase 0 config_merge semantics); runtime context keys must never collide.
@@ -6036,7 +6036,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.220.0"
-owner_path: "framework/packages/core/foundation/"
+owner_path: "packages/core/foundation/"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -6066,7 +6066,7 @@ ssot_refs:
   - 1.210.0 — canonical `UlidGenerator` already exists and remains the single ULID source
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — baseline ports; no new ports introduced here.
+  - `packages/core/contracts/` — baseline ports; no new ports introduced here.
 
 - Required config roots/keys:
   - `foundation.*` — runtime reads `foundation.ids.*`.
@@ -6114,15 +6114,15 @@ N/A
 #### Creates
 
 Clock:
-- [x] `framework/packages/core/foundation/src/Clock/SystemClock.php` — implements `Psr\Clock\ClockInterface`
-- [x] `framework/packages/core/foundation/src/Clock/FrozenClock.php` — test clock (fixtures)
+- [x] `packages/core/foundation/src/Clock/SystemClock.php` — implements `Psr\Clock\ClockInterface`
+- [x] `packages/core/foundation/src/Clock/FrozenClock.php` — test clock (fixtures)
 
 IDs:
-- [x] `framework/packages/core/foundation/src/Id/UuidGenerator.php` — concrete generator
-- [x] `framework/packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical Foundation abstraction for runtime id generation
+- [x] `packages/core/foundation/src/Id/UuidGenerator.php` — concrete generator
+- [x] `packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical Foundation abstraction for runtime id generation
 
 Stopwatch:
-- [x] `framework/packages/core/foundation/src/Time/Stopwatch.php` — float-free stopwatch
+- [x] `packages/core/foundation/src/Time/Stopwatch.php` — float-free stopwatch
   - [x] `start(): int` returns a monotonic timestamp token in **nanoseconds** from `hrtime(true)`
   - [x] `stop(int $startedAt): int` returns `durationMs` as **int milliseconds**:
     - [x] `$startedAt` MUST be a positive Stopwatch token returned by `start()`
@@ -6141,21 +6141,21 @@ Documentation:
 - [x] `docs/ssot/time-ids-and-duration.md` — durationMs=int, ULID default, usage guidance
 
 Tests:
-- [x] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
-- [x] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+- [x] `packages/core/foundation/tests/Unit/UlidFormatTest.php`
+- [x] `packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
   - [x] `stop(start())` returns `int >= 0`
   - [x] `stop(PHP_INT_MAX)` returns `0`
   - [x] `stop(0)` throws `StopwatchInvalidStateException`
   - [x] `stop(-1)` throws `StopwatchInvalidStateException`
   - [x] exception message MUST NOT contain raw token values
-- [x] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
-- [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
-  - [x] asserts `framework/packages/core/foundation/config/rules.php` rejects:
+- [x] `packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+- [x] `packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+- [x] `packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
+- [x] `packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
+- [x] `packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
+- [x] `packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
+  - [x] asserts `packages/core/foundation/config/rules.php` rejects:
     - [x] any float assigned to `foundation.ids.default`
     - [x] any unknown nested key under `foundation.ids.*`, including float-valued unknown keys
     - [x] any `foundation.clock.*` key because this epic does not introduce runtime clock config
@@ -6164,29 +6164,29 @@ Tests:
 
 #### Modifies
 
-- [x] `framework/packages/core/foundation/composer.json`
+- [x] `packages/core/foundation/composer.json`
   - [x] add runtime requirement:
     - [x] `psr/clock`
 - [x] `docs/ssot/INDEX.md` — register:
   - [x] `docs/ssot/time-ids-and-duration.md`
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds Clock/Stopwatch/Id generator via DI (wiring evidence)
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [x] `framework/packages/core/foundation/config/foundation.php`
-- [x] `framework/packages/core/foundation/config/rules.php`
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php` — binds Clock/Stopwatch/Id generator via DI (wiring evidence)
+- [x] `packages/core/foundation/src/Provider/FoundationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/core/foundation/config/foundation.php`
+- [x] `packages/core/foundation/config/rules.php`
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0016-clock-ids-stopwatch.md`
 
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/foundation/config/foundation.php`
+  - [x] `packages/core/foundation/config/foundation.php`
 - [x] Keys (dot):
   - [x] `foundation.ids.default` = "ulid"
     - [x] allowed values: `ulid`, `uuid`
     - [x] selects only `Coretsia\Foundation\Id\IdGeneratorInterface`
     - [x] MUST NOT affect `CorrelationIdGenerator` or `CorrelationIdProvider`
 - [x] Rules:
-  - [x] `framework/packages/core/foundation/config/rules.php` MUST also enforce allowed values:
+  - [x] `packages/core/foundation/config/rules.php` MUST also enforce allowed values:
     - [x] `foundation.ids.default` ∈ {`ulid`, `uuid`}
 
 - [x] Policy:
@@ -6248,10 +6248,10 @@ N/A
 
 #### Required policy tests matrix
 
-- [x] If non-negative duration promised → `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
-- [x] If clock determinism in tests needed → `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
-- [x] If UUID generator is supported → `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-- [x] If float-free `foundation.ids.*` config is promised and `foundation.clock.*` is forbidden → `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
+- [x] If non-negative duration promised → `packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+- [x] If clock determinism in tests needed → `packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+- [x] If UUID generator is supported → `packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+- [x] If float-free `foundation.ids.*` config is promised and `foundation.clock.*` is forbidden → `packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -6260,17 +6260,17 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/foundation/tests/Unit/UlidFormatTest.php`
-  - [x] `framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
-  - [x] `framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
+  - [x] `packages/core/foundation/tests/Unit/UlidFormatTest.php`
+  - [x] `packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php`
+  - [x] `packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php`
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/UuidFormatContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php`
 - Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
+  - [x] `packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php`
+  - [x] `packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php`
+  - [x] `packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php`
     - [x] asserts `IdGeneratorInterface` resolves to `UlidGenerator` when `foundation.ids.default=ulid`
     - [x] asserts `IdGeneratorInterface` resolves to `UuidGenerator` when `foundation.ids.default=uuid`
     - [x] MUST NOT assert or imply that `CorrelationIdProviderInterface` switches to UUID when `foundation.ids.default=uuid`
@@ -6294,7 +6294,7 @@ N/A
 - [x] Runtime time/ids APIs MUST be float-free:
   - [x] this epic introduces no numeric runtime config under time/id settings
   - [x] config validation MUST reject float values under `foundation.ids.*` if any nested values are added later
-- [x] `framework/packages/core/foundation/config/rules.php` MUST enforce:
+- [x] `packages/core/foundation/config/rules.php` MUST enforce:
   - [x] reject any float values under `foundation.ids.*` if nested values are added later
   - [x] no `foundation.clock.*` config keys are introduced
 - [x] IDs MUST be deterministic-format strings:
@@ -6484,7 +6484,7 @@ Forbidden:
   - [x] MUST explicitly state its SSoT linkage:
     - [x] the canonical middleware list/slot ownership/order reference is:
       - [x] `docs/ssot/http-middleware-catalog.md`
-    - [x] `framework/tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT
+    - [x] `tools/spikes/fixtures/http_middleware_catalog.php` MAY be cited only as a Phase 0 lock/alignment input, NOT as SSoT
     - [x] the table MUST NOT re-declare middleware lists; it is a reference map only:
       - [x] `Middleware FQCN → ContextKeys written/read`
 
@@ -6538,8 +6538,8 @@ N/A (doc-only)
 #### Required policy tests matrix
 
 - [x] N/A (doc-only); MUST reference enforcement rails:
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
-  - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+  - [x] `tools/gates/cross_cutting_contract_gate.php`
 
 ### Tests (MUST)
 
@@ -6554,9 +6554,9 @@ N/A (doc-only)
 - [x] No contradictory rules vs kernel/http epics
 - [x] Enforcement rails reference (MUST):
   - [x] Kernel reset invariant MUST be enforced by an integration test (example path):
-    - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+    - [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
   - [x] Cross-cutting gate MUST validate “no forbidden ContextKeys writes” (example gate path):
-    - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+    - [x] `tools/gates/cross_cutting_contract_gate.php`
   - [x] The doc MUST explicitly describe what the gate/test checks (single-choice):
     - [x] afterUoW → `ResetOrchestrator::resetAll()` runs → ContextStore is empty for the next UoW.
 
@@ -6593,7 +6593,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/INDEX.md` — SSoT index entrypoint exists and this epic appends its registrations here
-  - `framework/packages/core/contracts/src/Runtime/ResetInterface.php` (by package contract) — stateful reset contract.
+  - `packages/core/contracts/src/Runtime/ResetInterface.php` (by package contract) — stateful reset contract.
 
 - Required tags:
   - effective reset discovery tag = `foundation.reset.tag` (default `kernel.reset`) — mandatory for stateful services
@@ -6746,7 +6746,7 @@ Allowed:
 #### Required policy tests matrix
 
 - [x] N/A (doc-only), but MUST reference enforcement rails:
-  - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+  - [x] `tools/gates/cross_cutting_contract_gate.php`
   - [x] phpstan rule: “stateful/tagged services MUST implement ResetInterface” (referenced; owned elsewhere)
 
 ### Tests (MUST)
@@ -6773,7 +6773,7 @@ Allowed:
   - [x] CI MUST fail if a stateful service is missing discovery through the effective Foundation reset tag.
     - [x] enforcement may be via integration/wiring tests or compile-time gates against resolved config
   - [x] Reference enforcement mechanisms (example):
-    - [x] `framework/tools/gates/cross_cutting_contract_gate.php`
+    - [x] `tools/gates/cross_cutting_contract_gate.php`
     - [x] phpstan rule: “kernel.stateful ⇒ implements ResetInterface” (owned elsewhere; referenced here)
 
 ---
@@ -6784,7 +6784,7 @@ Allowed:
 type: package
 phase: 1
 epic_id: "1.250.0"
-owner_path: "framework/packages/core/foundation/"
+owner_path: "packages/core/foundation/"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -6867,14 +6867,14 @@ Forbidden:
 #### Creates
 
 Tooling:
-- [x] `framework/tools/gates/observability_metric_catalog_gate.php`
+- [x] `tools/gates/observability_metric_catalog_gate.php`
   - [x] loads canonical metrics catalog from `docs/ssot/observability.md`
   - [x] fails deterministically if the canonical metrics catalog section is missing or unparseable
   - [x] rejects duplicate metric catalog rows
   - [x] rejects catalog rows with unsupported type values
   - [x] supported catalog metric types are exactly `counter` and `observe`
   - [x] rejects catalog labels outside the global label allowlist
-  - [x] scans runtime package source only: `framework/packages/**/src/**/*.php`
+  - [x] scans runtime package source only: `packages/**/src/**/*.php`
   - [x] ignores docs/tests/tools/var/vendor
   - [x] treats a call as a meter emission only when the receiver is resolvable as `MeterPortInterface`
   - [x] validates metric names used in meter `increment()` / `observe()` calls against the canonical catalog
@@ -6899,10 +6899,10 @@ Tooling:
   - [x] MUST NOT validate span names; span naming is owned by `observability_span_naming_gate.php`
   - [x] MUST NOT replace `observability_naming_gate.php` or `observability_span_naming_gate.php`; it complements both
 
-- [x] `framework/tools/gates/observability_span_naming_gate.php`
+- [x] `tools/gates/observability_span_naming_gate.php`
   - [x] loads canonical span naming policy from `docs/ssot/observability.md`
   - [x] fails deterministically if canonical span naming policy is missing or unparseable
-  - [x] scans runtime package source only: `framework/packages/**/src/**/*.php`
+  - [x] scans runtime package source only: `packages/**/src/**/*.php`
   - [x] ignores docs/tests/tools/var/vendor
   - [x] treats a call as a span emission only when the receiver is resolvable as `TracerPortInterface` and the method is `startSpan(...)` or `inSpan(...)`
   - [x] validates span names used in `startSpan(...)` and `inSpan(...)` calls against canonical span naming policy
@@ -6924,7 +6924,7 @@ Docs:
 - [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 
 Implementation:
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
   - [x] Enhanced-mode deterministic ordering algorithm only:
     - [x] Collect resettable services from the effective Foundation reset discovery list in `TagRegistry` (`foundation.reset.tag`, default `kernel.reset`)
     - [x] This class does not know about `foundation.reset.priority.enabled`; mode selection is owned by `ResetOrchestrator`
@@ -6940,43 +6940,43 @@ Implementation:
       - [x] MUST stop processing (fail-fast) and surface deterministic failure semantics (see Errors)
       - [x] MUST emit observability summary with outcome=failed (noop-safe ports allowed)
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetGroup.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetGroup.php`
   - [x] Value object for normalized group id.
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetPriority.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetPriority.php`
   - [x] Value object for validated priority int.
 
 Errors (deterministic, code-first):
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetErrorCodes.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetErrorCodes.php`
   - [x] MUST define string codes (cemented):
     - [x] `CORETSIA_RESET_META_INVALID`
     - [x] `CORETSIA_RESET_SERVICE_NOT_RESETTABLE`
     - [x] `CORETSIA_RESET_SERVICE_FAILED`
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetException.php`
   - [x] MUST carry deterministic string code from `ResetErrorCodes`:
     - [x] `code(): string`
 
 Tests:
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
   - [x] MUST set a non-trivial locale (if available) and still assert identical ordering.
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetIgnoresMetaWhenDisabledTest.php`
   - [x] with `foundation.reset.priority.enabled=false`, invalid meta MUST NOT fail
   - [x] ordering MUST equal legacy (`TagRegistry->all(...)` order) exactly
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetIgnoresUnknownMetaKeysWhenEnabledTest.php`
   - [x] meta contains extra keys (e.g. `{"priority": 10, "group": "default", "x": "y", "debug": ["a"=>1]}`)
   - [x] MUST NOT fail because of unknown keys
   - [x] ordering MUST be computed only from (`priority`,`group`,`serviceId`)
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php`
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetUsesConfiguredResetTagTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
   - [x] asserts first thrown service exception stops further reset processing
   - [x] asserts deterministic `ResetException(code=CORETSIA_RESET_SERVICE_FAILED, message="reset-service-failed")`
   - [x] asserts summary-only observability path remains safe
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
   - [x] optional but recommended
   - [x] span name `foundation.reset`
   - [x] attrs: `services_count`, `groups_count`, `outcome`
@@ -6986,11 +6986,11 @@ Tests:
   - [x] no service ids/payloads/meta/raw exceptions in emitted labels/attrs
 
 Tooling tests:
-- [x] `framework/tools/tests/Contract/ObservabilityMetricCatalogGateTest.php`
+- [x] `tools/tests/Contract/ObservabilityMetricCatalogGateTest.php`
   - [x] uses isolated temp repo fixtures generated inline by each data-provider case
   - [x] writes a minimal `docs/ssot/observability.md` catalog fixture
-  - [x] writes minimal runtime package source fixtures under `framework/packages/core/foundation/src/*.php`
-  - [x] installs a minimal gate harness under `framework/tools/**`
+  - [x] writes minimal runtime package source fixtures under `packages/core/foundation/src/*.php`
+  - [x] installs a minimal gate harness under `tools/**`
   - [x] avoids persistent fixture files for this gate because each case needs small, isolated catalog/runtime-source combinations
   - [x] accepts `foundation.reset_total`
   - [x] accepts `foundation.reset_duration_ms`
@@ -7010,10 +7010,10 @@ Tooling tests:
   - [x] rejects catalog labels outside the global allowlist
   - [x] rejects missing/unparseable canonical metrics catalog section
   - [x] rejects named-argument `MeterPortInterface` calls as unparseable
-- [x] `framework/tools/tests/Contract/ObservabilitySpanNamingGateTest.php`
+- [x] `tools/tests/Contract/ObservabilitySpanNamingGateTest.php`
   - [x] uses isolated temp repo fixtures generated inline by each data-provider case
-  - [x] writes minimal runtime package source fixtures under `framework/packages/core/foundation/src/*.php`
-  - [x] installs a minimal gate harness under `framework/tools/**`
+  - [x] writes minimal runtime package source fixtures under `packages/core/foundation/src/*.php`
+  - [x] installs a minimal gate harness under `tools/**`
   - [x] accepts valid singular span name `foundation.reset`
   - [x] accepts same-class private `const string` span names accessed through `self::CONST`
   - [x] rejects malformed span names:
@@ -7049,7 +7049,7 @@ Tooling tests:
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0019-enhanced-reset-long-running.md`
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php`
   - [x] MUST remain the stable public entrypoint used by `core/kernel` (no kernel changes)
   - [x] when `foundation.reset.priority.enabled=false`, MUST preserve legacy/base mode exactly:
     - [x] iterate EXACT `TagRegistry->all($effectiveResetTag)` order
@@ -7075,23 +7075,23 @@ Tooling tests:
     - [x] if a service discovered through the effective Foundation reset discovery tag resolved from `foundation.reset.tag` (reserved default `kernel.reset`) resolves to an instance that does NOT implement `ResetInterface`
       → MUST throw `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+- [x] `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
   - [x] registers/binds `Coretsia\Foundation\Runtime\Reset\PriorityResetOrchestrator`
   - [x] keeps `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator` as the stable public entrypoint and injects enhanced reset collaborators deterministically
 
-- [x] `framework/packages/core/foundation/src/Provider/FoundationServiceFactory.php`
+- [x] `packages/core/foundation/src/Provider/FoundationServiceFactory.php`
   - [x] deterministic factory wiring for `PriorityResetOrchestrator` and its reset-planning collaborators
   - [x] MUST NOT keep mutable runtime state
 
-- [x] `framework/packages/core/foundation/config/foundation.php`
+- [x] `packages/core/foundation/config/foundation.php`
   - [x] MUST follow canonical config policy:
     - [x] file returns the subtree (MUST NOT repeat the root key `foundation`).
 
-- [x] `framework/packages/core/foundation/config/rules.php`
+- [x] `packages/core/foundation/config/rules.php`
   - [x] MUST enforce shape and defaults for keys below.
   - [x] `foundation.reset.group.default` має проходити той самий regex, що й `group meta` (інакше буде “конфіг валідний, але runtime падає”)
 
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
   - [x] upgrade the `1.200.0` hard-fail assertion to the typed reset failure:
     - [x] `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
   - [x] keep the stable message `reset-not-resettable`
@@ -7145,7 +7145,7 @@ Tooling tests:
     - [x] canonical live policy is owned by `docs/ssot/reset-tags.md`
     - [x] ADR-0019 records the enhanced reset decision
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php`
+- [x] `tools/spikes/_support/ErrorCodes.php`
   - [x] add `CORETSIA_OBSERVABILITY_SPAN_NAMING_DRIFT`
   - [x] add `CORETSIA_OBSERVABILITY_SPAN_NAMING_GATE_FAILED`
   - [x] add `CORETSIA_OBSERVABILITY_METRIC_CATALOG_DRIFT`
@@ -7182,7 +7182,7 @@ Tooling tests:
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/foundation/config/foundation.php`
+  - [x] `packages/core/foundation/config/foundation.php`
 - [x] Keys (dot):
   - [x] Base reset key (from 1.200.0; reiterated for completeness):
     - [x] `foundation.reset.tag` = "kernel.reset"
@@ -7269,32 +7269,32 @@ N/A
 #### Required policy tests matrix
 
 - [x] Deterministic ordering with priority/group:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
 - [x] Group behavior:
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
 - [x] Backward compat when disabled:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
 - [x] Deterministic invalid-meta rejection:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
 - [x] Locale independence:
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
 - [x] Enhanced reset config shape lock:
-  - [x] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/FoundationEnhancedResetConfigShapeContractTest.php`
     - [x] asserts `foundation.reset.priority.enabled` is bool
     - [x] asserts `foundation.reset.group.default` matches `/\A[a-z0-9][a-z0-9._-]*\z/`
     - [x] asserts invalid values fail deterministically with safe messages
 - Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetOrderDeterministicTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetGroupWorksTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetBackCompatWhenDisabledTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetMetaParsingRejectsInvalidTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrderingIsLocaleIndependentTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
     - [x] upgrades the `1.200.0` assertion from `RuntimeException(message="reset-not-resettable")`
       to `ResetException(code=CORETSIA_RESET_SERVICE_NOT_RESETTABLE, message="reset-not-resettable")`
 
@@ -7518,8 +7518,8 @@ N/A
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] N/A (doc-only), but MUST reference enforcement tests (exact paths):
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
 
 ### Tests (MUST)
 
@@ -7545,7 +7545,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.265.0"
-owner_path: "framework/tools/"
+owner_path: "tools/"
 
 goal: "Coretsia packages can use Packagist-safe internal dependency constraints generated from a single release-line SSoT, while monorepo development continues to resolve local package changes immediately through release-line path repository versions."
 provides:
@@ -7561,7 +7561,7 @@ config_roots_introduced: []
 artifacts_introduced: []
 adr: none
 ssot_refs:
-- "framework/tools/release/release-line.json"
+- "tools/release/release-line.json"
 - "docs/architecture/PACKAGING.md"
 ---
 
@@ -7580,10 +7580,10 @@ ssot_refs:
 - Required deliverables (exact paths):
   - `composer.json` — root Composer workspace and canonical repo-root scripts.
   - `framework/composer.json` — framework tooling workspace and internal package `require-dev` root.
-  - `skeleton/composer.json` — skeleton workspace.
-  - `framework/tools/build/sync_composer_repositories.php` — managed repository block synchronizer.
+  - `packages/applications/skeleton/composer.json` — skeleton workspace.
+  - `tools/build/sync_composer_repositories.php` — managed repository block synchronizer.
   - `.github/split-publish-packages.json` — public split package allowlist.
-  - `framework/packages/core/foundation/composer.json` — first runtime package with an internal Coretsia package dependency prepared for publication.
+  - `packages/core/foundation/composer.json` — first runtime package with an internal Coretsia package dependency prepared for publication.
 
 - Required config roots/keys:
   - none
@@ -7595,7 +7595,7 @@ ssot_refs:
   - none
 
 - Release-line terminology (MUST):
-  - `schemaVersion` in `framework/tools/release/release-line.json` is the schema version of the file, not the package release version.
+  - `schemaVersion` in `tools/release/release-line.json` is the schema version of the file, not the package release version.
   - `schemaVersion` MUST NOT be changed for ordinary release-line bumps such as `0.4 -> 0.5`.
   - `schemaVersion` changes only when the file structure or field semantics change.
   - Patch releases do not change `currentMinor`, `devVersion`, or `publicConstraint`.
@@ -7612,8 +7612,8 @@ Depends on:
 
 Forbidden:
 
-- runtime packages MUST NOT depend on `framework/tools/release/*`
-- runtime packages MUST NOT read `framework/tools/release/release-line.json`
+- runtime packages MUST NOT depend on `tools/release/*`
+- runtime packages MUST NOT read `tools/release/release-line.json`
 - published package source MUST NOT depend on monorepo release tooling
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -7637,11 +7637,11 @@ N/A
 
 - Composer path repository integration:
   - root `composer.json` package wildcard path repository:
-    - `framework/packages/*/*`
+    - `packages/*/*`
   - framework `composer.json` package wildcard path repository:
     - `packages/*/*`
   - skeleton `composer.json` package wildcard path repository:
-    - `../framework/packages/*/*`
+    - `../packages/*/*`
 
 - Artifacts:
   - N/A
@@ -7650,17 +7650,17 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/release/release-line.json` — machine-readable release-line SSoT:
+- [x] `tools/release/release-line.json` — machine-readable release-line SSoT:
   - [x] `schemaVersion` = `coretsia.releaseLine.v1`
   - [x] `currentMinor` = current release minor, e.g. `0.4`
   - [x] `devVersion` = Composer workspace dev version, e.g. `0.4.x-dev`
   - [x] `publicConstraint` = public internal dependency constraint, e.g. `^0.4.0`
 
-- [x] `framework/tools/release/sync_workspace_release_line.php` — synchronizes `framework/composer.json` internal `coretsia/*` `require-dev` constraints from `release-line.json`:
-  - [x] reads `framework/tools/release/release-line.json`
+- [x] `tools/release/sync_workspace_release_line.php` — synchronizes `framework/composer.json` internal `coretsia/*` `require-dev` constraints from `release-line.json`:
+  - [x] reads `tools/release/release-line.json`
   - [x] validates `schemaVersion`
   - [x] validates `currentMinor`, `devVersion`, and `publicConstraint` consistency
-  - [x] discovers packages from `framework/packages/*/*/composer.json`
+  - [x] discovers packages from `packages/*/*/composer.json`
   - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
   - [x] rewrites managed internal `coretsia/*` package constraints in `framework/composer.json` `require-dev` from discovered packages
   - [x] preserves `ext-*` requirements
@@ -7670,11 +7670,11 @@ N/A
   - [x] writes deterministic JSON bytes with LF-only final newline
   - [x] creates backups only on apply-mode drift
 
-- [x] `framework/tools/release/sync_package_public_constraints.php` — synchronizes package `composer.json` internal `coretsia/*` dependency constraints from `release-line.json`:
-  - [x] reads `framework/tools/release/release-line.json`
+- [x] `tools/release/sync_package_public_constraints.php` — synchronizes package `composer.json` internal `coretsia/*` dependency constraints from `release-line.json`:
+  - [x] reads `tools/release/release-line.json`
   - [x] validates `schemaVersion`
   - [x] validates `currentMinor`, `devVersion`, and `publicConstraint` consistency
-  - [x] discovers packages from `framework/packages/*/*/composer.json`
+  - [x] discovers packages from `packages/*/*/composer.json`
   - [x] scans all discovered packages, not only split-publish allowlisted packages
   - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
   - [x] scans package `require` and `require-dev` sections
@@ -7689,9 +7689,9 @@ N/A
   - [x] writes deterministic JSON bytes with LF-only final newline
   - [x] creates backups only on apply-mode drift
 
-- [x] `framework/tools/gates/package_publish_safety_gate.php` — validates Packagist-safe composer metadata for allowlisted split packages:
+- [x] `tools/gates/package_publish_safety_gate.php` — validates Packagist-safe composer metadata for allowlisted split packages:
   - [x] reads `.github/split-publish-packages.json`
-  - [x] resolves every allowlisted `package_id` to `framework/packages/<layer>/<slug>/composer.json`
+  - [x] resolves every allowlisted `package_id` to `packages/<layer>/<slug>/composer.json`
   - [x] validates package name equals `coretsia/<layer>-<slug>`
   - [x] validates package `type` is `library`
   - [x] fails if package `composer.json` contains a manual `version` field
@@ -7707,9 +7707,9 @@ N/A
 
 #### Modifies
 
-- [x] `framework/tools/build/sync_composer_repositories.php` — generate release-line package versions in managed path repositories:
-  - [x] reads `framework/tools/release/release-line.json`
-  - [x] discovers packages from `framework/packages/*/*/composer.json`
+- [x] `tools/build/sync_composer_repositories.php` — generate release-line package versions in managed path repositories:
+  - [x] reads `tools/release/release-line.json`
+  - [x] discovers packages from `packages/*/*/composer.json`
   - [x] validates discovered package names against canonical `coretsia/<layer>-<slug>` naming
   - [x] adds `options.reference = "config"` to package wildcard path repositories
   - [x] adds `options.versions` for every discovered package using release-line `devVersion`
@@ -7742,7 +7742,7 @@ N/A
   - [x] keep external dev tooling requirements after internal package requirements
 
 - [x] `composer.json` — managed `repositories` block:
-  - [x] package wildcard repository `framework/packages/*/*` contains generated:
+  - [x] package wildcard repository `packages/*/*` contains generated:
     - [x] `options.reference = "config"`
     - [x] `options.versions`
 
@@ -7751,15 +7751,15 @@ N/A
     - [x] `options.reference = "config"`
     - [x] `options.versions`
 
-- [x] `skeleton/composer.json` — managed `repositories` block:
-  - [x] package wildcard repository `../framework/packages/*/*` contains generated:
+- [x] `packages/applications/skeleton/composer.json` — managed `repositories` block:
+  - [x] package wildcard repository `../packages/*/*` contains generated:
     - [x] `options.reference = "config"`
     - [x] `options.versions`
 
 - [x] `.github/split-publish-packages.json` — add `core/foundation` when package metadata is Packagist-safe:
   - [x] `core/foundation`
 
-- [x] `framework/packages/core/foundation/composer.json` — internal package dependency is synchronized by `sync_package_public_constraints.php`:
+- [x] `packages/core/foundation/composer.json` — internal package dependency is synchronized by `sync_package_public_constraints.php`:
   - [x] `coretsia/core-contracts: dev-main` → release-line `publicConstraint`, e.g. `^0.4.0`
 
 - [x] `docs/architecture/PACKAGING.md` — document release-line package policy:
@@ -7767,7 +7767,7 @@ N/A
   - [x] published / allowlisted packages MUST NOT require internal `coretsia/*` packages as `dev-main`
   - [x] published / allowlisted packages MUST use release-line public semver constraints for internal `coretsia/*` dependencies
   - [x] monorepo workspace uses path repositories plus generated `options.versions`
-  - [x] `framework/tools/release/release-line.json` is the tooling SSoT for workspace dev version and public internal constraint
+  - [x] `tools/release/release-line.json` is the tooling SSoT for workspace dev version and public internal constraint
   - [x] Packagist package versions come from git tags, not package-local `composer.json` version fields
 
 - [x] `docs/guides/packagist-split-publishing-guide.md` — document split publication precondition:
@@ -7793,7 +7793,7 @@ N/A
   - [x] explain that public constraints sync updates package `composer.json` internal `coretsia/*` dependencies
 
 - [x] `docs/guides/releasing.md` — document release-line bump procedure:
-  - [x] patch releases do not change `framework/tools/release/release-line.json`
+  - [x] patch releases do not change `tools/release/release-line.json`
   - [x] minor release-line bumps update `currentMinor`, `devVersion`, and `publicConstraint`
   - [x] `schemaVersion` is not changed for normal releases
   - [x] after changing release-line values, run:
@@ -7805,7 +7805,7 @@ N/A
     - [x] `composer release-line:public-constraints:check`
     - [x] `composer package-publish-safety:gate`
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register release-line and package publish safety tooling diagnostics:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register release-line and package publish safety tooling diagnostics:
   - [x] `CORETSIA_RELEASE_LINE_WORKSPACE_SYNC_FAILED`
   - [x] `CORETSIA_RELEASE_LINE_WORKSPACE_OUT_OF_SYNC`
   - [x] `CORETSIA_RELEASE_LINE_PUBLIC_CONSTRAINTS_SYNC_FAILED`
@@ -7836,7 +7836,7 @@ N/A
 - [x] Managed repository versions:
   - [x] `composer sync:repos`
   - [x] `composer sync:check`
-  - [x] must prove `options.versions` is generated from `framework/tools/release/release-line.json`
+  - [x] must prove `options.versions` is generated from `tools/release/release-line.json`
 
 - [x] Workspace release-line require-dev sync:
   - [x] `composer release-line:workspace:sync`
@@ -7889,13 +7889,13 @@ N/A
   - [x] `composer ci`
 
 - Tooling:
-  - [x] `framework/tools/build/sync_composer_repositories.php --check`
-  - [x] `framework/tools/release/sync_workspace_release_line.php --check`
-  - [x] `framework/tools/release/sync_package_public_constraints.php --check`
+  - [x] `tools/build/sync_composer_repositories.php --check`
+  - [x] `tools/release/sync_workspace_release_line.php --check`
+  - [x] `tools/release/sync_package_public_constraints.php --check`
 
 ### DoD (MUST)
 
-- [x] `framework/tools/release/release-line.json` is the single tooling SSoT for:
+- [x] `tools/release/release-line.json` is the single tooling SSoT for:
   - [x] current release minor
   - [x] monorepo workspace dev version
   - [x] public internal package constraint
@@ -7936,7 +7936,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.270.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -7978,16 +7978,16 @@ ssot_refs:
   - 1.220.0 — canonical clock/ids/stopwatch services exist in Foundation
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
   - `docs/architecture/PACKAGING.md`
-  - `framework/tools/testing/phpunit.xml`
+  - `tools/testing/phpunit.xml`
   - `docs/ssot/INDEX.md`
-  - `framework/packages/core/foundation/` — `UlidGenerator` (optional), `ClockInterface` binding (optional)
+  - `packages/core/foundation/` — `UlidGenerator` (optional), `ClockInterface` binding (optional)
 
 - Required config roots/keys:
   - none (all `kernel.uow.*` keys are introduced by this epic)
@@ -8067,37 +8067,37 @@ endUoW()
 
 ### Creates
 
-- [x] `framework/packages/core/kernel/config/kernel.php` — adds `kernel.uow.attributes.*` defaults
-- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [x] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [x] `framework/packages/core/kernel/README.md` — includes: Observability / Errors / Security-Redaction
+- [x] `packages/core/kernel/config/kernel.php` — adds `kernel.uow.attributes.*` defaults
+- [x] `packages/core/kernel/config/rules.php` — enforces shape
+- [x] `packages/core/kernel/src/Module/KernelModule.php` (runtime)
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/core/kernel/README.md` — includes: Observability / Errors / Security-Redaction
 
 Runtime internals:
-- [x] `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — internal json-like normalizer/guard for UnitOfWork shapes; not public API
+- [x] `packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — internal json-like normalizer/guard for UnitOfWork shapes; not public API
   - [x] `normalizeContextAttributes(array $attributes, int $maxDepth, int $maxKeys): array`
   - [x] `normalizeResultExtensions(array $extensions): array`
   - [x] `normalizeExportedErrorMap(array $error): array`
 
 Context:
-- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkType.php` — enum-like: `http|cli|queue|scheduler`
-- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — VO `{uowId,type,startedAt,correlationId,attributes}`
+- [x] `packages/core/kernel/src/Runtime/UnitOfWorkType.php` — enum-like: `http|cli|queue|scheduler`
+- [x] `packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — VO `{uowId,type,startedAt,correlationId,attributes}`
   - [x] MUST validate `attributes` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
   - [x] MUST enforce `kernel.uow.attributes.max_depth` and `kernel.uow.attributes.max_keys`
   - [x] MUST fail with `CORETSIA_UOW_CONTEXT_INVALID` using safe diagnostics only
-- [x] `framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php` — errorCode `CORETSIA_UOW_CONTEXT_INVALID`
+- [x] `packages/core/kernel/src/Runtime/Exception/UnitOfWorkContextInvalidException.php` — errorCode `CORETSIA_UOW_CONTEXT_INVALID`
 
 Result + outcome:
-- [x] `framework/packages/core/kernel/src/Runtime/Outcome.php` — enum-like outcome strings: `success|handled_error|fatal_error`
-- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — VO `{uowId,type,correlationId,startedAt,finishedAt,durationMs,outcome,error?,extensions}`
+- [x] `packages/core/kernel/src/Runtime/Outcome.php` — enum-like outcome strings: `success|handled_error|fatal_error`
+- [x] `packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — VO `{uowId,type,correlationId,startedAt,finishedAt,durationMs,outcome,error?,extensions}`
   - [x] MUST validate `extensions` as json-like (float-forbidden; no objects/resources; deterministic path-safe failures)
   - [x] MUST reject unsafe values deterministically before export to hooks/adapters/artifacts
   - [x] `extensions` MUST be json-like only
   - [x] `error?` MAY be represented internally as `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` (optional)
   - [x] any exported/hook/artifact representation MUST normalize `error` to a json-like error map before crossing the kernel boundary
   - [x] MUST fail with `CORETSIA_UOW_RESULT_INVALID` using safe diagnostics only
-- [x] `framework/packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php` — errorCode `CORETSIA_UOW_RESULT_INVALID`
+- [x] `packages/core/kernel/src/Runtime/Exception/UnitOfWorkResultInvalidException.php` — errorCode `CORETSIA_UOW_RESULT_INVALID`
 
 Docs:
 - [x] `docs/adr/ADR-0021-unit-of-work-context-shape.md`
@@ -8165,22 +8165,22 @@ Docs:
 
 #### Package skeleton (if type=package)
 
-- [x] `framework/packages/core/kernel/src/Module/KernelModule.php` (runtime)
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
-- [x] `framework/packages/core/kernel/config/kernel.php`  # returns subtree (no repeated root)
-- [x] `framework/packages/core/kernel/config/rules.php`
-- [x] `framework/packages/core/kernel/README.md`
-- [x] `framework/packages/core/kernel/composer.json`
+- [x] `packages/core/kernel/src/Module/KernelModule.php` (runtime)
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php` (runtime)
+- [x] `packages/core/kernel/config/kernel.php`  # returns subtree (no repeated root)
+- [x] `packages/core/kernel/config/rules.php`
+- [x] `packages/core/kernel/README.md`
+- [x] `packages/core/kernel/composer.json`
 
 ## Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/kernel.php`
 - Keys (dot):
   - [x] `kernel.uow.attributes.max_depth` = 10
   - [x] `kernel.uow.attributes.max_keys`  = 200
 - Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces shape for:
+  - [x] `packages/core/kernel/config/rules.php` enforces shape for:
     - [x] `kernel.uow.attributes.max_depth` int>0
     - [x] `kernel.uow.attributes.max_keys`  int>0
 
@@ -8257,11 +8257,11 @@ Docs:
 ### Contract / snapshot locks
 
 - [x] Context shape lock:
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
 - [x] Kernel config subtree shape lock:
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
 - [x] Context attributes json-like + limits:
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
     - [x] Перевірити, що context attributes reject keys:
       - [x] `authorization`, `cookie`, `cookies`, `session`, `sessionId`, `session_id`, `token`, `tokens`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `password`, `secret`, `credential`, `credentials`, `raw`, `rawBody`, `rawPayload`, `payload`, `rawSql`, `sql`, `stacktrace`, `stackTrace`, `trace`, `email`, `phone`, `username`, `fullName`, `userId`, `tenantId`
       - [x] Очікування:
@@ -8269,8 +8269,8 @@ Docs:
         - [x] `ERROR_CODE === CORETSIA_UOW_CONTEXT_INVALID`
         - [x] `reason === uow-context-attributes-unsafe-key-forbidden`
 - [x] Result shape lock:
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
     - [x] Перевірити, що context attributes reject keys:
       - [x] `authorization`, `cookie`, `cookies`, `session`, `sessionId`, `session_id`, `token`, `tokens`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `password`, `secret`, `credential`, `credentials`, `raw`, `rawBody`, `rawPayload`, `payload`, `rawSql`, `sql`, `stacktrace`, `stackTrace`, `trace`, `email`, `phone`, `username`, `fullName`, `userId`, `tenantId`
       - [x] Очікування:
@@ -8282,7 +8282,7 @@ Docs:
     - [x] asserts diagnostics are safe and contain no raw values
     - [x] asserts failures use `CORETSIA_UOW_RESULT_INVALID`
 - [x] Outcome mapping stability snapshot (policy lock):
-  - [x] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
   - [x] MUST check:
     - [x] HTTP status `200` => `success`
     - [x] HTTP status `399` => `success`
@@ -8297,13 +8297,13 @@ Docs:
 ## Tests (MUST)
 
 Contract:
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
-  - [x] MUST fail if `framework/packages/core/kernel/config/kernel.php` returns repeated root:
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextShapeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultShapeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/OutcomeMappingStabilityContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/KernelConfigSubtreeShapeContractTest.php`
+  - [x] MUST fail if `packages/core/kernel/config/kernel.php` returns repeated root:
     - [x] ✅ subtree only
     - [x] ❌ `['kernel' => [...]]`
   - [x] MUST fail if any `@*` key exists under returned subtree (any depth)
@@ -8336,7 +8336,7 @@ Contract:
 type: package
 phase: 1
 epic_id: "1.275.0"
-owner_path: "framework/packages/core/foundation"
+owner_path: "packages/core/foundation"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -8372,11 +8372,11 @@ ssot_refs:
   - 1.270.0 — Kernel UnitOfWork shapes already provide `UnitOfWorkContext`, `UnitOfWorkResult`, and the current kernel-local `JsonLikeShapeNormalizer` that this epic refactors.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php` — existing foundation stable JSON encoder that MUST delegate baseline json-like normalization to the new primitive.
-  - `framework/packages/core/foundation/src/Context/ContextStorePolicy.php` — existing foundation context write guard that MUST delegate value-shape validation to the new primitive.
-  - `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — existing kernel UoW shape wrapper that MUST retain only UoW-specific policy and delegate baseline normalization to foundation.
-  - `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — existing context shape that MUST continue to use the kernel wrapper.
-  - `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — existing result shape that MUST continue to use the kernel wrapper.
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php` — existing foundation stable JSON encoder that MUST delegate baseline json-like normalization to the new primitive.
+  - `packages/core/foundation/src/Context/ContextStorePolicy.php` — existing foundation context write guard that MUST delegate value-shape validation to the new primitive.
+  - `packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php` — existing kernel UoW shape wrapper that MUST retain only UoW-specific policy and delegate baseline normalization to foundation.
+  - `packages/core/kernel/src/Runtime/UnitOfWorkContext.php` — existing context shape that MUST continue to use the kernel wrapper.
+  - `packages/core/kernel/src/Runtime/UnitOfWorkResult.php` — existing result shape that MUST continue to use the kernel wrapper.
   - `docs/ssot/uow-shapes.md` — existing Kernel UoW shape SSoT that MUST be updated to reference the foundation-owned baseline json-like policy.
 
 - Required config roots/keys:
@@ -8405,7 +8405,7 @@ Forbidden:
 - `integrations/*`
 - `devtools/*`
 - `tools/*`
-- `framework/tools/spikes/*`
+- `tools/spikes/*`
 - `core/kernel` from `core/foundation`
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -8426,7 +8426,7 @@ N/A
 
 #### Creates
 
-- [x] `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+- [x] `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
   - [x] Create `Coretsia\Foundation\Serialization\JsonLikeNormalizer` as the canonical foundation-owned runtime json-like value normalizer.
   - [x] Implement `public static function normalize(mixed $value, string $path = 'value'): mixed`.
   - [x] Allow only `null`, `bool`, `int`, `string`, `list<value>`, and `array<string,value>`.
@@ -8447,7 +8447,7 @@ N/A
   - [x] Use stable placeholders such as `[<key>]` or `[<empty-key>]` for unsafe, empty, long, control-character, whitespace, URL-like, SQL-like, or secret-like map keys.
   - [x] Diagnostic paths MUST NOT leak raw map keys when the key itself is unsafe.
 
-- [x] `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`
+- [x] `packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`
   - [x] Create `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException`.
   - [x] Extend `\InvalidArgumentException`.
   - [x] Define `public const string ERROR_CODE = 'CORETSIA_JSON_LIKE_INVALID'`.
@@ -8465,7 +8465,7 @@ N/A
     - [x] `json-like-map-key-must-be-string`
     - [x] `json-like-type-forbidden`
 
-- [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
   - [x] Assert scalar acceptance for `null`, `bool`, `int`, and `string`.
   - [x] Assert finite float rejection with reason `json-like-float-forbidden`.
   - [x] Assert `NAN` rejection with reason `json-like-float-forbidden`.
@@ -8486,7 +8486,7 @@ N/A
   - [x] Assert unsafe map keys are not leaked in diagnostic `path()`.
   - [x] Assert keys containing tokens, SQL fragments, control chars, URLs, or absolute paths are replaced with safe placeholders in failure diagnostics.
 
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
   - [x] Assert `StableJsonEncoder` output remains deterministic for valid json-like values.
   - [x] Assert recursive map ordering remains `strcmp` based.
   - [x] Assert list order remains preserved.
@@ -8495,14 +8495,14 @@ N/A
   - [x] Assert object, closure, resource, and non-string map key failures are path-aware.
   - [x] Assert `StableJsonEncoder` failure messages do not leak raw values.
 
-- [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
   - [x] Assert `ContextStorePolicy::assertValue()` delegates json-like validation through the foundation normalizer.
   - [x] Assert existing context reason tokens are preserved after exception mapping.
   - [x] Assert path is preserved from nested invalid values.
   - [x] Assert raw rejected values do not leak into `ContextWriteForbiddenException` messages.
   - [x] Assert `ContextStorePolicy` still validates only values and does not normalize stored context values as a side effect.
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
   - [x] Assert valid context attributes normalize to the same baseline recursive shape as `JsonLikeNormalizer`.
   - [x] Assert valid result extensions normalize to the same baseline recursive shape as `JsonLikeNormalizer`.
   - [x] Assert kernel still rejects root lists for `attributes`.
@@ -8517,8 +8517,8 @@ N/A
 - [x] `docs/ssot/json-like-runtime-values.md`
   - [x] Create the canonical SSoT for runtime json-like value validation and deterministic normalization.
   - [x] Declare owner package: `core/foundation`.
-  - [x] Declare canonical implementation: `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`.
-  - [x] Declare canonical exception: `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`.
+  - [x] Declare canonical implementation: `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`.
+  - [x] Declare canonical exception: `packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`.
   - [x] Declare consumers:
     - [x] `Coretsia\Foundation\Serialization\StableJsonEncoder`
     - [x] `Coretsia\Foundation\Context\ContextStorePolicy`
@@ -8543,7 +8543,7 @@ N/A
   - [x] Record the decision that `core/kernel` keeps UoW-specific root map, unsafe-key, limit, and exception mapping policy.
   - [x] Record the decision that `core/contracts` remains unchanged.
   - [x] Record the decision that `devtools/internal-toolkit` remains tooling-only and MUST NOT be used by runtime packages.
-  - [x] Record rejected alternative: direct copy from `framework/tools/spikes/payload/*`.
+  - [x] Record rejected alternative: direct copy from `tools/spikes/payload/*`.
   - [x] Record rejected alternative: moving json-like normalization to `core/contracts`.
   - [x] Record rejected alternative: keeping duplicated foundation/kernel recursive walkers.
 
@@ -8556,7 +8556,7 @@ N/A
   - [x] Keep the context safe-write security rules unchanged.
   - [x] Avoid conflicting ownership language where `context-store.md` appears to own the reusable baseline json-like model.
 
-- [x] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+- [x] `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
   - [x] Replace the private recursive `normalize()` implementation with `JsonLikeNormalizer::normalize($value, 'value')`.
   - [x] MUST map `JsonLikeNormalizationException` reasons to stable-json reason tokens:
     - [x] `json-like-float-forbidden` → `stable-json-float-forbidden`
@@ -8576,7 +8576,7 @@ N/A
   - [x] Ensure failures do not leak raw values.
   - [x] Remove duplicated baseline scalar, array, float, object, closure, resource, and map-key validation logic from this class.
 
-- [x] `framework/packages/core/foundation/src/Context/ContextStorePolicy.php`
+- [x] `packages/core/foundation/src/Context/ContextStorePolicy.php`
   - [x] Replace recursive json-like value walking with `JsonLikeNormalizer::normalize($value, $path)` inside `assertValue()`.
   - [x] Preserve key policy in `assertKey()`:
     - [x] empty key rejection
@@ -8593,7 +8593,7 @@ N/A
   - [x] Remove duplicated recursive array walker from this class.
   - [x] Do not store or return the normalized value from `ContextStorePolicy`; it remains a validation boundary only.
 
-- [x] `framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php`
+- [x] `packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php`
   - [x] Keep the class internal to `core/kernel`.
   - [x] Keep public static methods used by `UnitOfWorkContext` and `UnitOfWorkResult`:
     - [x] `normalizeContextAttributes()`
@@ -8624,20 +8624,20 @@ N/A
   - [x] Remove duplicated baseline scalar/object/resource/float recursive policy from kernel except where required for UoW-specific exception mapping.
   - [x] Ensure no raw rejected values leak in UoW exceptions.
 
-- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkContext.php`
+- [x] `packages/core/kernel/src/Runtime/UnitOfWorkContext.php`
   - [x] Keep the public API unchanged.
   - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeContextAttributes()`.
   - [x] Update only PHPDoc/type annotations if required by the refactored normalizer return type.
   - [x] Do not expose `JsonLikeNormalizer` directly from `UnitOfWorkContext`.
 
-- [x] `framework/packages/core/kernel/src/Runtime/UnitOfWorkResult.php`
+- [x] `packages/core/kernel/src/Runtime/UnitOfWorkResult.php`
   - [x] Keep the public API unchanged.
   - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeResultExtensions()`.
   - [x] Keep usage of `JsonLikeShapeNormalizer::normalizeExportedErrorMap()`.
   - [x] Update only PHPDoc/type annotations if required by the refactored normalizer return type.
   - [x] Do not expose `JsonLikeNormalizer` directly from `UnitOfWorkResult`.
 
-- [x] `framework/packages/core/foundation/README.md`
+- [x] `packages/core/foundation/README.md`
   - [x] Add a `Json-like runtime values` section.
   - [x] Document `Coretsia\Foundation\Serialization\JsonLikeNormalizer` as the canonical runtime json-like value normalizer.
   - [x] Document that `StableJsonEncoder` uses `JsonLikeNormalizer`.
@@ -8645,7 +8645,7 @@ N/A
   - [x] Document that kernel may consume the normalizer through its own domain-specific wrapper.
   - [x] Reaffirm that foundation does not introduce UoW-specific policy, unsafe metadata key denylist, transport payload semantics, or generic redaction.
 
-- [x] `framework/packages/core/kernel/README.md`
+- [x] `packages/core/kernel/README.md`
   - [x] Document that Kernel UoW shapes use the foundation-owned baseline json-like policy through `JsonLikeShapeNormalizer`.
   - [x] Document that kernel remains the owner of UoW root map policy, unsafe metadata key policy, attributes limits, and UoW exception mapping.
   - [x] Document that `JsonLikeShapeNormalizer` remains internal and is not public Kernel API.
@@ -8682,13 +8682,13 @@ N/A
     - [x] UoW exception codes and reason tokens
   - [x] Add cross-reference to `docs/ssot/json-like-runtime-values.md`.
 
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
   - [x] Keep existing behavior expectations green.
   - [x] Adjust only if reason/path details change due to foundation delegation.
   - [x] Preserve assertions for float, `NAN`, `INF`, `-INF`, object, closure, resource, unsafe keys, depth, key count, and safe diagnostics.
   - [x] Preserve no-raw-value-leak assertions.
 
-- [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
   - [x] Keep existing behavior expectations green.
   - [x] Adjust only if reason/path details change due to foundation delegation.
   - [x] Preserve assertions for recursive sorting, list preservation, root map rejection, float/object/closure/resource rejection, unsafe keys, and safe diagnostics.
@@ -8776,10 +8776,10 @@ N/A
 #### Required policy tests matrix
 
 - [x] Json-like failure safety:
-  - [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php` asserts safe diagnostics and no raw value leakage.
-  - [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php` asserts encoder failures remain safe and path-aware.
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php` asserts context exception mapping remains safe.
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php` asserts kernel exception mapping remains safe.
+  - [x] `packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php` asserts safe diagnostics and no raw value leakage.
+  - [x] `packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php` asserts encoder failures remain safe and path-aware.
+  - [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php` asserts context exception mapping remains safe.
+  - [x] `packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php` asserts kernel exception mapping remains safe.
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -8790,17 +8790,17 @@ N/A
 - Unit:
   - N/A — behavior is locked through package contract tests.
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php`
 - Integration:
   - N/A
 - Gates/Arch:
   - [x] deptrac remains green: `core/foundation` MUST NOT depend on `core/kernel`, `devtools/*`, `tools/*`, `platform/*`, or `integrations/*`.
-  - [x] public API gates remain green: Kernel internal normalizer remains internal and is not added to `framework/packages/core/kernel/PUBLIC_API.md`.
+  - [x] public API gates remain green: Kernel internal normalizer remains internal and is not added to `packages/core/kernel/PUBLIC_API.md`.
   - [x] package compliance gates remain green: no new tags, config roots, artifacts, or forbidden runtime dependencies.
 
 ### DoD (MUST)
@@ -8810,12 +8810,12 @@ N/A
 - [x] `core/foundation` owns `JsonLikeNormalizer` and `JsonLikeNormalizationException`.
 - [x] `core/contracts` remains unchanged.
 - [x] `core/foundation` does not depend on `core/kernel`.
-- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `framework/tools/spikes/*`.
+- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `tools/spikes/*`.
 - [x] `StableJsonEncoder` delegates baseline normalization to `JsonLikeNormalizer`.
 - [x] `ContextStorePolicy` delegates value-shape validation to `JsonLikeNormalizer`.
 - [x] Kernel `JsonLikeShapeNormalizer` delegates baseline normalization to `JsonLikeNormalizer`.
 - [x] Kernel keeps UoW-specific root map, unsafe-key, max-depth, max-keys, safe-string, and exception-mapping policy.
-- [x] No copy-paste from `framework/tools/spikes/payload/*`.
+- [x] No copy-paste from `tools/spikes/payload/*`.
 - [x] No public Kernel normalizer introduced.
 - [x] No transport/request payload semantics introduced.
 - [x] No generic redaction engine introduced in foundation.
@@ -8832,8 +8832,8 @@ N/A
   - [x] `docs/adr/INDEX.md`
   - [x] `docs/adr/ADR-0004-foundation-json-like-runtime-values.md`
   - [x] `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
-  - [x] `framework/packages/core/foundation/README.md`
-  - [x] `framework/packages/core/kernel/README.md`
+  - [x] `packages/core/foundation/README.md`
+  - [x] `packages/core/kernel/README.md`
 
 ---
 
@@ -8843,7 +8843,7 @@ N/A
 type: package
 phase: 1
 epic_id: "1.277.0"
-owner_path: "framework/packages/core/foundation"
+owner_path: "packages/core/foundation"
 
 package_id: "core/foundation"
 composer: "coretsia/core-foundation"
@@ -8894,25 +8894,25 @@ ssot_refs:
   - 1.275.0 — Foundation safe diagnostics discipline exists for json-like runtime values; this epic applies the same no-raw-diagnostics policy to reset observability.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php` — existing deterministic reset failure exception to harden with stable accessors and sanitized-copy API.
-  - `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php` — existing enhanced reset executor that records reset failures into tracing spans.
-  - `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` — existing reset rejection test to extend with `errorCode()` / `reason()` assertions.
-  - `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php` — existing service-failure test to extend with `errorCode()` / `reason()` and sanitized recorded exception assertions.
-  - `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php` — existing reset observability baseline reference.
-  - `framework/packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php` — existing context key rejection exception to harden against unsafe raw key leakage.
-  - `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php` — existing read-side correlation id provider to harden against unsafe malformed context values.
-  - `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php` — existing deterministic container diagnostics snapshot to harden suspicious service id handling.
+  - `packages/core/foundation/src/Runtime/Reset/ResetException.php` — existing deterministic reset failure exception to harden with stable accessors and sanitized-copy API.
+  - `packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php` — existing enhanced reset executor that records reset failures into tracing spans.
+  - `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php` — existing reset rejection test to extend with `errorCode()` / `reason()` assertions.
+  - `packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php` — existing service-failure test to extend with `errorCode()` / `reason()` and sanitized recorded exception assertions.
+  - `packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php` — existing reset observability baseline reference.
+  - `packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php` — existing context key rejection exception to harden against unsafe raw key leakage.
+  - `packages/core/foundation/src/Observability/CorrelationIdProvider.php` — existing read-side correlation id provider to harden against unsafe malformed context values.
+  - `packages/core/foundation/src/Container/ContainerDiagnostics.php` — existing deterministic container diagnostics snapshot to harden suspicious service id handling.
   - `docs/ssot/context-store.md` — existing ContextStore SSoT to document safe invalid-key diagnostics.
   - `docs/ssot/context-keys.md` — existing context key policy SSoT to document safe diagnostic key segments.
   - `docs/ssot/time-ids-and-duration.md` — existing IDs/time SSoT to document canonical correlation id read-side format.
   - `docs/ssot/di-tags-and-middleware-ordering.md` — existing DI/tag ordering SSoT to document container diagnostics service-id sanitization.
-  - `framework/packages/core/foundation/README.md` — existing Foundation package README to document runtime failure safety hardening.
+  - `packages/core/foundation/README.md` — existing Foundation package README to document runtime failure safety hardening.
   - `docs/ssot/uow-and-reset-contracts.md` — existing reset/UoW SSoT to document safe reset failure diagnostics.
   - `docs/ssot/observability-and-errors.md` — existing observability/error policy SSoT to document sanitized reset exception recording.
   - `docs/ssot/observability.md` — existing observability SSoT to cross-reference reset observability safety.
-  - `framework/packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php` — existing context write rejection exception to harden with stable reason/safePath accessors and safe path diagnostics.
-  - `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php` — existing safe-write guard integration test to align invalid-key diagnostics with <key> policy and extend write-forbidden assertions.
-  - `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php` — new contract test proving write-forbidden diagnostics expose only stable reason tokens and safe path segments.
+  - `packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php` — existing context write rejection exception to harden with stable reason/safePath accessors and safe path diagnostics.
+  - `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php` — existing safe-write guard integration test to align invalid-key diagnostics with <key> policy and extend write-forbidden assertions.
+  - `packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php` — new contract test proving write-forbidden diagnostics expose only stable reason tokens and safe path segments.
 
 - Required config roots/keys:
   - `foundation` — existing Foundation config root.
@@ -8948,7 +8948,7 @@ Forbidden:
 - `integrations/*`
 - `devtools/*`
 - `tools/*`
-- `framework/tools/spikes/*`
+- `tools/spikes/*`
 
 #### Uses ports (API surface, NOT deps) (optional)
 
@@ -8989,7 +8989,7 @@ Forbidden:
 
 #### Creates
 
-- [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
   - [x] Assert `ContextWriteForbiddenException::ERROR_CODE` remains stable.
   - [x] Assert `reason()` exposes the stable write-forbidden reason token.
   - [x] Assert `safePath()` exposes only a safe diagnostic path segment.
@@ -9001,7 +9001,7 @@ Forbidden:
   - [x] Assert `getCode()` remains `0`.
   - [x] Assert previous throwable may be preserved for programmatic chaining, while `getMessage()` remains safe.
 
-- [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+- [x] `packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
   - [x] Assert each static constructor returns the expected reset code.
   - [x] Assert `code()` and `errorCode()` return the same value.
   - [x] Assert `reason()` returns the stable safe reason token.
@@ -9010,7 +9010,7 @@ Forbidden:
   - [x] Assert `withoutPrevious()` strips previous throwable.
   - [x] Assert exception messages remain stable safe reason tokens only.
 
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
   - [x] Assert a reset service may throw an unsafe exception message containing token/cookie/raw SQL/local path fragments.
   - [x] Assert surfaced `ResetException` message remains safe.
   - [x] Assert surfaced `ResetException::getPrevious()` may preserve the original service failure for programmatic chaining.
@@ -9022,7 +9022,7 @@ Forbidden:
     - [x] `outcome=failed`
   - [x] Assert reset metrics/log summary remain policy-compliant and do not include service internals.
 
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
   - [x] Assert observability failure after successful reset is surfaced when span `end()` throws.
   - [x] Assert observability failure after successful reset is surfaced when meter emission throws.
   - [x] Assert observability failure after successful reset is surfaced when logger emission throws.
@@ -9036,7 +9036,7 @@ Forbidden:
     - [x] reset succeeds + observability fails → `reset-observability-failed`
     - [x] reset fails + observability also fails → original reset failure remains surfaced
 
-- [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
   - [x] Assert safe unknown key diagnostics remain stable for conservative safe keys.
   - [x] Assert safe reserved key diagnostics remain stable for conservative safe `@*` keys.
   - [x] Assert unsafe unknown keys are replaced with `<key>`.
@@ -9045,7 +9045,7 @@ Forbidden:
   - [x] Assert `ContextInvalidKeyException::reason()` exposes the stable reason token.
   - [x] Assert `ContextInvalidKeyException::safeKey()` exposes only a safe diagnostic segment.
 
-- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+- [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
   - [x] Assert provider returns canonical ULID correlation id.
   - [x] Assert provider returns `null` for empty string.
   - [x] Assert provider returns `null` for non-string values.
@@ -9056,7 +9056,7 @@ Forbidden:
   - [x] Assert provider returns `null` for URL/path/header-like strings.
   - [x] Assert provider has no write side effects.
 
-- [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
   - [x] Assert normal FQCN service ids remain readable.
   - [x] Assert normal safe aliases remain readable.
   - [x] Assert absolute paths are hashed.
@@ -9071,7 +9071,7 @@ Forbidden:
 
 #### Modifies
 
-- [x] `framework/packages/core/foundation/README.md`
+- [x] `packages/core/foundation/README.md`
   - [x] Document that reset observability records sanitized reset failures only.
   - [x] Document that `ResetException::withoutPrevious()` is used for span recording.
   - [x] Document that `ResetException::errorCode()` / `reason()` are stable runtime-style accessors.
@@ -9128,7 +9128,7 @@ Forbidden:
   - [x] Clarify that service id diagnostics may hash unsafe ids using `hash:sha256:<hash>;len:<len>`.
   - [x] Do not introduce new tag ownership, tag meta-schema, or discovery semantics.
 
-- [x] `framework/packages/core/foundation/src/Container/ContainerDiagnostics.php`
+- [x] `packages/core/foundation/src/Container/ContainerDiagnostics.php`
   - [x] Preserve deterministic JSON output.
   - [x] Preserve recursive stable JSON encoding through `StableJsonEncoder`.
   - [x] Preserve existing absolute-path hashing behavior.
@@ -9144,7 +9144,7 @@ Forbidden:
   - [x] Token-like, credential-like, password-like, secret-like, cookie-like, authorization-like, SQL-like, URL-like, path-like, control-character, and overlong ids MUST be hashed even if they match the conservative alias pattern.
   - [x] Any id outside these patterns MUST be hashed unless already normalized by existing absolute-path hash logic.
 
-- [x] `framework/packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php`
+- [x] `packages/core/foundation/src/Context/Exception/ContextInvalidKeyException.php`
   - [x] Preserve `ERROR_CODE`.
   - [x] Add `private readonly string $reason`.
   - [x] Add `private readonly ?string $safeKey`.
@@ -9157,7 +9157,7 @@ Forbidden:
   - [x] Use raw key in message only when it matches conservative safe-key pattern:
     - [x] `/\A@?[A-Za-z_][A-Za-z0-9_]{0,63}\z/`
 
-- [x] `framework/packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php`
+- [x] `packages/core/foundation/src/Context/Exception/ContextWriteForbiddenException.php`
   - [x] Preserve `ERROR_CODE`.
   - [x] Add `private readonly string $reason`.
   - [x] Add `private readonly ?string $safePath`.
@@ -9178,7 +9178,7 @@ Forbidden:
     - [x] sanitized map placeholders like `[<key>]`.
   - [x] Constructor message policy MUST remain stable and safe.
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/ResetException.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/ResetException.php`
   - [x] Preserve existing `public function code(): string` behavior.
   - [x] Add `private readonly string $reason`.
   - [x] Store `$reason` in the constructor.
@@ -9197,7 +9197,7 @@ Forbidden:
   - [x] Constructor message policy MUST remain stable and safe.
   - [x] Exception messages MUST NOT include service ids, payloads, secrets, raw context values, absolute paths, headers, cookies, Authorization values, tokens, session ids, host-specific values, or environment-specific data.
 
-- [x] `framework/packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
+- [x] `packages/core/foundation/src/Runtime/Reset/PriorityResetOrchestrator.php`
   - [x] When recording reset failure into span, call `ResetException::withoutPrevious()` before `SpanInterface::recordException()`.
   - [x] MUST NOT pass a `ResetException` containing a raw previous chain to `recordException()`.
   - [x] Preserve existing span name:
@@ -9214,7 +9214,7 @@ Forbidden:
   - [x] Observability summary MUST remain summary-only.
   - [x] Observability summary MUST NOT include raw service ids, tag metadata, service instances, raw previous exception messages, stack traces, payloads, secrets, headers, cookies, Authorization values, tokens, session ids, absolute paths, or raw context values.
 
-- [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+- [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
   - [x] Add assertions that `ResetException::errorCode()` equals `ResetException::code()`.
   - [x] Add assertions that `ResetException::reason()` equals `reset-not-resettable`.
   - [x] Assert `withoutPrevious()` preserves code/errorCode/reason/message.
@@ -9222,7 +9222,7 @@ Forbidden:
   - [x] Preserve existing deterministic stop-at-first-invalid-service behavior.
   - [x] Preserve existing safe message assertions.
 
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
   - [x] Add assertions that `ResetException::errorCode()` equals `ResetException::code()`.
   - [x] Add assertions that `ResetException::reason()` equals `reset-service-failed`.
   - [x] Assert surfaced `ResetException` may preserve the original service failure as previous.
@@ -9231,19 +9231,19 @@ Forbidden:
   - [x] Preserve existing first-failing-service behavior.
   - [x] Preserve existing safe summary observability assertions.
 
-- [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+- [x] `packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
   - [x] Update only if helper fakes require shared recorded-exception assertions.
   - [x] Preserve existing success and failure observability summary expectations.
 
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
   - [x] Preserve exact message assertions only for safe keys like `@foo`.
   - [x] Add unsafe reserved key no-leak assertions.
 
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
   - [x] Preserve exact message assertions only for safe keys like `unknown_key`.
   - [x] Add unsafe unknown key no-leak assertions.
 
-- [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
   - [x] Adjust key-policy assertions if needed after safe-key diagnostics hardening.
   - [x] Assert `ContextWriteForbiddenException::reason()` equals mapped context write reason.
   - [x] Assert `ContextWriteForbiddenException::safePath()` equals expected safe path.
@@ -9253,7 +9253,7 @@ Forbidden:
   - [x] Preserve existing JsonLikeNormalizer delegation assertions.
   - [x] Preserve existing no-mutation assertions.
 
-- [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+- [x] `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
   - [x] Preserve unsafe non-canonical key rejection before storage.
   - [x] For sensitive unsafe non-canonical keys, assert `ContextInvalidKeyException::safeKey()` is `<key>`.
   - [x] For sensitive unsafe non-canonical keys, assert message is `context-key-unknown: <key>`.
@@ -9263,7 +9263,7 @@ Forbidden:
   - [x] Preserve write-before-storage behavior.
   - [x] Preserve callable-like string accepted as plain string.
 
-- [x] `framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php`
+- [x] `packages/core/foundation/src/Observability/CorrelationIdProvider.php`
   - [x] Keep read-only behavior.
   - [x] MUST NOT generate a correlation id.
   - [x] MUST NOT normalize unsafe input.
@@ -9273,7 +9273,7 @@ Forbidden:
   - [x] Canonical Foundation correlation id format is uppercase ULID-like:
     - [x] `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
 
-- [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+- [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
   - [x] Preserve canonical valid correlation id behavior.
   - [x] Add or keep null behavior for absent/empty/non-string values.
   - [x] Assert canonical valid value matches `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`.
@@ -9447,53 +9447,53 @@ N/A
 #### Required policy tests matrix
 
 - [x] Reset observability failure safety:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
     - [x] fails if `PriorityResetOrchestrator` records a reset failure with raw previous chain.
     - [x] fails if recorded exception leaks token/cookie/raw SQL/local path fragments.
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
     - [x] fails if observability failure replaces primary reset failure.
     - [x] fails if observability failure diagnostics leak unsafe details.
 - [x] Reset exception shape:
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
     - [x] fails if `errorCode()` / `reason()` are missing or inconsistent.
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
     - [x] fails if `errorCode()` / `reason()` are missing or inconsistent.
     - [x] fails if span recorded exception preserves unsafe previous chain.
-  - [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+  - [x] `packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
     - [x] fails if `code()` / `errorCode()` diverge.
     - [x] fails if `reason()` is missing or unstable.
     - [x] fails if `withoutPrevious()` preserves previous throwable.
 - [x] Observability policy:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
     - [x] remains green and continues proving summary-only reset observability.
 - [x] Context invalid-key diagnostic safety:
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
     - [x] fails if unsafe rejected context keys appear raw in exception messages.
     - [x] fails if `reason()` / `safeKey()` are missing or expose unsafe data.
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
     - [x] fails if unsafe reserved `@*` keys leak raw values.
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
     - [x] fails if unsafe unknown keys leak raw values.
 - [x] Correlation id read-side safety:
-  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+  - [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
     - [x] fails if malformed/token-like/cookie-like/SQL-like/path-like correlation id values are returned.
     - [x] fails if provider mutates context or generates new ids.
-  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+  - [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
     - [x] remains green for canonical valid correlation id reads.
 - [x] Container diagnostics service-id safety:
-  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
     - [x] fails if diagnostics JSON contains unsafe raw service ids.
     - [x] fails if suspicious ids are not hashed deterministically.
     - [x] fails if normal FQCN/safe aliases stop being readable.
 - [x] Context write-forbidden diagnostic safety:
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
     - [x] fails if unsafe rejected write paths appear raw in exception messages.
     - [x] fails if rejected raw values appear in exception messages.
     - [x] fails if `reason()` / `safePath()` are missing or expose unsafe data.
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
     - [x] fails if JsonLikeNormalizer-to-ContextWriteForbiddenException mapping loses safe path or stable reason.
     - [x] fails if unsafe map-key path placeholders leak raw keys.
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
     - [x] fails if unsafe non-canonical context keys leak raw values.
     - [x] fails if forbidden value-shape diagnostics leak rejected raw values or unsafe paths.
 
@@ -9509,23 +9509,23 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
+  - [x] `packages/core/foundation/tests/Unit/ResetExceptionRuntimeShapeTest.php`
 - Contract:
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
-  - [x] `framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContainerDiagnosticsDoesNotLeakSensitiveServiceIdsContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php`
+  - [x] `packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php`
 - Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
-  - [x] `framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetRecordsSanitizedFailureExceptionTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetObservabilityFailurePrecedenceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonResettableServiceTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetFailsFastOnFirstServiceExceptionTest.php`
+  - [x] `packages/core/foundation/tests/Integration/PriorityResetEmitsSafeSummaryObservabilityTest.php`
+  - [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php`
+  - [x] `packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php`
 - Gates/Arch:
   - [x] deptrac remains green: `core/foundation` MUST NOT depend on `core/kernel`, `platform/*`, `integrations/*`, `devtools/*`, or `tools/*`.
   - [x] package compliance gates remain green: no new tags, config roots, artifacts, or forbidden runtime dependencies.
@@ -9552,11 +9552,11 @@ N/A
 - [x] Reset spans remain summary-only.
 - [x] Safe diagnostics preserved: no raw values, tokens, cookies, SQL, object dumps, stack traces, service internals, tag metadata values, local paths, or environment-specific bytes in reset failures or reset observability.
 - [x] Verification tests present where applicable.
-- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `framework/tools/spikes/*`.
+- [x] Runtime packages do not depend on `devtools/internal-toolkit` or `tools/spikes/*`.
 - [x] `core/foundation` does not depend on `core/kernel`.
 - [x] No config roots, config keys, DI tags, or artifacts introduced.
 - [x] Docs updated:
-  - [x] `framework/packages/core/foundation/README.md`
+  - [x] `packages/core/foundation/README.md`
   - [x] `docs/ssot/uow-and-reset-contracts.md`
   - [x] `docs/ssot/observability-and-errors.md`
   - [x] `docs/ssot/observability.md`
@@ -9635,9 +9635,9 @@ ssot_refs: []
     - `arch:package-index:check`
     - `arch:deptrac:check`
   - Existing generated architecture files are tracked:
-    - `framework/tools/testing/package-index.php`
-    - `framework/tools/testing/deptrac.yaml`
-    - `framework/tools/testing/deptrac.allowlist.yaml`
+    - `tools/testing/package-index.php`
+    - `tools/testing/deptrac.yaml`
+    - `tools/testing/deptrac.allowlist.yaml`
   - Existing GitHub Actions CI workflow contains an `arch` job that owns regular architecture checks and dep graph artifact generation.
   - This epic keeps regular architecture checks in `.github/workflows/ci.yml` and adds architecture generator idempotence evidence in a dedicated workflow.
 
@@ -9717,9 +9717,9 @@ Architecture Generator Idempotence Evidence
     - [x] `arch:package-index:check`
     - [x] `arch:deptrac:check`
   - [x] Document tracked generated files checked for drift:
-    - [x] `framework/tools/testing/package-index.php`
-    - [x] `framework/tools/testing/deptrac.yaml`
-    - [x] `framework/tools/testing/deptrac.allowlist.yaml`
+    - [x] `tools/testing/package-index.php`
+    - [x] `tools/testing/deptrac.yaml`
+    - [x] `tools/testing/deptrac.allowlist.yaml`
   - [x] Document evidence metrics:
     - [x] `iteration`
     - [x] `duration_ms`
@@ -9765,9 +9765,9 @@ Architecture Generator Idempotence Evidence
   - [x] Use `set -euo pipefail`.
   - [x] Run exactly 3 repetitions.
   - [x] Track only:
-    - [x] `framework/tools/testing/package-index.php`
-    - [x] `framework/tools/testing/deptrac.yaml`
-    - [x] `framework/tools/testing/deptrac.allowlist.yaml`
+    - [x] `tools/testing/package-index.php`
+    - [x] `tools/testing/deptrac.yaml`
+    - [x] `tools/testing/deptrac.allowlist.yaml`
   - [x] Check that tracked generated architecture files are clean before the evidence run.
   - [x] Run `composer --no-interaction arch:package-index:check` on each iteration.
   - [x] Run `composer --no-interaction arch:deptrac:check` on each iteration.
@@ -10069,7 +10069,7 @@ N/A — this epic uses `.github/workflows/spikes.yml`, `.github/workflows/archit
 type: package
 phase: 1
 epic_id: "1.280.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -10112,27 +10112,27 @@ ssot_refs:
   - 1.275.0 — Foundation json-like runtime value normalizer exists and is canonical for baseline json-like validation/normalization used by hook payload export.
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Runtime/ResetInterface.php` — reset discipline port.
-  - `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php` — existing before-UoW hook port updated by this epic.
-  - `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php` — existing after-UoW hook port updated by this epic.
-  - `framework/packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php` — canonical correlation id source.
-  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing port.
-  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics port.
-  - `framework/packages/core/foundation/src/Context/ContextStore.php` — safe context store.
-  - `framework/packages/core/contracts/src/Context/ContextKeys.php` — canonical base context keys.
-  - `framework/packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php` — reset executor boundary.
-  - `framework/packages/core/foundation/src/Tag/TagRegistry.php` — deterministic tag ordering source.
-  - `framework/packages/core/foundation/src/Time/Stopwatch.php` — canonical duration measurement.
-  - `framework/packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical `uow_id` generator dependency.
-  - `framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php` — canonical fallback `correlation_id` generator.
-  - `framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php` — canonical baseline json-like normalizer used by HookContextNormalizer.
-  - `framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php` — canonical json-like normalization failure used by the foundation normalizer.
+  - `packages/core/contracts/src/Runtime/ResetInterface.php` — reset discipline port.
+  - `packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php` — existing before-UoW hook port updated by this epic.
+  - `packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php` — existing after-UoW hook port updated by this epic.
+  - `packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php` — canonical correlation id source.
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing port.
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics port.
+  - `packages/core/foundation/src/Context/ContextStore.php` — safe context store.
+  - `packages/core/contracts/src/Context/ContextKeys.php` — canonical base context keys.
+  - `packages/core/foundation/src/Runtime/Reset/ResetOrchestrator.php` — reset executor boundary.
+  - `packages/core/foundation/src/Tag/TagRegistry.php` — deterministic tag ordering source.
+  - `packages/core/foundation/src/Time/Stopwatch.php` — canonical duration measurement.
+  - `packages/core/foundation/src/Id/IdGeneratorInterface.php` — canonical `uow_id` generator dependency.
+  - `packages/core/foundation/src/Id/CorrelationIdGenerator.php` — canonical fallback `correlation_id` generator.
+  - `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php` — canonical baseline json-like normalizer used by HookContextNormalizer.
+  - `packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php` — canonical json-like normalization failure used by the foundation normalizer.
 
 - Required config roots/keys:
   - none — this epic introduces no new config roots and no new config keys.
@@ -10254,7 +10254,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
 
 #### Creates
 
-- [x] `framework/packages/core/contracts/src/Runtime/KernelRuntimeInterface.php`
+- [x] `packages/core/contracts/src/Runtime/KernelRuntimeInterface.php`
   - [x] Create `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
   - [x] Define external UoW runtime port consumed by platform/http, platform/cli, worker, and scheduler adapters.
   - [x] Define `runUnitOfWork(string $type, callable $body, array $attributes = []): mixed`.
@@ -10273,7 +10273,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
   - [x] Exported UoW context/result arrays are lifecycle hook payloads; low-level adapters that need the exported result array MUST use `afterUnitOfWork()`.
   - [x] If body succeeds but after-hook or reset fails, `runUnitOfWork()` MUST surface the after/reset failure instead of returning the body value.
 
-- [x] `framework/packages/core/kernel/src/Runtime/KernelRuntime.php` — orchestrator:
+- [x] `packages/core/kernel/src/Runtime/KernelRuntime.php` — orchestrator:
   - [x] Implement `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
   - [x] Internally use `UnitOfWorkContext` / `UnitOfWorkResult`.
   - [x] Return normalized exported arrays from `beginUnitOfWork()` and `afterUnitOfWork()`.
@@ -10348,7 +10348,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
     - [x] if an earlier primary failure exists and reset also throws, the earlier primary failure MUST remain the surfaced failure;
     - [x] reset failure diagnostics MUST NOT leak raw context arrays, hook payloads, transport payloads, tokens, cookies, raw SQL, stack traces, object dumps, or local paths.
 
-- [x] `framework/packages/core/kernel/src/Runtime/Hook/HookInvoker.php`
+- [x] `packages/core/kernel/src/Runtime/Hook/HookInvoker.php`
   - [x] Invoke before hooks through `BeforeUowHookInterface::beforeUow(array $context): void`.
   - [x] Invoke after hooks through `AfterUowHookInterface::afterUow(array $context, array $result): void`.
   - [x] Obtain hook services only from `TagRegistry::all(ReservedTags::KERNEL_HOOK_BEFORE_UOW)` and `TagRegistry::all(ReservedTags::KERNEL_HOOK_AFTER_UOW)`.
@@ -10371,7 +10371,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
   - [x] Exceptions thrown by valid hook implementations MUST NOT be replaced with `KernelRuntimeException`; they MUST propagate as the hook's original throwable so KernelRuntime can apply deterministic failure precedence.
   - [x] Hook-thrown failures MUST NOT cause HookInvoker to log or dump hook payloads.
 
-- [x] `framework/packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php` — ensures ctx/result payload is json-like
+- [x] `packages/core/kernel/src/Runtime/Hook/HookContextNormalizer.php` — ensures ctx/result payload is json-like
   - [x] MUST normalize known internal kernel result objects before generic object rejection.
   - [x] In particular, if `UnitOfWorkResult.error` is internally represented as `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`, it MUST be exported as a json-like error map.
   - [x] After normalization, no object instances may remain in the hook payload.
@@ -10383,7 +10383,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
   - [x] MUST NOT keep mutable runtime state, caches, buffers, or request/UoW-local data.
   - [x] KernelRuntime/HookInvoker may call it as an internal static normalization primitive.
 
-- [x] `framework/packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php`
+- [x] `packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php`
   - [x] Create `Coretsia\Kernel\Runtime\Exception\KernelRuntimeException`.
   - [x] Extend `\RuntimeException`.
   - [x] Define `public const string ERROR_CODE = 'CORETSIA_KERNEL_RUNTIME_ERROR'`.
@@ -10402,7 +10402,7 @@ Build-time commands (explicit non-goal for KernelRuntime):
     - [x] `REASON_HOOK_PAYLOAD_INVALID = 'kernel-runtime-hook-payload-invalid'`
     - [x] `REASON_RESET_FAILED = 'kernel-runtime-reset-failed'`
 
-- [x] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner
+- [x] `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner
 
 Docs:
 - [x] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
@@ -10417,13 +10417,13 @@ Docs:
   - [x] `Coretsia\Kernel\Runtime\KernelRuntime` is the `core/kernel` implementation bound to the contracts port by DI.
 
 Tests:
-- [x] `framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
+- [x] `packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
   - [x] Assert `KernelRuntimeInterface` exists in `core/contracts`.
   - [x] Assert it exposes `runUnitOfWork()`, `beginUnitOfWork()`, and `afterUnitOfWork()`.
   - [x] Assert it does not reference `Coretsia\Kernel\*`.
   - [x] Assert it does not reference PSR-7/15, platform, or integrations.
 
-- [x] `framework/packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php`
+- [x] `packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php`
   - [x] Assert before hooks are invoked in exact `TagRegistry::all(ReservedTags::KERNEL_HOOK_BEFORE_UOW)` order.
   - [x] Assert after hooks are invoked in exact `TagRegistry::all(ReservedTags::KERNEL_HOOK_AFTER_UOW)` order.
   - [x] Assert hook services are resolved through `Psr\Container\ContainerInterface`.
@@ -10431,7 +10431,7 @@ Tests:
   - [x] Assert `HookInvoker` does not re-sort hooks.
   - [x] Assert empty hook tag lists are deterministic no-ops.
 
-- [x] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
+- [x] `packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
   - [x] Reject floats.
   - [x] Reject `NaN`.
   - [x] Reject `INF`.
@@ -10442,13 +10442,13 @@ Tests:
   - [x] Assert failure message does not leak raw rejected values.
   - [x] Assert failure message does not leak tokens, cookies, raw SQL, local paths, or object diagnostics.
 
-- [x] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
+- [x] `packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
   - [x] Assert internal `ErrorDescriptor` in `UnitOfWorkResult` is exported as a json-like error map.
   - [x] Assert hooks never receive an `ErrorDescriptor` object.
   - [x] Assert exported error map contains safe deterministic fields.
   - [x] Assert exported error payload remains json-like.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
   - [x] Assert `runUnitOfWork()` writes base context keys before the external body is executed.
   - [x] Assert the external body receives no arguments.
   - [x] Assert the external body can read current UoW state from `ContextStore`.
@@ -10461,7 +10461,7 @@ Tests:
   - [x] Assert written values pass `ContextStore` policy.
   - [x] Assert KernelRuntime does not pass exported context as a body argument.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
   - [x] Assert `correlation_id` comes from `CorrelationIdProviderInterface` when the provider returns a non-empty string.
   - [x] Assert exported context `correlationId` equals the provider value.
   - [x] Assert `ContextStore` `correlation_id` equals the provider value.
@@ -10473,7 +10473,7 @@ Tests:
   - [x] Assert exported context `uowId` equals `01ARZ3NDEKTSV4RRFFQ69G5FAV`.
   - [x] Assert `ContextStore` `uow_id` equals `01ARZ3NDEKTSV4RRFFQ69G5FAV`.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php`
   - [x] Assert container has `Coretsia\Kernel\Runtime\KernelRuntime`.
   - [x] Assert container has `Coretsia\Kernel\Runtime\Hook\HookInvoker`.
   - [x] Assert container has `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
@@ -10492,7 +10492,7 @@ Tests:
   - [x] Assert provider does not start a UoW during registration.
   - [x] Assert provider does not trigger reset during registration.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
   - [x] Assert before hooks are invoked before the external body.
   - [x] Assert after hooks are invoked after the external body.
   - [x] Assert before hooks receive normalized exported context array.
@@ -10505,7 +10505,7 @@ Tests:
   - [x] Assert external body is called without context/result arguments.
   - [x] Assert adapters needing exported context/result must use `beginUnitOfWork()` / `afterUnitOfWork()`.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
   - [x] Assert before hook receives `array<string, mixed>` context payload.
   - [x] Assert before hook context payload contains no objects.
   - [x] Assert before hook context payload contains no resources.
@@ -10534,7 +10534,7 @@ Tests:
   - [x] Assert hook result `error` is json-like.
   - [x] Assert unsafe throwable message does not leak into hook result.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
   - [x] Assert happy path event order is `before → body → after → reset`.
   - [x] Assert reset happens after after-uow hooks.
   - [x] Assert reset does not happen before after-uow hooks.
@@ -10544,7 +10544,7 @@ Tests:
   - [x] Keep this test focused on reset trigger order.
   - [x] Do not duplicate all primary failure precedence cases from `KernelRuntimeAlwaysResetsAfterUowTest.php`.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
   - [x] Assert `runUnitOfWork()` returns the external body value when body, after phase, and reset succeed.
   - [x] Assert external body is called without arguments.
   - [x] Assert body success → after success → reset success → returns body value.
@@ -10573,7 +10573,7 @@ Tests:
   - [x] Assert `ContextKeys::UOW_TYPE` is cleared/reset after low-level begin failure.
   - [x] Assert reset failure diagnostics remain safe.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
   - [x] Assert `afterUnitOfWork()` rejects missing `uowId`.
   - [x] Assert `afterUnitOfWork()` rejects missing `type`.
   - [x] Assert `afterUnitOfWork()` rejects missing `startedAt`.
@@ -10602,7 +10602,7 @@ Tests:
   - [x] Assert validation failures do not leak `SELECT * FROM users`.
   - [x] Assert validation failures do not leak `/tmp/` local paths.
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
+- [x] `packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
   - [x] Assert Kernel implementation does not expose PSR-7 types.
   - [x] Assert Kernel implementation does not expose PSR-15 types.
   - [x] Assert external runtime port is `Coretsia\Contracts\Runtime\KernelRuntimeInterface`.
@@ -10614,9 +10614,9 @@ Tests:
   - [x] Allow `Psr\Container\ContainerInterface`.
   - [x] Allow `Psr\Log\LoggerInterface`.
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
-  - [x] Token-scan `framework/packages/core/kernel/src/Runtime/**`.
-  - [x] Token-scan `framework/packages/core/kernel/src/Provider/**`.
+- [x] `packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
+  - [x] Token-scan `packages/core/kernel/src/Runtime/**`.
+  - [x] Token-scan `packages/core/kernel/src/Provider/**`.
   - [x] Exclude tests and fixtures.
   - [x] Fail on `echo`.
   - [x] Fail on `print`.
@@ -10632,7 +10632,7 @@ Tests:
   - [x] Do not fail on `$this->logger->info(...)`.
   - [x] Assert Kernel runtime diagnostics go through deterministic exceptions/results or logging ports, not stdout/stderr.
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
+- [x] `packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
   - [x] Assert `core/kernel/src/**` contains no string literal `kernel.reset`.
   - [x] Assert `core/kernel/src/**` does not reference `Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET`.
   - [x] Assert `core/kernel/src/**` does not read config key `foundation.reset.tag`.
@@ -10644,7 +10644,7 @@ Tests:
   - [x] Assert `core/kernel` does not define `KERNEL_RESET` constants.
   - [x] Assert reset tag ownership remains in `core/foundation`.
 
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
   - [x] Assert `LoggerInterface` is received through DI.
   - [x] Assert `TracerPortInterface` is received through DI.
   - [x] Assert `MeterPortInterface` is received through DI.
@@ -10678,20 +10678,20 @@ Tests:
 
 #### Modifies
 
-- [x] `framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
+- [x] `packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php`
   - [x] Change `beforeUow(): void` to `beforeUow(array $context): void`.
   - [x] Document `$context` as normalized exported UoW context array.
   - [x] MUST remain format-neutral.
   - [x] MUST NOT depend on `core/kernel`, PSR-7/15, platform, or integrations.
 
-- [x] `framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
+- [x] `packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php`
   - [x] Change `afterUow(): void` to `afterUow(array $context, array $result): void`.
   - [x] Document `$context` as normalized exported UoW context array.
   - [x] Document `$result` as normalized exported UoW result array.
   - [x] MUST remain format-neutral.
   - [x] MUST NOT depend on `core/kernel`, PSR-7/15, platform, or integrations.
 
-- [x] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+- [x] `packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
   - [x] Update expectations for hook parameters.
   - [x] Assert `BeforeUowHookInterface::beforeUow(array $context): void`.
   - [x] Assert `AfterUowHookInterface::afterUow(array $context, array $result): void`.
@@ -10711,9 +10711,9 @@ Tests:
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers/binds runtime services + hook invoker
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [x] `framework/packages/core/kernel/README.md` — documents:
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers/binds runtime services + hook invoker
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/core/kernel/README.md` — documents:
   - [x] KernelRuntime lifecycle (`begin → hooks → external runtime → after → reset`)
   - [x] reset boundary (`core/kernel` calls only `ResetOrchestrator::resetAll()`)
   - [x] no-PSR-7/15 invariant in kernel runtime
@@ -10722,7 +10722,7 @@ Tests:
   - [x] Adapters MUST NOT typehint or construct `Coretsia\Kernel\Runtime\KernelRuntime` directly.
   - [x] `Coretsia\Kernel\Runtime\KernelRuntime` is the `core/kernel` implementation bound to the contracts port by DI.
 
-- [x] `framework/packages/core/kernel/composer.json`
+- [x] `packages/core/kernel/composer.json`
   - [x] add runtime requirement:
     - [x] `psr/container`
     - [x] `psr/log`
@@ -10743,7 +10743,7 @@ Tests:
 #### Wiring / DI tags (when applicable)
 
 - [x] Kernel constants for already-canonical hook tags:
-  - [x] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+  - [x] `packages/core/foundation/src/Tag/ReservedTags.php`
   - [x] constants:
     - [x] `KERNEL_HOOK_BEFORE_UOW = 'kernel.hook.before_uow'`
     - [x] `KERNEL_HOOK_AFTER_UOW  = 'kernel.hook.after_uow'`
@@ -10815,7 +10815,7 @@ N/A
 #### Errors
 
 - [x] Exceptions introduced:
-  - [x] `framework/packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php` — errorCode `CORETSIA_KERNEL_RUNTIME_ERROR`
+  - [x] `packages/core/kernel/src/Runtime/Exception/KernelRuntimeException.php` — errorCode `CORETSIA_KERNEL_RUNTIME_ERROR`
 - [x] Mapping:
   - [x] kernel does not map to HTTP; mapping done by `platform/errors` + adapters
 
@@ -10881,22 +10881,22 @@ Kernel повертає/кидає детерміновані винятки/р�
 #### Required policy tests matrix
 
 - [x] Hook ordering invariant:
-  - [x] `framework/packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
 - [x] Hook payload normalization invariant:
-  - [x] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
+  - [x] `packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
 - [x] Foundation context handoff from `1.210.0`:
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
 - [x] Reset boundary + exactly-once semantics:
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
 - [x] Observability policy:
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
 - [x] PSR-7/15-free public API:
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -10906,23 +10906,23 @@ Kernel повертає/кидає детерміновані винятки/р�
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php` (asserts: **preserves TagRegistry order**; no additional sorting)
-  - [x] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
+  - [x] `packages/core/kernel/tests/Unit/HookInvokerDeterministicOrderTest.php` (asserts: **preserves TagRegistry order**; no additional sorting)
+  - [x] `packages/core/kernel/tests/Unit/HookContextNormalizerRejectsNonJsonLikeValuesTest.php`
     - [x] rejects floats / `NaN` / `INF` / `-INF`
     - [x] rejects objects / resources
     - [x] failure MUST be deterministic and MUST NOT leak raw values
-  - [x] `framework/packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
+  - [x] `packages/core/kernel/tests/Unit/HookContextNormalizerNormalizesErrorDescriptorTest.php`
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelPublicApiDoesNotExposePsr7Test.php`
     - [x] asserts Kernel implementation does not expose PSR-7/15
     - [x] asserts external runtime port is `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
     - [x] asserts Kernel does not define a competing `Coretsia\Kernel\Runtime\KernelRuntimeInterface`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
-    - [x] token-scan `framework/packages/core/kernel/src/Runtime/**` and `src/Provider/**`
+  - [x] `packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
+    - [x] token-scan `packages/core/kernel/src/Runtime/**` and `src/Provider/**`
     - [x] MUST fail on `echo|print|var_dump|print_r|printf|error_log`
     - [x] MUST fail on `STDOUT|STDERR`, `php://stdout`, `php://stderr`, `php://output`
     - [x] tests/fixtures are excluded
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelDoesNotEnumerateResetDiscoveryTagTest.php`
     - [x] MUST fail if `core/kernel/src/**` contains any direct reset-discovery knowledge, including:
       - [x] string literal `kernel.reset`
       - [x] reads of config key `foundation.reset.tag`
@@ -10931,15 +10931,15 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [x] Allowed boundary:
       - [x] dependency on `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
       - [x] calling only `ResetOrchestrator::resetAll(): void`
-    - [x] MUST fail if `framework/packages/core/kernel/src/Runtime/**` imports `Coretsia\Contracts\Runtime\ResetInterface`.
+    - [x] MUST fail if `packages/core/kernel/src/Runtime/**` imports `Coretsia\Contracts\Runtime\ResetInterface`.
     - [x] MUST fail if KernelRuntime calls `ResetInterface::reset()` directly.
 
-  - [x] `framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
-  - [x] `framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
+  - [x] `packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php`
+  - [x] `packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php`
     - [x] updated for array payload signatures
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeEmitsPolicyCompliantObservabilityTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeRejectsInvalidExportedContextTest.php`
     - [x] asserts invalid/missing `uowId`, `type`, `startedAt`, `correlationId`, or `attributes` fails deterministically.
     - [x] asserts invalid context failure does not leak raw payload values.
     - [x] asserts invalid UoW type fails deterministically.
@@ -10951,9 +10951,9 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [x] asserts `afterUnitOfWork()` resets exactly once when outcome validation fails.
     - [x] asserts invalid after-input failure remains primary if reset also fails.
 
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php` MUST assert:
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeInvokesHooksInDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php` MUST assert:
     - [x] after-uow hooks ran **before** reset trigger
       - [x] reset trigger ran **exactly once per UoW**
       - [x] reset trigger runs in exception path (try/finally semantics)
@@ -10971,17 +10971,17 @@ Kernel повертає/кидає детерміновані винятки/р�
     - [x] asserts low-level `beginUnitOfWork()` does not leave ContextStore dirty after before-hook failure.
     - [x] asserts the before-hook throwable remains the surfaced failure after low-level begin reset.
 
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeExportsNormalizedHookPayloadsTest.php`
     - [x] maps recursively sorted by `strcmp`
     - [x] list order preserved
     - [x] exported ctx/result passed to hooks are json-like only
     - [x] if `UnitOfWorkResult.error` exists internally as `ErrorDescriptor`, hooks MUST receive a normalized json-like `error` map, never an object
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeWritesBaseContextKeysAtBeginUowTest.php`
     - [x] asserts `ContextStore` contains `correlation_id`, `uow_id`, `uow_type` before the external runtime body is executed
     - [x] asserts written keys use `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE`
     - [x] asserts values pass `ContextStorePolicy`
 
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeUsesCorrelationSourcesAndDefaultIdGeneratorTest.php`
     - [x] asserts `correlation_id` comes from `CorrelationIdProviderInterface` when the provider returns a non-empty string
     - [x] asserts KernelRuntime falls back to `Coretsia\Foundation\Id\CorrelationIdGenerator` when the provider returns `null`
     - [x] asserts fallback `correlation_id` matches canonical ULID format `/\A[0-9A-HJKMNP-TV-Z]{26}\z/`
@@ -10999,7 +10999,7 @@ Kernel повертає/кидає детерміновані винятки/р�
 - [x] Verification tests present where applicable
 - [x] Determinism: deterministic hook invocation
 - [x] Docs updated:
-  - [x] `framework/packages/core/kernel/README.md`
+  - [x] `packages/core/kernel/README.md`
   - [x] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
   - [x] `docs/adr/ADR-0006-reset-interface-uow-hooks.md`
   - [x] `docs/adr/INDEX.md`
@@ -11049,7 +11049,7 @@ Kernel повертає/кидає детерміновані винятки/р�
 type: package
 phase: 1
 epic_id: "1.300.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -11059,11 +11059,11 @@ module_id: "core.kernel"
 goal: "Kernel може зробити Phase A boot deterministic і safe на будь-якому середовищі, навіть без жодних skeleton config файлів."
 provides:
 - "Bootstrap Phase A: env source policy + dotenv + minimal overrides (optional)"
-- "Boot without skeleton/config/* (bare skeleton safe)"
+- "Boot without packages/applications/skeleton/config/* (bare skeleton safe)"
 - "Deterministic env source precedence: strict_dotenv vs allow_system"
 - "Deterministic app target selection (`web|api|console|worker`) as a minimal boot input"
-- "Selected app target resolves the app root under `skeleton/apps/<app>/` without filesystem scanning"
-- "App target selection is entrypoint-owned input; it is NOT inferred by probing `skeleton/apps/*`"
+- "Selected app target resolves the app root under `packages/applications/skeleton/apps/<app>/` without filesystem scanning"
+- "App target selection is entrypoint-owned input; it is NOT inferred by probing `packages/applications/skeleton/apps/*`"
 - "Deterministic preset selection: explicit input → app.php per-app preset → app.php global preset → package default"
 
 tags_introduced: []
@@ -11083,10 +11083,10 @@ ssot_refs: []
   - 1.270.0 — core/kernel package skeleton exists (`KernelModule`, `KernelServiceProvider`, `KernelServiceFactory`, `config/kernel.php`, `config/rules.php`)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — `EnvRepositoryInterface`, `EnvPolicy`
+  - `packages/core/contracts/` — `EnvRepositoryInterface`, `EnvPolicy`
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
@@ -11129,7 +11129,7 @@ Forbidden:
 
 - Bootstrap Phase A is a minimal boot-input phase, not a full config merge phase.
 - Phase A MUST resolve only:
-  - `skeletonRoot`
+  - `applicationRoot`
   - `appTarget`
   - `appEnv`
   - `preset` selected from explicit input, bootstrap-only per-app/global preset overrides, or package default
@@ -11137,18 +11137,18 @@ Forbidden:
   - `envSourcePolicy`
   - `appRoot`
   - immutable `EnvRepositoryInterface` snapshot
-- Phase A MAY consume optional bootstrap-only `presets` map from `skeleton/config/app.php` only to resolve final `preset`.
+- Phase A MAY consume optional bootstrap-only `presets` map from `packages/applications/skeleton/config/app.php` only to resolve final `preset`.
 - `presets` MUST NOT be stored in `BootstrapConfig`.
 - Phase A MUST NOT read full skeleton config files.
 - Phase A MUST NOT read:
-  - `skeleton/config/roots.php`
-  - `skeleton/config/<root>.php`
-  - `skeleton/config/environments/**`
-  - `skeleton/apps/<appTarget>/config/**`
+  - `packages/applications/skeleton/config/roots.php`
+  - `packages/applications/skeleton/config/<root>.php`
+  - `packages/applications/skeleton/config/environments/**`
+  - `packages/applications/skeleton/apps/<appTarget>/config/**`
 - Phase A MAY read only bootstrap-only overrides from:
-  - `skeleton/config/app.php`
-- `skeleton/config/app.php` is a bootstrap-only input file.
-- `skeleton/config/app.php` MAY define:
+  - `packages/applications/skeleton/config/app.php`
+- `packages/applications/skeleton/config/app.php` is a bootstrap-only input file.
+- `packages/applications/skeleton/config/app.php` MAY define:
   - `appEnv`
   - `preset`
   - `presets`
@@ -11157,7 +11157,7 @@ Forbidden:
 - `presets` MUST NOT participate in ConfigKernel Phase B merge.
 - `presets` MUST NOT be used as module enable/disable composition.
 - Module enable/disable composition remains owned by `1.310.0` ModulePlan from preset files + Composer metadata.
-- `skeleton/config/app.php` MUST NOT participate in ConfigKernel Phase B merge.
+- `packages/applications/skeleton/config/app.php` MUST NOT participate in ConfigKernel Phase B merge.
 - ConfigKernel Phase B owns full config file discovery, merge, directives, validation, explain, and env overlays.
 
 ### BootstrapConfig resolution boundary (MUST)
@@ -11165,13 +11165,13 @@ Forbidden:
 - `BootstrapConfig` is a resolved immutable VO only.
 - `BootstrapConfig` MUST NOT resolve optional values from `BootstrapInput`.
 - `BootstrapConfig` MUST NOT read package defaults.
-- `BootstrapConfig` MUST NOT read `skeleton/config/app.php`.
+- `BootstrapConfig` MUST NOT read `packages/applications/skeleton/config/app.php`.
 - `BootstrapConfig` MUST NOT read dotenv files.
 - `BootstrapConfig` MUST NOT read system env.
 - `BootstrapConfig` MUST NOT expose `fromInput()` or any method that performs Phase A resolution.
 - Resolution from:
   - explicit `BootstrapInput`;
-  - bootstrap-only overrides from `skeleton/config/app.php`;
+  - bootstrap-only overrides from `packages/applications/skeleton/config/app.php`;
   - package defaults from `kernel.boot.*` and `kernel.env.*`;
     MUST be owned by an internal resolver/builder layer.
 - The canonical internal owner is:
@@ -11187,13 +11187,13 @@ Forbidden:
 Final selected preset MUST be resolved in this order:
 
 1. explicit `BootstrapInput.preset`;
-2. `skeleton/config/app.php` per-app `presets[appTarget]`;
-3. `skeleton/config/app.php` global `preset`;
+2. `packages/applications/skeleton/config/app.php` per-app `presets[appTarget]`;
+3. `packages/applications/skeleton/config/app.php` global `preset`;
 4. package default `kernel.boot.default_preset`.
 
-`BootstrapInput.preset` MUST always win over `skeleton/config/app.php`.
+`BootstrapInput.preset` MUST always win over `packages/applications/skeleton/config/app.php`.
 
-`skeleton/config/app.php` `presets[appTarget]` MUST win over `skeleton/config/app.php` global `preset` only for the currently selected explicit `appTarget`.
+`packages/applications/skeleton/config/app.php` `presets[appTarget]` MUST win over `packages/applications/skeleton/config/app.php` global `preset` only for the currently selected explicit `appTarget`.
 
 If `presets` does not contain the selected `appTarget`, resolver MUST fall back to global `preset`.
 
@@ -11201,7 +11201,7 @@ If neither `presets[appTarget]` nor global `preset` exists, resolver MUST fall b
 
 `presets` MUST NOT select or infer `appTarget`.
 
-`appTarget` remains entrypoint-owned input and MUST NOT be read from `skeleton/config/app.php`.
+`appTarget` remains entrypoint-owned input and MUST NOT be read from `packages/applications/skeleton/config/app.php`.
 
 ### Bootstrap-only app.php shape examples (MUST)
 
@@ -11261,7 +11261,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
 
 #### Creates
 
-- [x] `framework/packages/core/kernel/src/Boot/BootstrapEnvSourcePolicy.php`
+- [x] `packages/core/kernel/src/Boot/BootstrapEnvSourcePolicy.php`
   - [x] Kernel-owned Phase A env source precedence enum.
   - [x] Allowed values:
     - [x] `strict_dotenv`
@@ -11269,7 +11269,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] MUST NOT be confused with `Coretsia\Contracts\Env\EnvPolicy`.
   - [x] `Coretsia\Contracts\Env\EnvPolicy` remains missing-value policy only: `required|optional|defaulted`.
 
-- [x] `framework/packages/core/kernel/src/Boot/ArrayEnvRepository.php`
+- [x] `packages/core/kernel/src/Boot/ArrayEnvRepository.php`
   - [x] Internal immutable implementation of `Coretsia\Contracts\Env\EnvRepositoryInterface`.
   - [x] Stores a normalized `array<string,string>` snapshot.
   - [x] Stores optional safe `ConfigValueSource` metadata per env key.
@@ -11283,16 +11283,16 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] MUST be marked `@internal`.
   - [x] MUST NOT be added to `PUBLIC_API.md`.
 
-- [x] `framework/packages/core/kernel/src/Boot/DotenvLoader.php`
+- [x] `packages/core/kernel/src/Boot/DotenvLoader.php`
   - [x] Parses allowed dotenv files safely.
   - [x] Dotenv file template expansion MUST use the already selected Phase A `appEnv`.
   - [x] MUST consume resolved `BootstrapConfig`.
   - [x] MUST NOT resolve `appEnv`.
   - [x] MUST NOT read `BootstrapInput`.
-  - [x] MUST NOT read `skeleton/config/app.php`.
+  - [x] MUST NOT read `packages/applications/skeleton/config/app.php`.
   - [x] MUST NOT apply package boot defaults.
   - [x] `appEnv` selection MUST NOT depend on reading `.env.<env>` before `<env>` is known.
-  - [x] If `appEnv` is absent from explicit `BootstrapInput` and `skeleton/config/app.php`, package default `kernel.boot.default_env` is used for dotenv template expansion.
+  - [x] If `appEnv` is absent from explicit `BootstrapInput` and `packages/applications/skeleton/config/app.php`, package default `kernel.boot.default_env` is used for dotenv template expansion.
   - [x] Returns normalized dotenv key/value snapshot plus safe source metadata.
   - [x] MUST NOT apply system-env precedence.
   - [x] MUST NOT use `Coretsia\Contracts\Env\EnvPolicy`.
@@ -11305,7 +11305,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
     - [x] no drive letters
     - [x] no stream wrappers
 
-- [x] `framework/packages/core/kernel/src/Boot/EnvRepositoryBuilder.php` — builds `EnvRepositoryInterface`
+- [x] `packages/core/kernel/src/Boot/EnvRepositoryBuilder.php` — builds `EnvRepositoryInterface`
   - [x] MUST build an immutable env repository snapshot.
   - [x] MUST use `ArrayEnvRepository`.
   - [x] MUST NOT create a mutable repository.
@@ -11320,7 +11320,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] MUST consume a resolved `BootstrapConfig`.
   - [x] MUST NOT resolve `BootstrapConfig`.
   - [x] MUST NOT read `BootstrapInput` optional values.
-  - [x] MUST NOT read `skeleton/config/app.php`.
+  - [x] MUST NOT read `packages/applications/skeleton/config/app.php`.
   - [x] MUST NOT apply package boot defaults.
   - [x] Env source precedence MUST be deterministic:
     - [x] `strict_dotenv`:
@@ -11338,8 +11338,8 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
     - [x] dotenv/system precedence is applied according to resolved `BootstrapConfig::envSourcePolicy()`;
     - [x] immutable `EnvRepositoryInterface` snapshot is returned.
 
-- [x] `framework/packages/core/kernel/src/Boot/BootstrapOverridesLoader.php` — reads optional bootstrap-only overrides:
-  - [x] `skeleton/config/app.php`
+- [x] `packages/core/kernel/src/Boot/BootstrapOverridesLoader.php` — reads optional bootstrap-only overrides:
+  - [x] `packages/applications/skeleton/config/app.php`
   - [x] this file is a Phase A bootstrap-only input, NOT a reserved config root, and MUST NOT participate in Phase B config merge
   - [x] allowed override keys are:
     - [x] `appEnv`
@@ -11366,12 +11366,12 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] `appEnv` MUST be non-empty safe string.
   - [x] `preset` MUST be non-empty safe string.
   - [x] `debug` MUST be bool.
-  - [x] `skeleton/config/modules.php` MUST NOT be read here.
+  - [x] `packages/applications/skeleton/config/modules.php` MUST NOT be read here.
   - [x] module enable/disable composition is resolved only by `1.310.0` ModulePlan from preset files + Composer metadata.
   - [x] Values MUST NOT be logged or embedded in exception messages.
-  - [x] The loader MUST NOT include/require any file except `skeleton/config/app.php`.
+  - [x] The loader MUST NOT include/require any file except `packages/applications/skeleton/config/app.php`.
 
-- [x] `framework/packages/core/kernel/src/Boot/BootstrapConfigResolver.php` — resolves `BootstrapConfig`
+- [x] `packages/core/kernel/src/Boot/BootstrapConfigResolver.php` — resolves `BootstrapConfig`
   - [x] Internal resolver for resolved Bootstrap Phase A config.
   - [x] MUST use explicit `BootstrapInput` values first:
     - [x] `appEnv`
@@ -11391,8 +11391,8 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
     - [x] `kernel.env.source_policy.default_production`
   - [x] Preset resolution order MUST be:
     - [x] explicit `BootstrapInput.preset`
-    - [x] `skeleton/config/app.php` `presets[appTarget]`
-    - [x] `skeleton/config/app.php` `preset`
+    - [x] `packages/applications/skeleton/config/app.php` `presets[appTarget]`
+    - [x] `packages/applications/skeleton/config/app.php` `preset`
     - [x] `kernel.boot.default_preset`
   - [x] `presets[appTarget]` MUST be evaluated only for the already selected `BootstrapInput.appTarget()`.
   - [x] `presets[appTarget]` MUST NOT select or modify app target.
@@ -11405,7 +11405,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] MUST NOT build `EnvRepositoryInterface`.
   - [x] MUST NOT parse dotenv files.
   - [x] MUST NOT read system env.
-  - [x] MUST NOT scan `skeleton/apps/*`.
+  - [x] MUST NOT scan `packages/applications/skeleton/apps/*`.
   - [x] MUST NOT require `appRoot` to exist.
   - [x] MUST NOT expose raw override values in diagnostics.
   - [x] MUST be marked `@internal`.
@@ -11420,12 +11420,12 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] Phase A validates only preset value shape, not preset existence.
   - [x] Preset file existence and preset schema validation are owned by `1.310.0` ModulePlan.
   - [x] Phase A MUST NOT read `kernel.modes.defaults_path` or `kernel.modes.overrides_path`.
-  - [x] Phase A MUST NOT load `resources/modes/*.php` or `skeleton/config/modes/*.php`.
+  - [x] Phase A MUST NOT load `resources/modes/*.php` or `packages/applications/skeleton/config/modes/*.php`.
 
-- [x] `framework/packages/core/kernel/src/Boot/BootstrapInput.php`
+- [x] `packages/core/kernel/src/Boot/BootstrapInput.php`
   - [x] Immutable VO for Phase A entrypoint-owned inputs.
   - [x] Fields:
-    - [x] `skeletonRoot`
+    - [x] `applicationRoot`
     - [x] `appTarget`
     - [x] optional `appEnv`
     - [x] optional `preset`
@@ -11435,7 +11435,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] MUST NOT infer app target.
   - [x] MUST NOT contain raw env values.
 
-- [x] `framework/packages/core/kernel/src/Boot/AppTarget.php`
+- [x] `packages/core/kernel/src/Boot/AppTarget.php`
   - [x] Canonical allowed targets:
     - [x] `web`
     - [x] `api`
@@ -11444,23 +11444,23 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] Invalid target fails with `BootstrapException`.
   - [x] Error message MUST NOT include raw input.
 
-- [x] `framework/packages/core/kernel/src/Boot/BootstrapConfig.php`
+- [x] `packages/core/kernel/src/Boot/BootstrapConfig.php`
   - [x] Immutable VO with:
     - [x] `appEnv: non-empty-string`
     - [x] `preset: non-empty-string`
     - [x] `debug: bool`
     - [x] `envSourcePolicy: BootstrapEnvSourcePolicy`
     - [x] `appTarget: web|api|console|worker`
-    - [x] `skeletonRoot: string`
+    - [x] `applicationRoot: string`
     - [x] `appRoot: string`
-  - [x] `appRoot` MUST be derived deterministically as `skeletonRoot/apps/<appTarget>`.
-  - [x] MUST NOT scan `skeleton/apps/*`.
+  - [x] `appRoot` MUST be derived deterministically as `applicationRoot/apps/<appTarget>`.
+  - [x] MUST NOT scan `packages/applications/skeleton/apps/*`.
   - [x] MUST NOT require the app root to exist during Phase A unless explicitly configured by a later boot phase.
   - [x] MUST remain a resolved VO only.
   - [x] MUST NOT expose `fromInput()`.
   - [x] MUST NOT resolve defaults, overrides, dotenv, or system env.
 
-- [x] `framework/packages/core/kernel/src/Boot/Exception/BootstrapException.php`
+- [x] `packages/core/kernel/src/Boot/Exception/BootstrapException.php`
   - [x] Extends `\RuntimeException`.
   - [x] `public const string ERROR_CODE = 'CORETSIA_BOOTSTRAP_FAILED'`.
   - [x] Stable reason constants:
@@ -11476,8 +11476,8 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
 - [x] `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
   - [x] documents deterministic preset resolution precedence:
     - [x] explicit `BootstrapInput.preset`
-    - [x] `skeleton/config/app.php` `presets[appTarget]`
-    - [x] `skeleton/config/app.php` global `preset`
+    - [x] `packages/applications/skeleton/config/app.php` `presets[appTarget]`
+    - [x] `packages/applications/skeleton/config/app.php` global `preset`
     - [x] `kernel.boot.default_preset`
   - [x] documents that `presets` is a bootstrap-only per-app preset map.
   - [x] documents that `presets` does not select, infer, or modify `appTarget`.
@@ -11487,32 +11487,32 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] documents that `EnvRepositoryBuilder` owns env snapshot construction only.
   - [x] documents why public `Bootstrapper` / `BootstrapResult` are not introduced.
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php`
+- [x] `packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php`
   - [x] accepts `web`
   - [x] accepts `api`
   - [x] accepts `console`
   - [x] accepts `worker`
-  - [x] resolves `appRoot` as `skeleton/apps/<target>`
-  - [x] does not scan `skeleton/apps/*`
+  - [x] resolves `appRoot` as `packages/applications/skeleton/apps/<target>`
+  - [x] does not scan `packages/applications/skeleton/apps/*`
   - [x] invalid target fails with `BootstrapException::REASON_INVALID_APP_TARGET`
   - [x] invalid target failure does not leak raw input
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php`
+- [x] `packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php`
   - [x] creates multiple synthetic app dirs
   - [x] selected app remains explicit input
   - [x] absence/presence of sibling app dirs does not affect result
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
-  - [x] reads `skeleton/config/app.php` when present
+- [x] `packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
+  - [x] reads `packages/applications/skeleton/config/app.php` when present
   - [x] allows only `appEnv`, `preset`, `presets`, `debug`
-  - [x] does not read `skeleton/config/modules.php`
+  - [x] does not read `packages/applications/skeleton/config/modules.php`
   - [x] unknown override keys fail deterministically
   - [x] unknown `presets` app target keys fail deterministically
   - [x] raw override values do not leak in exception messages
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
-  - [x] explicit `BootstrapInput.preset` wins over `skeleton/config/app.php` `presets[appTarget]`
-  - [x] `skeleton/config/app.php` `presets[appTarget]` wins over global `preset`
+- [x] `packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
+  - [x] explicit `BootstrapInput.preset` wins over `packages/applications/skeleton/config/app.php` `presets[appTarget]`
+  - [x] `packages/applications/skeleton/config/app.php` `presets[appTarget]` wins over global `preset`
   - [x] global `preset` is used when `presets` does not contain selected `appTarget`
   - [x] `kernel.boot.default_preset` is used when neither explicit input nor app.php preset exists
   - [x] `presets` does not select or modify app target
@@ -11520,7 +11520,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] empty `presets` map behaves as absent
   - [x] Phase A does not require selected preset file to exist
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php`
+- [x] `packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php`
   - [x] scans `src/Boot/**`
   - [x] fails on `ResetOrchestrator`
   - [x] fails on `TagRegistry`
@@ -11530,7 +11530,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
 
 #### Modifies
 
-- [x] `framework/packages/core/kernel/PUBLIC_API.md`
+- [x] `packages/core/kernel/PUBLIC_API.md`
   - [x] add public boot API symbols that are intentionally public:
     - [x] `Coretsia\Kernel\Boot\AppTarget`
     - [x] `Coretsia\Kernel\Boot\BootstrapConfig`
@@ -11545,27 +11545,27 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
 
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
-- [x] `framework/packages/core/kernel/config/kernel.php` — adds boot/env policy defaults
-- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+- [x] `packages/core/kernel/config/kernel.php` — adds boot/env policy defaults
+- [x] `packages/core/kernel/config/rules.php` — enforces shape
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [x] registers Phase A boot services:
     - [x] `BootstrapConfigResolver`
     - [x] `DotenvLoader`
     - [x] `EnvRepositoryBuilder`
     - [x] `BootstrapOverridesLoader`
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [x] deterministic factory wiring for Phase A boot services
   - [x] includes factory wiring for `BootstrapConfigResolver`
   - [x] MUST NOT keep mutable runtime state
 
-- [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
-  - [x] add token-scan `framework/packages/core/kernel/src/Boot/**`
+- [x] `packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
+  - [x] add token-scan `packages/core/kernel/src/Boot/**`
   - [x] renamed from `KernelRuntimeDoesNotWriteToStdoutTest`
 
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/kernel.php`
 - [x] Keys (dot):
   - [x] `kernel.boot.default_env` = "local"
   - [x] `kernel.boot.default_preset` = "micro"
@@ -11574,9 +11574,9 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] `kernel.env.source_policy.default_production` = "allow_system"
   - [x] `kernel.env.dotenv.files` = [".env",".env.local",".env.<env>",".env.<env>.local"]
 - [x] Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces shape
+  - [x] `packages/core/kernel/config/rules.php` enforces shape
 
-- [x] Dotenv files are resolved relative to `skeletonRoot`.
+- [x] Dotenv files are resolved relative to `applicationRoot`.
 - [x] File names are normalized names only, not arbitrary paths.
 - [x] Entries containing `/`, `\`, `..`, NUL, drive letters, or stream wrappers are rejected.
 - [x] Missing dotenv files are skipped deterministically.
@@ -11621,25 +11621,25 @@ Allowed diagnostics:
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Redaction does not leak:
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php`
 
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php`
     - [x] token-scan:
-      - [x] `framework/packages/core/kernel/src/Runtime/**`
-      - [x] `framework/packages/core/kernel/src/Provider/**`
-      - [x] `framework/packages/core/kernel/src/Boot/**`
+      - [x] `packages/core/kernel/src/Runtime/**`
+      - [x] `packages/core/kernel/src/Provider/**`
+      - [x] `packages/core/kernel/src/Boot/**`
     - [x] MUST fail on `echo|print|var_dump|print_r|printf|error_log`
     - [x] MUST fail on `STDOUT|STDERR`, `php://stdout`, `php://stderr`, `php://output`
     - [x] tests/fixtures are excluded
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php`
 
 ### DoD (MUST)
 
@@ -11647,12 +11647,12 @@ Allowed diagnostics:
 - [x] `BootstrapEnvSourcePolicy` precedence matches ADR/SSoT and is tested.
 - [x] Bootstrap Phase A includes deterministic app target selection:
   - [x] selected app is an explicit input (`web|api|console|worker`)
-  - [x] selected app root resolves to `skeleton/apps/<app>/`
-  - [x] bootstrap MUST NOT scan `skeleton/apps/*` to auto-detect the app
+  - [x] selected app root resolves to `packages/applications/skeleton/apps/<app>/`
+  - [x] bootstrap MUST NOT scan `packages/applications/skeleton/apps/*` to auto-detect the app
 - [x] Bootstrap Phase A includes deterministic preset selection:
   - [x] explicit `BootstrapInput.preset` wins first
-  - [x] `skeleton/config/app.php` `presets[appTarget]` wins second for the already selected `BootstrapInput.appTarget()`
-  - [x] `skeleton/config/app.php` global `preset` wins third
+  - [x] `packages/applications/skeleton/config/app.php` `presets[appTarget]` wins second for the already selected `BootstrapInput.appTarget()`
+  - [x] `packages/applications/skeleton/config/app.php` global `preset` wins third
   - [x] `kernel.boot.default_preset` is the final fallback
   - [x] `presets` MUST NOT select, infer, or modify `appTarget`
 - [x] No secret leakage in error paths
@@ -11665,7 +11665,7 @@ Allowed diagnostics:
 - [x] Kernel boot runtime code MUST NOT import or include spike code.
 - [x] Kernel boot runtime code MUST NOT depend on `coretsia/devtools-internal-toolkit`.
 - [x] Any reused algorithm must be reimplemented in production-owned kernel/foundation code with tests.
-- [x] `framework/packages/core/kernel/src/Boot/**` MUST NOT import:
+- [x] `packages/core/kernel/src/Boot/**` MUST NOT import:
   - [x] `Coretsia\Kernel\Runtime\KernelRuntime`
   - [x] `Coretsia\Kernel\Runtime\Hook\HookInvoker`
   - [x] `Coretsia\Foundation\Runtime\Reset\ResetOrchestrator`
@@ -11680,7 +11680,7 @@ Allowed diagnostics:
 type: package
 phase: 1
 epic_id: "1.310.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -11718,13 +11718,13 @@ ssot_refs:
   - 1.300.0 — Bootstrap Phase A визначає preset + env inputs
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — module contracts (ManifestReader/ModePreset)
+  - `packages/core/contracts/` — module contracts (ManifestReader/ModePreset)
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Module\ManifestReaderInterface`
@@ -11769,7 +11769,7 @@ Forbidden:
 
 - Artifacts:
   - This epic introduces no artifacts directly.
-  - `skeleton/var/cache/<appTarget>/module-manifest.php` is written later by the artifacts/config compile owner.
+  - `packages/applications/skeleton/var/cache/<appTarget>/module-manifest.php` is written later by the artifacts/config compile owner.
   - `ModulePlan::toArray()` is artifact-ready but not written by this epic.
 
 - Policy surface:
@@ -11781,9 +11781,9 @@ Forbidden:
 #### Creates
 
 Discovery + preset loading + graph:
-- [x] `framework/packages/core/kernel/src/Module/ComposerManifestReader.php` — ManifestReaderInterface via composer metadata
+- [x] `packages/core/kernel/src/Module/ComposerManifestReader.php` — ManifestReaderInterface via composer metadata
   - [x] Discovery source is Composer installed metadata only.
-  - [x] Runtime MUST NOT scan `framework/packages/**`, package directories, source trees, or skeleton directories.
+  - [x] Runtime MUST NOT scan `packages/**`, package directories, source trees, or skeleton directories.
   - [x] Runtime MUST NOT instantiate module classes during discovery.
   - [x] Runtime MUST NOT require package filesystem paths to derive module identity.
   - [x] A package is a Coretsia runtime module only when `extra.coretsia.moduleId` is present and valid.
@@ -11806,7 +11806,7 @@ Discovery + preset loading + graph:
   - [x] Test fixtures MUST NOT require filesystem package scans.
 
 Composer installed metadata source:
-- [x] `framework/packages/core/kernel/src/Module/ComposerInstalledMetadataProvider.php`
+- [x] `packages/core/kernel/src/Module/ComposerInstalledMetadataProvider.php`
   - [x] Provides normalized raw Composer package metadata to `ComposerManifestReader`.
   - [x] Production implementation reads Composer installed metadata only.
   - [x] Test fixtures can provide deterministic metadata arrays.
@@ -11831,7 +11831,7 @@ Module dependency metadata policy:
 - [x] `core.kernel` MUST declare `extra.coretsia.requires = ["core.foundation"]`.
 
 Preset value objects:
-- [x] `framework/packages/core/kernel/src/Module/ModePreset.php` — immutable Kernel-owned implementation of `ModePresetInterface`
+- [x] `packages/core/kernel/src/Module/ModePreset.php` — immutable Kernel-owned implementation of `ModePresetInterface`
   - [x] Stores `schemaVersion`, `name`, `description`, `required`, `optional`, `disabled`, `featureBundles`, `metadata`.
   - [x] Exports `moduleIds()` as `required + optional - disabled`, sorted by moduleId using byte-order `strcmp`.
   - [x] Exports `toArray()` as stable scalar/json-like shape.
@@ -11840,31 +11840,31 @@ Preset value objects:
   - [x] Source list order is not semantic.
 
 Preset loader factory:
-- [x] `framework/packages/core/kernel/src/Module/ModePresetLoaderFactory.php` — creates per-resolution `FilesystemModePresetLoader`
+- [x] `packages/core/kernel/src/Module/ModePresetLoaderFactory.php` — creates per-resolution `FilesystemModePresetLoader`
   - [x] Accepts Kernel modes config.
   - [x] Accepts package root as a constructor/input safe path boundary.
   - [x] Accepts `kernel.modes.defaults_path` as package-relative path.
   - [x] Accepts `kernel.modes.overrides_path` as skeleton-root-relative path.
   - [x] MUST reject absolute configured defaults/overrides paths before constructing loader.
   - [x] Creates loader for a given `BootstrapConfig`.
-  - [x] Resolves skeleton override path from `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path`.
+  - [x] Resolves skeleton override path from `BootstrapConfig.applicationRoot()` + `kernel.modes.overrides_path`.
   - [x] Resolves framework defaults path from package root + `kernel.modes.defaults_path`.
   - [x] MUST NOT cache loaders.
   - [x] MUST NOT cache loaded presets.
   - [x] MUST NOT retain `BootstrapConfig` beyond factory method call.
 
 ModulePlan internal value objects:
-- [x] `framework/packages/core/kernel/src/Module/ModulePlanEntry.php` — immutable resolved module entry
+- [x] `packages/core/kernel/src/Module/ModulePlanEntry.php` — immutable resolved module entry
   - [x] Fields: `moduleId`, `composerName`, `requires`, `conflicts`.
   - [x] `requires` and `conflicts` are sorted by byte-order `strcmp`.
   - [x] `toArray()` returns stable scalar/json-like shape.
   - [x] MUST NOT expose paths, provider class list, defaultsConfigPath, package filesystem metadata, or runtime services.
 
-- [x] `framework/packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — load: skeleton override → framework default
+- [x] `packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — load: skeleton override → framework default
   - [x] Input preset name MUST be a non-empty lowercase ASCII safe preset name.
   - [x] Lookup order is single-choice:
     - [x] Framework default path is resolved as package root + `kernel.modes.defaults_path` + `<preset>.php`.
-    - [x] Skeleton override path is resolved as `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path` + `<preset>.php`.
+    - [x] Skeleton override path is resolved as `BootstrapConfig.applicationRoot()` + `kernel.modes.overrides_path` + `<preset>.php`.
   - [x] First existing preset file wins.
   - [x] Loader MUST NOT merge skeleton preset with framework default preset.
   - [x] Missing skeleton override is not an error.
@@ -11880,7 +11880,7 @@ ModulePlan internal value objects:
   - [x] Invalid preset names MUST use stable placeholder context `preset = invalid`.
   - [x] Invalid preset names SHOULD use reason token `mode-preset-name-invalid`.
 
-- [x] `framework/packages/core/kernel/src/Module/ModePresetSchemaValidator.php` — validates canonical preset PHP array shape
+- [x] `packages/core/kernel/src/Module/ModePresetSchemaValidator.php` — validates canonical preset PHP array shape
   - [x] Preset file MUST return an array.
   - [x] Preset file MUST NOT return a root wrapper such as `['mode' => ...]`, `['modes' => ...]`, or `['kernel' => ...]`.
   - [x] `schemaVersion` MUST be integer `1`.
@@ -11902,7 +11902,7 @@ ModulePlan internal value objects:
   - [x] Rejection diagnostics MUST include only `presetName`, stable reason token, and stable error code.
   - [x] Rejection diagnostics MUST NOT echo the offending path-like value.
 
-- [x] `framework/packages/core/kernel/src/Module/ModuleGraphResolver.php` — preset required/optional/disabled + module requires/conflicts policy
+- [x] `packages/core/kernel/src/Module/ModuleGraphResolver.php` — preset required/optional/disabled + module requires/conflicts policy
   - [x] Inputs:
     - [x] installed `ModuleManifest`
     - [x] validated `ModePresetInterface`
@@ -11947,7 +11947,7 @@ ModulePlan internal value objects:
     - [x] cycle detection
   - [x] `ModulePlanResolver` applies global pipeline precedence around preset loading, manifest reading, graph resolution, and success/warnings.
 
-- [x] `framework/packages/core/kernel/src/Module/TopologicalSorter.php` — deterministic topo sort + cycle detection
+- [x] `packages/core/kernel/src/Module/TopologicalSorter.php` — deterministic topo sort + cycle detection
   - [x] Edge direction: `A requires B` means `B` MUST appear before `A` in `topologicalOrder`.
   - [x] Only enabled modules participate in topo sorting.
   - [x] Missing required modules are classified before topo sort.
@@ -11959,7 +11959,7 @@ ModulePlan internal value objects:
   - [x] Cycle diagnostics MUST NOT include graph dumps, paths, filesystem layout, or raw metadata payloads.
   - [x] Cycle module ids in diagnostics MUST be sorted deterministically unless preserving the minimal canonical cycle path is explicitly required by the test.
 
-- [x] `framework/packages/core/kernel/src/Module/ModulePlan.php` — stable payload shape for artifacts/debug (+ warnings storage)
+- [x] `packages/core/kernel/src/Module/ModulePlan.php` — stable payload shape for artifacts/debug (+ warnings storage)
   - [x] Shape examples below are illustrative test vectors, not hardcoded values.
   - [x] Actual `preset` MUST come from `BootstrapConfig.preset()`.
   - [x] Actual `app` MUST come from `BootstrapConfig.appTarget()`.
@@ -11983,7 +11983,7 @@ ModulePlan internal value objects:
       - [x] `'composerName' => 'coretsia/core-kernel'`
       - [x] `'requires' => ['core.foundation']`
       - [x] `'conflicts' => []`
-  - [x] ModulePlan MUST NOT export `skeletonRoot/appRoot/defaultsPath/overridesPath/absolute` paths.
+  - [x] ModulePlan MUST NOT export `applicationRoot/appRoot/defaultsPath/overridesPath/absolute` paths.
   - [x] `ModulePlan::toArray()` MUST return only scalar/json-like values.
   - [x] Top-level exported key order MUST be deterministic.
   - [x] Canonical top-level `toArray()` key order:
@@ -12013,22 +12013,22 @@ ModulePlan internal value objects:
     - [x] `preset`
     - [x] `reason`
   - [x] Warning canonical sort key is `code + "\0" + preset + "\0" + moduleId + "\0" + reason`.
-  - [x] `ModulePlan` MUST NOT contain or export `skeletonRoot`, `appRoot`, `defaultsPath`, `overridesPath`, absolute paths, provider class lists, raw composer payloads, raw config payloads, or service instances.
+  - [x] `ModulePlan` MUST NOT contain or export `applicationRoot`, `appRoot`, `defaultsPath`, `overridesPath`, absolute paths, provider class lists, raw composer payloads, raw config payloads, or service instances.
 
-- [x] `framework/packages/core/kernel/src/Module/ModulePlanResolver.php` — Plan resolution entrypoint (single brain):
+- [x] `packages/core/kernel/src/Module/ModulePlanResolver.php` — Plan resolution entrypoint (single brain):
   - [x] Single-choice module selection inputs:
     - [x] `BootstrapConfig.preset` selected in Phase A
-    - [x] mode files (`skeleton/config/modes/*.php` override → framework defaults)
+    - [x] mode files (`packages/applications/skeleton/config/modes/*.php` override → framework defaults)
     - [x] First existing preset file wins:
-      - [x] 1. skeleton override path: `BootstrapConfig.skeletonRoot()` + `kernel.modes.overrides_path` + `<preset>.php`
+      - [x] 1. skeleton override path: `BootstrapConfig.applicationRoot()` + `kernel.modes.overrides_path` + `<preset>.php`
       - [x] 2. framework default path: package root + `kernel.modes.defaults_path` + `<preset>.php`
       - [x] No merge.
     - [x] Resolver/loader MUST NOT export either resolved path in diagnostics or ModulePlan.
     - [x] composer metadata discovery
     - [x] selected app target from Phase A (`BootstrapConfig.app`) MAY affect app-root resolution for app-local config/bootstrap, but MUST NOT introduce a parallel module-selection source
     - [x] forbidden parallel module-selection paths:
-      - [x] `skeleton/config/modules.php`
-      - [x] `skeleton/apps/*/config/modules.php`
+      - [x] `packages/applications/skeleton/config/modules.php`
+      - [x] `packages/applications/skeleton/apps/*/config/modules.php`
   - [x] orchestrates:
     - [x] preset load (skeleton override → framework default)
     - [x] app-root is already resolved by `BootstrapConfig`; `ModulePlanResolver` MUST NOT use `appRoot()` as a module-selection source.
@@ -12036,9 +12036,9 @@ ModulePlan internal value objects:
     - [x] composer metadata discovery
     - [x] graph resolve + topo sort
     - [x] returns a deterministic `ModulePlan` (same inputs → same plan)
-  - [x] MUST NOT read `skeleton/config/modules.php`.
-  - [x] MUST NOT read `skeleton/apps/*/config/modules.php`.
-  - [x] MUST NOT scan `skeleton/apps/*`.
+  - [x] MUST NOT read `packages/applications/skeleton/config/modules.php`.
+  - [x] MUST NOT read `packages/applications/skeleton/apps/*/config/modules.php`.
+  - [x] MUST NOT scan `packages/applications/skeleton/apps/*`.
   - [x] MUST NOT infer app target from filesystem.
   - [x] MUST use only `BootstrapConfig.preset()` as selected preset input.
   - [x] MUST use only `BootstrapConfig.appTarget()` / `BootstrapConfig.appRoot()` for app-root derivation, not for module selection.
@@ -12085,7 +12085,7 @@ Failure precedence (single-choice):
 - [x] Preset-invalid failure key: `presetName + "\0" + reason`.
 
 Framework default presets:
-- [x] `framework/packages/core/kernel/resources/modes/micro.php` must return:
+- [x] `packages/core/kernel/resources/modes/micro.php` must return:
   - [x] `'schemaVersion' => 1`
   - [x] `'name' => 'micro'`
   - [x] `'description' => 'Micro web application mode.'`
@@ -12102,7 +12102,7 @@ Framework default presets:
     - [x] `'observability' => 'minimal'`
   - [x] `'metadata' => []`
 
-- [x] `framework/packages/core/kernel/resources/modes/express.php` must return:
+- [x] `packages/core/kernel/resources/modes/express.php` must return:
   - [x] `'schemaVersion' => 1`
   - [x] `'name' => 'express'`
   - [x] `'description' => 'Express web application mode.'`
@@ -12120,7 +12120,7 @@ Framework default presets:
     - [x] `'observability' => 'minimal'`
   - [x] `'metadata' => []`
 
-- [x] `framework/packages/core/kernel/resources/modes/hybrid.php` must return:
+- [x] `packages/core/kernel/resources/modes/hybrid.php` must return:
   - [x] `'schemaVersion' => 1`
   - [x] `'name' => 'hybrid'`
   - [x] `'description' => 'Hybrid web application mode.'`
@@ -12138,7 +12138,7 @@ Framework default presets:
     - [x] `'observability' => 'minimal'`
   - [x] `'metadata' => []`
 
-- [x] `framework/packages/core/kernel/resources/modes/enterprise.php` must return:
+- [x] `packages/core/kernel/resources/modes/enterprise.php` must return:
   - [x] `'schemaVersion' => 1`
   - [x] `'name' => 'enterprise'`
   - [x] `'description' => 'Enterprise web application mode.'`
@@ -12157,7 +12157,7 @@ Framework default presets:
   - [x] `'metadata' => []`
 
 Deterministic exceptions (resolution + policy):
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php` — `CORETSIA_MODE_PRESET_NOT_FOUND`
+- [x] `packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php` — `CORETSIA_MODE_PRESET_NOT_FOUND`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Message format MUST be `ERROR_CODE: reason-token`.
@@ -12166,7 +12166,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php` — `CORETSIA_MODE_PRESET_INVALID`
+- [x] `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php` — `CORETSIA_MODE_PRESET_INVALID`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Message format MUST be `ERROR_CODE: reason-token`.
@@ -12175,7 +12175,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleCycleDetectedException.php` — `CORETSIA_MODULE_CYCLE_DETECTED`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleCycleDetectedException.php` — `CORETSIA_MODULE_CYCLE_DETECTED`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Message format MUST be `ERROR_CODE: reason-token`.
@@ -12184,7 +12184,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleConflictException.php` — `CORETSIA_MODULE_CONFLICT`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleConflictException.php` — `CORETSIA_MODULE_CONFLICT`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Message format MUST be `ERROR_CODE: reason-token`.
@@ -12193,7 +12193,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleRequiredMissingException.php` — `CORETSIA_MODULE_REQUIRED_MISSING`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleRequiredMissingException.php` — `CORETSIA_MODULE_REQUIRED_MISSING`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Message format MUST be `ERROR_CODE: reason-token`.
@@ -12202,7 +12202,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleManifestInvalidException.php` — `CORETSIA_MODULE_MANIFEST_INVALID`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleManifestInvalidException.php` — `CORETSIA_MODULE_MANIFEST_INVALID`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Used for invalid composer installed metadata / invalid `extra.coretsia` metadata / duplicate module ids.
@@ -12212,7 +12212,7 @@ Deterministic exceptions (resolution + policy):
   - [x] `context()` MUST return safe deterministic json-like context.
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleDiscoverySourceUnsupportedException.php` — `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleDiscoverySourceUnsupportedException.php` — `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
   - [x] Extends `ModuleResolutionException`.
   - [x] Error code MUST be read from `ModuleErrorCodes`.
   - [x] Used when config selects unsupported `kernel.modules.discovery.source`.
@@ -12223,7 +12223,7 @@ Deterministic exceptions (resolution + policy):
   - [x] Context MUST NOT contain paths, raw composer metadata, raw preset payload, secrets, PII, stack traces, or previous throwable message.
 
 Exception/error-code support:
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleResolutionException.php`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleResolutionException.php`
   - [x] Abstract Kernel-owned base exception class, not an interface/port.
   - [x] Extends `\RuntimeException`.
   - [x] Exposes `errorCode(): string`.
@@ -12240,7 +12240,7 @@ Exception/error-code support:
   - [x] Context string values MUST NOT contain path separators, whitespace, control characters, stream-wrapper-like values, or path traversal fragments.
   - [x] Context validation MUST NOT rely on sensitive-word or SQL-like regex filtering; concrete exceptions MUST pass only pre-classified safe tokens/module ids/preset names.
 
-- [x] `framework/packages/core/kernel/src/Module/Exception/ModuleErrorCodes.php`
+- [x] `packages/core/kernel/src/Module/Exception/ModuleErrorCodes.php`
   - [x] Kernel-owned constants holder, not a contracts port.
   - [x] Final non-instantiable class.
   - [x] Used only by Kernel module resolution exceptions/warnings.
@@ -12257,7 +12257,7 @@ Exception/error-code support:
     - [x] `CORETSIA_MODULE_OPTIONAL_MISSING`
 
 Warnings (non-fatal):
-- [x] `framework/packages/core/kernel/src/Module/Warning/ModuleOptionalMissingWarning.php` — `CORETSIA_MODULE_OPTIONAL_MISSING`
+- [x] `packages/core/kernel/src/Module/Warning/ModuleOptionalMissingWarning.php` — `CORETSIA_MODULE_OPTIONAL_MISSING`
   - [x] Warning code MUST be read from `ModuleErrorCodes`.
   - [x] Fields: `code`, `moduleId`, `preset`, `reason`.
   - [x] `code` MUST be `CORETSIA_MODULE_OPTIONAL_MISSING`.
@@ -12274,23 +12274,23 @@ Docs:
 - [x] `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
 
 Tests:
-- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderReadsOnlyComposerMetadataTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderDoesNotLeakPathsTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderSortsModulesDeterministicallyTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModePresetLoaderUsesSkeletonOverrideBeforeFrameworkDefaultTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModePresetLoaderDoesNotMergeOverrideWithDefaultTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverIgnoresSkeletonConfigModulesPhpTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/KernelRequiresFoundationInModulePlanTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/ModulePlanDoesNotExportFilesystemPathsContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
+- [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderReadsOnlyComposerMetadataTest.php`
+- [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderDoesNotLeakPathsTest.php`
+- [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderSortsModulesDeterministicallyTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModePresetLoaderUsesApplicationOverrideBeforeKernelDefaultTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModePresetLoaderDoesNotMergeOverrideWithDefaultTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverIgnoresApplicationConfigModulesPhpTest.php`
+- [x] `packages/core/kernel/tests/Integration/KernelRequiresFoundationInModulePlanTest.php`
+- [x] `packages/core/kernel/tests/Contract/ModulePlanDoesNotExportFilesystemPathsContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
   - [x] config value `kernel.modules.discovery.source = "filesystem"` fails with `CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED`
   - [x] diagnostics do not expose paths or config payload
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 #### Modifies
 
@@ -12305,10 +12305,10 @@ Tests:
   - [x] `requires` / `conflicts` are stored in `ModuleDescriptor.metadata()` as deterministic lists of module id strings.
   - [x] `requires` / `conflicts` MUST NOT expose filesystem paths or composer raw payloads.
 
-- [x] `framework/packages/core/kernel/config/kernel.php` — adds modules/modes config defaults
-- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+- [x] `packages/core/kernel/config/kernel.php` — adds modules/modes config defaults
+- [x] `packages/core/kernel/config/rules.php` — enforces shape
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers:
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php` — registers:
   - [x] `ModulePlanResolver`
   - [x] `ComposerManifestReader`
   - [x] `Coretsia\Contracts\Module\ManifestReaderInterface` → `ComposerManifestReader`
@@ -12330,7 +12330,7 @@ Tests:
   - [x] Module-plan factories MAY read the `kernel` root from Foundation `Container::config()` during lazy service creation.
   - [x] Created module-plan services MUST retain only normalized minimal config values, not the full `kernel` config subtree.
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php` — module plan wiring
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php` — module plan wiring
   - [x] builds `ComposerManifestReader` from config/runtime-safe composer metadata source
   - [x] builds `FilesystemModePresetLoader` from kernel modes config + BootstrapConfig skeleton root when resolver is invoked
   - [x] builds `ModePresetSchemaValidator`
@@ -12345,7 +12345,7 @@ Tests:
   - [x] wires `Stopwatch` or duration provider into `ModulePlanResolver` for duration metrics.
   - [x] wires `LoggerInterface` into `ModulePlanResolver` for safe module resolution logs.
 
-- [x] `framework/packages/core/kernel/composer.json` — extend `extra.coretsia` module metadata:
+- [x] `packages/core/kernel/composer.json` — extend `extra.coretsia` module metadata:
   - [x] add `"requires": ["core.foundation"]`
   - [x] add `"conflicts": []`
   - [x] keep `"moduleId": "core.kernel"`
@@ -12357,7 +12357,7 @@ Tests:
 ### Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/kernel.php`
 - Keys (dot):
   - [x] `kernel.modules.discovery.source` = "composer"
   - [x] `kernel.modules.discovery.allowed_sources` = ["composer"]
@@ -12367,9 +12367,9 @@ Tests:
   - [x] `kernel.modes.overrides_path` = "config/modes"
     - [x] `kernel.modes.overrides_path` is skeleton-root-relative.
   - [x] Config defaults MUST NOT contain absolute paths.
-  - [x] Config defaults MUST NOT contain monorepo-only paths such as `framework/packages/core/kernel/...` unless explicitly documented as repo-relative and never exported.
+  - [x] Config defaults MUST NOT contain monorepo-only paths such as `packages/core/kernel/...` unless explicitly documented as repo-relative and never exported.
 - Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+  - [x] `packages/core/kernel/config/rules.php` — enforces shape
     - [x] `kernel.modules.discovery.source` MUST be a non-empty safe string.
     - [x] `kernel.modules.discovery.source` shape validation MUST NOT enforce the concrete source value.
     - [x] Supported discovery source membership is validated by `ModulePlanResolver`, not by config rules.
@@ -12406,11 +12406,11 @@ Tests:
   - [x] `required_missing`
   - [x] `cycle`
 - [x] Metrics tests:
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
 - [x] Logs tests:
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 #### Errors
 
@@ -12448,59 +12448,59 @@ Allowed:
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Deterministic topo/cycle:
-  - [x] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
+  - [x] `packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
 - [x] Stable plan shape:
-  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
-- [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
+- [x] `packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
   - [x] asserts `optionalMissing` and any warnings collections are sorted deterministically by canonical key using byte-order `strcmp`
   - [x] asserts locale does not affect ordering
 - [x] Deterministic behaviors (missing/conflicts policy):
-  - [x] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
+  - [x] `packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Unit/GraphCycleDetectionTest.php`
+  - [x] `packages/core/kernel/tests/Unit/TopologicalSorterDeterministicOrderTest.php`
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanRecursiveKeyOrderContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/ModulePlanWarningShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/ModuleResolutionExceptionShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModulePlanShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModulePlanWarningsAreDeterministicallySortedContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModulePlanRecursiveKeyOrderContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModulePlanWarningShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModuleResolutionExceptionShapeContractTest.php`
     - [x] asserts all module resolution exceptions extend `ModuleResolutionException`
     - [x] asserts no `ModuleResolutionExceptionInterface` exists in `core/kernel`
     - [x] asserts `errorCode()`, `reason()`, and `context()` shape
     - [x] asserts exception message is `ERROR_CODE: reason-token`
-  - [x] `framework/packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetAppliesRequiredOptionalDisabledTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsDuplicateModuleIdsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverAddsTransitiveRequiredDependenciesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModuleGraphResolverFailsWhenEnabledModuleRequiresDisabledModuleTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverFailurePrecedenceTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsOverlappingRequiredOptionalDisabledTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsPathLeakingMetadataTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModePresetAppliesRequiredOptionalDisabledTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/OptionalMissingDoesNotFailTest.php`
+  - [x] `packages/core/kernel/tests/Integration/RequiredMissingFailsDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModuleConflictsFailDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsDuplicateModuleIdsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderRejectsInvalidCoretsiaMetadataTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ComposerManifestReaderReadsRequiresConflictsFromExtraCoretsiaTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModuleGraphResolverAddsTransitiveRequiredDependenciesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModuleGraphResolverFailsWhenEnabledModuleRequiresDisabledModuleTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverFailurePrecedenceTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsOverlappingRequiredOptionalDisabledTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsPathLeakingMetadataTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverRejectsUnsupportedDiscoverySourceTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverEmitsPolicyCompliantMetricsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverDoesNotEmitPathLabelsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsSafeOptionalMissingWarningsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLogsDoNotLeakPathsTest.php`
 
 ### DoD (MUST)
 
 - [x] Module discovery is metadata-only through Composer installed metadata.
-- [x] No runtime scan of `framework/packages/**`.
+- [x] No runtime scan of `packages/**`.
 - [x] Kernel does not instantiate module classes for discovery.
 - [x] Kernel does not write artifacts in this epic.
 - [x] Mode preset load order correct + tested:
@@ -12548,7 +12548,7 @@ Allowed:
 type: package
 phase: 1
 epic_id: "1.320.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -12586,7 +12586,7 @@ ssot_refs:
   - 1.300.0 — immutable `EnvRepositoryInterface` snapshot and kernel-owned `BootstrapEnvSourcePolicy` source precedence are available for environment overlays.
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*` are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
   - `Coretsia\Contracts\Env\EnvPolicy` is used only for missing-value semantics (`required|optional|defaulted`).
@@ -12594,7 +12594,7 @@ ssot_refs:
   - ConfigKernel MUST NOT re-read `$_ENV`, `$_SERVER`, or `getenv()`.
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/config_merge/tests/fixtures/scenarios.php` — spike fixtures for compatibility locks
+  - `tools/spikes/config_merge/tests/fixtures/scenarios.php` — spike fixtures for compatibility locks
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
@@ -12615,7 +12615,7 @@ Depends on:
 Forbidden:
 - `platform/*`
 - `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
-- `framework/tools/**` (runtime code MUST NOT залежати від spikes/tools; дозволено тільки test-time fixtures reads у Contract tests)
+- `tools/**` (runtime code MUST NOT залежати від spikes/tools; дозволено тільки test-time fixtures reads у Contract tests)
 - `Coretsia\Tools\Spikes\*` (runtime import forbidden; test-only)
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -12628,7 +12628,7 @@ Forbidden:
 - CLI:
   - `coretsia config:validate|config:debug|config:compile` → owner `platform/cli`
 - Artifacts:
-  - writes (via artifacts epic): `skeleton/var/cache/<appTarget>/config.php`
+  - writes (via artifacts epic): `packages/applications/skeleton/var/cache/<appTarget>/config.php`
 - Docs:
   - SSoT docs MUST match implementation + tests (no “creative” divergence)
 
@@ -12697,7 +12697,7 @@ The canonical docs are:
 #### Creates
 
 Kernel config core:
-- [x] `framework/packages/core/kernel/src/Config/ConfigKernel.php` — orchestrates loaders + directives + merge + validate + explain
+- [x] `packages/core/kernel/src/Config/ConfigKernel.php` — orchestrates loaders + directives + merge + validate + explain
   - [x] public `compile(...)` result MUST expose safe metadata needed by artifact fingerprinting:
     - [x] `envOverlayMappings`;
     - [x] `configSourceFiles`;
@@ -12720,7 +12720,7 @@ Kernel config core:
 
   Construction / dependencies:
   - [x] MUST be an orchestration service, not a loader, validator, merger, or explainer implementation.
-  - [x] MUST receive `ConfigMerger`, `ConfigRulesLoader`, `ConfigValidator`, `ConfigExplainer`, `PackageDefaultsConfigLoader`, `SkeletonConfigLoader`, and `EnvironmentOverlayLoader` through constructor wiring.
+  - [x] MUST receive `ConfigMerger`, `ConfigRulesLoader`, `ConfigValidator`, `ConfigExplainer`, `PackageDefaultsConfigLoader`, `ApplicationConfigLoader`, and `EnvironmentOverlayLoader` through constructor wiring.
   - [x] MUST receive or be passed the immutable `EnvRepositoryInterface` snapshot produced by Bootstrap Phase A.
   - [x] MUST receive or be passed `BootstrapConfig` produced by Bootstrap Phase A.
   - [x] MUST receive or be passed `ModulePlan` produced by the module plan resolver.
@@ -12758,12 +12758,12 @@ Kernel config core:
   - [x] MUST call package defaults loading before skeleton/app/env overlays.
   - [x] MUST load package defaults through `PackageDefaultsConfigLoader`.
   - [x] MUST load package defaults only from enabled ModulePlan modules.
-  - [x] MUST load skeleton/app config through `SkeletonConfigLoader`.
-  - [x] MUST pass deterministic split root names to `SkeletonConfigLoader`.
+  - [x] MUST load skeleton/app config through `ApplicationConfigLoader`.
+  - [x] MUST pass deterministic split root names to `ApplicationConfigLoader`.
   - [x] MUST load env overlays through `EnvironmentOverlayLoader` after rulesets are available.
   - [x] MUST pass only the immutable `EnvRepositoryInterface` snapshot to `EnvironmentOverlayLoader`.
   - [x] MUST NOT read `$_ENV`, `$_SERVER`, or `getenv()`.
-  - [x] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
+  - [x] MUST NOT read `packages/applications/skeleton/config/app.php`; that file is Phase A bootstrap-only input.
   - [x] MUST treat CLI/runtime overrides as reserved/future unless explicitly introduced by a later epic.
 
   Per-file directive processing:
@@ -12962,7 +12962,7 @@ Kernel config core:
   - [x] Map/list env overlay syntax is reserved/future unless explicitly introduced by a later typed env syntax epic.
   - [x] Runtime feature flags for enabling/disabling ConfigKernel or explain are forbidden for this baseline.
 
-- [x] `framework/packages/core/kernel/src/Config/ConfigMerger.php` — deterministic merge
+- [x] `packages/core/kernel/src/Config/ConfigMerger.php` — deterministic merge
   - [x] Lower rank source is weaker; higher rank source overrides lower rank source.
   - [x] MUST merge sources according to the active Phase B rank order supplied by `ConfigKernel`.
   - [x] MUST preserve deterministic map key ordering.
@@ -12971,7 +12971,7 @@ Kernel config core:
   - [x] MUST NOT invent source precedence.
   - [x] MUST NOT apply env overlay logic directly; env overlays are prepared by `EnvironmentOverlayLoader`.
 
-- [x] `framework/packages/core/kernel/src/Config/DirectiveProcessor.php` — per-file directive processing + typing rules
+- [x] `packages/core/kernel/src/Config/DirectiveProcessor.php` — per-file directive processing + typing rules
   - [x] Parses directives per-file before merge.
   - [x] Allows only:
     - [x] `@append`
@@ -12988,7 +12988,7 @@ Kernel config core:
   - [x] Empty array `[]` MUST be accepted and interpreted by directive context.
   - [x] Locale MUST NOT affect directive classification.
 
-- [x] `framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php` — source tracking (no secrets)
+- [x] `packages/core/kernel/src/Config/Explain/ConfigExplainer.php` — source tracking (no secrets)
   - [x] MUST record source type for every effective config path.
   - [x] MUST record effective source rank/order for precedence explain.
   - [x] MUST record whether a root was validated or unvalidated.
@@ -13008,7 +13008,7 @@ Kernel config core:
     - [x] source type;
     - [x] hash/len metadata when needed by CLI.
 
-- [x] `framework/packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php` — reserved namespaces guard
+- [x] `packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php` — reserved namespaces guard
   - [x] Guards forbidden top-level roots such as `coretsia` and `_internal`.
   - [x] MUST NOT reject user-owned top-level roots solely because they are not framework-owned.
   - [x] MUST allow unknown/custom top-level roots unless they violate global config safety rules.
@@ -13019,7 +13019,7 @@ Kernel config core:
   - [x] MUST NOT leak raw config values in diagnostics.
 
 Loaders:
-- [x] `framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php`
+- [x] `packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php`
   - [x] Loads package defaults only from enabled module package files `config/<root>.php`.
   - [x] MUST use ModulePlan-enabled modules only.
   - [x] Package defaults MUST NOT use `config/roots.php`.
@@ -13028,23 +13028,23 @@ Loaders:
   - [x] MUST load files deterministically.
   - [x] MUST NOT scan arbitrary package directories outside ModulePlan-provided package config locations.
 
-- [x] `framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php`
+- [x] `packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php`
   - [x] Loads skeleton shared aggregate config:
-    - [x] `skeleton/config/roots.php`
+    - [x] `packages/applications/skeleton/config/roots.php`
   - [x] Loads skeleton shared root config:
-    - [x] `skeleton/config/<root>.php`
+    - [x] `packages/applications/skeleton/config/<root>.php`
   - [x] Loads skeleton environment aggregate config:
-    - [x] `skeleton/config/environments/<appEnv>/roots.php`
+    - [x] `packages/applications/skeleton/config/environments/<appEnv>/roots.php`
   - [x] Loads skeleton environment root config:
-    - [x] `skeleton/config/environments/<appEnv>/<root>.php`
+    - [x] `packages/applications/skeleton/config/environments/<appEnv>/<root>.php`
   - [x] Loads app shared aggregate config:
-    - [x] `skeleton/apps/<appTarget>/config/roots.php`
+    - [x] `packages/applications/skeleton/apps/<appTarget>/config/roots.php`
   - [x] Loads app shared root config:
-    - [x] `skeleton/apps/<appTarget>/config/<root>.php`
+    - [x] `packages/applications/skeleton/apps/<appTarget>/config/<root>.php`
   - [x] Loads app environment aggregate config:
-    - [x] `skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php`
+    - [x] `packages/applications/skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php`
   - [x] Loads app environment root config:
-    - [x] `skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php`
+    - [x] `packages/applications/skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php`
   - [x] `roots.php` is the aggregate root-map file for a config layer.
   - [x] `<root>.php` is the split root-subtree file for one config root.
   - [x] Root-specific files override `roots.php` files at the same layer.
@@ -13053,7 +13053,7 @@ Loaders:
   - [x] Aggregate and split styles MUST produce the same final global config when their effective root payloads are equivalent.
   - [x] Discovery MUST be deterministic and path-list based.
   - [x] MUST NOT scan arbitrary directories outside declared skeleton/app config locations.
-  - [x] MUST NOT read `skeleton/config/app.php`; that file is Phase A bootstrap-only input.
+  - [x] MUST NOT read `packages/applications/skeleton/config/app.php`; that file is Phase A bootstrap-only input.
   - [x] MUST return safe `sourceFiles` metadata for every skeleton/app config candidate it resolves;
   - [x] `sourceFiles` MUST distinguish:
     - [x] skeleton shared config files;
@@ -13078,7 +13078,7 @@ Loaders:
   - [x] MUST NOT expose raw file contents;
   - [x] MUST NOT expose mtimes, permissions, filesystem owners, hostnames, user names, or process-specific data.
 
-- [x] `framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php`
+- [x] `packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php`
   - [x] Builds env overlays only from the immutable `EnvRepositoryInterface` snapshot.
   - [x] MUST NOT read `$_ENV`, `$_SERVER`, or `getenv()`.
   - [x] Config path `kernel.boot.default_env` maps to env var `KERNEL_BOOT_DEFAULT_ENV`.
@@ -13103,7 +13103,7 @@ Loaders:
   - [x] Env overlays for `map` and `list` are out of scope unless a future typed env syntax is introduced.
   - [x] Env overlay diagnostics MUST NOT expose raw env values.
 
-- [x] `framework/packages/core/kernel/src/Config/ConfigRulesLoader.php`
+- [x] `packages/core/kernel/src/Config/ConfigRulesLoader.php`
   - [x] loads package-owned `config/rules.php` files deterministically
   - [x] requires each rules file and accepts only plain array return values
   - [x] rejects callables/closures/objects/resources deterministically
@@ -13112,7 +13112,7 @@ Loaders:
   - [x] MUST NOT require every user-owned/custom root to have a ruleset.
   - [x] MUST preserve ruleset owner metadata for explain and validation diagnostics.
 
-- [x] `framework/packages/core/kernel/src/Config/ConfigValidator.php`
+- [x] `packages/core/kernel/src/Config/ConfigValidator.php`
   - [x] validates merged global config using declarative rules arrays
   - [x] supports the baseline rules DSL:
     - [x] `configRoot`
@@ -13165,10 +13165,10 @@ Loaders:
     - [x] no absolute paths.
 
 Errors:
-- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigInvalidException.php` — `CORETSIA_CONFIG_INVALID`
-- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigReservedNamespaceException.php` — `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
-- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveMixedLevelException.php` — `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
-- [x] `framework/packages/core/kernel/src/Config/Exception/ConfigDirectiveTypeMismatchException.php` — `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
+- [x] `packages/core/kernel/src/Config/Exception/ConfigInvalidException.php` — `CORETSIA_CONFIG_INVALID`
+- [x] `packages/core/kernel/src/Config/Exception/ConfigReservedNamespaceException.php` — `CORETSIA_CONFIG_RESERVED_NAMESPACE_USED`
+- [x] `packages/core/kernel/src/Config/Exception/ConfigDirectiveMixedLevelException.php` — `CORETSIA_CONFIG_DIRECTIVE_MIXED_LEVEL`
+- [x] `packages/core/kernel/src/Config/Exception/ConfigDirectiveTypeMismatchException.php` — `CORETSIA_CONFIG_DIRECTIVE_TYPE_MISMATCH`
 
 SSoT docs (canonical):
 - [x] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
@@ -13203,9 +13203,9 @@ SSoT docs (canonical):
   - [x] `docs/ssot/config-precedence-matrix.md`
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
-- [x] `framework/packages/core/kernel/config/kernel.php` — adds config kernel keys
-- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+- [x] `packages/core/kernel/config/kernel.php` — adds config kernel keys
+- [x] `packages/core/kernel/config/rules.php` — enforces shape
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [x] registers:
     - [x] `ConfigKernel`
     - [x] `ConfigMerger`
@@ -13213,12 +13213,12 @@ SSoT docs (canonical):
     - [x] `ConfigExplainer`
     - [x] `ConfigNamespaceGuard`
     - [x] `PackageDefaultsConfigLoader`
-    - [x] `SkeletonConfigLoader`
+    - [x] `ApplicationConfigLoader`
     - [x] `EnvironmentOverlayLoader`
     - [x] `ConfigRulesLoader`
     - [x] `ConfigValidator`
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [x] deterministic factory wiring for ConfigKernel services
   - [x] MUST NOT keep mutable runtime state
 
@@ -13234,13 +13234,13 @@ SSoT docs (canonical):
 ### Configuration (keys + defaults) (MUST)
 
 - Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/kernel.php`
 - Keys (dot):
   - [x] `kernel.config.forbidden_top_level_roots` = ["coretsia","_internal"]
     - [x] Optional hardening (MAY, if you truly need it later)
     - [x] MUST NOT include "kernel" or "foundation" because apps must be able to configure those roots.
 - Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces shape
+  - [x] `packages/core/kernel/config/rules.php` enforces shape
 
 - [x] `ConfigKernel` and explain capability are baseline kernel facilities and MUST NOT be feature-disabled via config.
 - [x] Whether explain is produced is decided by the caller/entrypoint, not by a runtime feature flag.
@@ -13337,21 +13337,21 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Directives semantics:
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
 
 - [x] Precedence + explain:
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoApplicationOverridesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
 
 - [x] Spike compatibility locks:
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
 
 - [x] Docs are verified by matching tests (no separate “doc tests” required, but docs MUST be consistent):
   - [x] `docs/ssot/config-directives.md` verified by directive unit tests above
@@ -13360,17 +13360,17 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRejectsCallableRulesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRequiresPlainArrayRulesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorAcceptsCliRulesFixtureTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsUnknownCliKeysTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/ConfigValidatorRelativeSafePathTypeTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesMergeMapLikeOnlyTest.php`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesExclusiveLevelTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRejectsCallableRulesTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigRulesLoaderRequiresPlainArrayRulesTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorAcceptsCliRulesFixtureTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsUnknownCliKeysTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
+  - [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+  - [x] `packages/core/kernel/tests/Unit/ConfigValidatorRelativeSafePathTypeTest.php`
     - [x] accepts `resources/modes`
     - [x] accepts `config/modes`
     - [x] rejects empty string
@@ -13382,32 +13382,32 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
     - [x] diagnostics do not include the raw path value
 
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigMergeCompatibilityContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigExplainTraceCompatibilityContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeConfigExplainTraceIsSafeContractTest.php`
 
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigPrecedenceMatrixTest.php`
     - [x] asserts implementation rank order matches `docs/ssot/config-precedence-matrix.md`.
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoSkeletonOverridesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainSmokeIntegrationTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainShowsPackageDefaultWhenNoApplicationOverridesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigExplainReturnsStableSourceTypesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ReservedNamespaceWriteGuardTest.php`
 
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigAggregateAndSplitFilesMergeOrderTest.php`
-    - [x] asserts `skeleton/config/roots.php` is loaded.
-    - [x] asserts `skeleton/config/<root>.php` is loaded.
+  - [x] `packages/core/kernel/tests/Integration/ConfigAggregateAndSplitFilesMergeOrderTest.php`
+    - [x] asserts `packages/applications/skeleton/config/roots.php` is loaded.
+    - [x] asserts `packages/applications/skeleton/config/<root>.php` is loaded.
     - [x] asserts root-specific file overrides `roots.php` at the same layer.
     - [x] asserts app root-specific file overrides app `roots.php` at the same layer.
     - [x] asserts equivalent aggregate/split config produces equivalent final config.
 
-  - [x] `framework/packages/core/kernel/tests/Integration/ConfigEnvironmentSpecificOverlaysPrecedenceTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ConfigEnvironmentSpecificOverlaysPrecedenceTest.php`
     - [x] asserts shared skeleton config is weaker than skeleton environment config.
     - [x] asserts skeleton environment config is weaker than app shared config.
     - [x] asserts app shared config is weaker than app environment config.
     - [x] asserts env overlays win over file config where an env overlay mapping exists.
 
-  - [x] `framework/packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php`
+  - [x] `packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotCoretsiaValidatedTest.php`
     - [x] asserts custom top-level roots from `roots.php` are accepted.
     - [x] asserts custom top-level roots from `<root>.php` are accepted.
     - [x] asserts custom roots appear in final config.
@@ -13417,7 +13417,7 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
     - [x] asserts custom roots participate in fingerprint input.
     - [x] asserts framework does not apply owner package rules to unowned roots.
 
-  - [x] `framework/packages/core/kernel/tests/Integration/EnvironmentOverlayProjectionTest.php`
+  - [x] `packages/core/kernel/tests/Integration/EnvironmentOverlayProjectionTest.php`
     - [x] asserts `kernel.boot.default_env` maps to `KERNEL_BOOT_DEFAULT_ENV`.
     - [x] asserts projection uses uppercase ASCII.
     - [x] asserts `.` maps to `_`.
@@ -13435,7 +13435,7 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 - [x] Fully compatible with spike semantics (0.90.0) — confirmed by contract locks
 - [x] Any semantic change requires updating spike fixtures + locks in same PR
 - [x] `docs/ssot/config-directives.md`:
-  - [x] examples відповідають `framework/packages/core/kernel/src/Config/DirectiveProcessor.php`
+  - [x] examples відповідають `packages/core/kernel/src/Config/DirectiveProcessor.php`
   - [x] показує типові use-cases: додати middleware у список, змінити map, прибрати значення
   - [x] не дублює правила (rules — у коді/SSoT, doc — приклади)
 - [x] `docs/ssot/config-merge-order.md` + `docs/ssot/config-precedence-matrix.md`:
@@ -13474,7 +13474,7 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 type: package
 phase: 1
 epic_id: "1.330.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -13512,16 +13512,16 @@ ssot_refs:
   - 1.320.0 — ConfigKernel feeds compiled config builder
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/tools/spikes/fixtures/repo_min/**` — fingerprint golden fixtures
-  - `framework/tools/spikes/fixtures/payloads_min/payloads.php` — payload/json golden fixtures
-  - NOTE (cemented): `framework/tools/spikes/fixtures/**` використовуються тільки як test-time data для Contract locks.
-  - Runtime code MUST NOT читати `framework/tools/**` або залежати від spikes.
+  - `tools/spikes/fixtures/repo_min/**` — fingerprint golden fixtures
+  - `tools/spikes/fixtures/payloads_min/payloads.php` — payload/json golden fixtures
+  - NOTE (cemented): `tools/spikes/fixtures/**` використовуються тільки як test-time data для Contract locks.
+  - Runtime code MUST NOT читати `tools/**` або залежати від spikes.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Module\ManifestReaderInterface`
@@ -13537,7 +13537,7 @@ Forbidden:
 - `platform/*`
 - `integrations/*`
 - `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
-- `framework/tools/**` (runtime)
+- `tools/**` (runtime)
 - `Coretsia\Tools\Spikes\*` (runtime import forbidden; test-only)
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -13559,9 +13559,9 @@ Forbidden:
   - `core/kernel` MUST NOT render CLI output.
 - Artifacts:
   - writes:
-    - `skeleton/var/cache/<appTarget>/module-manifest.php`
-    - `skeleton/var/cache/<appTarget>/config.php`
-    - `skeleton/var/cache/<appTarget>/container.php` (stub; REAL in 1.340.0)
+    - `packages/applications/skeleton/var/cache/<appTarget>/module-manifest.php`
+    - `packages/applications/skeleton/var/cache/<appTarget>/config.php`
+    - `packages/applications/skeleton/var/cache/<appTarget>/container.php` (stub; REAL in 1.340.0)
   - reads (verify):
     - validates header + payload schema for the same files
 
@@ -13585,7 +13585,7 @@ Recommended CLI exit-code mapping owned by `platform/cli`:
 `core/kernel` runtime MUST NOT:
 - залежати від `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
 - імпортувати `Coretsia\Tools\Spikes\*`
-- читати `framework/tools/**` у runtime execution
+- читати `tools/**` у runtime execution
 
 Spike fixtures дозволені **тільки** в test-time Contract tests як compatibility locks (читання fixtures як data).
 
@@ -13594,10 +13594,10 @@ Spike fixtures дозволені **тільки** в test-time Contract tests �
 `core/kernel` artifact/fingerprint production MUST NOT reintroduce discovery behavior that previous kernel epics intentionally avoided.
 
 Artifact/fingerprint code MUST NOT:
-- scan `framework/packages/**`;
+- scan `packages/**`;
 - scan package source trees;
 - scan `vendor/**`;
-- scan `skeleton/apps/*` to infer applications;
+- scan `packages/applications/skeleton/apps/*` to infer applications;
 - scan config directories to discover unknown roots;
 - infer ModulePlan inputs from filesystem state;
 - infer ConfigKernel inputs from filesystem state.
@@ -13658,10 +13658,10 @@ Allowed:
 ## Compatibility locks (MUST)
 Цей епік MUST додати Contract tests, які блокують семантичний drift від PHASE 0 fixtures:
 - payload/json:
-  - використовує `framework/tools/spikes/fixtures/payloads_min/payloads.php`
+  - використовує `tools/spikes/fixtures/payloads_min/payloads.php`
   - доводить deterministic normalization + stable JSON bytes + float-forbidden
 - fingerprint:
-  - використовує `framework/tools/spikes/fixtures/repo_min/**`
+  - використовує `tools/spikes/fixtures/repo_min/**`
   - доводить stable file listing order + symlink forbidden + EOL-stable hashing
 - golden hash (або hash-of-buckets) MUST збігатися з очікуваннями, зафіксованими для Phase 0 алгоритму
 
@@ -13669,8 +13669,8 @@ Allowed:
 
 #### Creates
 
-- [x] `framework/packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php`
-- [x] `framework/packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php` Kernel artifact runtime boot public facade
+- [x] `packages/core/kernel/src/Boot/Exception/ArtifactRuntimeBootException.php`
+- [x] `packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php` Kernel artifact runtime boot public facade
   - [x] `ArtifactRuntimeBooter` is public Kernel API
   - [x] `ArtifactRuntimeBooter` hides Kernel artifact/container internals from other packages
   - [x] `platform-worker` MUST NOT import Kernel artifact/container internal classes
@@ -13682,7 +13682,7 @@ Allowed:
     - [x] `ArtifactSchemaValidator`
     - [x] `CompiledContainerFactory`
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
+- [x] `packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
   - [x] MUST produce deterministic safe fingerprint input from:
     - [x] the resolved `BootstrapConfig`;
     - [x] the resolved `ModulePlan`;
@@ -13724,7 +13724,7 @@ Allowed:
   - [x] MUST NOT include secrets, absolute paths, timestamps, mtimes, permissions, filesystem owners, host-specific bytes, or process-specific bytes.
   - [x] MAY include cryptographic hashes of source content.
   - [x] MAY include cryptographic hashes of normalized compiled payload bytes.
-  - [x] dotenv file content hashes MUST be derived from canonical `kernel.env.dotenv.files` templates resolved against `BootstrapConfig::skeletonRoot()` and `BootstrapConfig::appEnv()`;
+  - [x] dotenv file content hashes MUST be derived from canonical `kernel.env.dotenv.files` templates resolved against `BootstrapConfig::applicationRoot()` and `BootstrapConfig::appEnv()`;
   - [x] dotenv fingerprinting MAY read only those explicitly resolved dotenv candidate files;
   - [x] missing dotenv candidates MUST be represented as `exists=false`;
   - [x] dotenv fingerprinting MUST NOT enumerate arbitrary dotenv files;
@@ -13739,7 +13739,7 @@ Allowed:
   - [x] MUST NOT expose raw config values, raw env values, dotenv values, source file contents, compiled payload bytes, absolute paths, fingerprints, mtimes, permissions, filesystem owners, host-specific bytes, or process-specific bytes for observability.
   - [x] MUST NOT emit spans, metrics, logs, stdout, or stderr directly.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/ArtifactWriter.php`
+- [x] `packages/core/kernel/src/Artifacts/ArtifactWriter.php`
   - [x] writes text artifacts as LF-only bytes and ensures exactly one final newline;
   - [x] normalizes `\r\n` and `\r` to `\n` before writing;
   - [x] writes through a temporary file created in the same target directory;
@@ -13773,20 +13773,20 @@ Allowed:
   - [x] log event name SHOULD be a fixed token such as `kernel.artifacts.write`;
   - [x] logger/meter/tracer failures MUST be caught and MUST NOT change artifact write behavior;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php`
+- [x] `packages/core/kernel/src/Artifacts/Paths/ArtifactPathResolver.php`
   - [x] resolves artifact output paths from:
-    - [x] `BootstrapConfig::skeletonRoot()`;
+    - [x] `BootstrapConfig::applicationRoot()`;
     - [x] `BootstrapConfig::appTarget()->value`;
     - [x] `kernel.artifacts.cache_dir`;
     - [x] canonical artifact basename;
-  - [x] MUST resolve only under `<skeletonRoot>/var/cache/<appTarget>/`;
+  - [x] MUST resolve only under `<applicationRoot>/var/cache/<appTarget>/`;
   - [x] MUST reject path traversal;
   - [x] MUST reject absolute `cache_dir`;
   - [x] MUST reject `cache_dir` values prefixed with `skeleton/`;
   - [x] MUST normalize separators to `/` for diagnostics/explain;
   - [x] MUST NOT leak absolute paths in exception messages.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/PayloadNormalizer.php`
+- [x] `packages/core/kernel/src/Artifacts/PayloadNormalizer.php`
   - [x] normalizes artifact payloads before JSON/PHP emission;
   - [x] treats associative arrays/maps as maps and sorts map keys with bytewise `strcmp`;
   - [x] preserves list order exactly;
@@ -13800,7 +13800,7 @@ Allowed:
   - [x] rejects non-float invalid json-like values with `ArtifactPayloadInvalidException`;
   - [x] uses `JsonFloatForbiddenException` only for float / NaN / INF / -INF violations;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`
+- [x] `packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`
   - [x] emits deterministic PHP files returning arrays;
   - [x] output MUST start with `<?php` and return a single array expression;
   - [x] output MUST be LF-only and end with exactly one final newline;
@@ -13814,7 +13814,7 @@ Allowed:
   - [x] MUST emit PHP files that return the canonical envelope array unchanged;
   - [x] MUST NOT wrap the envelope in another root key;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Header/ArtifactHeader.php` — immutable canonical artifact header value object:
+- [x] `packages/core/kernel/src/Artifacts/Header/ArtifactHeader.php` — immutable canonical artifact header value object:
   - [x] `name`
   - [x] `schemaVersion`
   - [x] `fingerprint`
@@ -13822,7 +13822,7 @@ Allowed:
   - [x] optional `requires`
   - [x] no timestamps
 
-- [x] `framework/packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php`
+- [x] `packages/core/kernel/src/Artifacts/ArtifactEnvelopeFactory.php`
   - [x] builds canonical `{ "_meta": ..., "payload": ... }` envelopes;
   - [x] creates a fresh `ArtifactHeader` per artifact;
   - [x] MUST NOT keep current artifact mutable state;
@@ -13835,12 +13835,12 @@ Allowed:
   - [x] MUST create envelope-compatible data for PHP artifact emission and cache verification.
 
 Fingerprint:
-- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php` — stable listing + symlink forbidden
+- [x] `packages/core/kernel/src/Artifacts/Fingerprint/DeterministicFileLister.php` — stable listing + symlink forbidden
   - [x] MAY be used only for explicitly declared fingerprint input roots/candidates;
   - [x] MUST NOT be used to discover modules, config roots, app targets, package lists, or unknown config files;
   - [x] directory listing is allowed only as deterministic hashing of an already-declared input bucket.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php`
+- [x] `packages/core/kernel/src/Artifacts/Fingerprint/FingerprintCalculator.php`
   - [x] calculates lowercase hex `sha256` fingerprints over deterministic fingerprint input only;
   - [x] MUST consume the normalized structure produced by `ConfigFingerprintInputBuilder`;
   - [x] MUST serialize fingerprint input through the canonical Foundation `StableJsonEncoder`;
@@ -13882,7 +13882,7 @@ Fingerprint:
   - [x] log event name SHOULD be a fixed token such as `kernel.fingerprint.calculate`;
   - [x] logger/meter/tracer failures MUST be caught and MUST NOT change fingerprint calculation behavior;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php`
+- [x] `packages/core/kernel/src/Artifacts/Fingerprint/FingerprintExplainer.php`
   - [x] produces safe deterministic explain data for cache verification and fingerprint diffs;
   - [x] explain output MAY show:
     - [x] normalized logical source ids;
@@ -13908,7 +13908,7 @@ Fingerprint:
   - [x] MUST NOT print output directly.
 
 Builders:
-- [x] `framework/packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php`
+- [x] `packages/core/kernel/src/Artifacts/Builders/ModuleManifestBuilder.php`
   - [x] MUST use `ModulePlan::toArray()` as the canonical payload base;
   - [x] MUST NOT re-resolve modules;
   - [x] MUST NOT read Composer metadata;
@@ -13916,7 +13916,7 @@ Builders:
   - [x] MUST NOT scan filesystem paths;
   - [x] MUST preserve the existing ModulePlan exported key order and schema semantics.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
+- [x] `packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
   - [x] MUST include the full merged global config payload, including user-owned/custom roots.
   - [x] MUST preserve deterministic map key ordering.
   - [x] MUST not drop unvalidated user-owned roots.
@@ -13936,7 +13936,7 @@ Builders:
   - [x] MUST NOT include raw filesystem absolute paths from source candidate arrays.
   - [x] MUST NOT include PHP objects such as `ConfigValidationResult` or `ConfigValueSource` directly; payload MUST be scalar/json-like array data only.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+- [x] `packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
   - [x] emits `container@1` as a deterministic stub artifact in this epic;
   - [x] payload MUST be forward-compatible with 1.340.0 compiled container work;
   - [x] payload MUST include:
@@ -13949,7 +13949,7 @@ Builders:
   - [x] if real compiled container payload shape is incompatible, 1.340.0 MUST introduce `container@2`.
 
 Compiler:
-- [x] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+- [x] `packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
   - [x] orchestrates kernel-owned artifact generation;
   - [x] receives already resolved:
     - [x] `BootstrapConfig`;
@@ -13978,14 +13978,14 @@ Compiler:
   - [x] compile result data MUST NOT include raw payloads, raw config values, raw env values, absolute paths, fingerprints unless explicitly required as safe hash metadata, PHP warning text, stack traces, or previous throwable messages.
 
 Verification:
-- [x] `framework/packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php`
+- [x] `packages/core/kernel/src/Artifacts/Php/PhpArtifactReader.php`
   - [x] reads existing artifact raw bytes for byte-level comparison;
   - [x] parses PHP-returned artifact arrays for envelope/header/payload validation;
   - [x] returns both normalized bytes and parsed envelope data to `CacheVerifier`;
   - [x] converts file read/include/require warnings/errors into deterministic `ArtifactInvalidException`;
   - [x] MUST NOT leak absolute paths, input path strings, PHP warning text, stack traces, or previous throwable messages.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+- [x] `packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
   - [x] validates canonical envelope shape;
   - [x] validates header fields:
     - [x] `name`;
@@ -14001,7 +14001,7 @@ Verification:
   - [x] MUST reject any kernel-owned artifact that does not have exactly the canonical top-level envelope shape `{ "_meta", "payload" }`;
   - [x] MUST reject artifact-specific alternative top-level shapes;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+- [x] `packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
   - [x] computes current deterministic fingerprint input;
   - [x] rebuilds expected artifact envelopes in memory;
   - [x] dumps expected PHP artifact bytes with `StablePhpArrayDumper`;
@@ -14051,12 +14051,12 @@ Verification:
   - [x] logger/meter/tracer failures MUST be caught and MUST NOT change clean/dirty/invalid cache verification semantics;
 
 Errors:
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactWriteFailedException.php` — `CORETSIA_ARTIFACT_WRITE_FAILED`
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactInvalidException.php` — `CORETSIA_ARTIFACT_INVALID`
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/FingerprintSymlinkForbiddenException.php` — `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/JsonFloatForbiddenException.php` — `CORETSIA_JSON_FLOAT_FORBIDDEN`
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactPathInvalidException.php` — `CORETSIA_ARTIFACT_PATH_INVALID`
-- [x] `framework/packages/core/kernel/src/Artifacts/Exception/ArtifactPayloadInvalidException.php` — `CORETSIA_ARTIFACT_PAYLOAD_INVALID`
+- [x] `packages/core/kernel/src/Artifacts/Exception/ArtifactWriteFailedException.php` — `CORETSIA_ARTIFACT_WRITE_FAILED`
+- [x] `packages/core/kernel/src/Artifacts/Exception/ArtifactInvalidException.php` — `CORETSIA_ARTIFACT_INVALID`
+- [x] `packages/core/kernel/src/Artifacts/Exception/FingerprintSymlinkForbiddenException.php` — `CORETSIA_FINGERPRINT_SYMLINK_FORBIDDEN`
+- [x] `packages/core/kernel/src/Artifacts/Exception/JsonFloatForbiddenException.php` — `CORETSIA_JSON_FLOAT_FORBIDDEN`
+- [x] `packages/core/kernel/src/Artifacts/Exception/ArtifactPathInvalidException.php` — `CORETSIA_ARTIFACT_PATH_INVALID`
+- [x] `packages/core/kernel/src/Artifacts/Exception/ArtifactPayloadInvalidException.php` — `CORETSIA_ARTIFACT_PAYLOAD_INVALID`
 
 Docs:
 - [x] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
@@ -14079,10 +14079,10 @@ Docs:
   - [x] keep labels limited to `outcome`;
   - [x] do not introduce `path`, `artifact`, `app`, `env`, or `fingerprint` labels.
 
-- [x] `framework/packages/core/kernel/config/kernel.php` — adds artifacts/fingerprint keys
-- [x] `framework/packages/core/kernel/config/rules.php` — enforces shape
+- [x] `packages/core/kernel/config/kernel.php` — adds artifacts/fingerprint keys
+- [x] `packages/core/kernel/config/rules.php` — enforces shape
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [x] registers artifact/fingerprint/cache services as factories only;
   - [x] registration MUST happen after ConfigKernel Phase B service registrations and before Kernel runtime service registrations;
   - [x] provider registration MUST NOT:
@@ -14119,7 +14119,7 @@ Docs:
   - [x] provider registration MUST NOT emit artifact/fingerprint/cache metrics;
   - [x] provider registration MUST NOT write artifact/fingerprint/cache logs.
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [x] deterministic factory wiring for artifact/fingerprint/compile/verify services;
   - [x] artifact factory methods MUST be static construction/wiring methods only;
   - [x] artifact factory methods MUST NOT:
@@ -14155,7 +14155,7 @@ Docs:
   - [x] artifact/fingerprint/cache service code MUST NOT branch on nullable logger/meter/tracer dependencies;
   - [x] observability adapters MAY still throw, so service code MUST catch observability failures.
 
-- [x] `framework/packages/core/kernel/README.md`
+- [x] `packages/core/kernel/README.md`
   - [x] remove `config artifact writing` from out-of-scope;
   - [x] add Kernel-owned artifacts/fingerprint/cache verification to package scope;
   - [x] document that artifact services are registered as factories only;
@@ -14164,16 +14164,16 @@ Docs:
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/kernel.php`
 - [x] Keys (dot):
   - [x] `kernel.artifacts.cache_dir` = "var/cache"
-    - [x] value is `BootstrapConfig::skeletonRoot()`-relative;
+    - [x] value is `BootstrapConfig::applicationRoot()`-relative;
     - [x] value MUST be a non-empty `relative-safe-path`;
     - [x] value MUST NOT contain `skeleton/` prefix;
     - [x] value MUST NOT be absolute;
     - [x] value MUST NOT contain `..`.
-  - [x] `kernel.fingerprint.skeleton_ignore_prefixes` = ["var/cache", "var/maintenance"]
-    - [x] values are `BootstrapConfig::skeletonRoot()`-relative;
+  - [x] `kernel.fingerprint.application_ignore_prefixes` = ["var/cache", "var/maintenance"]
+    - [x] values are `BootstrapConfig::applicationRoot()`-relative;
     - [x] values MUST be non-empty `relative-safe-path` strings;
     - [x] values MUST NOT contain `skeleton/` prefix;
     - [x] values MUST NOT be absolute;
@@ -14193,7 +14193,7 @@ Docs:
   - [x] Raw env values MUST NOT be included in fingerprint input or explain output.
   - [x] Env value influence MAY be represented only as `hash(value)` and `len(value)` for env names that are already allowlisted by config rules or explicit env overlay mappings.
 - [x] Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php`
+  - [x] `packages/core/kernel/config/rules.php`
     - [x] adds strict shape validation for `kernel.artifacts.*`;
     - [x] adds strict shape validation for `kernel.fingerprint.*`;
     - [x] removes stale comments saying this epic introduces no artifact config;
@@ -14210,9 +14210,9 @@ The stronger `skeleton/` prefix rejection is enforced by `ArtifactPathResolver`.
 #### Artifacts / outputs (if applicable)
 
 - [x] Writes:
-  - [x] `skeleton/var/cache/<appTarget>/module-manifest.php` (schemaVersion, deterministic bytes)
-  - [x] `skeleton/var/cache/<appTarget>/config.php` (schemaVersion, deterministic bytes)
-  - [x] `skeleton/var/cache/<appTarget>/container.php` (stub)
+  - [x] `packages/applications/skeleton/var/cache/<appTarget>/module-manifest.php` (schemaVersion, deterministic bytes)
+  - [x] `packages/applications/skeleton/var/cache/<appTarget>/config.php` (schemaVersion, deterministic bytes)
+  - [x] `packages/applications/skeleton/var/cache/<appTarget>/container.php` (stub)
 - [x] Reads:
   - [x] validates header + payload schema
 
@@ -14224,7 +14224,7 @@ Allowed values are the canonical `AppTarget` tokens:
 - `console`
 - `worker`
 
-Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/*`, read app config, or infer the active app from filesystem state.
+Artifact path resolution MUST NOT invent a separate app id, scan `packages/applications/skeleton/apps/*`, read app config, or infer the active app from filesystem state.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -14273,80 +14273,80 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Artifact/header/payload determinism:
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
     - [x] asserts kernel-owned PHP artifacts (`module-manifest.php`, `config.php`, `container.php`) return the canonical top-level envelope `{ "_meta", "payload" }`
     - [x] asserts no artifact-specific alternative top-level shape exists
     - [x] asserts builders produce envelopes through the canonical factory path
     - [x] asserts no builder emits artifact-specific alternative top-level shape
-  - [x] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
 - [x] Fingerprint cross-OS invariants:
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
+  - [x] `packages/core/kernel/tests/Integration/FingerprintIgnoresApplicationVarTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
 - [x] Spike locks:
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsRuntimeDependencyBoundaryContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ArtifactsHeaderShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/PayloadNormalizerDeterministicOrderTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelArtifactsReuseFoundationStableJsonEncoderContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintPathSeparatorContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintFileListingOrderContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintExplainerDeterminismContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintGoldenHashLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintExplainSafetyLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintSymlinkForbiddenLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeFingerprintPathNormalizationCrossOsLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeStableJsonEncodingLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikePayloadNormalizerDeterministicOrderLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/SpikeJsonFloatForbiddenLockTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelArtifactsRuntimeDependencyBoundaryContractTest.php`
     - [x] asserts artifact/fingerprint/cache runtime code does not import `Coretsia\Tools\Spikes\*`;
     - [x] asserts artifact/fingerprint/cache runtime code does not import `devtools/*`;
     - [x] asserts artifact/fingerprint/cache runtime code does not import `platform/*`;
-    - [x] asserts artifact/fingerprint/cache runtime code does not read `framework/tools/**`;
-    - [x] allows `framework/tools/spikes/fixtures/**` only from Contract tests.
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelDoesNotEmitRoutesArtifactContractTest.php`
+    - [x] asserts artifact/fingerprint/cache runtime code does not read `tools/**`;
+    - [x] allows `tools/spikes/fixtures/**` only from Contract tests.
+  - [x] `packages/core/kernel/tests/Contract/KernelDoesNotEmitRoutesArtifactContractTest.php`
     - [x] artifact compiler does not write `routes.php`;
     - [x] artifact builders list does not contain a routes builder;
     - [x] kernel-owned artifact schema validator does not claim ownership of `routes@1`;
     - [x] `routes@1` remains owned by `platform/routing`.
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsDocsAndRegistryConsistencyContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelArtifactsDocsAndRegistryConsistencyContractTest.php`
     - [x] `docs/ssot/artifacts-and-fingerprint.md` does not redefine global envelope law;
     - [x] `docs/ssot/cache-verify.md` does not redefine artifact registry rows;
     - [x] `docs/ssot/observability.md` contains registered artifact/fingerprint/cache verify metric names;
-    - [x] `framework/packages/core/kernel/README.md` no longer lists config artifact writing as out-of-scope.
-  - [x] `framework/packages/core/kernel/tests/Contract/StablePhpArrayDumperDeterministicEmissionContractTest.php`
+    - [x] `packages/core/kernel/README.md` no longer lists config artifact writing as out-of-scope.
+  - [x] `packages/core/kernel/tests/Contract/StablePhpArrayDumperDeterministicEmissionContractTest.php`
     - [x] emits LF-only PHP with final newline;
     - [x] preserves canonical envelope top-level shape;
     - [x] preserves list order;
     - [x] preserves normalized map order;
     - [x] emits stable bytes on repeated runs.
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintCalculatorStableInputContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintCalculatorStableInputContractTest.php`
     - [x] same normalized input produces same 64-char lowercase sha256;
     - [x] map key insertion order does not affect fingerprint;
     - [x] list order affects fingerprint;
     - [x] raw config/env values are absent from normalized fingerprint input fixtures;
-  - [x] `framework/packages/core/kernel/tests/Contract/FingerprintExplainerRedactionContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/FingerprintExplainerRedactionContractTest.php`
     - [x] explain output includes only safe ids, key paths, relative paths, hash/len metadata, and validation status;
     - [x] explain output does not include raw config values;
     - [x] explain output does not include raw env values;
     - [x] explain output does not include absolute paths.
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelArtifactsObservabilityPolicyContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelArtifactsObservabilityPolicyContractTest.php`
     - [x] asserts artifact/fingerprint/cache observability names are exactly:
       - [x] `kernel.artifacts_write`;
       - [x] `kernel.fingerprint_calculate`;
@@ -14361,43 +14361,43 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
     - [x] asserts no metric label uses `path`, `artifact`, `app`, `env`, `preset`, `fingerprint`, `reason`, or `exception`;
     - [x] asserts observability logs do not include absolute paths, raw payloads, raw config values, raw env values, fingerprints, PHP warning text, stack traces, or previous throwable messages.
 - Unit:
-  - [x] `framework/packages/core/kernel/tests/Unit/FingerprintInstalledManifestNormalizationTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php`
+  - [x] `packages/core/kernel/tests/Unit/FingerprintInstalledManifestNormalizationTest.php`
+  - [x] `packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php`
     - [x] resolves paths under `var/cache/<appTarget>/`;
     - [x] rejects absolute cache_dir;
     - [x] rejects `..`;
     - [x] rejects `skeleton/`-prefixed cache_dir;
     - [x] normalizes diagnostics to relative safe paths only.
-  - [x] `framework/packages/core/kernel/tests/Unit/PayloadNormalizerRejectsUnsafeValuesTest.php`
+  - [x] `packages/core/kernel/tests/Unit/PayloadNormalizerRejectsUnsafeValuesTest.php`
     - [x] rejects floats;
     - [x] rejects `NaN`, `INF`, `-INF`;
     - [x] rejects objects/resources/closures;
     - [x] exception message includes path token only;
     - [x] exception message does not include raw value.
-  - [x] `framework/packages/core/kernel/tests/Unit/ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php`
+  - [x] `packages/core/kernel/tests/Unit/ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php`
     - [x] includes declared source candidates as logical ids;
     - [x] represents missing candidates as `exists=false`;
     - [x] includes user-owned roots as unvalidated when no rules exist;
     - [x] includes ModulePlan identity;
     - [x] does not include raw config/env values.
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIgnoresSkeletonVarTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactsRerunNoDiffTest.php`
+  - [x] `packages/core/kernel/tests/Integration/FingerprintIgnoresApplicationVarTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CacheVerifyIgnoresMtimeAndPermissionsTest.php`
     - [x] touching only mtime MUST keep `dirty=false`
     - [x] changing only permissions/ownership metadata MUST keep `dirty=false`
     - [x] bytes unchanged remains the only clean/dirty criterion
-  - [x] `framework/packages/core/kernel/tests/Integration/FingerprintIncludesUserOwnedConfigRootsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/FingerprintIncludesUserOwnedConfigRootsTest.php`
     - [x] asserts custom roots affect config fingerprint.
     - [x] asserts changing a user-owned config value changes fingerprint.
     - [x] asserts user-owned roots are present in compiled config artifact.
     - [x] asserts fingerprint explain marks user-owned roots as `unvalidated` when no rules exist.
     - [x] asserts fingerprint explain does not leak raw custom values.
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
     - [x] asserts user-owned roots from `roots.php` are emitted.
     - [x] asserts user-owned roots from `<root>.php` are emitted.
     - [x] asserts split and aggregate equivalent user config produces equivalent artifact payload.
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactServicesRegisterAsFactoriesOnlyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelArtifactServicesRegisterAsFactoriesOnlyTest.php`
     - [x] provider registration does not write artifacts;
     - [x] provider registration does not read artifacts;
     - [x] provider registration does not calculate fingerprints;
@@ -14405,12 +14405,12 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
     - [x] provider registration does not resolve `BootstrapConfig`;
     - [x] provider registration does not resolve `ModulePlan`;
     - [x] provider registration does not run `ConfigKernel::compile(...)`.
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactServicesDoNotUseResetOrUowTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelArtifactServicesDoNotUseResetOrUowTest.php`
     - [x] artifact compile does not invoke `ResetOrchestrator`;
     - [x] cache verify does not invoke `ResetOrchestrator`;
     - [x] artifact compile does not start a UnitOfWork;
     - [x] cache verify does not start a UnitOfWork.
-  - [x] `framework/packages/core/kernel/tests/Integration/CacheVerifyDetectsArtifactByteDriftTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CacheVerifyDetectsArtifactByteDriftTest.php`
     - [x] compile artifacts;
     - [x] verify returns `dirty=false`;
     - [x] mutate artifact bytes while preserving valid PHP syntax and canonical envelope shape;
@@ -14419,12 +14419,12 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
     - [x] verify returns `invalid`;
     - [x] explain does not leak raw payload values;
     - [x] explain does not leak absolute paths.
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactWriterAtomicNoPartialWriteTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactWriterAtomicNoPartialWriteTest.php`
     - [x] failed write does not leave a partially written final artifact;
     - [x] failed write cleans temporary files when possible;
     - [x] successful write produces LF-only bytes with final newline;
     - [x] write-time permission changes do not affect cache verify clean/dirty semantics.
-  - [x] `framework/packages/core/kernel/tests/Integration/KernelArtifactObservabilityDoesNotChangeBehaviorTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelArtifactObservabilityDoesNotChangeBehaviorTest.php`
     - [x] failing meter does not fail artifact write;
     - [x] failing tracer does not fail fingerprint calculation;
     - [x] failing logger does not fail cache verification;
@@ -14442,13 +14442,13 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
 - [x] cache:verify clean immediately after compile
 - [x] Docs explain middleware linkage + fingerprint exclusions
 - [x] Spike fixtures lock production invariants
-- [x] Artifacts live only in `skeleton/var/cache/<appTarget>/*` and are written atomically (no partial writes).
+- [x] Artifacts live only in `packages/applications/skeleton/var/cache/<appTarget>/*` and are written atomically (no partial writes).
 - [x] Compiled config preserves platform-owned config data without semantic ownership:
   - [x] compiled config payload preserves `http.middleware.<slot>` lists as data when present;
   - [x] compiled config payload preserves `http.middleware.auto.*` toggles as data when present;
   - [x] `core/kernel` MUST NOT import or depend on `platform/http`;
   - [x] downstream `platform/http` MAY consume these fields from compiled config without reading source config files.
-- [x] When only `skeleton/var/maintenance/*` changes, then fingerprint remains unchanged and `cache:verify` stays clean.
+- [x] When only `packages/applications/skeleton/var/maintenance/*` changes, then fingerprint remains unchanged and `cache:verify` stays clean.
 - [x] Reset discipline (kernel.reset) — NOT USED in artifacts/fingerprint/cache:verify (MUST)
   - [x] Artifacts pipeline MUST NOT invoke reset and MUST NOT require UoW lifecycle.
   - [x] Cache verification MUST remain pure (read/compare) and deterministic:
@@ -14465,7 +14465,7 @@ Artifact path resolution MUST NOT invent a separate app id, scan `skeleton/apps/
 type: package
 phase: 1
 epic_id: "1.340.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -14521,13 +14521,13 @@ A future `container@2` is required only if a later change needs to preserve an a
   - 1.330.0 — artifacts pipeline + header/schema infra + writer present
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/foundation/` — ContainerBuilder + TagRegistry + DeterministicOrder
+  - `packages/core/foundation/` — ContainerBuilder + TagRegistry + DeterministicOrder
 
 - Required tags:
   - effective Foundation reset discovery tag resolved from `foundation.reset.tag`
@@ -14545,7 +14545,7 @@ Depends on:
 Forbidden:
 - `platform/*`
 - `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
-- `framework/tools/**` (runtime)
+- `tools/**` (runtime)
 - `Coretsia\Tools\Spikes\*` (runtime import forbidden; test-only)
 
 #### Uses ports (API surface, NOT deps) (optional)
@@ -14561,7 +14561,7 @@ Forbidden:
   - Future `platform/cli` command `coretsia config:compile` will trigger Kernel artifact compilation through the Kernel ops façade.
   - The CLI command itself is owned by `2.30.0 Platform CLI` and is not a blocking deliverable of this epic.
 - Artifacts:
-  - writes: `skeleton/var/cache/<appTarget>/container.php` (compiled `container@1`)
+  - writes: `packages/applications/skeleton/var/cache/<appTarget>/container.php` (compiled `container@1`)
 
 ### Artifact-Only Runtime Boot Boundary (MUST)
 
@@ -14609,12 +14609,12 @@ Reading, parsing, and schema-validating `config@1` remain owned by Kernel artifa
 `core/kernel` runtime MUST NOT:
 - залежати від `devtools/*` (включно `devtools/internal-toolkit`, `devtools/cli-spikes`)
 - імпортувати `Coretsia\Tools\Spikes\*`
-- читати `framework/tools/**` у runtime execution
+- читати `tools/**` у runtime execution
   (Spike fixtures допускаються тільки в test-time locks.)
 
 #### Gate boundary: closure definitions are compiler semantics, not a standalone static gate (MUST)
 
-This epic MUST NOT introduce `framework/tools/gates/container_no_closure_definitions_gate.php`.
+This epic MUST NOT introduce `tools/gates/container_no_closure_definitions_gate.php`.
 
 Closure rejection is a semantic compiled-container invariant, not a generic PHP-source invariant:
 - closures / anonymous functions are forbidden only when they become container definitions, factories, compiled graph entries, or artifact payload values;
@@ -14750,7 +14750,7 @@ Kernel повертає/кидає deterministic exceptions.
 #### Creates
 
 Compiler:
-- [x] `framework/packages/core/kernel/src/Container/ContainerCompiler.php` — builds deterministic definition graph (json-like)
+- [x] `packages/core/kernel/src/Container/ContainerCompiler.php` — builds deterministic definition graph (json-like)
   - [x] MUST compile only descriptor-based, closure-free container input.
   - [x] MUST produce a deterministic `DefinitionGraph`.
   - [x] MUST use `ServiceDefinition`, `ParameterBag`, and `DefinitionGraph` as kernel-owned compilation models.
@@ -14798,7 +14798,7 @@ Compiler:
   - [x] MUST NOT instantiate Noop observability implementations directly.
   - [x] logger/meter/tracer failures MUST be caught and MUST NOT change compile behavior.
 
-- [x] `framework/packages/core/kernel/src/Container/CompiledContainerFactory.php` — builds runtime Container from artifact
+- [x] `packages/core/kernel/src/Container/CompiledContainerFactory.php` — builds runtime Container from artifact
   - [x] MUST build the runtime Foundation container from REAL `container@1` artifact data.
   - [x] MUST receive an already-read and already-validated `config@1` payload from the caller.
   - [x] MUST use artifact-owned runtime config input (`config@1`) and MUST NOT read source config files.
@@ -14828,7 +14828,7 @@ Compiler:
     - [x] PHP warning text;
     - [x] OS error messages.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
+- [x] `packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
   - [x] MUST receive deterministic compiled container data from `ContainerCompiler`.
   - [x] MUST reuse the canonical kernel artifact envelope introduced in 1.330.0:
     - [x] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`.
@@ -14850,7 +14850,7 @@ Compiler:
   - [x] MUST NOT include timestamps, absolute paths, hostnames, user names, process ids, raw env values, raw config values, closure dumps, or source snippets in payload/header data.
 
 Definition shapes:
-- [x] `framework/packages/core/kernel/src/Container/Definition/ServiceDefinition.php`
+- [x] `packages/core/kernel/src/Container/Definition/ServiceDefinition.php`
   - [x] Represents one deterministic compiled service definition.
   - [x] MUST be a kernel container compilation model, not a public DTO by default.
   - [x] MUST expose only deterministic schema data suitable for REAL `container@1` payload emission.
@@ -14863,7 +14863,7 @@ Definition shapes:
   - [x] MUST reject invalid definition values with deterministic compile failure semantics.
   - [x] MUST NOT include raw config values, raw env values, secrets, closure dumps, source snippets, or OS-specific metadata.
 
-- [x] `framework/packages/core/kernel/src/Container/Definition/ParameterBag.php`
+- [x] `packages/core/kernel/src/Container/Definition/ParameterBag.php`
   - [x] MAY be an in-memory compilation model and/or part of the REAL `container@1` payload schema as defined by `docs/ssot/compiled-container.md`.
   - [x] Does not require `container@2` by itself.
   - [x] MUST NOT be treated as a public DTO marker class by default.
@@ -14876,7 +14876,7 @@ Definition shapes:
   - [x] MUST NOT embed raw secrets unless those values are already part of the canonical compiled config artifact semantics.
   - [x] MUST be safe for deterministic artifact serialization.
 
-- [x] `framework/packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
+- [x] `packages/core/kernel/src/Container/Definition/DefinitionGraph.php`
   - [x] Represents the complete deterministic compiled container graph.
   - [x] MUST contain only deterministic schema values.
   - [x] MUST contain service definitions, aliases, parameters, and tags according to `docs/ssot/compiled-container.md`.
@@ -14900,19 +14900,19 @@ DTO policy boundary:
 - [x] Their serialized form, if any, is owned by `docs/ssot/compiled-container.md`, not by DTO-marker gates.
 
 Errors:
-- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerCompileFailedException.php` — `CORETSIA_CONTAINER_COMPILE_FAILED`
+- [x] `packages/core/kernel/src/Container/Exception/ContainerCompileFailedException.php` — `CORETSIA_CONTAINER_COMPILE_FAILED`
   - [x] MUST use fixed public message token `container-compile-failed`.
   - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_COMPILE_FAILED`.
   - [x] MUST provide bounded reason tokens only.
   - [x] MUST NOT include closure dumps, source snippets, absolute paths, raw config values, raw env values, raw payloads, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
-- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactMissingException.php` — `CORETSIA_CONTAINER_ARTIFACT_MISSING`
+- [x] `packages/core/kernel/src/Container/Exception/ContainerArtifactMissingException.php` — `CORETSIA_CONTAINER_ARTIFACT_MISSING`
   - [x] MUST use fixed public message token `container-artifact-missing`.
   - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_MISSING`.
   - [x] MUST NOT include the missing filesystem path.
   - [x] MUST NOT include absolute paths, configured path strings, OS error messages, stack traces, or previous throwable messages in public diagnostics.
 
-- [x] `framework/packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php` — `CORETSIA_CONTAINER_ARTIFACT_INVALID`
+- [x] `packages/core/kernel/src/Container/Exception/ContainerArtifactInvalidException.php` — `CORETSIA_CONTAINER_ARTIFACT_INVALID`
   - [x] MUST use fixed public message token `container-artifact-invalid`.
   - [x] MUST expose deterministic error code `CORETSIA_CONTAINER_ARTIFACT_INVALID`.
   - [x] MUST cover invalid, unreadable, schema-invalid, legacy-stub, or non-compiled `container@1` artifacts.
@@ -14961,7 +14961,7 @@ Docs:
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [x] production/runtime container creation MUST use `CompiledContainerFactory`
   - [x] missing compiled artifact MUST fail with `ContainerArtifactMissingException` (`CORETSIA_CONTAINER_ARTIFACT_MISSING`)
   - [x] runtime MUST NOT silently fall back to a non-artifact container in production mode
@@ -14971,12 +14971,12 @@ Docs:
     - [x] no implicit non-artifact fallback exists in the runtime boot paths covered by this epic
     - [x] any future developer-mode fallback requires a separate epic/ADR and MUST NOT be implied here
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php` registers:
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php` registers:
   - [x] `ContainerCompiler`
   - [x] `CompiledContainerFactory`
   - [x] `CompiledContainerBuilder`
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+- [x] `packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
   - [x] MUST replace `StubContainerBuilder` usage with REAL `CompiledContainerBuilder`.
   - [x] MUST build the compiled container payload through `ContainerCompiler`.
   - [x] MUST NOT write the old stub container payload after this epic.
@@ -14986,13 +14986,13 @@ Docs:
     - [x] `container.php`
   - [x] MUST keep `routes.php` out of `core/kernel`.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+- [x] `packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
   - [x] MUST build expected REAL `container.php` envelope in memory.
   - [x] MUST use the same `ContainerCompiler` / `CompiledContainerBuilder` semantics as artifact production.
   - [x] MUST NOT compare existing REAL container artifacts against the old stub payload.
   - [x] MUST keep verification read-only and MUST NOT write or repair artifacts.
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+- [x] `packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
   - [x] MUST validate REAL `container@1` compiled payload schema.
     - [x] MUST validate canonical map key order for container payload maps.
     - [x] MUST validate canonical tag discovery order: priority DESC, id ASC.
@@ -15015,7 +15015,7 @@ Docs:
   - [x] register spans and metrics;
   - [x] keep labels limited to `outcome`;
 
-- [x] `framework/packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
+- [x] `packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
   - [x] Delete `StubContainerBuilder` as production code.
   - [x] Remove `StubContainerBuilder` DI registration.
   - [x] Remove `KernelServiceFactory::stubContainerBuilder()`.
@@ -15026,7 +15026,7 @@ Docs:
 #### Artifacts / outputs (if applicable)
 
 - [x] Writes:
-  - [x] `skeleton/var/cache/<appTarget>/container.php` — REAL `container@1` compiled container artifact, same path and artifact identity as the earlier stub placeholder, but with REAL payload schema defined by `docs/ssot/compiled-container.md`.
+  - [x] `packages/applications/skeleton/var/cache/<appTarget>/container.php` — REAL `container@1` compiled container artifact, same path and artifact identity as the earlier stub placeholder, but with REAL payload schema defined by `docs/ssot/compiled-container.md`.
   - [x] The emitted artifact MUST use deterministic bytes, canonical header fields, the canonical `schemaVersion` for `container@1`, and the global artifact envelope.
 - [x] Reads:
   - [x] validates header + payload schema for same file
@@ -15077,54 +15077,54 @@ Docs:
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Deterministic container bytes:
-  - [x] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
+  - [x] `packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
 - [x] Header shape:
-  - [x] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
 - [x] Runtime factory from artifact:
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
 - [x] Missing artifact hard-fail:
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
 - [x] Invalid artifact hard-fail:
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
 - [x] Closure-definition rejection:
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
 - [x] Foundation semantic parity:
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
 
 ### Tests (MUST)
 
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
-  - [x] `framework/packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
+  - [x] `packages/core/kernel/tests/Contract/ContainerArtifactHeaderShapeContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/CompiledContainerIsDeterministicTest.php`
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootResolvesResetOrchestratorTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerFactoryBuildsContainerFromArtifactTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootResolvesResetOrchestratorTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootKernelRuntimeTriggersResetOncePerUowTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactMissingTest.php`
     - [x] asserts code `CORETSIA_CONTAINER_ARTIFACT_MISSING`
     - [x] asserts no silent fallback to non-artifact container in production mode
     - [x] asserts no absolute path leak in the surfaced failure
-  - [x] `framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
+  - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
     - [x] asserts code `CORETSIA_CONTAINER_ARTIFACT_INVALID`
     - [x] asserts legacy `1.330.0` stub payload is rejected for production runtime boot
     - [x] asserts no absolute path leak in the surfaced failure
     - [x] asserts no raw payload, closure dump, source snippet, or PHP warning text leaks
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
     - [x] asserts code `CORETSIA_CONTAINER_COMPILE_FAILED`
     - [x] asserts fixed message token `container-compile-failed`
     - [x] asserts no absolute paths, closure dumps, source snippets, or raw config values leak into the surfaced failure
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerPreservesLaterBindingOverridesTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerPreservesTagDedupeFirstWinsTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerFactoryPreservesNonSharedServiceDefinitionsTest.php`
     - [x] container artifact service shared=false
     - [x] container->get(id) twice returns different objects
-  - [x] `framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php`
+  - [x] `packages/core/kernel/tests/Integration/CompiledContainerFactoryAliasDoesNotMakeNonSharedTargetSharedTest.php`
     - [x] target shared=false
     - [x] alias points to target
     - [x] container->get(alias) twice returns different objects
 - Foundation Integration:
-  - [x] `framework/packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
+  - [x] `packages/core/foundation/tests/Integration/ContainerFactoryDefinitionsCanBeNonSharedTest.php`
     - [x] factory shared=false returns different objects across get()
     - [x] factory shared=true returns same object across get()
 
@@ -15176,7 +15176,7 @@ Docs:
 type: package
 phase: 1
 epic_id: "1.350.0"
-owner_path: "framework/packages/core/kernel/"
+owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
 composer: "coretsia/core-kernel"
@@ -15251,7 +15251,7 @@ Forbidden:
 
 Tooling tests:
 
-- N/A — tooling tests live under `framework/tools/tests/**`; no additional deptrac constraints beyond repo norms.
+- N/A — tooling tests live under `tools/tests/**`; no additional deptrac constraints beyond repo norms.
 
 #### Uses ports (API surface, NOT deps) (optional)
 
@@ -15285,7 +15285,7 @@ Kernel guard callers:
 #### Creates
 
 Drivers model:
-- [x] `framework/packages/core/kernel/src/Runtime/Driver/HttpDriver.php` — canonical HTTP runtime driver enum
+- [x] `packages/core/kernel/src/Runtime/Driver/HttpDriver.php` — canonical HTTP runtime driver enum
   - [x] MUST be a string-backed enum
   - [x] `CLASSIC = 'http.classic'`
   - [x] `FRANKENPHP = 'http.frankenphp'`
@@ -15298,7 +15298,7 @@ Drivers model:
   - [x] MUST NOT contain config-reading logic
   - [x] MUST NOT contain compatibility matrix logic
 
-- [x] `framework/packages/core/kernel/src/Runtime/Driver/BackgroundDriver.php` — canonical background runtime driver enum
+- [x] `packages/core/kernel/src/Runtime/Driver/BackgroundDriver.php` — canonical background runtime driver enum
   - [x] MUST be a string-backed enum
   - [x] `WORKER_QUEUE = 'bg.worker_queue'`
   - [x] MUST expose canonical ids only through enum values
@@ -15307,7 +15307,7 @@ Drivers model:
   - [x] MUST NOT contain config-reading logic
   - [x] MUST NOT contain compatibility matrix logic
 
-- [x] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDrivers.php` — immutable selected runtime drivers value object
+- [x] `packages/core/kernel/src/Runtime/Driver/RuntimeDrivers.php` — immutable selected runtime drivers value object
   - [x] `httpDriver(): HttpDriver`
   - [x] `backgroundDrivers(): list<BackgroundDriver>`
   - [x] `driverIds(): list<string>` sorted by canonical id using `strcmp`
@@ -15322,7 +15322,7 @@ Drivers model:
   - [x] MUST NOT emit stdout/stderr
 
 Guard:
-- [x] `framework/packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php` — canonical runtime driver matrix guard
+- [x] `packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php` — canonical runtime driver matrix guard
   - [x] MUST be stateless
   - [x] MUST be deterministic for the same `ConfigRepositoryInterface` values
   - [x] MUST read config only through:
@@ -15385,7 +15385,7 @@ Guard:
   - [x] core/kernel MUST NOT define `worker.*` defaults or rules in this epic
 
 Errors:
-- [x] `framework/packages/core/kernel/src/Runtime/Exception/RuntimeDriverConflictException.php`
+- [x] `packages/core/kernel/src/Runtime/Exception/RuntimeDriverConflictException.php`
   - [x] error code: `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT`
   - [x] public message MUST be deterministic and safe:
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_CONFLICT: <reason>`
@@ -15404,7 +15404,7 @@ Errors:
   - [x] driver id lists MUST contain canonical ids only
   - [x] MUST NOT expose config paths, config values, env values, adapter internals, stack traces, previous throwable messages, or payload dumps
 
-- [x] `framework/packages/core/kernel/src/Runtime/Exception/RuntimeDriverInvalidConfigException.php`
+- [x] `packages/core/kernel/src/Runtime/Exception/RuntimeDriverInvalidConfigException.php`
   - [x] error code: `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
   - [x] public message MUST be deterministic and safe:
     - [x] `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG: <reason>`
@@ -15441,30 +15441,30 @@ Docs:
   - [x] Any behavioral change MUST update:
     - [x] `docs/ssot/runtime-drivers.md`
     - [x] Kernel unit/integration locks
-    - [x] E2E matrix fixtures/tests under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*`
+    - [x] E2E matrix fixtures/tests under `tools/tests/Fixtures/RuntimeDriverMatrix/*`
 
 Tooling fixtures:
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwooleHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerQueueApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerQueueApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerQueueApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerHttpApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerQueueApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpWithoutPlatformHttpModuleApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/MultipleConfiguredHttpDriversApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/WorkerTaskTypeInvalidApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerWithoutPlatformHttpModuleApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpWithoutPlatformHttpModuleApp/`
-- [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/SwooleWithoutPlatformHttpModuleApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/SwooleHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/WorkerQueueApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerPlusWorkerQueueApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpPlusWorkerQueueApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerHttpApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/SwoolePlusWorkerQueueApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/WorkerHttpWithoutPlatformHttpModuleApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/MultipleConfiguredHttpDriversApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/WorkerTaskTypeInvalidApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/RoadrunnerWithoutPlatformHttpModuleApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/FrankenphpWithoutPlatformHttpModuleApp/`
+- [x] `tools/tests/Fixtures/RuntimeDriverMatrix/SwooleWithoutPlatformHttpModuleApp/`
 
 Fixture app contract:
-- [x] each `framework/tools/tests/Fixtures/RuntimeDriverMatrix/<App>/` MUST contain:
+- [x] each `tools/tests/Fixtures/RuntimeDriverMatrix/<App>/` MUST contain:
   - [x] `config.php` — deterministic merged-config input subset for driver detection
   - [x] `modules.php` — deterministic enabled module ids for ModulePlan construction
   - [x] `expected.php` — expected outcome/code/reason/active driver ids
@@ -15495,9 +15495,9 @@ Fixture app contract:
 - [x] fixture files MUST NOT contain absolute paths, timestamps, random ids, env reads, closures, objects, resources, adapter classes, or real runtime server boot logic
 
 Tooling support:
-- [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
+- [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
   - [x] loads fixture arrays deterministically
-  - [x] discovers fixture apps under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` deterministically
+  - [x] discovers fixture apps under `tools/tests/Fixtures/RuntimeDriverMatrix/*` deterministically
   - [x] validates fixture shape before executing assertions
   - [x] instantiates the dedicated test `ConfigRepositoryInterface`
   - [x] builds a minimal `ModulePlan`
@@ -15510,7 +15510,7 @@ Tooling support:
   - [x] MUST NOT start long-running loops
   - [x] MUST NOT write artifacts
 
-- [x] `framework/tools/tests/Integration/Runtime/Support/RuntimeDriverMatrixConfigRepository.php`
+- [x] `tools/tests/Integration/Runtime/Support/RuntimeDriverMatrixConfigRepository.php`
   - [x] implements test-only `ConfigRepositoryInterface`
   - [x] supports only `has(...)` and `get(...)`
   - [x] `all()` MUST throw deterministically
@@ -15527,23 +15527,23 @@ Tooling support:
 - [x] `docs/adr/INDEX.md` — register:
   - [x] `docs/adr/ADR-0027-runtime-driver-resolution.md`
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceProvider.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
   - [x] registers `RuntimeDriverGuard`
   - [x] provider registration MUST NOT run guard detection
   - [x] provider registration MUST NOT inspect config values
   - [x] provider registration MUST NOT resolve `ModulePlan`
   - [x] provider registration MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/core/kernel/src/Provider/KernelServiceFactory.php`
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - [x] adds stateless factory/wiring helper for `RuntimeDriverGuard`
   - [x] MUST NOT keep mutable runtime state
   - [x] MUST NOT cache config, module plans, detected drivers, or guard results
   - [x] MUST NOT inspect config values while wiring the guard
 
-- [x] `framework/packages/core/kernel/config/kernel.php`
-- [x] `framework/packages/core/kernel/config/rules.php`
+- [x] `packages/core/kernel/config/kernel.php`
+- [x] `packages/core/kernel/config/rules.php`
 
-- [x] `framework/packages/core/kernel/PUBLIC_API.md` register runtime-driver guard public API symbols:
+- [x] `packages/core/kernel/PUBLIC_API.md` register runtime-driver guard public API symbols:
   - [x] `Coretsia\Kernel\Runtime\Driver\HttpDriver`
   - [x] `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
   - [x] `Coretsia\Kernel\Runtime\Driver\RuntimeDrivers`
@@ -15558,16 +15558,16 @@ Tooling support:
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/core/kernel/config/kernel.php`
-  - [x] `framework/packages/core/kernel/config/rules.php`
+  - [x] `packages/core/kernel/config/kernel.php`
+  - [x] `packages/core/kernel/config/rules.php`
 - [x] Keys (dot):
   - [x] `kernel.runtime.frankenphp.enabled` = `false`
   - [x] `kernel.runtime.swoole.enabled` = `false`
   - [x] `kernel.runtime.roadrunner.enabled` = `false`
 - [x] Rules:
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.frankenphp.enabled`
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.swoole.enabled`
-  - [x] `framework/packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.roadrunner.enabled`
+  - [x] `packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.frankenphp.enabled`
+  - [x] `packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.swoole.enabled`
+  - [x] `packages/core/kernel/config/rules.php` enforces bool shape for `kernel.runtime.roadrunner.enabled`
   - [x] unknown `kernel.runtime.*` keys are rejected
   - [x] `worker.*` rules are not introduced by core/kernel
 
@@ -15687,7 +15687,7 @@ RuntimeDriverGuard MUST follow Phase 0 rails safety policy:
 
 ## E2E matrix fixtures/tests: determinism rules (MUST)
 
-- [x] Fixture apps under `framework/tools/tests/Fixtures/RuntimeDriverMatrix/*` MUST be cross-OS stable
+- [x] Fixture apps under `tools/tests/Fixtures/RuntimeDriverMatrix/*` MUST be cross-OS stable
 - [x] tests MUST normalize paths if paths appear in assertion messages
 - [x] tests MUST NOT compare `\` vs `/` literally
 - [x] tests MUST NOT rely on locale/environment ordering
@@ -15709,19 +15709,19 @@ RuntimeDriverGuard MUST follow Phase 0 rails safety policy:
 - If metrics/spans/logs exist:
   - N/A — guard does not emit observability directly
 - [x] If redaction exists:
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
     - [x] asserts diagnostics use only canonical ids from `docs/ssot/runtime-drivers.md`
     - [x] forbids shortened aliases such as `classic`, `roadrunner`, `worker_queue`
     - [x] asserts active/conflicting drivers are sorted by canonical id using byte-order `strcmp`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
     - [x] asserts invalid worker task type does not leak raw config dumps or env values
 
 #### Test harness / fixtures
 
 - [x] Fixture apps:
-  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/config.php`
-  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/modules.php`
-  - [x] `framework/tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/expected.php`
+  - [x] `tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/config.php`
+  - [x] `tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/modules.php`
+  - [x] `tools/tests/Fixtures/RuntimeDriverMatrix/ClassicHttpApp/expected.php`
   - [x] same structure for:
     - [x] `RoadrunnerHttpApp`
     - [x] `FrankenphpHttpApp`
@@ -15747,32 +15747,32 @@ RuntimeDriverGuard MUST follow Phase 0 rails safety policy:
 
 Kernel:
 - Contract:
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigDefaultsContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigDefaultsContractTest.php`
     - [x] asserts all three `kernel.runtime.*.enabled` defaults are false
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigRulesContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelRuntimeDriverConfigRulesContractTest.php`
     - [x] asserts non-bool values are rejected by config validation
     - [x] asserts unknown `kernel.runtime.*` keys are rejected
     - [x] asserts `worker.*` is not introduced into kernel config defaults/rules
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverPublicApiContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelRuntimeDriverPublicApiContractTest.php`
     - [x] asserts runtime-driver public API symbols are listed in `PUBLIC_API.md`
-  - [x] `framework/packages/core/kernel/tests/Contract/KernelRuntimeDriverNoForbiddenDepsContractTest.php`
+  - [x] `packages/core/kernel/tests/Contract/KernelRuntimeDriverNoForbiddenDepsContractTest.php`
     - [x] asserts kernel runtime-driver source does not import `platform/*`
     - [x] asserts kernel runtime-driver source does not import PSR-7/15 namespaces
     - [x] asserts kernel runtime-driver source does not import observability ports or `Psr\Log\LoggerInterface`
 - Unit:
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsMultipleHttpDriversTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
-  - [x] `framework/packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsClassicWhenNoAdaptersEnabledTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardTreatsMissingWorkerKeysAsDisabledTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardDetectsRoadrunnerWhenEnabledTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsRoadrunnerPlusWorkerQueueTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsSwoolePlusWorkerQueueTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardAllowsFrankenphpPlusWorkerQueueTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsMultipleHttpDriversTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithRoadrunnerTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerTaskTypeInvalidTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardConflictDiagnosticsAreDeterministicallySortedTest.php`
+  - [x] `packages/core/kernel/tests/Unit/RuntimeDriverGuardRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php`
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php`
+  - [x] `packages/core/kernel/tests/Integration/RuntimeDriverGuardChecksModulePlanForPlatformHttpTest.php`
     - [x] asserts exact code `CORETSIA_RUNTIME_DRIVER_MATRIX_INVALID_CONFIG`
     - [x] asserts non-classic HTTP drivers require `platform.http`
     - [x] asserts classic HTTP and `bg.worker_queue` do not require `platform.http`
@@ -15782,17 +15782,17 @@ Kernel:
 
 Tooling:
 - Integration:
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php`
-  - [x] `framework/tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGuardTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixTestSupport.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixDefaultClassicIsAllowedTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsClassicPlusWorkerQueueTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsRoadrunnerPlusWorkerQueueTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsRoadrunnerPlusWorkerHttpTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsFrankenphpPlusWorkerQueueTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsFrankenphpPlusWorkerHttpTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixAllowsSwoolePlusWorkerQueueTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsSwoolePlusWorkerHttpTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixRejectsWorkerHttpWithoutPlatformHttpModuleTest.php`
+  - [x] `tools/tests/Integration/Runtime/RuntimeDriverMatrixAllFixturesMatchGuardTest.php`
     - [x] asserts the fixture corpus is explicit
     - [x] asserts all runtime-driver matrix fixtures are read
     - [x] asserts all fixture apps match `RuntimeDriverGuard`
@@ -15844,7 +15844,7 @@ Tooling:
   - [x] `docs/adr/ADR-0027-runtime-driver-resolution.md`
   - [x] `docs/architecture/runtime-driver-resolution.md`
   - [x] `docs/adr/INDEX.md`
-  - [x] `framework/packages/core/kernel/PUBLIC_API.md`
+  - [x] `packages/core/kernel/PUBLIC_API.md`
 
 ---
 
@@ -15854,7 +15854,7 @@ Tooling:
 type: package
 phase: 1
 epic_id: "1.360.0"
-owner_path: "framework/packages/platform/worker/"
+owner_path: "packages/platform/worker/"
 
 package_id: "platform/worker"
 composer: "coretsia/platform-worker"
@@ -15918,9 +15918,9 @@ ssot_refs:
     - hook discovery/order and reset trigger semantics are kernel-owned; `platform/worker` only supplies tasks to the canonical UoW runtime.
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/` — `ResetInterface`, hooks, correlation provider port.
-  - `framework/packages/core/foundation/` — deterministic order + context accessor (if used).
-  - `framework/packages/core/kernel/` — UoW lifecycle + reset policy.
+  - `packages/core/contracts/` — `ResetInterface`, hooks, correlation provider port.
+  - `packages/core/foundation/` — deterministic order + context accessor (if used).
+  - `packages/core/kernel/` — UoW lifecycle + reset policy.
 
 - Required config roots/keys:
   - `worker.*` — worker pool settings.
@@ -16018,16 +16018,16 @@ Forbidden:
   - consumer MUST NOT enumerate reset tags directly
 
 - Artifacts:
-  - reads: `skeleton/var/cache/<appTarget>/container.php` (optional; compiled container)
-  - writes: `skeleton/var/tmp/worker.sock` — only when resolved `worker.control.transport = unix`
-  - writes: `skeleton/var/tmp/worker.state.json`
-  - writes: `skeleton/var/tmp/worker.stop`
+  - reads: `packages/applications/skeleton/var/cache/<appTarget>/container.php` (optional; compiled container)
+  - writes: `packages/applications/skeleton/var/tmp/worker.sock` — only when resolved `worker.control.transport = unix`
+  - writes: `packages/applications/skeleton/var/tmp/worker.state.json`
+  - writes: `packages/applications/skeleton/var/tmp/worker.stop`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [x] `framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php`
+- [x] `packages/core/foundation/src/Serialization/StableJsonDecoder.php`
   - [x] deterministic JSON decoder for runtime-safe JSON bytes
   - [x] MUST use `json_decode(...)` with `JSON_THROW_ON_ERROR`
   - [x] MUST NOT rely on PHP associative JSON decoding because it can collapse JSON object/list distinctions too early
@@ -16062,10 +16062,10 @@ Forbidden:
   - [x] MUST NOT emit stdout/stderr
 
 Package skeleton:
-- [x] `framework/packages/platform/worker/src/Module/WorkerModule.php`
-- [x] `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
+- [x] `packages/platform/worker/src/Module/WorkerModule.php`
+- [x] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
 
-- [x] `framework/packages/platform/worker/src/Provider/WorkerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [x] `packages/platform/worker/src/Provider/WorkerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
   - [x] MUST create `WorkerPoolSpec` from merged worker config after config validation pipeline
     - [x] MUST read all required worker config keys:
       - [x] `worker.workers`
@@ -16087,10 +16087,10 @@ Package skeleton:
     - [x] MUST NOT instantiate Noop logger/meter/tracer directly
   - [x] MUST inject `ContextAccessorInterface` into services that read context values
 
-- [x] `framework/packages/platform/worker/README.md` (Observability / Errors / Security-Redaction)
+- [x] `packages/platform/worker/README.md` (Observability / Errors / Security-Redaction)
 
 Implementation:
-- [x] `framework/packages/platform/worker/src/Internal/WorkerManagerDriverInterface.php`
+- [x] `packages/platform/worker/src/Internal/WorkerManagerDriverInterface.php`
   - [x] package-internal process driver strategy seam only
   - [x] MUST be marked `@internal`
   - [x] MUST NOT be treated as public package API
@@ -16117,7 +16117,7 @@ Implementation:
   - [x] MUST NOT know about CLI command dispatch or `platform/cli`
   - [x] MUST NOT depend on `platform/http`
 
-- [x] `framework/packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
+- [x] `packages/platform/worker/src/Manager/Driver/PcntlWorkerManagerDriver.php`
   - [x] implements `WorkerManagerDriverInterface`
   - [x] `name()` MUST return `pcntl`
   - [x] `supports(...)` MUST return false deterministically when:
@@ -16140,7 +16140,7 @@ Implementation:
   - [x] MUST NOT call logger/meter/tracer directly
   - [x] MUST NOT write to stdout/stderr directly
 
-- [x] `framework/packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
+- [x] `packages/platform/worker/src/Manager/Driver/ProcWorkerManagerDriver.php`
   - [x] implements `WorkerManagerDriverInterface`
   - [x] `name()` MUST return `proc`
   - [x] MUST be the cross-platform fallback
@@ -16162,7 +16162,7 @@ Implementation:
   - [x] MUST NOT call logger/meter/tracer directly
   - [x] MUST NOT write to stdout/stderr directly
 
-- [x] `framework/packages/platform/worker/src/Internal/TaskFactoryInternalInterface.php`
+- [x] `packages/platform/worker/src/Internal/TaskFactoryInternalInterface.php`
   - [x] package-internal task factory seam only
   - [x] MUST be marked `@internal`
   - [x] MUST NOT be treated as public package API
@@ -16186,7 +16186,7 @@ Implementation:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT write to stdout/stderr directly
 
-- [x] `framework/packages/platform/worker/src/Task/HttpTaskFactory.php`
+- [x] `packages/platform/worker/src/Task/HttpTaskFactory.php`
   - [x] implements `TaskFactoryInternalInterface`
   - [x] handles `worker.task_type=http`
   - [x] MUST NOT create PSR-7 requests itself
@@ -16206,7 +16206,7 @@ Implementation:
   - [x] MUST NOT write to stdout/stderr directly
   - [x] real HTTP task payload production remains owned by a later `platform/http` or runtime adapter epic
 
-- [x] `framework/packages/platform/worker/src/Task/QueueTaskFactory.php`
+- [x] `packages/platform/worker/src/Task/QueueTaskFactory.php`
   - [x] implements `TaskFactoryInternalInterface`
   - [x] handles `worker.task_type=queue`
   - [x] MUST NOT implement a real external queue adapter in this epic
@@ -16220,7 +16220,7 @@ Implementation:
   - [x] MUST NOT write to stdout/stderr directly
   - [x] future real queue sources/adapters MUST be introduced by later epics
 
-- [x] `framework/packages/platform/worker/src/Communication/WorkerSocketServer.php`
+- [x] `packages/platform/worker/src/Communication/WorkerSocketServer.php`
   - [x] owns worker control channel behavior
   - [x] MUST support resolved control transport:
     - [x] `unix`
@@ -16239,7 +16239,7 @@ Implementation:
   - [x] MUST NOT expose absolute paths, socket paths, tcp endpoints, payload fragments, headers, or tokens in exceptions
   - [x] MUST NOT write to stdout/stderr directly
 
-- [x] `framework/packages/platform/worker/src/Console/WorkerStartCommand.php`
+- [x] `packages/platform/worker/src/Console/WorkerStartCommand.php`
   - [x] package worker start command class
   - [x] intended command name MUST be `worker:start`
   - [x] MUST use contract-level CLI command / input / output ports from `core/contracts`
@@ -16290,7 +16290,7 @@ Implementation:
   - [x] command MUST NOT depend on `platform/cli`
   - [x] command MUST NOT import `Coretsia\Platform\Cli\*`
 
-- [x] `framework/packages/platform/worker/src/Console/WorkerStopCommand.php`
+- [x] `packages/platform/worker/src/Console/WorkerStopCommand.php`
   - [x] package worker stop command class
   - [x] intended command name MUST be `worker:stop`
   - [x] MUST use contract-level CLI command / input / output ports from `core/contracts`
@@ -16325,7 +16325,7 @@ Implementation:
   - [x] command MUST NOT depend on `platform/cli`
   - [x] command MUST NOT import `Coretsia\Platform\Cli\*`
 
-- [x] `framework/packages/platform/worker/src/Console/WorkerStatusCommand.php`
+- [x] `packages/platform/worker/src/Console/WorkerStatusCommand.php`
   - [x] package worker status command class
   - [x] intended command name MUST be `worker:status`
   - [x] MUST use contract-level CLI command / input / output ports from `core/contracts`
@@ -16367,7 +16367,7 @@ Implementation:
   - [x] command MUST NOT depend on `platform/cli`
   - [x] command MUST NOT import `Coretsia\Platform\Cli\*`
 
-- [x] `framework/packages/platform/worker/src/Runtime/WorkerStateStore.php`
+- [x] `packages/platform/worker/src/Runtime/WorkerStateStore.php`
   - [x] only class allowed to write `worker.state.json`
   - [x] MUST read and write worker state using `WorkerPoolState`
   - [x] MUST use `Coretsia\Foundation\Serialization\StableJsonEncoder`
@@ -16399,7 +16399,7 @@ Implementation:
   - [x] MAY use atomic write mechanics, but persisted JSON bytes MUST remain deterministic for the same state
   - [x] MUST return deterministic failure exceptions on invalid/unreadable state
 
-- [x] `framework/packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
+- [x] `packages/platform/worker/src/Runtime/WorkerPoolSpec.php`
   - [x] immutable normalized worker pool specification
   - [x] MUST represent validated `worker.*` config input
   - [x] MUST be built from the complete worker config key set:
@@ -16414,7 +16414,7 @@ Implementation:
     - [x] `worker.state_path`
     - [x] `worker.stop_flag_path`
     - [x] `worker.stop_timeout_ms`
-  - [x] MUST preserve default values exactly as defined by `framework/packages/platform/worker/config/worker.php`
+  - [x] MUST preserve default values exactly as defined by `packages/platform/worker/config/worker.php`
   - [x] MUST preserve path values as relative strings:
     - [x] `socket_path`
     - [x] `state_path`
@@ -16475,7 +16475,7 @@ Implementation:
     - [x] platform family
     - [x] unix domain socket support
 
-- [x] `framework/packages/platform/worker/src/Runtime/WorkerPoolState.php`
+- [x] `packages/platform/worker/src/Runtime/WorkerPoolState.php`
   - [x] immutable runtime pool state DTO
   - [x] MUST represent only safe state fields allowed in `worker.state.json`
   - [x] MUST expose:
@@ -16506,7 +16506,7 @@ Implementation:
   - [x] MUST NOT write files
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/src/Manager/WorkerManager.php`
+- [x] `packages/platform/worker/src/Manager/WorkerManager.php`
   - [x] owns high-level worker pool orchestration: start / stop / status
   - [x] MUST accept already-built `WorkerPoolSpec`
   - [x] MUST delegate process-specific behavior to `WorkerManagerDriverInterface`
@@ -16540,7 +16540,7 @@ Implementation:
   - [x] MUST NOT write ContextStore values directly
   - [x] MAY include safe correlation/uow ids in logs only if provided by context accessor and allowed by redaction policy
 
-- [x] `framework/packages/platform/worker/src/Worker/ApplicationWorker.php`
+- [x] `packages/platform/worker/src/Worker/ApplicationWorker.php`
   - [x] owns sequential task execution inside a long-running worker child
   - [x] MUST process many tasks sequentially without restarting PHP
   - [x] MUST execute each task as a separate UoW only through `Coretsia\Contracts\Runtime\KernelRuntimeInterface`
@@ -16579,7 +16579,7 @@ Implementation:
   - [x] MUST NOT log raw payloads
   - [x] MUST NOT write to stdout/stderr directly
 
-- [x] `framework/packages/platform/worker/bin/coretsia-worker`
+- [x] `packages/platform/worker/bin/coretsia-worker`
   - [x] worker-owned proc child-process launcher
   - [x] MUST be executable PHP launcher
   - [x] MUST NOT import or instantiate `Coretsia\Platform\Cli\Application`
@@ -16605,10 +16605,10 @@ Docs:
   - [x] ops notes (pid/state files, control transport, redaction rules)
 
 Configuration:
-- [x] `framework/packages/platform/worker/config/worker.php`
-- [x] `framework/packages/platform/worker/config/rules.php`
+- [x] `packages/platform/worker/config/worker.php`
+- [x] `packages/platform/worker/config/rules.php`
 
-- [x] `framework/packages/platform/worker/tests/Fake/FakeWorkerManagerDriver.php`
+- [x] `packages/platform/worker/tests/Fake/FakeWorkerManagerDriver.php`
   - [x] simulates spawn/stop/status deterministically
   - [x] does not fork
   - [x] does not call proc_open
@@ -16616,7 +16616,7 @@ Configuration:
   - [x] used by unit/integration tests that verify manager lifecycle and max_requests behavior
 
 Error:
-- [x] `framework/packages/platform/worker/src/Exception/WorkerException.php`
+- [x] `packages/platform/worker/src/Exception/WorkerException.php`
   - [x] abstract base exception for package-level worker failures
   - [x] MUST expose:
     - [x] `errorCode(): string`
@@ -16630,7 +16630,7 @@ Error:
     - [x] raw socket paths, raw tcp endpoints,
     - [x] payload fragments, headers, tokens.
 
-- [x] `framework/packages/platform/worker/src/Exception/WorkerStartFailedException.php`
+- [x] `packages/platform/worker/src/Exception/WorkerStartFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_START_FAILED`
   - [x] reasons:
     - [x] `worker-start-failed`
@@ -16645,21 +16645,21 @@ Error:
     - [x] `requestHandlerUnresolvable(): self`
     - [x] `requestHandlerInvalid(): self`
 
-- [x] `framework/packages/platform/worker/src/Exception/WorkerForkFailedException.php`
+- [x] `packages/platform/worker/src/Exception/WorkerForkFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_FORK_FAILED`
   - [x] reasons:
     - [x] `worker-fork-failed`
   - [x] named constructors:
     - [x] `forkFailed(): self`
 
-- [x] `framework/packages/platform/worker/src/Exception/WorkerCommunicationFailedException.php`
+- [x] `packages/platform/worker/src/Exception/WorkerCommunicationFailedException.php`
   - [x] errorCode: `CORETSIA_WORKER_COMMUNICATION_FAILED`
   - [x] reasons:
     - [x] `worker-communication-failed`
   - [x] named constructors:
     - [x] `communicationFailed(): self`
 
-- [x] `framework/packages/platform/worker/src/Exception/WorkerNotRunningException.php`
+- [x] `packages/platform/worker/src/Exception/WorkerNotRunningException.php`
   - [x] errorCode: `CORETSIA_WORKER_NOT_RUNNING`
   - [x] reasons:
     - [x] `worker-not-running`
@@ -16670,7 +16670,7 @@ Error:
   - [x] MUST NOT expose raw pid path, state path, socket path, tcp endpoint, absolute path, OS error text, previous throwable messages, env values, payloads, headers, or tokens
 
 Tests:
-- [x] `framework/packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/CoretsiaWorkerChildLauncherContractTest.php`
   - [x] launcher accepts only worker-owned internal args
   - [x] launcher accepts `--coretsia-worker-config`
   - [x] launcher accepts `--coretsia-worker-container`
@@ -16683,7 +16683,7 @@ Tests:
   - [x] launcher imports only public Kernel boot facade for artifact runtime boot
   - [x] launcher does not import Kernel artifact/container internal classes
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerNotRunningLifecycleContractTest.php`
   - [x] `WorkerStateStore::read(...)` throws `WorkerNotRunningException::notRunning()` when worker state marker is missing
   - [x] missing worker state marker returns error code `CORETSIA_WORKER_NOT_RUNNING`
   - [x] missing worker state marker returns reason `worker-not-running`
@@ -16707,7 +16707,7 @@ Tests:
     - [x] headers
     - [x] tokens
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerStatusCommandContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerStatusCommandContractTest.php`
   - [x] directly instantiates `WorkerStatusCommand`
   - [x] calls `run(InputInterface $input, OutputInterface $output)` directly
   - [x] does not use full binary/catalog dispatch
@@ -16742,7 +16742,7 @@ Tests:
   - [x] unsupported options fail safely
   - [x] command does not call `InputInterface::tokens()`
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerStopCommandContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerStopCommandContractTest.php`
   - [x] directly instantiates `WorkerStopCommand`
   - [x] calls `run(InputInterface $input, OutputInterface $output)` directly
   - [x] does not use full binary/catalog dispatch
@@ -16768,7 +16768,7 @@ Tests:
   - [x] not-running case returns `worker-not-running`
   - [x] invalid worker state does not get translated to `CORETSIA_WORKER_NOT_RUNNING`
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php`
   - [x] directly instantiates `WorkerStartCommand`
   - [x] calls `run(InputInterface $input, OutputInterface $output)` directly
   - [x] does not use full `coretsia worker:start` binary/catalog dispatch
@@ -16801,7 +16801,7 @@ Tests:
   - [x] unsupported arguments fail safely
   - [x] unsupported options fail safely
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerStateStoreOwnershipContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerStateStoreOwnershipContractTest.php`
   - [x] only `WorkerStateStore` has `write()`
   - [x] only `WorkerStateStore` has `writeBytes()`
   - [x] only `WorkerStateStore` writes bytes to worker state temp file
@@ -16809,7 +16809,7 @@ Tests:
   - [x] other worker classes must not resolve `$spec->statePath()`
   - [x] drivers/providers/factories may depend on `WorkerStateStore`, but must not write `worker.state.json` directly
 
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonSerializationSafetyContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonSerializationSafetyContractTest.php`
   - [x] StableJsonEncoder does not read/write files
   - [x] StableJsonDecoder does not read/write files
   - [x] JsonLikeNormalizer does not read/write files
@@ -16820,7 +16820,7 @@ Tests:
   - [x] normalizer diagnostics do not leak raw values/classes/payloads/headers/tokens/paths/env
   - [x] invalid JSON diagnostics do not leak raw JSON payload
 
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php`
   - [x] MUST verify that `StableJsonDecoder` delegates baseline decoded value normalization to `JsonLikeNormalizer`
   - [x] MUST verify that `StableJsonDecoder::decodeStable(...)` maps normalization-stage `JsonLikeNormalizationException` failures to stable `stable-json-*` failures
   - [x] MUST verify that `StableJsonDecoder::decodeStable(...)` maps conversion-stage `JsonLikeNormalizationException` failures to stable `stable-json-*` failures
@@ -16837,7 +16837,7 @@ Tests:
   - [x] MUST verify that decoder failures do not expose resource ids
   - [x] MUST verify that decoder failures do not expose environment-specific data
 
-- [x] `framework/packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php`
+- [x] `packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php`
   - [x] MUST verify that `StableJsonEncoder::encodeStable([])` emits `[]` followed by a final LF
   - [x] MUST verify that `StableJsonEncoder::encodeStableMap([])` emits `{}` followed by a final LF
   - [x] MUST verify that `StableJsonEncoder::encodeStableList([])` emits `[]` followed by a final LF
@@ -16868,7 +16868,7 @@ Tests:
   - [x] MUST verify that stable JSON decoder failures do not expose resource ids
   - [x] MUST verify that stable JSON decoder failures do not expose environment-specific data
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerCommandsUseCliContractsOnlyTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerCommandsUseCliContractsOnlyTest.php`
   - [x] asserts worker command classes implement `Coretsia\Contracts\Cli\Command\CommandInterface`
   - [x] asserts worker command classes use `InputInterface` / `OutputInterface`
   - [x] asserts worker command classes do not import `Coretsia\Platform\Cli\*`
@@ -16884,7 +16884,7 @@ Tests:
     - [x] `print_r`
     - [x] `error_log`
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
   - [x] asserts `WorkerStartCommand::NAME === 'worker:start'`
   - [x] asserts `WorkerStopCommand::NAME === 'worker:stop'`
   - [x] asserts `WorkerStatusCommand::NAME === 'worker:status'`
@@ -16893,7 +16893,7 @@ Tests:
   - [x] asserts `SUMMARY`, `GROUP`, `HIDDEN`, `MODE`, `ARGUMENTS`, and `OPTIONS` constants exist
   - [x] asserts no command metadata constant contains raw paths, endpoints, env values, secrets, or payloads
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
   - [x] asserts worker provider tags worker commands with `ReservedTags::CLI_COMMAND`
   - [x] asserts tag metadata uses command class constants
   - [x] asserts tag metadata `name` equals command instance `name()`
@@ -16962,7 +16962,7 @@ Tests:
   - [x] registering provider does not parse CLI input
   - [x] registering provider does not build or resolve `CommandCatalog`
 
-- [x] `framework/packages/platform/worker/tests/Unit/ApplicationWorkerTest.php`
+- [x] `packages/platform/worker/tests/Unit/ApplicationWorkerTest.php`
   - [x] verifies `runOne()` obtains task work only through `TaskFactoryInternalInterface`
   - [x] verifies `runOne()` passes `WorkerPoolSpec::taskType()` as UoW type to `KernelRuntimeInterface`
   - [x] verifies task metrics use `operation_id` from task work, not `WorkerPoolSpec::taskType()` directly
@@ -16981,7 +16981,7 @@ Tests:
   - [x] verifies worker does not write context directly
   - [x] verifies worker does not emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
+- [x] `packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
   - [x] creates spec from complete default-like worker config
   - [x] rejects missing required top-level keys
   - [x] rejects missing `worker.control.transport`
@@ -17021,7 +17021,7 @@ Tests:
   - [x] MUST NOT write files
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerPoolStateTest.php`
+- [x] `packages/platform/worker/tests/Unit/WorkerPoolStateTest.php`
   - [x] verifies valid `WorkerPoolState` construction
   - [x] verifies `version()` always returns `1`
   - [x] verifies `toArray()` returns exact stable key order and values:
@@ -17045,7 +17045,7 @@ Tests:
   - [x] MUST NOT write files
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerStateStoreStateFactoryTest.php`
+- [x] `packages/platform/worker/tests/Unit/WorkerStateStoreStateFactoryTest.php`
   - [x] creates `WorkerPoolState` from `WorkerPoolSpec`
   - [x] computes unix endpoint hash from `unix:` + configured socket path exactly
   - [x] computes tcp endpoint hash from `tcp:` + host + `:` + resolved port
@@ -17053,7 +17053,7 @@ Tests:
   - [x] MUST NOT write files
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/ProcWorkerManagerDriverSupportTest.php`
+- [x] `packages/platform/worker/tests/Unit/ProcWorkerManagerDriverSupportTest.php`
   - [x] verifies `name()` returns `proc`
   - [x] verifies driver supports specs resolved to `proc`
   - [x] verifies driver does not support specs resolved to `pcntl`
@@ -17066,7 +17066,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerServiceFactoryTaskFactoryBoundaryTest.php`
+- [x] `packages/platform/worker/tests/Unit/WorkerServiceFactoryTaskFactoryBoundaryTest.php`
   - [x] queue mode resolves `QueueTaskFactory`
   - [x] queue mode does not resolve `HttpTaskFactory`
   - [x] http mode resolves `HttpTaskFactory`
@@ -17080,7 +17080,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php`
+- [x] `packages/platform/worker/tests/Integration/WorkerStateStoreFilesystemTest.php`
   - [x] writes stable JSON using the cemented schema
   - [x] written JSON has LF line endings and final newline
   - [x] reads valid state into `WorkerPoolState`
@@ -17098,7 +17098,7 @@ Tests:
   - [x] verifies written JSON ends with final LF
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Integration/WorkerSocketServerTransportTest.php`
+- [x] `packages/platform/worker/tests/Integration/WorkerSocketServerTransportTest.php`
   - [x] verifies `unix` control transport address handling without exposing raw socket path in public diagnostics
   - [x] verifies `tcp` control transport address handling without exposing raw host/port in public diagnostics
   - [x] verifies start request frame is payload-free
@@ -17114,7 +17114,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Integration/ProcWorkerManagerDriverProcessTest.php`
+- [x] `packages/platform/worker/tests/Integration/ProcWorkerManagerDriverProcessTest.php`
   - [x] verifies start uses `proc_open` path without requiring pcntl
   - [x] verifies start launches exactly `worker.workers` child processes
   - [x] verifies deterministic worker command argument order
@@ -17131,7 +17131,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerStateJsonSchemaContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerStateJsonSchemaContractTest.php`
   - [x] written JSON does not include `started_at`
   - [x] written JSON does not include `env`
   - [x] written JSON does not include raw socket path
@@ -17154,7 +17154,7 @@ Tests:
   - [x] key order remains stable
   - [x] final LF remains stable
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerPoolStateSchemaContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerPoolStateSchemaContractTest.php`
   - [x] verifies `toArray()` returns exact stable key order:
     - [x] `version`
     - [x] `pid`
@@ -17177,7 +17177,7 @@ Tests:
   - [x] MUST NOT write files
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerPoolSpecConfigContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerPoolSpecConfigContractTest.php`
   - [x] config-derived paths MUST remain relative
   - [x] absolute Unix paths MUST be rejected
   - [x] absolute Windows paths MUST be rejected
@@ -17192,7 +17192,7 @@ Tests:
   - [x] MUST NOT emit stdout/stderr
   - [x] rejects `/home/...`, `/Users/...`, `(?i)\b[A-Z]:(\\|/)`, `\\server\share` patterns
 
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerSocketProtocolSafetyContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerSocketProtocolSafetyContractTest.php`
   - [x] verifies only allowed control operations are accepted:
     - [x] `start`
     - [x] `stop`
@@ -17234,7 +17234,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Contract/ProcWorkerManagerDriverSafetyContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/ProcWorkerManagerDriverSafetyContractTest.php`
   - [x] verifies command does not include raw socket path
   - [x] verifies command does not include raw tcp host/port
   - [x] verifies command does not include task payloads
@@ -17251,7 +17251,7 @@ Tests:
   - [x] MUST NOT depend on `platform/http`
   - [x] MUST NOT emit stdout/stderr
 
-- [x] `framework/packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php`
+- [x] `packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php`
   - [x] driver selection by resolved `WorkerPoolSpec::driver()`
   - [x] start delegates to selected driver
   - [x] stop delegates to selected driver
@@ -17268,25 +17268,25 @@ Tests:
   - [x] metric labels stay low-cardinality: only `status`
   - [x] log context stays safe
 
-- [x] `framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
+- [x] `packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
   - [x] `ApplicationWorker::run(...)` processes multiple tasks sequentially
   - [x] task order is deterministic
   - [x] each task enters KernelRuntimeInterface separately
   - [x] each task gets its own UnitOfWork boundary
   - [x] loop stops through package-owned stop condition, not through CLI/catalog
 
-- [x] `framework/packages/platform/worker/tests/Integration/MaxRequestsTriggersRecycleTest.php`
+- [x] `packages/platform/worker/tests/Integration/MaxRequestsTriggersRecycleTest.php`
   - [x] worker loop exits after exactly `WorkerPoolSpec::maxRequests()`
   - [x] no extra task is processed after limit
   - [x] exit is deterministic and non-error
   - [x] no stdout/stderr
   - [x] no platform/cli
 
-- [x] `framework/packages/platform/worker/tests/Fixtures/WorkerApp/config/modes/micro.php`
+- [x] `packages/platform/worker/tests/Fixtures/WorkerApp/config/modes/micro.php`
   - [x] fixture app MUST express module enable/disable through a mode override, not through `config/modules.php`
 
 Add contract-style tests (Phase 0 aligned):
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php`
   - [x] mandatory contract lock because stdout/stderr direct writes are a hard policy ban for runtime source scope
   - [x] asserts no stdout/stderr sinks are used in runtime source scope (token-based scan; tests/fixtures excluded)
   - [x] no `echo`
@@ -17300,7 +17300,7 @@ Add contract-style tests (Phase 0 aligned):
   - [x] no scan: `tests/`, `fixtures/`, `bin/coretsia-worker`
 
 Add config contract tests (policy rails):
-- [x] `framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php`
+- [x] `packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php`
   - [x] MUST fail if `config/worker.php` repeats root (`['worker'=>...]` is forbidden; subtree only)
   - [x] MUST fail if any `@*` key exists under returned subtree (any depth)
   - [x] `config/worker.php` returns worker subtree only
@@ -17309,7 +17309,7 @@ Add config contract tests (policy rails):
   - [x] defaults are deterministic scalar/list/map values
   - [x] no closures/objects/resources
 
-- [x] `framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php`
+- [x] `packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php`
   - [x] asserts `WorkerStartCommand` invokes `RuntimeDriverGuard` through direct command invocation or package-local harness
   - [x] MUST NOT require `platform/cli` command catalog discovery
   - [x] covers the later DI/runtime failure only after runtime-driver/module compatibility has already passed
@@ -17327,13 +17327,13 @@ Add config contract tests (policy rails):
 
 - [x] deptrac expectations updated (if needed) — (exact path owned elsewhere; referenced only)
 
-- [x] `framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+- [x] `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
   - [x] MUST provide `encodeMap()` / `encodeStableMap()` for callers that require JSON object root
   - [x] MUST provide `encodeList()` / `encodeStableList()` for callers that require JSON array root
   - [x] `encodeStableMap([])` MUST return `{}` + final LF
   - [x] `encodeStableList([])` MUST return `[]` + final LF
 
-- [x] `framework/packages/core/contracts/src/Cli/Input/InputInterface.php`
+- [x] `packages/core/contracts/src/Cli/Input/InputInterface.php`
   - [x] MUST expose deterministic parsed input access for package commands
   - [x] MUST remain independent from `platform/cli`
   - [x] MUST NOT expose parser implementation classes
@@ -17355,7 +17355,7 @@ Add config contract tests (policy rails):
     - [x] `null`
   - [x] MUST NOT require command implementations to parse raw argv tokens directly
 
-- [x] `framework/packages/core/contracts/src/Cli/Command/CommandInterface.php`
+- [x] `packages/core/contracts/src/Cli/Command/CommandInterface.php`
   - [x] MUST remain the only command execution contract used by package-contributed commands
   - [x] MUST NOT depend on `platform/cli`
   - [x] command name returned by `name()` MUST be stable and deterministic
@@ -17369,7 +17369,7 @@ Add config contract tests (policy rails):
   - [x] provider tag metadata `name` MUST match `CommandInterface::name()`
   - [x] provider tag metadata MUST reference command class constants, not unrelated string literals
 
-- [x] `framework/packages/core/contracts/src/Cli/Output/OutputInterface.php`
+- [x] `packages/core/contracts/src/Cli/Output/OutputInterface.php`
   - [x] MUST remain the only output abstraction used by package-contributed commands
   - [x] command implementations MUST NOT write stdout/stderr directly
   - [x] JSON payloads passed to `json(...)` MUST be intended as safe json-like payloads
@@ -17384,7 +17384,7 @@ Add config contract tests (policy rails):
 
 - [x] `docs/ssot/config-roots.md`
   - [x] add canonical registry row:
-    - [x] `worker` | `platform/worker` | `framework/packages/platform/worker/config/worker.php` | `framework/packages/platform/worker/config/rules.php` | long-running worker runtime root
+    - [x] `worker` | `platform/worker` | `packages/platform/worker/config/worker.php` | `packages/platform/worker/config/rules.php` | long-running worker runtime root
   - [x] once this row is added, the earlier “future reserved identifier: worker” note from `1.20.0` is considered resolved and MUST NOT remain as a second active source of truth
   - [x] historical “Initial Rows Introduced by This Epic” block removed to keep the registry table as the only active source of truth
 
@@ -17413,7 +17413,7 @@ Add config contract tests (policy rails):
 
 #### Package skeleton (if type=package)
 
-- [x] `framework/packages/platform/worker/composer.json`
+- [x] `packages/platform/worker/composer.json`
   - [x] package name MUST be `coretsia/platform-worker`
   - [x] type MUST be `library`
   - [x] MUST require runtime packages:
@@ -17434,16 +17434,16 @@ Add config contract tests (policy rails):
     - [x] defaultsConfigPath = `config/worker.php`
     - [x] composer extra runtime module dependency:
       - [x] `requires = ["core.kernel"]`
-- [x] `framework/packages/platform/worker/src/Module/WorkerModule.php`
-- [x] `framework/packages/platform/worker/src/Provider/WorkerServiceProvider.php`
-- [x] `framework/packages/platform/worker/config/worker.php`
-- [x] `framework/packages/platform/worker/config/rules.php`
-- [x] `framework/packages/platform/worker/README.md`
+- [x] `packages/platform/worker/src/Module/WorkerModule.php`
+- [x] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
+- [x] `packages/platform/worker/config/worker.php`
+- [x] `packages/platform/worker/config/rules.php`
+- [x] `packages/platform/worker/README.md`
 
 #### Configuration (keys + defaults)
 
 - [x] Files:
-  - [x] `framework/packages/platform/worker/config/worker.php`
+  - [x] `packages/platform/worker/config/worker.php`
 - [x] Keys (dot):
   - [x] `worker.workers` = 4
   - [x] `worker.max_requests` = 1000
@@ -17462,7 +17462,7 @@ Add config contract tests (policy rails):
   - [x] `worker.stop_flag_path` = "var/tmp/worker.stop"
   - [x] `worker.stop_timeout_ms` = 3000
 - [x] Rules:
-  - [x] `framework/packages/platform/worker/config/rules.php` enforces shape
+  - [x] `packages/platform/worker/config/rules.php` enforces shape
   - [x] Reserved namespace parity (cemented):
     - [x] any key starting with `@` under `worker` subtree (any depth) MUST hard-fail
   - [x] No absolute paths (cemented):
@@ -17502,7 +17502,7 @@ Add config contract tests (policy rails):
   - [x] `worker.proc.command` MUST be an argv list, not a shell string
   - [x] package default MUST be non-empty
   - [x] package default MUST point to worker-owned child launcher
-  - [x] package default MUST NOT point to `framework/bin/coretsia`
+  - [x] package default MUST NOT point to `tools/bin/coretsia`
   - [x] package default MUST NOT require `platform/cli`
   - [x] package default MAY use worker-owned `@php` token
   - [x] `@php` MUST be expanded by `WorkerServiceFactory`, not by `WorkerServiceProvider`
@@ -17635,11 +17635,11 @@ Add config contract tests (policy rails):
 #### Artifacts / outputs (if applicable)
 
 - [x] Writes:
-  - [x] `skeleton/var/tmp/worker.sock` — only when resolved `worker.control.transport = unix`
+  - [x] `packages/applications/skeleton/var/tmp/worker.sock` — only when resolved `worker.control.transport = unix`
     - [x] MUST be created only for resolved unix control transport
     - [x] MUST NOT be created for resolved tcp control transport
     - [x] raw socket path MUST NOT be exposed in public diagnostics
-  - [x] `skeleton/var/tmp/worker.state.json`
+  - [x] `packages/applications/skeleton/var/tmp/worker.state.json`
     - [x] serialization MUST be produced via `Coretsia\Foundation\Serialization\StableJsonEncoder`
     - [x] Direct `json_encode(...)` usage is FORBIDDEN for this artifact unless it is wrapped to provide identical canonical behavior
     - [x] MUST NOT contain secrets; store only redacted/hashed endpoint identifiers
@@ -17658,11 +17658,11 @@ Add config contract tests (policy rails):
       - [x] key ordering MUST be deterministic at all nesting levels
       - [x] output MUST be LF-only and end with final newline
     - [x] The file MUST NOT contain raw socket path, raw tcp host/port, absolute paths, tokens, payloads
-  - [x] `skeleton/var/tmp/worker.stop`
+  - [x] `packages/applications/skeleton/var/tmp/worker.stop`
     - [x] MUST be used only as a graceful stop marker
     - [x] MUST NOT contain payloads, config dumps, env values, headers, tokens, or secrets
 - [x] Reads:
-  - [x] `skeleton/var/cache/<appTarget>/container.php` (optional)
+  - [x] `packages/applications/skeleton/var/cache/<appTarget>/container.php` (optional)
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -17776,43 +17776,43 @@ Add config contract tests (policy rails):
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] deterministic auto-resolution:
-  - [x] `framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
+  - [x] `packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
 - [x] tcp port zero is forbidden deterministically:
-  - [x] `framework/packages/platform/worker/tests/Contract/WorkerPoolSpecConfigContractTest.php`
-  - [x] `framework/packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
+  - [x] `packages/platform/worker/tests/Contract/WorkerPoolSpecConfigContractTest.php`
+  - [x] `packages/platform/worker/tests/Unit/WorkerPoolSpecTest.php`
 
 #### Required policy tests matrix
 
-- [x] worker-side UoW/reset boundary evidence → `framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
+- [x] worker-side UoW/reset boundary evidence → `packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [x] Fixture app:
-  - [x] `framework/packages/platform/worker/tests/Fixtures/WorkerApp/config/modes/micro.php`
+  - [x] `packages/platform/worker/tests/Fixtures/WorkerApp/config/modes/micro.php`
   - [x] fixture app expresses module enable/disable through a mode override, never through `config/modules.php`
 
 ### Tests (MUST)
 
 - Unit:
-  - [x] `framework/packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php`
+  - [x] `packages/platform/worker/tests/Unit/WorkerManagerLifecycleTest.php`
 - Contract:
-  - [x] `framework/packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php`
-  - [x] `framework/packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php`
-  - [x] `framework/packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php`
+  - [x] `packages/platform/worker/tests/Contract/WorkerConfigSubtreeShapeContractTest.php`
+  - [x] `packages/platform/worker/tests/Contract/WorkerRuntimeDoesNotWriteToStdoutTest.php`
+  - [x] `packages/platform/worker/tests/Contract/WorkerExceptionsAreDeterministicContractTest.php`
     - [x] asserts each concrete worker exception exposes exact `errorCode()`
     - [x] asserts each exception exposes fixed `reason()`
     - [x] asserts public message is exactly `<ERROR_CODE>: <reason>`
     - [x] asserts previous throwable messages are not exposed
     - [x] asserts messages do not contain absolute paths, raw socket paths, tcp endpoints, payload fragments, headers, or tokens
-  - [x] `framework/packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php`
+  - [x] `packages/platform/worker/tests/Contract/WorkerInternalInterfacesAreNotPublicApiContractTest.php`
     - [x] asserts worker internal interfaces are under `Coretsia\Platform\Worker\Internal\*`
     - [x] asserts internal interfaces contain `@internal`
     - [x] asserts README does not document them as extension points
     - [x] asserts composer extra does not export them
 - Integration:
-  - [x] `framework/packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
-  - [x] `framework/packages/platform/worker/tests/Integration/MaxRequestsTriggersRecycleTest.php`
-  - [x] `framework/packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php`
+  - [x] `packages/platform/worker/tests/Integration/WorkerHandlesMultipleTasksSequentiallyTest.php`
+  - [x] `packages/platform/worker/tests/Integration/MaxRequestsTriggersRecycleTest.php`
+  - [x] `packages/platform/worker/tests/Integration/WorkerHttpTaskRequiresRequestHandlerTest.php`
 - Gates/Arch:
   - [x] deptrac expectations updated (if needed)
 
@@ -17828,7 +17828,7 @@ Add config contract tests (policy rails):
 - [x] Full CLI binary/catalog dispatch tests are owned by `2.30.0 Platform CLI`
 - [x] Docs updated:
   - [x] `docs/architecture/worker.md`
-  - [x] `framework/packages/platform/worker/README.md`
+  - [x] `packages/platform/worker/README.md`
   - [x] `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
   - [x] `docs/ssot/config-roots.md`
   - [x] `docs/ssot/observability.md`
@@ -17841,11 +17841,11 @@ Add config contract tests (policy rails):
 type: skeleton
 phase: 1
 epic_id: "1.370.0"
-owner_path: "framework/packages/core/kernel/tests/"
+owner_path: "packages/core/kernel/tests/"
 
 goal: "Є 2 smoke тести: micro boot стабільно працює, express — стабільно падає з очікуваним кодом (до Phase 2)."
 provides:
-- "Test harness для boot сценаріїв (micro/express) без вимоги skeleton/config/modes/*.php"
+- "Test harness для boot сценаріїв (micro/express) без вимоги packages/applications/skeleton/config/modes/*.php"
 - "Locks очікувань Phase 0: micro OK; express deterministic fail (required missing)"
 
 tags_introduced: []
@@ -17868,20 +17868,20 @@ ssot_refs:
   - 1.340.0 — REAL compiled container artifact + artifact-only boot policy exist
 
 - Terminology note (MUST): config root vs config key namespaces
-  - Config root for Kernel is **`kernel`** (file: `framework/packages/core/kernel/config/kernel.php`).
+  - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
   - Any dotted prefixes like `kernel.uow.*`, `kernel.runtime.*`, `kernel.modules.*`, `kernel.config.*`, `kernel.artifacts.*`, `kernel.fingerprint.*`
     are **config key namespaces**, not separate roots.
   - `config/<name>.php` MUST return subtree for `<name>` (no wrapper array repeating the root key).
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/kernel/resources/modes/*.php` — presets
+  - `packages/core/kernel/resources/modes/*.php` — presets
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Module\ModePresetLoaderInterface`
   - `Coretsia\Contracts\Module\ManifestReaderInterface`
 
 - Express fail lock (MUST):
-  - `framework/packages/core/kernel/resources/modes/express.php` MUST require a Phase-2-only module that is intentionally absent from the boot-smoke fixture manifest.
+  - `packages/core/kernel/resources/modes/express.php` MUST require a Phase-2-only module that is intentionally absent from the boot-smoke fixture manifest.
   - For this epic, the missing required module MUST be:
     - `platform.http`
   - The boot-smoke fixture manifest MUST include enough modules for `micro` to pass:
@@ -17907,12 +17907,12 @@ N/A (tests/tooling)
 
 #### Creates
 
-- [x] `framework/packages/core/kernel/tests/Support/AppBuilder.php` — helper to boot fixture apps deterministically
+- [x] `packages/core/kernel/tests/Support/AppBuilder.php` — helper to boot fixture apps deterministically
   - [x] MUST support two explicit flows:
     - [x] `bootMicro()` / equivalent success path
     - [x] `bootExpressExpectingRequiredMissing()` / equivalent failure path
   - [x] Micro success path MUST:
-    - [x] load framework default `micro` preset from `framework/packages/core/kernel/resources/modes/micro.php`
+    - [x] load framework default `micro` preset from `packages/core/kernel/resources/modes/micro.php`
     - [x] resolve `ModulePlan` from deterministic fixture manifest
     - [x] compile all runtime artifacts before boot:
       - [x] `module-manifest.php`
@@ -17921,21 +17921,21 @@ N/A (tests/tooling)
     - [x] boot only through artifact-only runtime path after `1.340.0`
     - [x] MUST NOT bypass `CompiledContainerFactory`
   - [x] Express failure path MUST:
-    - [x] load framework default `express` preset from `framework/packages/core/kernel/resources/modes/express.php`
+    - [x] load framework default `express` preset from `packages/core/kernel/resources/modes/express.php`
     - [x] use deterministic fixture manifest where `platform.http` is absent
     - [x] fail with `CORETSIA_MODULE_REQUIRED_MISSING`
     - [x] assert deterministic error code, not full exception message
     - [x] MUST NOT require compiled artifacts to exist after expected pre-boot failure
-  - [x] Micro/Express boot flows MUST NOT require `skeleton/config/modes/*.php`
+  - [x] Micro/Express boot flows MUST NOT require `packages/applications/skeleton/config/modes/*.php`
   - [x] Micro/Express boot flows MUST NOT use skeleton mode overrides
   - [x] `AppBuilder` additionally provides `resolveSkeletonOnlyPreset()` for the separate custom preset test
   - [x] MUST NOT print stdout/stderr
   - [x] MUST NOT assert absolute paths
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+- [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
   - [x] uses `AppBuilder`
   - [x] MUST use framework default `micro` preset
-  - [x] MUST NOT create `skeleton/config/modes/micro.php`
+  - [x] MUST NOT create `packages/applications/skeleton/config/modes/micro.php`
   - [x] MUST compile:
     - [x] `module-manifest.php`
     - [x] `config.php`
@@ -17945,10 +17945,10 @@ N/A (tests/tooling)
   - [x] MUST NOT assert stdout/stderr
   - [x] MUST NOT assert absolute paths
 
-- [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+- [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
   - [x] uses `AppBuilder`
   - [x] MUST use framework default `express` preset
-  - [x] MUST NOT create `skeleton/config/modes/express.php`
+  - [x] MUST NOT create `packages/applications/skeleton/config/modes/express.php`
   - [x] MUST use fixture manifest without `platform.http`
   - [x] MUST assert exact error code:
     - [x] `CORETSIA_MODULE_REQUIRED_MISSING`
@@ -17958,17 +17958,17 @@ N/A (tests/tooling)
   - [x] MUST NOT assert absolute paths
   - [x] MUST NOT require `container.php` to exist after expected pre-boot failure
 
-- [x] `framework/packages/core/kernel/tests/Integration/ModulePlanResolverLoadsSkeletonOnlyCustomPresetTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModulePlanResolverLoadsApplicationOnlyCustomPresetTest.php`
   - [x] proves owner-defined custom preset names are supported through skeleton mode files
   - [x] MUST create a fixture preset:
-    - [x] `skeleton/config/modes/worker-only.php`
+    - [x] `packages/applications/skeleton/config/modes/worker-only.php`
   - [x] MUST NOT create:
-    - [x] `framework/packages/core/kernel/resources/modes/worker-only.php`
+    - [x] `packages/core/kernel/resources/modes/worker-only.php`
   - [x] MUST select preset through `BootstrapConfig::preset()` or bootstrap override:
     - [x] `worker-only`
   - [x] MUST resolve `ModulePlan` successfully from the skeleton-only preset
   - [x] MUST use normal `required|optional|disabled` rules
-  - [x] MUST NOT require `skeleton/config/modules.php`
+  - [x] MUST NOT require `packages/applications/skeleton/config/modules.php`
   - [x] MUST NOT use app-local module selection
     - [x] scenario does not create or require app-local module selection
     - [x] ignore-if-present behavior is already locked by `ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest.php`
@@ -17982,17 +17982,17 @@ N/A (tests/tooling)
     - [x] framework canonical presets are `micro|express|hybrid|enterprise`
     - [x] owner-defined custom preset names are non-canonical names
     - [x] owner-defined custom preset names MUST NOT use canonical names
-    - [x] skeleton overrides MAY override framework canonical preset names through `skeleton/config/modes/<canonical>.php`
+    - [x] skeleton overrides MAY override framework canonical preset names through `packages/applications/skeleton/config/modes/<canonical>.php`
   - [x] clarify Express Phase 1/Phase 2 cutline:
     - [x] `express` is the conventional HTTP/web application mode
     - [x] framework-owned `express` preset requires `platform.http`
     - [x] until `platform.http` exists in the installed manifest, Express boot MUST fail deterministically with `CORETSIA_MODULE_REQUIRED_MISSING`
 
-- [x] `framework/tools/testing/phpunit.xml` or package test discovery config
-  - [x] canonical PHPUnit package discovery MUST include `framework/packages/core/kernel/tests/Integration/*`
+- [x] `tools/testing/phpunit.xml` or package test discovery config
+  - [x] canonical PHPUnit package discovery MUST include `packages/core/kernel/tests/Integration/*`
   - [x] If these tests are already discovered by the canonical package test runner, no `phpunit.xml` source change is required.
 
-- [x] `framework/packages/core/kernel/resources/modes/express.php`
+- [x] `packages/core/kernel/resources/modes/express.php`
   - [x] move `platform.http` from `optional` to `required`
   - [x] required MUST become:
     - [x] `core.foundation`
@@ -18004,7 +18004,7 @@ N/A (tests/tooling)
     - [x] `platform.metrics`
     - [x] `platform.tracing`
 
-- [x] `framework/packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+- [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
   - [x] update Express canonical rules expectation:
     - [x] `platform.http` MUST be in `required`
     - [x] `platform.http` MUST NOT be in `optional`
@@ -18049,14 +18049,14 @@ Assertions MUST базуватись на deterministic error codes (не на s
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 - [x] Smoke suite:
-  - [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
 
 ### Tests (MUST)
 
 - Integration:
-  - [x] `framework/packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [x] `framework/packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
 
 ### DoD (MUST)
 
@@ -18065,7 +18065,7 @@ Assertions MUST базуватись на deterministic error codes (не на s
 - [x] Smoke harness remains valid after artifact-only boot policy:
   - [x] fixture app is compiled first
   - [x] boot then uses compiled artifacts instead of bypassing the real runtime path
-- [x] Дає тестовий harness для boot сценаріїв (micro/express) без вимоги існування `skeleton/config/modes/*.php`.
+- [x] Дає тестовий harness для boot сценаріїв (micro/express) без вимоги існування `packages/applications/skeleton/config/modes/*.php`.
 - [x] Цементує очікування: micro boot OK, express boot може deterministic fail до Phase 2 cutline.
 - [x] Non-goals / out of scope
   - [x] Не реалізує HTTP runtime; лише boot.
@@ -18081,7 +18081,7 @@ Assertions MUST базуватись на deterministic error codes (не на s
   - [x] runtime boot does not require HTTP runtime
 - [x] Owner-defined custom preset support is locked:
   - [x] skeleton-only preset name such as `worker-only` can be selected
-  - [x] `skeleton/config/modes/worker-only.php` is loaded without a framework default file
+  - [x] `packages/applications/skeleton/config/modes/worker-only.php` is loaded without a framework default file
   - [x] normal `required|optional|disabled` rules apply
 
 ---
@@ -18092,7 +18092,7 @@ Assertions MUST базуватись на deterministic error codes (не на s
 type: tools
 phase: 1
 epic_id: "1.380.0"
-owner_path: "framework/tools/build/"
+owner_path: "tools/build/"
 
 goal: "Ensure internal Composer require edges cannot drift from the canonical SSoT dependency table used by deptrac generation."
 provides:
@@ -18123,8 +18123,8 @@ ssot_refs:
   - `docs/ops/architecture-generator-evidence.md` documents architecture generator evidence / operational proof.
 
 - Required deliverables:
-  - `framework/tools/build/deptrac_generate.php` — canonical SSoT → deptrac config generator/checker
-  - `framework/tools/testing/deptrac.yaml` — generated canonical deptrac config
+  - `tools/build/deptrac_generate.php` — canonical SSoT → deptrac config generator/checker
+  - `tools/testing/deptrac.yaml` — generated canonical deptrac config
   - `docs/roadmap/phase0/00_2-dependency-table.md` — canonical compile-time dependency SSoT
 
 #### Compile-time deps
@@ -18142,7 +18142,7 @@ Forbidden:
 - Composer, framework workspace:
   - `composer arch:deptrac:check` — verifies generated deptrac config is up to date from SSoT and validates internal Composer require edges against the SSoT dependency table.
   - `composer arch:deptrac:generate` — regenerates canonical deptrac config from SSoT.
-  - `composer arch:deptrac:analyze` — runs raw deptrac analysis against `framework/tools/testing/deptrac.yaml`.
+  - `composer arch:deptrac:analyze` — runs raw deptrac analysis against `tools/testing/deptrac.yaml`.
 
 - Composer, repo root:
   - existing `composer arch` delegates to framework workspace `arch`.
@@ -18162,7 +18162,7 @@ Forbidden:
 
 #### Explicit non-goals / duplicate-gate guard (MUST)
 
-- [x] SSoT dependency-table consistency is owned by `framework/tools/build/deptrac_generate.php --check`.
+- [x] SSoT dependency-table consistency is owned by `tools/build/deptrac_generate.php --check`.
 - [x] Existing architecture rail MUST continue to use `deptrac_generate.php --check` as the only SSoT freshness and dependency-table consistency entrypoint.
 - [x] Any future SSoT dependency-table validation improvements MUST be added to `deptrac_generate.php` or the package-compliance rail, not to a second deptrac SSoT gate.
 
@@ -18171,13 +18171,13 @@ Forbidden:
 The policy “core packages do not depend on forbidden platform/integrations/devtools packages” MUST be enforced through the canonical dependency chain:
 
 `docs/roadmap/phase0/00_2-dependency-table.md`
-→ `framework/tools/build/deptrac_generate.php --check`
-→ `framework/tools/testing/deptrac.yaml`
+→ `tools/build/deptrac_generate.php --check`
+→ `tools/testing/deptrac.yaml`
 → `arch:deptrac:analyze`
 
 Additional Composer-level consistency MUST be implemented in the existing SSoT/deptrac generation rail:
 
-- [x] for each materialized package `framework/packages/<layer>/<slug>/composer.json`:
+- [x] for each materialized package `packages/<layer>/<slug>/composer.json`:
   - [x] collect internal runtime dependencies from `require` where package name starts with `coretsia/`
   - [x] map internal Composer names to package ids
   - [x] every mapped internal dependency MUST appear in the package’s direct `depends_on` cell in `docs/roadmap/phase0/00_2-dependency-table.md`
@@ -18192,8 +18192,8 @@ This check closes forbidden dependency drift without introducing a second archit
 
 #### Modifies
 
-- [x] `framework/tools/build/deptrac_generate.php` — extend SSoT validation:
-  - [x] for each materialized `framework/packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
+- [x] `tools/build/deptrac_generate.php` — extend SSoT validation:
+  - [x] for each materialized `packages/*/*/composer.json`, internal `require` edges to `coretsia/*` packages MUST be a subset of direct `depends_on` entries in `docs/roadmap/phase0/00_2-dependency-table.md`
   - [x] internal package self-requires are forbidden
   - [x] unknown internal package names MUST fail deterministically
   - [x] diagnostics MUST use package ids, not absolute paths
@@ -18202,7 +18202,7 @@ This check closes forbidden dependency drift without introducing a second archit
   - [x] this check MUST NOT inspect or enforce external vendor packages
   - [x] this check MUST NOT create a second architecture ruleset
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
+- [x] `tools/spikes/_support/ErrorCodes.php` — register `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
 
 - [x] update command in `docs/guides/commands.md` if necessary:
   - [x] `composer arch`
@@ -18235,7 +18235,7 @@ This check closes forbidden dependency drift without introducing a second archit
 
 ### Tests (MUST)
 
-- [x] `framework/tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
+- [x] `tools/tests/Integration/DeptracGenerateComposerEdgesMatchSsotTest.php`
   - [x] creates synthetic package composer metadata with internal `coretsia/*` require edge
   - [x] asserts edge missing from SSoT `depends_on` fails with:
     - [x] `CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT`
@@ -18250,7 +18250,7 @@ This check closes forbidden dependency drift without introducing a second archit
 - [x] Internal Composer `require` edges cannot silently bypass the SSoT dependency table.
 - [x] `composer arch:deptrac:check` remains the only SSoT freshness / dependency-table consistency check entrypoint.
 - [x] No new `architecture:gate` Composer script is introduced.
-- [x] No new `framework/tools/gates/architecture_gate.php` file is introduced.
+- [x] No new `tools/gates/architecture_gate.php` file is introduced.
 - [x] Output semantics MUST remain compatible with existing tooling checks:
   - [x] pass: no output, exit `0`
   - [x] failure: deterministic code + deterministic diagnostics, exit `1`
@@ -18276,7 +18276,7 @@ This check closes forbidden dependency drift without introducing a second archit
 type: tools
 phase: 1
 epic_id: "1.390.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Ensure that all file write operations in tools follow the atomic write pattern (temp → rename) to prevent corruption."
 provides:
@@ -18302,7 +18302,7 @@ ssot_refs: []
   - Existing production tools that write files MUST be migrated to `DeterministicFile` before enabling this gate in CI.
 
 - Required deliverables:
-  - `framework/tools/spikes/_support/DeterministicFile.php` — canonical deterministic file helper and reference pattern for safe tools-side writes.
+  - `tools/spikes/_support/DeterministicFile.php` — canonical deterministic file helper and reference pattern for safe tools-side writes.
 
 #### Compile-time deps
 
@@ -18319,7 +18319,7 @@ N/A
 
 #### Creates
 
-- [x] `framework/tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
+- [x] `tools/config/atomic_write_allowlist.php` MUST return deterministic framework-relative file paths.
   - [x] Each entry MUST include a fixed reason token.
   - [x] Wildcard patterns are forbidden in Phase 1.
   - [x] Absolute paths are forbidden.
@@ -18329,13 +18329,13 @@ N/A
   - [x] Allowlist entries MUST be sorted by `path` using byte-order `strcmp`.
   - [x] Unknown allowlist keys MUST fail deterministically.
 
-- [x] `framework/tools/gates/atomic_write_gate.php` — deterministic gate:
-  - [x] scans production tooling PHP files under `framework/tools/**/*.php`
+- [x] `tools/gates/atomic_write_gate.php` — deterministic gate:
+  - [x] scans production tooling PHP files under `tools/**/*.php`
   - [x] excludes:
-    - [x] `framework/tools/tests/**`
-    - [x] `framework/tools/**/fixtures/**`
-    - [x] `framework/tools/spikes/fixtures/**`
-    - [x] `framework/tools/spikes/_support/DeterministicFile.php`
+    - [x] `tools/tests/**`
+    - [x] `tools/**/fixtures/**`
+    - [x] `tools/spikes/fixtures/**`
+    - [x] `tools/spikes/_support/DeterministicFile.php`
   - [x] Phase 1 single-choice policy:
     - [x] persistent tools-side writes MUST go through `DeterministicFile`
   - [x] forbidden raw write sinks outside allowlisted files:
@@ -18357,14 +18357,14 @@ N/A
   - [x] supports `--path` override for test fixture roots
   - [x] Unknown allowlist keys MUST fail deterministically.
   - [x] MUST resolve the tools root deterministically from the executing gate file.
-  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] MUST load `tools/spikes/_support/bootstrap.php` before scanning.
   - [x] If bootstrap is missing or unreadable:
-    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST attempt to load `tools/spikes/_support/ConsoleOutput.php`
     - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when ConsoleOutput is available
     - [x] MUST exit with code `1`
   - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST load `tools/spikes/_support/ErrorCodes.php` when available.
   - [x] MUST resolve error code constants from `ErrorCodes` when defined.
   - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [x] MUST use two code classes when applicable:
@@ -18396,13 +18396,13 @@ N/A
   - [x] `atomic-write:gate` → `@php tools/gates/atomic_write_gate.php`
   - [x] add to `gates`
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_ATOMIC_WRITE_VIOLATION`
   - [x] `CORETSIA_ATOMIC_WRITE_GATE_FAILED`
 
 - [x] Housekeeping: move existing package compliance allowlist into canonical tools config directory:
-  - [x] `framework/tools/gates/package_compliance_allowlist.php` → `framework/tools/config/package_compliance_allowlist.php`
-  - [x] update `framework/tools/gates/package_compliance_gate.php` to read allowlist from `framework/tools/config/`
+  - [x] `tools/gates/package_compliance_allowlist.php` → `tools/config/package_compliance_allowlist.php`
+  - [x] update `tools/gates/package_compliance_gate.php` to read allowlist from `tools/config/`
   - [x] this move MUST NOT change package compliance semantics
 
 - [x] add command `atomic-write:gate` in `docs/guides/commands.md`
@@ -18428,7 +18428,7 @@ N/A
 
 ### Tests
 
-- [x] `framework/tools/tests/Integration/AtomicWriteGateTest.php`
+- [x] `tools/tests/Integration/AtomicWriteGateTest.php`
   - [x] unsafe `file_put_contents` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
   - [x] read-only `fopen(..., 'rb')` passes with no output
   - [x] writable `fopen(..., 'wb')` fails with `CORETSIA_ATOMIC_WRITE_VIOLATION`
@@ -18447,7 +18447,7 @@ N/A
 type: tools
 phase: 1
 epic_id: "1.400.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Automatically run `composer audit` on all audit-capable install roots in the monorepo (repo root, `framework/`, `skeleton/`) and fail if any vulnerabilities are found."
 provides:
@@ -18471,7 +18471,7 @@ ssot_refs: []
   - 1.50.0 — tooling baseline exists
 
 - Required deliverables:
-  - `framework/composer.json`, `skeleton/composer.json`, root `composer.json` exist.
+  - `framework/composer.json`, `packages/applications/skeleton/composer.json`, root `composer.json` exist.
   - `composer` available in CI.
 
 #### Compile-time deps
@@ -18494,12 +18494,12 @@ Forbidden:
 
 #### Creates
 
-- [x] `framework/tools/gates/composer_audit_gate.php` — deterministic gate:
+- [x] `tools/gates/composer_audit_gate.php` — deterministic gate:
   - [x] locates audit-capable install roots only:
     - [x] repo root
     - [x] `framework/`
     - [x] `skeleton/`
-  - [x] package manifests under `framework/packages/**` MUST NOT be audited directly by this gate
+  - [x] package manifests under `packages/**` MUST NOT be audited directly by this gate
   - [x] for each audit-capable root, runs `composer audit --format=json --abandoned=ignore` in the corresponding directory
   - [x] parses JSON output and derives sanitized advisory diagnostics from `advisories`
   - [x] if any advisories, prints `CORETSIA_COMPOSER_AUDIT_FAILED` + list of affected packages and advisories (sanitized)
@@ -18520,17 +18520,17 @@ Forbidden:
   - [x] MUST audit install roots relative to repo root:
     - [x] `<repo-root>/composer.json`
     - [x] `<repo-root>/framework/composer.json`
-    - [x] `<repo-root>/skeleton/composer.json`
+    - [x] `<repo-root>/packages/applications/skeleton/composer.json`
   - [x] `--path` override MUST be treated as fixture repo root in tests.
   - [x] MUST resolve the tools root deterministically from the executing gate file.
-  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] MUST load `tools/spikes/_support/bootstrap.php` before scanning.
   - [x] If bootstrap is missing or unreadable:
-    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST attempt to load `tools/spikes/_support/ConsoleOutput.php`
     - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])` when fallback output writer is available
     - [x] MUST exit with code `1`
   - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST load `tools/spikes/_support/ErrorCodes.php` when available.
   - [x] MUST resolve error code constants from `ErrorCodes` when defined.
   - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [x] MUST use two code classes when applicable:
@@ -18569,7 +18569,7 @@ Forbidden:
   - [x] MUST add or update dedicated security aggregate:
     - [x] `security` MUST include `@composer-audit:gate`
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_COMPOSER_AUDIT_FAILED`
   - [x] `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
 
@@ -18593,17 +18593,17 @@ Forbidden:
 ### Verification
 
 - [x] Integration test MUST NOT call live Packagist or live advisory services.
-- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
-- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
-- [x] `framework/tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
-- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
+- [x] `tools/tests/Fixtures/ComposerAudit/audit_clean.json` — captured clean output fixture
+- [x] `tools/tests/Fixtures/ComposerAudit/audit_with_advisories.json` — captured advisory output fixture
+- [x] `tools/tests/Fixtures/ComposerAudit/audit_scan_failed.json` — captured process-failure fixture
+- [x] `tools/tests/Integration/ComposerAuditGateTest.php` MUST use mocked process output / fixtures only and assert deterministic codes for:
   - [x] advisory found → `CORETSIA_COMPOSER_AUDIT_FAILED`
   - [x] scan failure → `CORETSIA_COMPOSER_AUDIT_SCAN_FAILED`
   - [x] composer audit exits non-zero but returns valid JSON with advisories → `CORETSIA_COMPOSER_AUDIT_FAILED`, not scan failed
 
 ### Tests
 
-- [x] `framework/tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
+- [x] `tools/tests/Integration/ComposerAuditGateTest.php` (mocks composer output).
 
 ### DoD
 
@@ -18619,7 +18619,7 @@ Forbidden:
 type: tools
 phase: 1
 epic_id: "1.410.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Prevent accidental commits of secrets by scanning the repository with Gitleaks."
 provides:
@@ -18661,7 +18661,7 @@ N/A (external tool)
 #### Creates
 
 - [x] `.gitleaks.toml` — canonical config with rules for detecting secrets, and allowlist for false positives (e.g., test keys)
-- [x] `framework/tools/gates/secret_leakage_gate.php` — deterministic gate:
+- [x] `tools/gates/secret_leakage_gate.php` — deterministic gate:
   - [x] MUST resolve repository root from the framework workspace:
     - [x] default repo root is parent directory of `framework/`
   - [x] MUST run scanner against repo root, not only `framework/`
@@ -18680,14 +18680,14 @@ N/A (external tool)
   - [x] MUST NOT parse human-readable Gitleaks output.
   - [x] MUST classify missing/unavailable Gitleaks as `CORETSIA_SECRET_GATE_SCAN_FAILED`.
   - [x] MUST resolve the tools root deterministically from the executing gate file.
-  - [x] MUST load `framework/tools/spikes/_support/bootstrap.php` before scanning.
+  - [x] MUST load `tools/spikes/_support/bootstrap.php` before scanning.
   - [x] If bootstrap is missing or unreadable:
-    - [x] MUST attempt to load `framework/tools/spikes/_support/ConsoleOutput.php`
+    - [x] MUST attempt to load `tools/spikes/_support/ConsoleOutput.php`
     - [x] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
     - [x] MUST exit with code `1`
   - [x] MUST use `Coretsia\Tools\Spikes\_support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [x] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [x] MUST load `framework/tools/spikes/_support/ErrorCodes.php` when available.
+  - [x] MUST load `tools/spikes/_support/ErrorCodes.php` when available.
   - [x] MUST resolve error code constants from `ErrorCodes` when defined.
   - [x] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [x] MUST use two code classes when applicable:
@@ -18728,7 +18728,7 @@ N/A (external tool)
   - [x] MUST add it to the dedicated security aggregate:
     - [x] `security` → [`@secret-leakage:gate`]
 
-- [x] `framework/tools/spikes/_support/ErrorCodes.php` — register:
+- [x] `tools/spikes/_support/ErrorCodes.php` — register:
   - [x] `CORETSIA_SECRET_LEAK_DETECTED`
   - [x] `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
@@ -18752,16 +18752,16 @@ N/A (external tool)
 ### Verification
 
 - [x] Integration test MUST NOT require live Gitleaks scanning against realistic secrets.
-- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
-- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
-- [x] `framework/tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
-- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
+- [x] `tools/tests/Fixtures/Gitleaks/gitleaks_clean.json`
+- [x] `tools/tests/Fixtures/Gitleaks/gitleaks_with_findings.json`
+- [x] `tools/tests/Fixtures/Gitleaks/gitleaks_scan_failed.json`
+- [x] `tools/tests/Integration/SecretLeakageGateTest.php` MUST use mocked Gitleaks JSON output / fixtures and assert:
   - [x] finding found → `CORETSIA_SECRET_LEAK_DETECTED`
   - [x] scanner unavailable / invalid JSON → `CORETSIA_SECRET_GATE_SCAN_FAILED`
 
 ### Tests
 
-- [x] `framework/tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
+- [x] `tools/tests/Integration/SecretLeakageGateTest.php` (uses mocked Gitleaks JSON output fixtures)
   - [x] tests MUST use mocked Gitleaks JSON output fixtures
   - [x] tests MUST NOT commit realistic live credentials
 

@@ -27,9 +27,9 @@ This document is the Single Source of Truth for Coretsia Foundation runtime cont
 This document governs the Foundation runtime implementation under:
 
 ```text
-framework/packages/core/foundation/src/Context/
-framework/packages/core/foundation/src/Id/
-framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php
+packages/core/foundation/src/Context/
+packages/core/foundation/src/Id/
+packages/core/foundation/src/Observability/CorrelationIdProvider.php
 ```
 
 It complements:
@@ -105,18 +105,18 @@ core/foundation
 The Foundation implementation files are:
 
 ```text
-framework/packages/core/foundation/src/Context/ContextBag.php
-framework/packages/core/foundation/src/Context/ContextStore.php
-framework/packages/core/foundation/src/Context/ContextStorePolicy.php
-framework/packages/core/foundation/src/Id/UlidGenerator.php
-framework/packages/core/foundation/src/Id/CorrelationIdGenerator.php
-framework/packages/core/foundation/src/Observability/CorrelationIdProvider.php
+packages/core/foundation/src/Context/ContextBag.php
+packages/core/foundation/src/Context/ContextStore.php
+packages/core/foundation/src/Context/ContextStorePolicy.php
+packages/core/foundation/src/Id/UlidGenerator.php
+packages/core/foundation/src/Id/CorrelationIdGenerator.php
+packages/core/foundation/src/Observability/CorrelationIdProvider.php
 ```
 
 The public context key registry consumed by `ContextStorePolicy` is:
 
 ```text
-framework/packages/core/contracts/src/Context/ContextKeys.php
+packages/core/contracts/src/Context/ContextKeys.php
 ```
 
 `core/foundation` depends on `core/contracts` for stable ports and reset contracts.
@@ -1109,7 +1109,7 @@ Baseline context services MUST remain resolvable even when concrete autowiring i
 kernel.stateful
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
@@ -1129,7 +1129,7 @@ The reserved default is:
 kernel.reset
 ```
 
-The canonical code-level identifier for this framework-reserved DI tag is:
+The canonical code-level identifier for this Coretsia-reserved DI tag is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::KERNEL_RESET
@@ -1423,32 +1423,32 @@ Generated correlation id values are entropy-based, but their string format MUST 
 Expected verification includes:
 
 ```text
-framework/packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
-framework/packages/core/foundation/tests/Unit/ContextBagRejectsValuesExceedingResourceLimitsTest.php
-framework/packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
-framework/packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
-framework/packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
-framework/packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
-framework/packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxDepthTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxNodesTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsOversizedStringValuesTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php
-framework/packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php
+packages/core/foundation/tests/Unit/ContextBagImmutabilityTest.php
+packages/core/foundation/tests/Unit/ContextBagRejectsValuesExceedingResourceLimitsTest.php
+packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php
+packages/core/foundation/tests/Unit/CorrelationIdGeneratorDelegatesToUlidGeneratorTest.php
+packages/core/foundation/tests/Unit/CorrelationIdFormatTest.php
+packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
+packages/core/foundation/tests/Contract/CorrelationIdFormatContractTest.php
+packages/core/foundation/tests/Contract/ContextAccessorSignatureContractTest.php
+packages/core/foundation/tests/Contract/ContextInvalidKeyDiagnosticsAreSafeContractTest.php
+packages/core/foundation/tests/Contract/ContextWriteForbiddenDiagnosticsAreSafeContractTest.php
+packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Integration/ContextStoreResetClearsContextTest.php
+packages/core/foundation/tests/Integration/ContextStoreSafeWriteGuardBlocksForbiddenKeysTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsAtPrefixedKeysTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsUnknownKeysTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsFloatValuesTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsObjectValuesTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsResourceValuesTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsNonStringMapKeysTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxDepthTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsValuesExceedingMaxNodesTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsOversizedStringValuesTest.php
+packages/core/foundation/tests/Integration/ContextStoreAcceptsValuesAtExactResourceLimitsTest.php
+packages/core/foundation/tests/Integration/ContextStoreRejectsSelfReferentialArraysDeterministicallyTest.php
+packages/core/foundation/tests/Integration/ContextStoreIsTaggedKernelStatefulTest.php
+packages/core/foundation/tests/Integration/ContextStoreIsTaggedWithEffectiveResetTagTest.php
 ```
 
 These tests are expected to verify:
@@ -1536,7 +1536,7 @@ This SSoT does not define:
 - UoW root map policy;
 - unsafe metadata key denylist policy;
 - feature toggles;
-- skeleton defaults;
+- application-template defaults;
 - business context models;
 - user profile models;
 - session storage;

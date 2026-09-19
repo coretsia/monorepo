@@ -27,8 +27,8 @@ This document is the Single Source of Truth for Coretsia unit-of-work runtime co
 This document governs the contracts-level runtime boundary under:
 
 ```text
-framework/packages/core/contracts/src/Runtime/
-framework/packages/core/contracts/src/Runtime/Hook/
+packages/core/contracts/src/Runtime/
+packages/core/contracts/src/Runtime/Hook/
 ```
 
 The canonical external UnitOfWork runtime port is:
@@ -115,7 +115,7 @@ Runtime owner packages adapt their boundary-specific information to reset and ho
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Runtime/KernelRuntimeInterface.php
+packages/core/contracts/src/Runtime/KernelRuntimeInterface.php
 ```
 
 The canonical interface is:
@@ -260,8 +260,8 @@ They MUST NOT depend on:
 - `platform/*`
 - `integrations/*`
 - `Psr\Http\Message\*`
-- framework HTTP runtime packages
-- framework CLI runtime packages
+- `platform/http` runtime package
+- `platform/cli` runtime package
 - worker runtime packages
 - queue vendor clients
 - scheduler vendor clients
@@ -272,7 +272,8 @@ They MUST NOT depend on:
 - concrete tracing implementations
 - concrete metrics implementations
 - vendor-specific runtime clients
-- framework tooling packages
+- `devtools/*` packages
+- repository tooling under `tools/**`
 - generated architecture artifacts
 
 Runtime packages MAY depend on `core/contracts`.
@@ -330,7 +331,7 @@ These runtime contract interfaces MUST NOT be treated as DTOs.
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Runtime/ResetInterface.php
+packages/core/contracts/src/Runtime/ResetInterface.php
 ```
 
 The canonical interface shape is:
@@ -354,8 +355,8 @@ A reset-capable service MUST NOT require:
 
 - PSR-7 request objects;
 - PSR-7 response objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -389,7 +390,7 @@ A runtime owner MAY preserve the original throwable as an in-process previous th
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php
+packages/core/contracts/src/Runtime/Hook/BeforeUowHookInterface.php
 ```
 
 The canonical interface shape is:
@@ -413,8 +414,8 @@ It MUST NOT require:
 - PSR-7 request objects;
 - PSR-7 response objects;
 - PSR-15 middleware objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -447,7 +448,7 @@ The contracts package does not define hook metadata, hook priority, hook discove
 The implementation path is:
 
 ```text
-framework/packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php
+packages/core/contracts/src/Runtime/Hook/AfterUowHookInterface.php
 ```
 
 The canonical interface shape is:
@@ -473,8 +474,8 @@ It MUST NOT require:
 - PSR-7 request objects;
 - PSR-7 response objects;
 - PSR-15 middleware objects;
-- framework HTTP request objects;
-- framework HTTP response objects;
+- `platform/http` request objects;
+- `platform/http` response objects;
 - CLI concrete input/output objects;
 - queue vendor message objects;
 - worker vendor context objects;
@@ -643,7 +644,7 @@ kernel.hook.before_uow
 kernel.hook.after_uow
 ```
 
-The canonical code-level identifiers for these framework-reserved DI tags are declared only in:
+The canonical code-level identifiers for these Coretsia-reserved DI tags are declared only in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags
@@ -677,7 +678,7 @@ Coretsia\Foundation\Tag\ReservedTags::KERNEL_HOOK_AFTER_UOW
 
 `core/contracts` MUST NOT define competing public tag APIs.
 
-`core/contracts` MUST NOT define additional code-level registries for framework-reserved DI tag identifiers.
+`core/contracts` MUST NOT define additional code-level registries for Coretsia-reserved DI tag identifiers.
 
 `core/contracts` MUST NOT define competing tag metadata keys.
 
@@ -923,17 +924,17 @@ The concrete worker loop, tag discovery, hook executor, reset orchestrator, erro
 Contracts-level enforcement evidence includes:
 
 ```text
-framework/packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php
-framework/packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
-framework/packages/core/contracts/tests/Contract/UnitOfWorkHandleContractTest.php
-framework/packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
+packages/core/contracts/tests/Contract/ResetInterfaceIsMinimalContractTest.php
+packages/core/contracts/tests/Contract/KernelRuntimeInterfaceIsFormatNeutralContractTest.php
+packages/core/contracts/tests/Contract/UnitOfWorkHandleContractTest.php
+packages/core/contracts/tests/Contract/HookInterfacesDoNotDependOnPlatformTest.php
 ```
 
 Kernel implementation evidence additionally includes:
 
 ```text
-framework/packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
-framework/packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeHandleDoesNotExportTimingTokensTest.php
+packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php
 ```
 
 `KernelRuntimeEnforcesSingleActiveUnitOfWorkTest` verifies the single-active state machine, including the four forbidden transitions:
@@ -984,7 +985,7 @@ This SSoT does not define:
 - KernelRuntime implementation in `core/contracts`;
 - DI service discovery implementation;
 - DI tag identifier constants in `core/contracts`;
-- additional code-level registries for framework-reserved DI tag identifiers;
+- additional code-level registries for Coretsia-reserved DI tag identifiers;
 - tag metadata schema;
 - tag priority schema;
 - worker loop implementation;

@@ -20,7 +20,7 @@
 type: package
 phase: 5
 epic_id: "5.10.0"
-owner_path: "framework/packages/platform/secrets/"
+owner_path: "packages/platform/secrets/"
 
 package_id: "platform/secrets"
 composer: "coretsia/platform-secrets"
@@ -54,14 +54,14 @@ ssot_refs:
   - (pre-existing) `core/contracts` — contains `Coretsia\Contracts\Secrets\SecretsResolverInterface` and observability ports used here.
   - (pre-existing) `core/foundation` — stable context APIs (optional usage) + container/wiring base.
   - 2.27.0 — Sensitive data redaction boundary exists.
-  - `framework/packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+  - `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
-  - `framework/packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
-  - `framework/packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
-  - `framework/packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
-  - (optional) `framework/packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
+  - `packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
+  - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
+  - (optional) `packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
 
 - Required config roots/keys:
   - `secrets` / `secrets.*` — this epic introduces and owns.
@@ -110,50 +110,50 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/secrets/src/Module/SecretsModule.php` — runtime module entry.
-- [ ] `framework/packages/platform/secrets/src/Provider/SecretsServiceProvider.php` — DI wiring.
-- [ ] `framework/packages/platform/secrets/src/Provider/SecretsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (avoid typos).
-- [ ] `framework/packages/platform/secrets/config/secrets.php` — config subtree `secrets` (no repeated root).
-- [ ] `framework/packages/platform/secrets/config/rules.php` — config shape rules.
-- [ ] `framework/packages/platform/secrets/README.md` — Observability / Errors / Security-Redaction.
-- [ ] `framework/packages/platform/secrets/src/Secrets/NullSecretsResolver.php` — noop resolver (always null).
-- [ ] `framework/packages/platform/secrets/src/Secrets/EnvSecretsResolver.php` — env-map resolver (never logs values).
-- [ ] `framework/packages/platform/secrets/src/Secrets/SecretRefParser.php` — deterministic parsing (`env:KEY`).
-- [ ] `framework/packages/platform/secrets/src/Exception/SecretsResolutionException.php` — deterministic errors.
+- [ ] `packages/platform/secrets/src/Module/SecretsModule.php` — runtime module entry.
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php` — DI wiring.
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (avoid typos).
+- [ ] `packages/platform/secrets/config/secrets.php` — config subtree `secrets` (no repeated root).
+- [ ] `packages/platform/secrets/config/rules.php` — config shape rules.
+- [ ] `packages/platform/secrets/README.md` — Observability / Errors / Security-Redaction.
+- [ ] `packages/platform/secrets/src/Secrets/NullSecretsResolver.php` — noop resolver (always null).
+- [ ] `packages/platform/secrets/src/Secrets/EnvSecretsResolver.php` — env-map resolver (never logs values).
+- [ ] `packages/platform/secrets/src/Secrets/SecretRefParser.php` — deterministic parsing (`env:KEY`).
+- [ ] `packages/platform/secrets/src/Exception/SecretsResolutionException.php` — deterministic errors.
 
 #### Modifies
 
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
-- [ ] `docs/ssot/config-roots.md` — add root row for `secrets` (owner `platform/secrets`, defaults `framework/packages/platform/secrets/config/secrets.php`, rules `framework/packages/platform/secrets/config/rules.php`)
+- [ ] `docs/ssot/config-roots.md` — add root row for `secrets` (owner `platform/secrets`, defaults `packages/platform/secrets/config/secrets.php`, rules `packages/platform/secrets/config/rules.php`)
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/secrets/composer.json`
-- [ ] `framework/packages/platform/secrets/src/Module/SecretsModule.php`
-- [ ] `framework/packages/platform/secrets/src/Provider/SecretsServiceProvider.php`
-- [ ] `framework/packages/platform/secrets/config/secrets.php`
-- [ ] `framework/packages/platform/secrets/config/rules.php`
-- [ ] `framework/packages/platform/secrets/README.md`
-- [ ] `framework/packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/secrets/composer.json`
+- [ ] `packages/platform/secrets/src/Module/SecretsModule.php`
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php`
+- [ ] `packages/platform/secrets/config/secrets.php`
+- [ ] `packages/platform/secrets/config/rules.php`
+- [ ] `packages/platform/secrets/README.md`
+- [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/secrets/config/secrets.php`
+  - [ ] `packages/platform/secrets/config/secrets.php`
 - [ ] Keys (dot):
   - [ ] `secrets.enabled` = true
   - [ ] `secrets.driver` = "null"            # "null" | "env"
   - [ ] `secrets.env_map` = []               # map refKey => envKey (values are env key names, not secrets)
   - [ ] `secrets.redaction.enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/secrets/config/rules.php` enforces shape
+  - [ ] `packages/platform/secrets/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants to avoid typos)
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (constants to avoid typos)
   - [ ] constant(s): `SECRETS_DRIVER` (optional, if you select by tag) OR none if selected by config
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Contracts\Secrets\SecretsResolverInterface` → selected driver (config-driven)
@@ -207,8 +207,8 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/secrets/tests/Contract/ObservabilityPolicyTest.php`
-- [ ] If redaction exists → `framework/packages/platform/secrets/tests/Contract/RedactionDoesNotLeakTest.php`
+- [ ] If metrics/spans/logs exist → `packages/platform/secrets/tests/Contract/ObservabilityPolicyTest.php`
+- [ ] If redaction exists → `packages/platform/secrets/tests/Contract/RedactionDoesNotLeakTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -218,15 +218,15 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/secrets/tests/Unit/SecretRefParserTest.php`
+  - [ ] `packages/platform/secrets/tests/Unit/SecretRefParserTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `framework/packages/platform/secrets/tests/Contract/SecretsNeverLeakResolvedValuesContractTest.php`
-  - [ ] `framework/packages/platform/secrets/tests/Contract/SecretRefRedactionIsStableContractTest.php`
+  - [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/secrets/tests/Contract/SecretsNeverLeakResolvedValuesContractTest.php`
+  - [ ] `packages/platform/secrets/tests/Contract/SecretRefRedactionIsStableContractTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/secrets/tests/Integration/EnvSecretsResolverDoesNotLeakValuesTest.php`
-  - [ ] `framework/packages/platform/secrets/tests/Integration/NullResolverAlwaysReturnsNullTest.php`
-  - [ ] `framework/packages/platform/secrets/tests/Integration/EnvSecretsResolverDeterministicOutcomeTest.php`
+  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDoesNotLeakValuesTest.php`
+  - [ ] `packages/platform/secrets/tests/Integration/NullResolverAlwaysReturnsNullTest.php`
+  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDeterministicOutcomeTest.php`
 - Gates/Arch:
   - N/A
 
@@ -238,7 +238,7 @@ N/A
 - [ ] Verification tests present where applicable
 - [ ] Determinism: same ref inputs produce same outputs; no random ids in logs/spans
 - [ ] Docs updated:
-  - [ ] `framework/packages/platform/secrets/README.md`
+  - [ ] `packages/platform/secrets/README.md`
   - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
 - [ ] Ref parsing errors deterministic (`CORETSIA_SECRETS_INVALID_REF`) and contain no raw ref or values
 - [ ] No secret values appear in any outputs (tests prove)
@@ -272,7 +272,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.20.0"
-owner_path: "framework/packages/platform/auth/"
+owner_path: "packages/platform/auth/"
 
 package_id: "platform/auth"
 composer: "coretsia/platform-auth"
@@ -305,9 +305,9 @@ ssot_refs:
   - `4.130.0` — `Coretsia\Contracts\Auth\AuthorizationInterface` exists.
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/auth/src/Auth/RbacAuthorization.php` — baseline engine (switchable with REBAC).
-  - `framework/packages/platform/auth/config/auth.php` — extended with `auth.authorization.engine` + rebac keys.
-  - `framework/packages/platform/auth/config/rules.php` — updated config shape rules.
+  - `packages/platform/auth/src/Auth/RbacAuthorization.php` — baseline engine (switchable with REBAC).
+  - `packages/platform/auth/config/auth.php` — extended with `auth.authorization.engine` + rebac keys.
+  - `packages/platform/auth/config/rules.php` — updated config shape rules.
 
 - Required config roots/keys:
   - `auth` / `auth.authorization.*`, `auth.rebac.*` — must exist/owned by platform/auth.
@@ -358,21 +358,21 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/auth/src/Auth/RebacAuthorization.php` — implements `AuthorizationInterface`
-- [ ] `framework/packages/platform/auth/src/Auth/Rebac/GraphStoreInterface.php` — internal interface (NOT cross-package port)
-- [ ] `framework/packages/platform/auth/src/Auth/Rebac/InMemoryGraphStore.php` — reference store
-- [ ] `framework/packages/platform/auth/src/Auth/Rebac/Relations.php` — relation definitions + deterministic normalize
+- [ ] `packages/platform/auth/src/Auth/RebacAuthorization.php` — implements `AuthorizationInterface`
+- [ ] `packages/platform/auth/src/Auth/Rebac/GraphStoreInterface.php` — internal interface (NOT cross-package port)
+- [ ] `packages/platform/auth/src/Auth/Rebac/InMemoryGraphStore.php` — reference store
+- [ ] `packages/platform/auth/src/Auth/Rebac/Relations.php` — relation definitions + deterministic normalize
 
 #### Modifies
 
-- [ ] `framework/packages/platform/auth/config/auth.php` — add:
+- [ ] `packages/platform/auth/config/auth.php` — add:
   - `auth.authorization.engine` (default "rbac")
   - `auth.rebac.relations` = []
   - `auth.rebac.tuples` = []
   - `auth.rebac.max_depth` = 8
-- [ ] `framework/packages/platform/auth/config/rules.php` — enforce updated config shape
-- [ ] `framework/packages/platform/auth/src/Provider/AuthServiceProvider.php` — register/select authorization engine by config
-- [ ] `framework/packages/platform/auth/README.md` — document RBAC vs REBAC switch + max_depth rail
+- [ ] `packages/platform/auth/config/rules.php` — enforce updated config shape
+- [ ] `packages/platform/auth/src/Provider/AuthServiceProvider.php` — register/select authorization engine by config
+- [ ] `packages/platform/auth/README.md` — document RBAC vs REBAC switch + max_depth rail
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-authorization-engines-rbac-rebac.md`
 
@@ -383,14 +383,14 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/auth/config/auth.php`
+  - [ ] `packages/platform/auth/config/auth.php`
 - [ ] Keys (dot):
   - [ ] `auth.authorization.engine` = "rbac"
   - [ ] `auth.rebac.relations` = []
   - [ ] `auth.rebac.tuples` = []
   - [ ] `auth.rebac.max_depth` = 8
 - [ ] Rules:
-  - [ ] `framework/packages/platform/auth/config/rules.php` enforces shape
+  - [ ] `packages/platform/auth/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -426,8 +426,8 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] If metrics/spans/logs exist → `framework/packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php` (reuse; assert engine label allowed)
-- [ ] If redaction exists → `framework/packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php` (reuse; assert no tuples dumped)
+- [ ] If metrics/spans/logs exist → `packages/platform/auth/tests/Contract/ObservabilityPolicyTest.php` (reuse; assert engine label allowed)
+- [ ] If redaction exists → `packages/platform/auth/tests/Contract/RedactionDoesNotLeakTest.php` (reuse; assert no tuples dumped)
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -437,11 +437,11 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/auth/tests/Unit/RebacAuthorizationGraphTraversalDeterministicTest.php`
+  - [ ] `packages/platform/auth/tests/Unit/RebacAuthorizationGraphTraversalDeterministicTest.php`
 - Contract:
   - [ ] (optional) extend existing observability/redaction contracts to cover REBAC logs/labels
 - Integration:
-  - [ ] `framework/packages/platform/auth/tests/Integration/RebacMaxDepthEnforcedTest.php`
+  - [ ] `packages/platform/auth/tests/Integration/RebacMaxDepthEnforcedTest.php`
 - Gates/Arch:
   - N/A
 
@@ -477,7 +477,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.30.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -541,13 +541,13 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/README.md` — (MODIFIES, optional) mention `Contracts\Events\*` ports + invariants
+- [ ] `packages/core/contracts/README.md` — (MODIFIES, optional) mention `Contracts\Events\*` ports + invariants
 
-- [ ] `framework/packages/core/contracts/src/Events/DomainEventInterface.php` — canonical domain event shape (name/time/payload)
-- [ ] `framework/packages/core/contracts/src/Events/EventDispatcherInterface.php` — sync dispatcher port
-- [ ] `framework/packages/core/contracts/src/Events/EventListenerInterface.php` — listener port (single handler method)
-- [ ] `framework/packages/core/contracts/src/Events/DeferredEventQueueInterface.php` — deferred queue port (push/releaseAll)
-- [ ] `framework/packages/core/contracts/src/Events/EventEnvelope.php` — optional VO for stable metadata (schemaVersion, id, name, occurredAt, payload, correlationId?)
+- [ ] `packages/core/contracts/src/Events/DomainEventInterface.php` — canonical domain event shape (name/time/payload)
+- [ ] `packages/core/contracts/src/Events/EventDispatcherInterface.php` — sync dispatcher port
+- [ ] `packages/core/contracts/src/Events/EventListenerInterface.php` — listener port (single handler method)
+- [ ] `packages/core/contracts/src/Events/DeferredEventQueueInterface.php` — deferred queue port (push/releaseAll)
+- [ ] `packages/core/contracts/src/Events/EventEnvelope.php` — optional VO for stable metadata (schemaVersion, id, name, occurredAt, payload, correlationId?)
 
 #### Modifies
 
@@ -556,7 +556,7 @@ N/A
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/contracts/composer.json` — (MODIFIES if needed) ensure autoload covers `src/` only (no special changes usually)
+- [ ] `packages/core/contracts/composer.json` — (MODIFIES if needed) ensure autoload covers `src/` only (no special changes usually)
 
 #### Configuration (keys + defaults)
 
@@ -607,14 +607,14 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/core/contracts/tests/Unit/EventEnvelopeShapeTest.php`
+  - [ ] `packages/core/contracts/tests/Unit/EventEnvelopeShapeTest.php`
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/EventsContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/EventsContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
 - Integration:
   - [ ] none
 - Gates/Arch:
-  - [ ] `framework/tools/gates/contracts_only_ports_gate.php` expectations updated (if needed)
+  - [ ] `tools/gates/contracts_only_ports_gate.php` expectations updated (if needed)
 
 ### DoD (MUST)
 
@@ -655,7 +655,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.40.0"
-owner_path: "framework/packages/platform/events/"
+owner_path: "packages/platform/events/"
 
 package_id: "platform/events"
 composer: "coretsia/platform-events"
@@ -694,12 +694,12 @@ ssot_refs:
   - 5.30.0 — contracts ports for events must exist
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Events/EventDispatcherInterface.php` — dispatcher port
-  - `framework/packages/core/contracts/src/Events/EventListenerInterface.php` — listener port
-  - `framework/packages/core/contracts/src/Events/DeferredEventQueueInterface.php` — deferred queue port
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.hook.*`
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.reset` / `kernel.stateful`
-  - `framework/packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `cli.command` (not used here, but reserve policy)
+  - `packages/core/contracts/src/Events/EventDispatcherInterface.php` — dispatcher port
+  - `packages/core/contracts/src/Events/EventListenerInterface.php` — listener port
+  - `packages/core/contracts/src/Events/DeferredEventQueueInterface.php` — deferred queue port
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.hook.*`
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `kernel.reset` / `kernel.stateful`
+  - `packages/core/foundation/src/Tag/ReservedTags.php` — owner constants for `cli.command` (not used here, but reserve policy)
 
 - Required config roots/keys:
   - `events.*` — introduced by this epic (see Configuration)
@@ -750,8 +750,8 @@ Forbidden:
 - HTTP:
   - N/A
 - Kernel hooks/tags:
-  - `kernel.hook.after_uow` priority `0` meta `{"reason":"flush deferred events only on success"}` → `framework/packages/platform/events/src/Kernel/DeferredEventsAfterUowHook.php`
-  - `kernel.reset` priority `0` meta `{"reason":"clear deferred queue between UoW"}` → `framework/packages/platform/events/src/Deferred/DeferredEventQueue.php`
+  - `kernel.hook.after_uow` priority `0` meta `{"reason":"flush deferred events only on success"}` → `packages/platform/events/src/Kernel/DeferredEventsAfterUowHook.php`
+  - `kernel.reset` priority `0` meta `{"reason":"clear deferred queue between UoW"}` → `packages/platform/events/src/Deferred/DeferredEventQueue.php`
 - Artifacts:
   - N/A
 
@@ -759,21 +759,21 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/events/src/Module/EventsModule.php`
-- [ ] `framework/packages/platform/events/src/Provider/EventsServiceProvider.php`
-- [ ] `framework/packages/platform/events/src/Provider/EventsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/events/config/events.php`
-- [ ] `framework/packages/platform/events/config/rules.php`
-- [ ] `framework/packages/platform/events/README.md` — MUST include: Observability / Errors / Security-Redaction
-- [ ] `framework/packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/events/src/Module/EventsModule.php`
+- [ ] `packages/platform/events/src/Provider/EventsServiceProvider.php`
+- [ ] `packages/platform/events/src/Provider/EventsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/events/config/events.php`
+- [ ] `packages/platform/events/config/rules.php`
+- [ ] `packages/platform/events/README.md` — MUST include: Observability / Errors / Security-Redaction
+- [ ] `packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (ONLY owner tag):
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (ONLY owner tag):
   - [ ] `EVENTS_LISTENER = 'events.listener'`
-- [ ] `framework/packages/platform/events/src/Dispatcher/SyncEventDispatcher.php` — implements `EventDispatcherInterface` (sync dispatch)
-- [ ] `framework/packages/platform/events/src/Dispatcher/ListenerRegistry.php` — collects listeners from tag `events.listener` (DeterministicOrder)
-- [ ] `framework/packages/platform/events/src/Deferred/DeferredEventQueue.php` — implements `DeferredEventQueueInterface`, `ResetInterface` (tag `kernel.reset`)
-- [ ] `framework/packages/platform/events/src/Kernel/DeferredEventsAfterUowHook.php` — implements `AfterUowHookInterface` (flush only on success)
-- [ ] `framework/packages/platform/events/src/Observability/EventInstrumentation.php` — spans/metrics/log policy helper
+- [ ] `packages/platform/events/src/Dispatcher/SyncEventDispatcher.php` — implements `EventDispatcherInterface` (sync dispatch)
+- [ ] `packages/platform/events/src/Dispatcher/ListenerRegistry.php` — collects listeners from tag `events.listener` (DeterministicOrder)
+- [ ] `packages/platform/events/src/Deferred/DeferredEventQueue.php` — implements `DeferredEventQueueInterface`, `ResetInterface` (tag `kernel.reset`)
+- [ ] `packages/platform/events/src/Kernel/DeferredEventsAfterUowHook.php` — implements `AfterUowHookInterface` (flush only on success)
+- [ ] `packages/platform/events/src/Observability/EventInstrumentation.php` — spans/metrics/log policy helper
 - [ ] `docs/architecture/events.md` — high-level (listeners tag, deferred semantics, redaction)
 
 #### Modifies
@@ -783,34 +783,34 @@ Forbidden:
 - [ ] `docs/ssot/tags.md` — add rows:
   - [ ] `events.listener` | owner `platform/events` | purpose: deterministic listener discovery (TagRegistry order: priority DESC, id ASC)
 - [ ] `docs/ssot/config-roots.md` — add rows:
-  - [ ] `events` | owner `platform/events` | defaults `framework/packages/platform/events/config/events.php` | rules `framework/packages/platform/events/config/rules.php`
+  - [ ] `events` | owner `platform/events` | defaults `packages/platform/events/config/events.php` | rules `packages/platform/events/config/rules.php`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/events/composer.json`
-- [ ] `framework/packages/platform/events/src/Module/EventsModule.php`
-- [ ] `framework/packages/platform/events/src/Provider/EventsServiceProvider.php`
-- [ ] `framework/packages/platform/events/config/events.php`
-- [ ] `framework/packages/platform/events/config/rules.php`
-- [ ] `framework/packages/platform/events/README.md`
-- [ ] `framework/packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/events/composer.json`
+- [ ] `packages/platform/events/src/Module/EventsModule.php`
+- [ ] `packages/platform/events/src/Provider/EventsServiceProvider.php`
+- [ ] `packages/platform/events/config/events.php`
+- [ ] `packages/platform/events/config/rules.php`
+- [ ] `packages/platform/events/README.md`
+- [ ] `packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/events/config/events.php`
+  - [ ] `packages/platform/events/config/events.php`
 - [ ] Keys (dot):
   - [ ] `events.enabled` = true
   - [ ] `events.deferred.enabled` = true
   - [ ] `events.deferred.flush_on_success_only` = true
   - [ ] `events.listeners.enabled` = true
 - [ ] Rules:
-  - [ ] `framework/packages/platform/events/config/rules.php` enforces shape
+  - [ ] `packages/platform/events/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `EVENTS_LISTENER` → `events.listener`
 - [ ] ServiceProvider wiring evidence:
@@ -856,7 +856,7 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/events/src/Exception/EventDispatchException.php` — errorCode `CORETSIA_EVENTS_DISPATCH_FAILED`
+  - [ ] `packages/platform/events/src/Exception/EventDispatchException.php` — errorCode `CORETSIA_EVENTS_DISPATCH_FAILED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (no dupes) (default mapper OK; avoid HTTP coupling)
 
@@ -873,35 +873,35 @@ N/A
 
 - [ ] If Context writes exist → N/A (no Context writes)
 - [ ] If `kernel.reset` used → evidence:
-  - [ ] `framework/packages/platform/events/tests/Integration/DeferredQueueResetBetweenUowTest.php`
+  - [ ] `packages/platform/events/tests/Integration/DeferredQueueResetBetweenUowTest.php`
 - [ ] If metrics/spans/logs exist → evidence (noop-safe baseline):
-  - [ ] `framework/packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → evidence:
-  - [ ] `framework/packages/platform/events/README.md` + `docs/architecture/events.md` document the “no payload” rule (tests listed below cover behavior paths)
+  - [ ] `packages/platform/events/README.md` + `docs/architecture/events.md` document the “no payload” rule (tests listed below cover behavior paths)
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
 - [ ] Fake adapters:
   - [ ] (as needed by tests) FakeTracer / FakeMetrics / FakeLogger capture events for assertions
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/events/tests/Unit/DeferredQueuePreservesPushOrderTest.php`
+  - [ ] `packages/platform/events/tests/Unit/DeferredQueuePreservesPushOrderTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/events/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/events/tests/Integration/DeterministicListenerOrderTest.php`
-  - [ ] `framework/packages/platform/events/tests/Integration/DeferredEventsFlushedAfterSuccessfulUowTest.php`
-  - [ ] `framework/packages/platform/events/tests/Integration/DeferredEventsNotFlushedOnHandledErrorTest.php`
-  - [ ] `framework/packages/platform/events/tests/Integration/DeferredQueueResetBetweenUowTest.php`
+  - [ ] `packages/platform/events/tests/Integration/DeterministicListenerOrderTest.php`
+  - [ ] `packages/platform/events/tests/Integration/DeferredEventsFlushedAfterSuccessfulUowTest.php`
+  - [ ] `packages/platform/events/tests/Integration/DeferredEventsNotFlushedOnHandledErrorTest.php`
+  - [ ] `packages/platform/events/tests/Integration/DeferredQueueResetBetweenUowTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
 - Framework / E2E (system-level; cross-package):
-  - [ ] `framework/tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
+  - [ ] `tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
 
 ### DoD (MUST)
 
@@ -1001,7 +1001,7 @@ N/A
 
 #### Modifies
 
-- [ ] `framework/packages/platform/events/README.md` — link to `docs/ssot/events-deferred-semantics.md`
+- [ ] `packages/platform/events/README.md` — link to `docs/ssot/events-deferred-semantics.md`
 - [ ] `docs/ssot/INDEX.md` — register:
   - [ ] `docs/ssot/events-deferred-semantics.md`
 
@@ -1029,9 +1029,9 @@ N/A
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Framework / E2E tests (system-level; cross-package):
-  - [ ] `framework/tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
+  - [ ] `tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
 - [ ] Fixture wiring:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
 
 ### Tests (MUST)
 
@@ -1045,7 +1045,7 @@ N/A
 - [ ] Gates/Arch green (N/A for docs-only)
 - [ ] Docs complete
 - [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Doc exists and is linked from `framework/packages/platform/events/README.md`
+- [ ] Doc exists and is linked from `packages/platform/events/README.md`
 - [ ] Doc matches tests + implementation (no drift)
 - [ ] Solves:
   - [ ] Зацементувати SSoT правило: deferred events flush тільки при `UnitOfWorkResult.outcome=success`
@@ -1068,7 +1068,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.60.0"
-owner_path: "framework/packages/platform/queue/"
+owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
 composer: "coretsia/platform-queue"
@@ -1111,8 +1111,8 @@ ssot_refs:
   - `queue.*` — introduced by this epic (see Configuration)
 
 - Required tags:
-  - `kernel.reset` — used to reset worker runtime state (if stateful) via `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner)
-  - `cli.command` — referenced for commands (commands are in 5.90.0; discovered by `platform/cli`) via `framework/packages/core/foundation/src/Tag/ReservedTags.php` (owner)
+  - `kernel.reset` — used to reset worker runtime state (if stateful) via `packages/core/foundation/src/Tag/ReservedTags.php` (owner)
+  - `cli.command` — referenced for commands (commands are in 5.90.0; discovered by `platform/cli`) via `packages/core/foundation/src/Tag/ReservedTags.php` (owner)
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Queue\JobInterface`
@@ -1178,20 +1178,20 @@ Forbidden:
 
 - [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
 
-- [ ] `framework/packages/platform/queue/src/Module/QueueModule.php`
-- [ ] `framework/packages/platform/queue/src/Provider/QueueServiceProvider.php`
-- [ ] `framework/packages/platform/queue/src/Provider/QueueServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/queue/config/queue.php`
-- [ ] `framework/packages/platform/queue/config/rules.php`
-- [ ] `framework/packages/platform/queue/README.md` — MUST include: Observability / Errors / Security-Redaction
-- [ ] `framework/packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/queue/src/Module/QueueModule.php`
+- [ ] `packages/platform/queue/src/Provider/QueueServiceProvider.php`
+- [ ] `packages/platform/queue/src/Provider/QueueServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/queue/config/queue.php`
+- [ ] `packages/platform/queue/config/rules.php`
+- [ ] `packages/platform/queue/README.md` — MUST include: Observability / Errors / Security-Redaction
+- [ ] `packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
-- [ ] `framework/packages/platform/queue/src/Queue/QueueManager.php` — driver registry + facade wiring
-- [ ] `framework/packages/platform/queue/src/Driver/SyncQueueDriver.php` — reference sync driver
-- [ ] `framework/packages/platform/queue/src/Serialization/JsonJobSerializer.php` — deterministic serialize/deserialize (no payload logging)
-- [ ] `framework/packages/platform/queue/src/Retry/ExponentialBackoffStrategy.php` — deterministic backoff (ints only)
-- [ ] `framework/packages/platform/queue/src/Worker/QueueWorkerRuntime.php` — worker loop (`work`, `runOnce`, `stop`) + UoW wrapper
-- [ ] `framework/packages/platform/queue/src/Worker/JobRunner.php` — handler lookup + retry/fail decisions (no magic)
+- [ ] `packages/platform/queue/src/Queue/QueueManager.php` — driver registry + facade wiring
+- [ ] `packages/platform/queue/src/Driver/SyncQueueDriver.php` — reference sync driver
+- [ ] `packages/platform/queue/src/Serialization/JsonJobSerializer.php` — deterministic serialize/deserialize (no payload logging)
+- [ ] `packages/platform/queue/src/Retry/ExponentialBackoffStrategy.php` — deterministic backoff (ints only)
+- [ ] `packages/platform/queue/src/Worker/QueueWorkerRuntime.php` — worker loop (`work`, `runOnce`, `stop`) + UoW wrapper
+- [ ] `packages/platform/queue/src/Worker/JobRunner.php` — handler lookup + retry/fail decisions (no magic)
 - [ ] `docs/architecture/queue.md` — runtime model, retry policy, redaction, UoW discipline
 
 #### Modifies
@@ -1199,22 +1199,22 @@ Forbidden:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-queue-core-sync-driver.md`
 - [ ] `docs/ssot/config-roots.md` — add rows:
-  - [ ] `queue`  | owner `platform/queue`  | defaults `framework/packages/platform/queue/config/queue.php`  | rules `framework/packages/platform/queue/config/rules.php`
+  - [ ] `queue`  | owner `platform/queue`  | defaults `packages/platform/queue/config/queue.php`  | rules `packages/platform/queue/config/rules.php`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/queue/composer.json`
-- [ ] `framework/packages/platform/queue/src/Module/QueueModule.php`
-- [ ] `framework/packages/platform/queue/src/Provider/QueueServiceProvider.php`
-- [ ] `framework/packages/platform/queue/config/queue.php`
-- [ ] `framework/packages/platform/queue/config/rules.php`
-- [ ] `framework/packages/platform/queue/README.md`
-- [ ] `framework/packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/queue/composer.json`
+- [ ] `packages/platform/queue/src/Module/QueueModule.php`
+- [ ] `packages/platform/queue/src/Provider/QueueServiceProvider.php`
+- [ ] `packages/platform/queue/config/queue.php`
+- [ ] `packages/platform/queue/config/rules.php`
+- [ ] `packages/platform/queue/README.md`
+- [ ] `packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/queue/config/queue.php`
+  - [ ] `packages/platform/queue/config/queue.php`
 - [ ] Keys (dot):
   - [ ] `queue.enabled` = true
   - [ ] `queue.default` = "sync"              # "sync"|"db"
@@ -1224,7 +1224,7 @@ Forbidden:
   - [ ] `queue.failed.store` = "memory"       # "memory"|"db"
   - [ ] `queue.handlers.map` = []             # jobName => handler service id (explicit)
 - [ ] Rules:
-  - [ ] `framework/packages/platform/queue/config/rules.php` enforces shape
+  - [ ] `packages/platform/queue/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -1273,8 +1273,8 @@ N/A
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/queue/src/Exception/QueueException.php` — errorCode `CORETSIA_QUEUE_FAILED`
-  - [ ] `framework/packages/platform/queue/src/Exception/QueueException.php` — errorCode `CORETSIA_QUEUE_HANDLER_NOT_FOUND`
+  - [ ] `packages/platform/queue/src/Exception/QueueException.php` — errorCode `CORETSIA_QUEUE_FAILED`
+  - [ ] `packages/platform/queue/src/Exception/QueueException.php` — errorCode `CORETSIA_QUEUE_HANDLER_NOT_FOUND`
 - [ ] Mapping:
   - [ ] reuse existing mapper (no dupes) (worker uses `ErrorHandlerInterface` port, not HTTP mapping)
 
@@ -1291,36 +1291,36 @@ N/A
 
 - [ ] If Context writes exist → N/A (no required Context writes specified)
 - [ ] If `kernel.reset` used → evidence:
-  - [ ] `framework/packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php`
 - [ ] If metrics/spans/logs exist → evidence (noop-safe baseline):
-  - [ ] `framework/packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → evidence:
-  - [ ] `framework/packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php` (behavior-level)
+  - [ ] `packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php` (behavior-level)
   - [ ] `docs/architecture/queue.md` documents “never leak payload” policy
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
 - [ ] Fake adapters:
   - [ ] (as needed by tests) FakeTracer / FakeMetrics / FakeLogger capture events for assertions
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/queue/tests/Unit/JsonJobSerializerIsDeterministicTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Unit/BackoffStrategyDeterministicTest.php`
+  - [ ] `packages/platform/queue/tests/Unit/JsonJobSerializerIsDeterministicTest.php`
+  - [ ] `packages/platform/queue/tests/Unit/BackoffStrategyDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/queue/tests/Integration/SyncDriverDispatchesImmediatelyTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Integration/WorkerCallsKernelRuntimeBeginAndAfterTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Integration/RetryBackoffPolicyTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/SyncDriverDispatchesImmediatelyTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/WorkerCallsKernelRuntimeBeginAndAfterTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/RetryBackoffPolicyTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/WorkerDoesNotLeakContextBetweenJobsTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 - Framework / E2E:
-  - [ ] `framework/tools/tests/Integration/E2E/QueueWorkerProcessesConfirmationJobTest.php`
+  - [ ] `tools/tests/Integration/E2E/QueueWorkerProcessesConfirmationJobTest.php`
 
 ### DoD (MUST)
 
@@ -1363,7 +1363,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.70.0"
-owner_path: "framework/packages/platform/queue/"
+owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
 composer: "coretsia/platform-queue"
@@ -1396,8 +1396,8 @@ ssot_refs: []
   - `platform/database` + `platform/migrations` — required for DB driver + migrations
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/queue/config/queue.php` — must exist to modify
-  - `framework/packages/platform/queue/config/rules.php` — must exist to modify
+  - `packages/platform/queue/config/queue.php` — must exist to modify
+  - `packages/platform/queue/config/rules.php` — must exist to modify
 
 - Required config roots/keys:
   - `queue.default` — must exist (extended to allow "db")
@@ -1462,15 +1462,15 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/queue/database/migrations/2026_...._create_queue_jobs_table.php` — jobs table
-- [ ] `framework/packages/platform/queue/database/migrations/2026_...._create_queue_failed_jobs_table.php` — failed jobs table
-- [ ] `framework/packages/platform/queue/src/Driver/DbQueueDriver.php` — implements `QueueDriverInterface` (reserve ordering deterministic)
-- [ ] `framework/packages/platform/queue/src/Failed/DbFailedJobRepository.php` — implements `FailedJobRepositoryInterface`
+- [ ] `packages/platform/queue/database/migrations/2026_...._create_queue_jobs_table.php` — jobs table
+- [ ] `packages/platform/queue/database/migrations/2026_...._create_queue_failed_jobs_table.php` — failed jobs table
+- [ ] `packages/platform/queue/src/Driver/DbQueueDriver.php` — implements `QueueDriverInterface` (reserve ordering deterministic)
+- [ ] `packages/platform/queue/src/Failed/DbFailedJobRepository.php` — implements `FailedJobRepositoryInterface`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/queue/config/queue.php` — allow `queue.default='db'`, `queue.failed.store='db'` + add db keys
-- [ ] `framework/packages/platform/queue/config/rules.php` — extend rules for db config keys
+- [ ] `packages/platform/queue/config/queue.php` — allow `queue.default='db'`, `queue.failed.store='db'` + add db keys
+- [ ] `packages/platform/queue/config/rules.php` — extend rules for db config keys
 
 #### Configuration (keys + defaults)
 
@@ -1506,8 +1506,8 @@ Forbidden:
 - Unit/Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/queue/tests/Integration/DbDriverPushReserveAckTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Integration/FailedJobsRecordedTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/DbDriverPushReserveAckTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/FailedJobsRecordedTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -1546,7 +1546,7 @@ Forbidden:
 type: package
 phase: 5
 epic_id: "5.80.0"
-owner_path: "framework/packages/platform/queue/"
+owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
 composer: "coretsia/platform-queue"
@@ -1581,7 +1581,7 @@ ssot_refs:
   - N/A
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/cli/` — runtime discovery CLI команд через tag `cli.command` (але compile-time залежність заборонена)
+  - `packages/platform/cli/` — runtime discovery CLI команд через tag `cli.command` (але compile-time залежність заборонена)
 
 - Required config roots/keys:
   - `queue` — базовий config root пакета queue має існувати/бути canonical (config file повертає subtree без повторення root)
@@ -1645,36 +1645,36 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/queue/src/Console/QueueWorkCommand.php` — `coretsia queue:work [--once] [--sleep=1] [--max-jobs=N]` (safe JSON output; no payload)
-- [ ] `framework/packages/platform/queue/src/Console/QueueFailedCommand.php` — `coretsia queue:failed` (safe JSON output; no payload)
-- [ ] `framework/packages/platform/queue/src/Console/QueueRetryCommand.php` — `coretsia queue:retry <id|all>` (safe JSON output; no payload)
-- [ ] `framework/packages/platform/queue/src/Console/QueueFlushCommand.php` — `coretsia queue:flush` (dev-only guard; safe JSON output; no payload)
-- [ ] `framework/packages/platform/queue/config/queue.php` — config subtree for `queue.*`
+- [ ] `packages/platform/queue/src/Console/QueueWorkCommand.php` — `coretsia queue:work [--once] [--sleep=1] [--max-jobs=N]` (safe JSON output; no payload)
+- [ ] `packages/platform/queue/src/Console/QueueFailedCommand.php` — `coretsia queue:failed` (safe JSON output; no payload)
+- [ ] `packages/platform/queue/src/Console/QueueRetryCommand.php` — `coretsia queue:retry <id|all>` (safe JSON output; no payload)
+- [ ] `packages/platform/queue/src/Console/QueueFlushCommand.php` — `coretsia queue:flush` (dev-only guard; safe JSON output; no payload)
+- [ ] `packages/platform/queue/config/queue.php` — config subtree for `queue.*`
 
 #### Modifies
 
-- [ ] `framework/packages/platform/queue/src/Provider/QueueServiceProvider.php` — register commands as services + tag `cli.command`
-- [ ] `framework/packages/platform/queue/config/rules.php` — enforce config shape for `queue.cli.*`
+- [ ] `packages/platform/queue/src/Provider/QueueServiceProvider.php` — register commands as services + tag `cli.command`
+- [ ] `packages/platform/queue/config/rules.php` — enforce config shape for `queue.cli.*`
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/queue/composer.json`
-- [ ] `framework/packages/platform/queue/src/Module/QueueModule.php`
-- [ ] `framework/packages/platform/queue/src/Provider/QueueServiceProvider.php`
-- [ ] `framework/packages/platform/queue/config/queue.php`
-- [ ] `framework/packages/platform/queue/config/rules.php`
-- [ ] `framework/packages/platform/queue/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `packages/platform/queue/composer.json`
+- [ ] `packages/platform/queue/src/Module/QueueModule.php`
+- [ ] `packages/platform/queue/src/Provider/QueueServiceProvider.php`
+- [ ] `packages/platform/queue/config/queue.php`
+- [ ] `packages/platform/queue/config/rules.php`
+- [ ] `packages/platform/queue/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/queue/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/queue/config/queue.php`
+  - [ ] `packages/platform/queue/config/queue.php`
 - [ ] Keys (dot):
   - [ ] `queue.cli.flush.enabled` = false
   - [ ] `queue.cli.flush.allow_in_env` = ['local']
 - [ ] Rules:
-  - [ ] `framework/packages/platform/queue/config/rules.php` enforces shape
+  - [ ] `packages/platform/queue/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -1749,8 +1749,8 @@ N/A
 - Unit/Contract:
   - N/A
 - Integration:
-  - [ ] `framework/packages/platform/queue/tests/Integration/CliQueueWorkOnceTest.php`
-  - [ ] `framework/packages/platform/queue/tests/Integration/QueueCommandsSchemaJsonTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/CliQueueWorkOnceTest.php`
+  - [ ] `packages/platform/queue/tests/Integration/QueueCommandsSchemaJsonTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
   - [ ] gates updated (if new invariants)
@@ -1784,7 +1784,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.90.0"
-owner_path: "framework/packages/core/contracts/"
+owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
 composer: "coretsia/core-contracts"
@@ -1856,14 +1856,14 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/core/contracts/src/Bus/CommandBusInterface.php`
-- [ ] `framework/packages/core/contracts/src/Bus/CommandHandlerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Bus/CommandMiddlewareInterface.php`
-- [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleProviderInterface.php`
-- [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleDefinition.php`
-- [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
-- [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRunnerInterface.php`
-- [ ] `framework/packages/core/contracts/src/Scheduler/ScheduleRunReport.php`
+- [ ] `packages/core/contracts/src/Bus/CommandBusInterface.php`
+- [ ] `packages/core/contracts/src/Bus/CommandHandlerInterface.php`
+- [ ] `packages/core/contracts/src/Bus/CommandMiddlewareInterface.php`
+- [ ] `packages/core/contracts/src/Scheduler/ScheduleProviderInterface.php`
+- [ ] `packages/core/contracts/src/Scheduler/ScheduleDefinition.php`
+- [ ] `packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
+- [ ] `packages/core/contracts/src/Scheduler/ScheduleRunnerInterface.php`
+- [ ] `packages/core/contracts/src/Scheduler/ScheduleRunReport.php`
 - [ ] `docs/adr/ADR-XXXX-commandbus-scheduler-ports.md` — documents “LockFactory reuse” + “format-neutral scheduler”
 
 Scheduler tag-based registry contract (cemented)
@@ -1878,9 +1878,9 @@ Scheduler tag-based registry contract (cemented)
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/core/contracts/composer.json`
-- [ ] `framework/packages/core/contracts/README.md` (optional; якщо policy вимагає)
-- [ ] `framework/packages/core/contracts/config/rules.php` (N/A для library, якщо пакет не має конфігів)
+- [ ] `packages/core/contracts/composer.json`
+- [ ] `packages/core/contracts/README.md` (optional; якщо policy вимагає)
+- [ ] `packages/core/contracts/config/rules.php` (N/A для library, якщо пакет не має конфігів)
 
 #### Configuration (keys + defaults)
 
@@ -1928,9 +1928,9 @@ N/A
 - Unit/Integration:
   - N/A
 - Contract:
-  - [ ] `framework/packages/core/contracts/tests/Contract/BusContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/SchedulerContractsTest.php`
-  - [ ] `framework/packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/BusContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/SchedulerContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -1964,7 +1964,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.100.0"
-owner_path: "framework/packages/platform/cqrs/"
+owner_path: "packages/platform/cqrs/"
 
 package_id: "platform/cqrs"
 composer: "coretsia/platform-cqrs"
@@ -2000,9 +2000,9 @@ ssot_refs:
   - 5.90.0 — contracts for CommandBus/Scheduler ports must exist (CommandBus interfaces used here)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Bus/CommandBusInterface.php` — port used by this implementation
-  - `framework/packages/core/contracts/src/Bus/CommandHandlerInterface.php` — handler contract
-  - `framework/packages/core/contracts/src/Bus/CommandMiddlewareInterface.php` — middleware contract
+  - `packages/core/contracts/src/Bus/CommandBusInterface.php` — port used by this implementation
+  - `packages/core/contracts/src/Bus/CommandHandlerInterface.php` — handler contract
+  - `packages/core/contracts/src/Bus/CommandMiddlewareInterface.php` — middleware contract
 
 - Required config roots/keys:
   - `cqrs` / `cqrs.commands.map` — explicit deterministic mapping (command FQCN → handler service id)
@@ -2054,18 +2054,18 @@ N/A
 
 #### Creates
 
-- [ ] `framework/packages/platform/cqrs/src/Module/CqrsModule.php`
-- [ ] `framework/packages/platform/cqrs/src/Provider/CqrsServiceProvider.php`
-- [ ] `framework/packages/platform/cqrs/src/Provider/CqrsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/cqrs/config/cqrs.php`
-- [ ] `framework/packages/platform/cqrs/config/rules.php`
-- [ ] `framework/packages/platform/cqrs/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/platform/cqrs/src/Bus/CommandBus.php` — implements `CommandBusInterface`
-- [ ] `framework/packages/platform/cqrs/src/Bus/HandlerLocator.php` — deterministic handler lookup from config map
-- [ ] `framework/packages/platform/cqrs/src/Bus/Middleware/Pipeline.php` — deterministic middleware chain
-- [ ] `framework/packages/platform/cqrs/src/Exception/CommandHandlerNotFoundException.php` — deterministic code `CORETSIA_CQRS_HANDLER_NOT_FOUND`
-- [ ] `framework/packages/platform/cqrs/src/Exception/CommandBusProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` — constants (`error.mapper`)
+- [ ] `packages/platform/cqrs/src/Module/CqrsModule.php`
+- [ ] `packages/platform/cqrs/src/Provider/CqrsServiceProvider.php`
+- [ ] `packages/platform/cqrs/src/Provider/CqrsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/cqrs/config/cqrs.php`
+- [ ] `packages/platform/cqrs/config/rules.php`
+- [ ] `packages/platform/cqrs/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/cqrs/src/Bus/CommandBus.php` — implements `CommandBusInterface`
+- [ ] `packages/platform/cqrs/src/Bus/HandlerLocator.php` — deterministic handler lookup from config map
+- [ ] `packages/platform/cqrs/src/Bus/Middleware/Pipeline.php` — deterministic middleware chain
+- [ ] `packages/platform/cqrs/src/Exception/CommandHandlerNotFoundException.php` — deterministic code `CORETSIA_CQRS_HANDLER_NOT_FOUND`
+- [ ] `packages/platform/cqrs/src/Exception/CommandBusProblemMapper.php` — implements `ExceptionMapperInterface` (tag `error.mapper`)
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (`error.mapper`)
 - [ ] `docs/architecture/cqrs.md` — usage + handler mapping + redaction
 
 #### Modifies
@@ -2075,24 +2075,24 @@ N/A
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/cqrs/composer.json`
-- [ ] `framework/packages/platform/cqrs/src/Module/CqrsModule.php` (runtime)
-- [ ] `framework/packages/platform/cqrs/src/Provider/CqrsServiceProvider.php` (runtime)
-- [ ] `framework/packages/platform/cqrs/config/cqrs.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/cqrs/config/rules.php`
-- [ ] `framework/packages/platform/cqrs/README.md`
-- [ ] `framework/packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime)
+- [ ] `packages/platform/cqrs/composer.json`
+- [ ] `packages/platform/cqrs/src/Module/CqrsModule.php` (runtime)
+- [ ] `packages/platform/cqrs/src/Provider/CqrsServiceProvider.php` (runtime)
+- [ ] `packages/platform/cqrs/config/cqrs.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/cqrs/config/rules.php`
+- [ ] `packages/platform/cqrs/README.md`
+- [ ] `packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/cqrs/config/cqrs.php`
+  - [ ] `packages/platform/cqrs/config/cqrs.php`
 - [ ] Keys (dot):
   - [ ] `cqrs.enabled` = true
   - [ ] `cqrs.commands.map` = []
   - [ ] `cqrs.middleware` = []
 - [ ] Rules:
-  - [ ] `framework/packages/platform/cqrs/config/rules.php` enforces shape
+  - [ ] `packages/platform/cqrs/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
@@ -2165,24 +2165,24 @@ N/A
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php`
   - N/A (заявлено умовно “if introduced”)
 - [ ] If metrics/spans/logs exist → `tests/Contract/ObservabilityPolicyTest.php`
-  - Evidence: `framework/packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - Evidence: `packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] If redaction exists → `tests/Contract/RedactionDoesNotLeakTest.php`
-  - Evidence: `framework/packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` + integration tests (failure paths)
+  - Evidence: `packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` + integration tests (failure paths)
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture wiring:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (system/E2E wiring as listed below)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` (system/E2E wiring as listed below)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/cqrs/tests/Unit/MiddlewareOrderIsDeterministicTest.php`
+  - [ ] `packages/platform/cqrs/tests/Unit/MiddlewareOrderIsDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/cqrs/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/cqrs/tests/Integration/CommandDispatchCallsHandlerTest.php`
-  - [ ] `framework/packages/platform/cqrs/tests/Integration/CommandBusProblemMapperWiresTest.php`
+  - [ ] `packages/platform/cqrs/tests/Integration/CommandDispatchCallsHandlerTest.php`
+  - [ ] `packages/platform/cqrs/tests/Integration/CommandBusProblemMapperWiresTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -2219,7 +2219,7 @@ N/A
 type: package
 phase: 5
 epic_id: "5.110.0"
-owner_path: "framework/packages/platform/scheduler/"
+owner_path: "packages/platform/scheduler/"
 
 package_id: "platform/scheduler"
 composer: "coretsia/platform-scheduler"
@@ -2259,12 +2259,12 @@ ssot_refs:
   - 5.100.0 — optional at runtime if `scheduler.dispatch.via=command_bus` (policy/config)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
-  - `framework/packages/core/contracts/src/Scheduler/ScheduleRunnerInterface.php`
-  - `framework/packages/core/contracts/src/Scheduler/ScheduleDefinition.php`
-  - `framework/packages/core/contracts/src/Scheduler/ScheduleRunReport.php`
-  - `framework/packages/core/contracts/src/Scheduler/ScheduleProviderInterface.php` — tagged schedule providers contract (typed schedule discovery)
-  - `framework/packages/core/contracts/src/Lock/LockFactoryInterface.php` — lock discipline (reuse)
+  - `packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
+  - `packages/core/contracts/src/Scheduler/ScheduleRunnerInterface.php`
+  - `packages/core/contracts/src/Scheduler/ScheduleDefinition.php`
+  - `packages/core/contracts/src/Scheduler/ScheduleRunReport.php`
+  - `packages/core/contracts/src/Scheduler/ScheduleProviderInterface.php` — tagged schedule providers contract (typed schedule discovery)
+  - `packages/core/contracts/src/Lock/LockFactoryInterface.php` — lock discipline (reuse)
 
 - Required config roots/keys:
   - `scheduler` / `scheduler.dispatch.via` — `'command_bus'|'queue'`
@@ -2331,25 +2331,25 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/platform/scheduler/src/Module/SchedulerModule.php`
-- [ ] `framework/packages/platform/scheduler/src/Provider/SchedulerServiceProvider.php`
-- [ ] `framework/packages/platform/scheduler/src/Provider/SchedulerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `framework/packages/platform/scheduler/config/scheduler.php`
-- [ ] `framework/packages/platform/scheduler/config/rules.php`
-- [ ] `framework/packages/platform/scheduler/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php`
+- [ ] `packages/platform/scheduler/src/Module/SchedulerModule.php`
+- [ ] `packages/platform/scheduler/src/Provider/SchedulerServiceProvider.php`
+- [ ] `packages/platform/scheduler/src/Provider/SchedulerServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/scheduler/config/scheduler.php`
+- [ ] `packages/platform/scheduler/config/rules.php`
+- [ ] `packages/platform/scheduler/README.md` (must include: Observability / Errors / Security-Redaction)
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
   - Allowed:
     - `public const SCHEDULER_SCHEDULE = 'scheduler.schedule';`
   - Forbidden (not owner):
     - any constants for `'cli.command'` or other tags owned by other packages.
 
-- [ ] `framework/packages/platform/scheduler/src/Scheduler/ScheduleRegistry.php` — implements `ScheduleRegistryInterface` (tag-based, deterministic)
-- [ ] `framework/packages/platform/scheduler/src/Scheduler/ScheduleRunner.php` — implements `ScheduleRunnerInterface` (lock, due selection, dispatch)
-- [ ] `framework/packages/platform/scheduler/src/Scheduler/Expression/EveryMinute.php` — simple expression
-- [ ] `framework/packages/platform/scheduler/src/Scheduler/Expression/EveryHour.php` — simple expression
-- [ ] `framework/packages/platform/scheduler/src/Console/ScheduleRunCommand.php` — CLI command (safe JSON)
-- [ ] `framework/packages/platform/scheduler/src/Console/ScheduleListCommand.php` — CLI command (safe JSON)
-- [ ] `framework/packages/platform/scheduler/src/Observability/SchedulerInstrumentation.php` — spans/metrics/log policy helper
+- [ ] `packages/platform/scheduler/src/Scheduler/ScheduleRegistry.php` — implements `ScheduleRegistryInterface` (tag-based, deterministic)
+- [ ] `packages/platform/scheduler/src/Scheduler/ScheduleRunner.php` — implements `ScheduleRunnerInterface` (lock, due selection, dispatch)
+- [ ] `packages/platform/scheduler/src/Scheduler/Expression/EveryMinute.php` — simple expression
+- [ ] `packages/platform/scheduler/src/Scheduler/Expression/EveryHour.php` — simple expression
+- [ ] `packages/platform/scheduler/src/Console/ScheduleRunCommand.php` — CLI command (safe JSON)
+- [ ] `packages/platform/scheduler/src/Console/ScheduleListCommand.php` — CLI command (safe JSON)
+- [ ] `packages/platform/scheduler/src/Observability/SchedulerInstrumentation.php` — spans/metrics/log policy helper
 - [ ] `docs/architecture/scheduler.md` — dispatch modes, lock, determinism, redaction
 
 #### Modifies
@@ -2359,18 +2359,18 @@ Forbidden:
 
 #### Package skeleton (if type=package)
 
-- [ ] `framework/packages/platform/scheduler/composer.json`
-- [ ] `framework/packages/platform/scheduler/src/Module/SchedulerModule.php` (runtime)
-- [ ] `framework/packages/platform/scheduler/src/Provider/SchedulerServiceProvider.php` (runtime)
-- [ ] `framework/packages/platform/scheduler/config/scheduler.php`  # returns subtree (no repeated root)
-- [ ] `framework/packages/platform/scheduler/config/rules.php`
-- [ ] `framework/packages/platform/scheduler/README.md`
-- [ ] `framework/packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime)
+- [ ] `packages/platform/scheduler/composer.json`
+- [ ] `packages/platform/scheduler/src/Module/SchedulerModule.php` (runtime)
+- [ ] `packages/platform/scheduler/src/Provider/SchedulerServiceProvider.php` (runtime)
+- [ ] `packages/platform/scheduler/config/scheduler.php`  # returns subtree (no repeated root)
+- [ ] `packages/platform/scheduler/config/rules.php`
+- [ ] `packages/platform/scheduler/README.md`
+- [ ] `packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` (runtime)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/platform/scheduler/config/scheduler.php`
+  - [ ] `packages/platform/scheduler/config/scheduler.php`
 - [ ] Keys (dot):
   - [ ] `scheduler.enabled` = true
   - [ ] `scheduler.timezone` = 'UTC'
@@ -2380,12 +2380,12 @@ Forbidden:
   - [ ] `scheduler.registry.mode` = 'tags'        # 'tags'|'config'
   - [ ] `scheduler.max_tasks_per_run` = 100
 - [ ] Rules:
-  - [ ] `framework/packages/platform/scheduler/config/rules.php` enforces shape
+  - [ ] `packages/platform/scheduler/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
 - [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `framework/packages/core/foundation/src/Tag/ReservedTags.php` (constants)
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (constants)
   - [ ] constants:
     - [ ] `SCHEDULER_SCHEDULE = 'scheduler.schedule'`
 - [ ] ServiceProvider wiring evidence:
@@ -2439,7 +2439,7 @@ Forbidden:
 #### Errors
 
 - [ ] Exceptions introduced:
-  - [ ] `framework/packages/platform/scheduler/src/Exception/SchedulerException.php` — errorCode(s): `CORETSIA_SCHEDULER_LOCK_FAILED`, `CORETSIA_SCHEDULER_TASK_FAILED`
+  - [ ] `packages/platform/scheduler/src/Exception/SchedulerException.php` — errorCode(s): `CORETSIA_SCHEDULER_LOCK_FAILED`, `CORETSIA_SCHEDULER_TASK_FAILED`
 - [ ] Mapping:
   - [ ] reuse existing mapper (no dupes)
 
@@ -2460,26 +2460,26 @@ Forbidden:
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php`
   - Evidence (existing tests below): `CrossCuttingNoopDoesNotThrowTest.php` + integration lock tests (reset дисципліна неявна; якщо вводите `kernel.reset`, потрібен явний тест)
 - [ ] If metrics/spans/logs exist → `tests/Contract/ObservabilityPolicyTest.php`
-  - Evidence: `framework/packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` + integration tests
+  - Evidence: `packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` + integration tests
 - [ ] If redaction exists → `tests/Contract/RedactionDoesNotLeakTest.php`
   - Evidence: integration tests (CLI outputs + lock contention logging)
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/...` (wiring for `schedule:run` fixture test)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/...` (wiring for `schedule:run` fixture test)
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/packages/platform/scheduler/tests/Unit/DueOrderingDeterministicTest.php`
+  - [ ] `packages/platform/scheduler/tests/Unit/DueOrderingDeterministicTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/scheduler/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - Integration:
-  - [ ] `framework/packages/platform/scheduler/tests/Integration/ScheduleRunDueDispatchesCommandTest.php`
-  - [ ] `framework/packages/platform/scheduler/tests/Integration/LockPreventsParallelRunTest.php`
-  - [ ] `framework/packages/platform/scheduler/tests/Integration/ScheduleOrderDeterministicTest.php`
-  - [ ] `framework/packages/platform/scheduler/tests/Integration/Cli/ScheduleRunWorksInEnterprisePresetTest.php`
+  - [ ] `packages/platform/scheduler/tests/Integration/ScheduleRunDueDispatchesCommandTest.php`
+  - [ ] `packages/platform/scheduler/tests/Integration/LockPreventsParallelRunTest.php`
+  - [ ] `packages/platform/scheduler/tests/Integration/ScheduleOrderDeterministicTest.php`
+  - [ ] `packages/platform/scheduler/tests/Integration/Cli/ScheduleRunWorksInEnterprisePresetTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
 
@@ -2520,7 +2520,7 @@ Forbidden:
 type: skeleton
 phase: 5
 epic_id: "5.120.0"
-owner_path: "framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/"
+owner_path: "packages/core/kernel/tests/Fixtures/EnterpriseApp/"
 
 goal: "Один POST `/api/checkout` створює order у SQLite, пушить deferred event, listener ставить job у queue, і `coretsia queue:work --once` виконує side-effect — все без витоку PII/секретів і з deterministic поведінкою."
 provides:
@@ -2549,12 +2549,12 @@ ssot_refs:
   - N/A (fixture агрегує вже наявні модулі Phase 5)
 
 - Required deliverables (exact paths):
-  - `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/` — fixture skeleton root
-  - `framework/packages/core/kernel/` — KernelRuntime/UoW/reset дисципліна
-  - `framework/packages/platform/queue/src/Console/QueueWorkCommand.php` — `coretsia queue:work --once` entry point
-  - `framework/packages/platform/cqrs/` — command dispatch path (якщо fixture uses CQRS)
-  - `framework/packages/platform/events/` — deferred flush after UoW (policy)
-  - `framework/packages/platform/http-app/` + `framework/packages/platform/routing/` — HTTP routing pipeline
+  - `packages/core/kernel/tests/Fixtures/EnterpriseApp/` — fixture skeleton root
+  - `packages/core/kernel/` — KernelRuntime/UoW/reset дисципліна
+  - `packages/platform/queue/src/Console/QueueWorkCommand.php` — `coretsia queue:work --once` entry point
+  - `packages/platform/cqrs/` — command dispatch path (якщо fixture uses CQRS)
+  - `packages/platform/events/` — deferred flush after UoW (policy)
+  - `packages/platform/http-app/` + `packages/platform/routing/` — HTTP routing pipeline
 
 - Required config roots/keys:
   - `app.id` — canonical app id for cache paths
@@ -2599,7 +2599,7 @@ Forbidden:
   - `coretsia config:compile` → `platform/cli` (owner)
   - `coretsia queue:work --once` → `platform/queue` `src/Console/QueueWorkCommand.php`
 - HTTP:
-  - routes: `POST /api/checkout` → `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Http/Controller/CheckoutController.php`
+  - routes: `POST /api/checkout` → `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Http/Controller/CheckoutController.php`
   - middleware slots/tags:
     - `http.middleware.app_pre`:
       - `\Coretsia\Session\Http\Middleware\SessionMiddleware::class` priority `300`
@@ -2611,10 +2611,10 @@ Forbidden:
   - `kernel.hook.after_uow` — used by `platform/events` to flush deferred events
 - Artifacts:
   - writes:
-    - `skeleton/var/cache/<appId>/routes.php`
-    - `skeleton/var/cache/<appId>/config.php`
-    - `skeleton/var/cache/<appId>/module-manifest.php`
-    - `skeleton/var/cache/<appId>/container.php`
+    - `packages/applications/skeleton/var/cache/<appId>/routes.php`
+    - `packages/applications/skeleton/var/cache/<appId>/config.php`
+    - `packages/applications/skeleton/var/cache/<appId>/module-manifest.php`
+    - `packages/applications/skeleton/var/cache/<appId>/container.php`
   - reads:
     - runtime reads those artifacts in prod-policy boot for the fixture harness
 
@@ -2622,18 +2622,18 @@ Forbidden:
 
 #### Creates
 
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` — enables required modules for fixture
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/app.php` — fixture app config (if needed)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/database.php` — sqlite config (fixture-local overrides)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/migrations.php` — append migrations paths deterministically
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Http/Controller/CheckoutController.php` — POST `/api/checkout`
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Cqrs/Command/CheckoutCommand.php` — command object (json-like args)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Cqrs/Handler/CheckoutHandler.php` — writes order row + pushes deferred event
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Events/OrderPlaced.php` — domain event (no PII payload)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Events/Listener/EnqueueSendConfirmationListener.php` — listener enqueues job (no payload logs)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Queue/Job/SendConfirmationJob.php` — job definition (safe, no PII payload)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Queue/Handler/SendConfirmationJobHandler.php` — side-effect marker (FS or DB)
-- [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/database/migrations/2026_...._create_orders_table.php` — orders table for fixture
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php` — enables required modules for fixture
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/app.php` — fixture app config (if needed)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/database.php` — sqlite config (fixture-local overrides)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/migrations.php` — append migrations paths deterministically
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Http/Controller/CheckoutController.php` — POST `/api/checkout`
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Cqrs/Command/CheckoutCommand.php` — command object (json-like args)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Cqrs/Handler/CheckoutHandler.php` — writes order row + pushes deferred event
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Events/OrderPlaced.php` — domain event (no PII payload)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Events/Listener/EnqueueSendConfirmationListener.php` — listener enqueues job (no payload logs)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Queue/Job/SendConfirmationJob.php` — job definition (safe, no PII payload)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/src/Queue/Handler/SendConfirmationJobHandler.php` — side-effect marker (FS or DB)
+- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/database/migrations/2026_...._create_orders_table.php` — orders table for fixture
 - [ ] `docs/architecture/phase-enterprise-e2e.md` — scenario overview + commands to run + redaction notes
 
 #### Modifies
@@ -2643,7 +2643,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
 - [ ] Keys (dot):
   - [ ] `app.id` = 'enterprise_fixture' (or canonical app id used in cache paths)
   - [ ] `database.default` = 'sqlite'
@@ -2660,14 +2660,14 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `skeleton/var/cache/<appId>/routes.php` (compiled routes)
-  - [ ] `skeleton/var/cache/<appId>/config.php` (compiled config)
-  - [ ] `skeleton/var/cache/<appId>/module-manifest.php` (compiled module plan)
+  - [ ] `packages/applications/skeleton/var/cache/<appId>/routes.php` (compiled routes)
+  - [ ] `packages/applications/skeleton/var/cache/<appId>/config.php` (compiled config)
+  - [ ] `packages/applications/skeleton/var/cache/<appId>/module-manifest.php` (compiled module plan)
 - [ ] Reads:
   - [ ] runtime reads those artifacts in prod-policy boot for the fixture harness
 - [ ] Runtime writes (excluded from fingerprint):
-  - [ ] `skeleton/var/tmp/*`
-  - [ ] `skeleton/var/sessions/*`
+  - [ ] `packages/applications/skeleton/var/tmp/*`
+  - [ ] `packages/applications/skeleton/var/sessions/*`
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
@@ -2712,7 +2712,7 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 #### Required policy tests matrix
 
 - [ ] If Context writes exist → `tests/Contract/ContextWriteSafetyTest.php`
-  - Evidence: `framework/tools/tests/Integration/E2E/UowResetNoContextLeakBetweenRequestsTest.php`
+  - Evidence: `tools/tests/Integration/E2E/UowResetNoContextLeakBetweenRequestsTest.php`
 - [ ] If `kernel.reset` used → `tests/Contract/ResetWiringTest.php`
   - Evidence: `UowResetNoContextLeakBetweenRequestsTest.php` (system-level proof)
 - [ ] If metrics/spans/logs exist → `tests/Contract/ObservabilityPolicyTest.php`
@@ -2723,20 +2723,20 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/...`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/...`
 - [ ] Fixture wiring:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/HybridApp/config/modules.php` (for reset/leak test per original text)
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
+  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/config/modules.php` (for reset/leak test per original text)
 
 ### Tests (MUST)
 
 - Unit/Contract:
   - N/A
 - Integration (system/E2E):
-  - [ ] `framework/tools/tests/Integration/E2E/CheckoutCreatesOrderRowTest.php`
-  - [ ] `framework/tools/tests/Integration/E2E/QueueWorkerProcessesConfirmationJobTest.php`
-  - [ ] `framework/tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
-  - [ ] `framework/tools/tests/Integration/E2E/UowResetNoContextLeakBetweenRequestsTest.php`
+  - [ ] `tools/tests/Integration/E2E/CheckoutCreatesOrderRowTest.php`
+  - [ ] `tools/tests/Integration/E2E/QueueWorkerProcessesConfirmationJobTest.php`
+  - [ ] `tools/tests/Integration/E2E/DeferredEventsFlushOnlyOnSuccessTest.php`
+  - [ ] `tools/tests/Integration/E2E/UowResetNoContextLeakBetweenRequestsTest.php`
 - Gates/Arch:
   - [ ] deptrac expectations updated (if needed)
   - [ ] gates remain green (fixture wiring does not introduce forbidden deps)
@@ -2788,7 +2788,7 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 type: tools
 phase: 5
 epic_id: "5.130.0"
-owner_path: "framework/tools/benchmarks/async/"
+owner_path: "tools/benchmarks/async/"
 
 goal: "Зацементувати async benchmark suite для events/queue/scheduler та прибрати найдорогіші накладні витрати на dispatch, serialization/deserialization і UoW-boundary без порушення determinism та redaction policy."
 provides:
@@ -2822,11 +2822,11 @@ ssot_refs:
   - 4.240.0 — DB/FS gate exists when async paths use SQLite-backed queue or schedule persistence
 
 - Required deliverables (exact paths):
-  - `framework/packages/platform/events/`
-  - `framework/packages/platform/queue/`
-  - `framework/packages/platform/cqrs/`
-  - `framework/packages/platform/scheduler/`
-  - `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/`
+  - `packages/platform/events/`
+  - `packages/platform/queue/`
+  - `packages/platform/cqrs/`
+  - `packages/platform/scheduler/`
+  - `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
 
 - Required config roots/keys:
   - `events.*`
@@ -2888,35 +2888,35 @@ Forbidden:
   - `cli.command` — queue/scheduler commands may be used as benchmark entrypoints
 
 - Artifacts:
-  - reads: `framework/tools/benchmarks/async/async.baseline.json`
-  - writes: `framework/tools/benchmarks/async/async.report.json`
+  - reads: `tools/benchmarks/async/async.baseline.json`
+  - writes: `tools/benchmarks/async/async.report.json`
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `framework/tools/benchmarks/async/run.php` — canonical async benchmark runner
-- [ ] `framework/tools/benchmarks/async/AsyncBenchmarkConfig.php` — scenario list + methodology
-- [ ] `framework/tools/benchmarks/async/async.baseline.json` — pinned baseline
-- [ ] `framework/tools/gates/async_performance_gate.php` — comparator gate
-- [ ] `framework/tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
-- [ ] `framework/tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
+- [ ] `tools/benchmarks/async/run.php` — canonical async benchmark runner
+- [ ] `tools/benchmarks/async/AsyncBenchmarkConfig.php` — scenario list + methodology
+- [ ] `tools/benchmarks/async/async.baseline.json` — pinned baseline
+- [ ] `tools/gates/async_performance_gate.php` — comparator gate
+- [ ] `tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
+- [ ] `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
 - [ ] `docs/architecture/async-performance.md` — tuning guide + benchmark interpretation
 
 #### Modifies
 
-- [ ] `framework/packages/platform/events/src/` — reduce dispatch/deferred overhead without semantic drift
-- [ ] `framework/packages/platform/queue/src/` — reduce serialization/worker overhead without semantic drift
-- [ ] `framework/packages/platform/scheduler/src/` — reduce schedule enumeration/run overhead without semantic drift
-- [ ] `framework/packages/platform/events/tests/` — behavior-lock tests for tuned paths
-- [ ] `framework/packages/platform/queue/tests/` — behavior-lock tests for tuned paths
-- [ ] `framework/packages/platform/scheduler/tests/` — behavior-lock tests for tuned paths
+- [ ] `packages/platform/events/src/` — reduce dispatch/deferred overhead without semantic drift
+- [ ] `packages/platform/queue/src/` — reduce serialization/worker overhead without semantic drift
+- [ ] `packages/platform/scheduler/src/` — reduce schedule enumeration/run overhead without semantic drift
+- [ ] `packages/platform/events/tests/` — behavior-lock tests for tuned paths
+- [ ] `packages/platform/queue/tests/` — behavior-lock tests for tuned paths
+- [ ] `packages/platform/scheduler/tests/` — behavior-lock tests for tuned paths
 - [ ] `framework/composer.json` — add scripts:
   - [ ] `benchmark:async`
   - [ ] `benchmark:async:gate`
 - [ ] `composer.json` — add mirror scripts delegating to `framework/`
 - [ ] `.github/workflows/ci.yml` — add dedicated async benchmark job
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_ASYNC_PERFORMANCE_DEGRADED`
   - [ ] `CORETSIA_ASYNC_PERFORMANCE_RUN_FAILED`
 
@@ -2927,7 +2927,7 @@ N/A
 #### Configuration (keys + defaults)
 
 - [ ] Files:
-  - [ ] `framework/tools/benchmarks/async/AsyncBenchmarkConfig.php`
+  - [ ] `tools/benchmarks/async/AsyncBenchmarkConfig.php`
 - [ ] Keys (dot):
   - [ ] `benchmark.async.events.dispatch_sync` = true
   - [ ] `benchmark.async.events.flush_deferred` = true
@@ -2946,7 +2946,7 @@ N/A
 #### Artifacts / outputs (if applicable)
 
 - [ ] Writes:
-  - [ ] `framework/tools/benchmarks/async/async.report.json` (deterministic bytes)
+  - [ ] `tools/benchmarks/async/async.report.json` (deterministic bytes)
 - [ ] Reads:
   - [ ] validates report/baseline schema before compare
 
@@ -2994,12 +2994,12 @@ N/A
 
 - [ ] If `kernel.reset` used → events/queue/scheduler integration tests MUST fail if reset discipline is removed
 - [ ] If logs exist → async harness/gate tests assert no raw payload leakage
-- [ ] If redaction exists → `framework/tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
+- [ ] If redaction exists → `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
 - [ ] Fixture app:
-  - [ ] `framework/packages/core/kernel/tests/Fixtures/EnterpriseApp/`
+  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
 - [ ] Fake adapters:
   - [ ] FakeTracer
   - [ ] FakeMetrics
@@ -3008,13 +3008,13 @@ N/A
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `framework/tools/tests/Unit/Benchmarks/AsyncBenchmarkConfigTest.php`
+  - [ ] `tools/tests/Unit/Benchmarks/AsyncBenchmarkConfigTest.php`
 - Contract:
-  - [ ] `framework/packages/platform/queue/tests/Contract/TuningPreservesSerializationPolicyContractTest.php`
-  - [ ] `framework/packages/platform/events/tests/Contract/TuningPreservesDeferredFlushPolicyContractTest.php`
+  - [ ] `packages/platform/queue/tests/Contract/TuningPreservesSerializationPolicyContractTest.php`
+  - [ ] `packages/platform/events/tests/Contract/TuningPreservesDeferredFlushPolicyContractTest.php`
 - Integration:
-  - [ ] `framework/tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
-  - [ ] `framework/tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
+  - [ ] `tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
+  - [ ] `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
 - Gates/Arch:
   - [ ] deptrac updated (if needed)
 
@@ -3042,7 +3042,7 @@ N/A
 type: tools
 phase: 5
 epic_id: "5.140.0"
-owner_path: "framework/tools/gates/"
+owner_path: "tools/gates/"
 
 goal: "Ensure that critical packages have sufficient test coverage by analyzing PHPUnit coverage reports and enforcing thresholds."
 provides:
@@ -3067,7 +3067,7 @@ ssot_refs: []
   - `core/*` packages exist
 
 - Required deliverables:
-  - `framework/tools/testing/phpunit.xml` with coverage configuration.
+  - `tools/testing/phpunit.xml` with coverage configuration.
 
 #### Compile-time deps
 
@@ -3085,24 +3085,24 @@ N/A
 
 #### Creates
 
-- [ ] `framework/tools/gates/coverage_gate.php` — deterministic gate:
-  - [ ] reads `clover.xml` from `framework/var/phpunit/coverage/`
+- [ ] `tools/gates/coverage_gate.php` — deterministic gate:
+  - [ ] reads `clover.xml` from `var/phpunit/coverage/`
   - [ ] parses coverage metrics per file/class
-  - [ ] compares against thresholds defined in `framework/tools/config/coverage.php`
+  - [ ] compares against thresholds defined in `tools/config/coverage.php`
   - [ ] thresholds: per-package or per-directory minimum line coverage percentage
   - [ ] if any package below threshold, prints `CORETSIA_COVERAGE_BELOW_THRESHOLD` + list of packages with current coverage
   - [ ] uses `ConsoleOutput`
   - [ ] if coverage file missing, prints `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
   - [ ] supports `--path` override for testing
   - [ ] MUST resolve the tools root deterministically from the executing gate file.
-  - [ ] MUST load `framework/tools/support/bootstrap.php` before scanning.
+  - [ ] MUST load `tools/support/bootstrap.php` before scanning.
   - [ ] If bootstrap is missing or unreadable:
-    - [ ] MUST attempt to load `framework/tools/support/ConsoleOutput.php`
+    - [ ] MUST attempt to load `tools/support/ConsoleOutput.php`
     - [ ] MUST print the gate scan-failed code using `ConsoleOutput::codeWithDiagnostics($code, [])`
     - [ ] MUST exit with code `1`
   - [ ] MUST use `Coretsia\Tools\Support\ConsoleOutput::codeWithDiagnostics()` for all non-empty diagnostics output.
   - [ ] MUST NOT use `echo`, `print`, `var_dump`, `print_r`, `printf`, direct `STDOUT`, or direct `STDERR` for diagnostics.
-  - [ ] MUST load `framework/tools/support/ErrorCodes.php` when available.
+  - [ ] MUST load `tools/support/ErrorCodes.php` when available.
   - [ ] MUST resolve error code constants from `ErrorCodes` when defined.
   - [ ] MUST keep deterministic fallback string codes when `ErrorCodes` is unavailable.
   - [ ] MUST use two code classes when applicable:
@@ -3125,7 +3125,7 @@ N/A
     - [ ] stable across OS/filesystem order/locale
     - [ ] free of absolute paths, raw payloads, source snippets, secrets, tokens, credentials, stack traces, and exception messages.
 
-- [ ] `framework/tools/config/coverage.php` — tooling-local coverage thresholds config (NOT a runtime config root)
+- [ ] `tools/config/coverage.php` — tooling-local coverage thresholds config (NOT a runtime config root)
 
 #### Modifies
 
@@ -3136,7 +3136,7 @@ N/A
   - [ ] `coverage:test` → `vendor/bin/phpunit -c tools/testing/phpunit.xml --coverage-clover var/phpunit/coverage/clover.xml`
   - [ ] `coverage:gate` → `@php tools/gates/coverage_gate.php`
 - [ ] `.github/workflows/ci.yml` — after `test` job, run coverage gate
-- [ ] `framework/tools/support/ErrorCodes.php` — register:
+- [ ] `tools/support/ErrorCodes.php` — register:
   - [ ] `CORETSIA_COVERAGE_BELOW_THRESHOLD`
   - [ ] `CORETSIA_COVERAGE_GATE_SCAN_FAILED`
 
@@ -3164,7 +3164,7 @@ N/A
 
 ### Tests
 
-- [ ] `framework/tools/tests/Integration/CoverageGateTest.php`
+- [ ] `tools/tests/Integration/CoverageGateTest.php`
 
 ### DoD
 

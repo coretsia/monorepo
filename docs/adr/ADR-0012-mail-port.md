@@ -25,7 +25,7 @@ owner: core/contracts
 Epic `1.170.0` introduces stable mail contracts under:
 
 ```text
-framework/packages/core/contracts/src/Mail/
+packages/core/contracts/src/Mail/
 ```
 
 Runtime packages need a shared mail boundary that allows application code to send mail through stable contracts while concrete delivery behavior remains swappable.
@@ -225,7 +225,7 @@ The transport interface must not expose backend-specific concepts such as:
 - request objects;
 - response objects;
 - PSR-7 objects;
-- framework context objects;
+- framework-specific context objects;
 - middleware objects;
 - database connections;
 - cache pool objects;
@@ -532,7 +532,7 @@ If a future runtime owner needs mail DI tags, that owner must introduce them thr
 docs/ssot/tags.md
 ```
 
-Framework-reserved DI tag identifier strings must be declared in:
+Coretsia-reserved DI tag identifier strings must be declared in:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags

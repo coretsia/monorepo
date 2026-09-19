@@ -16,8 +16,7 @@
 
 This document explains how to think about dependencies in the Coretsia monorepo.
 
-Important: this is a conceptual guide. It MUST NOT be treated as an enforcement statement. \
-Dependency truth (Phase 0 compile-time): `docs/roadmap/phase0/00_2-dependency-table.md`.
+Important: this is a conceptual guide. It MUST NOT be treated as an enforcement statement. Exact direct compile-time dependency truth is defined only in `docs/architecture/DEPENDENCIES.md`.
 
 ---
 
@@ -25,16 +24,27 @@ Dependency truth (Phase 0 compile-time): `docs/roadmap/phase0/00_2-dependency-ta
 
 ### Package identity
 
-A package is identified by:
+Publishable Composer products live under `packages/**`.
 
-- path: `framework/packages/<layer>/<slug>/`
+Layered packages use:
+
+- path: `packages/<layer>/<slug>/`
 - package_id: `<layer>/<slug>`
-- composer name: `coretsia/<layer>-<slug>`
-- namespace root: `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
+- conventional Composer name: `coretsia/<layer>-<slug>`
+- namespace root:
+  - `core/*` → `Coretsia\<Studly(slug)>\...`
+  - non-core layered packages → `Coretsia\<Studly(layer)>\<Studly(slug)>\...`
+
+Special public distributions are:
+
+- `packages/framework/` → `coretsia/framework`
+- `packages/applications/skeleton/` → `coretsia/skeleton`
+
+For every publishable product, the Composer package identity source of truth is the package `composer.json` `name` field. Filesystem layout MUST NOT be used as the universal Composer-name derivation rule.
 
 ### Dependency types
 
-- Compile-time dependency: a Composer requirement needed to build/test/package code.
+- Compile-time dependency: an allowed direct dependency between layered packages; internal production Composer edges declared in `composer.json` `require` must be permitted by `docs/architecture/DEPENDENCIES.md`.
 - Runtime wiring / discovery: how modules/providers are discovered and assembled at runtime (policy: metadata-driven, no filesystem scanning).
 
 This doc is about the graph model, not the enforcement tooling.
@@ -46,11 +56,11 @@ This doc is about the graph model, not the enforcement tooling.
 The graph exists to guarantee:
 
 - acyclic architecture (in practice: no circular compile-time deps),
-- clear layering (contracts/core/platform/integrations/tooling),
+- clear layering across core/platform/integrations/devtools/enterprise/presets, with repository tooling kept outside runtime package dependencies,
 - deterministic builds (same inputs → same outputs),
 - stable public surfaces (boundaries are explicit, not “accidental imports”).
 
-The SSoT dependency table is the only authoritative source for Phase 0 compile-time edges.
+`docs/architecture/DEPENDENCIES.md` is the only authoritative source for exact direct compile-time package edges.
 
 ---
 
@@ -68,7 +78,7 @@ A useful mental model:
   - adapters, UX surfaces, integrations glue; generally depends “downward” on core.
 - `integrations/*`
   - optional external drivers; typically depends on platform and/or core (but should not pull platform into core).
-- `devtools/*` and `framework/tools/**`
+- `devtools/*` and `tools/**`
   - tooling and development-time utilities; must not become runtime requirements.
 
 Again: the exact allowed edges live in the dependency SSoT table.
@@ -79,7 +89,7 @@ Again: the exact allowed edges live in the dependency SSoT table.
 
 Think of packages as nodes and compile-time requirements as directed edges:
 
-- edge: `A → B` means “A requires B at compile time”.
+- edge: `A → B` means “A MAY directly depend on B at compile time”.
 
 Two practical questions to ask for any change:
 
@@ -93,11 +103,11 @@ Two practical questions to ask for any change:
 
 ## 5) Dependency truth: single source of truth
 
-Phase 0 compile-time dependencies MUST be defined only in:
+Exact direct compile-time dependency permissions between layered packages MUST be defined only in:
 
-- `docs/roadmap/phase0/00_2-dependency-table.md`
+- `docs/architecture/DEPENDENCIES.md`
 
-Other docs MAY provide summaries/diagrams, but MUST link to the table and MUST NOT claim it is authoritative.
+Other docs MAY provide summaries or diagrams, but MUST refer to that document and MUST NOT introduce alternative package-level edges.
 
 ---
 
@@ -110,7 +120,7 @@ A frequent confusion:
 
 Keep the two separate:
 
-- Dependencies: what Composer requires to build/run a package.
+- Dependencies: which direct layered-package compile-time edges are architecturally permitted.
 - Discovery: what the runtime finds from installed packages’ metadata.
 
 ---
@@ -119,22 +129,23 @@ Keep the two separate:
 
 ```mermaid
 flowchart TB
-  Contracts[core/contracts] --> Foundation[core/foundation]
-  Contracts --> Kernel[core/kernel]
-  Foundation --> Kernel
+  Foundation[core/foundation] --> Contracts[core/contracts]
 
-  Kernel --> Platform[platform/*]
-  Foundation --> Platform
-  Contracts --> Platform
+  Kernel[core/kernel] --> Contracts
+  Kernel --> Foundation
 
-  Platform --> Integrations[integrations/*]
+  Platform[platform/*] --> Contracts
+  Platform --> Foundation
+  Platform --> Kernel
 
-  Tooling[framework/tools/** + devtools/*] -. should not be runtime deps .-> Kernel
-  Tooling -. should not be runtime deps .-> Platform
+  Integrations[integrations/*] --> Platform
+
+  Kernel -. must not depend on .-> Tooling[tools/** + devtools/*]
+  Platform -. must not depend on .-> Tooling
 ```
 
 - Solid arrows: typical compile-time direction (conceptual).
-- Dotted arrows: examples of undesired direction (tooling → runtime).
+- Dotted arrows: examples of undesired dependency direction (runtime → tooling).
 
 The authoritative edges are defined by the dependency SSoT table.
 
@@ -148,4 +159,4 @@ Before you add a `use ...` import across packages, ask:
 - Is this a runtime primitive? If yes, it likely belongs in foundation.
 - Is this orchestration? If yes, it likely belongs in kernel.
 - Is this a user-facing adapter or integration? If yes, it likely belongs in platform/integrations.
-- Is this tooling-only? If yes, it must stay under tools/devtools and must not become a runtime dependency.
+- Is this tooling-only? If yes, it must stay under `tools/**` or `packages/devtools/**` and must not become a runtime dependency.

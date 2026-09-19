@@ -93,7 +93,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 
 ## Tooling and CI Contracts
 
-_Empty for now (Prelude)._
+_Empty for now._
 
 ## Cross-references (non-SSoT)
 

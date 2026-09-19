@@ -474,7 +474,7 @@ foundation
 The defaults file remains:
 
 ```text
-framework/packages/core/foundation/config/foundation.php
+packages/core/foundation/config/foundation.php
 ```
 
 It MUST return the subtree only and MUST NOT repeat the root wrapper.
@@ -541,7 +541,7 @@ foundation.duration.*
 The Foundation rules file remains:
 
 ```text
-framework/packages/core/foundation/config/rules.php
+packages/core/foundation/config/rules.php
 ```
 
 It MUST enforce allowed values for:
@@ -921,17 +921,17 @@ This ADR does not introduce:
 Expected verification includes:
 
 ```text
-framework/packages/core/foundation/tests/Unit/UlidFormatTest.php
-framework/packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php
-framework/packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php
-framework/packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php
-framework/packages/core/foundation/tests/Contract/UuidFormatContractTest.php
-framework/packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php
-framework/packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
-framework/packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
-framework/packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
-framework/packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
-framework/packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
+packages/core/foundation/tests/Unit/UlidFormatTest.php
+packages/core/foundation/tests/Unit/StopwatchDurationIsNonNegativeTest.php
+packages/core/foundation/tests/Unit/FrozenClockReturnsDeterministicNowTest.php
+packages/core/foundation/tests/Contract/SystemClockReturnsUtcDateTimeImmutableContractTest.php
+packages/core/foundation/tests/Contract/UuidFormatContractTest.php
+packages/core/foundation/tests/Contract/FoundationConfigRejectsFloatValuesInIdsContractTest.php
+packages/core/foundation/tests/Integration/DefaultIdGeneratorResolvesFromConfigTest.php
+packages/core/foundation/tests/Integration/FoundationClockAndStopwatchBindingsTest.php
+packages/core/foundation/tests/Integration/FoundationIdsDefaultDoesNotAffectCorrelationIdTest.php
+packages/core/foundation/tests/Integration/CorrelationIdProviderReadsContextStoreTest.php
+packages/core/foundation/tests/Integration/CorrelationIdProviderRejectsUnsafeCorrelationIdsTest.php
 ```
 
 Verification MUST prove:

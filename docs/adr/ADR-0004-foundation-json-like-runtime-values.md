@@ -47,7 +47,12 @@ Runtime packages must not depend on:
 
 ```text
 devtools/*
-tools/*
+```
+
+Runtime code must not import or consume repository machinery under:
+
+```text
+tools/**
 ```
 
 The existing Foundation stable JSON decision is recorded in:
@@ -114,15 +119,15 @@ Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 The baseline normalizer implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
-framework/packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
+packages/core/foundation/src/Serialization/JsonLikeNormalizer.php
+packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php
 ```
 
 The stable JSON serialization consumer implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
-framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
+packages/core/foundation/src/Serialization/StableJsonEncoder.php
+packages/core/foundation/src/Serialization/StableJsonDecoder.php
 ```
 
 The baseline model is governed by:
@@ -316,8 +321,8 @@ Invalid root paths must be sanitized before they are used in diagnostics.
 The implementation paths are:
 
 ```text
-framework/packages/core/foundation/src/Serialization/StableJsonEncoder.php
-framework/packages/core/foundation/src/Serialization/StableJsonDecoder.php
+packages/core/foundation/src/Serialization/StableJsonEncoder.php
+packages/core/foundation/src/Serialization/StableJsonDecoder.php
 ```
 
 Both stable JSON serialization primitives must delegate baseline recursive normalization to:
@@ -437,7 +442,7 @@ Stable JSON serialization must not perform schema-specific validation or redacti
 The implementation path remains:
 
 ```text
-framework/packages/core/foundation/src/Context/ContextStorePolicy.php
+packages/core/foundation/src/Context/ContextStorePolicy.php
 ```
 
 It must delegate baseline value-shape validation to:
@@ -488,7 +493,7 @@ Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
 The implementation path remains:
 
 ```text
-framework/packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
+packages/core/kernel/src/Runtime/Internal/JsonLikeShapeNormalizer.php
 ```
 
 This class remains internal to `core/kernel`.
@@ -502,7 +507,7 @@ It is not a transport extension point.
 It must not be exposed through:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 The Kernel wrapper must delegate baseline recursive normalization to:
@@ -614,7 +619,12 @@ Runtime packages must not depend on:
 ```text
 Coretsia\Devtools\InternalToolkit
 devtools/*
-tools/*
+```
+
+Runtime code must not import or consume repository machinery under:
+
+```text
+tools/**
 ```
 
 The runtime implementation must be native to runtime packages and respect package dependency boundaries.
@@ -626,8 +636,9 @@ core/kernel
 platform/*
 integrations/*
 devtools/*
-tools/*
 ```
+
+`core/foundation` must not import or consume repository machinery under `tools/**`.
 
 `core/kernel` may depend on:
 
@@ -874,11 +885,11 @@ The behavior must be locked by contract tests.
 Foundation tests include:
 
 ```text
-framework/packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
-framework/packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
-framework/packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/StableJsonEncoderUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/StableJsonDecoderUsesJsonLikeNormalizerContractTest.php
+packages/core/foundation/tests/Contract/StableJsonSerializationRootShapeContractTest.php
+packages/core/foundation/tests/Contract/ContextStorePolicyUsesJsonLikeNormalizerContractTest.php
 ```
 
 Stable JSON serialization tests must verify:
@@ -899,9 +910,9 @@ Stable JSON serialization tests must verify:
 Kernel tests include:
 
 ```text
-framework/packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
-framework/packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/KernelJsonLikePolicyMatchesFoundationContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkContextAttributesAreJsonLikeContractTest.php
+packages/core/kernel/tests/Contract/UnitOfWorkResultExtensionsAreJsonLikeContractTest.php
 ```
 
 Architecture gates must verify that `core/foundation` does not depend on:
@@ -911,8 +922,9 @@ core/kernel
 platform/*
 integrations/*
 devtools/*
-tools/*
 ```
+
+Architecture gates must also verify that runtime package source does not import or consume repository machinery under `tools/**`.
 
 Public API gates must verify that:
 
@@ -923,7 +935,7 @@ Coretsia\Kernel\Runtime\Internal\JsonLikeShapeNormalizer
 is not added to:
 
 ```text
-framework/packages/core/kernel/PUBLIC_API.md
+packages/core/kernel/PUBLIC_API.md
 ```
 
 ## Related SSoT

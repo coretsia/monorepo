@@ -64,18 +64,18 @@ It defines:
 The canonical runtime implementation paths are:
 
 ```text
-framework/packages/core/kernel/src/Config/ConfigKernel.php
-framework/packages/core/kernel/src/Config/ConfigMerger.php
-framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php
-framework/packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
+packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/ConfigMerger.php
+packages/core/kernel/src/Config/Explain/ConfigExplainer.php
+packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
+packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
+packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
 ```
 
 The source type vocabulary is represented by:
 
 ```text
-framework/packages/core/contracts/src/Config/ConfigSourceType.php
+packages/core/contracts/src/Config/ConfigSourceType.php
 ```
 
 ## Core invariant
@@ -96,19 +96,19 @@ Concrete precedence is recorded on each `ConfigValueSource`.
 
 ## Active and reserved rank matrix
 
-| Rank | Active | Source category                 | Source type                        | Source path / mechanism                                             | Notes                                                                                               |
-|-----:|--------|---------------------------------|------------------------------------|---------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-|   10 | yes    | Package defaults                | `ConfigSourceType::PackageDefault` | package `config/<root>.php`                                         | Weakest active config value source. Package defaults MUST NOT use `config/roots.php`.               |
-|   50 | no     | Preset/mode overlays            | reserved/future                    | reserved/future                                                     | Reserved for future explicit preset/mode overlay epic. Not active Phase 1 behavior.                 |
-|  100 | yes    | Skeleton shared aggregate       | `ConfigSourceType::SkeletonConfig` | `skeleton/config/roots.php`                                         | Aggregate root-map file for shared skeleton config.                                                 |
-|  101 | yes    | Skeleton shared split root      | `ConfigSourceType::SkeletonConfig` | `skeleton/config/<root>.php`                                        | Split root-subtree file; stronger than same-layer aggregate.                                        |
-|  200 | yes    | Skeleton environment aggregate  | `ConfigSourceType::SkeletonConfig` | `skeleton/config/environments/<appEnv>/roots.php`                   | Aggregate root-map file for environment-specific skeleton config.                                   |
-|  201 | yes    | Skeleton environment split root | `ConfigSourceType::SkeletonConfig` | `skeleton/config/environments/<appEnv>/<root>.php`                  | Split root-subtree file; stronger than same-layer aggregate.                                        |
-|  300 | yes    | App shared aggregate            | `ConfigSourceType::AppConfig`      | `skeleton/apps/<appTarget>/config/roots.php`                        | Aggregate root-map file for shared app config.                                                      |
-|  301 | yes    | App shared split root           | `ConfigSourceType::AppConfig`      | `skeleton/apps/<appTarget>/config/<root>.php`                       | Split root-subtree file; stronger than same-layer aggregate.                                        |
-|  400 | yes    | App environment aggregate       | `ConfigSourceType::AppConfig`      | `skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php`  | Aggregate root-map file for environment-specific app config.                                        |
-|  401 | yes    | App environment split root      | `ConfigSourceType::AppConfig`      | `skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php` | Split root-subtree file; strongest file-config layer.                                               |
-|  500 | yes    | Env overlays                    | `ConfigSourceType::Env`            | ruleset-derived or explicit env overlay mapping                     | Strongest active Phase B config source. Applies only where mapping exists and env value is present. |
+| Rank | Active | Source category                         | Source type                           | Source path / mechanism                                    | Notes                                                                                               |
+|-----:|--------|-----------------------------------------|---------------------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+|   10 | yes    | Package defaults                        | `ConfigSourceType::PackageDefault`    | package `config/<root>.php`                                | Weakest active config value source. Package defaults MUST NOT use `config/roots.php`.               |
+|   50 | no     | Preset/mode overlays                    | reserved/future                       | reserved/future                                            | Reserved for future explicit preset/mode overlay epic. Not active Phase 1 behavior.                 |
+|  100 | yes    | Application-root shared aggregate       | `ConfigSourceType::ApplicationConfig` | `config/roots.php`                                         | Aggregate root-map file for shared application-root config.                                         |
+|  101 | yes    | Application-root shared split root      | `ConfigSourceType::ApplicationConfig` | `config/<root>.php`                                        | Split root-subtree file; stronger than same-layer aggregate.                                        |
+|  200 | yes    | Application-root environment aggregate  | `ConfigSourceType::ApplicationConfig` | `config/environments/<appEnv>/roots.php`                   | Aggregate root-map file for environment-specific application-root config.                           |
+|  201 | yes    | Application-root environment split root | `ConfigSourceType::ApplicationConfig` | `config/environments/<appEnv>/<root>.php`                  | Split root-subtree file; stronger than same-layer aggregate.                                        |
+|  300 | yes    | App-target shared aggregate             | `ConfigSourceType::AppConfig`         | `apps/<appTarget>/config/roots.php`                        | Aggregate root-map file for shared app-target config.                                               |
+|  301 | yes    | App-target shared split root            | `ConfigSourceType::AppConfig`         | `apps/<appTarget>/config/<root>.php`                       | Split root-subtree file; stronger than same-layer aggregate.                                        |
+|  400 | yes    | App-target environment aggregate        | `ConfigSourceType::AppConfig`         | `apps/<appTarget>/config/environments/<appEnv>/roots.php`  | Aggregate root-map file for environment-specific app-target config.                                 |
+|  401 | yes    | App-target environment split root       | `ConfigSourceType::AppConfig`         | `apps/<appTarget>/config/environments/<appEnv>/<root>.php` | Split root-subtree file; strongest file-config layer.                                               |
+|  500 | yes    | Env overlays                            | `ConfigSourceType::Env`               | ruleset-derived or explicit env overlay mapping            | Strongest active Phase B config source. Applies only where mapping exists and env value is present. |
 
 ## Compact active order
 
@@ -116,14 +116,14 @@ The active Phase B order is:
 
 ```text
 package defaults
-  < skeleton shared aggregate
-  < skeleton shared split root
-  < skeleton environment aggregate
-  < skeleton environment split root
-  < app shared aggregate
-  < app shared split root
-  < app environment aggregate
-  < app environment split root
+  < application-root shared aggregate
+  < application-root shared split root
+  < application-root environment aggregate
+  < application-root environment split root
+  < app-target shared aggregate
+  < app-target shared split root
+  < app-target environment aggregate
+  < app-target environment split root
   < env overlays
 ```
 
@@ -131,21 +131,21 @@ The grouped order is:
 
 ```text
 package defaults
-  < skeleton shared
-  < skeleton environment
-  < app shared
-  < app environment
+  < application-root shared
+  < application-root environment
+  < app-target shared
+  < app-target environment
   < env overlays
 ```
 
 ## Source type matrix
 
-| Source type                        | Active categories                                                   | Effective precedence source                                                                                          |
-|------------------------------------|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| `ConfigSourceType::PackageDefault` | Package defaults                                                    | Package default source candidate metadata, normalized by `PackageDefaultsConfigLoader` and folded by `ConfigKernel`. |
-| `ConfigSourceType::SkeletonConfig` | Skeleton shared aggregate/root, skeleton environment aggregate/root | Skeleton config entry metadata and safe `configSourceFiles` metadata produced by `SkeletonConfigLoader`.             |
-| `ConfigSourceType::AppConfig`      | App shared aggregate/root, app environment aggregate/root           | App config entry metadata and safe `configSourceFiles` metadata produced by `SkeletonConfigLoader`.                  |
-| `ConfigSourceType::Env`            | Env overlays                                                        | Env overlay source metadata produced by `EnvironmentOverlayLoader`.                                                  |
+| Source type                           | Active categories                                                                   | Effective precedence source                                                                                          |
+|---------------------------------------|-------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `ConfigSourceType::PackageDefault`    | Package defaults                                                                    | Package default source candidate metadata, normalized by `PackageDefaultsConfigLoader` and folded by `ConfigKernel`. |
+| `ConfigSourceType::ApplicationConfig` | Application-root shared aggregate/root, application-root environment aggregate/root | Application-root config entry metadata and safe `configSourceFiles` metadata produced by `ApplicationConfigLoader`.  |
+| `ConfigSourceType::AppConfig`         | App-target shared aggregate/root, app-target environment aggregate/root             | App-target config entry metadata and safe `configSourceFiles` metadata produced by `ApplicationConfigLoader`.        |
+| `ConfigSourceType::Env`               | Env overlays                                                                        | Env overlay source metadata produced by `EnvironmentOverlayLoader`.                                                  |
 
 `ConfigSourceType` MUST NOT be used as the only source of precedence.
 
@@ -154,10 +154,10 @@ The same source type can appear at multiple ranks.
 Example:
 
 ```text
-ConfigSourceType::SkeletonConfig at rank 100
-ConfigSourceType::SkeletonConfig at rank 101
-ConfigSourceType::SkeletonConfig at rank 200
-ConfigSourceType::SkeletonConfig at rank 201
+ConfigSourceType::ApplicationConfig at rank 100
+ConfigSourceType::ApplicationConfig at rank 101
+ConfigSourceType::ApplicationConfig at rank 200
+ConfigSourceType::ApplicationConfig at rank 201
 ```
 
 The concrete source rank is authoritative.
@@ -202,7 +202,7 @@ Package defaults MUST NOT use:
 config/roots.php
 ```
 
-Package defaults are weaker than all skeleton, app, and env overlay sources.
+Package defaults are weaker than all application-root, app-target, and env overlay sources.
 
 ## Preset/mode overlays
 
@@ -225,93 +225,93 @@ before preset/mode overlays become active.
 
 No runtime code may treat rank `50` as active until that future epic explicitly introduces it.
 
-## Skeleton shared aggregate/root
+## Application-root shared aggregate/root
 
-Skeleton shared aggregate config is active at rank `100`.
+Application-root shared aggregate config is active at rank `100`.
 
 ```text
-skeleton/config/roots.php
+config/roots.php
 ```
 
-Skeleton shared split root config is active at rank `101`.
+Application-root shared split root config is active at rank `101`.
 
 ```text
-skeleton/config/<root>.php
-```
-
-At the same layer:
-
-```text
-skeleton shared aggregate < skeleton shared split root
-```
-
-## Skeleton environment aggregate/root
-
-Skeleton environment aggregate config is active at rank `200`.
-
-```text
-skeleton/config/environments/<appEnv>/roots.php
-```
-
-Skeleton environment split root config is active at rank `201`.
-
-```text
-skeleton/config/environments/<appEnv>/<root>.php
+config/<root>.php
 ```
 
 At the same layer:
 
 ```text
-skeleton environment aggregate < skeleton environment split root
+application-root shared aggregate < application-root shared split root
 ```
 
-Skeleton environment config is stronger than skeleton shared config.
+## Application-root environment aggregate/root
 
-## App shared aggregate/root
-
-App shared aggregate config is active at rank `300`.
+Application-root environment aggregate config is active at rank `200`.
 
 ```text
-skeleton/apps/<appTarget>/config/roots.php
+config/environments/<appEnv>/roots.php
 ```
 
-App shared split root config is active at rank `301`.
+Application-root environment split root config is active at rank `201`.
 
 ```text
-skeleton/apps/<appTarget>/config/<root>.php
+config/environments/<appEnv>/<root>.php
 ```
 
 At the same layer:
 
 ```text
-app shared aggregate < app shared split root
+application-root environment aggregate < application-root environment split root
 ```
 
-App shared config is stronger than skeleton environment config.
+Application-root environment config is stronger than application-root shared config.
 
-## App environment aggregate/root
+## App-target shared aggregate/root
 
-App environment aggregate config is active at rank `400`.
+App-target shared aggregate config is active at rank `300`.
 
 ```text
-skeleton/apps/<appTarget>/config/environments/<appEnv>/roots.php
+apps/<appTarget>/config/roots.php
 ```
 
-App environment split root config is active at rank `401`.
+App-target shared split root config is active at rank `301`.
 
 ```text
-skeleton/apps/<appTarget>/config/environments/<appEnv>/<root>.php
+apps/<appTarget>/config/<root>.php
 ```
 
 At the same layer:
 
 ```text
-app environment aggregate < app environment split root
+app-target shared aggregate < app-target shared split root
 ```
 
-App environment config is stronger than app shared config.
+App-target shared config is stronger than application-root environment config.
 
-App environment split root config is the strongest active file-config layer.
+## App-target environment aggregate/root
+
+App-target environment aggregate config is active at rank `400`.
+
+```text
+apps/<appTarget>/config/environments/<appEnv>/roots.php
+```
+
+App-target environment split root config is active at rank `401`.
+
+```text
+apps/<appTarget>/config/environments/<appEnv>/<root>.php
+```
+
+At the same layer:
+
+```text
+app-target environment aggregate < app-target environment split root
+```
+
+App-target environment config is stronger than app-target shared config.
+
+App-target environment split root config is the strongest active file-config layer.
 
 ## Env overlays
 
@@ -352,19 +352,19 @@ At the same layer, split root files are stronger than aggregate root-map files.
 
 This rule applies to all file-config layers:
 
-| Aggregate rank | Split root rank | Layer                |
-|---------------:|----------------:|----------------------|
-|            100 |             101 | Skeleton shared      |
-|            200 |             201 | Skeleton environment |
-|            300 |             301 | App shared           |
-|            400 |             401 | App environment      |
+| Aggregate rank | Split root rank | Layer                        |
+|---------------:|----------------:|------------------------------|
+|            100 |             101 | Application-root shared      |
+|            200 |             201 | Application-root environment |
+|            300 |             301 | App-target shared            |
+|            400 |             401 | App-target environment       |
 
 ## Aggregate versus split root example
 
 Same-layer aggregate file:
 
 ```text
-skeleton/config/roots.php
+config/roots.php
 ```
 
 ```php
@@ -381,7 +381,7 @@ return [
 Same-layer split root file:
 
 ```text
-skeleton/config/kernel.php
+config/kernel.php
 ```
 
 ```php
@@ -413,24 +413,24 @@ Untouched aggregate paths survive.
 
 Example source stack:
 
-| Rank | Source                                                   |
-|-----:|----------------------------------------------------------|
-|  100 | `skeleton/config/roots.php`                              |
-|  101 | `skeleton/config/kernel.php`                             |
-|  200 | `skeleton/config/environments/local/roots.php`           |
-|  201 | `skeleton/config/environments/local/kernel.php`          |
-|  300 | `skeleton/apps/api/config/roots.php`                     |
-|  301 | `skeleton/apps/api/config/kernel.php`                    |
-|  400 | `skeleton/apps/api/config/environments/local/roots.php`  |
-|  401 | `skeleton/apps/api/config/environments/local/kernel.php` |
+| Rank | Source                                          |
+|-----:|-------------------------------------------------|
+|  100 | `config/roots.php`                              |
+|  101 | `config/kernel.php`                             |
+|  200 | `config/environments/local/roots.php`           |
+|  201 | `config/environments/local/kernel.php`          |
+|  300 | `apps/api/config/roots.php`                     |
+|  301 | `apps/api/config/kernel.php`                    |
+|  400 | `apps/api/config/environments/local/roots.php`  |
+|  401 | `apps/api/config/environments/local/kernel.php` |
 
 For the same config path, the effective order is:
 
 ```text
-skeleton shared
-  < skeleton environment
-  < app shared
-  < app environment
+application-root shared
+  < application-root environment
+  < app-target shared
+  < app-target environment
 ```
 
 ## Env overlay projection examples
@@ -577,15 +577,15 @@ configSourceFiles
 
 `envOverlayMappings` MUST be the exact resolved mapping list produced by `EnvironmentOverlayLoader`.
 
-`configSourceFiles` MUST be produced by `SkeletonConfigLoader` for skeleton/app config candidates.
+`configSourceFiles` MUST be produced by `ApplicationConfigLoader` for application-root/app-target config candidates.
 
 `configSourceFiles` MUST distinguish:
 
 ```text
-skeleton shared config files
-skeleton environment config files
-app shared config files
-app environment config files
+application-root shared config files
+application-root environment config files
+app-target shared config files
+app-target environment config files
 user-owned/custom split-root files
 ```
 
@@ -609,10 +609,10 @@ This document MUST stay consistent with:
 
 ```text
 docs/ssot/config-merge-order.md
-framework/packages/core/kernel/src/Config/ConfigKernel.php
-framework/packages/core/kernel/src/Config/Loaders/SkeletonConfigLoader.php
-framework/packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
-framework/packages/core/kernel/src/Config/Explain/ConfigExplainer.php
+packages/core/kernel/src/Config/ConfigKernel.php
+packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
+packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
+packages/core/kernel/src/Config/Explain/ConfigExplainer.php
 ```
 
 If a rank changes, the following MUST be updated together:
@@ -646,13 +646,13 @@ config/<root>.php
 Invalid precedence:
 
 ```text
-skeleton/config/roots.php beats skeleton/config/kernel.php
+config/roots.php beats config/kernel.php
 ```
 
 Correct precedence:
 
 ```text
-skeleton/config/roots.php < skeleton/config/kernel.php
+config/roots.php < config/kernel.php
 ```
 
 ### Invalid: env var creates config key without mapping
@@ -680,13 +680,13 @@ Rank `50` is reserved/future and inactive until a future epic explicitly activat
 Invalid behavior:
 
 ```text
-ConfigSourceType::SkeletonConfig always has one fixed precedence
+ConfigSourceType::ApplicationConfig always has one fixed precedence
 ```
 
 Correct behavior:
 
 ```text
-ConfigSourceType::SkeletonConfig may appear at ranks 100, 101, 200, and 201.
+ConfigSourceType::ApplicationConfig may appear at ranks 100, 101, 200, and 201.
 Concrete ConfigValueSource precedence is authoritative.
 ```
 
@@ -699,19 +699,19 @@ ConfigPrecedenceMatrixTest.php
 ConfigExplainReturnsStableSourceTypesTest.php
 ConfigAggregateAndSplitFilesMergeOrderTest.php
 ConfigEnvironmentSpecificOverlaysPrecedenceTest.php
-UserOwnedConfigRootsAreMergedButNotFrameworkValidatedTest.php
+packages/core/kernel/tests/Integration/UserOwnedConfigRootsAreMergedButNotCoretsiaValidatedTest.php
 ```
 
 Tests SHOULD verify:
 
 - the active rank matrix;
-- package defaults are weaker than skeleton/app/env sources;
+- package defaults are weaker than application-root/app-target/env sources;
 - preset/mode overlays are listed but inactive;
 - aggregate `roots.php` is weaker than same-layer split `<root>.php`;
-- skeleton shared is weaker than skeleton environment;
-- skeleton environment is weaker than app shared;
-- app shared is weaker than app environment;
-- app environment is weaker than env overlays;
+- application-root shared is weaker than application-root environment;
+- application-root environment is weaker than app-target shared;
+- app-target shared is weaker than app-target environment;
+- app-target environment is weaker than env overlays;
 - env projection is deterministic;
 - unknown env vars do not create config keys;
 - user-owned/custom roots without rules are merged and marked unvalidated;

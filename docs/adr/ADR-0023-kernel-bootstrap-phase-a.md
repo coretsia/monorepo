@@ -29,7 +29,7 @@ This phase is called Bootstrap Phase A.
 Bootstrap Phase A exists to resolve only the minimal boot input required by early runtime owners:
 
 ```text
-skeletonRoot
+applicationRoot
 appTarget
 appEnv
 preset
@@ -42,7 +42,7 @@ immutable EnvRepositoryInterface snapshot
 
 Phase A must not become a full configuration merge phase.
 
-`ConfigSourceLocationBuilder` owns package config-source location construction before Phase B. `ConfigKernel` Phase B owns orchestration of config loading from those prepared locations, skeleton/app config loading, directives, deterministic merge, environment overlays, semantic validation, and explain output.
+`ConfigSourceLocationBuilder` owns package config-source location construction before Phase B. `ConfigKernel` Phase B owns orchestration of config loading from those prepared locations, application-root/app-target config loading, directives, deterministic merge, environment overlays, semantic validation, and explain output.
 
 Phase A needs to support:
 
@@ -136,7 +136,7 @@ Coretsia\Kernel\Boot\ArrayEnvRepository
 Bootstrap Phase A resolves only:
 
 ```text
-skeletonRoot
+applicationRoot
 appTarget
 appEnv
 preset
@@ -147,21 +147,21 @@ appRoot
 immutable EnvRepositoryInterface snapshot
 ```
 
-Phase A must not read full skeleton configuration files.
+Phase A must not read full application configuration files.
 
 Phase A must not read:
 
 ```text
-skeleton/config/roots.php
-skeleton/config/<root>.php
-skeleton/config/environments/**
-skeleton/apps/<appTarget>/config/**
+config/roots.php
+config/<root>.php
+config/environments/**
+apps/<appTarget>/config/**
 ```
 
-Phase A may read only one bootstrap-only skeleton config input:
+Phase A may read only one bootstrap-only application config input:
 
 ```text
-skeleton/config/app.php
+config/app.php
 ```
 
 This file is a Bootstrap Phase A input file only.
@@ -173,7 +173,7 @@ It must not participate in ConfigKernel Phase B merge.
 Phase A must not scan:
 
 ```text
-skeleton/apps/*
+apps/*
 ```
 
 The application target must be explicit input.
@@ -202,7 +202,7 @@ Invalid target diagnostics must not include the rejected raw input.
 `appRoot` is derived deterministically as:
 
 ```text
-skeletonRoot/apps/<appTarget>
+applicationRoot/apps/<appTarget>
 ```
 
 Phase A must not require this directory to exist.
@@ -218,7 +218,7 @@ Phase A must not choose an application by scanning sibling app directories.
 It carries only:
 
 ```text
-skeletonRoot
+applicationRoot
 appTarget
 appEnv?
 preset?
@@ -231,7 +231,7 @@ artifactsCacheDir?
 
 - read filesystem state;
 - infer app target;
-- inspect `skeleton/apps/*`;
+- inspect `apps/*`;
 - read process env;
 - parse dotenv files;
 - contain raw env values.
@@ -243,11 +243,11 @@ Optional values in `BootstrapInput` have the highest Phase A resolution preceden
 When present, it has higher precedence than both:
 
 ```text
-skeleton/config/app.php artifactsCacheDir
+config/app.php artifactsCacheDir
 kernel.boot.default_artifacts_cache_dir
 ```
 
-The value is `skeletonRoot`-relative and must satisfy the canonical portable artifact cache directory policy.
+The value is `applicationRoot`-relative and must satisfy the canonical portable artifact cache directory policy.
 
 ## Decision 4: BootstrapConfig is a resolved immutable VO only
 
@@ -264,7 +264,7 @@ debug
 artifactsCacheDir
 envSourcePolicy
 appTarget
-skeletonRoot
+applicationRoot
 appRoot
 ```
 
@@ -272,15 +272,15 @@ appRoot
 
 - resolve optional values from `BootstrapInput`;
 - read package defaults;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - read dotenv files;
 - read system env;
-- scan `skeleton/apps/*`;
+- scan `apps/*`;
 - require `appRoot` to exist;
 - expose `fromInput()`;
 - expose any method that performs Phase A resolution.
 
-The object derives only `appRoot` from already resolved `skeletonRoot` and `appTarget`.
+The object derives only `appRoot` from already resolved `applicationRoot` and `appTarget`.
 
 `BootstrapConfig::artifactsCacheDir()` contains the already resolved and validated artifact cache directory.
 
@@ -293,7 +293,7 @@ The object derives only `appRoot` from already resolved `skeletonRoot` and `appT
 General resolution order is:
 
 1. explicit `BootstrapInput` values;
-2. bootstrap-only overrides from `skeleton/config/app.php`;
+2. bootstrap-only overrides from `config/app.php`;
 3. package defaults from `kernel.boot.*` and `kernel.env.*`.
 
 The resolver resolves:
@@ -309,7 +309,7 @@ envSourcePolicy
 Artifact cache directory resolution has this deterministic precedence:
 
 1. explicit `BootstrapInput::artifactsCacheDir()`;
-2. bootstrap-only `skeleton/config/app.php` `artifactsCacheDir`;
+2. bootstrap-only `config/app.php` `artifactsCacheDir`;
 3. package fallback `kernel.boot.default_artifacts_cache_dir`.
 
 The result is stored in:
@@ -331,8 +331,8 @@ compiled config@1
 Preset resolution has a dedicated deterministic precedence:
 
 1. explicit `BootstrapInput::preset()`;
-2. `skeleton/config/app.php` `presets[appTarget]`;
-3. `skeleton/config/app.php` global `preset`;
+2. `config/app.php` `presets[appTarget]`;
+3. `config/app.php` global `preset`;
 4. `kernel.boot.default_preset`.
 
 The `presets[appTarget]` lookup is evaluated only for the already selected `BootstrapInput::appTarget()`.
@@ -342,7 +342,7 @@ The `presets` map must not:
 - select app target;
 - infer app target;
 - modify app target;
-- scan `skeleton/apps/*`;
+- scan `apps/*`;
 - participate in module enable/disable composition.
 
 If `presets` exists but does not contain the selected app target, the resolver falls back to the global `preset` override.
@@ -368,12 +368,12 @@ The resolver must not:
 - build `EnvRepositoryInterface`;
 - parse dotenv files;
 - read system env;
-- scan `skeleton/apps/*`;
+- scan `apps/*`;
 - require `appRoot` to exist;
 - read `kernel.modes.defaults_path`;
 - read `kernel.modes.overrides_path`;
 - load `resources/modes/*.php`;
-- load `skeleton/config/modes/*.php`;
+- load `config/modes/*.php`;
 - expose raw override values in diagnostics.
 
 `envSourcePolicy` is resolved after final `appEnv` is selected.
@@ -411,17 +411,17 @@ BootstrapEnvSourcePolicy::AllowSystem
 
 through `BootstrapInput`.
 
-## Decision 6: BootstrapOverridesLoader reads only skeleton/config/app.php
+## Decision 6: BootstrapOverridesLoader reads only config/app.php
 
 `Coretsia\Kernel\Boot\BootstrapOverridesLoader` reads only:
 
 ```text
-skeleton/config/app.php
+config/app.php
 ```
 
-Missing `skeleton/config/app.php` means no overrides.
+Missing `config/app.php` means no overrides.
 
-Existing but invalid `skeleton/config/app.php` fails deterministically.
+Existing but invalid `config/app.php` fails deterministically.
 
 The file must return an array.
 
@@ -448,14 +448,14 @@ appEnv: non-empty safe string
 preset: non-empty safe string
 presets: string-keyed map of appTarget => non-empty safe preset string
 debug: bool
-artifactsCacheDir: portable skeletonRoot-relative artifact output directory
+artifactsCacheDir: portable applicationRoot-relative artifact output directory
 ```
 
 `preset` is a global fallback preset override.
 
 `presets` is a bootstrap-only per-app preset override map.
 
-An invalid `artifactsCacheDir` value loaded from `skeleton/config/app.php` fails with:
+An invalid `artifactsCacheDir` value loaded from `config/app.php` fails with:
 
 ```text
 BootstrapException::REASON_OVERRIDES_INVALID
@@ -524,17 +524,17 @@ BootstrapException::REASON_OVERRIDES_INVALID
 - select app target;
 - infer app target;
 - modify app target;
-- scan `skeleton/apps/*`;
+- scan `apps/*`;
 - participate in module enable/disable composition.
 
 The loader must not read:
 
 ```text
-skeleton/config/modules.php
-skeleton/config/roots.php
-skeleton/config/<root>.php
-skeleton/config/environments/**
-skeleton/apps/<appTarget>/config/**
+config/modules.php
+config/roots.php
+config/<root>.php
+config/environments/**
+apps/<appTarget>/config/**
 ```
 
 Module enable/disable composition is not handled by Phase A.
@@ -580,7 +580,7 @@ It must not:
 
 - resolve `appEnv`;
 - read `BootstrapInput`;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - apply package boot defaults;
 - apply system env precedence;
 - use `Coretsia\Contracts\Env\EnvPolicy`.
@@ -606,7 +606,7 @@ The canonical default templates are:
 .env.<env>.local
 ```
 
-If `appEnv` is absent from explicit `BootstrapInput` and `skeleton/config/app.php`, the package default:
+If `appEnv` is absent from explicit `BootstrapInput` and `config/app.php`, the package default:
 
 ```text
 kernel.boot.default_env
@@ -647,7 +647,7 @@ It must not:
 
 - resolve `BootstrapConfig`;
 - read `BootstrapInput` optional values;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - apply package boot defaults;
 - use `Coretsia\Contracts\Env\EnvPolicy`;
 - create a mutable repository;
@@ -773,7 +773,7 @@ Stable reason tokens are:
 
 ```text
 bootstrap-invalid-app-target
-bootstrap-invalid-skeleton-root
+bootstrap-invalid-application-root
 bootstrap-artifacts-cache-dir-invalid
 bootstrap-dotenv-file-invalid
 bootstrap-dotenv-load-failed
@@ -820,7 +820,7 @@ Provider registration must not execute Bootstrap Phase A.
 Provider registration must not:
 
 - resolve `BootstrapInput`;
-- read `skeleton/config/app.php`;
+- read `config/app.php`;
 - parse dotenv files;
 - snapshot system env;
 - build `EnvRepositoryInterface`;
@@ -848,7 +848,7 @@ This is intentional.
 
 ```text
 BootstrapInput
-bootstrap-only overrides from skeleton/config/app.php
+bootstrap-only overrides from config/app.php
 kernel.boot.* defaults
 kernel.env.* defaults
 ```
@@ -1021,7 +1021,7 @@ Coretsia\Kernel\Boot\ArtifactRuntimeInput
 `ArtifactRuntimeInput` carries only:
 
 ```text
-skeletonRoot
+applicationRoot
 artifactRoot
 ```
 
@@ -1118,13 +1118,13 @@ Application target selection is explicit.
 
 `appRoot` derivation is stable and does not depend on filesystem scanning.
 
-Bare skeletons can boot from package defaults.
+Applications can boot from package defaults without application-owned config files.
 
 Artifact cache location is resolved before artifact lookup without depending on ConfigKernel Phase B or compiled runtime config.
 
-Applications may relocate Kernel artifacts within the skeleton through a bootstrap-only override while preserving deterministic precedence.
+Applications may relocate Kernel artifacts within the application root through a bootstrap-only override while preserving deterministic precedence.
 
-Per-app preset selection can be expressed in bootstrap-only `skeleton/config/app.php` without introducing a module-selection source.
+Per-app preset selection can be expressed in bootstrap-only `config/app.php` without introducing a module-selection source.
 
 The selected app target remains explicit even when `presets` contains entries for multiple app targets.
 
@@ -1132,8 +1132,8 @@ Preset selection remains deterministic:
 
 ```text
 BootstrapInput::preset()
-skeleton/config/app.php presets[appTarget]
-skeleton/config/app.php preset
+config/app.php presets[appTarget]
+config/app.php preset
 kernel.boot.default_preset
 ```
 
@@ -1175,7 +1175,7 @@ Entrypoints or platform packages that need only the narrow Phase A values may co
 
 Other bootstrap inputs require explicit entrypoint input or an explicit extension of the Bootstrap Phase A contract.
 
-Artifact cache relocation is limited to a portable, bounded, `skeletonRoot`-relative generated-output directory.
+Artifact cache relocation is limited to a portable, bounded, `applicationRoot`-relative generated-output directory.
 
 Absolute paths and relocation into source, config, public, dependency, or repository-owned roots are intentionally unsupported.
 
@@ -1193,15 +1193,15 @@ Rejected.
 
 Putting resolution logic into `BootstrapConfig` would mix data representation with IO-aware/default-aware resolution policy and would make it harder to keep Phase A boundaries testable.
 
-### Alternative 2: Read full skeleton config during Phase A
+### Alternative 2: Read full application config during Phase A
 
 Rejected.
 
 `ConfigSourceLocationBuilder` owns package config-source location construction, while `ConfigKernel` Phase B owns config loading and merge orchestration from already-prepared source locations.
 
-Reading full skeleton config during Phase A would create ordering drift, duplicate merge behavior, and risk reading application config before the minimal boot boundary is stable.
+Reading full application config during Phase A would create ordering drift, duplicate merge behavior, and risk reading application config before the minimal boot boundary is stable.
 
-### Alternative 3: Infer app target by scanning skeleton/apps/*
+### Alternative 3: Infer app target by scanning apps/*
 
 Rejected.
 
@@ -1212,18 +1212,18 @@ Scanning app directories would make boot behavior depend on filesystem shape, si
 The accepted design derives:
 
 ```text
-appRoot = skeletonRoot/apps/<appTarget>
+appRoot = applicationRoot/apps/<appTarget>
 ```
 
 from explicit input only.
 
-### Alternative 4: Read skeleton/config/modules.php during Phase A
+### Alternative 4: Read config/modules.php during Phase A
 
 Rejected.
 
 Module enable/disable composition is owned by ModulePlan.
 
-Phase A reads only bootstrap-only `skeleton/config/app.php`.
+Phase A reads only bootstrap-only `config/app.php`.
 
 `modules.php` must not be read here.
 
@@ -1330,7 +1330,7 @@ system_env
 env key name
 ```
 
-Source metadata must not include raw values or absolute skeleton roots.
+Source metadata must not include raw values or absolute application roots.
 
 ## Runtime lifecycle impact
 
@@ -1339,7 +1339,7 @@ Bootstrap Phase A is lifecycle-free.
 Boot source code under:
 
 ```text
-framework/packages/core/kernel/src/Boot/**
+packages/core/kernel/src/Boot/**
 ```
 
 must not depend on:
@@ -1399,27 +1399,27 @@ This ADR does not introduce:
 Expected verification includes:
 
 ```text
-framework/packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
-framework/packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
-framework/packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapDoesNotScanSkeletonAppsTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php
-framework/packages/core/kernel/tests/Unit/BootstrapArtifactsCacheDirValidationTest.php
-framework/packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactPipelineUsesConfiguredCacheDirTest.php
-framework/packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtifactsCacheDirTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnySkeletonConfigFilesTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
-framework/packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
-framework/packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
-framework/packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
-framework/packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsMixedGenerationTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesModulePlanTest.php
-framework/packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesConfigRepositoryTest.php
+packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
+packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
+packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
+packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
+packages/core/kernel/tests/Integration/BootstrapDoesNotScanAppsTest.php
+packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
+packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php
+packages/core/kernel/tests/Unit/BootstrapArtifactsCacheDirValidationTest.php
+packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php
+packages/core/kernel/tests/Integration/ArtifactPipelineUsesConfiguredCacheDirTest.php
+packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtifactsCacheDirTest.php
+packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnyApplicationConfigFilesTest.php
+packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
+packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
+packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
+packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
+packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
+packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsMixedGenerationTest.php
+packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsEnvelopeFingerprintMismatchTest.php
+packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesModulePlanTest.php
+packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesConfigRepositoryTest.php
 ```
 
 Verification must prove:
@@ -1427,27 +1427,27 @@ Verification must prove:
 - `web`, `api`, `console`, and `worker` are accepted app targets;
 - invalid app target fails with `BootstrapException::REASON_INVALID_APP_TARGET`;
 - invalid app target diagnostics do not leak raw input;
-- `appRoot` is derived as `skeletonRoot/apps/<target>`;
-- Phase A does not scan `skeleton/apps/*`;
+- `appRoot` is derived as `applicationRoot/apps/<target>`;
+- Phase A does not scan `apps/*`;
 - sibling app directories do not affect selected app target;
-- `BootstrapOverridesLoader` reads `skeleton/config/app.php` when present;
-- `BootstrapOverridesLoader` does not read `skeleton/config/modules.php`;
+- `BootstrapOverridesLoader` reads `config/app.php` when present;
+- `BootstrapOverridesLoader` does not read `config/modules.php`;
 - unknown override keys fail deterministically;
 - raw override values do not leak in exception messages;
-- bare skeleton boot works without any skeleton config files;
+- bare application boot works without any application config files;
 - package defaults are used when explicit input and overrides are absent;
-- explicit `BootstrapInput::preset()` wins over `skeleton/config/app.php` `presets[appTarget]`;
+- explicit `BootstrapInput::preset()` wins over `config/app.php` `presets[appTarget]`;
 - explicit `BootstrapInput::preset()` wins over global `preset`;
-- `skeleton/config/app.php` `presets[appTarget]` wins over global `preset`;
+- `config/app.php` `presets[appTarget]` wins over global `preset`;
 - global `preset` is used when `presets` does not contain selected app target;
 - `kernel.boot.default_preset` is used when neither explicit input nor app.php preset exists;
 - empty `presets` behaves as absent;
 - `presets` does not select or modify app target;
 - Phase A does not require selected preset file to exist;
 - Phase A does not load `resources/modes/*.php`;
-- Phase A does not load `skeleton/config/modes/*.php`;
+- Phase A does not load `config/modes/*.php`;
 - `kernel.boot.default_artifacts_cache_dir` is used when neither explicit input nor `app.php` override exists;
-- `skeleton/config/app.php` `artifactsCacheDir` wins over the package fallback;
+- `config/app.php` `artifactsCacheDir` wins over the package fallback;
 - explicit `BootstrapInput::artifactsCacheDir()` wins over both the app override and package fallback;
 - invalid explicit artifact cache directory values fail with `BootstrapException::REASON_ARTIFACTS_CACHE_DIR_INVALID`;
 - invalid `app.php` artifact cache directory values fail through the safe override failure policy;
@@ -1463,7 +1463,7 @@ Verification must prove:
 - source metadata is redacted;
 - source metadata does not contain raw dotenv values;
 - source metadata does not contain raw system env values;
-- source metadata does not contain absolute skeleton roots;
+- source metadata does not contain absolute application roots;
 - Boot source does not depend on runtime lifecycle/reset services;
 - Kernel boot/runtime/provider source does not write to stdout or stderr;
 - Kernel compile-host services are absent from the canonical runtime definition stream;

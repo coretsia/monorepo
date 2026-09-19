@@ -1,0 +1,37 @@
+{
+  "name": "coretsia/skeleton",
+  "type": "project",
+  "description": "Coretsia application skeleton for new projects",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "application",
+    "skeleton",
+    "create-project",
+    "modular",
+    "ddd"
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/framework": "^0.6.0"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

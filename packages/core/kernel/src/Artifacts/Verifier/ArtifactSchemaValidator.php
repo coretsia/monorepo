@@ -107,14 +107,11 @@ final readonly class ArtifactSchemaValidator
      */
     private const array MODULE_MANIFEST_KEYS = [
         'app',
-        'disabled',
         'enabled',
+        'excluded',
         'modules',
-        'optionalMissing',
-        'preset',
         'schemaVersion',
         'topologicalOrder',
-        'warnings',
     ];
 
     /**
@@ -125,16 +122,6 @@ final readonly class ArtifactSchemaValidator
         'conflicts',
         'moduleId',
         'requires',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    private const array MODULE_WARNING_KEYS = [
-        'code',
-        'moduleId',
-        'preset',
-        'reason',
     ];
 
     /**
@@ -409,7 +396,7 @@ final readonly class ArtifactSchemaValidator
             );
         }
 
-        foreach (['app', 'preset'] as $key) {
+        foreach (['app'] as $key) {
             if (!\is_string($payload[$key]) || !self::isSafeText($payload[$key])) {
                 throw ArtifactInvalidException::withReason(
                     ArtifactInvalidException::REASON_SCHEMA_INVALID,
@@ -417,11 +404,11 @@ final readonly class ArtifactSchemaValidator
             }
         }
 
-        foreach (['disabled', 'enabled', 'optionalMissing', 'topologicalOrder'] as $key) {
+        foreach (['enabled', 'excluded', 'topologicalOrder'] as $key) {
             self::assertListOfSafeStrings($payload[$key]);
         }
 
-        if (!self::isMapArray($payload['modules'])) {
+        if (!\is_array($payload['modules']) || ($payload['modules'] !== [] && !self::isMapArray($payload['modules']))) {
             throw ArtifactInvalidException::withReason(
                 ArtifactInvalidException::REASON_SCHEMA_INVALID,
             );
@@ -435,16 +422,6 @@ final readonly class ArtifactSchemaValidator
             }
 
             self::validateModuleEntry($entry);
-        }
-
-        if (!\is_array($payload['warnings']) || !\array_is_list($payload['warnings'])) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_SCHEMA_INVALID,
-            );
-        }
-
-        foreach ($payload['warnings'] as $warning) {
-            self::validateModuleWarning($warning);
         }
     }
 
@@ -471,28 +448,6 @@ final readonly class ArtifactSchemaValidator
 
         self::assertListOfSafeStrings($entry['conflicts']);
         self::assertListOfSafeStrings($entry['requires']);
-    }
-
-    /**
-     * @throws ArtifactInvalidException
-     */
-    private static function validateModuleWarning(mixed $warning): void
-    {
-        if (!\is_array($warning) || \array_is_list($warning)) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_SCHEMA_INVALID,
-            );
-        }
-
-        self::assertExactMapKeys($warning, self::MODULE_WARNING_KEYS);
-
-        foreach (self::MODULE_WARNING_KEYS as $key) {
-            if (!\is_string($warning[$key]) || !self::isSafeText($warning[$key])) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-        }
     }
 
     /**

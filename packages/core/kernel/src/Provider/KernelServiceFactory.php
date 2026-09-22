@@ -83,7 +83,11 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -151,6 +155,7 @@ final class KernelServiceFactory
 
         return new BootstrapConfigResolver(
             overridesLoader: $overridesLoader,
+            moduleIdSetNormalizer: self::moduleIdSetNormalizer(),
         );
     }
 
@@ -253,7 +258,7 @@ final class KernelServiceFactory
      *
      * FilesystemModePresetLoader MUST NOT be registered globally. It is created
      * only by ModePresetLoaderFactory::createFor() for the current
-     * BootstrapConfig during ModulePlanResolver::resolveResolution().
+     * BootstrapConfig during ModuleResolutionOrchestrator::resolve().
      */
     public static function modePresetLoaderFactory(
         ContainerInterface $container,
@@ -313,6 +318,7 @@ final class KernelServiceFactory
         return new ConfigSourceLocationBuilder(
             installPathResolver: $installPathResolver,
             modePresetLoaderFactory: $modePresetLoaderFactory,
+            presetNamespaceResolver: self::presetNamespaceResolver(),
         );
     }
 
@@ -354,42 +360,63 @@ final class KernelServiceFactory
      * retain BootstrapConfig, retain the container, or retain the full Kernel
      * config payload beyond construction.
      */
-    public static function modulePlanResolver(
-        ContainerInterface $container,
-    ): ModulePlanResolver {
-        $presetLoaderFactory = self::modulePlanService($container, ModePresetLoaderFactory::class);
+    public static function moduleIdSetNormalizer(): ModuleIdSetNormalizer
+    {
+        return new ModuleIdSetNormalizer();
+    }
 
-        if (!$presetLoaderFactory instanceof ModePresetLoaderFactory) {
+    public static function presetNamespaceResolver(): PresetNamespaceResolver
+    {
+        return new PresetNamespaceResolver();
+    }
+
+    public static function moduleSelectionFactory(ContainerInterface $container): ModuleSelectionFactory
+    {
+        $normalizer = self::modulePlanService($container, ModuleIdSetNormalizer::class);
+        if (!$normalizer instanceof ModuleIdSetNormalizer) {
+            throw new ContainerException('kernel-module-selection-dependency-invalid');
+        }
+
+        return new ModuleSelectionFactory($normalizer);
+    }
+
+    public static function modulePlanResolver(ContainerInterface $container): ModulePlanResolver
+    {
+        $graph = self::modulePlanService($container, ModuleGraphResolver::class);
+        if (!$graph instanceof ModuleGraphResolver) {
             throw new ContainerException('kernel-module-plan-dependency-invalid');
         }
 
-        $manifestReader = self::modulePlanService($container, ManifestReaderInterface::class);
+        return new ModulePlanResolver($graph);
+    }
 
-        if (!$manifestReader instanceof ManifestReaderInterface) {
-            throw new ContainerException('kernel-module-plan-dependency-invalid');
+    public static function moduleResolutionOrchestrator(ContainerInterface $container): ModuleResolutionOrchestrator
+    {
+        $loader = self::modulePlanService($container, ModePresetLoaderFactory::class);
+        $selection = self::modulePlanService($container, ModuleSelectionFactory::class);
+        $reader = self::modulePlanService($container, ManifestReaderInterface::class);
+        $plan = self::modulePlanService($container, ModulePlanResolver::class);
+        $namespace = self::modulePlanService($container, PresetNamespaceResolver::class);
+        if (
+            !$loader instanceof ModePresetLoaderFactory
+            || !$selection instanceof ModuleSelectionFactory
+            || !$reader instanceof ManifestReaderInterface
+            || !$plan instanceof ModulePlanResolver
+            || !$namespace instanceof PresetNamespaceResolver
+        ) {
+            throw new ContainerException('kernel-module-resolution-dependency-invalid');
         }
-
-        $graphResolver = self::modulePlanService($container, ModuleGraphResolver::class);
-
-        if (!$graphResolver instanceof ModuleGraphResolver) {
-            throw new ContainerException('kernel-module-plan-dependency-invalid');
-        }
-
-        $tracer = self::tracer($container);
-        $meter = self::meter($container);
-        $stopwatch = self::stopwatch($container);
-        $logger = self::modulePlanLogger($container);
-        $kernelConfig = self::kernelConfig($container);
-
-        return new ModulePlanResolver(
-            presetLoaderFactory: $presetLoaderFactory,
-            manifestReader: $manifestReader,
-            graphResolver: $graphResolver,
-            tracer: $tracer,
-            meter: $meter,
-            stopwatch: $stopwatch,
-            logger: $logger,
-            modulesConfig: self::modulesConfig($kernelConfig),
+        return new ModuleResolutionOrchestrator(
+            presetLoaderFactory: $loader,
+            presetNamespaceResolver: $namespace,
+            moduleSelectionFactory: $selection,
+            manifestReader: $reader,
+            modulePlanResolver: $plan,
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            stopwatch: self::stopwatch($container),
+            logger: self::modulePlanLogger($container),
+            modulesConfig: self::modulesConfig(self::kernelConfig($container)),
         );
     }
 
@@ -1372,10 +1399,7 @@ final class KernelServiceFactory
             $container,
             EnvRepositoryBuilder::class,
         );
-        $modulePlanResolver = self::modulePlanService(
-            $container,
-            ModulePlanResolver::class,
-        );
+        $moduleResolutionOrchestrator = self::modulePlanService($container, ModuleResolutionOrchestrator::class);
         $configSourceLocationBuilder = self::configService(
             $container,
             ConfigSourceLocationBuilder::class,
@@ -1392,7 +1416,7 @@ final class KernelServiceFactory
         if (
             !$bootstrapConfigResolver instanceof BootstrapConfigResolver
             || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
-            || !$modulePlanResolver instanceof ModulePlanResolver
+            || !$moduleResolutionOrchestrator instanceof ModuleResolutionOrchestrator
             || !$configSourceLocationBuilder instanceof ConfigSourceLocationBuilder
             || !$artifactCompiler instanceof ArtifactCompiler
             || !$cacheVerifier instanceof CacheVerifier
@@ -1403,7 +1427,7 @@ final class KernelServiceFactory
         return new KernelArtifactOperation(
             bootstrapConfigResolver: $bootstrapConfigResolver,
             envRepositoryBuilder: $envRepositoryBuilder,
-            modulePlanResolver: $modulePlanResolver,
+            moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
             configSourceLocationBuilder: $configSourceLocationBuilder,
             artifactCompiler: $artifactCompiler,
             cacheVerifier: $cacheVerifier,

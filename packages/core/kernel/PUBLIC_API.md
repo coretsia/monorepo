@@ -33,7 +33,6 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Module\KernelModule`
 - `Coretsia\Kernel\Module\ModulePlan`
 - `Coretsia\Kernel\Module\ModulePlanEntry`
-- `Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
 - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
 - `Coretsia\Kernel\Runtime\Driver\HttpDriver`

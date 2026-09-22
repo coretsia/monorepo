@@ -69,7 +69,11 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 
 /**
@@ -94,6 +98,10 @@ final class ContainerGraphCompletenessValidator
         DotenvLoader::class,
         EnvRepositoryBuilder::class,
         ModePresetSchemaValidator::class,
+        ModuleIdSetNormalizer::class,
+        PresetNamespaceResolver::class,
+        ModuleSelectionFactory::class,
+        ModuleResolutionOrchestrator::class,
         TopologicalSorter::class,
         ComposerManifestReader::class,
         ManifestReaderInterface::class,

@@ -16,19 +16,15 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-return [
-    'schemaVersion' => 1,
-    'name' => 'hybrid',
-    'description' => 'Hybrid web application mode.',
-    'required' => [
-        'core.foundation',
-        'core.kernel',
-    ],
-    'modules' => [
-        'platform.worker',
-    ],
-    'featureBundles' => [
-        'observability' => 'minimal',
-    ],
-    'metadata' => [],
-];
+namespace Coretsia\Kernel\Module\Preset;
+
+/**
+ * Kernel-internal namespace identity for mode preset sources.
+ *
+ * @internal
+ */
+enum PresetNamespace: string
+{
+    case Canonical = 'canonical';
+    case Custom = 'custom';
+}

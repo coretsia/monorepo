@@ -22,267 +22,72 @@ use Coretsia\Contracts\Module\ModePresetInterface;
 use Coretsia\Contracts\Module\ModePresetLoaderInterface;
 use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
 use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
+use Coretsia\Kernel\Module\Preset\PresetSourceInterface;
 
 /**
- * Filesystem-backed mode preset loader.
- *
- * This loader is created per ModulePlan resolution with already resolved
- * application override and Kernel package default directories.
- *
- * Lookup order is single-choice:
- *
- * 1. application override preset file;
- * 2. Kernel package default preset file.
- *
- * The first existing preset file wins. The loader must not merge application
- * override and Kernel package default presets.
- *
- * Diagnostics intentionally do not expose filesystem paths, application root,
- * defaults path, overrides path, raw preset payloads, PHP warning messages, or
- * filesystem layout.
+ * One source-bound loader. Never searches alternative preset namespaces.
  *
  * @internal
  */
 final readonly class FilesystemModePresetLoader implements ModePresetLoaderInterface
 {
-    private const int MAX_PRESET_NAME_BYTES = 64;
-
-    private const string SAFE_PRESET_NAME_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789-';
-
     public function __construct(
-        private string $kernelDefaultsPath,
-        private string $applicationOverridesPath,
+        private PresetSourceInterface $source,
         private ModePresetSchemaValidator $schemaValidator,
     ) {
-        if (!$this->isSafeInternalDirectoryPath($kernelDefaultsPath)) {
-            throw new \InvalidArgumentException('filesystem-mode-preset-loader-defaults-path-invalid');
-        }
-
-        if (!$this->isSafeInternalDirectoryPath($applicationOverridesPath)) {
-            throw new \InvalidArgumentException('filesystem-mode-preset-loader-overrides-path-invalid');
-        }
     }
 
-    /**
-     * @return list<non-empty-string>
-     */
     public function listNames(): array
     {
-        $names = [];
-
-        foreach ($this->discoverPresetNames($this->kernelDefaultsPath) as $name) {
-            $names[$name] = true;
-        }
-
-        foreach ($this->discoverPresetNames($this->applicationOverridesPath) as $name) {
-            /*
-             * Same visible name, but the application override wins during load/tryLoad/has.
-             * listNames() exposes names only, so overriding is represented by
-             * a single deterministic entry.
-             */
-            $names[$name] = true;
-        }
-
-        $list = \array_keys($names);
-
-        \usort(
-            $list,
-            static fn (string $a, string $b): int => \strcmp($a, $b),
-        );
-
-        return $list;
+        return $this->source->listNames();
     }
 
-    /**
-     * @param non-empty-string $name
-     */
     public function has(string $name): bool
     {
-        if (!$this->isSafePresetName($name)) {
-            return false;
-        }
-
-        return $this->findExistingPresetFile($name) !== null;
+        return self::isSafeName($name) && $this->source->has($name);
     }
 
-    /**
-     * @param non-empty-string $name
-     */
     public function load(string $name): ModePresetInterface
     {
-        if (!$this->isSafePresetName($name)) {
+        if (!self::isSafeName($name)) {
             throw ModePresetNotFoundException::invalidPresetName();
         }
-
-        $file = $this->findExistingPresetFile($name);
-
+        $file = $this->source->resolveFile($name);
         if ($file === null) {
             throw ModePresetNotFoundException::forPreset($name);
         }
-
-        return $this->loadExistingPresetFile($name, $file);
+        return $this->loadFile($name, $file);
     }
 
-    /**
-     * @param non-empty-string $name
-     */
     public function tryLoad(string $name): ?ModePresetInterface
     {
-        if (!$this->isSafePresetName($name)) {
+        if (!self::isSafeName($name)) {
             return null;
         }
-
-        $file = $this->findExistingPresetFile($name);
-
-        if ($file === null) {
-            return null;
-        }
-
-        return $this->loadExistingPresetFile($name, $file);
+        $file = $this->source->resolveFile($name);
+        return $file === null ? null : $this->loadFile($name, $file);
     }
 
-    private function findExistingPresetFile(string $name): ?string
-    {
-        $overrideFile = $this->presetFilePath($this->applicationOverridesPath, $name);
-
-        if (\is_file($overrideFile)) {
-            return $overrideFile;
-        }
-
-        $defaultFile = $this->presetFilePath($this->kernelDefaultsPath, $name);
-
-        if (\is_file($defaultFile)) {
-            return $defaultFile;
-        }
-
-        return null;
-    }
-
-    private function loadExistingPresetFile(string $presetName, string $file): ModePresetInterface
+    private function loadFile(string $name, string $file): ModePresetInterface
     {
         if (!\is_readable($file)) {
-            throw ModePresetInvalidException::forPreset(
-                $presetName,
-                ModePresetInvalidException::REASON_PRESET_INVALID,
-            );
+            throw ModePresetInvalidException::forPreset($name);
         }
-
+        \set_error_handler(static function (): never {
+            throw new \RuntimeException('mode-preset-php-execution-invalid');
+        });
         try {
-            $payload = $this->requirePresetFile($file);
-        } catch (ModePresetInvalidException $exception) {
-            throw $exception;
-        } catch (\Throwable $exception) {
-            throw ModePresetInvalidException::forPreset(
-                $presetName,
-                ModePresetInvalidException::REASON_PRESET_INVALID,
-                $exception,
-            );
+            $payload = (static fn (string $path): mixed => require $path)($file);
+        } catch (\Throwable) {
+            throw ModePresetInvalidException::forPreset($name);
+        } finally {
+            \restore_error_handler();
         }
-
-        return $this->schemaValidator->validate($presetName, $payload);
+        return $this->schemaValidator->validate($name, $payload);
     }
 
-    private function requirePresetFile(string $file): mixed
+    private static function isSafeName(string $name): bool
     {
-        return (static function (string $presetFile): mixed {
-            return require $presetFile;
-        })(
-            $file
-        );
-    }
-
-    private function presetFilePath(string $directory, string $name): string
-    {
-        return \rtrim($directory, '/\\') . \DIRECTORY_SEPARATOR . $name . '.php';
-    }
-
-    /**
-     * @return list<non-empty-string>
-     */
-    private function discoverPresetNames(string $directory): array
-    {
-        if (!\is_dir($directory) || !\is_readable($directory)) {
-            return [];
-        }
-
-        $entries = @\scandir($directory);
-
-        if (!\is_array($entries)) {
-            return [];
-        }
-
-        $names = [];
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-
-            if (!\str_ends_with($entry, '.php')) {
-                continue;
-            }
-
-            $name = \substr($entry, 0, -4);
-
-            if (!$this->isSafePresetName($name)) {
-                continue;
-            }
-
-            $path = $this->presetFilePath($directory, $name);
-
-            if (!\is_file($path)) {
-                continue;
-            }
-
-            $names[$name] = true;
-        }
-
-        $list = \array_keys($names);
-
-        \usort(
-            $list,
-            static fn (string $a, string $b): int => \strcmp($a, $b),
-        );
-
-        return $list;
-    }
-
-    private function isSafePresetName(string $name): bool
-    {
-        if ($name === '') {
-            return false;
-        }
-
-        if (\strlen($name) > self::MAX_PRESET_NAME_BYTES) {
-            return false;
-        }
-
-        if (!$this->isAsciiLowerAlpha($name[0])) {
-            return false;
-        }
-
-        if (\str_contains($name, '..')) {
-            return false;
-        }
-
-        return \strspn($name, self::SAFE_PRESET_NAME_CHARS) === \strlen($name);
-    }
-
-    private function isSafeInternalDirectoryPath(string $path): bool
-    {
-        if ($path === '') {
-            return false;
-        }
-
-        if (\str_contains($path, "\0")) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function isAsciiLowerAlpha(string $char): bool
-    {
-        return $char >= 'a' && $char <= 'z';
+        return \preg_match('/\A[a-z][a-z0-9-]{0,63}\z/D', $name) === 1;
     }
 }

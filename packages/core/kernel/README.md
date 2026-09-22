@@ -922,11 +922,11 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
-`ConfigKernel` and `ModulePlanResolver` stopwatch failures are observability-isolated duration measurement failures.
+`ConfigKernel` and `ModuleResolutionOrchestrator` stopwatch failures are observability-isolated duration measurement failures.
 
 They MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
 
-ConfigKernel and ModulePlanResolver primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
+ConfigKernel and ModuleResolutionOrchestrator primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
 
 When duration cannot be measured, the duration value MAY collapse to `0` or the timing signal MAY be omitted according to owner policy.
 
@@ -1004,36 +1004,45 @@ ModulePlan resolution is Kernel-owned runtime policy.
 The canonical orchestration entrypoint is:
 
 ```text
-Coretsia\Kernel\Module\ModulePlanResolver
+Coretsia\Kernel\Module\ModuleResolutionOrchestrator
 ```
 
-ModulePlan resolution uses these single-choice inputs:
+`ModuleResolutionOrchestrator` owns preset loading, effective module selection, one installed `ModuleManifest` discovery snapshot, and resolution observability.
+
+`ModulePlanResolver` is a pure Phase B coordinator. It receives an already resolved `ModuleSelection` and the installed `ModuleManifest`, then delegates graph policy to `ModuleGraphResolver`.
+
+The resolution flow is:
 
 ```text
 BootstrapConfig::preset()
-BootstrapConfig::appTarget()
-Composer installed metadata
-mode preset files
+    -> PresetNamespaceResolver
+    -> namespace-bound FilesystemModePresetLoader
+    -> ModePreset
+
+ModePreset + BootstrapConfig::moduleOverrides()
+    -> ModuleSelectionFactory
+    -> ModuleSelection
+
+ModuleSelection + installed ModuleManifest
+    -> ModulePlanResolver
+    -> ModuleGraphResolver
+    -> ModulePlan
 ```
 
-`BootstrapConfig::preset()` selects the mode preset.
+`BootstrapConfig::appTarget()` selects the applicable bootstrap module overrides and is exported as `ModulePlan::app()` metadata. It does not alter dependency graph traversal or introduce filesystem-derived module selection.
 
-`BootstrapConfig::appTarget()` is output metadata for `ModulePlan::app()` and app-root derivation only. It MUST NOT create a parallel module-selection source.
-
-Mode preset lookup order is:
+Preset namespace membership is determined exclusively by the requested preset name:
 
 ```text
-1. application override: config/modes/<preset>.php
-2. Kernel package default: resources/modes/<preset>.php
+canonical name -> Kernel package preset source
+custom name    -> application preset source
 ```
 
-The first existing preset file wins.
-
-Application mode preset overrides replace Kernel package defaults. They are not merged.
+There is no filesystem fallback between preset namespaces. Application files MUST NOT override reserved canonical preset names.
 
 Kernel-owned loaded mode preset construction is not weaker than preset schema validation.
 
-`Coretsia\Kernel\Module\ModePreset` is internal, but direct construction still rejects values that would be rejected by `ModePresetSchemaValidator`, including unsafe preset names, path-like descriptions, unsafe feature bundle / metadata strings or keys, excessive JSON-like depth/key/string limits, and overlapping required / optional / disabled module sets.
+`Coretsia\Kernel\Module\ModePreset` is internal, but direct construction still rejects values that would be rejected by `ModePresetSchemaValidator`, including unsafe preset names, path-like descriptions, unsafe feature bundle / metadata strings or keys, excessive JSON-like depth/key/string limits, duplicate module ids within a source collection, and overlapping `required` / `modules` sets.
 
 Module discovery is metadata-only. Runtime module discovery uses Composer installed metadata and Coretsia module metadata under:
 
@@ -1063,15 +1072,17 @@ ModulePlan output is deterministic and artifact-ready.
 
 `ModulePlan` is an immutable artifact-ready value object and rejects contradictory module set state.
 
-The following intersections MUST be empty:
+The following intersection MUST be empty:
 
 ```text
-enabled ∩ disabled
-enabled ∩ optionalMissing
-disabled ∩ optionalMissing
+enabled ∩ excluded
 ```
 
-A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
+`topologicalOrder` MUST contain every enabled module exactly once and no other modules.
+
+`modules` MUST contain exactly one entry for every enabled module and no other modules. Every required dependency of an enabled module MUST also be enabled. No enabled module pair may violate a declared conflict.
+
+`ModulePlan` exports no preset provenance, disabled-module state, optional-missing state, or warning collection.
 
 ModulePlan resolution itself does not write artifacts. Kernel artifact production may materialize the ModulePlan-derived `module-manifest.php` artifact through `ArtifactCompiler` and `ModuleManifestBuilder`.
 
@@ -1089,7 +1100,7 @@ outcome
 operation: resolve
 ```
 
-The span wraps one `resolveResolution()` operation.
+The span wraps one `ModuleResolutionOrchestrator::resolve()` operation.
 
 Tracer failures are observability-isolated and do not change ModulePlan resolution behavior or failure precedence.
 
@@ -1099,6 +1110,7 @@ Allowed `outcome` values are:
 success
 preset_not_found
 preset_invalid
+selection_invalid
 manifest_invalid
 discovery_source_unsupported
 conflict
@@ -1138,12 +1150,7 @@ CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED
 CORETSIA_MODULE_CYCLE_DETECTED
 CORETSIA_MODULE_CONFLICT
 CORETSIA_MODULE_REQUIRED_MISSING
-```
-
-Optional missing modules are non-fatal warnings:
-
-```text
-CORETSIA_MODULE_OPTIONAL_MISSING
+CORETSIA_MODULE_SELECTION_INVALID
 ```
 
 Diagnostics expose only stable reason tokens and safe deterministic context.
@@ -1676,7 +1683,7 @@ RuntimeDriverContributions
 
 When Worker participates in runtime-driver selection, `platform/worker` converts `worker.task_type` into `RuntimeDriverContributions` before calling `RuntimeDriverResolver`.
 
-`kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
+`kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModuleResolutionOrchestrator` against `kernel.modules.discovery.allowed_sources` before preset loading or Composer manifest discovery.
 
 `kernel.modes.defaults_path` is package-relative.
 

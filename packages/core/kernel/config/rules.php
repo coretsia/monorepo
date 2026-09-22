@@ -40,7 +40,7 @@ declare(strict_types=1);
  * - `kernel.modules.discovery.source` must be a non-empty safe string;
  * - `kernel.modules.discovery.source` shape validation does not enforce the
  *   concrete source value; supported source membership is validated by
- *   ModulePlanResolver;
+ *   ModuleResolutionOrchestrator;
  * - `kernel.modules.discovery.allowed_sources` must be a list of non-empty
  *   safe strings;
  * - `kernel.modes.schema_version` must be integer `1`;

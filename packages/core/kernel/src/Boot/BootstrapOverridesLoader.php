@@ -37,6 +37,7 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * - appEnv
  * - preset
  * - presets
+ * - moduleOverrides
  * - debug
  * - artifactsCacheDir
  *
@@ -56,8 +57,8 @@ use Coretsia\Kernel\Boot\Exception\BootstrapException;
  * `presets` does not select, infer, or modify app target. BootstrapConfigResolver
  * owns final preset precedence for the already selected explicit app target.
  *
- * Module enable/disable composition is not handled here. It belongs to
- * ModulePlan resolution and is resolved from preset files plus Composer metadata.
+ * Raw per-target moduleOverrides are shape-validated here, without
+ * ModuleId normalization or graph-policy interpretation.
  *
  * Values are never embedded in exception messages. Invalid overrides fail with
  * BootstrapException::REASON_OVERRIDES_INVALID.
@@ -71,6 +72,7 @@ final readonly class BootstrapOverridesLoader
     private const string KEY_APP_ENV = 'appEnv';
     private const string KEY_PRESET = 'preset';
     private const string KEY_PRESETS = 'presets';
+    private const string KEY_MODULE_OVERRIDES = 'moduleOverrides';
     private const string KEY_DEBUG = 'debug';
     private const string KEY_ARTIFACTS_CACHE_DIR = 'artifactsCacheDir';
 
@@ -82,6 +84,7 @@ final readonly class BootstrapOverridesLoader
         self::KEY_PRESET => true,
         self::KEY_PRESETS => true,
         self::KEY_DEBUG => true,
+        self::KEY_MODULE_OVERRIDES => true,
         self::KEY_ARTIFACTS_CACHE_DIR => true,
     ];
 
@@ -104,6 +107,7 @@ final readonly class BootstrapOverridesLoader
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
+     *     moduleOverrides?: array<string, array{include:list<string>, exclude:list<string>}>,
      *     debug?: bool,
      *     artifactsCacheDir?: non-empty-string
      * }
@@ -117,9 +121,7 @@ final readonly class BootstrapOverridesLoader
         }
 
         if (!\is_file($file) || !\is_readable($file)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         $payload = self::loadArrayFile($file);
@@ -145,9 +147,7 @@ final readonly class BootstrapOverridesLoader
     {
         \set_error_handler(
             static function (): never {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                );
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
             },
         );
 
@@ -157,17 +157,13 @@ final readonly class BootstrapOverridesLoader
         } catch (BootstrapException $exception) {
             throw $exception;
         } catch (\Throwable) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         } finally {
             \restore_error_handler();
         }
 
         if (!\is_array($payload)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         return $payload;
@@ -180,6 +176,7 @@ final readonly class BootstrapOverridesLoader
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
+     *     moduleOverrides?: array<string, array{include:list<string>, exclude:list<string>}>,
      *     debug?: bool,
      *     artifactsCacheDir?: non-empty-string
      * }
@@ -187,9 +184,7 @@ final readonly class BootstrapOverridesLoader
     private static function normalizeOverrides(array $payload): array
     {
         if (\array_is_list($payload) && $payload !== []) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         /**
@@ -197,6 +192,7 @@ final readonly class BootstrapOverridesLoader
          *     appEnv?: non-empty-string,
          *     preset?: non-empty-string,
          *     presets?: array<string, non-empty-string>,
+         *     moduleOverrides?: array<string, array{include:list<string>, exclude:list<string>}>,
          *     debug?: bool,
          *     artifactsCacheDir?: non-empty-string
          * } $out
@@ -205,20 +201,16 @@ final readonly class BootstrapOverridesLoader
 
         foreach ($payload as $key => $value) {
             if (!\is_string($key) || !isset(self::ALLOWED_KEYS[$key])) {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                );
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
             }
 
             if ($key === self::KEY_APP_ENV) {
                 $out[self::KEY_APP_ENV] = self::normalizeSafeStringOverride($value);
-
                 continue;
             }
 
             if ($key === self::KEY_PRESET) {
                 $out[self::KEY_PRESET] = self::normalizeSafeStringOverride($value);
-
                 continue;
             }
 
@@ -232,18 +224,18 @@ final readonly class BootstrapOverridesLoader
                 continue;
             }
 
-            if ($key === self::KEY_ARTIFACTS_CACHE_DIR) {
-                $out[self::KEY_ARTIFACTS_CACHE_DIR] = self::normalizeArtifactsCacheDirOverride(
-                    $value,
-                );
+            if ($key === self::KEY_MODULE_OVERRIDES) {
+                $out[self::KEY_MODULE_OVERRIDES] = self::normalizeModuleOverrides($value);
+                continue;
+            }
 
+            if ($key === self::KEY_ARTIFACTS_CACHE_DIR) {
+                $out[self::KEY_ARTIFACTS_CACHE_DIR] = self::normalizeArtifactsCacheDirOverride($value);
                 continue;
             }
 
             if (!\is_bool($value)) {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                );
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
             }
 
             $out[self::KEY_DEBUG] = $value;
@@ -258,9 +250,7 @@ final readonly class BootstrapOverridesLoader
     private static function normalizeSafeStringOverride(mixed $value): string
     {
         if (!\is_string($value) || !self::isNonEmptySafeSingleLineString($value)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         return $value;
@@ -272,9 +262,7 @@ final readonly class BootstrapOverridesLoader
     private static function normalizeArtifactsCacheDirOverride(mixed $value): string
     {
         if (!BootstrapArtifactsCacheDir::isValid($value)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         /** @var non-empty-string $value */
@@ -287,24 +275,18 @@ final readonly class BootstrapOverridesLoader
     private static function normalizePresets(mixed $value): array
     {
         if (!\is_array($value)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         if ($value !== [] && \array_is_list($value)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_OVERRIDES_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
         }
 
         $out = [];
 
         foreach ($value as $appTarget => $presetName) {
             if (!\is_string($appTarget) || !isset(self::APP_TARGETS[$appTarget])) {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_OVERRIDES_INVALID,
-                );
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
             }
 
             $out[$appTarget] = self::normalizeSafeStringOverride($presetName);
@@ -315,6 +297,45 @@ final readonly class BootstrapOverridesLoader
         /**
          * @var array<string, non-empty-string> $out
          */
+        return $out;
+    }
+
+    /** @return array<string, array{include:list<string>, exclude:list<string>}> */
+    private static function normalizeModuleOverrides(mixed $value): array
+    {
+        if (
+            !\is_array($value)
+            || ($value !== [] && \array_is_list($value))
+        ) {
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+        }
+        $out = [];
+        foreach ($value as $target => $entry) {
+            if (
+                !\is_string($target)
+                || !isset(self::APP_TARGETS[$target])
+                || !\is_array($entry)
+                || ($entry !== [] && \array_is_list($entry))
+            ) {
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+            }
+            foreach ($entry as $key => $list) {
+                if (
+                    !\in_array($key, ['include', 'exclude'], true)
+                    || !\is_array($list)
+                    || !\array_is_list($list)
+                ) {
+                    throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+                }
+                foreach ($list as $id) {
+                    if (!\is_string($id) || !self::isNonEmptySafeSingleLineString($id)) {
+                        throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+                    }
+                }
+            }
+            $out[$target] = ['include' => $entry['include'] ?? [], 'exclude' => $entry['exclude'] ?? []];
+        }
+        \ksort($out, \SORT_STRING);
         return $out;
     }
 

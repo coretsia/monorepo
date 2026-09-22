@@ -18,6 +18,11 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Boot;
 
+use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
+
 /**
  * Resolves immutable Bootstrap Phase A configuration.
  *
@@ -37,8 +42,8 @@ namespace Coretsia\Kernel\Boot;
  * The `presets` map is evaluated only for the already selected explicit app
  * target. It must not select, infer, or modify app target.
  *
- * Phase A validates only preset value shape. Preset file existence and preset
- * schema validation are owned by ModulePlan resolution.
+ * Phase A validates the preset name and canonical per-target module overrides.
+ * Preset file existence and schema validation belong to orchestration.
  *
  * This resolver owns BootstrapConfig resolution only. It does not build the env
  * repository, parse dotenv files, read system env, scan apps/<app>, read
@@ -72,6 +77,7 @@ final readonly class BootstrapConfigResolver
     private const string OVERRIDE_APP_ENV = 'appEnv';
     private const string OVERRIDE_PRESET = 'preset';
     private const string OVERRIDE_PRESETS = 'presets';
+    private const string OVERRIDE_MODULE_OVERRIDES = 'moduleOverrides';
     private const string OVERRIDE_DEBUG = 'debug';
     private const string OVERRIDE_ARTIFACTS_CACHE_DIR = 'artifactsCacheDir';
 
@@ -85,6 +91,7 @@ final readonly class BootstrapConfigResolver
 
     public function __construct(
         private BootstrapOverridesLoader $overridesLoader,
+        private ModuleIdSetNormalizer $moduleIdSetNormalizer,
     ) {
     }
 
@@ -132,7 +139,52 @@ final readonly class BootstrapConfigResolver
             envSourcePolicy: $envSourcePolicy,
             appTarget: $input->appTarget(),
             applicationRoot: $input->applicationRoot(),
+            moduleOverrides: $this->resolveModuleOverrides(
+                $overrides[self::OVERRIDE_MODULE_OVERRIDES][$input->appTarget()->value] ?? [],
+            ),
         );
+    }
+
+    /**
+     * @param array<string,mixed> $raw
+     */
+    private function resolveModuleOverrides(array $raw): ResolvedModuleOverrides
+    {
+        $include = $this->resolveModuleIdList($raw['include'] ?? []);
+        $exclude = $this->resolveModuleIdList($raw['exclude'] ?? []);
+        $includeIds = \array_fill_keys(\array_map(static fn (ModuleId $id): string => $id->value(), $include), true);
+        foreach ($exclude as $id) {
+            if (isset($includeIds[$id->value()])) {
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+            }
+        }
+        return new ResolvedModuleOverrides(
+            $this->moduleIdSetNormalizer->normalize($include),
+            $this->moduleIdSetNormalizer->normalize($exclude),
+        );
+    }
+
+    /**
+     * @param list<string> $raw
+     * @return list<ModuleId>
+     */
+    private function resolveModuleIdList(array $raw): array
+    {
+        $ids = [];
+        $seen = [];
+        foreach ($raw as $value) {
+            try {
+                $id = ModuleId::fromString($value);
+                if ($value !== $id->value() || isset($seen[$id->value()])) {
+                    throw new \InvalidArgumentException('bootstrap-module-id-invalid');
+                }
+            } catch (\InvalidArgumentException) {
+                throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+            }
+            $seen[$id->value()] = true;
+            $ids[] = $id;
+        }
+        return $ids;
     }
 
     /**
@@ -147,6 +199,7 @@ final readonly class BootstrapConfigResolver
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
+     *     moduleOverrides?: array<string, array{include:list<string>, exclude:list<string>}>,
      *     debug?: bool,
      *     artifactsCacheDir?: non-empty-string
      * } $overrides
@@ -188,6 +241,7 @@ final readonly class BootstrapConfigResolver
      *     appEnv?: non-empty-string,
      *     preset?: non-empty-string,
      *     presets?: array<string, non-empty-string>,
+     *     moduleOverrides?: array<string, array{include:list<string>, exclude:list<string>}>,
      *     debug?: bool,
      *     artifactsCacheDir?: non-empty-string
      * } $overrides
@@ -277,9 +331,7 @@ final readonly class BootstrapConfigResolver
         $value = $kernelConfig[self::KEY_BOOT][self::KEY_DEFAULT_ARTIFACTS_CACHE_DIR] ?? null;
 
         if (!BootstrapArtifactsCacheDir::isValid($value)) {
-            throw new \InvalidArgumentException(
-                'bootstrap-config-default-artifacts-cache-dir-invalid',
-            );
+            throw new \InvalidArgumentException('bootstrap-config-default-artifacts-cache-dir-invalid');
         }
 
         /** @var non-empty-string $value */

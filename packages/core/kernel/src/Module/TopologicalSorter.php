@@ -37,8 +37,9 @@ use Coretsia\Kernel\Module\Exception\ModuleCycleDetectedException;
  * detection.
  *
  * It does not classify missing modules and does not classify conflicts.
- * Missing required modules, disabled required modules, and conflicts must be
- * classified before this sorter is called by ModuleGraphResolver.
+ * Missing selected roots, missing transitive dependencies, excluded dependencies,
+ * and enabled-module conflicts must be classified before this sorter is called
+ * by ModuleGraphResolver.
  *
  * Only enabled modules participate in topo sorting. The caller must pass the
  * enabled resolved ModulePlanEntry list. Dependency edges pointing to module ids

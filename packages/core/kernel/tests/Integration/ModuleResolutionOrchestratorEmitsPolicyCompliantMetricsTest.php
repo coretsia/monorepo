@@ -28,27 +28,31 @@ use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
-use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
-use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
-use Coretsia\Kernel\Module\Exception\ModuleConflictException;
-use Coretsia\Kernel\Module\Exception\ModuleCycleDetectedException;
-use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
+use Coretsia\Kernel\Module\Exception\CanonicalPresetOverrideException;
+use Coretsia\Kernel\Module\Exception\InvalidModuleSelectionException;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
-final class ModulePlanResolverFailurePrecedenceTest extends TestCase
+final class ModuleResolutionOrchestratorEmitsPolicyCompliantMetricsTest extends TestCase
 {
     private string $tempRoot;
 
     protected function setUp(): void
     {
         $this->tempRoot = self::createTempDirectory();
+        \mkdir($this->tempRoot . '/package', 0777, true);
+        \mkdir($this->tempRoot . '/application', 0777, true);
     }
 
     protected function tearDown(): void
@@ -56,71 +60,11 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         self::removeDirectory($this->tempRoot);
     }
 
-    public function testPresetNotFoundHappensBeforeComposerManifestReading(): void
-    {
-        $manifestReader = self::manifestReader(
-            ModuleManifestInvalidException::installedMetadataInvalid(),
-        );
-
-        $resolver = self::resolver(
-            packageRoot: $this->tempRoot . '/package',
-            manifestReader: $manifestReader,
-            meter: self::meter(),
-        );
-
-        try {
-            $resolver->resolveResolution(
-                self::bootstrapConfig(
-                    applicationRoot: $this->tempRoot . '/application',
-                    preset: 'missing',
-                ),
-            );
-
-            self::fail('Expected preset-not-found to happen before manifest reading.');
-        } catch (ModePresetNotFoundException $exception) {
-            self::assertSame(0, $manifestReader->reads);
-            self::assertSame(ModePresetNotFoundException::REASON_PRESET_NOT_FOUND, $exception->reason());
-            self::assertSame(['preset' => 'missing'], $exception->context());
-        }
-    }
-
-    public function testPresetInvalidHappensBeforeComposerManifestReading(): void
+    public function testEmitsPolicyCompliantMetricsOnSuccess(): void
     {
         $packageRoot = $this->tempRoot . '/package';
-
-        self::writeFile(
-            $packageRoot . '/resources/modes/micro.php',
-            "<?php\n\ndeclare(strict_types=1);\n\nreturn 'not-an-array';\n",
-        );
-
-        $manifestReader = self::manifestReader(
-            ModuleManifestInvalidException::installedMetadataInvalid(),
-        );
-
-        $resolver = self::resolver(
-            packageRoot: $packageRoot,
-            manifestReader: $manifestReader,
-            meter: self::meter(),
-        );
-
-        try {
-            $resolver->resolveResolution(
-                self::bootstrapConfig(
-                    applicationRoot: $this->tempRoot . '/application',
-                    preset: 'micro',
-                ),
-            );
-
-            self::fail('Expected preset-invalid to happen before manifest reading.');
-        } catch (ModePresetInvalidException $exception) {
-            self::assertSame(0, $manifestReader->reads);
-            self::assertSame(['preset' => 'micro'], $exception->context());
-        }
-    }
-
-    public function testManifestInvalidHappensBeforeGraphPolicyFailures(): void
-    {
-        $packageRoot = $this->tempRoot . '/package';
+        $applicationRoot = $this->tempRoot . '/application';
+        $meter = self::recordingMeter();
 
         self::writePresetFile(
             directory: $packageRoot . '/resources/modes',
@@ -136,24 +80,76 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         $resolver = self::resolver(
             packageRoot: $packageRoot,
             manifestReader: self::manifestReader(
-                ModuleManifestInvalidException::installedMetadataInvalid(),
+                self::manifest([
+                    self::descriptor('core.kernel'),
+                ]),
             ),
-            meter: self::meter(),
+            meter: $meter,
         );
 
-        $this->expectException(ModuleManifestInvalidException::class);
-
-        $resolver->resolveResolution(
+        $resolver->resolve(
             self::bootstrapConfig(
-                applicationRoot: $this->tempRoot . '/application',
+                applicationRoot: $applicationRoot,
                 preset: 'micro',
             ),
         );
+
+        self::assertMetricsShape(
+            meter: $meter,
+            expectedOutcome: 'success',
+        );
     }
 
-    public function testConflictFailurePrecedesRequiredMissingFailure(): void
+    public function testEmitsPolicyCompliantMetricsOnDeterministicFailure(): void
     {
         $packageRoot = $this->tempRoot . '/package';
+        $applicationRoot = $this->tempRoot . '/application';
+        $meter = self::recordingMeter();
+
+        self::writePresetFile(
+            directory: $packageRoot . '/resources/modes',
+            name: 'micro',
+            payload: self::presetPayload(
+                name: 'micro',
+                required: [
+                    'platform.http',
+                ],
+            ),
+        );
+
+        $resolver = self::resolver(
+            packageRoot: $packageRoot,
+            manifestReader: self::manifestReader(
+                self::manifest([
+                    self::descriptor('core.kernel'),
+                ]),
+            ),
+            meter: $meter,
+        );
+
+        try {
+            $resolver->resolve(
+                self::bootstrapConfig(
+                    applicationRoot: $applicationRoot,
+                    preset: 'micro',
+                ),
+            );
+
+            self::fail('Expected required missing failure.');
+        } catch (ModuleRequiredMissingException) {
+            self::assertMetricsShape(
+                meter: $meter,
+                expectedOutcome: 'required_missing',
+            );
+        }
+    }
+
+    public function testEmitsUnexpectedFailureMetricsWhenUnexpectedThrowableEscapes(): void
+    {
+        $packageRoot = $this->tempRoot . '/package';
+        $applicationRoot = $this->tempRoot . '/application';
+        $meter = self::recordingMeter();
+        $unexpected = new \LogicException('unsafe unexpected module resolution failure');
 
         self::writePresetFile(
             directory: $packageRoot . '/resources/modes',
@@ -162,168 +158,167 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
                 name: 'micro',
                 required: [
                     'core.kernel',
-                    'platform.http',
-                    'platform.metrics',
                 ],
             ),
         );
 
         $resolver = self::resolver(
             packageRoot: $packageRoot,
-            manifestReader: self::manifestReader(
-                self::manifest([
-                    self::descriptor(
-                        'core.kernel',
-                        conflicts: [
-                            'platform.http',
-                        ],
-                    ),
-                    self::descriptor('platform.http'),
-                ]),
-            ),
-            meter: self::meter(),
+            manifestReader: self::manifestReader($unexpected),
+            meter: $meter,
         );
 
         try {
-            $resolver->resolveResolution(
+            $resolver->resolve(
                 self::bootstrapConfig(
-                    applicationRoot: $this->tempRoot . '/application',
+                    applicationRoot: $applicationRoot,
                     preset: 'micro',
                 ),
             );
 
-            self::fail('Expected conflict to precede required-missing failure.');
-        } catch (ModuleConflictException $exception) {
-            self::assertSame(ModuleConflictException::REASON_MODULE_CONFLICT, $exception->reason());
-            self::assertSame(
-                [
-                    'higherModuleId' => 'platform.http',
-                    'lowerModuleId' => 'core.kernel',
-                ],
-                $exception->context(),
+            self::fail('Expected unexpected module resolution throwable.');
+        } catch (\LogicException $exception) {
+            self::assertSame($unexpected, $exception);
+
+            self::assertMetricsShape(
+                meter: $meter,
+                expectedOutcome: 'unexpected_failure',
             );
         }
     }
 
-    public function testRequiredMissingFailurePrecedesCycleDetection(): void
+    public function testRequiredRootExclusionEmitsSelectionInvalidOutcome(): void
     {
         $packageRoot = $this->tempRoot . '/package';
+        $applicationRoot = $this->tempRoot . '/application';
+        $meter = self::recordingMeter();
 
         self::writePresetFile(
             directory: $packageRoot . '/resources/modes',
             name: 'micro',
             payload: self::presetPayload(
                 name: 'micro',
-                required: [
-                    'platform.alpha',
-                    'platform.gamma',
-                ],
+                required: ['core.kernel'],
             ),
         );
 
         $resolver = self::resolver(
             packageRoot: $packageRoot,
             manifestReader: self::manifestReader(
-                self::manifest([
-                    self::descriptor(
-                        'platform.alpha',
-                        requires: [
-                            'platform.beta',
-                        ],
-                    ),
-                    self::descriptor(
-                        'platform.beta',
-                        requires: [
-                            'platform.alpha',
-                        ],
-                    ),
-                ]),
+                self::manifest([self::descriptor('core.kernel')]),
             ),
-            meter: self::meter(),
+            meter: $meter,
+        );
+
+        $bootstrapConfig = new BootstrapConfig(
+            appEnv: 'local',
+            preset: 'micro',
+            debug: false,
+            artifactsCacheDir: 'var/cache',
+            envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
+            appTarget: AppTarget::Api,
+            applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides(
+                [],
+                [ModuleId::fromString('core.kernel')],
+            ),
         );
 
         try {
-            $resolver->resolveResolution(
-                self::bootstrapConfig(
-                    applicationRoot: $this->tempRoot . '/application',
-                    preset: 'micro',
-                ),
-            );
+            $resolver->resolve($bootstrapConfig);
 
-            self::fail('Expected required-missing to precede cycle detection.');
-        } catch (ModuleRequiredMissingException $exception) {
-            self::assertSame(
-                ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
-                $exception->reason(),
-            );
-
-            self::assertSame(
-                [
-                    'missingModuleId' => 'platform.gamma',
-                    'preset' => 'micro',
-                ],
-                $exception->context(),
-            );
+            self::fail('Required preset root exclusion must fail.');
+        } catch (InvalidModuleSelectionException $exception) {
+            self::assertSame('module-selection-required-excluded', $exception->reason());
+            self::assertMetricsShape($meter, 'selection_invalid');
         }
     }
 
-    public function testCycleDetectionIsReportedAfterEarlierGraphFailuresAreAbsent(): void
+    public function testCanonicalShadowingEmitsPresetInvalidOutcome(): void
     {
         $packageRoot = $this->tempRoot . '/package';
+        $applicationRoot = $this->tempRoot . '/application';
+        $meter = self::recordingMeter();
 
         self::writePresetFile(
             directory: $packageRoot . '/resources/modes',
             name: 'micro',
             payload: self::presetPayload(
                 name: 'micro',
-                required: [
-                    'platform.alpha',
-                    'platform.beta',
-                ],
+                required: ['core.kernel'],
+            ),
+        );
+
+        self::writePresetFile(
+            directory: $applicationRoot . '/config/modes',
+            name: 'micro',
+            payload: self::presetPayload(
+                name: 'micro',
+                required: ['core.kernel'],
             ),
         );
 
         $resolver = self::resolver(
             packageRoot: $packageRoot,
             manifestReader: self::manifestReader(
-                self::manifest([
-                    self::descriptor(
-                        'platform.alpha',
-                        requires: [
-                            'platform.beta',
-                        ],
-                    ),
-                    self::descriptor(
-                        'platform.beta',
-                        requires: [
-                            'platform.alpha',
-                        ],
-                    ),
-                ]),
+                self::manifest([self::descriptor('core.kernel')]),
             ),
-            meter: self::meter(),
+            meter: $meter,
         );
 
         try {
-            $resolver->resolveResolution(
-                self::bootstrapConfig(
-                    applicationRoot: $this->tempRoot . '/application',
-                    preset: 'micro',
-                ),
-            );
+            $resolver->resolve(self::bootstrapConfig($applicationRoot, 'micro'));
 
-            self::fail('Expected cycle detection after earlier failures are absent.');
-        } catch (ModuleCycleDetectedException $exception) {
-            self::assertSame(ModuleCycleDetectedException::REASON_CYCLE_DETECTED, $exception->reason());
-            self::assertSame(
+            self::fail('A reserved canonical application preset must be rejected.');
+        } catch (CanonicalPresetOverrideException $exception) {
+            self::assertSame('canonical-preset-override-forbidden', $exception->reason());
+            self::assertMetricsShape($meter, 'preset_invalid');
+        }
+    }
+
+    private static function assertMetricsShape(object $meter, string $expectedOutcome): void
+    {
+        self::assertSame(
+            [
                 [
-                    'moduleIds' => [
-                        'platform.alpha',
-                        'platform.beta',
+                    'name' => 'kernel.modules_resolve_total',
+                    'delta' => 1,
+                    'labels' => [
+                        'operation' => 'resolve',
+                        'outcome' => $expectedOutcome,
                     ],
                 ],
-                $exception->context(),
-            );
+            ],
+            $meter->increments,
+        );
+
+        self::assertCount(1, $meter->observations);
+        self::assertSame('kernel.modules_resolve_duration_ms', $meter->observations[0]['name']);
+        self::assertIsInt($meter->observations[0]['value']);
+        self::assertGreaterThanOrEqual(0, $meter->observations[0]['value']);
+        self::assertSame(
+            [
+                'operation' => 'resolve',
+                'outcome' => $expectedOutcome,
+            ],
+            $meter->observations[0]['labels'],
+        );
+
+        foreach ([$meter->increments[0]['labels'], $meter->observations[0]['labels']] as $labels) {
+            self::assertSame(['operation', 'outcome'], \array_keys($labels));
+            self::assertSame('resolve', $labels['operation']);
+            self::assertContains($labels['outcome'], [
+                'success',
+                'preset_not_found',
+                'preset_invalid',
+                'selection_invalid',
+                'manifest_invalid',
+                'discovery_source_unsupported',
+                'conflict',
+                'required_missing',
+                'cycle',
+                'unexpected_failure',
+            ]);
         }
     }
 
@@ -331,8 +326,8 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         string $packageRoot,
         ManifestReaderInterface $manifestReader,
         MeterPortInterface $meter,
-    ): ModulePlanResolver {
-        return new ModulePlanResolver(
+    ): ModuleResolutionOrchestrator {
+        return new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: $packageRoot,
                 modesConfig: [
@@ -342,8 +337,10 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: $meter,
             stopwatch: new Stopwatch(),
@@ -369,6 +366,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
             appTarget: AppTarget::from('api'),
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -380,24 +378,17 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         return new ModuleManifest($modules);
     }
 
-    /**
-     * @param list<string> $requires
-     * @param list<string> $conflicts
-     */
-    private static function descriptor(
-        string $moduleId,
-        array $requires = [],
-        array $conflicts = [],
-    ): ModuleDescriptor {
+    private static function descriptor(string $moduleId): ModuleDescriptor
+    {
         return new ModuleDescriptor(
             id: ModuleId::fromString($moduleId),
-            composerName: self::composerName($moduleId),
+            composerName: 'coretsia/' . \str_replace('.', '-', $moduleId),
             packageKind: 'runtime',
             moduleClass: null,
             capabilities: [],
             metadata: [
-                'conflicts' => self::sortedUniqueStrings($conflicts),
-                'requires' => self::sortedUniqueStrings($requires),
+                'conflicts' => [],
+                'requires' => [],
             ],
         );
     }
@@ -405,8 +396,6 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
     private static function manifestReader(ModuleManifest|\Throwable $result): ManifestReaderInterface
     {
         return new class($result) implements ManifestReaderInterface {
-            public int $reads = 0;
-
             public function __construct(
                 private ModuleManifest|\Throwable $result,
             ) {
@@ -414,8 +403,6 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
 
             public function read(): ModuleManifest
             {
-                ++$this->reads;
-
                 if ($this->result instanceof \Throwable) {
                     throw $this->result;
                 }
@@ -425,58 +412,52 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
         };
     }
 
-    private static function meter(): MeterPortInterface
+    private static function recordingMeter(): object
     {
         return new class() implements MeterPortInterface {
+            /**
+             * @var list<array{name: string, delta: int, labels: array<string, string|int|bool>}>
+             */
+            public array $increments = [];
+
+            /**
+             * @var list<array{name: string, value: int, labels: array<string, string|int|bool>}>
+             */
+            public array $observations = [];
+
             public function increment(string $name, int $delta = 1, array $labels = []): void
             {
+                $this->increments[] = [
+                    'name' => $name,
+                    'delta' => $delta,
+                    'labels' => $labels,
+                ];
             }
 
             public function observe(string $name, int $value, array $labels = []): void
             {
+                $this->observations[] = [
+                    'name' => $name,
+                    'value' => $value,
+                    'labels' => $labels,
+                ];
             }
         };
     }
 
-    private static function composerName(string $moduleId): string
-    {
-        return 'coretsia/' . \str_replace('.', '-', $moduleId);
-    }
-
-    /**
-     * @param list<string> $values
-     *
-     * @return list<string>
-     */
-    private static function sortedUniqueStrings(array $values): array
-    {
-        $values = \array_values(\array_unique($values));
-
-        \usort($values, static fn (string $a, string $b): int => \strcmp($a, $b));
-
-        return $values;
-    }
-
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
      *
      * @return array<string, mixed>
      */
-    private static function presetPayload(
-        string $name,
-        array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): array {
+    private static function presetPayload(string $name, array $required): array
+    {
         return [
             'schemaVersion' => 1,
             'name' => $name,
             'description' => \ucfirst($name) . ' test mode.',
             'required' => $required,
-            'optional' => $optional,
-            'disabled' => $disabled,
+            'modules' => [],
             'featureBundles' => [],
             'metadata' => [],
         ];
@@ -509,7 +490,7 @@ final class ModulePlanResolverFailurePrecedenceTest extends TestCase
     private static function createTempDirectory(): string
     {
         $directory = \sys_get_temp_dir()
-            . '/coretsia-module-plan-resolver-failure-precedence-'
+            . '/coretsia-module-plan-observability-metrics-'
             . \bin2hex(\random_bytes(8));
 
         if (!\mkdir($directory, 0777, true) && !\is_dir($directory)) {

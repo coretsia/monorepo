@@ -70,9 +70,9 @@ final class KernelConfigModuleStopwatchFailurePolicyContractTest extends TestCas
         );
     }
 
-    public function testModulePlanResolverUsesObservabilityIsolatedStopwatchWrappersOnly(): void
+    public function testModuleResolutionOrchestratorUsesObservabilityIsolatedStopwatchWrappersOnly(): void
     {
-        $source = self::sourceFile('src/Module/ModulePlanResolver.php');
+        $source = self::sourceFile('src/Module/ModuleResolutionOrchestrator.php');
 
         self::assertStringContainsString('private function safeStartTimer(): mixed', $source);
         self::assertStringContainsString('private function safeStopTimer(mixed $startedAt): int', $source);

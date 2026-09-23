@@ -99,9 +99,7 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
             self::assertSame(
                 self::fingerprint('a') . "\n",
                 \file_get_contents(
-                    new ArtifactGenerationPathResolver()->currentPath(
-                        $artifactRoot,
-                    ),
+                    new ArtifactGenerationPathResolver()->currentPath($artifactRoot),
                 ),
             );
 
@@ -225,13 +223,10 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 
@@ -269,13 +264,8 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
     ): array {
         $bytes = [];
 
-        foreach (
-            self::generationPaths(
-                $generation,
-            ) as $basename => $path
-        ) {
-            $content =
-                \file_get_contents($path);
+        foreach (self::generationPaths($generation) as $basename => $path) {
+            $content = \file_get_contents($path);
 
             self::assertIsString($content);
 

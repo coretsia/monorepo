@@ -32,6 +32,7 @@ use Coretsia\Kernel\Config\ConfigValidator;
 use Coretsia\Kernel\Config\DirectiveProcessor;
 use Coretsia\Kernel\Config\Loaders\ApplicationConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class CompiledConfigKeepsUserOwnedRootsTest extends TestCase
@@ -354,6 +355,7 @@ final class CompiledConfigKeepsUserOwnedRootsTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 

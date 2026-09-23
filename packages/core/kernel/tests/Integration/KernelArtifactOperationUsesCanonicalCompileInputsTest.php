@@ -36,10 +36,15 @@ use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
+use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -60,7 +65,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         \mkdir($this->applicationRoot, 0777, true);
 
         $this->writePackageConfig('v1');
-        $this->writeModePreset($this->packageRoot . '/resources/modes/test.php');
+        $this->writeModePreset($this->applicationRoot . '/config/modes/test.php');
     }
 
     protected function tearDown(): void
@@ -78,9 +83,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
 
         self::assertSame(1, $fixture['manifestReader']->readCount);
 
-        $payload = ArtifactPipelineTestSupport::configPayloadFromArtifact(
-            $this->applicationRoot,
-        );
+        $payload = ArtifactPipelineTestSupport::configPayloadFromArtifact($this->applicationRoot);
 
         self::assertSame(
             'v1',
@@ -119,7 +122,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         );
     }
 
-    public function testMissingApplicationOverrideBecomingPresentMakesGenerationDirty(): void
+    public function testSelectedCustomPresetContentChangeMakesGenerationDirty(): void
     {
         $fixture = $this->operationFixture([
             'coretsia/core-kernel' => $this->packageRoot,
@@ -129,11 +132,12 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         $fixture['operation']->compile($input);
 
         self::assertSame(1, $fixture['manifestReader']->readCount);
-        self::assertFileDoesNotExist(
-            $this->applicationRoot . '/config/modes/test.php',
-        );
+        self::assertFileExists($this->applicationRoot . '/config/modes/test.php');
 
-        $this->writeModePreset($this->applicationRoot . '/config/modes/test.php');
+        $this->writeModePreset(
+            $this->applicationRoot . '/config/modes/test.php',
+            'Selected custom source changed.',
+        );
 
         $result = $fixture['operation']->verify($input);
 
@@ -150,9 +154,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
     public function testMissingInstallRootFailsBeforeAnyGenerationIsPublished(): void
     {
         $fixture = $this->operationFixture([]);
-        $artifactRoot = ArtifactPipelineTestSupport::artifactRoot(
-            $this->applicationRoot,
-        );
+        $artifactRoot = ArtifactPipelineTestSupport::artifactRoot($this->applicationRoot);
 
         try {
             $fixture['operation']->compile($this->bootstrapInput());
@@ -173,6 +175,26 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         }
 
         self::assertSame(1, $fixture['manifestReader']->readCount);
+        self::assertDirectoryDoesNotExist($artifactRoot);
+    }
+
+    public function testMissingSelectedCustomPresetFailsBeforeConfigSourceDiscovery(): void
+    {
+        $fixture = $this->operationFixture([]);
+
+        \unlink($this->applicationRoot . '/config/modes/test.php');
+
+        $artifactRoot = ArtifactPipelineTestSupport::artifactRoot($this->applicationRoot);
+
+        try {
+            $fixture['operation']->compile($this->bootstrapInput());
+
+            self::fail('Missing custom preset must fail before config-source discovery.');
+        } catch (ModePresetNotFoundException $exception) {
+            self::assertSame(['preset' => 'test'], $exception->context());
+        }
+
+        self::assertSame(0, $fixture['manifestReader']->readCount);
         self::assertDirectoryDoesNotExist($artifactRoot);
     }
 
@@ -214,18 +236,18 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
                 ],
             ]),
         );
-        $manifestReader = new KernelArtifactOperationManifestReaderCounter(
-            $composerReader,
-        );
+        $manifestReader = new KernelArtifactOperationManifestReaderCounter($composerReader);
         $modePresetLoaderFactory = new ModePresetLoaderFactory(
             packageRoot: $this->packageRoot,
             modesConfig: $this->kernelConfig()['modes'],
             schemaValidator: new ModePresetSchemaValidator(),
         );
-        $modulePlanResolver = new ModulePlanResolver(
+        $moduleResolutionOrchestrator = new ModuleResolutionOrchestrator(
             presetLoaderFactory: $modePresetLoaderFactory,
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: self::meter(),
             stopwatch: new Stopwatch(),
@@ -235,15 +257,17 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         $sourceBuilder = new ConfigSourceLocationBuilder(
             installPathResolver: new ComposerPackageInstallPathResolver($installRoots),
             modePresetLoaderFactory: $modePresetLoaderFactory,
+            presetNamespaceResolver: new PresetNamespaceResolver(),
         );
 
         return [
             'operation' => new KernelArtifactOperation(
                 bootstrapConfigResolver: new BootstrapConfigResolver(
                     new BootstrapOverridesLoader(),
+                    new ModuleIdSetNormalizer(),
                 ),
                 envRepositoryBuilder: new EnvRepositoryBuilder(new DotenvLoader()),
-                modulePlanResolver: $modulePlanResolver,
+                moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $sourceBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
@@ -312,19 +336,20 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
         );
     }
 
-    private function writeModePreset(string $path): void
-    {
+    private function writeModePreset(
+        string $path,
+        string $description = 'Canonical config-source operation fixture.',
+    ): void {
         ArtifactPipelineTestSupport::writePhpReturn(
             $path,
             [
                 'schemaVersion' => 1,
                 'name' => 'test',
-                'description' => 'Canonical config-source operation fixture.',
+                'description' => $description,
                 'required' => [
                     'core.kernel',
                 ],
-                'optional' => [],
-                'disabled' => [],
+                'modules' => [],
                 'featureBundles' => [],
                 'metadata' => [],
             ],

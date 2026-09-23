@@ -24,6 +24,7 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -132,6 +133,7 @@ final class BootstrapSelectsExplicitAppTargetTest extends TestCase
     {
         return new BootstrapConfigResolver(
             overridesLoader: new BootstrapOverridesLoader(),
+            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
         )->resolve(
             input: $input,
             kernelConfig: self::kernelConfig(),

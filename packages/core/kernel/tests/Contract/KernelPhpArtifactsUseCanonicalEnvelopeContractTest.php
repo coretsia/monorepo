@@ -177,13 +177,10 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
     {
         return new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

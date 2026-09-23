@@ -80,6 +80,7 @@ use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Tests\Fixtures\ContainerDefinitionProviderFixture;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -289,6 +290,7 @@ final class ArtifactPipelineTestSupport
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -324,12 +326,10 @@ final class ArtifactPipelineTestSupport
             manifest: $manifest,
             plan: new ModulePlan(
                 app: 'web',
-                preset: 'default',
                 enabled: [
                     $moduleId,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $moduleId,
                 ],
@@ -339,7 +339,6 @@ final class ArtifactPipelineTestSupport
                         composerName: $composerName,
                     ),
                 ],
-                warnings: [],
             ),
         );
     }

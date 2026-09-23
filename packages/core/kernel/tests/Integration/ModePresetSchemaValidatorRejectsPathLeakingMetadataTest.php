@@ -160,8 +160,7 @@ final class ModePresetSchemaValidatorRejectsPathLeakingMetadataTest extends Test
                 'core.kernel',
                 'platform.cli',
             ],
-            'optional' => [],
-            'disabled' => [],
+            'modules' => [],
             'featureBundles' => $featureBundles,
             'metadata' => $metadata,
         ];

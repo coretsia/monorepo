@@ -50,13 +50,12 @@ final class ArtifactGenerationPublisherLeavesPreviousCurrentOnFailureTest extend
         string $scenario,
         string $expectedReason,
     ): void {
-        if (!\function_exists('proc_open')) {
-            self::markTestSkipped('proc_open() is unavailable in this environment.');
-        }
-
-        $root = ArtifactPipelineTestSupport::temporaryRoot(
-            'artifact-generation-failure-' . $scenario,
+        self::assertTrue(
+            \function_exists('proc_open'),
+            'proc_open() is required to run the publication failure child.',
         );
+
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-generation-failure-' . $scenario);
         $artifactRoot = $root . '/var/cache/web';
 
         try {
@@ -423,13 +422,10 @@ $envelopeFactory = new \Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory($norma
 $dumper = new \Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper($normalizer);
 $modulePlan = new \Coretsia\Kernel\Module\ModulePlan(
     app: 'web',
-    preset: 'default',
     enabled: [],
-    disabled: [],
-    optionalMissing: [],
+    excluded: [],
     topologicalOrder: [],
     modules: [],
-    warnings: [],
 );
 $compiledConfig = [
     'config' => [
@@ -661,13 +657,10 @@ CHILD;
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

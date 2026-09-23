@@ -21,8 +21,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
-use Coretsia\Kernel\Module\ModePreset;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 
@@ -41,7 +41,7 @@ final class KernelRequiresFoundationInModulePlanTest extends TestCase
                 ),
                 self::descriptor('core.foundation'),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'core.kernel',
                 ],
@@ -64,9 +64,7 @@ final class KernelRequiresFoundationInModulePlanTest extends TestCase
             self::moduleIdValues($plan->topologicalOrder()),
         );
 
-        self::assertSame([], self::moduleIdValues($plan->disabled()));
-        self::assertSame([], self::moduleIdValues($plan->optionalMissing()));
-        self::assertSame([], $plan->warnings());
+        self::assertSame([], self::moduleIdValues($plan->excluded()));
 
         self::assertSame(
             [
@@ -79,11 +77,11 @@ final class KernelRequiresFoundationInModulePlanTest extends TestCase
         self::assertSame(
             [
                 'app' => 'api',
-                'disabled' => [],
                 'enabled' => [
                     'core.foundation',
                     'core.kernel',
                 ],
+                'excluded' => [],
                 'modules' => [
                     'core.foundation' => [
                         'composerName' => 'coretsia/core-foundation',
@@ -100,14 +98,11 @@ final class KernelRequiresFoundationInModulePlanTest extends TestCase
                         ],
                     ],
                 ],
-                'optionalMissing' => [],
-                'preset' => 'micro',
                 'schemaVersion' => 1,
                 'topologicalOrder' => [
                     'core.foundation',
                     'core.kernel',
                 ],
-                'warnings' => [],
             ],
             $plan->toArray(),
         );
@@ -150,23 +145,17 @@ final class KernelRequiresFoundationInModulePlanTest extends TestCase
 
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
+     * @param list<string> $modules
+     * @param list<string> $excluded
      */
-    private static function preset(
+    private static function selection(
         array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): ModePreset {
-        return new ModePreset(
-            schemaVersion: 1,
-            name: 'micro',
-            description: 'Micro test mode.',
-            required: self::moduleIds($required),
-            optional: self::moduleIds($optional),
-            disabled: self::moduleIds($disabled),
-            featureBundles: [],
-            metadata: [],
+        array $modules = [],
+        array $excluded = [],
+    ): ModuleSelection {
+        return new ModuleSelection(
+            roots: self::moduleIds(self::sortedUniqueStrings([...$required, ...$modules])),
+            excluded: self::moduleIds(self::sortedUniqueStrings($excluded)),
         );
     }
 

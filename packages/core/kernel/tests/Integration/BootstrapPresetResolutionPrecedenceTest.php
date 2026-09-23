@@ -23,6 +23,7 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapPresetResolutionPrecedenceTest extends TestCase
@@ -321,9 +322,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
 
     public function testInvalidAppOverrideArtifactsCacheDirFailsDeterministically(): void
     {
-        $applicationRoot = self::createApplicationRoot(
-            'invalid-app-artifacts-cache-dir',
-        );
+        $applicationRoot = self::createApplicationRoot('invalid-app-artifacts-cache-dir');
 
         $unsafePath = '../unsafe-artifacts';
 
@@ -365,9 +364,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
                 return;
             }
 
-            self::fail(
-                'Invalid artifactsCacheDir app override must fail deterministically.',
-            );
+            self::fail('Invalid artifactsCacheDir app override must fail deterministically.');
         } finally {
             self::removeDirectory($applicationRoot);
         }
@@ -375,9 +372,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
 
     public function testInvalidKernelDefaultArtifactsCacheDirFailsDeterministically(): void
     {
-        $applicationRoot = self::createApplicationRoot(
-            'invalid-default-artifacts-cache-dir',
-        );
+        $applicationRoot = self::createApplicationRoot('invalid-default-artifacts-cache-dir');
 
         try {
             $kernelConfig = self::kernelConfig();
@@ -385,9 +380,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
             $kernelConfig['boot']['default_artifacts_cache_dir'] = 'config/cache';
 
             $this->expectException(\InvalidArgumentException::class);
-            $this->expectExceptionMessage(
-                'bootstrap-config-default-artifacts-cache-dir-invalid',
-            );
+            $this->expectExceptionMessage('bootstrap-config-default-artifacts-cache-dir-invalid');
 
             self::resolver()->resolve(
                 new BootstrapInput(
@@ -454,6 +447,7 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
     {
         return new BootstrapConfigResolver(
             overridesLoader: new BootstrapOverridesLoader(),
+            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
         );
     }
 

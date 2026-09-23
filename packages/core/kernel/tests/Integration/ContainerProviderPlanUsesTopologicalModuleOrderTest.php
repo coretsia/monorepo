@@ -103,10 +103,8 @@ final class ContainerProviderPlanUsesTopologicalModuleOrderTest extends TestCase
             manifest: $manifest,
             plan: new ModulePlan(
                 app: 'api',
-                preset: 'micro',
                 enabled: self::moduleIds($manifest->ids()),
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: self::moduleIds($topologicalOrder),
                 modules: $moduleEntries,
             ),

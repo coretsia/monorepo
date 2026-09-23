@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Kernel\Artifacts\Exception\FingerprintSymlinkForbiddenException;
 use Coretsia\Kernel\Artifacts\Fingerprint\DeterministicFileLister;
+use Coretsia\Kernel\Tests\Support\FilesystemLinkTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class FingerprintFileListerSymlinkForbiddenContractTest extends TestCase
@@ -47,16 +48,10 @@ final class FingerprintFileListerSymlinkForbiddenContractTest extends TestCase
 
     public function testDirectoryListingRejectsSymlinkWithoutLeakingPath(): void
     {
-        if (!\function_exists('symlink')) {
-            self::markTestSkipped('symlink() is unavailable in this environment.');
-        }
-
         $target = $this->temporaryRoot . '/config/app.php';
         $link = $this->temporaryRoot . '/config/app-link.php';
 
-        if (!@\symlink($target, $link)) {
-            self::markTestSkipped('Symlink creation is not allowed in this environment.');
-        }
+        FilesystemLinkTestSupport::symlink($target, $link);
 
         try {
             new DeterministicFileLister()->listFiles($this->temporaryRoot);
@@ -75,15 +70,13 @@ final class FingerprintFileListerSymlinkForbiddenContractTest extends TestCase
 
     public function testDirectoryListingRejectsSymlinkDeclaredRootWithoutLeakingPath(): void
     {
-        if (!\function_exists('symlink')) {
-            self::markTestSkipped('symlink() is unavailable in this environment.');
-        }
-
         $linkRoot = $this->temporaryRoot . '-link';
 
-        if (!@\symlink($this->temporaryRoot, $linkRoot)) {
-            self::markTestSkipped('Symlink creation is not allowed in this environment.');
-        }
+        FilesystemLinkTestSupport::symlink(
+            $this->temporaryRoot,
+            $linkRoot,
+            true,
+        );
 
         try {
             new DeterministicFileLister()->listFiles($linkRoot);
@@ -120,16 +113,10 @@ final class FingerprintFileListerSymlinkForbiddenContractTest extends TestCase
 
     public function testSingleFileCandidateRejectsSymlinkWithoutLeakingPath(): void
     {
-        if (!\function_exists('symlink')) {
-            self::markTestSkipped('symlink() is unavailable in this environment.');
-        }
-
         $target = $this->temporaryRoot . '/config/app.php';
         $link = $this->temporaryRoot . '/config/app-candidate.php';
 
-        if (!@\symlink($target, $link)) {
-            self::markTestSkipped('Symlink creation is not allowed in this environment.');
-        }
+        FilesystemLinkTestSupport::symlink($target, $link);
 
         try {
             new DeterministicFileLister()->listFileCandidate($link);

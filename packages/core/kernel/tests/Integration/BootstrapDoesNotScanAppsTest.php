@@ -23,6 +23,7 @@ use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapDoesNotScanAppsTest extends TestCase
@@ -122,6 +123,7 @@ final class BootstrapDoesNotScanAppsTest extends TestCase
     {
         return new BootstrapConfigResolver(
             overridesLoader: new BootstrapOverridesLoader(),
+            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
         )->resolve(
             input: $input,
             kernelConfig: self::kernelConfig(),

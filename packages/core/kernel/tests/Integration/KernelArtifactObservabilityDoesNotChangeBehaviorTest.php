@@ -64,6 +64,7 @@ use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -473,6 +474,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 

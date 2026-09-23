@@ -39,14 +39,12 @@ final class BootMicroPresetTest extends TestCase
                 'micro application preset override fixture must not exist',
             );
 
-            self::assertSame('micro', $modulePlan->preset());
             self::assertSame('web', $modulePlan->app());
 
             self::assertSame(
                 [
                     'core.foundation',
                     'core.kernel',
-                    'platform.cli',
                 ],
                 self::moduleIdValues($modulePlan->enabled()),
             );
@@ -55,7 +53,6 @@ final class BootMicroPresetTest extends TestCase
                 [
                     'core.foundation',
                     'core.kernel',
-                    'platform.cli',
                 ],
                 self::moduleIdValues($modulePlan->topologicalOrder()),
             );
@@ -64,7 +61,6 @@ final class BootMicroPresetTest extends TestCase
                 [
                     'core.foundation',
                     'core.kernel',
-                    'platform.cli',
                 ],
                 \array_keys($modulePlan->modules()),
             );

@@ -22,7 +22,7 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Tests\Support\AppBuilder;
 use PHPUnit\Framework\TestCase;
 
-final class ModulePlanResolverLoadsApplicationOnlyCustomPresetTest extends TestCase
+final class ModuleResolutionOrchestratorLoadsApplicationOnlyCustomPresetTest extends TestCase
 {
     public function testLoadsApplicationOnlyCustomPresetSelectedByBootstrapPreset(): void
     {
@@ -51,8 +51,6 @@ final class ModulePlanResolverLoadsApplicationOnlyCustomPresetTest extends TestC
                 \is_file($applicationRoot . '/apps/web/config/modules.php'),
                 'app-local module selection fixture must not be required',
             );
-
-            self::assertSame('worker-only', $modulePlan->preset());
             self::assertSame('web', $modulePlan->app());
 
             self::assertSame(
@@ -72,9 +70,6 @@ final class ModulePlanResolverLoadsApplicationOnlyCustomPresetTest extends TestC
                 ],
                 self::moduleIdValues($modulePlan->topologicalOrder()),
             );
-
-            self::assertSame([], self::moduleIdValues($modulePlan->optionalMissing()));
-            self::assertSame([], $modulePlan->warnings());
 
             self::assertSame(
                 [

@@ -31,18 +31,25 @@ use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
-final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest extends TestCase
+final class ModuleResolutionOrchestratorIgnoresApplicationConfigModulesPhpTest extends TestCase
 {
     private string $tempRoot;
 
     protected function setUp(): void
     {
         $this->tempRoot = self::createTempDirectory();
+        \mkdir($this->tempRoot . '/package', 0777, true);
+        \mkdir($this->tempRoot . '/application', 0777, true);
     }
 
     protected function tearDown(): void
@@ -50,7 +57,7 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
         self::removeDirectory($this->tempRoot);
     }
 
-    public function testUsesBootstrapPresetAsOnlyPresetSelectionInput(): void
+    public function testIgnoresApplicationConfigModulesPhpAndAppLocalModulesPhp(): void
     {
         $packageRoot = $this->tempRoot . '/package';
         $applicationRoot = $this->tempRoot . '/application';
@@ -63,85 +70,53 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
                 'name' => 'micro',
                 'description' => 'Micro test mode.',
                 'required' => [
-                    'core.foundation',
-                ],
-                'optional' => [],
-                'disabled' => [],
-                'featureBundles' => [],
-                'metadata' => [],
-            ],
-        );
-
-        self::writePresetFile(
-            directory: $packageRoot . '/resources/modes',
-            name: 'express',
-            payload: [
-                'schemaVersion' => 1,
-                'name' => 'express',
-                'description' => 'Express test mode.',
-                'required' => [
                     'core.kernel',
                 ],
-                'optional' => [
-                    'platform.http',
-                ],
-                'disabled' => [],
+                'modules' => [],
                 'featureBundles' => [],
                 'metadata' => [],
             ],
         );
 
-        /*
-         * This file would fail if ModulePlanResolver used app-local module
-         * selection. The resolver must ignore it entirely.
-         */
         self::writeFile(
-            $applicationRoot . '/apps/worker/config/modules.php',
-            "<?php\nthrow new \\RuntimeException('app-local-modules-php-must-not-be-read');\n",
+            $applicationRoot . '/config/modules.php',
+            "<?php\nthrow new \\RuntimeException('application-config-modules-php-must-not-be-read');\n",
         );
 
-        $manifest = self::manifest([
-            self::descriptor('core.foundation'),
-            self::descriptor(
-                'core.kernel',
-                requires: [
-                    'core.foundation',
-                ],
-            ),
-            self::descriptor('platform.http'),
-        ]);
-        $manifestReader = self::manifestReader($manifest);
-
-        $meter = self::meter();
+        self::writeFile(
+            $applicationRoot . '/apps/api/config/modules.php',
+            "<?php\nthrow new \\RuntimeException('app-config-modules-php-must-not-be-read');\n",
+        );
 
         $resolver = self::resolver(
             packageRoot: $packageRoot,
-            manifestReader: $manifestReader,
-            meter: $meter,
+            manifestReader: self::manifestReader(
+                self::manifest([
+                    self::descriptor(
+                        'core.kernel',
+                        requires: [
+                            'core.foundation',
+                        ],
+                    ),
+                    self::descriptor('core.foundation'),
+                ]),
+            ),
+            meter: self::meter(),
         );
 
-        $resolution = $resolver->resolveResolution(
+        $plan = $resolver->resolve(
             self::bootstrapConfig(
                 applicationRoot: $applicationRoot,
-                preset: 'express',
-                appTarget: 'worker',
+                preset: 'micro',
+                appTarget: 'api',
             ),
-        );
-        $plan = $resolution->plan();
-
-        self::assertSame(
-            $manifest,
-            $resolution->manifest(),
-        );
-
-        self::assertSame('express', $plan->preset());
-        self::assertSame('worker', $plan->app());
+        )->plan();
+        self::assertSame('api', $plan->app());
 
         self::assertSame(
             [
                 'core.foundation',
                 'core.kernel',
-                'platform.http',
             ],
             self::moduleIdValues($plan->enabled()),
         );
@@ -150,41 +125,17 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
             [
                 'core.foundation',
                 'core.kernel',
-                'platform.http',
             ],
             self::moduleIdValues($plan->topologicalOrder()),
         );
-
-        self::assertSame([], self::moduleIdValues($plan->optionalMissing()));
-        self::assertSame([], $plan->warnings());
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.http',
-            ],
-            \array_keys($plan->modules()),
-        );
-
-        self::assertSame(1, $manifestReader->reads);
-        self::assertMetricOutcomes($meter, ['success']);
     }
 
     private static function resolver(
         string $packageRoot,
         ManifestReaderInterface $manifestReader,
         MeterPortInterface $meter,
-        array $modulesConfig = [
-            'discovery' => [
-                'source' => 'composer',
-                'allowed_sources' => [
-                    'composer',
-                ],
-            ],
-        ],
-    ): ModulePlanResolver {
-        return new ModulePlanResolver(
+    ): ModuleResolutionOrchestrator {
+        return new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: $packageRoot,
                 modesConfig: [
@@ -194,20 +145,29 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: $meter,
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),
-            modulesConfig: $modulesConfig,
+            modulesConfig: [
+                'discovery' => [
+                    'source' => 'composer',
+                    'allowed_sources' => [
+                        'composer',
+                    ],
+                ],
+            ],
         );
     }
 
     private static function bootstrapConfig(
         string $applicationRoot,
         string $preset,
-        string $appTarget = 'api',
+        string $appTarget,
     ): BootstrapConfig {
         return new BootstrapConfig(
             appEnv: 'local',
@@ -217,6 +177,7 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
             envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
             appTarget: AppTarget::from($appTarget),
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -250,25 +211,17 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
         );
     }
 
-    private static function manifestReader(ModuleManifest|\Throwable $result): ManifestReaderInterface
+    private static function manifestReader(ModuleManifest $manifest): ManifestReaderInterface
     {
-        return new class($result) implements ManifestReaderInterface {
-            public int $reads = 0;
-
+        return new class($manifest) implements ManifestReaderInterface {
             public function __construct(
-                private ModuleManifest|\Throwable $result,
+                private ModuleManifest $manifest,
             ) {
             }
 
             public function read(): ModuleManifest
             {
-                ++$this->reads;
-
-                if ($this->result instanceof \Throwable) {
-                    throw $this->result;
-                }
-
-                return $this->result;
+                return $this->manifest;
             }
         };
     }
@@ -276,71 +229,14 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
     private static function meter(): MeterPortInterface
     {
         return new class() implements MeterPortInterface {
-            /**
-             * @var list<array{name: string, delta: int, labels: array<string, string|int|bool>}>
-             */
-            public array $increments = [];
-
-            /**
-             * @var list<array{name: string, value: int, labels: array<string, string|int|bool>}>
-             */
-            public array $observations = [];
-
             public function increment(string $name, int $delta = 1, array $labels = []): void
             {
-                $this->increments[] = [
-                    'name' => $name,
-                    'delta' => $delta,
-                    'labels' => $labels,
-                ];
             }
 
             public function observe(string $name, int $value, array $labels = []): void
             {
-                $this->observations[] = [
-                    'name' => $name,
-                    'value' => $value,
-                    'labels' => $labels,
-                ];
             }
         };
-    }
-
-    /**
-     * @param list<string> $expectedOutcomes
-     */
-    private static function assertMetricOutcomes(MeterPortInterface $meter, array $expectedOutcomes): void
-    {
-        self::assertObjectHasProperty('increments', $meter);
-        self::assertObjectHasProperty('observations', $meter);
-
-        $increments = $meter->increments;
-        $observations = $meter->observations;
-
-        self::assertCount(\count($expectedOutcomes), $increments);
-        self::assertCount(\count($expectedOutcomes), $observations);
-
-        foreach ($expectedOutcomes as $index => $outcome) {
-            self::assertSame('kernel.modules_resolve_total', $increments[$index]['name']);
-            self::assertSame(1, $increments[$index]['delta']);
-            self::assertSame(
-                [
-                    'operation' => 'resolve',
-                    'outcome' => $outcome,
-                ],
-                $increments[$index]['labels'],
-            );
-
-            self::assertSame('kernel.modules_resolve_duration_ms', $observations[$index]['name']);
-            self::assertIsInt($observations[$index]['value']);
-            self::assertSame(
-                [
-                    'operation' => 'resolve',
-                    'outcome' => $outcome,
-                ],
-                $observations[$index]['labels'],
-            );
-        }
     }
 
     /**
@@ -402,7 +298,7 @@ final class ModulePlanResolverUsesBootstrapPresetAsOnlySelectionSourceTest exten
     private static function createTempDirectory(): string
     {
         $directory = \sys_get_temp_dir()
-            . '/coretsia-module-plan-resolver-bootstrap-preset-'
+            . '/coretsia-module-plan-resolver-ignores-modules-php-'
             . \bin2hex(\random_bytes(8));
 
         if (!\mkdir($directory, 0777, true) && !\is_dir($directory)) {

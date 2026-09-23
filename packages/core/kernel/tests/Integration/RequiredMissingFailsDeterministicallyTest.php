@@ -23,8 +23,8 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
-use Coretsia\Kernel\Module\ModePreset;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 
@@ -38,7 +38,7 @@ final class RequiredMissingFailsDeterministicallyTest extends TestCase
                 installed: self::manifest([
                     self::descriptor('core.foundation'),
                 ]),
-                preset: self::preset(
+                selection: self::selection(
                     required: [
                         'platform.metrics',
                         'platform.http',
@@ -54,14 +54,13 @@ final class RequiredMissingFailsDeterministicallyTest extends TestCase
             );
 
             self::assertSame(
-                ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
+                ModuleRequiredMissingException::REASON_SELECTED_ROOT_MODULE_MISSING,
                 $exception->reason(),
             );
 
             self::assertSame(
                 [
                     'missingModuleId' => 'platform.http',
-                    'preset' => 'micro',
                 ],
                 $exception->context(),
             );
@@ -69,7 +68,7 @@ final class RequiredMissingFailsDeterministicallyTest extends TestCase
             self::assertSame(
                 ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING
                 . ': '
-                . ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
+                . ModuleRequiredMissingException::REASON_SELECTED_ROOT_MODULE_MISSING,
                 $exception->getMessage(),
             );
         }
@@ -89,7 +88,7 @@ final class RequiredMissingFailsDeterministicallyTest extends TestCase
                         ],
                     ),
                 ]),
-                preset: self::preset(
+                selection: self::selection(
                     required: [
                         'core.kernel',
                     ],
@@ -162,23 +161,17 @@ final class RequiredMissingFailsDeterministicallyTest extends TestCase
 
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
+     * @param list<string> $modules
+     * @param list<string> $excluded
      */
-    private static function preset(
+    private static function selection(
         array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): ModePreset {
-        return new ModePreset(
-            schemaVersion: 1,
-            name: 'micro',
-            description: 'Micro test mode.',
-            required: self::moduleIds($required),
-            optional: self::moduleIds($optional),
-            disabled: self::moduleIds($disabled),
-            featureBundles: [],
-            metadata: [],
+        array $modules = [],
+        array $excluded = [],
+    ): ModuleSelection {
+        return new ModuleSelection(
+            roots: self::moduleIds(self::sortedUniqueStrings([...$required, ...$modules])),
+            excluded: self::moduleIds(self::sortedUniqueStrings($excluded)),
         );
     }
 

@@ -21,7 +21,6 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 use PHPUnit\Framework\TestCase;
 
 final class ModulePlanDoesNotExportFilesystemPathsContractTest extends TestCase
@@ -30,17 +29,13 @@ final class ModulePlanDoesNotExportFilesystemPathsContractTest extends TestCase
     {
         $plan = new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [
                 self::moduleId('core.foundation'),
                 self::moduleId('core.kernel'),
                 self::moduleId('platform.cli'),
             ],
-            disabled: [
+            excluded: [
                 self::moduleId('platform.http'),
-            ],
-            optionalMissing: [
-                self::moduleId('platform.logging'),
             ],
             topologicalOrder: [
                 self::moduleId('core.foundation'),
@@ -62,12 +57,6 @@ final class ModulePlanDoesNotExportFilesystemPathsContractTest extends TestCase
                 new ModulePlanEntry(
                     moduleId: self::moduleId('platform.cli'),
                     composerName: 'coretsia/platform-cli',
-                ),
-            ],
-            warnings: [
-                ModuleOptionalMissingWarning::forPresetOptionalModule(
-                    moduleId: self::moduleId('platform.logging'),
-                    preset: 'micro',
                 ),
             ],
         );

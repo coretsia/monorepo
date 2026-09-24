@@ -140,6 +140,21 @@ The generation manifest is not part of this three-artifact publication input.
 
 It is derived from that publication set.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
 ### Decision 3: Finalized generations use fingerprint-addressed directories
 
 The final target storage layout is:

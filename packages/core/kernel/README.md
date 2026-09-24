@@ -188,6 +188,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Module\ComposerInstalledMetadataProvider`
   - `Coretsia\Kernel\Module\ComposerManifestReader`
   - `Coretsia\Kernel\Module\ModePresetLoaderFactory`
+  - `Coretsia\Kernel\Module\ModuleResolutionOrchestrator`
+  - `Coretsia\Kernel\Module\ModuleSelectionFactory`
+  - `Coretsia\Kernel\Module\Preset\PresetNamespaceResolver`
   - `Coretsia\Kernel\Module\FilesystemModePresetLoader`
   - `Coretsia\Kernel\Module\ModePresetSchemaValidator`
   - `Coretsia\Kernel\Module\ModuleGraphResolver`
@@ -997,6 +1000,12 @@ artifact-runtime-boot-runtime-container-invalid
 
 `ArtifactRuntimeBooter` MUST NOT expose artifact paths, absolute paths, raw config values, raw artifact payloads, env values, secrets, tokens, headers, command lines, PHP warning text, filesystem details, previous throwable messages, or stack traces.
 
+### Preset and artifact payload contracts
+
+The mode schema version is `1`; canonical PHP resources under `resources/modes/` are Kernel-owned and loaded through `CanonicalPresetSource`, while custom application presets under `<applicationRoot>/<kernel.modes.overrides_path>/` are loaded through `CustomPresetSource`. The application cannot shadow a reserved canonical name. Each preset declares the exact fields `schemaVersion`, `name`, `description`, `required`, `modules`, `featureBundles`, `metadata`; `required` roots cannot be excluded and `modules` roots can be removed through selected-app-target `moduleOverrides.exclude`. `moduleOverrides.include` adds selected roots; raw override errors fail in Bootstrap Phase A. Source inspection provides exactly one namespace-owned fingerprint candidate without executing preset PHP.
+
+The resolved `ModulePlan` is distinct from policy `ModePreset`, effective intent `ModuleSelection`, and the installed-discovery `ModuleManifest`. It exports exactly `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`. The existing `module-manifest@1` envelope contains precisely this plan payload with `_meta.schemaVersion = 1` and `payload.schemaVersion = 1`; runtime boot hydrates `ModulePlan` without loading presets or Composer metadata. All compile-host orchestration, preset source and effective-selection services are excluded from compiled runtime definitions.
+
 ## ModulePlan resolution
 
 ModulePlan resolution is Kernel-owned runtime policy.
@@ -1082,7 +1091,7 @@ enabled ∩ excluded
 
 `modules` MUST contain exactly one entry for every enabled module and no other modules. Every required dependency of an enabled module MUST also be enabled. No enabled module pair may violate a declared conflict.
 
-`ModulePlan` exports no preset provenance, disabled-module state, optional-missing state, or warning collection.
+`ModulePlan` exports only the six canonical payload fields; preset provenance and compile-host selection state do not enter the artifact.
 
 ModulePlan resolution itself does not write artifacts. Kernel artifact production may materialize the ModulePlan-derived `module-manifest.php` artifact through `ArtifactCompiler` and `ModuleManifestBuilder`.
 
@@ -1131,10 +1140,25 @@ Related documents:
 
 ```text
 docs/adr/ADR-0024-kernel-module-plan-resolution.md
-docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
 docs/ssot/modules-and-manifests.md
 docs/ssot/modes.md
 ```
+
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
 
 ## ModulePlan diagnostics
 
@@ -1591,25 +1615,25 @@ Runtime and ConfigKernel Phase B consumers read the merged global configuration 
 
 Canonical Kernel config keys:
 
-| key                                           | default                                                    |
-|-----------------------------------------------|------------------------------------------------------------|
-| `kernel.boot.default_env`                     | `"local"`                                                  |
-| `kernel.boot.default_preset`                  | `"micro"`                                                  |
-| `kernel.boot.default_debug`                   | `false`                                                    |
-| `kernel.boot.default_artifacts_cache_dir`     | `"var/cache"`                                              |
-| `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
-| `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
-| `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
-| `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
-| `kernel.modules.discovery.source`             | `"composer"`                                               |
-| `kernel.modules.discovery.allowed_sources`    | `["composer"]`                                             |
-| `kernel.modes.schema_version`                 | `1`                                                        |
-| `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
-| `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
-| `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
+| key                                              | default                                                    |
+|--------------------------------------------------|------------------------------------------------------------|
+| `kernel.boot.default_env`                        | `"local"`                                                  |
+| `kernel.boot.default_preset`                     | `"micro"`                                                  |
+| `kernel.boot.default_debug`                      | `false`                                                    |
+| `kernel.boot.default_artifacts_cache_dir`        | `"var/cache"`                                              |
+| `kernel.runtime.http_driver`                     | `"http.classic"`                                           |
+| `kernel.env.source_policy.default_local`         | `"strict_dotenv"`                                          |
+| `kernel.env.source_policy.default_production`    | `"allow_system"`                                           |
+| `kernel.env.dotenv.files`                        | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
+| `kernel.modules.discovery.source`                | `"composer"`                                               |
+| `kernel.modules.discovery.allowed_sources`       | `["composer"]`                                             |
+| `kernel.modes.schema_version`                    | `1`                                                        |
+| `kernel.modes.defaults_path`                     | `"resources/modes"`                                        |
+| `kernel.modes.overrides_path`                    | `"config/modes"`                                           |
+| `kernel.config.forbidden_top_level_roots`        | `["coretsia", "_internal"]`                                |
 | `kernel.fingerprint.application_ignore_prefixes` | `["var/maintenance"]`                                      |
-| `kernel.uow.attributes.max_depth`             | `10`                                                       |
-| `kernel.uow.attributes.max_keys`              | `200`                                                      |
+| `kernel.uow.attributes.max_depth`                | `10`                                                       |
+| `kernel.uow.attributes.max_keys`                 | `200`                                                      |
 
 `kernel.boot.default_artifacts_cache_dir` is the package fallback for the Bootstrap Phase A artifact cache directory.
 
@@ -2539,7 +2563,6 @@ Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
-
 
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 

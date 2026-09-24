@@ -88,13 +88,15 @@ The Kernel owner package is responsible for concrete manifest reading. Runtime m
 
 Mode presets are represented by stable contracts only.
 
-`ModePresetInterface` exposes schema version, preset name, description, required module ids, optional module ids, explicitly disabled module ids, a compatibility module id projection, feature bundle policy knobs, metadata, and a deterministic exported scalar/json-like shape.
+`ModePresetInterface` exposes schema version `1`, preset name, description, non-excludable `required` module ids, mode-selected `modules` ids, feature bundle policy knobs, metadata, and a deterministic exported scalar/json-like shape. Its `required` and `modules` collections are disjoint; duplicates in either raw collection are rejected before normalization. A preset is policy source data, not the effective runtime module selection or the resolved module graph.
 
 Concrete owner packages remain responsible for enforcing loaded-preset construction invariants that are at least as strict as their accepted preset source schema.
 
-`ModePresetLoaderInterface` lists available preset names, checks preset availability, loads presets by name, and provides a nullable `tryLoad()` convenience method.
+`ModePresetLoaderInterface` lists names, checks availability, loads a named preset, and provides nullable `tryLoad()` within **one already-bound namespace-owned source**. The Kernel binds canonical names to Kernel-owned `CanonicalPresetSource` and custom names to application-owned `CustomPresetSource`; no cross-namespace lookup is permitted. A reserved canonical filename in the application source is invalid, regardless of the selected name.
 
 The mode preset contracts do not expose their storage format.
+
+`ModuleManifest` is the contracts-level installed-module discovery snapshot. It is distinct from the Kernel-generated `module-manifest@1` artifact, whose payload is a resolved `ModulePlan` (`app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`). `ModuleSelection` is a Kernel-internal immutable compile-host value representing effective selection intent; it is not a contracts export or a runtime seed. Only the hydrated `ModulePlan` crosses the artifact/runtime boundary.
 
 ## Determinism
 

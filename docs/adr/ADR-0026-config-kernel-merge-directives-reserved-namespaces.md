@@ -507,6 +507,10 @@ Unavailable timing MUST NOT be described as a successful config operation.
 
 Loaders, `DirectiveProcessor`, `ConfigMerger`, `ConfigValidator`, and `ConfigExplainer` must remain focused and should not emit config merge/explain lifecycle metrics/spans.
 
+### Mode preset source boundary
+
+`config/app.php` is Phase A bootstrap-only input: its selected-app-target `moduleOverrides.include` and `moduleOverrides.exclude` lists are validated into immutable `ResolvedModuleOverrides` without passing through `ConfigKernel` Phase B merge. `ConfigSourceLocationBuilder` emits exactly one declared, namespace-owned mode-preset fingerprint candidate: Kernel-owned canonical resources or application-owned custom preset files, never both and never filesystem fallback. The application custom source cannot contain reserved canonical filenames. Preset source identity is derived from the chosen name and configured source directory and is separate from config-root merge precedence.
+
 ## Invariants
 
 The following invariants are accepted by this ADR.

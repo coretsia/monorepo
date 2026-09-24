@@ -220,7 +220,7 @@ docs/ssot/observability-and-errors.md
 
 This cross-reference MUST NOT introduce additional reset metric names, reset metric labels, reset span names, or reset logging payload fields.
 
-### Kernel ModulePlan resolution observability policy
+### Kernel module resolution observability policy
 
 Kernel ModulePlan resolution observability is owned by `core/kernel`.
 
@@ -230,11 +230,9 @@ The canonical span is:
 kernel.modules_resolve
 ```
 
-The span MUST wrap one complete `ModulePlanResolver::resolveResolution()` operation.
+The span MUST wrap exactly one complete `ModuleResolutionOrchestrator::resolve()` operation. `ModulePlanResolver` is a pure Phase B coordinator and MUST NOT start a nested module-resolution span.
 
-`ModulePlanResolver::resolve()` delegates to `resolveResolution()` and MUST NOT introduce a second nested canonical span.
-
-The ModulePlan resolver owns only the following safe summary span attributes:
+`ModuleResolutionOrchestrator` owns only the following safe summary span attributes:
 
 ```text
 operation
@@ -255,6 +253,7 @@ Allowed `outcome` values are:
 success
 preset_not_found
 preset_invalid
+selection_invalid
 manifest_invalid
 discovery_source_unsupported
 conflict
@@ -269,7 +268,7 @@ When `TracerPortInterface::startSpan()` succeeds, the initial ModulePlan-owned s
 operation = resolve
 ```
 
-On completion, the resolver MUST attempt one final span attribute update with:
+On completion, the orchestrator MUST attempt one final span attribute update with:
 
 ```text
 operation = resolve
@@ -307,6 +306,8 @@ The `kernel.modules_resolve` span MUST NOT expose module ids, preset names, app 
 ModulePlan resolution observability failures and stopwatch failures MUST NOT change `ModulePlan` resolution behavior or failure precedence. This includes failures from `TracerPortInterface::startSpan()`, `SpanInterface::setAttributes()`, `SpanInterface::end()`, `MeterPortInterface`, `LoggerInterface`, and `Stopwatch`.
 
 Observability failures MUST NOT trigger recursive observability reporting on this boundary.
+
+Canonical application shadowing (`CanonicalPresetOverrideException`) maps to the bounded `preset_invalid` outcome; invalid effective module selection (`InvalidModuleSelectionException`) maps to `selection_invalid`. Module-id context from a dependency-excluded failure uses `excludedModuleId` and `requiredByModuleId` only after canonical safe-id filtering, deduplication and `strcmp` sorting; no path or raw input reaches metrics, span attributes or safe logs. The orchestrator isolates tracer, meter, logger and stopwatch failures and finalizes a started span exactly once without replacing the primary module-resolution exception.
 
 ### Kernel config metrics label policy
 

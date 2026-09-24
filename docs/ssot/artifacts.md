@@ -140,7 +140,7 @@ Path shape records the stable owner-defined artifact basename family. It does no
 | `artifact-generation` |           `1` | `core/kernel`      | `generation-manifest.<owner-defined-encoding>` | Immutable generation manifest for exact `config`, `container`, and `module-manifest` artifact bytes; generation id equals the shared artifact fingerprint; no paths and no `requires`. |
 | `container`           |           `1` | `core/kernel`      | `container.<owner-defined-encoding>`           | Compiled container artifact.                                                                                                                                                           |
 | `config`              |           `1` | `core/kernel`      | `config.<owner-defined-encoding>`              | Compiled config artifact.                                                                                                                                                              |
-| `module-manifest`     |           `1` | `core/kernel`      | `module-manifest.<owner-defined-encoding>`     | ModulePlan-derived enabled/disabled/optionalMissing + deterministic topo order; envelope `{ "_meta", "payload" }`; no timestamps or absolute paths.                                    |
+| `module-manifest`     |           `1` | `core/kernel`      | `module-manifest.<owner-defined-encoding>`     | ModulePlan-derived `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`; envelope `{ "_meta", "payload" }`; no timestamps or absolute paths.                   |
 | `routes`              |           `1` | `platform/routing` | `routes.<owner-defined-encoding>`              | Route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. FUTURE: may be introduced later.                                |
 
 ## Canonical Registry Entries (MUST)
@@ -189,12 +189,29 @@ They MUST NOT:
 - participate in artifact fingerprint identity;
 - be listed as members of `artifact-generation@1`.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
 ## Artifact Payload Rule (MUST)
 
 - Payloads MAY be derived from descriptors, results, or DTO-like models.
 - The artifact payload is the canonical serialized shape.
 - Artifact payloads MUST NOT depend on PHP object identity.
 - Artifact payloads MUST NOT depend on PHP class type semantics at runtime.
+
+The artifact registry keeps `module-manifest@1` and its envelope schema version `1`; payload changes do not create a new artifact identity. The module-manifest payload is the exact canonical `ModulePlan::toArray()` shape. Readers MUST reject extra or missing payload keys and must not treat installed contracts `ModuleManifest` as the artifact payload.
 
 ## Reader and Consumer Rule (MUST)
 

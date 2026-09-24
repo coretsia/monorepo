@@ -354,7 +354,7 @@ Its canonical compile flow is:
 BootstrapInput
   -> BootstrapConfigResolver
   -> EnvRepositoryBuilder
-  -> ModulePlanResolver::resolveResolution()
+  -> ModuleResolutionOrchestrator::resolve()
   -> ConfigSourceLocationBuilder
   -> ConfigSourceSet
   -> ArtifactCompiler
@@ -748,6 +748,21 @@ priority DESC, id ASC
 
 Duplicate service ids inside the same tag list MUST be rejected.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
 ## Fingerprint Input Behavior (MUST)
 
 `ConfigFingerprintInputBuilder` owns construction of deterministic safe fingerprint input for Kernel artifacts.
@@ -921,6 +936,8 @@ Observability metadata MAY expose the safe bucket name, SHA-256, and bounded cou
 
 Observability MUST NOT expose the raw graph, raw service definitions, raw parameters, provider instances, runtime instances, or paths.
 
+`ConfigSourceLocationBuilder` resolves `PresetNamespace` from `BootstrapConfig::preset()` and supplies one `ModePresetLoaderFactory::sourceCandidateFor()` candidate with `path`, `filesystemPath`, `sourceId`, and `precedence`. The candidate is Kernel-owned for a canonical name or application-owned for a custom name, not a list of alternative search paths. Candidate inspection does not execute PHP, missing custom entries remain declared fingerprint sources, and canonical application shadowing or existing out-of-bound paths fail before complete artifact fingerprinting. `ModuleResolutionOrchestrator` resolves the selected preset and module graph before `ConfigSourceLocationBuilder::build()` is invoked.
+
 ## Fingerprint Coverage (MUST)
 
 Kernel artifact fingerprints MUST cover deterministic identity and provenance inputs needed to decide whether Kernel artifacts are current.
@@ -943,14 +960,14 @@ Fingerprint input MUST include safe deterministic representation of:
 - env source metadata;
 - fingerprint policy.
 
-Mode-preset source candidates in `ConfigSourceSet` MUST represent both declared locations in deterministic order:
+The mode-preset candidates in `ConfigSourceSet` MUST contain **exactly one** declared namespace-owned location:
 
 ```text
-application override candidate
-Kernel package default candidate
+canonical selected name -> Kernel-owned preset source candidate
+custom selected name    -> application-owned preset source candidate
 ```
 
-Candidate file presence or absence is fingerprint-relevant state. The fingerprint input MUST distinguish an absent application override from a present application override even when the effective preset payload and resulting `ModulePlan` are semantically identical.
+The candidate remains declared even if the selected custom file is absent. Its identity is deterministic from the selected name and configured owning source, not from searching alternative source paths; candidate discovery does not execute preset PHP. A change to the selected candidate's presence or content is fingerprint-relevant. Reserved canonical application filenames and namespace-escaping existing entries fail before complete fingerprint calculation.
 
 The container-graph bucket binds all three Kernel-owned artifact envelopes to the canonical runtime graph used to build the REAL `container@1` payload.
 

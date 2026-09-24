@@ -20,8 +20,6 @@ namespace Coretsia\Kernel\Module;
 
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Boot\AppTarget;
-use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 
 /**
  * Hydrates one immutable ModulePlan from a validated `module-manifest@1`
@@ -41,14 +39,11 @@ final readonly class ModulePlanArtifactHydrator
      */
     private const array PAYLOAD_KEYS = [
         'app',
-        'disabled',
         'enabled',
+        'excluded',
         'modules',
-        'optionalMissing',
-        'preset',
         'schemaVersion',
         'topologicalOrder',
-        'warnings',
     ];
 
     /**
@@ -59,16 +54,6 @@ final readonly class ModulePlanArtifactHydrator
         'conflicts',
         'moduleId',
         'requires',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    private const array WARNING_KEYS = [
-        'code',
-        'moduleId',
-        'preset',
-        'reason',
     ];
 
     /**
@@ -95,30 +80,20 @@ final readonly class ModulePlanArtifactHydrator
                 throw self::invalid();
             }
 
-            $preset = self::requiredString($payload, 'preset');
             $enabled = self::moduleIdSet($payload['enabled'] ?? null);
-            $disabled = self::moduleIdSet($payload['disabled'] ?? null);
-            $optionalMissing = self::moduleIdSet($payload['optionalMissing'] ?? null);
+            $excluded = self::moduleIdSet($payload['excluded'] ?? null);
             $topologicalOrder = self::moduleIdList(
                 value: $payload['topologicalOrder'] ?? null,
                 requireSortedSet: false,
             );
             $modules = self::moduleEntries($payload['modules'] ?? null);
-            $warnings = self::warnings(
-                value: $payload['warnings'] ?? null,
-                preset: $preset,
-                optionalMissing: $optionalMissing,
-            );
 
             $plan = new ModulePlan(
                 app: $app,
-                preset: $preset,
                 enabled: $enabled,
-                disabled: $disabled,
-                optionalMissing: $optionalMissing,
+                excluded: $excluded,
                 topologicalOrder: $topologicalOrder,
                 modules: $modules,
-                warnings: $warnings,
             );
 
             self::assertGraphSemantics($plan);
@@ -269,7 +244,7 @@ final readonly class ModulePlanArtifactHydrator
      */
     private static function moduleEntries(mixed $value): array
     {
-        if (!\is_array($value) || !self::isMapArray($value)) {
+        if (!\is_array($value) || ($value !== [] && !self::isMapArray($value))) {
             throw self::invalid();
         }
 
@@ -312,79 +287,6 @@ final readonly class ModulePlanArtifactHydrator
         }
 
         return $entries;
-    }
-
-    /**
-     * @param list<ModuleId> $optionalMissing
-     *
-     * @return list<ModuleOptionalMissingWarning>
-     */
-    private static function warnings(
-        mixed $value,
-        string $preset,
-        array $optionalMissing,
-    ): array {
-        if (!\is_array($value) || !\array_is_list($value)) {
-            throw self::invalid();
-        }
-
-        $warnings = [];
-        $warningModuleIds = [];
-
-        foreach ($value as $warning) {
-            if (!\is_array($warning) || \array_is_list($warning)) {
-                throw self::invalid();
-            }
-
-            self::assertExactKeys(
-                map: $warning,
-                expectedKeys: self::WARNING_KEYS,
-            );
-
-            if (
-                self::requiredString($warning, 'code')
-                !== ModuleErrorCodes::CORETSIA_MODULE_OPTIONAL_MISSING
-                || self::requiredString($warning, 'reason')
-                !== ModuleOptionalMissingWarning::REASON_PRESET_OPTIONAL_MODULE_MISSING
-                || self::requiredString($warning, 'preset') !== $preset
-            ) {
-                throw self::invalid();
-            }
-
-            $moduleId = self::moduleId(
-                self::requiredString($warning, 'moduleId'),
-            );
-            $moduleIdValue = $moduleId->value();
-
-            if (isset($warningModuleIds[$moduleIdValue])) {
-                throw self::invalid();
-            }
-
-            $warningModuleIds[$moduleIdValue] = true;
-            $warnings[] = ModuleOptionalMissingWarning::forPresetOptionalModule(
-                moduleId: $moduleId,
-                preset: $preset,
-            );
-        }
-
-        $optionalMissingIds = [];
-
-        foreach ($optionalMissing as $moduleId) {
-            $optionalMissingIds[$moduleId->value()] = true;
-        }
-
-        \ksort($warningModuleIds, \SORT_STRING);
-        \ksort($optionalMissingIds, \SORT_STRING);
-
-        /*
-         * ModuleGraphResolver emits exactly one warning for every optional
-         * missing module. An artifact must preserve that invariant.
-         */
-        if ($warningModuleIds !== $optionalMissingIds) {
-            throw self::invalid();
-        }
-
-        return $warnings;
     }
 
     private static function moduleId(mixed $value): ModuleId

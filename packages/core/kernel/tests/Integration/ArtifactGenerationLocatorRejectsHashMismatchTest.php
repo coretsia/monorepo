@@ -220,13 +220,10 @@ final class ArtifactGenerationLocatorRejectsHashMismatchTest extends TestCase
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

@@ -21,7 +21,6 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 use PHPUnit\Framework\TestCase;
 
 final class ModulePlanRecursiveKeyOrderContractTest extends TestCase
@@ -30,19 +29,13 @@ final class ModulePlanRecursiveKeyOrderContractTest extends TestCase
     {
         $plan = new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [
                 self::moduleId('platform.cli'),
                 self::moduleId('core.kernel'),
                 self::moduleId('core.foundation'),
             ],
-            disabled: [
+            excluded: [
                 self::moduleId('platform.http'),
-            ],
-            optionalMissing: [
-                self::moduleId('platform.tracing'),
-                self::moduleId('platform.logging'),
-                self::moduleId('platform.metrics'),
             ],
             topologicalOrder: [
                 self::moduleId('core.foundation'),
@@ -66,36 +59,12 @@ final class ModulePlanRecursiveKeyOrderContractTest extends TestCase
                     composerName: 'coretsia/core-foundation',
                 ),
             ],
-            warnings: [
-                ModuleOptionalMissingWarning::forPresetOptionalModule(
-                    moduleId: self::moduleId('platform.tracing'),
-                    preset: 'micro',
-                ),
-                ModuleOptionalMissingWarning::forPresetOptionalModule(
-                    moduleId: self::moduleId('platform.logging'),
-                    preset: 'micro',
-                ),
-                ModuleOptionalMissingWarning::forPresetOptionalModule(
-                    moduleId: self::moduleId('platform.metrics'),
-                    preset: 'micro',
-                ),
-            ],
         );
 
         $payload = $plan->toArray();
 
         self::assertSame(
-            [
-                'app',
-                'disabled',
-                'enabled',
-                'modules',
-                'optionalMissing',
-                'preset',
-                'schemaVersion',
-                'topologicalOrder',
-                'warnings',
-            ],
+            ['app', 'enabled', 'excluded', 'modules', 'schemaVersion', 'topologicalOrder'],
             \array_keys($payload),
         );
 
@@ -117,18 +86,6 @@ final class ModulePlanRecursiveKeyOrderContractTest extends TestCase
                     'requires',
                 ],
                 \array_keys($moduleEntry),
-            );
-        }
-
-        foreach ($payload['warnings'] as $warning) {
-            self::assertSame(
-                [
-                    'code',
-                    'moduleId',
-                    'preset',
-                    'reason',
-                ],
-                \array_keys($warning),
             );
         }
 

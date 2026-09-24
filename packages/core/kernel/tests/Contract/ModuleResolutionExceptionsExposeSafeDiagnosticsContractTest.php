@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Kernel\Module\Exception\CanonicalPresetOverrideException;
+use Coretsia\Kernel\Module\Exception\InvalidModuleSelectionException;
 use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
 use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 use Coretsia\Kernel\Module\Exception\ModuleConflictException;
@@ -61,13 +63,12 @@ final class ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest extends 
                 secondModuleId: self::moduleId('core.foundation'),
                 previous: $previous,
             ),
-            ModuleConflictException::requiredModuleDisabled(
-                moduleId: self::moduleId('core.kernel'),
-                disabledModuleId: self::moduleId('core.foundation'),
+            ModuleConflictException::dependencyExcluded(
+                requiredByModuleId: self::moduleId('core.kernel'),
+                excludedModuleId: self::moduleId('core.foundation'),
                 previous: $previous,
             ),
-            ModuleRequiredMissingException::presetRequiredModuleMissing(
-                presetName: 'micro',
+            ModuleRequiredMissingException::selectedRootModuleMissing(
                 missingModuleId: self::moduleId('platform.http'),
                 previous: $previous,
             ),
@@ -76,6 +77,11 @@ final class ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest extends 
                 missingModuleId: self::moduleId('platform.http'),
                 previous: $previous,
             ),
+            InvalidModuleSelectionException::withReason(
+                InvalidModuleSelectionException::REASON_REQUIRED_EXCLUDED,
+                ['moduleId' => 'core.kernel'],
+            ),
+            CanonicalPresetOverrideException::forPreset('micro'),
             ModuleCycleDetectedException::forModules(
                 [
                     self::moduleId('core.kernel'),
@@ -108,17 +114,6 @@ final class ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest extends 
         $this->expectExceptionMessage('module-resolution-context-string-invalid');
 
         ModePresetNotFoundException::forPreset('/tmp/micro');
-    }
-
-    public function testUnsafeRequiredMissingPresetDiagnosticValueIsRejectedBeforeExposure(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('module-resolution-context-string-invalid');
-
-        ModuleRequiredMissingException::presetRequiredModuleMissing(
-            presetName: 'micro preset',
-            missingModuleId: self::moduleId('platform.http'),
-        );
     }
 
     /**

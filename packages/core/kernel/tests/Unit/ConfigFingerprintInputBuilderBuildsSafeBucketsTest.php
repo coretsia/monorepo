@@ -33,6 +33,7 @@ use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Definition\ServiceDefinition;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
@@ -105,8 +106,8 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
         self::assertSame(1, $input['modulePlan']['schemaVersion']);
         self::assertSame(0, $input['modulePlan']['moduleCount']);
         self::assertSame(0, $input['modulePlan']['enabledModuleCount']);
-        self::assertSame(0, $input['modulePlan']['disabledModuleCount']);
-        self::assertSame(0, $input['modulePlan']['warningCount']);
+        self::assertSame(0, $input['modulePlan']['excludedModuleCount']);
+        self::assertArrayNotHasKey('warningCount', $input['modulePlan']);
 
         self::assertIsString($input['modulePlan']['hash']);
         self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', $input['modulePlan']['hash']);
@@ -233,6 +234,7 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Api,
             applicationRoot: self::applicationRoot(),
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -240,13 +242,10 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
     {
         return new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

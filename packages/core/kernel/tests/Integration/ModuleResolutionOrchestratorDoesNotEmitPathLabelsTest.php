@@ -31,18 +31,26 @@ use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\AbstractLogger;
+use Psr\Log\NullLogger;
 
-final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCase
+final class ModuleResolutionOrchestratorDoesNotEmitPathLabelsTest extends TestCase
 {
     private string $tempRoot;
 
     protected function setUp(): void
     {
         $this->tempRoot = self::createTempDirectory();
+        \mkdir($this->tempRoot . '/package', 0777, true);
+        \mkdir($this->tempRoot . '/application', 0777, true);
+        \mkdir($this->tempRoot . '/application-root-with-sensitive-name', 0777, true);
     }
 
     protected function tearDown(): void
@@ -50,11 +58,11 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
         self::removeDirectory($this->tempRoot);
     }
 
-    public function testLogsSafeOptionalMissingWarningContext(): void
+    public function testMetricLabelsDoNotContainPathsPresetNamesModuleIdsOrRawPayloads(): void
     {
-        $packageRoot = $this->tempRoot . '/package';
-        $applicationRoot = $this->tempRoot . '/application';
-        $logger = self::recordingLogger();
+        $packageRoot = $this->tempRoot . '/package-root-with-sensitive-name';
+        $applicationRoot = $this->tempRoot . '/application-root-with-sensitive-name';
+        $meter = self::recordingMeter();
 
         self::writePresetFile(
             directory: $packageRoot . '/resources/modes',
@@ -66,16 +74,13 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                 'required' => [
                     'core.kernel',
                 ],
-                'optional' => [
-                    'platform.logging',
-                ],
-                'disabled' => [],
+                'modules' => [],
                 'featureBundles' => [],
                 'metadata' => [],
             ],
         );
 
-        $resolver = new ModulePlanResolver(
+        $resolver = new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: $packageRoot,
                 modesConfig: [
@@ -85,6 +90,8 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: self::manifestReader(
                 new ModuleManifest([
                     new ModuleDescriptor(
@@ -100,11 +107,11 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                     ),
                 ]),
             ),
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
-            meter: self::nullMeter(),
+            meter: $meter,
             stopwatch: new Stopwatch(),
-            logger: $logger,
+            logger: new NullLogger(),
             modulesConfig: [
                 'discovery' => [
                     'source' => 'composer',
@@ -115,7 +122,7 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
             ],
         );
 
-        $plan = $resolver->resolve(
+        $resolver->resolve(
             new BootstrapConfig(
                 appEnv: 'local',
                 preset: 'micro',
@@ -124,64 +131,42 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
                 envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
                 appTarget: AppTarget::from('api'),
                 applicationRoot: $applicationRoot,
+                moduleOverrides: new ResolvedModuleOverrides([], []),
             ),
         );
 
-        self::assertCount(1, $plan->warnings());
-        $warningPayload = $plan->warnings()[0]->toArray();
+        $labelPayloads = [];
 
-        self::assertSame(
-            [
-                [
-                    'level' => 'warning',
-                    'message' => 'coretsia.kernel.modules.optional_missing',
-                    'context' => [
-                        'code' => $warningPayload['code'],
-                        'reason' => $warningPayload['reason'],
-                        'presetName' => 'micro',
-                        'moduleIds' => [
-                            'platform.logging',
-                        ],
-                    ],
-                ],
-            ],
-            $logger->records,
-        );
+        foreach ($meter->increments as $increment) {
+            $labelPayloads[] = $increment['labels'];
+        }
 
-        self::assertLogContextIsSafe($logger->records[0]['context']);
-    }
+        foreach ($meter->observations as $observation) {
+            $labelPayloads[] = $observation['labels'];
+        }
 
-    /**
-     * @param array<string, mixed> $context
-     */
-    private static function assertLogContextIsSafe(array $context): void
-    {
-        self::assertSame(
-            [
-                'code',
-                'reason',
-                'presetName',
-                'moduleIds',
-            ],
-            \array_keys($context),
-        );
+        self::assertNotSame([], $labelPayloads);
 
-        self::assertSame(['platform.logging'], $context['moduleIds']);
+        foreach ($labelPayloads as $labels) {
+            self::assertSame(['operation', 'outcome'], \array_keys($labels));
+            self::assertSame('resolve', $labels['operation']);
+            self::assertSame('success', $labels['outcome']);
 
-        $encoded = \json_encode($context, \JSON_THROW_ON_ERROR);
+            $encoded = \json_encode($labels, \JSON_THROW_ON_ERROR);
 
-        self::assertStringNotContainsString('/tmp', $encoded);
-        self::assertStringNotContainsString('/var', $encoded);
-        self::assertStringNotContainsString('\\', $encoded);
-        self::assertStringNotContainsString('resources/modes', $encoded);
-        self::assertStringNotContainsString('config/modes', $encoded);
-        self::assertStringNotContainsString('coretsia/core-kernel', $encoded);
-        self::assertStringNotContainsString('exception', \strtolower($encoded));
-        self::assertStringNotContainsString('trace', \strtolower($encoded));
-        self::assertStringNotContainsString('stack', \strtolower($encoded));
-        self::assertStringNotContainsString('payload', \strtolower($encoded));
-        self::assertStringNotContainsString('secret', \strtolower($encoded));
-        self::assertStringNotContainsString('token', \strtolower($encoded));
+            self::assertStringNotContainsString($this->tempRoot, $encoded);
+            self::assertStringNotContainsString($packageRoot, $encoded);
+            self::assertStringNotContainsString($applicationRoot, $encoded);
+            self::assertStringNotContainsString('resources/modes', $encoded);
+            self::assertStringNotContainsString('config/modes', $encoded);
+            self::assertStringNotContainsString('micro', $encoded);
+            self::assertStringNotContainsString('core.kernel', $encoded);
+            self::assertStringNotContainsString('coretsia/core-kernel', $encoded);
+            self::assertStringNotContainsString('/', $encoded);
+            self::assertStringNotContainsString('\\', $encoded);
+            self::assertStringNotContainsString('://', $encoded);
+            self::assertStringNotContainsString('..', $encoded);
+        }
     }
 
     private static function manifestReader(ModuleManifest $manifest): ManifestReaderInterface
@@ -199,36 +184,27 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
         };
     }
 
-    private static function nullMeter(): MeterPortInterface
+    private static function recordingMeter(): object
     {
         return new class() implements MeterPortInterface {
+            public array $increments = [];
+            public array $observations = [];
+
             public function increment(string $name, int $delta = 1, array $labels = []): void
             {
+                $this->increments[] = [
+                    'name' => $name,
+                    'delta' => $delta,
+                    'labels' => $labels,
+                ];
             }
 
             public function observe(string $name, int $value, array $labels = []): void
             {
-            }
-        };
-    }
-
-    private static function recordingLogger(): object
-    {
-        return new class() extends AbstractLogger {
-            /**
-             * @var list<array{level: string, message: string|\Stringable, context: array<string, mixed>}>
-             */
-            public array $records = [];
-
-            /**
-             * @param array<string, mixed> $context
-             */
-            public function log($level, string|\Stringable $message, array $context = []): void
-            {
-                $this->records[] = [
-                    'level' => (string)$level,
-                    'message' => $message,
-                    'context' => $context,
+                $this->observations[] = [
+                    'name' => $name,
+                    'value' => $value,
+                    'labels' => $labels,
                 ];
             }
         };
@@ -261,7 +237,7 @@ final class ModulePlanResolverLogsSafeOptionalMissingWarningsTest extends TestCa
     private static function createTempDirectory(): string
     {
         $directory = \sys_get_temp_dir()
-            . '/coretsia-module-plan-safe-optional-warning-logs-'
+            . '/coretsia-module-plan-no-path-labels-'
             . \bin2hex(\random_bytes(8));
 
         if (!\mkdir($directory, 0777, true) && !\is_dir($directory)) {

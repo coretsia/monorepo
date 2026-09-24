@@ -18,215 +18,130 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
-use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanArtifactHydrator;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ModulePlanArtifactHydratorContractTest extends TestCase
 {
-    private const string INVALID_REASON = 'module-plan-artifact-payload-invalid';
-
-    public function testHydratesCanonicalModuleManifestPayloadWithoutComposerDiscovery(): void
+    public function testCanonicalPayloadRoundTripWithoutPresetOrComposerDiscovery(): void
     {
         $payload = self::validPayload();
-
         $plan = new ModulePlanArtifactHydrator()->hydrate($payload);
-
         self::assertSame($payload, $plan->toArray());
+        self::assertSame(ModulePlan::SCHEMA_VERSION, $plan->schemaVersion());
         self::assertSame('worker', $plan->app());
-        self::assertSame('default', $plan->preset());
         self::assertTrue($plan->hasEnabledModule('core.foundation'));
         self::assertTrue($plan->hasEnabledModule('core.kernel'));
-        self::assertTrue($plan->hasOptionalMissingModule('platform.metrics'));
+        self::assertSame(['platform.http'], $payload['excluded']);
     }
 
     #[DataProvider('invalidPayloadProvider')]
-    public function testRejectsInvalidModuleManifestPayload(
-        string $scenario,
-    ): void {
-        $payload = self::invalidPayload($scenario);
-
+    public function testInvalidPayloadIsRejected(string $scenario): void
+    {
+        $payload = self::validPayload();
+        switch ($scenario) {
+            case 'legacy-preset':
+                $payload['preset'] = 'micro';
+                break;
+            case 'legacy-disabled':
+                $payload['disabled'] = [];
+                break;
+            case 'legacy-optional-missing':
+                $payload['optionalMissing'] = [];
+                break;
+            case 'legacy-warnings':
+                $payload['warnings'] = [];
+                break;
+            case 'unknown-key':
+                $payload['unexpected'] = true;
+                break;
+            case 'schema-version':
+                $payload['schemaVersion'] = 2;
+                break;
+            case 'app-target':
+                $payload['app'] = 'unknown';
+                break;
+            case 'enabled-order':
+                $payload['enabled'] = ['core.kernel', 'core.foundation'];
+                break;
+            case 'excluded-overlap':
+                $payload['excluded'] = ['core.foundation'];
+                break;
+            case 'module-id':
+                $payload['modules']['core.kernel']['moduleId'] = 'core.other';
+                break;
+            case 'dependency':
+                $payload['enabled'] = ['core.kernel'];
+                unset($payload['modules']['core.foundation']);
+                $payload['topologicalOrder'] = ['core.kernel'];
+                break;
+            case 'conflict':
+                $payload['modules']['core.kernel']['conflicts'] = ['core.foundation'];
+                break;
+            case 'topological-order':
+                $payload['topologicalOrder'] = ['core.kernel', 'core.foundation'];
+                break;
+            case 'cycle':
+                $payload['modules']['core.foundation']['requires'] = ['core.kernel'];
+                break;
+        }
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(self::INVALID_REASON);
-
+        $this->expectExceptionMessage('module-plan-artifact-payload-invalid');
         new ModulePlanArtifactHydrator()->hydrate($payload);
     }
 
-    public function testHydratorSourceDoesNotUseComposerOrFilesystemDiscovery(): void
+    public static function invalidPayloadProvider(): iterable
     {
-        $reflection = new \ReflectionClass(ModulePlanArtifactHydrator::class);
-        $file = $reflection->getFileName();
+        foreach (
+            [
+                'legacy-preset',
+                'legacy-disabled',
+                'legacy-optional-missing',
+                'legacy-warnings',
+                'unknown-key',
+                'schema-version',
+                'app-target',
+                'enabled-order',
+                'excluded-overlap',
+                'module-id',
+                'dependency',
+                'conflict',
+                'topological-order',
+                'cycle',
+            ] as $scenario
+        ) {
+            yield $scenario => ['scenario' => $scenario];
+        }
+    }
 
-        self::assertIsString($file);
-
-        $source = \file_get_contents($file);
-
+    public function testHydratorSourceDoesNotReadPresetOrInstalledMetadata(): void
+    {
+        $source = \file_get_contents(new \ReflectionClass(ModulePlanArtifactHydrator::class)->getFileName());
         self::assertIsString($source);
-
         foreach (
             [
                 'ComposerManifestReader',
                 'ManifestReaderInterface',
+                'ModePresetLoaderFactory',
+                'ModuleSelectionFactory',
                 'InstalledVersions',
-                'composer/installed',
-                'vendor/composer',
                 'file_get_contents(',
                 'scandir(',
                 'glob(',
-            ] as $forbiddenNeedle
+            ] as $forbidden
         ) {
-            self::assertStringNotContainsString(
-                $forbiddenNeedle,
-                $source,
-            );
+            self::assertStringNotContainsString($forbidden, $source);
         }
     }
 
-    /**
-     * @return iterable<string, array{scenario: string}>
-     */
-    public static function invalidPayloadProvider(): iterable
-    {
-        yield 'unknown top-level key' => [
-            'scenario' => 'unknown-top-level-key',
-        ];
-
-        yield 'schema version mismatch' => [
-            'scenario' => 'schema-version-mismatch',
-        ];
-
-        yield 'unknown app target' => [
-            'scenario' => 'unknown-app-target',
-        ];
-
-        yield 'non-canonical enabled set order' => [
-            'scenario' => 'enabled-set-order-invalid',
-        ];
-
-        yield 'module map key does not match module id' => [
-            'scenario' => 'module-entry-id-mismatch',
-        ];
-
-        yield 'required dependency is not enabled' => [
-            'scenario' => 'required-dependency-missing',
-        ];
-
-        yield 'conflicting modules are both enabled' => [
-            'scenario' => 'enabled-conflict',
-        ];
-
-        yield 'topological order violates dependencies' => [
-            'scenario' => 'topological-order-invalid',
-        ];
-
-        yield 'module dependency cycle' => [
-            'scenario' => 'dependency-cycle',
-        ];
-
-        yield 'warning set does not match optional missing set' => [
-            'scenario' => 'warning-set-mismatch',
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function invalidPayload(string $scenario): array
-    {
-        $payload = self::validPayload();
-
-        switch ($scenario) {
-            case 'unknown-top-level-key':
-                $payload['unknown'] = true;
-
-                break;
-
-            case 'schema-version-mismatch':
-                $payload['schemaVersion'] = 2;
-
-                break;
-
-            case 'unknown-app-target':
-                $payload['app'] = 'unknown';
-
-                break;
-
-            case 'enabled-set-order-invalid':
-                $payload['enabled'] = [
-                    'core.kernel',
-                    'core.foundation',
-                ];
-
-                break;
-
-            case 'module-entry-id-mismatch':
-                $payload['modules']['core.kernel']['moduleId'] = 'core.other';
-
-                break;
-
-            case 'required-dependency-missing':
-                $payload['enabled'] = [
-                    'core.kernel',
-                ];
-                unset($payload['modules']['core.foundation']);
-                $payload['topologicalOrder'] = [
-                    'core.kernel',
-                ];
-
-                break;
-
-            case 'enabled-conflict':
-                $payload['modules']['core.kernel']['conflicts'] = [
-                    'core.foundation',
-                ];
-
-                break;
-
-            case 'topological-order-invalid':
-                $payload['topologicalOrder'] = [
-                    'core.kernel',
-                    'core.foundation',
-                ];
-
-                break;
-
-            case 'dependency-cycle':
-                $payload['modules']['core.foundation']['requires'] = [
-                    'core.kernel',
-                ];
-
-                break;
-
-            case 'warning-set-mismatch':
-                $payload['warnings'] = [];
-
-                break;
-
-            default:
-                throw new \LogicException(
-                    'module-plan-artifact-test-scenario-invalid',
-                );
-        }
-
-        return $payload;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
     private static function validPayload(): array
     {
         return [
             'app' => 'worker',
-            'disabled' => [
-                'platform.http',
-            ],
-            'enabled' => [
-                'core.foundation',
-                'core.kernel',
-            ],
+            'enabled' => ['core.foundation', 'core.kernel'],
+            'excluded' => ['platform.http'],
             'modules' => [
                 'core.foundation' => [
                     'composerName' => 'coretsia/core-foundation',
@@ -238,28 +153,11 @@ final class ModulePlanArtifactHydratorContractTest extends TestCase
                     'composerName' => 'coretsia/core-kernel',
                     'conflicts' => [],
                     'moduleId' => 'core.kernel',
-                    'requires' => [
-                        'core.foundation',
-                    ],
+                    'requires' => ['core.foundation'],
                 ],
             ],
-            'optionalMissing' => [
-                'platform.metrics',
-            ],
-            'preset' => 'default',
-            'schemaVersion' => 1,
-            'topologicalOrder' => [
-                'core.foundation',
-                'core.kernel',
-            ],
-            'warnings' => [
-                [
-                    'code' => ModuleErrorCodes::CORETSIA_MODULE_OPTIONAL_MISSING,
-                    'moduleId' => 'platform.metrics',
-                    'preset' => 'default',
-                    'reason' => ModuleOptionalMissingWarning::REASON_PRESET_OPTIONAL_MODULE_MISSING,
-                ],
-            ],
+            'schemaVersion' => ModulePlan::SCHEMA_VERSION,
+            'topologicalOrder' => ['core.foundation', 'core.kernel'],
         ];
     }
 }

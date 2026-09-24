@@ -52,11 +52,10 @@ final class ModePresetSchemaValidator
      */
     private const array REQUIRED_TOP_LEVEL_KEYS = [
         'description' => true,
-        'disabled' => true,
         'featureBundles' => true,
         'metadata' => true,
         'name' => true,
-        'optional' => true,
+        'modules' => true,
         'required' => true,
         'schemaVersion' => true,
     ];
@@ -104,12 +103,9 @@ final class ModePresetSchemaValidator
         $description = $this->validateDescription($requestedPresetName, $payload['description']);
 
         $required = $this->normalizeModuleIdList($requestedPresetName, $payload['required']);
-        $optional = $this->normalizeModuleIdList($requestedPresetName, $payload['optional']);
-        $disabled = $this->normalizeModuleIdList($requestedPresetName, $payload['disabled']);
+        $modules = $this->normalizeModuleIdList($requestedPresetName, $payload['modules']);
 
-        $this->assertDisjoint($requestedPresetName, $required, $optional);
-        $this->assertDisjoint($requestedPresetName, $required, $disabled);
-        $this->assertDisjoint($requestedPresetName, $optional, $disabled);
+        $this->assertDisjoint($requestedPresetName, $required, $modules);
 
         $featureBundles = $this->normalizeJsonLikeMap(
             presetName: $requestedPresetName,
@@ -129,8 +125,7 @@ final class ModePresetSchemaValidator
                 name: $name,
                 description: $description,
                 required: $required,
-                optional: $optional,
-                disabled: $disabled,
+                modules: $modules,
                 featureBundles: $featureBundles,
                 metadata: $metadata,
             );
@@ -279,7 +274,20 @@ final class ModePresetSchemaValidator
                 );
             }
 
-            $set[$moduleId->value()] = $moduleId;
+            $moduleIdValue = $moduleId->value();
+            if ($item !== $moduleIdValue) {
+                throw ModePresetInvalidException::forPreset(
+                    $presetName,
+                    ModePresetInvalidException::REASON_MODULE_ID_INVALID,
+                );
+            }
+            if (isset($set[$moduleIdValue])) {
+                throw ModePresetInvalidException::forPreset(
+                    $presetName,
+                    ModePresetInvalidException::REASON_MODULE_IDS_DUPLICATE,
+                );
+            }
+            $set[$moduleIdValue] = $moduleId;
         }
 
         \ksort($set, \SORT_STRING);

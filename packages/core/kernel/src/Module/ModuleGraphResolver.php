@@ -18,26 +18,22 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Module;
 
-use Coretsia\Contracts\Module\ModePresetInterface;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Kernel\Module\Exception\ModuleConflictException;
 use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 
 /**
- * Resolves module graph policy for a validated mode preset and installed modules.
+ * Resolves the selected runtime module graph against a validated installed manifest.
  *
- * This resolver owns Kernel module-selection policy:
+ * This resolver consumes an already resolved ModuleSelection and owns graph policy:
  *
- * - preset required modules;
- * - preset optional modules;
- * - preset disabled modules;
+ * - selected roots;
+ * - excluded dependencies;
  * - transitive required dependency closure;
  * - enabled-module conflict checks;
- * - optional missing warnings;
  * - deterministic topological order.
  *
  * It intentionally reads runtime dependency and conflict edges only from
@@ -73,82 +69,36 @@ final readonly class ModuleGraphResolver
     public function resolve(
         string $app,
         ModuleManifest $installed,
-        ModePresetInterface $preset,
+        ModuleSelection $selection,
     ): ModulePlan {
         $installedEntries = $this->buildInstalledEntries($installed);
-        $disabled = self::normalizeModuleIdSet($preset->disabled());
-        $disabledMap = self::moduleIdMap($disabled);
-
+        $excluded = $selection->excluded();
+        $excludedMap = self::moduleIdMap($excluded);
         $enabledMap = [];
-        $optionalMissingMap = [];
-        $warningMap = [];
-
-        $conflictCandidates = [];
-        $requiredMissingCandidates = [];
-
-        $this->seedRequiredModules(
-            preset: $preset,
-            installedEntries: $installedEntries,
-            disabledMap: $disabledMap,
-            enabledMap: $enabledMap,
-            conflictCandidates: $conflictCandidates,
-            requiredMissingCandidates: $requiredMissingCandidates,
+        $conflicts = [];
+        $missing = [];
+        $this->seedSelectedRootModules(
+            $selection->roots(),
+            $installedEntries,
+            $enabledMap,
+            $missing,
         );
-
-        $this->seedOptionalModules(
-            preset: $preset,
-            installedEntries: $installedEntries,
-            disabledMap: $disabledMap,
-            enabledMap: $enabledMap,
-            optionalMissingMap: $optionalMissingMap,
-            warningMap: $warningMap,
-        );
-
         $this->expandRequiredDependencyClosure(
-            installedEntries: $installedEntries,
-            disabledMap: $disabledMap,
-            enabledMap: $enabledMap,
-            conflictCandidates: $conflictCandidates,
-            requiredMissingCandidates: $requiredMissingCandidates,
+            $installedEntries,
+            $excludedMap,
+            $enabledMap,
+            $conflicts,
+            $missing,
         );
-
-        $enabledEntries = $this->enabledEntries(
-            installedEntries: $installedEntries,
-            enabledMap: $enabledMap,
-        );
-
-        $this->collectEnabledModuleConflicts(
-            enabledEntries: $enabledEntries,
-            conflictCandidates: $conflictCandidates,
-        );
-
-        /*
-         * Graph-level precedence:
-         *
-         * 1. conflicts
-         * 2. required missing
-         * 3. cycle detection
-         *
-         * Manifest-invalid failures are still thrown immediately because they
-         * are not graph-policy candidates; they represent invalid installed
-         * metadata and belong to the earlier global failure class.
-         */
-        self::throwFirstGraphFailure(
-            conflictCandidates: $conflictCandidates,
-            requiredMissingCandidates: $requiredMissingCandidates,
-        );
-
-        $topologicalOrder = $this->topologicalSorter->sort($enabledEntries);
-
+        $entries = $this->enabledEntries($installedEntries, $enabledMap);
+        $this->collectEnabledModuleConflicts($entries, $conflicts);
+        self::throwFirstGraphFailure($conflicts, $missing);
         return new ModulePlan(
-            app: $app,
-            preset: $preset->name(),
-            enabled: self::moduleIdsFromMap($enabledMap),
-            disabled: $disabled,
-            optionalMissing: self::moduleIdsFromMap($optionalMissingMap),
-            topologicalOrder: $topologicalOrder,
-            modules: $enabledEntries,
-            warnings: self::warningsFromMap($warningMap),
+            $app,
+            self::moduleIdsFromMap($enabledMap),
+            $excluded,
+            $this->topologicalSorter->sort($entries),
+            $entries,
         );
     }
 
@@ -186,6 +136,29 @@ final readonly class ModuleGraphResolver
             descriptor: $descriptor,
             key: 'conflicts',
         );
+
+        $requiredIds = [];
+
+        foreach ($requires as $required) {
+            if ($required->value() === $descriptor->id()->value()) {
+                throw ModuleManifestInvalidException::dependencyMetadataInvalid(
+                    $descriptor->id(),
+                );
+            }
+
+            $requiredIds[$required->value()] = true;
+        }
+
+        foreach ($conflicts as $conflicting) {
+            if (
+                $conflicting->value() === $descriptor->id()->value()
+                || isset($requiredIds[$conflicting->value()])
+            ) {
+                throw ModuleManifestInvalidException::dependencyMetadataInvalid(
+                    $descriptor->id(),
+                );
+            }
+        }
 
         try {
             return new ModulePlanEntry(
@@ -238,110 +211,43 @@ final readonly class ModuleGraphResolver
     }
 
     /**
-     * @param array<string, ModulePlanEntry> $installedEntries
-     * @param array<string, true> $disabledMap
-     * @param array<string, ModuleId> $enabledMap
-     * @param array<string, ModuleConflictException> $conflictCandidates
-     * @param array<string, ModuleRequiredMissingException> $requiredMissingCandidates
+     * @param list<ModuleId> $roots
+     * @param array<string,ModulePlanEntry> $installedEntries
+     * @param array<string,ModuleId> $enabledMap
+     * @param array<string,ModuleRequiredMissingException> $missing
      */
-    private function seedRequiredModules(
-        ModePresetInterface $preset,
+    private function seedSelectedRootModules(
+        array $roots,
         array $installedEntries,
-        array $disabledMap,
         array &$enabledMap,
-        array &$conflictCandidates,
-        array &$requiredMissingCandidates,
+        array &$missing,
     ): void {
-        foreach (self::normalizeModuleIdSet($preset->required()) as $moduleId) {
-            $moduleIdValue = $moduleId->value();
-
-            if (isset($disabledMap[$moduleIdValue])) {
-                self::addConflictCandidate(
-                    candidates: $conflictCandidates,
-                    exception: ModuleConflictException::requiredModuleDisabled(
-                        moduleId: $moduleId,
-                        disabledModuleId: $moduleId,
-                    ),
-                    firstModuleId: $moduleIdValue,
-                    secondModuleId: $moduleIdValue,
-                );
-
-                continue;
-            }
-
-            if (!isset($installedEntries[$moduleIdValue])) {
+        foreach ($roots as $id) {
+            $value = $id->value();
+            if (!isset($installedEntries[$value])) {
                 self::addRequiredMissingCandidate(
-                    candidates: $requiredMissingCandidates,
-                    exception: ModuleRequiredMissingException::presetRequiredModuleMissing(
-                        presetName: $preset->name(),
-                        missingModuleId: $moduleId,
-                    ),
-                    requiredBy: $preset->name(),
-                    missingModuleId: $moduleIdValue,
+                    $missing,
+                    ModuleRequiredMissingException::selectedRootModuleMissing($id),
+                    $value,
+                    $value,
                 );
-
                 continue;
             }
-
-            $enabledMap[$moduleIdValue] = $moduleId;
+            $enabledMap[$value] = $id;
         }
-
         \ksort($enabledMap, \SORT_STRING);
     }
 
     /**
      * @param array<string, ModulePlanEntry> $installedEntries
-     * @param array<string, true> $disabledMap
-     * @param array<string, ModuleId> $enabledMap
-     * @param array<string, ModuleId> $optionalMissingMap
-     * @param array<string, ModuleOptionalMissingWarning> $warningMap
-     */
-    private function seedOptionalModules(
-        ModePresetInterface $preset,
-        array $installedEntries,
-        array $disabledMap,
-        array &$enabledMap,
-        array &$optionalMissingMap,
-        array &$warningMap,
-    ): void {
-        foreach (self::normalizeModuleIdSet($preset->optional()) as $moduleId) {
-            $moduleIdValue = $moduleId->value();
-
-            if (isset($disabledMap[$moduleIdValue])) {
-                continue;
-            }
-
-            if (isset($installedEntries[$moduleIdValue])) {
-                $enabledMap[$moduleIdValue] = $moduleId;
-
-                continue;
-            }
-
-            $optionalMissingMap[$moduleIdValue] = $moduleId;
-
-            $warning = ModuleOptionalMissingWarning::forPresetOptionalModule(
-                moduleId: $moduleId,
-                preset: $preset->name(),
-            );
-
-            $warningMap[$warning->canonicalKey()] = $warning;
-        }
-
-        \ksort($enabledMap, \SORT_STRING);
-        \ksort($optionalMissingMap, \SORT_STRING);
-        \ksort($warningMap, \SORT_STRING);
-    }
-
-    /**
-     * @param array<string, ModulePlanEntry> $installedEntries
-     * @param array<string, true> $disabledMap
+     * @param array<string, true> $excludedMap
      * @param array<string, ModuleId> $enabledMap
      * @param array<string, ModuleConflictException> $conflictCandidates
      * @param array<string, ModuleRequiredMissingException> $requiredMissingCandidates
      */
     private function expandRequiredDependencyClosure(
         array $installedEntries,
-        array $disabledMap,
+        array $excludedMap,
         array &$enabledMap,
         array &$conflictCandidates,
         array &$requiredMissingCandidates,
@@ -370,12 +276,12 @@ final readonly class ModuleGraphResolver
             foreach ($entry->requires() as $requiredModuleId) {
                 $requiredModuleIdValue = $requiredModuleId->value();
 
-                if (isset($disabledMap[$requiredModuleIdValue])) {
+                if (isset($excludedMap[$requiredModuleIdValue])) {
                     self::addConflictCandidate(
                         candidates: $conflictCandidates,
-                        exception: ModuleConflictException::requiredModuleDisabled(
-                            moduleId: $entry->moduleId(),
-                            disabledModuleId: $requiredModuleId,
+                        exception: ModuleConflictException::dependencyExcluded(
+                            requiredByModuleId: $entry->moduleId(),
+                            excludedModuleId: $requiredModuleId,
                         ),
                         firstModuleId: $entry->moduleIdString(),
                         secondModuleId: $requiredModuleIdValue,
@@ -550,32 +456,6 @@ final readonly class ModuleGraphResolver
     /**
      * @param list<ModuleId> $moduleIds
      *
-     * @return list<ModuleId>
-     */
-    private static function normalizeModuleIdSet(array $moduleIds): array
-    {
-        if (!\array_is_list($moduleIds)) {
-            throw new \InvalidArgumentException('module-graph-module-id-set-must-be-list');
-        }
-
-        $set = [];
-
-        foreach ($moduleIds as $moduleId) {
-            if (!$moduleId instanceof ModuleId) {
-                throw new \InvalidArgumentException('module-graph-module-id-invalid');
-            }
-
-            $set[$moduleId->value()] = $moduleId;
-        }
-
-        \ksort($set, \SORT_STRING);
-
-        return \array_values($set);
-    }
-
-    /**
-     * @param list<ModuleId> $moduleIds
-     *
      * @return array<string, true>
      */
     private static function moduleIdMap(array $moduleIds): array
@@ -601,18 +481,6 @@ final readonly class ModuleGraphResolver
         \ksort($moduleIdMap, \SORT_STRING);
 
         return \array_values($moduleIdMap);
-    }
-
-    /**
-     * @param array<string, ModuleOptionalMissingWarning> $warningMap
-     *
-     * @return list<ModuleOptionalMissingWarning>
-     */
-    private static function warningsFromMap(array $warningMap): array
-    {
-        \ksort($warningMap, \SORT_STRING);
-
-        return \array_values($warningMap);
     }
 
     /**

@@ -104,20 +104,15 @@ final class KernelArtifactConfigSourceBoundaryContractTest extends TestCase
             );
 
             self::assertMatchesRegularExpression(
-                '/\$this->configKernel->compile\s*\([^;]*'
-                . 'configSources:\s*\$configSources[^;]*\);/s',
+                '/\$this->configKernel->compile\s*\([^;]*' . 'configSources:\s*\$configSources[^;]*\);/s',
                 $source,
-                $relativePath
-                . ' must forward the method parameter to ConfigKernel::compile().',
+                $relativePath . ' must forward the method parameter to ConfigKernel::compile().',
             );
 
             self::assertMatchesRegularExpression(
-                '/\$this->fingerprintInputBuilder->build\s*\([^;]*'
-                . 'configSources:\s*\$configSources[^;]*\);/s',
+                '/\$this->fingerprintInputBuilder->build\s*\([^;]*' . 'configSources:\s*\$configSources[^;]*\);/s',
                 $source,
-                $relativePath
-                . ' must forward the same method parameter to '
-                . 'ConfigFingerprintInputBuilder::build().',
+                $relativePath . ' must forward the same method parameter to ' . 'ConfigFingerprintInputBuilder::build().',
             );
 
             self::assertStringNotContainsString(
@@ -169,8 +164,7 @@ final class KernelArtifactConfigSourceBoundaryContractTest extends TestCase
     public function testKernelArtifactOperationAcceptsOnlyBootstrapInput(): void
     {
         foreach (['compile', 'verify'] as $method) {
-            $parameters = new \ReflectionMethod(KernelArtifactOperation::class, $method)
-                ->getParameters();
+            $parameters = new \ReflectionMethod(KernelArtifactOperation::class, $method)->getParameters();
 
             self::assertCount(1, $parameters);
             self::assertSame('input', $parameters[0]->getName());
@@ -249,7 +243,7 @@ final class KernelArtifactConfigSourceBoundaryContractTest extends TestCase
         $source = self::sourceWithoutComments('src/Artifacts/Operation/KernelArtifactOperation.php');
 
         self::assertStringNotContainsString('ConfigSourceSet::empty(', $source);
-        self::assertStringContainsString('resolveResolution(', $source);
+        self::assertStringContainsString('moduleResolutionOrchestrator->resolve(', $source);
         self::assertStringContainsString('configSourceLocationBuilder->build(', $source);
         self::assertStringContainsString("'configSources' => \$configSources", $source);
     }

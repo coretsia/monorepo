@@ -21,14 +21,14 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
-use Coretsia\Kernel\Module\ModePreset;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 
-final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends TestCase
+final class ModuleGraphResolverIgnoresConflictsWithExcludedModulesTest extends TestCase
 {
-    public function testConflictAgainstDisabledInstalledModuleDoesNotFail(): void
+    public function testConflictAgainstExcludedInstalledModuleDoesNotFail(): void
     {
         $plan = self::resolver()->resolve(
             app: 'api',
@@ -41,11 +41,11 @@ final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends T
                 ),
                 self::descriptor('platform.http'),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'core.kernel',
                 ],
-                disabled: [
+                excluded: [
                     'platform.http',
                 ],
             ),
@@ -62,11 +62,8 @@ final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends T
             [
                 'platform.http',
             ],
-            self::moduleIdValues($plan->disabled()),
+            self::moduleIdValues($plan->excluded()),
         );
-
-        self::assertSame([], self::moduleIdValues($plan->optionalMissing()));
-        self::assertSame([], $plan->warnings());
 
         self::assertSame(
             [
@@ -87,11 +84,11 @@ final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends T
         self::assertSame(
             [
                 'app' => 'api',
-                'disabled' => [
-                    'platform.http',
-                ],
                 'enabled' => [
                     'core.kernel',
+                ],
+                'excluded' => [
+                    'platform.http',
                 ],
                 'modules' => [
                     'core.kernel' => [
@@ -103,13 +100,10 @@ final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends T
                         'requires' => [],
                     ],
                 ],
-                'optionalMissing' => [],
-                'preset' => 'micro',
                 'schemaVersion' => 1,
                 'topologicalOrder' => [
                     'core.kernel',
                 ],
-                'warnings' => [],
             ],
             $plan->toArray(),
         );
@@ -152,23 +146,17 @@ final class ModuleGraphResolverIgnoresConflictsWithDisabledModulesTest extends T
 
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
+     * @param list<string> $modules
+     * @param list<string> $excluded
      */
-    private static function preset(
+    private static function selection(
         array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): ModePreset {
-        return new ModePreset(
-            schemaVersion: 1,
-            name: 'micro',
-            description: 'Micro test mode.',
-            required: self::moduleIds($required),
-            optional: self::moduleIds($optional),
-            disabled: self::moduleIds($disabled),
-            featureBundles: [],
-            metadata: [],
+        array $modules = [],
+        array $excluded = [],
+    ): ModuleSelection {
+        return new ModuleSelection(
+            roots: self::moduleIds(self::sortedUniqueStrings([...$required, ...$modules])),
+            excluded: self::moduleIds(self::sortedUniqueStrings($excluded)),
         );
     }
 

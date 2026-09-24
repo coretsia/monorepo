@@ -18,7 +18,7 @@
 
 Coretsia [kɔˈrɛtsjɑ] / [ko-RET-si-ya] — from the Ukrainian word “серцевина” (*core, foundation*)
 
-**A deterministic PHP 8.4+ application framework with preset-driven module composition, reproducible artifacts, explicit runtime lifecycles, and machine-enforced package boundaries and framework architecture rules.**
+**A deterministic PHP 8.4+ application framework with explicit preset policy and runtime module selection, reproducible artifacts, explicit runtime lifecycles, and machine-enforced package boundaries and framework architecture rules.**
 
 *Start minimal. Add capabilities as the application grows. Keep the same foundation.*
 
@@ -112,7 +112,7 @@ Coretsia keeps three concerns separate:
 - an **application target** identifies an application entrypoint or execution surface, such as `web`, `api`, `console`, or `worker`;
 - a **runtime driver** selects the execution mechanism, such as classic PHP, FrankenPHP, Swoole, or RoadRunner.
 
-These concepts are related but are not interchangeable. An application target does not introduce a separate module-selection mechanism: module composition remains preset-driven.
+These concepts are related but are not interchangeable. The selected application target determines which validated `moduleOverrides` apply to the preset policy. Effective module selection is represented by `ModuleSelection`; the application target does not change dependency-graph traversal or introduce filesystem-based module discovery.
 
 ## How Coretsia differs
 
@@ -122,15 +122,17 @@ Its intended difference is the way those capabilities are composed and governed.
 
 ### Deterministic module composition
 
-A mode preset and the installed Composer metadata resolve into one explicit `ModulePlan`.
+A namespace-owned `ModePreset` and the selected application target's validated `ResolvedModuleOverrides` produce one immutable `ModuleSelection`. The Kernel resolves this selection against one installed `ModuleManifest` snapshot to produce a deterministic `ModulePlan`.
 
 The plan records:
 
-- enabled modules;
-- disabled modules;
-- optional modules that are not installed;
-- deterministic dependency order;
-- deterministic warnings and exported diagnostics.
+- the selected application target;
+- enabled runtime modules;
+- explicitly excluded runtime modules;
+- deterministic dependency-first topological order;
+- resolved entries for exactly the enabled runtime modules.
+
+The immutable `ModulePlan` is the payload of the existing `module-manifest@1` artifact. Runtime boot hydrates it from the validated artifact without reloading preset policy or rediscovering installed modules.
 
 ### Reproducible generated artifacts
 

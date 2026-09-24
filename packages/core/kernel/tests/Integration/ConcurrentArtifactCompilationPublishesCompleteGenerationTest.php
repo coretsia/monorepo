@@ -35,9 +35,10 @@ final class ConcurrentArtifactCompilationPublishesCompleteGenerationTest extends
 
     public function testConcurrentCompilersPublishOnlyCompleteImmutableGenerations(): void
     {
-        if (!\function_exists('proc_open')) {
-            self::markTestSkipped('proc_open() is unavailable in this environment.');
-        }
+        self::assertTrue(
+            \function_exists('proc_open'),
+            'proc_open() is required to exercise concurrent compilation.',
+        );
 
         $root = ArtifactPipelineTestSupport::temporaryRoot('concurrent-artifact-compilation');
         $artifactRoot = $root . '/var/cache/web';
@@ -209,8 +210,8 @@ declare(strict_types=1);
 require $argv[1];
 require $argv[2];
 
-$applicationRoot = $argv[3];
-$sourcePath = $argv[4];
+$applicationRoot = \realpath($argv[3]);
+$sourcePath = \realpath($argv[4]);
 $variant = (int)$argv[5];
 
 $repoRoot = \dirname(
@@ -266,12 +267,10 @@ $moduleResolution = new \Coretsia\Kernel\Module\ModuleResolution(
             ),
         plan: new \Coretsia\Kernel\Module\ModulePlan(
                 app: 'web',
-                preset: 'default',
                 enabled: [
                     $moduleId,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $moduleId,
                 ],
@@ -281,7 +280,6 @@ $moduleResolution = new \Coretsia\Kernel\Module\ModuleResolution(
                         composerName: $composerName,
                     ),
                 ],
-                warnings: [],
             ),
     );
 
@@ -317,6 +315,7 @@ $bootstrapConfig = new \Coretsia\Kernel\Boot\BootstrapConfig(
         envSourcePolicy: \Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy::StrictDotenv,
         appTarget: \Coretsia\Kernel\Boot\AppTarget::Web,
         applicationRoot: $applicationRoot,
+        moduleOverrides: new \Coretsia\Kernel\Module\ResolvedModuleOverrides([], []),
     );
 
 try {
@@ -330,7 +329,7 @@ try {
                 [
                     'path' => 'concurrent-inputs/variant-' . $variant . '.php',
                     'filesystemPath' => $sourcePath,
-                    'sourceId' => 'test.concurrent.' . $variant,
+                    'sourceId' => 'application:concurrent-inputs/variant-' . $variant . '.php',
                     'precedence' => $variant,
                 ],
             ],
@@ -604,8 +603,7 @@ CHILD;
                 $entries,
                 static fn (
                     string $entry,
-                ): bool => $entry !== '.'
-                    && $entry !== '..',
+                ): bool => $entry !== '.' && $entry !== '..',
             ),
         );
 

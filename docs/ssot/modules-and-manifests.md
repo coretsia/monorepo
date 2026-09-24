@@ -309,50 +309,30 @@ Class existence, instantiability, declarative-provider compatibility, global dup
 
 ## Kernel ModulePlan output invariants
 
-Kernel-owned `ModulePlan` output is artifact-ready resolved module graph state.
+`ModuleManifest` in `core/contracts` is the immutable installed-module discovery snapshot. It is not the Kernel-generated `module-manifest@1` artifact, which contains the resolved `ModulePlan::toArray()` payload. No separate runtime installed-manifest type is introduced.
 
-The resolved module id sets:
+`ModePreset` is namespace-owned policy source data. Kernel-internal compile-host `ModuleSelection` is the unique effective runtime selection input to Phase B; it has canonical, unique, `strcmp`-sorted, disjoint `roots` and `excluded` collections. `ModuleGraphResolver` reads the installed `ModuleManifest` and `ModuleSelection` only. Selected roots must exist; required dependency closure is preserved; excluded transitive dependencies fail even if not installed; all installed descriptors are validated before graph-policy failure selection.
+
+Kernel-owned `ModulePlan` exports exactly:
 
 ```text
+app
 enabled
-disabled
-optionalMissing
+excluded
+modules
+schemaVersion
+topologicalOrder
 ```
 
-MUST be pairwise disjoint.
+`ModulePlan::SCHEMA_VERSION` is `1`. `enabled` and `excluded` are sorted, unique and disjoint; `topologicalOrder` contains each enabled module exactly once, in dependency-first graph order, and `modules` contains exactly the enabled entries. The plan does not carry provider class lists, provider instances, provider-order indexes, complete installed `ModuleManifest`, preset source metadata, filesystem paths, or compile-host services.
 
-The following intersections MUST be empty:
+Provider metadata remains available through the manifest of the same `ModuleResolution` snapshot. `ContainerProviderPlanResolver` consumes that snapshot at compile time; no provider-planning context is added to the artifact-ready `ModulePlan`.
 
-```text
-enabled ∩ disabled
-enabled ∩ optionalMissing
-disabled ∩ optionalMissing
-```
-
-A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
-
-`topologicalOrder` and `modules` are derived from enabled modules only. They MUST NOT contain disabled modules or optional-missing modules.
-
-`ModulePlan` MUST NOT contain or export:
-
-- `metadata.providers`;
-- provider class lists;
-- provider instances;
-- provider-order indexes;
-- `ContainerProviderPlan`;
-- the full installed `ModuleManifest`.
-
-Provider metadata remains available through the installed manifest contained by Kernel-owned `ModuleResolution`.
-
-Provider planning consumes that `ModuleResolution` at compile time.
-
-The contracts-level `ModulePlan` shape MUST NOT be expanded merely to carry compile-time provider-planning context.
-
-Detailed graph-resolution ordering, conflict classification, optional-missing behavior, and ModulePlan construction policy are owned by:
+Detailed failure precedence and deterministic graph resolution are defined in:
 
 ```text
 docs/adr/ADR-0024-kernel-module-plan-resolution.md
-docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
 ```
 
 ## Runtime metadata and tooling package-index boundary

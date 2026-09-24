@@ -27,8 +27,8 @@ use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Config\Source\ConfigSourceSet;
-use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 
 /**
  * Canonical Kernel compile-host input preparation and routing operation.
@@ -43,7 +43,7 @@ final readonly class KernelArtifactOperation
     public function __construct(
         private BootstrapConfigResolver $bootstrapConfigResolver,
         private EnvRepositoryBuilder $envRepositoryBuilder,
-        private ModulePlanResolver $modulePlanResolver,
+        private ModuleResolutionOrchestrator $moduleResolutionOrchestrator,
         private ConfigSourceLocationBuilder $configSourceLocationBuilder,
         private ArtifactCompiler $artifactCompiler,
         private CacheVerifier $cacheVerifier,
@@ -106,7 +106,7 @@ final readonly class KernelArtifactOperation
             $this->kernelConfig,
         );
 
-        $moduleResolution = $this->modulePlanResolver->resolveResolution(
+        $moduleResolution = $this->moduleResolutionOrchestrator->resolve(
             $bootstrapConfig,
         );
 

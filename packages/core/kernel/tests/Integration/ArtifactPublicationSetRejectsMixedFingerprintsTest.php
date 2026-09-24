@@ -69,9 +69,7 @@ final class ArtifactPublicationSetRejectsMixedFingerprintsTest extends TestCase
             return;
         }
 
-        self::fail(
-            'ArtifactPublicationSet must reject mixed fingerprints.',
-        );
+        self::fail('ArtifactPublicationSet must reject mixed fingerprints.');
     }
 
     #[DataProvider('artifactBasenameProvider')]
@@ -102,9 +100,7 @@ final class ArtifactPublicationSetRejectsMixedFingerprintsTest extends TestCase
             return;
         }
 
-        self::fail(
-            'ArtifactPublicationSet must reject non-canonical artifact bytes.',
-        );
+        self::fail('ArtifactPublicationSet must reject non-canonical artifact bytes.');
     }
 
     public function testAcceptsCanonicalPublicationSetAndExportsStableArtifactOrder(): void
@@ -276,13 +272,10 @@ final class ArtifactPublicationSetRejectsMixedFingerprintsTest extends TestCase
     {
         return new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

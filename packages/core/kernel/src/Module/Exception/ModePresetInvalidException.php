@@ -32,6 +32,7 @@ namespace Coretsia\Kernel\Module\Exception;
  */
 final class ModePresetInvalidException extends ModuleResolutionException
 {
+    public const string REASON_MODULE_IDS_DUPLICATE = 'mode-preset-module-ids-duplicate';
     public const string REASON_PRESET_INVALID = 'mode-preset-invalid';
     public const string REASON_PRESET_RETURN_TYPE_INVALID = 'mode-preset-return-type-invalid';
     public const string REASON_PRESET_ROOT_WRAPPER_FORBIDDEN = 'mode-preset-root-wrapper-forbidden';
@@ -50,6 +51,7 @@ final class ModePresetInvalidException extends ModuleResolutionException
      * @var array<string, true>
      */
     private const array REASONS = [
+        self::REASON_MODULE_IDS_DUPLICATE => true,
         self::REASON_PRESET_INVALID => true,
         self::REASON_PRESET_RETURN_TYPE_INVALID => true,
         self::REASON_PRESET_ROOT_WRAPPER_FORBIDDEN => true,

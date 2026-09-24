@@ -89,7 +89,15 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelection;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\CanonicalPresetSource;
+use Coretsia\Kernel\Module\Preset\CustomPresetSource;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
@@ -117,6 +125,10 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         ModePresetLoaderFactory::class,
         ModuleGraphResolver::class,
         ModulePlanResolver::class,
+        ModuleResolutionOrchestrator::class,
+        ModuleSelectionFactory::class,
+        ModuleIdSetNormalizer::class,
+        PresetNamespaceResolver::class,
         ContainerProviderPlanResolver::class,
         ConfigNamespaceGuard::class,
         DirectiveProcessor::class,
@@ -200,6 +212,23 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 $serviceId,
                 $runtimeDefinitions->requiredServiceIds(),
             );
+        }
+    }
+
+    public function testCompileHostOnlyValueObjectsAndSourcesNeverBecomeRuntimeBindings(): void
+    {
+        $definitions = self::completeRuntimeDefinitionSet(self::validConfig());
+        $runtimeIds = self::bindingIds($definitions->toDescriptorStream());
+        foreach (
+            [
+                ModuleSelection::class,
+                ResolvedModuleOverrides::class,
+                CanonicalPresetSource::class,
+                CustomPresetSource::class,
+            ] as $forbidden
+        ) {
+            self::assertNotContains($forbidden, $runtimeIds);
+            self::assertNotContains($forbidden, $definitions->requiredServiceIds());
         }
     }
 
@@ -389,12 +418,9 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
 
     private static function isServiceKind(string $kind): bool
     {
-        return $kind
-            === ContainerDefinitionKind::SERVICE_CLASS->value
-            || $kind
-            === ContainerDefinitionKind::SERVICE_FACTORY_CLASS_METHOD->value
-            || $kind
-            === ContainerDefinitionKind::SERVICE_FACTORY_SERVICE_METHOD->value;
+        return $kind === ContainerDefinitionKind::SERVICE_CLASS->value
+            || $kind === ContainerDefinitionKind::SERVICE_FACTORY_CLASS_METHOD->value
+            || $kind === ContainerDefinitionKind::SERVICE_FACTORY_SERVICE_METHOD->value;
     }
 
     /**

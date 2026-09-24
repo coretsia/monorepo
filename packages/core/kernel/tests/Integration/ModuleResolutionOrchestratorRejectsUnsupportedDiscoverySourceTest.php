@@ -31,12 +31,17 @@ use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
-final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends TestCase
+final class ModuleResolutionOrchestratorRejectsUnsupportedDiscoverySourceTest extends TestCase
 {
     public function testUnsupportedDiscoverySourceFailsBeforePresetLoadingAndComposerMetadataReading(): void
     {
@@ -53,7 +58,7 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
 
         $meter = self::meter();
 
-        $resolver = new ModulePlanResolver(
+        $resolver = new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: \sys_get_temp_dir() . '/coretsia-module-plan-resolver-unsupported-source-package',
                 modesConfig: [
@@ -63,8 +68,10 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: $meter,
             stopwatch: new Stopwatch(),
@@ -89,6 +96,7 @@ final class ModulePlanResolverRejectsUnsupportedDiscoverySourceTest extends Test
                     envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
                     appTarget: AppTarget::from('api'),
                     applicationRoot: \sys_get_temp_dir() . '/coretsia-module-plan-resolver-unsupported-source-application',
+                    moduleOverrides: new ResolvedModuleOverrides([], []),
                 ),
             );
 

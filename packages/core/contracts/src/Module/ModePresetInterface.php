@@ -53,28 +53,9 @@ interface ModePresetInterface
     public function required(): array;
 
     /**
-     * Optional module ids.
-     *
      * @return list<ModuleId>
      */
-    public function optional(): array;
-
-    /**
-     * Explicitly disabled module ids.
-     *
-     * @return list<ModuleId>
-     */
-    public function disabled(): array;
-
-    /**
-     * Compatibility projection of enabled preset module ids.
-     *
-     * SHOULD be derived from required + optional, excluding disabled,
-     * sorted by module id value using byte-order strcmp.
-     *
-     * @return list<ModuleId>
-     */
-    public function moduleIds(): array;
+    public function modules(): array;
 
     /**
      * Schema-owned policy knobs.

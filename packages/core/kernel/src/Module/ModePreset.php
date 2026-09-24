@@ -55,12 +55,7 @@ final readonly class ModePreset implements ModePresetInterface
     /**
      * @var list<ModuleId>
      */
-    private array $optional;
-
-    /**
-     * @var list<ModuleId>
-     */
-    private array $disabled;
+    private array $modules;
 
     /**
      * @var array<string, mixed>
@@ -74,8 +69,7 @@ final readonly class ModePreset implements ModePresetInterface
 
     /**
      * @param list<ModuleId> $required
-     * @param list<ModuleId> $optional
-     * @param list<ModuleId> $disabled
+     * @param list<ModuleId> $modules
      * @param array<string, mixed> $featureBundles
      * @param array<string, mixed> $metadata
      */
@@ -84,8 +78,7 @@ final readonly class ModePreset implements ModePresetInterface
         private string $name,
         private ?string $description,
         array $required,
-        array $optional,
-        array $disabled,
+        array $modules,
         array $featureBundles = [],
         array $metadata = [],
     ) {
@@ -102,16 +95,12 @@ final readonly class ModePreset implements ModePresetInterface
         }
 
         $requiredSet = self::normalizeModuleIdSet($required, 'required');
-        $optionalSet = self::normalizeModuleIdSet($optional, 'optional');
-        $disabledSet = self::normalizeModuleIdSet($disabled, 'disabled');
+        $modulesSet = self::normalizeModuleIdSet($modules, 'modules');
 
-        self::assertDisjoint($requiredSet, $optionalSet, 'mode-preset-required-optional-overlap');
-        self::assertDisjoint($requiredSet, $disabledSet, 'mode-preset-required-disabled-overlap');
-        self::assertDisjoint($optionalSet, $disabledSet, 'mode-preset-optional-disabled-overlap');
+        self::assertDisjoint($requiredSet, $modulesSet, 'mode-preset-required-modules-overlap');
 
         $this->required = $requiredSet;
-        $this->optional = $optionalSet;
-        $this->disabled = $disabledSet;
+        $this->modules = $modulesSet;
         $this->featureBundles = self::normalizeJsonLikeMap($featureBundles, 'featureBundles');
         $this->metadata = self::normalizeJsonLikeMap($metadata, 'metadata');
     }
@@ -142,41 +131,9 @@ final readonly class ModePreset implements ModePresetInterface
     /**
      * @return list<ModuleId>
      */
-    public function optional(): array
+    public function modules(): array
     {
-        return $this->optional;
-    }
-
-    /**
-     * @return list<ModuleId>
-     */
-    public function disabled(): array
-    {
-        return $this->disabled;
-    }
-
-    /**
-     * @return list<ModuleId>
-     */
-    public function moduleIds(): array
-    {
-        $enabled = [];
-
-        foreach ($this->required as $moduleId) {
-            $enabled[$moduleId->value()] = $moduleId;
-        }
-
-        foreach ($this->optional as $moduleId) {
-            $enabled[$moduleId->value()] = $moduleId;
-        }
-
-        foreach ($this->disabled as $moduleId) {
-            unset($enabled[$moduleId->value()]);
-        }
-
-        \ksort($enabled, \SORT_STRING);
-
-        return \array_values($enabled);
+        return $this->modules;
     }
 
     /**
@@ -201,8 +158,7 @@ final readonly class ModePreset implements ModePresetInterface
      *     name: string,
      *     description: string|null,
      *     required: list<string>,
-     *     optional: list<string>,
-     *     disabled: list<string>,
+     *     modules: list<string>,
      *     featureBundles: array<string, mixed>,
      *     metadata: array<string, mixed>
      * }
@@ -214,8 +170,7 @@ final readonly class ModePreset implements ModePresetInterface
             'name' => $this->name,
             'description' => $this->description,
             'required' => self::moduleIdsToStrings($this->required),
-            'optional' => self::moduleIdsToStrings($this->optional),
-            'disabled' => self::moduleIdsToStrings($this->disabled),
+            'modules' => self::moduleIdsToStrings($this->modules),
             'featureBundles' => $this->featureBundles,
             'metadata' => $this->metadata,
         ];
@@ -228,6 +183,9 @@ final readonly class ModePreset implements ModePresetInterface
      */
     private static function normalizeModuleIdSet(array $moduleIds, string $field): array
     {
+        if (!\array_is_list($moduleIds)) {
+            throw new \InvalidArgumentException('mode-preset-' . $field . '-module-ids-must-be-list');
+        }
         $set = [];
 
         foreach ($moduleIds as $moduleId) {
@@ -235,7 +193,11 @@ final readonly class ModePreset implements ModePresetInterface
                 throw new \InvalidArgumentException('mode-preset-' . $field . '-module-id-invalid');
             }
 
-            $set[$moduleId->value()] = $moduleId;
+            $value = $moduleId->value();
+            if (isset($set[$value])) {
+                throw new \InvalidArgumentException('mode-preset-' . $field . '-module-id-duplicate');
+            }
+            $set[$value] = $moduleId;
         }
 
         \ksort($set, \SORT_STRING);

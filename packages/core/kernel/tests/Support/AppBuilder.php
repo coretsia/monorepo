@@ -33,14 +33,17 @@ use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
-use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
-use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Tests\Integration\ArtifactPipelineTestSupport;
@@ -76,10 +79,10 @@ final class AppBuilder
         );
 
         $modePresetLoaderFactory = self::modePresetLoaderFactory();
-        $moduleResolution = self::modulePlanResolver(
+        $moduleResolution = self::moduleResolutionOrchestrator(
             manifest: self::microFixtureManifest(),
             modePresetLoaderFactory: $modePresetLoaderFactory,
-        )->resolveResolution($bootstrapConfig);
+        )->resolve($bootstrapConfig);
         $modulePlan = $moduleResolution->plan();
 
         self::compileRuntimeArtifacts(
@@ -90,9 +93,7 @@ final class AppBuilder
             modePresetLoaderFactory: $modePresetLoaderFactory,
         );
 
-        $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths(
-            $applicationRoot,
-        );
+        $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths($applicationRoot);
 
         self::assertRuntimeArtifactsExist($artifactPaths);
 
@@ -111,7 +112,7 @@ final class AppBuilder
         );
     }
 
-    public static function bootExpressExpectingRequiredMissing(TestCase $_testCase): AppBuilderRequiredMissingResult
+    public static function bootExpress(TestCase $testCase): AppBuilderBootResult
     {
         $applicationRoot = self::temporaryApplicationRoot('boot-express');
 
@@ -123,29 +124,38 @@ final class AppBuilder
             preset: self::PRESET_EXPRESS,
         );
 
-        try {
-            self::modulePlanResolver(
-                manifest: self::microFixtureManifest(),
-            )->resolveResolution($bootstrapConfig);
-        } catch (ModuleRequiredMissingException $exception) {
-            TestCase::assertSame(
-                ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING,
-                $exception->errorCode(),
-            );
+        $modePresetLoaderFactory = self::modePresetLoaderFactory();
+        $moduleResolution = self::moduleResolutionOrchestrator(
+            manifest: self::microFixtureManifest(),
+            modePresetLoaderFactory: $modePresetLoaderFactory,
+        )->resolve($bootstrapConfig);
+        $modulePlan = $moduleResolution->plan();
 
-            TestCase::assertSame(
-                self::MODULE_PLATFORM_HTTP,
-                $exception->context()['missingModuleId'] ?? null,
-            );
+        self::compileRuntimeArtifacts(
+            testCase: $testCase,
+            applicationRoot: $applicationRoot,
+            bootstrapConfig: $bootstrapConfig,
+            moduleResolution: $moduleResolution,
+            modePresetLoaderFactory: $modePresetLoaderFactory,
+        );
 
-            return new AppBuilderRequiredMissingResult(
+        $artifactPaths = ArtifactPipelineTestSupport::currentArtifactPaths($applicationRoot);
+
+        self::assertRuntimeArtifactsExist($artifactPaths);
+
+        $container = new ArtifactRuntimeBooter()->boot(
+            input: new ArtifactRuntimeInput(
                 applicationRoot: $applicationRoot,
-                exception: $exception,
-                artifactPaths: ArtifactPipelineTestSupport::artifactPaths($applicationRoot),
-            );
-        }
+                artifactRoot: ArtifactPipelineTestSupport::artifactRoot($applicationRoot),
+            ),
+        );
 
-        throw new \LogicException('app-builder-express-required-missing-not-raised');
+        return new AppBuilderBootResult(
+            applicationRoot: $applicationRoot,
+            modulePlan: $modulePlan,
+            container: $container,
+            artifactPaths: $artifactPaths,
+        );
     }
 
     public static function resolveApplicationOnlyPreset(
@@ -169,8 +179,7 @@ final class AppBuilder
                     self::MODULE_CORE_KERNEL,
                     self::MODULE_PLATFORM_CLI,
                 ],
-                'optional' => [],
-                'disabled' => [],
+                'modules' => [],
                 'featureBundles' => [
                     'observability' => 'minimal',
                 ],
@@ -183,9 +192,9 @@ final class AppBuilder
             preset: $presetName,
         );
 
-        $moduleResolution = self::modulePlanResolver(
+        $moduleResolution = self::moduleResolutionOrchestrator(
             manifest: self::microFixtureManifest(),
-        )->resolveResolution($bootstrapConfig);
+        )->resolve($bootstrapConfig);
         $modulePlan = $moduleResolution->plan();
 
         return new AppBuilderModulePlanResult(
@@ -224,19 +233,22 @@ final class AppBuilder
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
-    private static function modulePlanResolver(
+    private static function moduleResolutionOrchestrator(
         ModuleManifest $manifest,
         ?ModePresetLoaderFactory $modePresetLoaderFactory = null,
-    ): ModulePlanResolver {
+    ): ModuleResolutionOrchestrator {
         $modePresetLoaderFactory ??= self::modePresetLoaderFactory();
 
-        return new ModulePlanResolver(
+        return new ModuleResolutionOrchestrator(
             presetLoaderFactory: $modePresetLoaderFactory,
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: self::manifestReader($manifest),
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: self::meter(),
             stopwatch: new Stopwatch(),
@@ -263,6 +275,7 @@ final class AppBuilder
                 'coretsia/core-kernel' => self::packageRoot(),
             ]),
             modePresetLoaderFactory: $modePresetLoaderFactory,
+            presetNamespaceResolver: new PresetNamespaceResolver(),
         );
         $configSources = $sourceBuilder->build(
             $bootstrapConfig,
@@ -561,37 +574,6 @@ final readonly class AppBuilderBootResult
     public function container(): ContainerInterface
     {
         return $this->container;
-    }
-
-    /**
-     * @return array<string,string>
-     */
-    public function artifactPaths(): array
-    {
-        return $this->artifactPaths;
-    }
-}
-
-final readonly class AppBuilderRequiredMissingResult
-{
-    /**
-     * @param array<string,string> $artifactPaths
-     */
-    public function __construct(
-        private string $applicationRoot,
-        private ModuleRequiredMissingException $exception,
-        private array $artifactPaths,
-    ) {
-    }
-
-    public function applicationRoot(): string
-    {
-        return $this->applicationRoot;
-    }
-
-    public function exception(): ModuleRequiredMissingException
-    {
-        return $this->exception;
     }
 
     /**

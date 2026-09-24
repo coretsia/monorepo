@@ -34,18 +34,26 @@ use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
-final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
+final class ModuleResolutionOrchestratorEmitsPolicyCompliantSpanTest extends TestCase
 {
     private string $tempRoot;
 
     protected function setUp(): void
     {
         $this->tempRoot = self::createTempDirectory();
+        \mkdir($this->tempRoot . '/package', 0777, true);
+        \mkdir($this->tempRoot . '/application', 0777, true);
+        \mkdir($this->tempRoot . '/application-root-with-sensitive-name', 0777, true);
     }
 
     protected function tearDown(): void
@@ -97,7 +105,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
                 applicationRoot: $applicationRoot,
                 preset: 'micro',
             ),
-        );
+        )->plan();
 
         self::assertTrue($plan->hasEnabledModule('core.kernel'));
         self::assertSame(
@@ -211,7 +219,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
         );
 
         try {
-            $resolver->resolveResolution(
+            $resolver->resolve(
                 self::bootstrapConfig(
                     applicationRoot: $applicationRoot,
                     preset: 'micro',
@@ -267,7 +275,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
         );
 
         try {
-            $resolver->resolveResolution(
+            $resolver->resolve(
                 self::bootstrapConfig(
                     applicationRoot: $applicationRoot,
                     preset: 'micro',
@@ -327,7 +335,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
             meter: $meter,
         );
 
-        $resolution = $resolver->resolveResolution(
+        $resolution = $resolver->resolve(
             self::bootstrapConfig(
                 applicationRoot: $applicationRoot,
                 preset: 'micro',
@@ -384,8 +392,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
             throwOnEnd: true,
         );
         $meter = self::recordingMeter();
-        $primary = ModuleRequiredMissingException::presetRequiredModuleMissing(
-            presetName: 'micro',
+        $primary = ModuleRequiredMissingException::selectedRootModuleMissing(
             missingModuleId: ModuleId::fromString('platform.http'),
         );
 
@@ -408,7 +415,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
         );
 
         try {
-            $resolver->resolveResolution(
+            $resolver->resolve(
                 self::bootstrapConfig(
                     applicationRoot: $applicationRoot,
                     preset: 'micro',
@@ -419,13 +426,12 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
         } catch (ModuleRequiredMissingException $caught) {
             self::assertSame($primary, $caught);
             self::assertSame(
-                ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
+                ModuleRequiredMissingException::REASON_SELECTED_ROOT_MODULE_MISSING,
                 $caught->reason(),
             );
             self::assertSame(
                 [
                     'missingModuleId' => 'platform.http',
-                    'preset' => 'micro',
                 ],
                 $caught->context(),
             );
@@ -485,8 +491,8 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
                 ],
             ],
         ],
-    ): ModulePlanResolver {
-        return new ModulePlanResolver(
+    ): ModuleResolutionOrchestrator {
+        return new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: $packageRoot,
                 modesConfig: [
@@ -496,9 +502,13 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(
-                new TopologicalSorter(),
+            modulePlanResolver: new ModulePlanResolver(
+                graphResolver: new ModuleGraphResolver(
+                    new TopologicalSorter(),
+                ),
             ),
             tracer: $tracer,
             meter: $meter,
@@ -520,6 +530,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::from('strict_dotenv'),
             appTarget: AppTarget::from('api'),
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -633,8 +644,7 @@ final class ModulePlanResolverEmitsPolicyCompliantSpanTest extends TestCase
             'name' => $name,
             'description' => \ucfirst($name) . ' test mode.',
             'required' => $required,
-            'optional' => [],
-            'disabled' => [],
+            'modules' => [],
             'featureBundles' => [],
             'metadata' => [],
         ];

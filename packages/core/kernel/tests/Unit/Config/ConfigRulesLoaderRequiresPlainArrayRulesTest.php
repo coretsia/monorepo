@@ -58,7 +58,7 @@ final class ConfigRulesLoaderRequiresPlainArrayRulesTest extends TestCase
 declare(strict_types=1);
 
 return 'not-array';
-PHP
+PHP,
         );
 
         try {
@@ -93,7 +93,7 @@ return [
         ],
     ],
 ];
-PHP
+PHP,
         );
 
         try {
@@ -138,7 +138,7 @@ return [
         ],
     ],
 ];
-PHP
+PHP,
         );
 
         $result = new ConfigRulesLoader()->loadRulesets([
@@ -183,7 +183,7 @@ return [
     'additionalKeys' => true,
     'keys' => [],
 ];
-PHP
+PHP,
         );
 
         $loader = new ConfigRulesLoader();
@@ -323,10 +323,8 @@ PHP
 
         return new ModulePlan(
             app: 'web',
-            preset: 'micro',
             enabled: [$moduleId],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [$moduleId],
             modules: [
                 new ModulePlanEntry(
@@ -334,7 +332,6 @@ PHP
                     composerName: 'coretsia/core-kernel',
                 ),
             ],
-            warnings: [],
         );
     }
 

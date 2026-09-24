@@ -23,10 +23,10 @@ use Coretsia\Contracts\Module\ModuleId;
 /**
  * Deterministic required module missing failure.
  *
- * Used when a preset-required module or a transitive required dependency is
+ * Used when a selected root or a transitive required dependency is
  * missing from the installed runtime module manifest.
  *
- * Diagnostics intentionally expose only deterministic module ids, preset names,
+ * Diagnostics intentionally expose only deterministic module ids,
  * and stable reason tokens. They must not expose raw Composer metadata, raw
  * preset payloads, filesystem paths, or previous throwable messages.
  *
@@ -37,7 +37,7 @@ use Coretsia\Contracts\Module\ModuleId;
  */
 final class ModuleRequiredMissingException extends ModuleResolutionException
 {
-    public const string REASON_PRESET_REQUIRED_MODULE_MISSING = 'preset-required-module-missing';
+    public const string REASON_SELECTED_ROOT_MODULE_MISSING = 'selected-root-module-missing';
     public const string REASON_DEPENDENCY_REQUIRED_MODULE_MISSING = 'dependency-required-module-missing';
 
     private function __construct(
@@ -53,15 +53,13 @@ final class ModuleRequiredMissingException extends ModuleResolutionException
         );
     }
 
-    public static function presetRequiredModuleMissing(
-        string $presetName,
+    public static function selectedRootModuleMissing(
         ModuleId $missingModuleId,
         ?\Throwable $previous = null,
     ): self {
         return new self(
-            self::REASON_PRESET_REQUIRED_MODULE_MISSING,
+            self::REASON_SELECTED_ROOT_MODULE_MISSING,
             [
-                'preset' => $presetName,
                 'missingModuleId' => $missingModuleId->value(),
             ],
             $previous,

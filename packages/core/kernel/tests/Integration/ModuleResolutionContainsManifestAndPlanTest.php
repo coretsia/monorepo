@@ -31,7 +31,12 @@ use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -43,6 +48,7 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
     protected function setUp(): void
     {
         $this->tempRoot = self::createTempDirectory();
+        \mkdir($this->tempRoot . '/application', 0777, true);
     }
 
     protected function tearDown(): void
@@ -65,8 +71,7 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
                 'required' => [
                     'core.kernel',
                 ],
-                'optional' => [],
-                'disabled' => [],
+                'modules' => [],
                 'featureBundles' => [],
                 'metadata' => [],
             ],
@@ -93,7 +98,7 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
         $resolution = self::resolver(
             packageRoot: $packageRoot,
             manifestReader: $manifestReader,
-        )->resolveResolution(
+        )->resolve(
             self::bootstrapConfig($applicationRoot),
         );
 
@@ -132,8 +137,8 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
     private static function resolver(
         string $packageRoot,
         ManifestReaderInterface $manifestReader,
-    ): ModulePlanResolver {
-        return new ModulePlanResolver(
+    ): ModuleResolutionOrchestrator {
+        return new ModuleResolutionOrchestrator(
             presetLoaderFactory: new ModePresetLoaderFactory(
                 packageRoot: $packageRoot,
                 modesConfig: [
@@ -143,8 +148,10 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
+            moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
             manifestReader: $manifestReader,
-            graphResolver: new ModuleGraphResolver(new TopologicalSorter()),
+            modulePlanResolver: new ModulePlanResolver(graphResolver: new ModuleGraphResolver(new TopologicalSorter())),
             tracer: new NoopTracer(),
             meter: self::meter(),
             stopwatch: new Stopwatch(),
@@ -170,6 +177,7 @@ final class ModuleResolutionContainsManifestAndPlanTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Api,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 

@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Module;
 
 use Coretsia\Contracts\Module\ModuleId;
-use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 
 /**
  * Immutable deterministic Kernel ModulePlan.
@@ -30,13 +29,10 @@ use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
  * It intentionally stores only resolved plan data:
  *
  * - selected app target;
- * - selected preset name;
  * - enabled module ids;
- * - disabled module ids;
- * - optional missing module ids;
+ * - explicitly excluded module ids;
  * - topological module order;
  * - resolved module entries;
- * - non-fatal warnings.
  *
  * It must not store or expose applicationRoot, appRoot, defaultsPath,
  * overridesPath, absolute paths, provider class lists, Composer raw payloads,
@@ -46,10 +42,6 @@ use Coretsia\Kernel\Module\Warning\ModuleOptionalMissingWarning;
 final readonly class ModulePlan
 {
     public const int SCHEMA_VERSION = 1;
-    private const int MAX_PRESET_BYTES = 64;
-
-    private const string SAFE_PRESET_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789-';
-
     /**
      * @var array<string, true>
      */
@@ -62,8 +54,6 @@ final readonly class ModulePlan
 
     private string $app;
 
-    private string $preset;
-
     /**
      * @var list<ModuleId>
      */
@@ -72,12 +62,7 @@ final readonly class ModulePlan
     /**
      * @var list<ModuleId>
      */
-    private array $disabled;
-
-    /**
-     * @var list<ModuleId>
-     */
-    private array $optionalMissing;
+    private array $excluded;
 
     /**
      * @var list<ModuleId>
@@ -90,62 +75,42 @@ final readonly class ModulePlan
     private array $modules;
 
     /**
-     * @var list<ModuleOptionalMissingWarning>
-     */
-    private array $warnings;
-
-    /**
      * @param list<ModuleId> $enabled
-     * @param list<ModuleId> $disabled
-     * @param list<ModuleId> $optionalMissing
+     * @param list<ModuleId> $excluded
      * @param list<ModuleId> $topologicalOrder
      * @param list<ModulePlanEntry> $modules
-     * @param list<ModuleOptionalMissingWarning> $warnings
      */
-    public function __construct(
-        string $app,
-        string $preset,
-        array $enabled,
-        array $disabled,
-        array $optionalMissing,
-        array $topologicalOrder,
-        array $modules,
-        array $warnings = [],
-    ) {
+    public function __construct(string $app, array $enabled, array $excluded, array $topologicalOrder, array $modules)
+    {
         if (!self::isValidAppTarget($app)) {
             throw new \InvalidArgumentException('module-plan-app-invalid');
         }
-
-        if (!self::isSafePresetName($preset)) {
-            throw new \InvalidArgumentException('module-plan-preset-invalid');
-        }
-
         $enabledSet = self::normalizeModuleIdSet($enabled, 'enabled');
-        $disabledSet = self::normalizeModuleIdSet($disabled, 'disabled');
-        $optionalMissingSet = self::normalizeModuleIdSet($optionalMissing, 'optionalMissing');
-        $topologicalOrderList = self::normalizeTopologicalOrder($topologicalOrder);
-        $moduleMap = self::normalizeModuleEntries($modules);
-        $warningList = self::normalizeWarnings($warnings);
-
-        self::assertModuleIdSetsArePairwiseDisjoint(
-            enabled: $enabledSet,
-            disabled: $disabledSet,
-            optionalMissing: $optionalMissingSet,
-        );
-
-        self::assertTopologicalOrderReferencesEnabledModules($topologicalOrderList, $enabledSet);
-        self::assertTopologicalOrderContainsAllEnabledModules($topologicalOrderList, $enabledSet);
-        self::assertEnabledModulesHaveEntries($enabledSet, $moduleMap);
-        self::assertModuleEntriesReferenceEnabledModules($moduleMap, $enabledSet);
-
+        $excludedSet = self::normalizeModuleIdSet($excluded, 'excluded');
+        $order = self::normalizeTopologicalOrder($topologicalOrder);
+        $entries = self::normalizeModuleEntries($modules);
+        self::assertModuleIdSetsDoNotOverlap($enabledSet, $excludedSet, 'module-plan-enabled-excluded-overlap');
+        self::assertTopologicalOrderReferencesEnabledModules($order, $enabledSet);
+        self::assertTopologicalOrderContainsAllEnabledModules($order, $enabledSet);
+        self::assertEnabledModulesHaveEntries($enabledSet, $entries);
+        self::assertModuleEntriesReferenceEnabledModules($entries, $enabledSet);
+        foreach ($entries as $entry) {
+            foreach ($entry->requires() as $id) {
+                if (!isset($entries[$id->value()])) {
+                    throw new \InvalidArgumentException('module-plan-required-entry-missing');
+                }
+            }
+            foreach ($entry->conflicts() as $id) {
+                if (isset($entries[$id->value()])) {
+                    throw new \InvalidArgumentException('module-plan-enabled-module-conflict');
+                }
+            }
+        }
         $this->app = $app;
-        $this->preset = $preset;
         $this->enabled = $enabledSet;
-        $this->disabled = $disabledSet;
-        $this->optionalMissing = $optionalMissingSet;
-        $this->topologicalOrder = $topologicalOrderList;
-        $this->modules = $moduleMap;
-        $this->warnings = $warningList;
+        $this->excluded = $excludedSet;
+        $this->topologicalOrder = $order;
+        $this->modules = $entries;
     }
 
     public function schemaVersion(): int
@@ -156,11 +121,6 @@ final readonly class ModulePlan
     public function app(): string
     {
         return $this->app;
-    }
-
-    public function preset(): string
-    {
-        return $this->preset;
     }
 
     /**
@@ -174,17 +134,9 @@ final readonly class ModulePlan
     /**
      * @return list<ModuleId>
      */
-    public function disabled(): array
+    public function excluded(): array
     {
-        return $this->disabled;
-    }
-
-    /**
-     * @return list<ModuleId>
-     */
-    public function optionalMissing(): array
-    {
-        return $this->optionalMissing;
+        return $this->excluded;
     }
 
     public function hasEnabledModule(string|ModuleId $moduleId): bool
@@ -192,14 +144,9 @@ final readonly class ModulePlan
         return self::moduleIdListContains($this->enabled, $moduleId);
     }
 
-    public function hasDisabledModule(string|ModuleId $moduleId): bool
+    public function hasExcludedModule(string|ModuleId $moduleId): bool
     {
-        return self::moduleIdListContains($this->disabled, $moduleId);
-    }
-
-    public function hasOptionalMissingModule(string|ModuleId $moduleId): bool
-    {
-        return self::moduleIdListContains($this->optionalMissing, $moduleId);
+        return self::moduleIdListContains($this->excluded, $moduleId);
     }
 
     /**
@@ -218,90 +165,22 @@ final readonly class ModulePlan
         return $this->modules;
     }
 
-    /**
-     * @return list<ModuleOptionalMissingWarning>
-     */
-    public function warnings(): array
-    {
-        return $this->warnings;
-    }
-
-    /**
-     * Stable exported scalar/json-like shape.
-     *
-     * Top-level key order is canonical:
-     *
-     * - app
-     * - disabled
-     * - enabled
-     * - modules
-     * - optionalMissing
-     * - preset
-     * - schemaVersion
-     * - topologicalOrder
-     * - warnings
-     *
-     * @return array{
-     *     app: string,
-     *     disabled: list<string>,
-     *     enabled: list<string>,
-     *     modules: array<string, array{
-     *         composerName: string,
-     *         conflicts: list<string>,
-     *         moduleId: string,
-     *         requires: list<string>
-     *     }>,
-     *     optionalMissing: list<string>,
-     *     preset: string,
-     *     schemaVersion: int,
-     *     topologicalOrder: list<string>,
-     *     warnings: list<array{
-     *         code: string,
-     *         moduleId: string,
-     *         preset: string,
-     *         reason: string
-     *     }>
-     * }
-     */
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [
             'app' => $this->app,
-            'disabled' => self::moduleIdsToStrings($this->disabled),
             'enabled' => self::moduleIdsToStrings($this->enabled),
+            'excluded' => self::moduleIdsToStrings($this->excluded),
             'modules' => self::moduleEntriesToArray($this->modules),
-            'optionalMissing' => self::moduleIdsToStrings($this->optionalMissing),
-            'preset' => $this->preset,
             'schemaVersion' => self::SCHEMA_VERSION,
             'topologicalOrder' => self::moduleIdsToStrings($this->topologicalOrder),
-            'warnings' => self::warningsToArray($this->warnings),
         ];
     }
 
     private static function isValidAppTarget(string $app): bool
     {
         return isset(self::APP_TARGETS[$app]);
-    }
-
-    private static function isSafePresetName(string $preset): bool
-    {
-        if ($preset === '') {
-            return false;
-        }
-
-        if (\strlen($preset) > self::MAX_PRESET_BYTES) {
-            return false;
-        }
-
-        if (!self::isAsciiLowerAlpha($preset[0])) {
-            return false;
-        }
-
-        if (\str_contains($preset, '..')) {
-            return false;
-        }
-
-        return \strspn($preset, self::SAFE_PRESET_CHARS) === \strlen($preset);
     }
 
     /**
@@ -311,6 +190,9 @@ final readonly class ModulePlan
      */
     private static function normalizeModuleIdSet(array $moduleIds, string $field): array
     {
+        if (!\array_is_list($moduleIds)) {
+            throw new \InvalidArgumentException('module-plan-' . $field . '-module-ids-must-be-list');
+        }
         $set = [];
 
         foreach ($moduleIds as $moduleId) {
@@ -391,61 +273,6 @@ final readonly class ModulePlan
         \ksort($map, \SORT_STRING);
 
         return $map;
-    }
-
-    /**
-     * @param list<ModuleOptionalMissingWarning> $warnings
-     *
-     * @return list<ModuleOptionalMissingWarning>
-     */
-    private static function normalizeWarnings(array $warnings): array
-    {
-        if (!\array_is_list($warnings)) {
-            throw new \InvalidArgumentException('module-plan-warnings-must-be-list');
-        }
-
-        $map = [];
-
-        foreach ($warnings as $warning) {
-            if (!$warning instanceof ModuleOptionalMissingWarning) {
-                throw new \InvalidArgumentException('module-plan-warning-invalid');
-            }
-
-            $map[$warning->canonicalKey()] = $warning;
-        }
-
-        \ksort($map, \SORT_STRING);
-
-        return \array_values($map);
-    }
-
-    /**
-     * @param list<ModuleId> $enabled
-     * @param list<ModuleId> $disabled
-     * @param list<ModuleId> $optionalMissing
-     */
-    private static function assertModuleIdSetsArePairwiseDisjoint(
-        array $enabled,
-        array $disabled,
-        array $optionalMissing,
-    ): void {
-        self::assertModuleIdSetsDoNotOverlap(
-            left: $enabled,
-            right: $disabled,
-            reason: 'module-plan-enabled-disabled-overlap',
-        );
-
-        self::assertModuleIdSetsDoNotOverlap(
-            left: $enabled,
-            right: $optionalMissing,
-            reason: 'module-plan-enabled-optional-missing-overlap',
-        );
-
-        self::assertModuleIdSetsDoNotOverlap(
-            left: $disabled,
-            right: $optionalMissing,
-            reason: 'module-plan-disabled-optional-missing-overlap',
-        );
     }
 
     /**
@@ -579,32 +406,6 @@ final readonly class ModulePlan
         }
 
         return $out;
-    }
-
-    /**
-     * @param list<ModuleOptionalMissingWarning> $warnings
-     *
-     * @return list<array{
-     *     code: string,
-     *     moduleId: string,
-     *     preset: string,
-     *     reason: string
-     * }>
-     */
-    private static function warningsToArray(array $warnings): array
-    {
-        $out = [];
-
-        foreach ($warnings as $warning) {
-            $out[] = $warning->toArray();
-        }
-
-        return $out;
-    }
-
-    private static function isAsciiLowerAlpha(string $char): bool
-    {
-        return $char >= 'a' && $char <= 'z';
     }
 
     /**

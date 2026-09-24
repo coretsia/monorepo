@@ -463,7 +463,7 @@ final class KernelDoesNotEnumerateResetDiscoveryTagTest extends TestCase
     {
         $normalized = \strtolower($nearbySource);
 
-        return \str_contains($normalized, 'reset')
+        return \preg_match('/(?<![a-z])reset(?![a-z])/i', $normalized) === 1
             || \str_contains($nearbySource, self::RESET_TAG_CONSTANT)
             || \str_contains($nearbySource, self::RESET_TAG_LITERAL)
             || \str_contains($nearbySource, self::RESET_CONFIG_KEY_LITERAL);

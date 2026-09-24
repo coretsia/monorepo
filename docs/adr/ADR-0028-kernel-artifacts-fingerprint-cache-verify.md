@@ -92,6 +92,21 @@ artifact-generation@1
 
 The `routes@1` artifact is not Kernel-owned and is not produced or verified by this Kernel artifact pipeline.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
 ## Decision 2: Publish one immutable Kernel-owned artifact generation
 
 Kernel artifact production builds exactly three runtime artifact envelopes:
@@ -397,14 +412,7 @@ The `ConfigSourceSet` passed to `ConfigFingerprintInputBuilder` MUST be the same
 
 The operation MUST NOT compile config from source set A and fingerprint source set B.
 
-Mode-preset source topology inside that source set contains both declared candidates in deterministic precedence order:
-
-```text
-application override candidate
-Kernel package default candidate
-```
-
-Both candidates are fingerprint-relevant even when the application override file is absent. Candidate presence is part of fingerprint identity, so two otherwise semantically equivalent operations that differ only in application-override file presence MUST produce different fingerprint input.
+Mode-preset source topology inside that source set contains **exactly one** deterministic namespace-owned candidate. A canonical name selects the Kernel-owned `CanonicalPresetSource` (`core/kernel:` source id, precedence `10`); a custom name selects application-owned `CustomPresetSource` (`application:` source id, precedence `20`). Candidate identity depends only on the configured namespace and selected name, not on incidental file presence or fallback. A missing declared custom candidate remains fingerprint-relevant without executing PHP. Reserved canonical application filenames and namespace-escaping existing paths fail validation before fingerprint reading.
 
 The supplied `DefinitionGraph` must be the exact graph returned by `RuntimeContainerGraphCompiler` for the current artifact operation.
 

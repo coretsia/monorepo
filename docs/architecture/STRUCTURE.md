@@ -268,9 +268,10 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
 
 ### 5.1. Mode presets (kernel runtime planning)
 
-- Template source: `packages/applications/skeleton/config/modes/*.php`
-- Consumer application path after `create-project`: `config/modes/*.php`
-- Affect the module plan (required/optional/disabled + bundles such as `observability=minimal`)
+- Canonical names (`micro`, `express`, `hybrid`, `enterprise`) are Kernel-owned resources under `packages/core/kernel/resources/modes/*.php`, read exclusively through `CanonicalPresetSource`.
+- Custom names belong to the consumer application under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`, normally `config/modes/*.php`, and are read exclusively through `CustomPresetSource`.
+- Application files cannot override reserved canonical names; names determine source ownership, never file-existence precedence.
+- Each schema-version-1 preset declares disjoint `required` (non-excludable) and `modules` (explicitly excludable) runtime-module ids plus feature bundles. `ModuleSelectionFactory` combines this policy with selected app-target `moduleOverrides` before graph resolution.
 
 ### 5.2. Preset packages (composer dependency convenience)
 
@@ -282,10 +283,7 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
   - `preset-express` — `micro` + required `express` additions
   - `preset-hybrid` — `express` + `hybrid` additions
   - `preset-enterprise` — `hybrid` + `enterprise` additions
-- If the release line contains `SHOULD` packages (for example `platform/cache` in `express`), the canonical preset:
-  - MUST clearly distinguish required baseline from later-optional additions,
-  - MUST NOT implicitly make an optional package part of the required mode definition without a separate policy note,
-  - MAY have separate convenience variants / extras for richer distribution.
+- Composer convenience packages MAY offer additional dependencies, but they do not determine runtime roots. `required` lists non-excludable implemented runtime modules; `modules` lists other implemented mode-selected runtime modules that application overrides can exclude. An unimplemented capability is not declared as a current selected root.
 
 ---
 
@@ -362,7 +360,9 @@ Conceptual layer-direction matrix:
 1. A single place for runtime “build artifacts”
 
 - consumer application: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
-- kernel artifacts: `var/cache/module-manifest.php`, `var/cache/config.php`, `var/cache/container.php` (stub/later)
+- Kernel artifact root: `<applicationRoot>/<artifactsCacheDir>/<appTarget>` (by default, `var/cache/<appTarget>` relative to the application root).
+- Finalized generation: `<artifact-root>/generations/<generation-id>/` containing `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`.
+- Generation selection and coordination: `<artifact-root>/current` and `<artifact-root>/generation.lock`. Runtime boot consumes one validated generation selected through `current`.
 
 2. Unified config rules
 
@@ -387,12 +387,15 @@ Conceptual layer-direction matrix:
 > - Adds — capabilities this mode adds on top of the previous one;
 > - Optional / later addons — not mode-defining minimums and may appear later in the same phase or in later phases.
 
+The membership catalog below describes **intended capabilities and packages**, not an inventory of already implemented runtime modules. The current four canonical PHP resources declare only their implemented runtime-module subset; this does not alter their intended mode membership. Future runtime packages enter every applicable canonical resource when implemented. Until then, different canonical modes may legitimately select the same currently available runtime-module subset without changing their intended membership. A package name such as `platform/http`, a conceptual capability, and a runtime ModuleId such as `platform.http` are distinct identifiers. `core/contracts` is a Composer library, never a runtime selection root. A selected root must have an actual installed runtime descriptor. EPIC 2 does not install packages or require unimplemented runtime modules.
+
 ### Custom
 
-- `custom` — a user-defined mode preset (`config/modes/*.php` in the consumer application; template source under `packages/applications/skeleton/config/modes/*.php`) that:
-  - is based on the same `required|optional|disabled` rules,
-  - MUST NOT require capabilities that do not yet exist in the roadmap phase / installed packages,
-  - MAY assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...).
+- `custom` — an application-owned mode preset under `<applicationRoot>/<kernel.modes.overrides_path>/*.php` (normally `config/modes/*.php`) that:
+  - uses the same `required` / `modules` schema-version-1 policy as canonical resources and a safe non-canonical name;
+  - MUST declare only implemented runtime-module ids corresponding to actual runtime descriptors, not conceptual capabilities or Composer package names;
+  - MAY assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...);
+  - MUST NOT shadow reserved canonical preset filenames.
 
 ### Micro
 
@@ -507,7 +510,7 @@ Notes:
 
 ### Preset packages vs runtime modes
 
-- Runtime mode preset (`config/modes/*.php` in the consumer application) defines the module plan; template source lives under `packages/applications/skeleton/config/modes/*.php`.
+- Runtime mode presets are Kernel-owned canonical resources under `packages/core/kernel/resources/modes/*.php` or application-owned custom files under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`. Presets supply `required`/`modules` policy; `ModuleSelectionFactory` derives effective roots; `ModuleGraphResolver` builds the module plan.
 - Composer preset package (`packages/presets/preset-*`) defines the dependency convenience set.
 - A preset package MUST NOT declare capabilities that do not yet exist in the corresponding roadmap release line.
 - Recommended mapping:

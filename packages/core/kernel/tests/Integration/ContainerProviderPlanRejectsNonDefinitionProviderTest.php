@@ -52,12 +52,10 @@ final class ContainerProviderPlanRejectsNonDefinitionProviderTest extends TestCa
             manifest: $manifest,
             plan: new ModulePlan(
                 app: 'api',
-                preset: 'micro',
                 enabled: [
                     $moduleId,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $moduleId,
                 ],

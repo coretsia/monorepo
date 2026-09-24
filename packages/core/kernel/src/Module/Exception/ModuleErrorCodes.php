@@ -19,16 +19,16 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Module\Exception;
 
 /**
- * Kernel-owned deterministic module resolution error/warning codes registry.
+ * Kernel-owned deterministic module resolution error codes registry.
  *
  * These constants are stable machine-readable identifiers for Kernel module
- * plan resolution failures and non-fatal warnings.
+ * plan resolution failures.
  *
  * This class is intentionally owned by `core/kernel`.
  *
  * It is not a contracts port, must not be moved to `core/contracts`, and must
  * not be treated as a cross-package interface. Future adapters may read these
- * codes through Kernel exceptions/warnings, but ownership of the codes remains
+ * codes through Kernel exceptions, but ownership of the codes remains
  * with Kernel module resolution policy.
  *
  * Exception messages remain separate fixed safe tokens and must not include
@@ -45,7 +45,7 @@ final class ModuleErrorCodes
     public const string CORETSIA_MODULE_CYCLE_DETECTED = 'CORETSIA_MODULE_CYCLE_DETECTED';
     public const string CORETSIA_MODULE_CONFLICT = 'CORETSIA_MODULE_CONFLICT';
     public const string CORETSIA_MODULE_REQUIRED_MISSING = 'CORETSIA_MODULE_REQUIRED_MISSING';
-    public const string CORETSIA_MODULE_OPTIONAL_MISSING = 'CORETSIA_MODULE_OPTIONAL_MISSING';
+    public const string CORETSIA_MODULE_SELECTION_INVALID = 'CORETSIA_MODULE_SELECTION_INVALID';
 
     /**
      * @var list<string>
@@ -58,7 +58,7 @@ final class ModuleErrorCodes
         self::CORETSIA_MODULE_CYCLE_DETECTED,
         self::CORETSIA_MODULE_CONFLICT,
         self::CORETSIA_MODULE_REQUIRED_MISSING,
-        self::CORETSIA_MODULE_OPTIONAL_MISSING,
+        self::CORETSIA_MODULE_SELECTION_INVALID,
     ];
 
     /**

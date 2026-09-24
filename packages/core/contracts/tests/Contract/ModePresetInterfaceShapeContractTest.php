@@ -46,9 +46,7 @@ final class ModePresetInterfaceShapeContractTest extends TestCase
                 'name',
                 'description',
                 'required',
-                'optional',
-                'disabled',
-                'moduleIds',
+                'modules',
                 'featureBundles',
                 'metadata',
                 'toArray',
@@ -66,9 +64,7 @@ final class ModePresetInterfaceShapeContractTest extends TestCase
         self::assertMethodReturnType('name', 'string', false);
         self::assertMethodReturnType('description', 'string', true);
         self::assertMethodReturnType('required', 'array', false);
-        self::assertMethodReturnType('optional', 'array', false);
-        self::assertMethodReturnType('disabled', 'array', false);
-        self::assertMethodReturnType('moduleIds', 'array', false);
+        self::assertMethodReturnType('modules', 'array', false);
         self::assertMethodReturnType('featureBundles', 'array', false);
         self::assertMethodReturnType('metadata', 'array', false);
         self::assertMethodReturnType('toArray', 'array', false);
@@ -78,9 +74,7 @@ final class ModePresetInterfaceShapeContractTest extends TestCase
     {
         self::assertMethodDocContains('name', '@return non-empty-string');
         self::assertMethodDocContains('required', '@return list<ModuleId>');
-        self::assertMethodDocContains('optional', '@return list<ModuleId>');
-        self::assertMethodDocContains('disabled', '@return list<ModuleId>');
-        self::assertMethodDocContains('moduleIds', '@return list<ModuleId>');
+        self::assertMethodDocContains('modules', '@return list<ModuleId>');
         self::assertMethodDocContains('featureBundles', '@return array<string,mixed>');
         self::assertMethodDocContains('metadata', '@return array<string,mixed>');
         self::assertMethodDocContains('toArray', '@return array<string,mixed>');

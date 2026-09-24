@@ -22,443 +22,122 @@ owner: core/kernel
 
 ## Context
 
-Coretsia needs a deterministic Kernel-owned module plan that can be built from installed package metadata and a selected mode preset.
-
-The module plan must answer a narrow runtime question:
-
-> Given a resolved Bootstrap Phase A input, an installed module manifest, and one selected preset, which modules are enabled, disabled, missing as optional, and in which deterministic dependency order should they appear?
-
-This decision depends on several already accepted boundaries:
-
-- Bootstrap Phase A resolves the selected application target and selected preset.
-- Module identity is represented by canonical `moduleId` values.
-- Runtime module discovery is metadata-only.
-- Composer package-level `require` / `conflict` are installation/build constraints, not module graph edges.
-- Module graph edges are represented explicitly through Coretsia module metadata.
-- Mode preset files describe user-facing mode intent (`micro`, `express`, `hybrid`, `enterprise`, or application-defined overrides).
-- Runtime code must not discover modules by scanning source trees, package directories, or application directories.
-
-The Kernel therefore needs one orchestration point that combines:
-
-- selected preset from `BootstrapConfig`;
-- preset loading from application override or Kernel package default files;
-- one Composer installed metadata discovery run;
-- module graph resolution;
-- topological sorting;
-- one immutable resolution snapshot containing the installed manifest and resolved `ModulePlan`;
-- stable exported `ModulePlan` shape;
-- compile-time provider planning from the same resolution snapshot;
-- safe diagnostics and observability.
+Kernel module compilation must separate preset policy, effective module selection, installed-module discovery, and the resolved executable graph. Bootstrap Phase A returns the selected preset name and immutable app-target-specific module overrides; the compile-host orchestration then resolves one installed manifest snapshot and one module plan. No runtime boot operation reloads presets or re-discovers Composer packages.
 
 ## Decision
 
-Kernel module plan resolution is owned by:
+The six ownership values are distinct:
 
 ```text
-Coretsia\Kernel\Module\ModulePlanResolver
+BootstrapConfig = resolved bootstrap name/state + ResolvedModuleOverrides
+ModePreset = namespace-owned preset policy source
+ModuleSelection = immutable effective module-selection intent (compile host)
+ModuleManifest = installed-module discovery snapshot (contracts)
+ModulePlan = resolved executable runtime graph
+ModuleResolution = one ModuleManifest + ModulePlan snapshot
 ```
 
-`ModulePlanResolver` is the single orchestration entrypoint for one Kernel module-resolution run.
+`ModePreset != ModuleSelection != ModulePlan`. The contracts `ModuleManifest` snapshot is **not** the generated `module-manifest@1` artifact.
 
-Its canonical APIs are:
+## Phase A: bootstrap and namespace-bound preset policy
 
-```php
-public function resolveResolution(
-    BootstrapConfig $bootstrapConfig,
-): ModuleResolution;
+`BootstrapConfigResolver` resolves preset-name precedence: explicit `BootstrapInput::preset()`, `config/app.php` `presets[appTarget]`, global `preset`, then `kernel.boot.default_preset`. It validates the selected app-target `moduleOverrides` into `ResolvedModuleOverrides` with unique sorted `include`/`exclude` `ModuleId` lists; absent overrides are empty. Malformed external input fails with `BootstrapException::REASON_OVERRIDES_INVALID`, before module-resolution observability begins.
 
-public function resolve(
-    BootstrapConfig $bootstrapConfig,
-): ModulePlan;
-```
+`PresetNamespaceResolver` classifies by name only. Kernel-owned `micro`, `express`, `hybrid`, and `enterprise` are bound to `CanonicalPresetSource`, which reads `<kernelPackageRoot>/<kernel.modes.defaults_path>/<name>.php`. All other safe names are bound to application-owned `CustomPresetSource`, which reads `<applicationRoot>/<kernel.modes.overrides_path>/<name>.php`. Neither source searches the other or derives ownership from file presence. A canonical filename in the application source is forbidden for every selected preset and fails with `CanonicalPresetOverrideException` even if represented by a dangling symlink.
 
-`resolveResolution()` is the canonical orchestration API.
+`ModePresetLoaderFactory::createFor(BootstrapConfig, PresetNamespace)` binds exactly one source to `FilesystemModePresetLoader`. The loader validates schema `1` against precisely `schemaVersion`, `name`, `description`, `required`, `modules`, `featureBundles`, and `metadata`; no other top-level fields are valid. Files must stay within their configured namespace and owning-root boundaries. An existing unreadable or escaping file is invalid rather than missing. An actually absent selected file fails `ModePresetNotFoundException` without a cross-namespace fallback.
 
-It coordinates:
+`ModePreset` is an immutable Kernel-owned representation of validated preset policy. Direct construction MUST enforce the same stored-value safety requirements as construction through `ModePresetSchemaValidator` and the namespace-bound loader. It MUST NOT provide a weaker path for creating preset state.
 
-1. discovery-source validation;
-2. mode-preset loading;
-3. preset schema validation through the loader path;
-4. exactly one Composer installed metadata read through `ManifestReaderInterface`;
-5. graph resolution through `ModuleGraphResolver` using that manifest;
-6. topological ordering through the graph resolver / sorter path;
-7. stable `ModulePlan` construction;
-8. immutable `ModuleResolution` construction from that same manifest and plan;
-9. safe logs and metrics.
+Preset names MUST satisfy the canonical safe-name grammar and the 64-byte limit. Descriptions, `featureBundles`, and `metadata` MUST satisfy their respective length, depth, collection-shape, and path-safety restrictions. Preset state MUST NOT contain filesystem paths, application roots, service instances, closures, resources, or loader state.
 
-`resolve()` is a compatibility accessor and MUST be implemented only as:
+`required` and `modules` MUST each be a list of valid `ModuleId` values. Duplicate ids within either source list and intersections between the two lists are invalid. Valid collections are exported in deterministic byte-order `strcmp` order. The `featureBundles` value remains an `array<string,mixed>` JSON-like map, not a module-id list.
 
-```php
-return $this->resolveResolution($bootstrapConfig)->plan();
-```
+Preset validation does not inspect the installed `ModuleManifest`, resolve dependencies, or determine the effective runtime graph. Those responsibilities belong to subsequent selection and graph-resolution stages.
 
-Kernel compile-time orchestration that requires the installed manifest after module resolution MUST use `resolveResolution()`.
+`ModePresetLoaderFactory::sourceCandidateFor()` describes one namespace-owned source independently of whether its file exists; ConfigSourceLocationBuilder supplies only this candidate to the fingerprint pipeline. Canonical `sourceId` begins `core/kernel:` with precedence `10`; custom `sourceId` begins `application:` with precedence `20`. The candidate has `path`, `filesystemPath`, `sourceId`, `precedence`; candidate inspection does not execute PHP. Canonical shadowing and existing invalid paths fail before fingerprinting.
 
-It MUST NOT call `resolve()` and then read the installed manifest again.
-
-## Compile-time consumer boundary
-
-Direct invocation of `ModulePlanResolver::resolveResolution()` for the canonical artifact compile/verify path belongs to:
+`ModuleSelectionFactory` combines loaded policy and resolved overrides:
 
 ```text
-Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
+BaseRoots = preset.required ∪ preset.modules
+required ∩ exclude -> InvalidModuleSelectionException
+roots = (BaseRoots ∪ include) − exclude
+excluded = exclude
 ```
 
-CLI command classes, HTTP runtime code, database runtime code, and other transport or adapter layers MUST NOT invoke `ModulePlanResolver` directly.
+Both outputs are immutable unique `strcmp`-sorted `ModuleId` lists. `ModuleSelectionFactory` has no `ModuleManifest` dependency and does not resolve graph dependencies. Required-module exclusion fails before manifest reading; the selected app target determines overrides but does not alter graph traversal semantics.
 
-For one compile or verify operation, `KernelArtifactOperation` MUST:
+## Phase B: installed discovery and pure graph coordination
 
-1. invoke `resolveResolution()` exactly once;
-2. retain the returned `ModuleResolution` as the operation snapshot;
-3. pass that same `ModuleResolution` to `ConfigSourceLocationBuilder`;
-4. pass that same `ModuleResolution` to `ArtifactCompiler` or `CacheVerifier` together with the `ConfigSourceSet` built for that operation.
+`ModuleResolutionOrchestrator::resolve(BootstrapConfig)` is the compile-host orchestration entrypoint. It first validates the configured discovery source (only the configured allowed Composer source), resolves and loads the namespace-owned preset, creates `ModuleSelection`, reads `ManifestReaderInterface::read()` **exactly once** into `ModuleManifest`, and invokes:
 
-The canonical law is:
+```php
+$plan = $modulePlanResolver->resolve(
+    app: $bootstrapConfig->appTarget()->value,
+    manifest: $manifest,
+    selection: $selection,
+);
+```
+
+The result is one `ModuleResolution(manifest: $manifest, plan: $plan)` snapshot. The pure `ModulePlanResolver` only coordinates already supplied `app`, `ModuleManifest`, and `ModuleSelection` with `ModuleGraphResolver`; it does not load presets, discover packages, or own observability. Only metadata under installed Composer `extra.coretsia` supplies module descriptors; package-index tooling, Composer package `require`/`conflict` edges and application `config/modules.php` do not select the runtime graph.
+
+### Installed module discovery
+
+The installed discovery boundary consists of `ComposerInstalledMetadataProvider`, `ComposerManifestReader`, and the contracts-level `ManifestReaderInterface`. The only supported discovery source is Composer installed metadata, selected through `kernel.modules.discovery.source = composer` and validated against `kernel.modules.discovery.allowed_sources`.
+
+Discovery MUST NOT scan `packages/**`, `vendor/**` for package classes, package source trees, application directories, or filesystem layout to infer runtime modules. It MUST NOT instantiate module classes or require package filesystem paths to derive module identity.
+
+A Composer package contributes a runtime `ModuleDescriptor` only when `extra.coretsia.moduleId` is present and valid and `extra.coretsia.kind` is exactly `runtime`. Module identity is represented by `Coretsia\Contracts\Module\ModuleId`.
+
+Runtime dependency and conflict edges are read exclusively from `extra.coretsia.requires` and `extra.coretsia.conflicts` and stored in the corresponding `ModuleDescriptor::metadata()` lists. Missing lists are empty. These lists are deterministic module-id sets; they do not inherit Composer package declaration order.
+
+Compile-time container provider declarations are read from `extra.coretsia.providers`. A missing declaration represents an empty list. A present declaration MUST be a list of safe, non-empty provider FQCN strings without a leading backslash, each no longer than 512 bytes. Duplicate provider classes within one declaration are rejected using case-insensitive ASCII class-name identity.
+
+Provider declaration order is semantic and MUST be preserved in `ModuleDescriptor::metadata()['providers']`. Provider FQCNs MUST NOT be alphabetically sorted or normalized as an unordered set. Provider metadata is available to compile-time provider planning through the installed manifest; it is not exported as part of `ModulePlan`.
+
+`ModuleGraphResolver` validates all installed descriptors, including unselected descriptors, **before** graph-policy failure selection. It rejects missing selected roots, expands the transitive dependency closure, rejects excluded dependencies including excluded modules absent from the installed manifest, detects conflicts among enabled modules, and detects cycles. Failure precedence and deterministic candidate ordering are specified in ADR-0025. Topological order puts dependencies first and deterministically breaks ties; it is not a final alphabetical sort.
+
+## Compile-time operation snapshot and consumer boundary
+
+`KernelArtifactOperation` owns the canonical module-resolution invocation for one artifact compile or verify operation. After resolving `BootstrapConfig` and the environment input, it MUST invoke `ModuleResolutionOrchestrator::resolve(BootstrapConfig)` exactly once and retain the resulting `ModuleResolution` for that operation.
+
+The same snapshot MUST be passed to `ConfigSourceLocationBuilder` and then to `ArtifactCompiler` or `CacheVerifier` together with the resulting `ConfigSourceSet`:
 
 ```text
 one compile / verify operation
-  -> one resolveResolution()
-  -> one ModuleResolution
-  -> ConfigSourceLocationBuilder
-  -> ArtifactCompiler / CacheVerifier
+    -> one ModuleResolutionOrchestrator::resolve()
+    -> one ModuleResolution(manifest, plan)
+    -> ConfigSourceLocationBuilder
+    -> ArtifactCompiler / CacheVerifier
 ```
 
-Lower-level compilation services MUST receive already-resolved operation inputs. In particular, `ArtifactCompiler`, `CacheVerifier`, `ConfigFingerprintInputBuilder`, and `ConfigKernel` MUST NOT:
+`ArtifactCompiler`, `CacheVerifier`, `ConfigFingerprintInputBuilder`, and `ConfigKernel` MUST consume their supplied operation inputs. They MUST NOT independently invoke module-resolution orchestration, read the installed manifest again, reconstruct `ModuleResolution`, or rediscover module providers or configuration-source locations.
 
-- invoke `ModulePlanResolver`;
-- invoke `ManifestReaderInterface::read()`;
-- reconstruct `ModuleResolution`;
-- reread Composer installed metadata;
-- independently discover module providers or config-source locations.
+`RuntimeContainerGraphCompiler` MAY pass the already-supplied `ModuleResolution` to `ContainerProviderPlanResolver`; doing so does not create another installed-manifest discovery or module-resolution run.
 
-`RuntimeContainerGraphCompiler` MAY pass the already-supplied `ModuleResolution` to `ContainerProviderPlanResolver`; this does not introduce another module-resolution or manifest-discovery run.
+CLI commands, HTTP runtime code, database runtime code, and other transport or adapter layers MUST NOT invoke compile-host module-resolution services as alternative orchestration entrypoints.
 
-All downstream work belonging to one operation MUST use the `ModulePlan` contained in that same `ModuleResolution` snapshot.
+Every downstream consumer belonging to one compile or verify operation MUST use the `ModuleManifest` and `ModulePlan` from that operation's single `ModuleResolution` snapshot. Production runtime container-definition compilation follows ADR-0030.
 
-For the production container-compilation boundary, `ADR-0030: Canonical Runtime Container Definitions` is authoritative.
+## ModulePlan contract and artifact boundary
 
-Production artifact compilation and cache verification consume provider-produced canonical definitions through `RuntimeContainerGraphCompiler`.
-
-This ADR defines `ModuleResolution`, module-provider metadata, `ContainerProviderPlan` resolution, and provider ordering semantics.
-
-## Resolution inputs
-
-The canonical module-selection inputs are:
-
-```text
-BootstrapConfig::preset()
-mode preset file
-Composer installed metadata
-extra.coretsia.requires
-extra.coretsia.conflicts
-```
-
-`BootstrapConfig::appTarget()` is included in the resulting `ModulePlan` as output metadata only.
-
-`BootstrapConfig::appTarget()` and `BootstrapConfig::appRoot()` MUST NOT introduce a separate module-selection source.
-
-Application target may be used by later boot/config phases for application-local config/bootstrap boundaries, but it MUST NOT change module selection in `ModulePlanResolver`.
-
-## Discovery source
-
-The only supported runtime discovery source is Composer installed metadata:
-
-```text
-kernel.modules.discovery.source = composer
-```
-
-The selected discovery source MUST be validated against:
-
-```text
-kernel.modules.discovery.allowed_sources
-```
-
-Unsupported discovery source MUST fail before:
-
-- preset loading;
-- preset file reads;
-- Composer metadata reads;
-- graph resolution.
-
-Unsupported discovery source failure is represented by:
-
-```text
-CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED
-```
-
-Config rules validate the shape of `kernel.modules.discovery.source` and `kernel.modules.discovery.allowed_sources`.
-
-Supported-source membership is a runtime module-plan policy and is validated by `ModulePlanResolver`.
-
-## Composer metadata discovery
-
-Composer metadata discovery is implemented through:
-
-```text
-Coretsia\Kernel\Module\ComposerInstalledMetadataProvider
-Coretsia\Kernel\Module\ComposerManifestReader
-Coretsia\Contracts\Module\ManifestReaderInterface
-```
-
-Runtime discovery MUST use Composer installed metadata only.
-
-Runtime discovery MUST NOT:
-
-- scan `packages/**`;
-- scan package directories;
-- scan source trees;
-- scan `vendor/**` for package classes;
-- scan application directories;
-- instantiate module classes;
-- require package filesystem paths to derive module identity.
-
-A package is included as a Coretsia runtime module only when:
-
-```text
-extra.coretsia.moduleId is present and valid
-extra.coretsia.kind is "runtime"
-```
-
-Module identity MUST be parsed through:
-
-```text
-Coretsia\Contracts\Module\ModuleId
-```
-
-The module graph MUST NOT be inferred from Composer package-level `require` or `conflict`.
-
-Runtime module graph edges are read only from:
-
-```text
-extra.coretsia.requires
-extra.coretsia.conflicts
-```
-
-The normalized values are stored in:
-
-```text
-ModuleDescriptor::metadata()['requires']
-ModuleDescriptor::metadata()['conflicts']
-```
-
-Missing `requires` and `conflicts` metadata are treated as empty deterministic lists.
-
-Compile-time container provider metadata is read only from:
-
-```text
-extra.coretsia.providers
-```
-
-Missing `providers` metadata is treated as an empty list.
-
-When present, `extra.coretsia.providers` MUST:
-
-- be a list;
-- contain only non-empty safe non-leading-backslash FQCN strings;
-- contain only FQCN strings of at most 512 bytes;
-- preserve Composer-declared list order;
-- reject duplicate provider classes within the same module declaration;
-- remain unsorted.
-
-Duplicate provider classes within one declaration are compared using case-insensitive ASCII class-name identity.
-
-Provider FQCN order is semantic metadata. It MUST NOT be normalized as a string set and MUST NOT be sorted by `strcmp`.
-
-A non-empty normalized value is stored in:
-
-```text
-ModuleDescriptor::metadata()['providers']
-```
-
-Missing and explicitly empty provider lists MAY omit the `providers` metadata key and MUST be consumed as an empty list.
-
-`requires` and `conflicts` remain canonical string sets and continue to use duplicate collapse and byte-order `strcmp` sorting.
-
-## Mode preset loading
-
-Mode preset loading is implemented through:
-
-```text
-Coretsia\Kernel\Module\ModePresetLoaderFactory
-Coretsia\Kernel\Module\FilesystemModePresetLoader
-Coretsia\Kernel\Module\ModePresetSchemaValidator
-```
-
-The active preset name comes only from:
-
-```text
-BootstrapConfig::preset()
-```
-
-Mode preset lookup order is:
-
-1. application override preset;
-2. Kernel package default preset.
-
-The resolved locations are:
-
-```text
-BootstrapConfig::applicationRoot() + kernel.modes.overrides_path + <preset>.php
-core/kernel package root + kernel.modes.defaults_path + <preset>.php
-```
-
-The first existing preset file wins.
-
-Application override and Kernel package default presets MUST NOT be merged.
-
-Missing application override is not an error.
-
-Missing Kernel package default after missing application override is a deterministic hard failure:
-
-```text
-CORETSIA_MODE_PRESET_NOT_FOUND
-```
-
-A present but unreadable or invalid preset file is a deterministic hard failure:
-
-```text
-CORETSIA_MODE_PRESET_INVALID
-```
-
-Kernel-owned loaded preset construction MUST NOT be weaker than Kernel-owned preset schema validation.
-
-`Coretsia\Kernel\Module\ModePreset` is an internal loaded-preset value object, but direct construction MUST still enforce the same stored-value safety policy as the validated loader path.
-
-Direct construction MUST reject values that would be rejected by `ModePresetSchemaValidator`, including:
-
-```text
-preset names longer than 64 bytes
-unsafe preset name characters
-unsafe preset name start characters
-path-like descriptions
-featureBundles / metadata depth overflow
-featureBundles / metadata map key overflow
-featureBundles / metadata string length overflow
-path-like featureBundles / metadata keys
-path-like featureBundles / metadata string values
-floats, objects, closures, resources
-overlapping required / optional / disabled module sets
-```
-
-This prevents tests, internal helpers, and future construction paths from creating a `ModePreset` state that could not have been loaded through the canonical schema-validating loader path.
-
-Resolved filesystem paths MUST NOT be exported in diagnostics, logs, warnings, or `ModulePlan`.
-
-## Forbidden parallel module-selection paths
-
-The following files MUST NOT be read by `ModulePlanResolver`:
-
-```text
-config/modules.php
-apps/<app>/config/modules.php
-```
-
-The resolver MUST NOT scan:
-
-```text
-apps/*
-```
-
-The resolver MUST NOT infer the selected app target from filesystem layout.
-
-The selected app target is Phase A input, not a module-selection discovery mechanism.
-
-## Graph resolution
-
-Graph policy is delegated to:
-
-```text
-Coretsia\Kernel\Module\ModuleGraphResolver
-```
-
-Graph resolution uses:
-
-- installed `ModuleManifest`;
-- validated `ModePresetInterface`;
-- module dependency metadata from `ModuleDescriptor::metadata()['requires']`;
-- module conflict metadata from `ModuleDescriptor::metadata()['conflicts']`.
-
-The initial enabled seed set is:
-
-- all preset `required` modules;
-- preset `optional` modules only when installed;
-- never preset `disabled` modules.
-
-Required dependency closure is then applied:
-
-- if enabled module `A` requires installed module `B`, `B` is enabled transitively;
-- if enabled module `A` requires missing module `B`, resolution fails;
-- if enabled module `A` requires disabled module `B`, resolution fails.
-
-Conflict, required-missing, optional-missing, and cycle policy is specified by:
-
-```text
-docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
-```
-
-This ADR defines the resolution pipeline and ownership boundaries. ADR-0025 defines the detailed graph failure policy.
-
-## Topological order
-
-Topological sorting is deterministic.
-
-For an edge:
-
-```text
-A requires B
-```
-
-`B` MUST appear before `A` in `ModulePlan::topologicalOrder()`.
-
-Only enabled modules participate in topological sorting.
-
-When multiple nodes are available, the lowest module id by byte-order `strcmp` wins.
-
-Topological order MUST NOT depend on:
-
-- filesystem traversal order;
-- Composer package declaration order;
-- PHP hash-map incidental insertion order;
-- locale;
-- OS-specific path behavior.
-
-Cycle detection is a deterministic hard failure:
-
-```text
-CORETSIA_MODULE_CYCLE_DETECTED
-```
-
-Cycle diagnostics MUST expose only stable module id tokens and stable reason tokens.
-
-## ModulePlan shape
-
-The resolved plan is represented by:
-
-```text
-Coretsia\Kernel\Module\ModulePlan
-```
-
-`ModulePlan` is a stable payload shape for future artifacts, debug output, diagnostics, and adapters.
-
-The canonical exported top-level key order is:
+`ModulePlan::SCHEMA_VERSION = 1` and the canonical `toArray()` payload keys are exactly:
 
 ```text
 app
-disabled
 enabled
+excluded
 modules
-optionalMissing
-preset
 schemaVersion
 topologicalOrder
-warnings
 ```
 
-`modules` is a map keyed by module id.
+`app` is one of `api`, `console`, `web`, `worker`; `enabled` and `excluded` are disjoint unique sorted runtime ModuleId lists. `topologicalOrder` contains each enabled module once in dependency-first order. `modules` is a canonical map of exactly the enabled module entries (with safe `moduleId`, `composerName`, `requires`, and `conflicts` data). The plan contains no source paths, raw preset or Composer payloads, provider class lists, or installed-manifest snapshot.
 
-`modules` map keys MUST be sorted by byte-order `strcmp`.
+`ModulePlan` construction MUST reject contradictory resolved graph state. `enabled` and `excluded` MUST be disjoint; `topologicalOrder` MUST contain every enabled module exactly once and MUST NOT reference a non-enabled module. Every enabled module MUST have exactly one corresponding `ModulePlanEntry`, and no entry may represent a non-enabled module.
 
-Each module entry exported shape uses this key order:
+Each `ModulePlanEntry` exports exactly these keys in this order:
 
 ```text
 composerName
@@ -467,127 +146,33 @@ moduleId
 requires
 ```
 
-`enabled`, `disabled`, and `optionalMissing` are module id lists sorted by byte-order `strcmp`.
+The `modules` map is keyed by module id and exported in byte-order `strcmp` order. Its `requires` and `conflicts` values are deterministic module-id lists. Every required dependency of an enabled entry MUST have a corresponding enabled entry; an enabled entry MUST NOT conflict with another enabled entry.
 
-`enabled`, `disabled`, and `optionalMissing` MUST be pairwise disjoint.
+`topologicalOrder` preserves dependency order and MUST NOT be alphabetically sorted during `ModulePlan` normalization. Its order must remain independent of filesystem traversal, installed-package ordering, incidental PHP array insertion order, process locale, and operating-system path representation.
 
-The following intersections MUST be empty:
+`ModulePlan` MUST NOT store or export application or package installation roots, preset source paths, absolute filesystem paths, provider class lists, provider-order indexes, `ContainerProviderPlan`, `ModuleResolution`, raw Composer or configuration payloads, service instances, containers, closures, resources, or filesystem handles.
 
-```text
-enabled ∩ disabled
-enabled ∩ optionalMissing
-disabled ∩ optionalMissing
-```
+`ModuleManifestBuilder` serializes this plan as the payload of the **existing** `module-manifest@1` envelope. The envelope `_meta.schemaVersion` remains `1`; `payload.schemaVersion` remains `ModulePlan::SCHEMA_VERSION == 1`. The exact payload key contract is enforced on read, and `ModulePlanArtifactHydrator` creates the immutable runtime `ModulePlan` from the validated artifact. `config@1`, `container@1`, and `artifact-generation@1` identities remain unchanged.
 
-A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
+`ModuleResolution` remains compile-host context, allowing `ContainerProviderPlanResolver` to combine installed descriptor provider metadata with the already resolved plan in `ModulePlan::topologicalOrder()`. Neither descriptor provider lists nor the `ModuleManifest` snapshot are runtime seeds.
 
-`ModulePlan` construction MUST reject contradictory module set state before the plan is used as artifact-ready output.
+`ModuleResolution` is an immutable compile-time value containing exactly one installed `ModuleManifest` and its corresponding resolved `ModulePlan`. Its canonical accessors are `manifest(): ModuleManifest` and `plan(): ModulePlan`.
 
-`topologicalOrder` preserves dependency order and must be deterministic.
+The contained manifest MUST be the same snapshot supplied to `ModuleGraphResolver` when producing the contained plan. `ModuleResolution` MUST NOT introduce a second discovery run, be serialized into an artifact, become part of `ModulePlan`, be retained by runtime services, or enter the compiled runtime container-definition graph.
 
-`warnings` is a list of warning exported arrays.
-
-Warning ordering is deterministic and defined by the warning canonical sort key.
-
-`ModulePlan` MUST NOT store or export:
-
-- `applicationRoot`;
-- `appRoot`;
-- `defaultsPath`;
-- `overridesPath`;
-- absolute paths;
-- provider class lists;
-- provider-order indexes;
-- `ContainerProviderPlan`;
-- `ModuleResolution`;
-- installed-manifest provider metadata intended only for compile-time provider planning;
-- raw Composer payloads;
-- raw preset payloads;
-- raw config payloads;
-- services;
-- containers;
-- closures;
-- resources;
-- filesystem handles.
-
-## ModuleResolution snapshot
-
-One successful module-resolution run returns:
-
-```text
-Coretsia\Kernel\Module\ModuleResolution
-```
-
-`ModuleResolution` is an immutable compile-time value containing:
-
-```text
-ModuleManifest manifest
-ModulePlan plan
-```
-
-The canonical accessors are:
-
-```php
-public function manifest(): ModuleManifest;
-public function plan(): ModulePlan;
-```
-
-Both values MUST originate from the same invocation of `ModulePlanResolver::resolveResolution()`.
-
-The manifest MUST be the exact installed manifest supplied to `ModuleGraphResolver` when producing the contained plan.
-
-`ModuleResolution` MUST NOT:
-
-- be exported into an artifact;
-- become part of `ModulePlan`;
-- be retained by runtime services;
-- be placed in the runtime container definition graph;
-- expose raw Composer payloads;
-- introduce a second manifest discovery run.
-
-`ModulePlan` remains the artifact-ready resolved module graph value.
-
-`ModuleResolution` is compile-time orchestration context around that plan; it is not an extension of the `ModulePlan` artifact shape.
+Only the validated, artifact-hydrated `ModulePlan` crosses the module-resolution boundary into runtime boot. The installed `ModuleManifest` and compile-time provider metadata remain compile-host state.
 
 ## Compile-time container provider plan
 
-Compile-time container provider planning is owned by:
+`Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver` consumes one already-resolved `ModuleResolution` and returns an immutable `ContainerProviderPlan`. It MUST NOT initiate preset loading, module selection, installed-manifest discovery, or graph resolution.
 
-```text
-Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver
-```
+Modules are processed in the exact order supplied by `ModulePlan::topologicalOrder()`. For each enabled module, the resolver retrieves its `ModuleDescriptor` from the manifest in the same `ModuleResolution` snapshot and reads `ModuleDescriptor::metadata()['providers']`.
 
-It consumes:
+The resolver MUST preserve the declared provider order within each module. For every provider declaration, it MUST validate the safe FQCN, require the class to exist, require its reflected class name to match the declaration exactly, require it to be instantiable, and require it to implement `ContainerDefinitionProviderInterface`.
 
-```text
-ModuleResolution
-```
+A provider class declared more than once across the complete enabled module plan MUST be rejected using case-insensitive ASCII class-name identity.
 
-and returns:
-
-```text
-Coretsia\Kernel\Container\Provider\ContainerProviderPlan
-```
-
-The resolver MUST process modules in exact:
-
-```text
-ModulePlan::topologicalOrder()
-```
-
-For every enabled module in that order, it MUST:
-
-1. find the corresponding `ModuleDescriptor` in `ModuleResolution::manifest()`;
-2. read `ModuleDescriptor::metadata()['providers']`;
-3. preserve that module's declared provider order;
-4. validate every provider FQCN;
-5. require the provider class to exist;
-6. require the reflected class name to match the declared FQCN;
-7. require the class to be instantiable;
-8. require the class to implement `ContainerDefinitionProviderInterface`;
-9. reject a provider class declared more than once across the complete enabled module plan, using case-insensitive ASCII class-name identity.
-
-The returned plan is an immutable ordered list of entries with exact fields:
+`ContainerProviderPlan` contains an immutable ordered list of entries with exactly these fields:
 
 ```text
 moduleId
@@ -596,349 +181,105 @@ moduleOrder
 providerOrder
 ```
 
-`moduleOrder` is the zero-based index from `ModulePlan::topologicalOrder()`.
+`moduleOrder` is the zero-based index of the module in `ModulePlan::topologicalOrder()`. `providerOrder` is the zero-based index of the provider within its module's declared provider list.
 
-`providerOrder` is the zero-based index from the module's declared `metadata.providers` list.
-
-The resulting order is therefore:
+The resulting provider order is:
 
 ```text
 module topological order
-    -> declared provider order within each module
+    -> declared provider order within each enabled module
 ```
 
-The following are forbidden:
+The resolver MUST NOT sort providers by FQCN, infer provider order from installed-manifest ordering, instantiate providers while constructing the plan, retain provider instances, or extend `ModulePlan` with provider class lists.
 
-- sorting providers by FQCN;
-- reconstructing provider order from manifest module ordering;
-- using Composer package declaration order as module order;
-- creating provider instances while resolving the plan;
-- storing provider instances in `ContainerProviderPlan`;
-- extending `ModulePlan` with provider class lists.
+Provider class-validation failures and invalid `ContainerProviderPlan` construction MUST surface through the safe container-definition failure reason `provider-invalid`.
 
-`ContainerProviderPlan` and `ModuleResolution` are compile-time values.
+`RuntimeContainerGraphCompiler` consumes this plan during compile-time container-definition compilation. It instantiates providers for that compilation operation, collects their definition sets in provider-plan order, and produces the canonical runtime definition graph. Provider instances and `ContainerProviderPlan` are not artifact payloads or runtime services.
 
-Neither value is an artifact payload or runtime graph service definition.
+## Observability and failure precedence
 
-Failures surfaced through `ContainerProviderPlanResolver::resolve(ModuleResolution)` are mapped to the safe container-definition failure reason:
+`ModuleResolutionOrchestrator`, not `ModulePlanResolver`, owns the single `kernel.modules_resolve` span, `kernel.modules_resolve_total` counter, `kernel.modules_resolve_duration_ms` observation and safe failure logging. Only `operation=resolve` and one bounded `outcome` token are allowed as span/metric attributes. Allowed outcomes: `success`, `preset_not_found`, `preset_invalid`, `selection_invalid`, `manifest_invalid`, `discovery_source_unsupported`, `conflict`, `required_missing`, `cycle`, `unexpected_failure`. Canonical shadowing is `preset_invalid`; selection policy failure is `selection_invalid`. No filesystem paths, raw payloads, module ids or preset names enter span/metric labels; safe ids in logs are validated and sorted. Span finalization occurs exactly once after a successful start, even if attribute updating or stopwatch access fails; observability failure never replaces the primary exception.
+
+The `kernel.modules_resolve` span lifecycle is:
 
 ```text
-provider-invalid
+ModuleResolutionOrchestrator::resolve()
+    -> attempt span start
+    -> perform module resolution
+    -> classify the stable outcome
+    -> attempt final safe span attributes
+    -> attempt span end
+    -> return the result or rethrow the primary exception
 ```
 
-Direct invariant violations during internal `ContainerProviderPlan` construction are caught by the resolver and converted to that public failure boundary.
+If span start succeeds, the initial attributes contain only `operation = resolve`. Completion attempts final attributes containing `operation = resolve` and the bounded `outcome` token, then attempts to end the span exactly once. Failure to update attributes MUST NOT prevent the attempt to end the span.
 
-## Failure precedence
+`SpanInterface::recordException()` MUST NOT be called at this resolution boundary. Failure classification is represented by the bounded outcome token.
 
-`ModulePlanResolver` classifies deterministic failures in this order:
+Known `ModuleResolutionException` failures emit their mapped deterministic outcome. Unexpected throwables emit `unexpected_failure` and MUST be rethrown unchanged; they MUST NOT enter the deterministic module-resolution failure logger.
 
-1. unsupported discovery source;
-2. preset not found;
-3. preset invalid;
-4. Composer/module manifest invalid;
-5. module conflicts;
-6. required missing;
-7. cycle detected;
-8. success with optional missing warnings.
+Tracer, meter, logger, and stopwatch failures MUST NOT change the module-resolution result or replace its primary exception. When duration measurement is unavailable, the duration metric uses `0` or is omitted according to the observability policy.
 
-If multiple failures of the same class exist, the reported failure MUST be selected by the smallest canonical failure key using byte-order `strcmp`.
-
-The canonical failure key definitions for graph-policy failures are specified by ADR-0025.
-
-## Observability
-
-`ModulePlanResolver` emits a canonical operation span through:
+Module-resolution exceptions retain the safe message format:
 
 ```text
-Coretsia\Contracts\Observability\Tracing\TracerPortInterface
+ERROR_CODE: reason-token
 ```
 
-and metrics through:
+Exception messages MUST NOT include context values or previous-throwable messages. Safe logging MAY contain a stable error code, reason token, validated safe preset name, and canonical module ids extracted from documented exception-context fields. Module ids MUST be validated, deduplicated, and sorted by byte-order `strcmp`.
 
-```text
-Coretsia\Contracts\Observability\Metrics\MeterPortInterface
-```
+Logs, span attributes, and metric labels MUST NOT expose filesystem paths, raw Composer metadata, raw preset or configuration payloads, graph dumps, exception messages, stack traces, secrets, PII, or environment-specific values. Module ids, preset names, and app targets MUST NOT appear in span attributes or metric labels.
 
-The canonical span is:
-
-```text
-kernel.modules_resolve
-```
-
-Its lifecycle is:
-
-```text
-resolveResolution()
-↓
-start kernel.modules_resolve
-↓
-module resolution
-↓
-stable outcome classification
-↓
-attempt final safe span attributes
-↓
-attempt span end
-↓
-return/rethrow primary result
-```
-
-`resolve()` delegates to `resolveResolution()` and does not create a separate span.
-
-ModulePlan-owned span attributes are limited to:
-
-```text
-operation
-outcome
-```
-
-The stable operation value is:
-
-```text
-operation = resolve
-```
-
-Allowed outcome values are stable tokens:
-
-```text
-success
-preset_not_found
-preset_invalid
-manifest_invalid
-discovery_source_unsupported
-conflict
-required_missing
-cycle
-unexpected_failure
-```
-
-When span start succeeds, the initial ModulePlan-owned span attributes contain only `operation = resolve`.
-
-On completion, the resolver attempts final safe span attributes containing `operation = resolve` and the stable `outcome` token, then attempts to end the span.
-
-It records:
-
-```text
-kernel.modules_resolve_total
-kernel.modules_resolve_duration_ms
-```
-
-Each metric uses only the labels:
-
-```text
-operation
-outcome
-```
-
-The `operation` label value is the stable token:
-
-```text
-resolve
-```
-
-`success` MUST be emitted only after full successful `ModulePlan` resolution.
-
-Known `ModuleResolutionException` failures MUST emit the mapped deterministic outcome token.
-
-Unexpected non-`ModuleResolutionException` throwables MUST emit:
-
-```text
-unexpected_failure
-```
-
-and MUST be rethrown unchanged.
-
-Unexpected throwables MUST NOT be logged through the deterministic module-resolution failure logger because that logger owns only safe `ModuleResolutionException` diagnostics.
-
-Span attributes and metric labels for module-plan resolution are summary-only and fixed to:
-
-```text
-operation = resolve
-outcome = <stable outcome token>
-```
-
-They MUST NOT contain:
-
-- module ids;
-- preset names;
-- app targets;
-- filesystem paths;
-- raw Composer metadata;
-- raw preset payloads;
-- raw errors;
-- exception messages;
-- previous throwables;
-- stack traces;
-- secrets;
-- PII.
-
-`SpanInterface::recordException()` MUST NOT be called on the ModulePlan resolution boundary. Failure classification is represented only by the stable `outcome` token.
-
-Tracer and meter backend failures MUST NOT affect module plan resolution and MUST NOT replace deterministic module resolution exceptions.
-
-Span finalization failure MUST NOT replace the primary resolution result or exception. A `SpanInterface::setAttributes()` failure MUST NOT prevent the resolver from attempting `SpanInterface::end()` exactly once.
-
-`Stopwatch` start/stop failures used for module-plan duration metrics MUST NOT affect `ModulePlan` resolution and MUST NOT replace deterministic module resolution exceptions.
-
-When module-plan duration cannot be measured, the duration metric value MUST collapse to `0` or the timing signal MUST be omitted according to owner policy.
-
-This policy applies only to duration measurement and observability emission.
-
-Module discovery, preset loading, manifest reading, graph resolution, conflict detection, and required-module validation failures remain primary ModulePlan failures and MUST be surfaced according to ModulePlan exception policy.
-
-`ModulePlanResolver` MAY emit safe logs through:
-
-```text
-Psr\Log\LoggerInterface
-```
-
-Logging is optional and MUST NOT affect resolution.
-
-Log context MAY contain only:
-
-- stable error or warning code;
-- stable reason token;
-- safe preset token;
-- stable module id tokens.
-
-Log context MUST NOT contain:
-
-- filesystem paths;
-- raw Composer metadata;
-- raw preset payloads;
-- exception messages;
-- stack traces;
-- secrets;
-- PII.
+Discovery-source validation precedes preset loading and manifest read. Installed descriptor validation precedes graph-policy failures. Within graph policy ADR-0025 defines excluded dependency, enabled conflict, selected-root missing, dependency missing, and cycle precedence. Failed operations never return a partially resolved plan.
 
 ## Provider and factory wiring
 
-Kernel provider wiring registers module-resolution and provider-planning services as compile-host factories only.
+`KernelServiceProvider` registers module-resolution, preset-source, and container-provider-planning dependencies as compile-host factories. Factory registration MUST NOT resolve `BootstrapConfig`, `ModuleResolution`, `ModulePlan`, or `ContainerProviderPlan`; load preset files; read Composer installed metadata; scan application directories; load provider classes; instantiate definition providers; or collect container definitions.
 
-The registered compile-host services include:
+Compile-host factory wiring includes `ManifestReaderInterface`, `ComposerManifestReader`, `ModePresetLoaderFactory`, `PresetNamespaceResolver`, `ModuleSelectionFactory`, `ModuleGraphResolver`, `ModulePlanResolver`, `ModuleResolutionOrchestrator`, and `ContainerProviderPlanResolver`.
 
-```text
-ManifestReaderInterface
-ComposerManifestReader
-ModePresetLoaderFactory
-ModuleGraphResolver
-ModulePlanResolver
-ContainerProviderPlanResolver
-```
+`FilesystemModePresetLoader` is bound to one selected namespace and the current `BootstrapConfig`. It MUST be created through `ModePresetLoaderFactory::createFor()` during module-resolution orchestration and MUST NOT be registered as a global loader service.
 
-Provider registration MUST NOT:
+Stateless compile-host resolver and factory services MUST NOT retain operation-specific `BootstrapConfig`, loaded preset objects, installed manifest snapshots, resolved module selections, `ModulePlan`, `ModuleResolution`, `ContainerProviderPlan`, or provider instances.
 
-- resolve `ModuleResolution`;
-- resolve `ModulePlan`;
-- resolve `ContainerProviderPlan`;
-- read Composer installed metadata;
-- read preset files;
-- scan filesystem paths;
-- create `FilesystemModePresetLoader`;
-- load provider classes;
-- instantiate definition providers;
-- collect provider definitions;
-- bind `ModePresetLoaderInterface` globally;
-- bind `FilesystemModePresetLoader` globally.
+Per-operation freshness applies to the namespace-bound preset loader, loaded preset policy, effective `ModuleSelection`, installed `ModuleManifest`, resolved `ModulePlan`, `ModuleResolution`, and `ContainerProviderPlan`.
 
-`FilesystemModePresetLoader` is `BootstrapConfig`-specific and MUST be created only through:
+`ContainerProviderPlanResolver` construction performs no module resolution, installed-metadata read, provider class loading, validation, or provider instantiation. Those operations belong to its explicit `resolve(ModuleResolution)` invocation and the subsequent compile-time container-definition compilation boundary.
 
-```text
-ModePresetLoaderFactory::createFor(BootstrapConfig)
-```
+## Compile-host/runtime boundary
 
-during:
-
-```text
-ModulePlanResolver::resolveResolution()
-```
-
-`ModulePlanResolver` and `ContainerProviderPlanResolver` MAY be shared, stateless compile-host services.
-
-Per-operation freshness applies to:
-
-- `FilesystemModePresetLoader`;
-- loaded preset objects;
-- installed `ModuleManifest`;
-- resolved `ModulePlan`;
-- `ModuleResolution`;
-- `ContainerProviderPlan`.
-
-Shared resolver and factory services MUST NOT retain:
-
-- `BootstrapConfig`;
-- loaded presets;
-- installed manifest snapshots;
-- resolved plans;
-- `ModuleResolution`;
-- `ContainerProviderPlan`;
-- provider instances.
-
-`ContainerProviderPlanResolver` construction performs no module resolution, Composer metadata read, class loading, provider validation, or provider instantiation.
-
-Those actions occur only when its `resolve(ModuleResolution)` method is explicitly invoked by compile-time orchestration.
+`ModuleResolutionOrchestrator`, `ModulePlanResolver`, `ModuleGraphResolver`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `ResolvedModuleOverrides`, `ModuleSelection`, preset sources, the preset loader, and Composer metadata discovery remain compile-host-only. They are not runtime graph definitions or runtime seeds. Only an immutable, artifact-hydrated `ModulePlan` (along with the approved runtime config and path seeds) crosses into runtime boot. Worker runtime consumers read that plan without re-running Phase A selection, preset loading or installed discovery.
 
 ## Consequences
 
-Positive consequences:
-
-- Module plan resolution has one Kernel-owned orchestration point.
-- One module-resolution run exposes both the installed manifest and its resolved plan without a second Composer metadata read.
-- Compile-time provider planning consumes that same resolution snapshot.
-- Module topological order and module-declared provider order remain separate, explicit ordering dimensions.
-- Provider planning does not require extending the artifact-ready `ModulePlan` shape.
-- Runtime discovery is metadata-only and does not depend on monorepo layout.
-- Split packages can keep deterministic module planning behavior.
-- Mode preset overrides are explicit and non-merged.
-- Module selection cannot be silently changed by application-local `modules.php` files.
-- `ModulePlan` is safe to use for future debug output and artifact payloads.
-- Failure behavior is deterministic and stable for CLI, CI, and tests.
-- Observability has stable low-cardinality labels.
-
-Trade-offs:
-
-- Composer package-level `require` / `conflict` are not sufficient to define runtime module graph edges.
-- Runtime modules must explicitly declare Coretsia module graph metadata in `extra.coretsia.requires` and `extra.coretsia.conflicts`.
-- Application preset overrides replace Kernel package defaults instead of merging with them.
-- Application targets cannot customize module selection directly; they must select a preset through Bootstrap Phase A.
-- `FilesystemModePresetLoader` cannot be registered as a global service because it depends on a resolved `BootstrapConfig`.
-- Compile-time orchestration that needs provider metadata must retain `ModuleResolution` for the duration of the operation instead of retaining only `ModulePlan`.
-- Provider classes are validated during provider-plan resolution, so enabled modules with missing, non-instantiable, or non-declarative providers fail before provider definition collection.
-- Provider order cannot be canonicalized by sorting FQCNs because declaration order is semantic.
+The preset name remains a resolved bootstrap selection input; the preset source never becomes runtime intent by itself. Per-target overrides are validated at bootstrap, runtime graph selection is explicit, and no file's incidental presence changes namespace ownership. Artifact identity remains stable while its strict payload contract is the one defined above.
 
 ## Non-goals
 
-This ADR does not define:
+This ADR does not define Composer dependency solving, package installation, package synchronization, or mutation of the installed package set.
 
-- module boot lifecycle;
-- provider instance construction;
-- execution of provider `define()` methods;
-- collection or merging of provider-produced `ContainerDefinitionSet` values;
-- selection of provider-produced definitions as the active production artifact-compiler input;
-- runtime service-provider lifecycle;
-- config Phase B merge;
-- artifact writing;
-- CLI command UX;
-- package installation policy;
-- Composer dependency solving;
-- platform or integration package behavior;
-- HTTP routing or middleware selection;
-- app-local module-selection files;
-- automatic discovery from `apps/*`;
-- merge semantics between Kernel package defaults and application overrides.
+It does not define module boot lifecycle, runtime service-provider lifecycle, provider instance construction, execution of provider `define()` methods, collection or merging of provider-produced definition sets, or the internal compilation rules for canonical runtime container definitions. The production container-definition boundary is specified by ADR-0030.
 
-Detailed conflict, required-missing, optional-missing, and cycle failure policy is defined separately by ADR-0025.
+It does not define configuration Phase B merge, artifact writing, CLI command output, HTTP routing or middleware selection, or platform-specific runtime behavior.
+
+It does not introduce application-local module-selection files, automatic runtime module discovery from application or package filesystem layout, or an alternative module-resolution orchestration entrypoint.
+
+It does not introduce new artifact identities or schema versions, runtime preset loading, runtime installed-manifest discovery, or runtime graph recomputation.
 
 ## Related SSoT
 
-- `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/modes.md`
+- `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/config-roots.md`
 - `docs/ssot/runtime-container-definitions.md`
+- `docs/ssot/artifacts.md`
+- `docs/ssot/observability.md`
 
 ## Related ADRs
 
 - `docs/adr/ADR-0001-module-descriptor-manifest-modepreset-ports.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
-- `docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md`
+- `docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md`
+- `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
+- `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`

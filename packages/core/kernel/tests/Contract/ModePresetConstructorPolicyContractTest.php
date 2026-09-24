@@ -47,8 +47,7 @@ final class ModePresetConstructorPolicyContractTest extends TestCase
             required: [
                 self::moduleId('core.kernel'),
             ],
-            optional: [],
-            disabled: [],
+            modules: [],
             featureBundles: $featureBundles,
             metadata: $metadata,
         );
@@ -121,10 +120,9 @@ final class ModePresetConstructorPolicyContractTest extends TestCase
             required: [
                 self::moduleId('core.kernel'),
             ],
-            optional: [
+            modules: [
                 self::moduleId('platform.http'),
             ],
-            disabled: [],
             featureBundles: [
                 'profile' => [
                     'level' => 'standard',
@@ -139,6 +137,56 @@ final class ModePresetConstructorPolicyContractTest extends TestCase
 
         self::assertSame(\str_repeat('a', 64), $preset->name());
         self::assertSame('Safe preset description.', $preset->description());
+    }
+
+    public function testDirectModuleCollectionsRejectAssociativeDuplicatesAndOverlapBeforeSorting(): void
+    {
+        $kernel = self::moduleId('core.kernel');
+        $foundation = self::moduleId('core.foundation');
+
+        foreach (
+            [
+                [
+                    'required' => ['kernel' => $kernel],
+                    'modules' => [],
+                    'reason' => 'mode-preset-required-module-ids-must-be-list',
+                ],
+                [
+                    'required' => [$kernel, $kernel],
+                    'modules' => [],
+                    'reason' => 'mode-preset-required-module-id-duplicate',
+                ],
+                [
+                    'required' => [$kernel],
+                    'modules' => ['foundation' => $foundation],
+                    'reason' => 'mode-preset-modules-module-ids-must-be-list',
+                ],
+                [
+                    'required' => [],
+                    'modules' => [$foundation, $foundation],
+                    'reason' => 'mode-preset-modules-module-id-duplicate',
+                ],
+                [
+                    'required' => [$kernel],
+                    'modules' => [$kernel],
+                    'reason' => 'mode-preset-required-modules-overlap',
+                ],
+            ] as $case
+        ) {
+            try {
+                new ModePreset(
+                    schemaVersion: 1,
+                    name: 'micro',
+                    description: null,
+                    required: $case['required'],
+                    modules: $case['modules'],
+                );
+
+                self::fail('Malformed direct module collection must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame($case['reason'], $exception->getMessage());
+            }
+        }
     }
 
     private static function moduleId(string $value): ModuleId

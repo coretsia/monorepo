@@ -80,8 +80,7 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
             self::assertIsString($currentBefore);
             self::assertTrue(
                 \mkdir(
-                    $incompleteGeneration
-                        ->generationDirectory(),
+                    $incompleteGeneration->generationDirectory(),
                     0777,
                     true,
                 ),
@@ -101,10 +100,7 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
                 );
 
                 self::fail('Expected ArtifactGenerationPublishException was not thrown.');
-            } catch (
-                ArtifactGenerationPublishException
-                $exception
-            ) {
+            } catch (ArtifactGenerationPublishException $exception) {
                 self::assertSame(
                     ArtifactGenerationPublishException::ERROR_CODE,
                     $exception->errorCode(),
@@ -265,13 +261,10 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 
@@ -293,8 +286,7 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
             'owners' => [],
             'envOverlayMappings' => [],
             'configSourceFiles' => [],
-            'validation' =>
-                ConfigValidationResult::success(),
+            'validation' => ConfigValidationResult::success(),
             'validationSubjects' => [
                 'unvalidated' => [],
                 'validated' => [],
@@ -308,10 +300,7 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
     private static function stagingDirectories(
         string $artifactRoot,
     ): array {
-        $matches = \glob(
-            $artifactRoot
-            . '/generations/.staging-*',
-        );
+        $matches = \glob($artifactRoot . '/generations/.staging-*');
 
         if ($matches === false) {
             return [];

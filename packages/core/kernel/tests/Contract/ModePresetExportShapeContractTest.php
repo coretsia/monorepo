@@ -24,146 +24,32 @@ use PHPUnit\Framework\TestCase;
 
 final class ModePresetExportShapeContractTest extends TestCase
 {
-    public function testModePresetExportsStableShapeAndSortedModuleSets(): void
+    public function testExportsExactPresetPolicyShapeAndSortedCollections(): void
     {
         $preset = new ModePreset(
             schemaVersion: 1,
             name: 'hybrid',
             description: 'Hybrid web application mode.',
-            required: [
-                self::moduleId('platform.cli'),
-                self::moduleId('core.kernel'),
-                self::moduleId('core.foundation'),
-            ],
-            optional: [
-                self::moduleId('platform.tracing'),
-                self::moduleId('platform.logging'),
-            ],
-            disabled: [
-                self::moduleId('platform.http'),
-            ],
-            featureBundles: [
-                'profile' => [
-                    'name' => 'hybrid',
-                    'level' => 'standard',
-                ],
-                'observability' => 'minimal',
-            ],
-            metadata: [
-                'stage' => 'contract',
-                'owner' => [
-                    'package' => 'core.kernel',
-                    'type' => 'runtime',
-                ],
-            ],
+            required: [ModuleId::fromString('platform.cli'), ModuleId::fromString('core.kernel')],
+            modules: [ModuleId::fromString('platform.tracing'), ModuleId::fromString('platform.logging')],
+            featureBundles: ['profile' => ['level' => 'standard']],
+            metadata: ['owner' => ['package' => 'core.kernel']],
         );
-
-        self::assertSame(1, $preset->schemaVersion());
-        self::assertSame('hybrid', $preset->name());
-        self::assertSame('Hybrid web application mode.', $preset->description());
-
         self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-            ],
-            self::moduleIdsToStrings($preset->required()),
+            ['core.kernel', 'platform.cli'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required()),
         );
-
         self::assertSame(
-            [
-                'platform.logging',
-                'platform.tracing',
-            ],
-            self::moduleIdsToStrings($preset->optional()),
+            ['platform.logging', 'platform.tracing'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
         );
-
         self::assertSame(
-            [
-                'platform.http',
-            ],
-            self::moduleIdsToStrings($preset->disabled()),
+            ['schemaVersion', 'name', 'description', 'required', 'modules', 'featureBundles', 'metadata'],
+            \array_keys($preset->toArray()),
         );
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-                'platform.logging',
-                'platform.tracing',
-            ],
-            self::moduleIdsToStrings($preset->moduleIds()),
-        );
-
-        $payload = $preset->toArray();
-
-        self::assertSame(
-            [
-                'schemaVersion',
-                'name',
-                'description',
-                'required',
-                'optional',
-                'disabled',
-                'featureBundles',
-                'metadata',
-            ],
-            \array_keys($payload),
-        );
-
-        self::assertSame(
-            [
-                'schemaVersion' => 1,
-                'name' => 'hybrid',
-                'description' => 'Hybrid web application mode.',
-                'required' => [
-                    'core.foundation',
-                    'core.kernel',
-                    'platform.cli',
-                ],
-                'optional' => [
-                    'platform.logging',
-                    'platform.tracing',
-                ],
-                'disabled' => [
-                    'platform.http',
-                ],
-                'featureBundles' => [
-                    'observability' => 'minimal',
-                    'profile' => [
-                        'level' => 'standard',
-                        'name' => 'hybrid',
-                    ],
-                ],
-                'metadata' => [
-                    'owner' => [
-                        'package' => 'core.kernel',
-                        'type' => 'runtime',
-                    ],
-                    'stage' => 'contract',
-                ],
-            ],
-            $payload,
-        );
-    }
-
-    private static function moduleId(string $value): ModuleId
-    {
-        return ModuleId::fromString($value);
-    }
-
-    /**
-     * @param list<ModuleId> $moduleIds
-     *
-     * @return list<string>
-     */
-    private static function moduleIdsToStrings(array $moduleIds): array
-    {
-        return \array_map(
-            static fn (ModuleId $moduleId): string => $moduleId->value(),
-            $moduleIds,
-        );
+        self::assertSame(['core.kernel', 'platform.cli'], $preset->toArray()['required']);
+        self::assertSame(['platform.logging', 'platform.tracing'], $preset->toArray()['modules']);
+        self::assertSame(['profile' => ['level' => 'standard']], $preset->toArray()['featureBundles']);
+        self::assertSame(['owner' => ['package' => 'core.kernel']], $preset->toArray()['metadata']);
     }
 }

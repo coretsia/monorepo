@@ -284,6 +284,8 @@ Artifact-only runtime boot materializes the entrypoint-owned seed objects throug
 
 Runtime seed objects remain outside the compiled graph, generated artifact payloads, and fingerprint input.
 
+The compile-host `ModuleResolutionOrchestrator` loads the namespace-owned preset, creates `ModuleSelection`, reads one installed `ModuleManifest`, and obtains the resolved `ModulePlan` through the pure Phase B `ModulePlanResolver`. Provider planning consumes that same `ModuleResolution` snapshot. Runtime construction hydrates the validated plan artifact and never registers preset loaders, namespace sources, `ModuleSelectionFactory`, `ResolvedModuleOverrides`, or orchestration services as runtime graph definitions.
+
 ### Decision 5: Use one selected artifact generation for production runtime boot
 
 Production runtime boot uses one immutable generation selected from the Kernel artifact root.
@@ -344,6 +346,21 @@ Production runtime boot MUST NOT:
 - calculate fingerprints;
 - write artifacts;
 - mutate or repair finalized generations.
+
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
 
 ### Decision 6: Artifact-only runtime boot hydrates exact entrypoint-owned runtime seeds
 

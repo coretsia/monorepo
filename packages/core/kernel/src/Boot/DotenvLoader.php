@@ -154,16 +154,12 @@ final readonly class DotenvLoader
     {
         \set_error_handler(
             static function (): never {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_DOTENV_LOAD_FAILED,
-                );
+                throw new \ErrorException('dotenv-file-read-failed');
             },
         );
 
         try {
             $lines = \file($file, \FILE_IGNORE_NEW_LINES);
-        } catch (BootstrapException $exception) {
-            throw $exception;
         } catch (\Throwable) {
             throw BootstrapException::withReason(
                 BootstrapException::REASON_DOTENV_LOAD_FAILED,

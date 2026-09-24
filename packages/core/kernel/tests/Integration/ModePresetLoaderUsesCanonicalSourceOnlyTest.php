@@ -103,7 +103,17 @@ final class ModePresetLoaderUsesCanonicalSourceOnlyTest extends TestCase
                 );
             }
 
-            self::assertSame(\realpath($outside), \realpath($link));
+            $probe = 'coretsia-directory-link-probe';
+
+            self::assertSame(
+                \strlen($probe),
+                \file_put_contents($outside . '/boundary-probe.txt', $probe),
+            );
+
+            self::assertSame(
+                $probe,
+                \file_get_contents($link . '/boundary-probe.txt'),
+            );
 
             $this->expectException(ModePresetInvalidException::class);
 

@@ -155,9 +155,11 @@ After changing release-line values, run:
 composer sync:repos
 composer release-line:workspace:sync
 composer release-line:public-constraints:sync
+composer arch:installation-catalog:generate
 composer sync:check
 composer release-line:workspace:check
 composer release-line:public-constraints:check
+composer arch:installation-catalog:check
 composer package-publish-safety:gate
 ```
 
@@ -166,6 +168,7 @@ These commands synchronize and verify:
 - managed Composer path repository `options.versions`;
 - root workspace internal `coretsia/*` `require-dev` constraints;
 - package `composer.json` internal `coretsia/*` public constraints;
+- consumer installation catalog release-line metadata;
 - Packagist-safe metadata for split-publish allowlisted packages.
 
 ## Canonical procedure (MUST)

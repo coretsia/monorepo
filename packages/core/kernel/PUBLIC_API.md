@@ -28,6 +28,14 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Boot\BootstrapInput`
 - `Coretsia\Kernel\Boot\Exception\ArtifactRuntimeBootException`
 - `Coretsia\Kernel\Boot\Exception\BootstrapException`
+- `Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy`
+- `Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes`
+- `Coretsia\Kernel\DependencySync\Exception\DependencySyncException`
+- `Coretsia\Kernel\DependencySync\ProjectApplicationSet`
+- `Coretsia\Kernel\DependencySync\ProjectDependencySync`
+- `Coretsia\Kernel\DependencySync\ProjectDependencySyncResult`
+- `Coretsia\Kernel\DependencySync\ProjectInstallationIntent`
+- `Coretsia\Kernel\DependencySync\ProjectPackagePlan`
 - `Coretsia\Kernel\Module\Exception\ModuleResolutionException`
 - `Coretsia\Kernel\Module\Exception\ModuleErrorCodes`
 - `Coretsia\Kernel\Module\KernelModule`

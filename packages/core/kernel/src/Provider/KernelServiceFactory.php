@@ -258,7 +258,8 @@ final class KernelServiceFactory
      *
      * FilesystemModePresetLoader MUST NOT be registered globally. It is created
      * only by ModePresetLoaderFactory::createFor() for the current
-     * BootstrapConfig during ModuleResolutionOrchestrator::resolve().
+     * BootstrapConfig during ModuleResolutionOrchestrator::resolve() or
+     * ModuleResolutionOrchestrator::resolveSelection().
      */
     public static function modePresetLoaderFactory(
         ContainerInterface $container,
@@ -390,6 +391,13 @@ final class KernelServiceFactory
         return new ModulePlanResolver($graph);
     }
 
+    /**
+     * Creates the Phase-A/installed module-resolution orchestrator.
+     *
+     * resolveSelection() owns preset/selection Phase A and does not read
+     * Composer installed metadata. resolve() reuses that selection and then
+     * performs the installed-manifest ModulePlan phase.
+     */
     public static function moduleResolutionOrchestrator(ContainerInterface $container): ModuleResolutionOrchestrator
     {
         $loader = self::modulePlanService($container, ModePresetLoaderFactory::class);

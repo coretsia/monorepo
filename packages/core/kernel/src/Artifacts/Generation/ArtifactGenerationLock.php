@@ -19,25 +19,23 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Artifacts\Generation;
 
 use Closure;
+use Coretsia\Foundation\Filesystem\Exception\ScopedFileLockException;
+use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
 
 /**
  * Process-shared lock for generation publication and current-generation reads.
  *
- * The lock file is a persistent cache-control file. It is created when absent
- * and is never removed between operations. POSIX runtimes request close-on-exec
- * for the local lock handle; Windows uses the equivalent valid mode without the
- * POSIX-only `e` flag.
+ * Artifact path ownership remains in ArtifactGenerationPathResolver. Generic
+ * lock-file mechanics are delegated to Foundation ScopedFileLock.
  *
  * @internal Kernel atomic artifact generation publication boundary.
  */
 final readonly class ArtifactGenerationLock
 {
-    private const int DIRECTORY_PERMISSIONS = 0775;
-    private const int FILE_PERMISSIONS = 0644;
-
     public function __construct(
         private ArtifactGenerationPathResolver $pathResolver = new ArtifactGenerationPathResolver(),
+        private ScopedFileLock $fileLock = new ScopedFileLock(),
     ) {
     }
 
@@ -45,7 +43,7 @@ final readonly class ArtifactGenerationLock
     {
         return $this->withLock(
             artifactRoot: $artifactRoot,
-            mode: \LOCK_SH,
+            exclusive: false,
             operation: $operation,
         );
     }
@@ -54,106 +52,42 @@ final readonly class ArtifactGenerationLock
     {
         return $this->withLock(
             artifactRoot: $artifactRoot,
-            mode: \LOCK_EX,
+            exclusive: true,
             operation: $operation,
         );
     }
 
     private function withLock(
         string $artifactRoot,
-        int $mode,
+        bool $exclusive,
         Closure $operation,
     ): mixed {
         $lockPath = $this->pathResolver->generationLockPath($artifactRoot);
-        $lockDirectory = \dirname($lockPath);
+        $operationStarted = false;
+        $operationCompleted = false;
+        $scopedOperation = static function () use (
+            $operation,
+            &$operationStarted,
+            &$operationCompleted,
+        ): mixed {
+            $operationStarted = true;
+            $result = $operation();
+            $operationCompleted = true;
 
-        if (
-            !$this->ensureDirectory($lockDirectory)
-            || @\is_link($lockPath)
-        ) {
-            throw self::lockFailed();
-        }
-
-        $handle = @\fopen(
-            $lockPath,
-            self::openMode(),
-        );
-
-        if (!\is_resource($handle)) {
-            throw self::lockFailed();
-        }
-
-        @\chmod($lockPath, self::FILE_PERMISSIONS);
-
-        if (!@\flock($handle, $mode)) {
-            @\fclose($handle);
-
-            throw self::lockFailed();
-        }
-
-        $operationException = null;
-        $result = null;
+            return $result;
+        };
 
         try {
-            $result = $operation();
-        } catch (\Throwable $exception) {
-            $operationException = $exception;
-        }
+            return $exclusive
+                ? $this->fileLock->exclusive($lockPath, $scopedOperation)
+                : $this->fileLock->shared($lockPath, $scopedOperation);
+        } catch (ScopedFileLockException $exception) {
+            if ($operationStarted && !$operationCompleted) {
+                throw $exception;
+            }
 
-        $unlockSucceeded = @\flock($handle, \LOCK_UN);
-        $closeSucceeded = @\fclose($handle);
-
-        if ($operationException instanceof \Throwable) {
-            throw $operationException;
-        }
-
-        if (!$unlockSucceeded || !$closeSucceeded) {
             throw self::lockFailed();
         }
-
-        return $result;
-    }
-
-    /**
-     * Returns the local generation-lock mode.
-     */
-    private static function openMode(): string
-    {
-        return \PHP_OS_FAMILY === 'Windows'
-            ? 'c+b'
-            : 'c+be';
-    }
-
-    private function ensureDirectory(string $directory): bool
-    {
-        if (self::isSafeDirectory($directory)) {
-            return true;
-        }
-
-        if (@\is_link($directory)) {
-            return false;
-        }
-
-        if (
-            !@\mkdir(
-                $directory,
-                self::DIRECTORY_PERMISSIONS,
-                true,
-            )
-            && !self::isSafeDirectory($directory)
-        ) {
-            return false;
-        }
-
-        return self::isSafeDirectory($directory);
-    }
-
-    /**
-     * @phpstan-impure
-     */
-    private static function isSafeDirectory(string $directory): bool
-    {
-        return @\is_dir($directory) && !@\is_link($directory);
     }
 
     private static function lockFailed(): ArtifactGenerationPublishException

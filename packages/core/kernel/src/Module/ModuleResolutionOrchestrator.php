@@ -48,8 +48,10 @@ use Psr\Log\LoggerInterface;
  *
  * - BootstrapConfig::preset();
  * - namespace-bound mode preset policy loaded through FilesystemModePresetLoader;
- * - effective application module overrides;
- * - Composer installed metadata through ManifestReaderInterface.
+ * - effective application module overrides.
+ *
+ * Phase B installed resolution additionally reads Composer installed metadata
+ * through ManifestReaderInterface after Phase A selection is resolved.
  *
  * BootstrapConfig::appTarget() selects overrides for Phase A and is also
  * emitted as ModulePlan::app metadata. It does not alter graph traversal.
@@ -113,17 +115,7 @@ final readonly class ModuleResolutionOrchestrator
         $startedAt = $this->safeStartTimer();
 
         try {
-            /*
-             * Must happen before preset loading and before Composer metadata
-             * discovery.
-             */
-            $this->assertSupportedDiscoverySource();
-
-            $namespace = $this->presetNamespaceResolver->resolve($bootstrapConfig->preset());
-            $preset = $this->presetLoaderFactory->createFor($bootstrapConfig, $namespace)->load(
-                $bootstrapConfig->preset(),
-            );
-            $selection = $this->moduleSelectionFactory->create($preset, $bootstrapConfig->moduleOverrides());
+            $selection = $this->resolveSelection($bootstrapConfig);
             $manifest = $this->manifestReader->read();
             $plan = $this->modulePlanResolver->resolve(
                 app: $bootstrapConfig->appTarget()->value,
@@ -165,6 +157,30 @@ final readonly class ModuleResolutionOrchestrator
 
             throw $exception;
         }
+    }
+
+    public function resolveSelection(
+        BootstrapConfig $bootstrapConfig,
+    ): ModuleSelection {
+        $this->assertSupportedDiscoverySource();
+
+        $namespace = $this->presetNamespaceResolver->resolve(
+            $bootstrapConfig->preset(),
+        );
+
+        $preset = $this->presetLoaderFactory
+            ->createFor(
+                $bootstrapConfig,
+                $namespace,
+            )
+            ->load(
+                $bootstrapConfig->preset(),
+            );
+
+        return $this->moduleSelectionFactory->create(
+            $preset,
+            $bootstrapConfig->moduleOverrides(),
+        );
     }
 
     private function assertSupportedDiscoverySource(): void

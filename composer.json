@@ -210,6 +210,7 @@
     ],
     "arch": [
       "@arch:package-index:check",
+      "@arch:installation-catalog:check",
       "@arch:deptrac:check",
       "@arch:deptrac:analyze"
     ],
@@ -246,6 +247,8 @@
     "dto-shape:gate": "@php tools/gates/dto_shape_gate.php",
     "arch:package-index:check": "@php tools/build/package_index.php --check",
     "arch:package-index:generate": "@php tools/build/package_index.php --apply",
+    "arch:installation-catalog:check": "@php tools/build/installation_catalog.php --check",
+    "arch:installation-catalog:generate": "@php tools/build/installation_catalog.php --apply",
     "arch:deptrac:check": "@php tools/build/deptrac_generate.php --check",
     "arch:deptrac:generate": "@php tools/build/deptrac_generate.php --apply",
     "arch:deptrac:analyze": "@php vendor/bin/deptrac analyse --config-file=tools/testing/deptrac.yaml --no-cache",

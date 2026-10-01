@@ -20,6 +20,7 @@ declare(strict_types=1);
 use Coretsia\Tools\Support\ComposerJson;
 use Coretsia\Tools\Support\ConsoleOutput;
 use Coretsia\Tools\Support\DeterministicFile;
+use Coretsia\Tools\Support\DeterministicPhpReturnFile;
 use Coretsia\Tools\Support\ErrorCodes;
 use Coretsia\Tools\Support\RepositoryContext;
 use Coretsia\Tools\Support\WorkspacePackageCatalog;
@@ -28,6 +29,7 @@ require_once __DIR__ . '/../support/ConsoleOutput.php';
 require_once __DIR__ . '/../support/ErrorCodes.php';
 require_once __DIR__ . '/../support/DeterministicException.php';
 require_once __DIR__ . '/../support/DeterministicFile.php';
+require_once __DIR__ . '/../support/DeterministicPhpReturnFile.php';
 require_once __DIR__ . '/../support/RepositoryContext.php';
 require_once __DIR__ . '/../support/ComposerJson.php';
 require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
@@ -54,7 +56,14 @@ final class PackageIndexTool
             'packages' => $packages,
         ];
 
-        $php = self::renderPhpReturnFile($payload);
+        $php = DeterministicPhpReturnFile::render(
+            $payload,
+            [
+                'GENERATED FILE (tooling-only).',
+                'MUST NOT be used by runtime.',
+                'Regenerate: composer arch:package-index:generate',
+            ],
+        );
 
         $changed = self::isDifferentFile($outPath, $php);
         $relativePath = $repository->relativeToRepo($outPath);
@@ -157,132 +166,6 @@ final class PackageIndexTool
         return $items;
     }
 
-    private static function licenseHeaderPhp(): string
-    {
-        return "/*\n"
-            . " * Coretsia Framework (Monorepo)\n"
-            . " *\n"
-            . " * Project: Coretsia Framework (Monorepo)\n"
-            . " * Authors: Vladyslav Mudrichenko and contributors\n"
-            . " * Copyright (c) 2026 Vladyslav Mudrichenko\n"
-            . " *\n"
-            . " * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko\n"
-            . " * SPDX-License-Identifier: Apache-2.0\n"
-            . " *\n"
-            . " * For contributors list, see git history.\n"
-            . " * See LICENSE and NOTICE in the project root for full license information.\n"
-            . " */\n\n";
-    }
-
-    private static function renderPhpReturnFile(array $payload): string
-    {
-        $payload = self::normalizePayload($payload);
-
-        $export = self::renderPhpValue($payload, 0);
-        $export = self::normalizeEol($export);
-
-        $out = "<?php\n\n";
-        $out .= "declare(strict_types=1);\n\n";
-        $out .= self::licenseHeaderPhp();
-        $out .= "/*\n";
-        $out .= " * GENERATED FILE (tooling-only).\n";
-        $out .= " * MUST NOT be used by runtime.\n";
-        $out .= " * Regenerate: composer arch:package-index:generate\n";
-        $out .= " */\n\n";
-        $out .= "return " . $export . ";\n";
-
-        return $out;
-    }
-
-    private static function renderPhpValue(mixed $value, int $indent): string
-    {
-        if (is_array($value)) {
-            return self::renderPhpArray($value, $indent);
-        }
-
-        if ($value === null) {
-            return 'null';
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_int($value) || is_float($value) || is_string($value)) {
-            return var_export($value, true);
-        }
-
-        throw new RuntimeException('Unsupported package-index payload value');
-    }
-
-    /**
-     * @param array<int|string,mixed> $value
-     */
-    private static function renderPhpArray(array $value, int $indent): string
-    {
-        $pad = str_repeat(' ', $indent);
-        $childPad = str_repeat(' ', $indent + 2);
-
-        $lines = [];
-        $lines[] = $pad . 'array(';
-
-        foreach ($value as $key => $item) {
-            $keyOut = self::renderPhpArrayKey($key);
-
-            if (is_array($item)) {
-                $lines[] = $childPad . $keyOut . ' =>';
-
-                $nestedLines = explode("\n", self::renderPhpArray($item, $indent + 2));
-                $last = count($nestedLines) - 1;
-
-                foreach ($nestedLines as $i => $line) {
-                    $lines[] = $line . ($i === $last ? ',' : '');
-                }
-
-                continue;
-            }
-
-            $lines[] = $childPad . $keyOut . ' => ' . self::renderPhpValue($item, $indent + 2) . ',';
-        }
-
-        $lines[] = $pad . ')';
-
-        return implode("\n", $lines);
-    }
-
-    private static function renderPhpArrayKey(int|string $key): string
-    {
-        if (is_int($key)) {
-            return (string) $key;
-        }
-
-        return var_export($key, true);
-    }
-
-    private static function normalizePayload(mixed $value): mixed
-    {
-        if (!is_array($value)) {
-            return $value;
-        }
-
-        if (array_is_list($value)) {
-            $out = [];
-            foreach ($value as $v) {
-                $out[] = self::normalizePayload($v);
-            }
-            return $out;
-        }
-
-        $keys = array_keys($value);
-        usort($keys, static fn ($a, $b) => strcmp((string) $a, (string) $b));
-
-        $out = [];
-        foreach ($keys as $k) {
-            $out[(string) $k] = self::normalizePayload($value[$k]);
-        }
-        return $out;
-    }
-
     private static function isDifferentFile(string $path, string $newContent): bool
     {
         if (!is_file($path)) {
@@ -340,11 +223,6 @@ final class PackageIndexTool
         }
 
         return $keys[0] ?? '';
-    }
-
-    private static function normalizeEol(string $s): string
-    {
-        return str_replace(["\r\n", "\r"], "\n", $s);
     }
 
     private static function argFlag(array $argv, string $flag): bool

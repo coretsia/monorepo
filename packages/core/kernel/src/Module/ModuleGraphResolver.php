@@ -36,14 +36,10 @@ use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
  * - enabled-module conflict checks;
  * - deterministic topological order.
  *
- * It intentionally reads runtime dependency and conflict edges only from
- * ModuleDescriptor metadata:
- *
- * - metadata()["requires"]
- * - metadata()["conflicts"]
- *
- * These metadata values are normalized from composer.json extra.coretsia.requires
- * and extra.coretsia.conflicts by ComposerManifestReader.
+ * Installed-manifest resolution derives ModulePlanEntry dependency/conflict
+ * edges from ModuleDescriptor metadata normalized by ComposerManifestReader.
+ * Installation planning may reuse the same graph-policy engine with an already
+ * validated list of ModulePlanEntry values from the release installation catalog.
  *
  * This resolver does not read Composer package-level require/conflict, does not
  * scan filesystem paths, and does not inspect module classes.
@@ -71,35 +67,126 @@ final readonly class ModuleGraphResolver
         ModuleManifest $installed,
         ModuleSelection $selection,
     ): ModulePlan {
-        $installedEntries = $this->buildInstalledEntries($installed);
+        $graph = $this->resolveEntryMap(
+            $this->buildInstalledEntries($installed),
+            $selection,
+        );
+
+        return new ModulePlan(
+            $app,
+            $graph['enabled'],
+            $selection->excluded(),
+            $graph['topologicalOrder'],
+            $graph['entries'],
+        );
+    }
+
+    /**
+     * @param list<ModulePlanEntry> $availableEntries
+     *
+     * @return array{
+     *     enabled: list<ModuleId>,
+     *     topologicalOrder: list<ModuleId>,
+     *     entries: list<ModulePlanEntry>
+     * }
+     */
+    public function resolveEntries(
+        array $availableEntries,
+        ModuleSelection $selection,
+    ): array {
+        return $this->resolveEntryMap(
+            $this->indexAvailableEntries($availableEntries),
+            $selection,
+        );
+    }
+
+    /**
+     * @param list<ModulePlanEntry> $availableEntries
+     *
+     * @return array<string, ModulePlanEntry>
+     */
+    private function indexAvailableEntries(
+        array $availableEntries,
+    ): array {
+        if (!\array_is_list($availableEntries)) {
+            throw new \InvalidArgumentException('module-graph-available-entries-must-be-list');
+        }
+
+        $indexed = [];
+
+        foreach ($availableEntries as $entry) {
+            if (!$entry instanceof ModulePlanEntry) {
+                throw new \InvalidArgumentException('module-graph-available-entry-invalid');
+            }
+
+            $moduleId = $entry->moduleIdString();
+
+            if (isset($indexed[$moduleId])) {
+                throw new \InvalidArgumentException('module-graph-available-entry-duplicate');
+            }
+
+            $indexed[$moduleId] = $entry;
+        }
+
+        \ksort($indexed, \SORT_STRING);
+
+        return $indexed;
+    }
+
+    /**
+     * @param array<string, ModulePlanEntry> $availableEntries
+     *
+     * @return array{
+     *     enabled: list<ModuleId>,
+     *     topologicalOrder: list<ModuleId>,
+     *     entries: list<ModulePlanEntry>
+     * }
+     */
+    private function resolveEntryMap(
+        array $availableEntries,
+        ModuleSelection $selection,
+    ): array {
         $excluded = $selection->excluded();
         $excludedMap = self::moduleIdMap($excluded);
         $enabledMap = [];
         $conflicts = [];
         $missing = [];
+
         $this->seedSelectedRootModules(
             $selection->roots(),
-            $installedEntries,
+            $availableEntries,
             $enabledMap,
             $missing,
         );
+
         $this->expandRequiredDependencyClosure(
-            $installedEntries,
+            $availableEntries,
             $excludedMap,
             $enabledMap,
             $conflicts,
             $missing,
         );
-        $entries = $this->enabledEntries($installedEntries, $enabledMap);
-        $this->collectEnabledModuleConflicts($entries, $conflicts);
-        self::throwFirstGraphFailure($conflicts, $missing);
-        return new ModulePlan(
-            $app,
-            self::moduleIdsFromMap($enabledMap),
-            $excluded,
-            $this->topologicalSorter->sort($entries),
-            $entries,
+
+        $entries = $this->enabledEntries(
+            $availableEntries,
+            $enabledMap,
         );
+
+        $this->collectEnabledModuleConflicts(
+            $entries,
+            $conflicts,
+        );
+
+        self::throwFirstGraphFailure(
+            $conflicts,
+            $missing,
+        );
+
+        return [
+            'enabled' => self::moduleIdsFromMap($enabledMap),
+            'topologicalOrder' => $this->topologicalSorter->sort($entries),
+            'entries' => $entries,
+        ];
     }
 
     /**

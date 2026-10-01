@@ -210,6 +210,69 @@ Usage (repo root):
 
 ---
 
+### Installation catalog (arch) check
+
+Id: `tool.arch_installation_catalog_check` \
+Entrypoint: `composer arch:installation-catalog:check` \
+Category: architecture / guard \
+Outputs:
+- none on success
+- exits non-zero if installation catalog drift is detected
+- exits non-zero on invalid catalog source metadata or unexpected failure
+
+Determinism:
+
+| Mode / flags | Determinism   | Notes                                                   |
+|--------------|---------------|---------------------------------------------------------|
+| default      | deterministic | Pure check; MUST be rerun-no-diff w.r.t. tracked files. |
+
+Notes:
+- Checks drift vs the generated consumer installation catalog: `packages/core/kernel/resources/packaging/installation-catalog.php`.
+- Scope: the catalog is generated from layered packages whose `composer.json > extra.coretsia.kind` is `runtime` and that declare a canonical `extra.coretsia.moduleId`.
+- The generated catalog contains the release line, public Composer constraint, canonical module-to-Composer-package mapping, and module-level `requires` / `conflicts` edges used by consumer dependency planning.
+- Special distributions are not catalog module candidates because generation uses the layered-package catalog.
+- Implementation detail: `@php tools/build/installation_catalog.php --check`.
+- Success output policy:
+  - emits no output when `packages/core/kernel/resources/packaging/installation-catalog.php` is already up to date.
+- Failure output policy:
+  - drift: line 1 is stable code `installation-catalog-out-of-date`
+  - invalid source metadata or unexpected failure: line 1 is stable code `installation-catalog-invalid`
+
+Usage (repo root):
+- `composer arch:installation-catalog:check`
+
+---
+
+### Installation catalog (arch) generate
+
+Id: `tool.arch_installation_catalog_generate` \
+Entrypoint: `composer arch:installation-catalog:generate` \
+Category: architecture / generator \
+Outputs:
+- Updates generated consumer installation catalog: `packages/core/kernel/resources/packaging/installation-catalog.php`
+
+Determinism:
+
+| Mode / flags | Determinism   | Notes                                                               |
+|--------------|---------------|---------------------------------------------------------------------|
+| default      | deterministic | Deterministic generator; MUST be rerun-no-diff for same repo state. |
+
+Notes:
+- Generates the consumer installation catalog from canonical layered-package Composer metadata and the repository release-line policy.
+- Runtime module candidates require `extra.coretsia.kind = runtime` and a canonical `extra.coretsia.moduleId`.
+- Composer package identity is taken from the package manifest; module dependency/conflict edges are taken from `extra.coretsia.requires` / `extra.coretsia.conflicts`.
+- The generated artifact is package-owned consumer input under `packages/core/kernel/resources/packaging/`; it is distinct from the tooling-only `tools/testing/package-index.php`.
+- Implementation detail: `@php tools/build/installation_catalog.php --apply`.
+- Success output policy:
+  - emits `OK` after successful generation, including when the generated artifact is already current.
+- Failure output policy:
+  - invalid source metadata or unexpected failure: line 1 is stable code `installation-catalog-invalid`
+
+Usage (repo root):
+- `composer arch:installation-catalog:generate`
+
+---
+
 ### Architecture aggregate rail
 
 Id: `tool.arch` \
@@ -230,10 +293,11 @@ Notes:
 - Purpose: executes the canonical architecture verification rail.
 - Execution order is cemented:
   1) `composer arch:package-index:check`
-  2) `composer arch:deptrac:check`
-  3) `composer arch:deptrac:analyze`
+  2) `composer arch:installation-catalog:check`
+  3) `composer arch:deptrac:check`
+  4) `composer arch:deptrac:analyze`
 - Through `composer arch:deptrac:check`, this aggregate also validates that internal production Composer `require` edges between layered packages are allowed by the direct `depends_on` cells of `docs/architecture/DEPENDENCIES.md`.
-- This command is a check/analyze aggregate. It does not run `composer arch:package-index:generate` or `composer arch:deptrac:generate`.
+- This command is a check/analyze aggregate. It does not run `composer arch:package-index:generate`, `composer arch:installation-catalog:generate`, or `composer arch:deptrac:generate`.
 - CI may run `composer arch:deptrac:generate` separately to materialize Deptrac graph artifacts for upload, but that is not part of the `composer arch` aggregate.
 - Implementation detail: aggregate `arch` script in `composer.json`.
 

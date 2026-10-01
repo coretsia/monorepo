@@ -26,8 +26,8 @@ use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
  *
  * This class is a narrow boundary around Composer installed metadata.
  *
- * Production mode reads Composer installed metadata only through
- * Composer\InstalledVersions::getAllRawData().
+ * Production mode reads complete package metadata from the installed.json
+ * belonging to the active Composer\InstalledVersions runtime.
  *
  * Test mode can inject deterministic raw Composer installed metadata arrays
  * without depending on the real project vendor/ state.
@@ -95,6 +95,10 @@ final readonly class ComposerInstalledMetadataProvider
      */
     public function packages(): array
     {
+        if ($this->installedData === null) {
+            return $this->productionPackages();
+        }
+
         $packages = [];
 
         foreach ($this->installedRawData() as $dataset) {
@@ -107,30 +111,142 @@ final readonly class ComposerInstalledMetadataProvider
         return \array_values($packages);
     }
 
+    public static function activeComposerRuntimeDirectory(): string
+    {
+        try {
+            $reflection = new \ReflectionClass(InstalledVersions::class);
+            $installedVersionsPath = $reflection->getFileName();
+        } catch (\Throwable $exception) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid($exception);
+        }
+
+        if (
+            !\is_string($installedVersionsPath)
+            || $installedVersionsPath === ''
+            || !\is_file($installedVersionsPath)
+        ) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid();
+        }
+
+        $composerRuntimeDirectory = \realpath(\dirname($installedVersionsPath));
+
+        if (
+            !\is_string($composerRuntimeDirectory)
+            || !\is_dir($composerRuntimeDirectory)
+        ) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid();
+        }
+
+        return $composerRuntimeDirectory;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
     private function installedRawData(): array
     {
-        if ($this->installedData !== null) {
-            return self::normalizeInstalledDataSets($this->installedData);
+        if ($this->installedData === null) {
+            throw new \LogicException('composer-installed-metadata-injected-data-missing');
         }
 
+        return self::normalizeInstalledDataSets($this->installedData);
+    }
+
+    /**
+     * @return list<array{
+     *     name: string,
+     *     type: string|null,
+     *     extra: array<string, mixed>,
+     *     devRequirement: bool
+     * }>
+     */
+    private function productionPackages(): array
+    {
         if (!\class_exists(InstalledVersions::class)) {
             throw ModuleManifestInvalidException::installedMetadataInvalid();
         }
 
-        try {
-            $rawData = InstalledVersions::getAllRawData();
-        } catch (\Throwable $exception) {
-            throw ModuleManifestInvalidException::installedMetadataInvalid($exception);
-        }
+        $path = self::installedJsonPath();
+        $bytes = @\file_get_contents($path);
 
-        if (!\is_array($rawData) || !\array_is_list($rawData)) {
+        if (!\is_string($bytes)) {
             throw ModuleManifestInvalidException::installedMetadataInvalid();
         }
 
-        return self::normalizeInstalledDataSets($rawData);
+        try {
+            $document = \json_decode(
+                $bytes,
+                true,
+                512,
+                \JSON_THROW_ON_ERROR,
+            );
+        } catch (\JsonException $exception) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid($exception);
+        }
+
+        if (
+            !\is_array($document)
+            || \array_is_list($document)
+            || !\array_key_exists('packages', $document)
+            || !\is_array($document['packages'])
+            || !\array_is_list($document['packages'])
+        ) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid();
+        }
+
+        $packages = [];
+
+        foreach ($document['packages'] as $metadata) {
+            if (
+                !\is_array($metadata)
+                || \array_is_list($metadata)
+                || !\array_key_exists('name', $metadata)
+                || !\is_string($metadata['name'])
+                || $metadata['name'] === ''
+            ) {
+                throw ModuleManifestInvalidException::installedMetadataInvalid();
+            }
+
+            $package = $this->normalizePackageRecord(
+                name: $metadata['name'],
+                metadata: $metadata,
+                defaultDevRequirement: false,
+            );
+            $packageName = $package['name'];
+
+            if (isset($packages[$packageName])) {
+                throw ModuleManifestInvalidException::installedMetadataInvalid();
+            }
+
+            try {
+                $installed = InstalledVersions::isInstalled($packageName);
+            } catch (\Throwable $exception) {
+                throw ModuleManifestInvalidException::installedMetadataInvalid($exception);
+            }
+
+            if (!$installed) {
+                throw ModuleManifestInvalidException::installedMetadataInvalid();
+            }
+
+            $packages[$packageName] = $package;
+        }
+
+        \ksort($packages, \SORT_STRING);
+
+        return \array_values($packages);
+    }
+
+    private static function installedJsonPath(): string
+    {
+        $installedJsonPath = self::activeComposerRuntimeDirectory()
+            . \DIRECTORY_SEPARATOR
+            . 'installed.json';
+
+        if (!\is_file($installedJsonPath) || !\is_readable($installedJsonPath)) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid();
+        }
+
+        return $installedJsonPath;
     }
 
     /**
@@ -246,21 +362,7 @@ final readonly class ComposerInstalledMetadataProvider
             $type = $metadata['type'];
         }
 
-        $extra = [];
-        if (\array_key_exists('extra', $metadata)) {
-            if (!\is_array($metadata['extra'])) {
-                throw ModuleManifestInvalidException::installedMetadataInvalid();
-            }
-
-            if ($metadata['extra'] !== [] && \array_is_list($metadata['extra'])) {
-                throw ModuleManifestInvalidException::installedMetadataInvalid();
-            }
-
-            /** @var array<string, mixed> $extraMetadata */
-            $extraMetadata = $metadata['extra'];
-
-            $extra = self::normalizeJsonLikeMap($extraMetadata);
-        }
+        $extra = self::normalizeRelevantExtra($metadata);
 
         $devRequirement = $defaultDevRequirement;
         if (\array_key_exists('dev_requirement', $metadata)) {
@@ -357,6 +459,35 @@ final readonly class ComposerInstalledMetadataProvider
         }
 
         return \strspn($type, 'abcdefghijklmnopqrstuvwxyz0123456789_.-') === \strlen($type);
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     *
+     * @return array<string, mixed>
+     */
+    private static function normalizeRelevantExtra(array $metadata): array
+    {
+        if (!\array_key_exists('extra', $metadata)) {
+            return [];
+        }
+
+        $extra = $metadata['extra'];
+
+        if (
+            !\is_array($extra)
+            || ($extra !== [] && \array_is_list($extra))
+        ) {
+            throw ModuleManifestInvalidException::installedMetadataInvalid();
+        }
+
+        if (!\array_key_exists('coretsia', $extra)) {
+            return [];
+        }
+
+        return [
+            'coretsia' => self::normalizeJsonLikeValue($extra['coretsia']),
+        ];
     }
 
     /**

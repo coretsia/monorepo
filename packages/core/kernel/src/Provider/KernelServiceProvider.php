@@ -253,8 +253,9 @@ final class KernelServiceProvider implements
          * FilesystemModePresetLoader during provider registration.
          *
          * FilesystemModePresetLoader is intentionally created only through
-         * ModePresetLoaderFactory::createFor() during ModuleResolutionOrchestrator::resolve()
-         * for the current BootstrapConfig.
+         * ModePresetLoaderFactory::createFor() during
+         * ModuleResolutionOrchestrator::resolve() / resolveSelection() for the current
+         * BootstrapConfig. Composer installed metadata belongs only to resolve() Phase B.
          */
         $builder->factory(
             ModuleIdSetNormalizer::class,

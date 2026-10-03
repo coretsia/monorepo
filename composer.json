@@ -179,7 +179,11 @@
   "scripts": {
     "test": [
       "@package:phpunit:gate",
-      "@php tools/testing/run_packages_phpunit.php --strict"
+      "@php tools/testing/run_packages_phpunit.php --strict --exclude-group=slow"
+    ],
+    "test:slow": [
+      "@package:phpunit:gate",
+      "@php tools/testing/run_packages_phpunit.php --strict --group=slow"
     ],
     "gates": [
       "@no-skeleton-http-default:gate",

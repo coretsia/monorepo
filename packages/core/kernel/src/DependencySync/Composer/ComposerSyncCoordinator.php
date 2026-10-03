@@ -544,15 +544,10 @@ final readonly class ComposerSyncCoordinator
         $var = $projectRoot . \DIRECTORY_SEPARATOR . 'var';
 
         try {
-            if (\file_exists($var) || \is_link($var)) {
-                if (!\is_dir($var) || \is_link($var)) {
-                    throw new \RuntimeException('dependency-sync-var-invalid');
-                }
-            } elseif (!@\mkdir($var, 0775)) {
-                throw new \RuntimeException('dependency-sync-var-create-failed');
-            }
-
-            if (!self::isNonSymlinkDirectory($var)) {
+            if (
+                (\file_exists($var) || \is_link($var))
+                && !self::isNonSymlinkDirectory($var)
+            ) {
                 throw new \RuntimeException('dependency-sync-var-invalid');
             }
         } catch (\Throwable) {

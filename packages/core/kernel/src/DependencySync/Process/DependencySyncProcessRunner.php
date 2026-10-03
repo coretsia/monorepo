@@ -116,7 +116,17 @@ final readonly class DependencySyncProcessRunner
         $isExplicit = \str_contains($executable, '/') || \str_contains($executable, '\\');
 
         if (!$isExplicit) {
-            return [$executable];
+            if (\PHP_OS_FAMILY !== 'Windows') {
+                return [$executable];
+            }
+
+            $resolved = self::resolveWindowsExecutableToken($executable);
+
+            if ($resolved === null) {
+                return [$executable];
+            }
+
+            return self::resolvedComposerArgv($resolved);
         }
 
         $resolved = @\realpath($executable);
@@ -125,7 +135,19 @@ final readonly class DependencySyncProcessRunner
             throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
         }
 
-        $extension = \strtolower((string) \pathinfo($resolved, \PATHINFO_EXTENSION));
+        return self::resolvedComposerArgv($resolved);
+    }
+
+    /** @return non-empty-list<string> */
+    private static function resolvedComposerArgv(
+        string $resolved,
+    ): array {
+        $extension = \strtolower(
+            (string) \pathinfo(
+                $resolved,
+                \PATHINFO_EXTENSION,
+            ),
+        );
 
         if ($extension === 'php' || $extension === 'phar') {
             if (!\is_file(\PHP_BINARY)) {
@@ -135,14 +157,161 @@ final readonly class DependencySyncProcessRunner
             return [\PHP_BINARY, $resolved];
         }
 
-        if (\DIRECTORY_SEPARATOR !== '\\' && !\is_executable($resolved)) {
+        if (
+            \PHP_OS_FAMILY === 'Windows'
+            && ($extension === 'bat' || $extension === 'cmd')
+        ) {
+            if (!\is_file(\PHP_BINARY)) {
+                throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
+            }
+
+            $directory = \dirname($resolved);
+            $filename = (string) \pathinfo(
+                $resolved,
+                \PATHINFO_FILENAME,
+            );
+
+            foreach (['phar', 'php'] as $scriptExtension) {
+                $candidate = @\realpath(
+                    $directory
+                    . \DIRECTORY_SEPARATOR
+                    . $filename
+                    . '.'
+                    . $scriptExtension,
+                );
+
+                if (
+                    \is_string($candidate)
+                    && \is_file($candidate)
+                ) {
+                    return [\PHP_BINARY, $candidate];
+                }
+            }
+
+            throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
+        }
+
+        if (
+            \DIRECTORY_SEPARATOR !== '\\'
+            && !\is_executable($resolved)
+        ) {
             throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
         }
 
         return [$resolved];
     }
 
-    /** @param list<string> $arguments @return list<string> */
+    private static function resolveWindowsExecutableToken(
+        string $executable,
+    ): ?string {
+        $composerBinary = \getenv('COMPOSER_BINARY');
+
+        if (
+            $executable === 'composer'
+            && \is_string($composerBinary)
+            && $composerBinary !== ''
+        ) {
+            $resolved = @\realpath($composerBinary);
+
+            if (
+                \is_string($resolved)
+                && \is_file($resolved)
+                && \in_array(
+                    \strtolower(
+                        (string) \pathinfo(
+                            $resolved,
+                            \PATHINFO_EXTENSION,
+                        ),
+                    ),
+                    [
+                        'com',
+                        'exe',
+                        'bat',
+                        'cmd',
+                        'php',
+                        'phar',
+                    ],
+                    true,
+                )
+            ) {
+                return $resolved;
+            }
+        }
+
+        $path = \getenv('PATH');
+
+        if (!\is_string($path) || $path === '') {
+            return null;
+        }
+
+        $hasExtension = (string) \pathinfo($executable, \PATHINFO_EXTENSION) !== '';
+
+        $extensions = $hasExtension ? [''] : [];
+        $pathExtensions = \getenv('PATHEXT');
+
+        if (!$hasExtension) {
+            if (
+                \is_string($pathExtensions)
+                && $pathExtensions !== ''
+            ) {
+                foreach (
+                    \explode(';', $pathExtensions) as $extension
+                ) {
+                    $extension = \trim($extension);
+
+                    if ($extension === '') {
+                        continue;
+                    }
+
+                    if ($extension[0] !== '.') {
+                        $extension = '.' . $extension;
+                    }
+
+                    $extensions[] = $extension;
+                }
+            } else {
+                $extensions = [
+                    '.COM',
+                    '.EXE',
+                    '.BAT',
+                    '.CMD',
+                ];
+            }
+        }
+
+        foreach (
+            \explode(\PATH_SEPARATOR, $path) as $directory
+        ) {
+            $directory = \trim($directory, " \t\n\r\0\x0B\"");
+
+            if ($directory === '') {
+                continue;
+            }
+
+            foreach ($extensions as $extension) {
+                $resolved = @\realpath(
+                    $directory
+                    . \DIRECTORY_SEPARATOR
+                    . $executable
+                    . $extension,
+                );
+
+                if (
+                    \is_string($resolved)
+                    && \is_file($resolved)
+                ) {
+                    return $resolved;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<string> $arguments
+     * @return list<string>
+     */
     private static function validateArguments(array $arguments, string $errorCode): array
     {
         if (!\array_is_list($arguments)) {
@@ -193,6 +362,16 @@ final readonly class DependencySyncProcessRunner
 
         if (!\is_string($cwd) || !\is_dir($cwd) || $timeoutSeconds <= 0) {
             throw DependencySyncException::forCode($startFailureCode);
+        }
+
+        if (\PHP_OS_FAMILY === 'Windows') {
+            return self::runExactWindows(
+                $cwd,
+                $argv,
+                $timeoutSeconds,
+                $stdin,
+                $startFailureCode,
+            );
         }
 
         $descriptors = [
@@ -325,6 +504,185 @@ final readonly class DependencySyncProcessRunner
             'stdout' => $stdout,
             'stderr' => $stderr,
         ];
+    }
+
+    /**
+     * @param non-empty-list<string> $argv
+     *
+     * @return array{
+     *     exitCode: int,
+     *     timedOut: bool,
+     *     stdout: string,
+     *     stderr: string
+     * }
+     */
+    private static function runExactWindows(
+        string $cwd,
+        array $argv,
+        int $timeoutSeconds,
+        string $stdin,
+        string $startFailureCode,
+    ): array {
+        $stdinFile = @\tmpfile();
+        $stdoutFile = @\tmpfile();
+        $stderrFile = @\tmpfile();
+
+        if (
+            !\is_resource($stdinFile)
+            || !\is_resource($stdoutFile)
+            || !\is_resource($stderrFile)
+        ) {
+            foreach (
+                [
+                    $stdinFile,
+                    $stdoutFile,
+                    $stderrFile,
+                ] as $file
+            ) {
+                if (\is_resource($file)) {
+                    @\fclose($file);
+                }
+            }
+
+            throw DependencySyncException::forCode($startFailureCode);
+        }
+
+        $process = false;
+
+        try {
+            $stdinLength = \strlen($stdin);
+            $stdinOffset = 0;
+
+            while ($stdinOffset < $stdinLength) {
+                $written = @\fwrite(
+                    $stdinFile,
+                    \substr(
+                        $stdin,
+                        $stdinOffset,
+                        8192,
+                    ),
+                );
+
+                if (
+                    !\is_int($written)
+                    || $written <= 0
+                ) {
+                    throw DependencySyncException::forCode($startFailureCode);
+                }
+
+                $stdinOffset += $written;
+            }
+
+            if (
+                !@\fflush($stdinFile)
+                || !@\rewind($stdinFile)
+            ) {
+                throw DependencySyncException::forCode($startFailureCode);
+            }
+
+            $pipes = [];
+
+            try {
+                $process = @\proc_open(
+                    $argv,
+                    [
+                        0 => $stdinFile,
+                        1 => $stdoutFile,
+                        2 => $stderrFile,
+                    ],
+                    $pipes,
+                    $cwd,
+                    null,
+                    [
+                        'bypass_shell' => true,
+                        'suppress_errors' => true,
+                    ],
+                );
+            } catch (\Throwable) {
+                $process = false;
+            }
+
+            if (!\is_resource($process)) {
+                throw DependencySyncException::forCode($startFailureCode);
+            }
+
+            $timedOut = false;
+            $startedAt = \microtime(true);
+            $knownExitCode = null;
+
+            while (true) {
+                $status = @\proc_get_status($process);
+
+                if (!$status['running']) {
+                    if ($status['exitcode'] >= 0) {
+                        $knownExitCode = $status['exitcode'];
+                    }
+
+                    break;
+                }
+
+                if (
+                    (\microtime(true) - $startedAt)
+                    >= $timeoutSeconds
+                ) {
+                    $timedOut = true;
+
+                    @\proc_terminate($process);
+                    \usleep(100_000);
+
+                    $status = @\proc_get_status($process);
+
+                    if ($status['running']) {
+                        @\proc_terminate($process, 9);
+                    }
+
+                    break;
+                }
+
+                \usleep(10_000);
+            }
+
+            $closedExitCode = @\proc_close($process);
+            $process = false;
+
+            $exitCode = $knownExitCode ?? $closedExitCode;
+
+            if ($timedOut && $exitCode === 0) {
+                $exitCode = 1;
+            }
+
+            if (
+                !@\rewind($stdoutFile)
+                || !@\rewind($stderrFile)
+            ) {
+                throw DependencySyncException::forCode($startFailureCode);
+            }
+
+            $stdout = @\fread(
+                $stdoutFile,
+                self::MAX_CAPTURED_STDOUT_BYTES,
+            );
+            $stderr = @\fread(
+                $stderrFile,
+                self::MAX_CAPTURED_STDERR_BYTES,
+            );
+
+            return [
+                'exitCode' => $exitCode,
+                'timedOut' => $timedOut,
+                'stdout' => \is_string($stdout) ? $stdout : '',
+                'stderr' => \is_string($stderr) ? $stderr : '',
+            ];
+        } finally {
+            if (\is_resource($process)) {
+                @\proc_terminate($process, 9);
+                @\proc_close($process);
+            }
+
+            @\fclose($stdinFile);
+            @\fclose($stdoutFile);
+            @\fclose($stderrFile);
+        }
     }
 
     /** @param resource $pipe */

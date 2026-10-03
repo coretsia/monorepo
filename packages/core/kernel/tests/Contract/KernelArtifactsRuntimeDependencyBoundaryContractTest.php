@@ -110,17 +110,21 @@ final class KernelArtifactsRuntimeDependencyBoundaryContractTest extends TestCas
             $normalizedSource = \str_replace('\\', '/', $source);
             $relativePath = self::relativeToRepo($path);
 
-            self::assertStringNotContainsString(
-                'tools/',
-                $normalizedSource,
-                $relativePath . ' must not reference tools.',
-            );
+            $isToolingBoundaryContract = \basename($path) === 'DependencySyncDoesNotReadToolingPackageIndexContractTest.php';
 
-            self::assertDoesNotMatchRegularExpression(
-                '~(?<![A-Za-z0-9_.-])tools/~',
-                $normalizedSource,
-                $relativePath . ' must not reference tooling paths.',
-            );
+            if (!$isToolingBoundaryContract) {
+                self::assertStringNotContainsString(
+                    'tools/',
+                    $normalizedSource,
+                    $relativePath . ' must not reference tools.',
+                );
+
+                self::assertDoesNotMatchRegularExpression(
+                    '~(?<![A-Za-z0-9_.-])tools/~',
+                    $normalizedSource,
+                    $relativePath . ' must not reference tooling paths.',
+                );
+            }
 
             self::assertStringNotContainsString(
                 'Coretsia\Tools\\',

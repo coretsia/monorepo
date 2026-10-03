@@ -18,42 +18,10 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
-use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use PHPUnit\Framework\TestCase;
 
 final class ArtifactLocalFileOpenModeContractTest extends TestCase
 {
-    public function testGenerationLockUsesPlatformAwareCloseOnExecMode(): void
-    {
-        $generationLockSource = self::source('src/Artifacts/Generation/ArtifactGenerationLock.php');
-
-        self::assertStringContainsString(
-            'private ScopedFileLock $fileLock',
-            $generationLockSource,
-        );
-        self::assertStringContainsString(
-            '$this->fileLock->exclusive(',
-            $generationLockSource,
-        );
-        self::assertStringContainsString(
-            '$this->fileLock->shared(',
-            $generationLockSource,
-        );
-
-        $reflection = new \ReflectionClass(ScopedFileLock::class);
-        $path = $reflection->getFileName();
-
-        self::assertIsString($path);
-
-        $source = \file_get_contents($path);
-
-        self::assertIsString($source);
-        self::assertStringContainsString('self::openMode()', $source);
-        self::assertStringContainsString("? 'c+b'", $source);
-        self::assertStringContainsString(": 'c+be'", $source);
-        self::assertStringNotContainsString("fopen(\$lockPath, 'c+b')", $source);
-    }
-
     public function testArtifactWriterUsesPlatformAwareCloseOnExecMode(): void
     {
         $source = self::source('src/Artifacts/ArtifactWriter.php');

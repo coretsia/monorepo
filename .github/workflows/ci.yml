@@ -547,7 +547,7 @@ jobs:
         shell: bash
         run: composer --no-interaction validate --strict
 
-      - name: "Test: complete package suite"
+      - name: "Test: package suite"
         shell: bash
         run: composer --no-interaction test
 
@@ -656,9 +656,156 @@ jobs:
         shell: bash
         run: composer --no-interaction validate --strict
 
-      - name: "Test: complete package suite"
+      - name: "Test: package suite"
         shell: bash
         run: composer --no-interaction test
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  test-slow:
+    name: "test:slow / ubuntu / PHP 8.4"
+    runs-on: ubuntu-latest
+    needs:
+      - gates
+      - arch
+
+    steps:
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: root workspace dependencies"
+        shell: bash
+        run: composer --no-interaction --no-progress install --prefer-dist
+
+      - name: "Validate: root workspace composer"
+        shell: bash
+        run: composer --no-interaction validate --strict
+
+      - name: "Test: slow package suite"
+        shell: bash
+        run: composer --no-interaction test:slow
+
+      - name: "Guard: lock drift (lock:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction lock:check
+
+  test-slow-windows:
+    name: "test:slow / windows / PHP 8.4"
+    runs-on: windows-2025-vs2026
+    needs:
+      - gates-windows
+      - arch-windows
+
+    env:
+      MSYS: winsymlinks:nativestrict
+
+    steps:
+      - name: "Windows rails: git + symlinks (MUST)"
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.symlinks true
+          git config --global core.safecrlf true
+
+      - name: "Checkout: repository"
+        uses: actions/checkout@v6
+
+      - name: "Windows rails: assert git symlink mode (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.symlinks true
+          test "$(git config --bool core.symlinks)" = "true"
+
+      - name: "Windows rails: verify symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_check
+          mkdir -p .tmp_symlink_check
+          echo x > .tmp_symlink_check/target.txt
+          ln -s target.txt .tmp_symlink_check/link.txt
+          test -L .tmp_symlink_check/link.txt
+          rm -rf .tmp_symlink_check
+
+      - name: "Setup: PHP + Composer"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+          extensions: sockets
+
+      - name: "Windows rails: verify secure socket capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r "
+            exit(
+              extension_loaded('sockets')
+              && function_exists('socket_create')
+              && function_exists('socket_set_option')
+              && function_exists('socket_bind')
+              && function_exists('socket_listen')
+              && function_exists('socket_export_stream')
+              && function_exists('socket_close')
+              && defined('AF_INET')
+              && defined('SOCK_STREAM')
+              && defined('SOL_TCP')
+              && defined('SOL_SOCKET')
+              && defined('SOMAXCONN')
+              && defined('SO_EXCLUSIVEADDRUSE')
+                ? 0
+                : 1
+            );
+          "
+
+      - name: "Windows rails: verify PHP symlink capability (MUST)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp_symlink_php_check
+          mkdir -p .tmp_symlink_php_check
+          cd .tmp_symlink_php_check
+          echo x > target.txt
+          php -r "exit((@symlink('target.txt','link.txt') && is_link('link.txt')) ? 0 : 1);"
+          test -L link.txt
+
+      - name: "Windows rails: cleanup PHP symlink check (ALWAYS)"
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf .tmp_symlink_php_check
+
+      - name: "Guard: managed composer repositories drift (sync:check) (MUST)"
+        shell: bash
+        run: composer --no-interaction sync:check
+
+      - name: "Install: root workspace dependencies"
+        shell: bash
+        run: composer --no-interaction --no-progress install --prefer-dist
+
+      - name: "Validate: root workspace composer"
+        shell: bash
+        run: composer --no-interaction validate --strict
+
+      - name: "Test: slow package suite"
+        shell: bash
+        run: composer --no-interaction test:slow
 
       - name: "Guard: lock drift (lock:check) (MUST)"
         shell: bash

@@ -72,10 +72,6 @@ abstract class ModuleResolutionException extends \RuntimeException
             throw new \InvalidArgumentException('module-resolution-error-code-unknown');
         }
 
-        if ($moduleErrorCode === ModuleErrorCodes::CORETSIA_MODULE_OPTIONAL_MISSING) {
-            throw new \InvalidArgumentException('module-resolution-error-code-warning-not-exception');
-        }
-
         if (!self::isSafeReasonToken($reason)) {
             throw new \InvalidArgumentException('module-resolution-reason-invalid');
         }

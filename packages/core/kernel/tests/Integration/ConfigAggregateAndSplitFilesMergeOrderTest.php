@@ -25,6 +25,7 @@ use Coretsia\Kernel\Config\ConfigMerger;
 use Coretsia\Kernel\Config\DirectiveProcessor;
 use Coretsia\Kernel\Config\Loaders\ApplicationConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigAggregateAndSplitFilesMergeOrderTest extends TestCase
@@ -270,6 +271,7 @@ final class ConfigAggregateAndSplitFilesMergeOrderTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 

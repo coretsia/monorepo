@@ -38,6 +38,9 @@ use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\KernelRuntimeException;
@@ -171,37 +174,41 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         self::assertInstanceOf(KernelRuntime::class, $container->get(KernelRuntime::class));
     }
 
-    public function testModulePlanResolverReceivesContainerTracerThroughFactory(): void
+    public function testModuleResolutionOrchestratorOwnsObservabilityAndSelectedDependenciesThroughFactory(): void
     {
-        $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
-
         $container = self::container(
-            $resetSpy,
+            new KernelServiceProviderWiresKernelRuntimeResetSpy(),
             self::validModulePlanConfig(),
         );
-
-        $resolver = $container->get(ModulePlanResolver::class);
-
-        self::assertInstanceOf(
-            ModulePlanResolver::class,
-            $resolver,
-        );
-
-        $tracer = $container->get(TracerPortInterface::class);
-
-        self::assertInstanceOf(
-            TracerPortInterface::class,
-            $tracer,
-        );
-
-        $tracerProperty = new \ReflectionProperty(
-            ModulePlanResolver::class,
-            'tracer',
-        );
-
+        $orchestrator = $container->get(ModuleResolutionOrchestrator::class);
+        self::assertInstanceOf(ModuleResolutionOrchestrator::class, $orchestrator);
         self::assertSame(
-            $tracer,
-            $tracerProperty->getValue($resolver),
+            $container->get(TracerPortInterface::class),
+            new \ReflectionProperty(
+                ModuleResolutionOrchestrator::class,
+                'tracer',
+            )->getValue($orchestrator),
+        );
+        self::assertInstanceOf(
+            ModulePlanResolver::class,
+            new \ReflectionProperty(
+                ModuleResolutionOrchestrator::class,
+                'modulePlanResolver',
+            )->getValue($orchestrator),
+        );
+        self::assertInstanceOf(
+            ModuleSelectionFactory::class,
+            new \ReflectionProperty(
+                ModuleResolutionOrchestrator::class,
+                'moduleSelectionFactory',
+            )->getValue($orchestrator),
+        );
+        self::assertInstanceOf(
+            PresetNamespaceResolver::class,
+            new \ReflectionProperty(
+                ModuleResolutionOrchestrator::class,
+                'presetNamespaceResolver',
+            )->getValue($orchestrator),
         );
     }
 

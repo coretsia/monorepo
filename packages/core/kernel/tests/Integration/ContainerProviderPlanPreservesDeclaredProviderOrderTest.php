@@ -53,12 +53,10 @@ final class ContainerProviderPlanPreservesDeclaredProviderOrderTest extends Test
             manifest: $manifest,
             plan: new ModulePlan(
                 app: 'api',
-                preset: 'micro',
                 enabled: [
                     $moduleId,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $moduleId,
                 ],

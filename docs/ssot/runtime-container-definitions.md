@@ -479,6 +479,8 @@ This factory:
 
 `RuntimePathContext` is an allowed external runtime seed, not a compile-host service and not a canonical definition value.
 
+`ModuleResolutionOrchestrator` owns the compile-host preset/selection/installed-discovery flow. Pure `ModulePlanResolver` consumes only precomputed `ModuleSelection` and `ModuleManifest`. `ModuleSelection`, `ResolvedModuleOverrides`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `CanonicalPresetSource`, `CustomPresetSource`, and the orchestrator MUST NOT become compiled runtime definitions, source-independent runtime seeds, runtime provider outputs, or Worker runtime dependencies. The validated `module-manifest@1` artifact hydrates `ModulePlan` as the approved immutable module-graph seed; Worker startup consumes it without preset loading, Composer discovery, or graph re-resolution.
+
 ## Worker runtime contribution and runtime-seed boundary (MUST)
 
 `WorkerServiceProvider::define()` is the canonical source for the complete Worker runtime contribution.
@@ -1780,7 +1782,7 @@ It MUST NOT:
 - reorder provider definition sets before merge;
 - apply provider sets independently;
 - reread Composer metadata;
-- rerun `ModulePlanResolver`;
+- re-run `ModuleResolutionOrchestrator` or pure `ModulePlanResolver`;
 - place provider objects into `ContainerDefinitionSet`;
 - bypass final completeness validation.
 

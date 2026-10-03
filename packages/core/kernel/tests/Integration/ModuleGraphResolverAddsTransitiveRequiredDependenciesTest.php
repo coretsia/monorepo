@@ -21,8 +21,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
-use Coretsia\Kernel\Module\ModePreset;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 
@@ -48,7 +48,7 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
                 self::descriptor('core.foundation'),
                 self::descriptor('platform.http'),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'platform.cli',
                 ],
@@ -72,9 +72,6 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
             ],
             self::moduleIdValues($plan->topologicalOrder()),
         );
-
-        self::assertSame([], self::moduleIdValues($plan->optionalMissing()));
-        self::assertSame([], $plan->warnings());
 
         self::assertSame(
             [
@@ -141,7 +138,7 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
                 ),
                 self::descriptor('core.foundation'),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'platform.http',
                     'platform.cli',
@@ -172,7 +169,7 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
                     ],
                 ),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'platform.cli',
                     'platform.http',
@@ -203,7 +200,7 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
                     ],
                 ),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [
                     'platform.http',
                     'platform.cli',
@@ -225,7 +222,7 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
         );
     }
 
-    public function testPresetOptionalInstalledModuleAlsoExpandsRequiredDependencyClosure(): void
+    public function testSelectedNonRequiredModuleAlsoExpandsRequiredDependencyClosure(): void
     {
         $plan = self::resolver()->resolve(
             app: 'api',
@@ -244,9 +241,9 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
                 ),
                 self::descriptor('core.foundation'),
             ]),
-            preset: self::preset(
+            selection: self::selection(
                 required: [],
-                optional: [
+                modules: [
                     'platform.http',
                 ],
             ),
@@ -269,9 +266,6 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
             ],
             self::moduleIdValues($plan->topologicalOrder()),
         );
-
-        self::assertSame([], self::moduleIdValues($plan->optionalMissing()));
-        self::assertSame([], $plan->warnings());
     }
 
     private static function resolver(): ModuleGraphResolver
@@ -311,23 +305,17 @@ final class ModuleGraphResolverAddsTransitiveRequiredDependenciesTest extends Te
 
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
+     * @param list<string> $modules
+     * @param list<string> $excluded
      */
-    private static function preset(
+    private static function selection(
         array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): ModePreset {
-        return new ModePreset(
-            schemaVersion: 1,
-            name: 'micro',
-            description: 'Micro test mode.',
-            required: self::moduleIds($required),
-            optional: self::moduleIds($optional),
-            disabled: self::moduleIds($disabled),
-            featureBundles: [],
-            metadata: [],
+        array $modules = [],
+        array $excluded = [],
+    ): ModuleSelection {
+        return new ModuleSelection(
+            roots: self::moduleIds(self::sortedUniqueStrings([...$required, ...$modules])),
+            excluded: self::moduleIds(self::sortedUniqueStrings($excluded)),
         );
     }
 

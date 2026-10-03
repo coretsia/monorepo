@@ -23,6 +23,7 @@ use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -45,6 +46,7 @@ final class BootstrapArtifactsCacheDirValidationTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: '/workspace/application',
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
 
         self::assertSame($path, $input->artifactsCacheDir());
@@ -96,6 +98,7 @@ final class BootstrapArtifactsCacheDirValidationTest extends TestCase
                 envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
                 appTarget: AppTarget::Web,
                 applicationRoot: '/workspace/application',
+                moduleOverrides: new ResolvedModuleOverrides([], []),
             );
         } catch (BootstrapException $exception) {
             self::assertSame(

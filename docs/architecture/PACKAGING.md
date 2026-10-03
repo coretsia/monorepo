@@ -602,6 +602,31 @@ Do not edit public internal `coretsia/*` dependency constraints manually except 
 
 ---
 
+### 11.5. Consumer installation catalog and managed root constraints (MUST)
+
+`coretsia/framework` is the consumer baseline dependency distribution. The skeleton's explicit root requirement on `coretsia/framework` remains project-owned Composer state.
+
+Mode-dependent physical Coretsia package requirements are derived only through explicit Kernel DependencySync planning. The versioned consumer installation catalog is distributed inside `coretsia/core-kernel` at:
+
+```text
+resources/packaging/installation-catalog.php
+```
+
+Repository authoring owns the deterministic generator/check rail:
+
+```bash
+php tools/build/installation_catalog.php --apply
+php tools/build/installation_catalog.php --check
+```
+
+Catalog package constraints MUST come from the canonical release-line policy. Catalog entries MUST map validated runtime module identities to canonical Composer package names and module dependency/conflict edges; repository source paths MUST NOT be part of the distributed catalog.
+
+DependencySync may mutate only Coretsia root requirements recorded in its `extra.coretsia.dependencySync` ownership marker. Untracked roots remain project-owned, including untracked `coretsia/*` roots.
+
+Every explicit non-Coretsia root in `require` or `require-dev` is protected project state. A Coretsia synchronization MUST preserve its root constraint, locked identity, and installed identity. Composer may resolve transitive dependencies only within that protected-root boundary; a solve that requires changing a protected root fails instead of silently widening root ownership.
+
+Runtime module discovery still uses installed Composer metadata. The installation catalog is pre-install planning input, not installed-state discovery.
+
 ## 12) Publishing target: Packagist via split repositories (MUST)
 
 ### 12.1. Canonical publish target (single-choice)
@@ -675,5 +700,6 @@ At the same time, split automation rails (dry-run / verify) MAY be implemented a
 
 ## 13) Required references (MUST)
 
+- `docs/ssot/application-dependency-sync.md` defines consumer installation intent, Composer ownership, execution, verification, and recovery.
 - `docs/architecture/STRUCTURE.md` MUST refer to this document as the packaging law.
 - `README.md` MUST include a link to this document in the documentation/navigation section.

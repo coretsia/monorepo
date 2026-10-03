@@ -35,13 +35,94 @@ PHP ^8.4
 coretsia/framework
 ```
 
-`coretsia/framework` installs the baseline Coretsia runtime dependencies.
+`coretsia/framework` installs the baseline Coretsia runtime dependencies and remains a project-owned root requirement.
 
-Install additional Coretsia packages and capabilities through Composer; they become requirements of this project's `composer.json`.
+Additional mode-required Coretsia packages are materialized only through explicit application dependency synchronization. DependencySync may manage only the Coretsia root requirements recorded in its ownership marker; application-owned roots remain unchanged.
 
 The project `composer.json` defines the application's runtime and application-specific dependencies.
 
 Composer records the resolved dependency graph in `composer.lock` and installs dependencies under `vendor/`.
+
+## Application dependency synchronization
+
+Dependency synchronization is an explicit consumer operation. It is never triggered by application/runtime boot.
+
+Canonical workflow:
+
+```text
+baseline Composer install
+    -> explicit application targets
+    -> per-target preset and module policy
+    -> plan/review
+    -> explicit apply
+    -> composer.lock/vendor validation
+    -> fresh per-target ModulePlan verification
+```
+
+The shipped integration entrypoint is:
+
+```text
+bin/dependency-sync.php
+```
+
+Examples:
+
+```bash
+php bin/dependency-sync.php plan --target=web
+php bin/dependency-sync.php review --target=web --target=worker
+php bin/dependency-sync.php apply --target=web --target=worker
+```
+
+A fixed installation preset can be supplied only for a selected target:
+
+```bash
+php bin/dependency-sync.php review \
+  --target=web \
+  --target=worker \
+  --preset=worker=enterprise
+```
+
+Apply-only effect authorization flags are:
+
+```text
+--allow-composer-scripts
+--allow-composer-plugins
+--allow-broad-update
+--allow-repair
+```
+
+DependencySync records the Coretsia root requirements it owns under `extra.coretsia.dependencySync` using `managedRequire` and `lastAppliedRequire`. An untracked root remains project-owned and is never silently claimed.
+
+Every explicit non-Coretsia root in `require` or `require-dev` is protected for a synchronization. Its root constraint, locked identity, and installed identity must remain unchanged. If the requested Coretsia solve requires changing that package, the synchronization fails visibly instead of widening the update scope.
+
+Composer effects are not transactionally atomic across `composer.json`, `composer.lock`, and `vendor/`. When an effectful process has started and a later Composer or verification failure occurs, the adapter reports `RECOVERY_REQUIRED` with a recovery receipt. Recovery material is stored under:
+
+```text
+var/dependency-sync/recovery/<recoveryReceiptId>/
+```
+
+Effectful synchronization uses:
+
+```text
+var/locks/dependency-sync.lock
+```
+
+A stable repeated synchronization starts from a fresh PHP process and is a no-op when manifest, lock, vendor state, and all selected target plans already match.
+
+Canonical current multi-target example:
+
+```text
+explicit targets: web, worker
+web    -> micro      -> core.foundation, core.kernel
+worker -> enterprise -> core.foundation, core.kernel, platform.worker
+
+physical project union:
+core.foundation, core.kernel, platform.worker
+```
+
+`platform.worker` remains disabled in `ModulePlan(web)` even though it is physically installed for `worker`.
+
+See `docs/ssot/application-dependency-sync.md` in the Coretsia monorepo for the normative ownership, execution, verification, and recovery contract.
 
 ## Project structure
 
@@ -49,6 +130,8 @@ The initial project structure is:
 
 ```text
 ./
+├── bin/
+│   └── dependency-sync.php
 ├── composer.json
 ├── .env.example
 ├── .gitignore
@@ -94,7 +177,7 @@ apps/web/
 
 `apps/web/public/` is the public directory for the `web` app target.
 
-Add additional app targets under `apps/` as the application requires.
+Add additional app-target directories under `apps/` as the application requires. Directory presence does not select a target for DependencySync; installation target membership is explicit caller input.
 
 ## Configuration
 

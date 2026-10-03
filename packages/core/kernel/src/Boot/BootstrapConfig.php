@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Boot;
 
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 
 /**
  * Immutable resolved Bootstrap Phase A configuration.
@@ -58,6 +59,7 @@ final readonly class BootstrapConfig
         private BootstrapEnvSourcePolicy $envSourcePolicy,
         private AppTarget $appTarget,
         private string $applicationRoot,
+        private ResolvedModuleOverrides $moduleOverrides,
     ) {
         if (!self::isNonEmptySafeSingleLineString($this->appEnv)) {
             throw new \InvalidArgumentException('bootstrap-config-app-env-invalid');
@@ -100,6 +102,11 @@ final readonly class BootstrapConfig
     public function preset(): string
     {
         return $this->preset;
+    }
+
+    public function moduleOverrides(): ResolvedModuleOverrides
+    {
+        return $this->moduleOverrides;
     }
 
     public function debug(): bool

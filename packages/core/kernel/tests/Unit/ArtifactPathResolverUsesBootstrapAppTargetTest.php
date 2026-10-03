@@ -22,6 +22,7 @@ use Coretsia\Kernel\Artifacts\Paths\ArtifactPathResolver;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
@@ -101,6 +102,7 @@ final class ArtifactPathResolverUsesBootstrapAppTargetTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: $appTarget,
             applicationRoot: '/workspace/application',
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 }

@@ -1090,6 +1090,23 @@ Existing artifact validation MUST reject:
 - tag entries not ordered by `priority DESC, id ASC`;
 - floats, objects, resources, closures, callable payloads, raw source snippets, raw env values, and other non-deterministic payload values.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
+Compile-host-only values and services include `ModuleResolutionOrchestrator`, `ModulePlanResolver`, `ModuleGraphResolver`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, both preset-source implementations, `ResolvedModuleOverrides`, and `ModuleSelection`. They MUST NOT be emitted as compiled service definitions, aliases, parameters, or runtime seeds. The existing immutable `ModulePlan` remains the approved runtime seed hydrated exclusively from the validated `module-manifest@1` payload. `WorkerServiceProvider` and `WorkerRuntimeEntrypointGuard` consume the hydrated plan without performing Composer discovery, namespace resolution, preset loading, or selection/graph resolution.
+
 ## Runtime Seed Ownership and Hydration (MUST)
 
 The canonical runtime-seed service-id allowlist contains two ownership categories.
@@ -1165,18 +1182,13 @@ ArtifactRuntimeInput
 
 - exact top-level keys;
 - exact module-entry keys;
-- exact warning keys;
-- schema version;
-- application target;
-- preset;
-- canonical module ids;
-- enabled, disabled, and optional-missing set invariants;
-- module entry identity;
-- required dependency closure;
-- enabled conflicts;
-- cycles;
-- canonical deterministic topological order;
-- warning identity;
+- exact `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, and `topologicalOrder` payload keys;
+- exact `moduleId`, `composerName`, `requires`, and `conflicts` entry keys;
+- schema version `1` and a valid application target;
+- canonical, unique, `strcmp`-sorted and disjoint `enabled`/`excluded` module-id sets;
+- one module entry per enabled id and no entries for excluded ids;
+- required dependency closure and absence of enabled module conflicts;
+- cycle-free graph and canonical deterministic dependency-first topological order;
 - canonical `ModulePlan` round-trip representation.
 
 `ModulePlanArtifactHydrator` MUST NOT:

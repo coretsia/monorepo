@@ -132,17 +132,11 @@ final class ArtifactGenerationManifestShapeContractTest extends TestCase
 
         return new ArtifactPublicationSet(
             moduleManifestEnvelope: $moduleManifestEnvelope,
-            moduleManifestBytes: StablePhpArrayDumper::dumpStableEnvelope(
-                $moduleManifestEnvelope,
-            ),
+            moduleManifestBytes: StablePhpArrayDumper::dumpStableEnvelope($moduleManifestEnvelope),
             configEnvelope: $configEnvelope,
-            configBytes: StablePhpArrayDumper::dumpStableEnvelope(
-                $configEnvelope,
-            ),
+            configBytes: StablePhpArrayDumper::dumpStableEnvelope($configEnvelope),
             containerEnvelope: $containerEnvelope,
-            containerBytes: StablePhpArrayDumper::dumpStableEnvelope(
-                $containerEnvelope,
-            ),
+            containerBytes: StablePhpArrayDumper::dumpStableEnvelope($containerEnvelope),
         );
     }
 
@@ -155,13 +149,10 @@ final class ArtifactGenerationManifestShapeContractTest extends TestCase
     {
         return new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

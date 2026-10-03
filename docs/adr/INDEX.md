@@ -58,7 +58,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0022: UnitOfWork result and outcome policy](./ADR-0022-unit-of-work-result-outcome-policy.md) — owner: core/kernel — adrVersion: 1 — scope: lifecycle,outcome,result,uow
 - [ADR-0023: Kernel Bootstrap Phase A](./ADR-0023-kernel-bootstrap-phase-a.md) — owner: core/kernel — adrVersion: 1 — scope: bootstrap,config,env,kernel,phase-a
 - [ADR-0024: Kernel module plan resolution](./ADR-0024-kernel-module-plan-resolution.md) — owner: core/kernel — adrVersion: 1 — scope: composer,discovery,kernel,module-plan,presets,resolution
-- [ADR-0025: Kernel module conflicts and optional-missing policy](./ADR-0025-kernel-conflicts-optional-missing-policy.md) — owner: core/kernel — adrVersion: 1 — scope: conflicts,graph,kernel,module-plan,optional-missing,policy
+- [ADR-0025: Kernel module conflicts and exclusion policy](./ADR-0025-kernel-conflicts-exclusion-policy.md) — owner: core/kernel — adrVersion: 1 — scope: conflicts,exclusion,graph,kernel,module-plan,policy
 - [ADR-0026: Config Kernel Merge, Directives, and Reserved Namespaces](./ADR-0026-config-kernel-merge-directives-reserved-namespaces.md) — owner: core/kernel — adrVersion: 1 — scope: config,directives,kernel,merge,reserved-namespaces
 - [ADR-0027: Runtime driver resolution and compatibility matrix](./ADR-0027-runtime-driver-resolution.md) — owner: core/kernel — adrVersion: 1 — scope: kernel,matrix,resolution,runtime,runtime-drivers
 - [ADR-0028: Kernel Artifacts, Fingerprint, and Cache Verification](./ADR-0028-kernel-artifacts-fingerprint-cache-verify.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,cache-verify,fingerprint,kernel
@@ -66,6 +66,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
 - [ADR-0032: Process-Exec Descriptor Safety](./ADR-0032-process-exec-descriptor-safety.md) — owner: repo — adrVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
+- [ADR-0033: Application Dependency Synchronization from Explicit Installation Intent](../adr/ADR-0033-application-dependency-sync-installation-intent.md) — owner: core/kernel — adrVersion: 1 — scope: composer,dependency-sync,installation-intent,kernel,modules,verification
 
 ## Cross-references
 

@@ -23,8 +23,8 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Kernel\Module\Exception\ModuleConflictException;
 use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
-use Coretsia\Kernel\Module\ModePreset;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use PHPUnit\Framework\TestCase;
 
@@ -44,7 +44,7 @@ final class ModuleConflictsFailDeterministicallyTest extends TestCase
                     ),
                     self::descriptor('core.kernel'),
                 ]),
-                preset: self::preset(
+                selection: self::selection(
                     required: [
                         'platform.http',
                         'core.kernel',
@@ -97,7 +97,7 @@ final class ModuleConflictsFailDeterministicallyTest extends TestCase
                     self::descriptor('platform.http'),
                     self::descriptor('core.kernel'),
                 ]),
-                preset: self::preset(
+                selection: self::selection(
                     required: [
                         'platform.routing',
                         'platform.http',
@@ -136,12 +136,12 @@ final class ModuleConflictsFailDeterministicallyTest extends TestCase
                         ],
                     ),
                 ]),
-                preset: self::preset(
+                selection: self::selection(
                     required: [
                         'core.kernel',
                         'platform.metrics',
                     ],
-                    disabled: [
+                    excluded: [
                         'platform.http',
                     ],
                 ),
@@ -150,14 +150,14 @@ final class ModuleConflictsFailDeterministicallyTest extends TestCase
             self::fail('Expected disabled required dependency conflict to take graph precedence.');
         } catch (ModuleConflictException $exception) {
             self::assertSame(
-                ModuleConflictException::REASON_REQUIRED_MODULE_DISABLED,
+                ModuleConflictException::REASON_DEPENDENCY_EXCLUDED,
                 $exception->reason(),
             );
 
             self::assertSame(
                 [
-                    'disabledModuleId' => 'platform.http',
-                    'moduleId' => 'core.kernel',
+                    'excludedModuleId' => 'platform.http',
+                    'requiredByModuleId' => 'core.kernel',
                 ],
                 $exception->context(),
             );
@@ -201,23 +201,17 @@ final class ModuleConflictsFailDeterministicallyTest extends TestCase
 
     /**
      * @param list<string> $required
-     * @param list<string> $optional
-     * @param list<string> $disabled
+     * @param list<string> $modules
+     * @param list<string> $excluded
      */
-    private static function preset(
+    private static function selection(
         array $required,
-        array $optional = [],
-        array $disabled = [],
-    ): ModePreset {
-        return new ModePreset(
-            schemaVersion: 1,
-            name: 'micro',
-            description: 'Micro test mode.',
-            required: self::moduleIds($required),
-            optional: self::moduleIds($optional),
-            disabled: self::moduleIds($disabled),
-            featureBundles: [],
-            metadata: [],
+        array $modules = [],
+        array $excluded = [],
+    ): ModuleSelection {
+        return new ModuleSelection(
+            roots: self::moduleIds(self::sortedUniqueStrings([...$required, ...$modules])),
+            excluded: self::moduleIds(self::sortedUniqueStrings($excluded)),
         );
     }
 

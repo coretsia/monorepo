@@ -59,6 +59,9 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
         'Coretsia\\Contracts\\Module\\',
         'hasEnabledModule(',
         'ModulePlanResolver',
+        'ModuleResolutionOrchestrator',
+        'ModuleSelectionFactory',
+        'PresetNamespaceResolver',
         'ModuleGraphResolver',
 
         /*
@@ -103,9 +106,7 @@ final class KernelRuntimeDriverNoForbiddenDepsContractTest extends TestCase
 
     public function testKernelRuntimeDriverSourceDoesNotReferenceAnyForbiddenDependency(): void
     {
-        $this->assertRuntimeDriverSourceDoesNotContain(
-            self::FORBIDDEN_SOURCE_REFERENCES,
-        );
+        $this->assertRuntimeDriverSourceDoesNotContain(self::FORBIDDEN_SOURCE_REFERENCES);
     }
 
     public function testKernelRuntimeDriverSourceDoesNotImportPlatformPackages(): void

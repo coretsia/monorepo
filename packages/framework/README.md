@@ -78,7 +78,7 @@ This operation installs the baseline Coretsia runtime dependency graph into the 
 
 The consuming project remains the application root and owns its Composer state, configuration, application code, and runtime data.
 
-`coretsia/framework` only contributes the baseline dependency graph.
+`coretsia/framework` only contributes the baseline dependency graph. Additional mode-required Coretsia roots are planned and reconciled by explicit Kernel DependencySync in the consumer project; the framework metapackage does not inspect application mode policy or mutate the project manifest.
 
 ## Metapackage boundary
 
@@ -133,6 +133,16 @@ Those belong to `coretsia/skeleton` or to the consuming application after projec
 
 Likewise, `coretsia/skeleton` MUST NOT contain copies of framework runtime implementation.
 
+## DependencySync boundary
+
+The `coretsia/framework` root installed by the skeleton is project-owned baseline state. It is not claimed by the DependencySync managed-root marker.
+
+Mode-dependent physical package requirements are derived by Kernel DependencySync from explicit application targets and the package-distributed installation catalog. DependencySync may write/remove only roots it previously marked as managed.
+
+Explicit non-Coretsia roots remain protected project state. A Coretsia synchronization cannot silently change their root constraints, locked identities, or installed identities.
+
+See `docs/ssot/application-dependency-sync.md` in the monorepo for the normative consumer workflow.
+
 ## Observability
 
 `coretsia/framework` does not implement logging, metrics, tracing, profiling, or other observability behavior.
@@ -180,7 +190,7 @@ This distribution does not provide:
 - application configuration;
 - environment configuration;
 - optional integrations by default;
-- automatic mode-to-Composer dependency synchronization.
+- implicit or runtime-boot Composer dependency synchronization.
 
 ## References
 

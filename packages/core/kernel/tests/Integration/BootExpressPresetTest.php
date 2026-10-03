@@ -18,55 +18,39 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
-use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
-use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
+use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Tests\Support\AppBuilder;
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
 
 final class BootExpressPresetTest extends TestCase
 {
-    public function testExpressPresetFailsDeterministicallyUntilPlatformHttpExists(): void
+    public function testExpressPresetBootsWithCurrentlyImplementedModuleSubset(): void
     {
-        $result = AppBuilder::bootExpressExpectingRequiredMissing($this);
-
+        $result = AppBuilder::bootExpress($this);
         try {
-            $applicationRoot = $result->applicationRoot();
-            $artifactPaths = $result->artifactPaths();
-            $exception = $result->exception();
-
-            self::assertFalse(
-                \is_file($applicationRoot . '/config/modes/express.php'),
-                'express application preset override fixture must not exist',
-            );
-
-            self::assertInstanceOf(ModuleRequiredMissingException::class, $exception);
-
+            $plan = $result->modulePlan();
+            self::assertSame('web', $plan->app());
             self::assertSame(
-                ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING,
-                $exception->errorCode(),
+                ['core.foundation', 'core.kernel'],
+                \array_map(
+                    static fn (ModuleId $id): string => $id->value(),
+                    $plan->enabled(),
+                )
             );
-
             self::assertSame(
-                ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
-                $exception->reason(),
+                ['core.foundation', 'core.kernel'],
+                \array_map(
+                    static fn (ModuleId $id): string => $id->value(),
+                    $plan->topologicalOrder(),
+                )
             );
-
-            self::assertSame(
-                'express',
-                $exception->context()['preset'] ?? null,
-            );
-
-            self::assertSame(
-                'platform.http',
-                $exception->context()['missingModuleId'] ?? null,
-            );
-
-            self::assertArrayHasKey('container.php', $artifactPaths);
-
-            self::assertFalse(
-                \is_file($artifactPaths['container.php']),
-                'container.php artifact must not be required after expected pre-boot failure',
-            );
+            self::assertNotContains('platform.http', $plan->toArray()['enabled']);
+            foreach (['module-manifest.php', 'config.php', 'container.php', 'generation-manifest.php'] as $name) {
+                self::assertArrayHasKey($name, $result->artifactPaths());
+                self::assertFileExists($result->artifactPaths()[$name]);
+            }
+            self::assertInstanceOf(ContainerInterface::class, $result->container());
         } finally {
             AppBuilder::removeTree($result->applicationRoot());
         }

@@ -24,192 +24,46 @@ use PHPUnit\Framework\TestCase;
 
 final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends TestCase
 {
-    public function testFrameworkMicroPresetMatchesCanonicalRules(): void
+    public function testCanonicalResourcesExposeOnlyImplementedRuntimeModules(): void
     {
-        $preset = new ModePresetSchemaValidator()->validate(
+        foreach (['micro', 'express', 'hybrid', 'enterprise'] as $name) {
+            $file = \dirname(__DIR__, 2) . '/resources/modes/' . $name . '.php';
+            $payload = require $file;
+            self::assertIsArray($payload);
+            $preset = new ModePresetSchemaValidator()->validate($name, $payload);
+            self::assertSame(1, $preset->schemaVersion());
+            self::assertSame($name, $preset->name());
+            self::assertSame(
+                ['core.foundation', 'core.kernel'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required()),
+            );
+            self::assertSame(
+                \in_array($name, ['hybrid', 'enterprise'], true) ? ['platform.worker'] : [],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
+            );
+            self::assertSame(
+                ['schemaVersion', 'name', 'description', 'required', 'modules', 'featureBundles', 'metadata'],
+                \array_keys($preset->toArray()),
+            );
+            self::assertSame(['observability' => 'minimal'], $preset->featureBundles());
+            self::assertSame([], $preset->metadata());
+        }
+    }
+
+    public function testMicroAndExpressResourcesHaveSameCurrentlyImplementedSelection(): void
+    {
+        $validator = new ModePresetSchemaValidator();
+        $micro = $validator->validate(
             'micro',
-            self::loadFrameworkPresetPayload('micro'),
+            require \dirname(__DIR__, 2) . '/resources/modes/micro.php',
         );
-
-        self::assertSame(1, $preset->schemaVersion());
-        self::assertSame('micro', $preset->name());
-        self::assertSame('Micro web application mode.', $preset->description());
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-            ],
-            self::moduleIdValues($preset->required()),
-        );
-
-        self::assertSame(
-            [
-                'platform.logging',
-                'platform.metrics',
-                'platform.tracing',
-            ],
-            self::moduleIdValues($preset->optional()),
-        );
-
-        self::assertSame([], self::moduleIdValues($preset->disabled()));
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-                'platform.logging',
-                'platform.metrics',
-                'platform.tracing',
-            ],
-            self::moduleIdValues($preset->moduleIds()),
-        );
-
-        self::assertSame(
-            [
-                'observability' => 'minimal',
-            ],
-            $preset->featureBundles(),
-        );
-
-        self::assertSame([], $preset->metadata());
-
-        self::assertSame(
-            [
-                'schemaVersion' => 1,
-                'name' => 'micro',
-                'description' => 'Micro web application mode.',
-                'required' => [
-                    'core.foundation',
-                    'core.kernel',
-                    'platform.cli',
-                ],
-                'optional' => [
-                    'platform.logging',
-                    'platform.metrics',
-                    'platform.tracing',
-                ],
-                'disabled' => [],
-                'featureBundles' => [
-                    'observability' => 'minimal',
-                ],
-                'metadata' => [],
-            ],
-            $preset->toArray(),
-        );
-    }
-
-    public function testFrameworkExpressPresetMatchesCanonicalRules(): void
-    {
-        $preset = new ModePresetSchemaValidator()->validate(
+        $express = $validator->validate(
             'express',
-            self::loadFrameworkPresetPayload('express'),
+            require \dirname(__DIR__, 2) . '/resources/modes/express.php',
         );
-
-        self::assertSame(1, $preset->schemaVersion());
-        self::assertSame('express', $preset->name());
-        self::assertSame('Express web application mode.', $preset->description());
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-                'platform.http',
-            ],
-            self::moduleIdValues($preset->required()),
-        );
-
-        self::assertSame(
-            [
-                'platform.logging',
-                'platform.metrics',
-                'platform.tracing',
-            ],
-            self::moduleIdValues($preset->optional()),
-        );
-
-        self::assertSame([], self::moduleIdValues($preset->disabled()));
-
-        self::assertSame(
-            [
-                'core.foundation',
-                'core.kernel',
-                'platform.cli',
-                'platform.http',
-                'platform.logging',
-                'platform.metrics',
-                'platform.tracing',
-            ],
-            self::moduleIdValues($preset->moduleIds()),
-        );
-
-        self::assertSame(
-            [
-                'observability' => 'minimal',
-            ],
-            $preset->featureBundles(),
-        );
-
-        self::assertSame([], $preset->metadata());
-
-        self::assertSame(
-            [
-                'schemaVersion' => 1,
-                'name' => 'express',
-                'description' => 'Express web application mode.',
-                'required' => [
-                    'core.foundation',
-                    'core.kernel',
-                    'platform.cli',
-                    'platform.http',
-                ],
-                'optional' => [
-                    'platform.logging',
-                    'platform.metrics',
-                    'platform.tracing',
-                ],
-                'disabled' => [],
-                'featureBundles' => [
-                    'observability' => 'minimal',
-                ],
-                'metadata' => [],
-            ],
-            $preset->toArray(),
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function loadFrameworkPresetPayload(string $presetName): array
-    {
-        $file = \dirname(__DIR__, 2) . '/resources/modes/' . $presetName . '.php';
-
-        $payload = (static function (string $presetFile): mixed {
-            return require $presetFile;
-        })(
-            $file
-        );
-
-        self::assertIsArray($payload);
-        self::assertFalse(\array_is_list($payload));
-
-        return $payload;
-    }
-
-    /**
-     * @param list<ModuleId> $moduleIds
-     *
-     * @return list<string>
-     */
-    private static function moduleIdValues(array $moduleIds): array
-    {
-        return \array_map(
-            static fn (ModuleId $moduleId): string => $moduleId->value(),
-            $moduleIds,
-        );
+        self::assertSame($micro->toArray()['required'], $express->toArray()['required']);
+        self::assertSame([], $micro->toArray()['modules']);
+        self::assertSame([], $express->toArray()['modules']);
+        self::assertNotContains('platform.http', $express->toArray()['required']);
     }
 }

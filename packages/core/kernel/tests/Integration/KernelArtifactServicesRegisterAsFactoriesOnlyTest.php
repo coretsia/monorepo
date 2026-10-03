@@ -50,6 +50,10 @@ final class KernelArtifactServicesRegisterAsFactoriesOnlyTest extends TestCase
                 'ComposerPackageInstallPathResolver::class',
                 'ConfigSourceLocationBuilder::class',
                 'KernelArtifactOperation::class',
+                'ModuleResolutionOrchestrator::class',
+                'ModuleSelectionFactory::class',
+                'ModuleIdSetNormalizer::class',
+                'PresetNamespaceResolver::class',
             ] as $serviceClassReference
         ) {
             self::assertStringContainsString(

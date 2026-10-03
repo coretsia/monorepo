@@ -108,6 +108,14 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapConfig`
   - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
   - `Coretsia\Kernel\Boot\Exception\BootstrapException`
+- Explicit application dependency synchronization public boundary:
+  - `Coretsia\Kernel\DependencySync\ProjectApplicationSet`
+  - `Coretsia\Kernel\DependencySync\ProjectInstallationIntent`
+  - `Coretsia\Kernel\DependencySync\ProjectPackagePlan`
+  - `Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy`
+  - `Coretsia\Kernel\DependencySync\ProjectDependencySync`
+  - `Coretsia\Kernel\DependencySync\ProjectDependencySyncResult`
+  - stable error contract through `DependencySyncErrorCodes` and `DependencySyncException`
 - Bootstrap Phase A internal implementation services registered through DI:
   - `Coretsia\Kernel\Boot\BootstrapConfigResolver`
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
@@ -188,6 +196,9 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Module\ComposerInstalledMetadataProvider`
   - `Coretsia\Kernel\Module\ComposerManifestReader`
   - `Coretsia\Kernel\Module\ModePresetLoaderFactory`
+  - `Coretsia\Kernel\Module\ModuleResolutionOrchestrator`
+  - `Coretsia\Kernel\Module\ModuleSelectionFactory`
+  - `Coretsia\Kernel\Module\Preset\PresetNamespaceResolver`
   - `Coretsia\Kernel\Module\FilesystemModePresetLoader`
   - `Coretsia\Kernel\Module\ModePresetSchemaValidator`
   - `Coretsia\Kernel\Module\ModuleGraphResolver`
@@ -922,11 +933,11 @@ Real-vs-Noop/default binding is owned by the application/foundation composition 
 
 Artifact/fingerprint/container-compile/cache observability failures MUST NOT change deterministic artifact writing, fingerprint calculation, container compilation, or cache verification behavior.
 
-`ConfigKernel` and `ModulePlanResolver` stopwatch failures are observability-isolated duration measurement failures.
+`ConfigKernel` and `ModuleResolutionOrchestrator` stopwatch failures are observability-isolated duration measurement failures.
 
 They MUST NOT change config compilation, config explain, `ModulePlan` resolution, or `ModulePlan` failure precedence.
 
-ConfigKernel and ModulePlanResolver primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
+ConfigKernel and ModuleResolutionOrchestrator primary failures remain fail-fast and MUST be surfaced according to their owner exception policies.
 
 When duration cannot be measured, the duration value MAY collapse to `0` or the timing signal MAY be omitted according to owner policy.
 
@@ -997,6 +1008,53 @@ artifact-runtime-boot-runtime-container-invalid
 
 `ArtifactRuntimeBooter` MUST NOT expose artifact paths, absolute paths, raw config values, raw artifact payloads, env values, secrets, tokens, headers, command lines, PHP warning text, filesystem details, previous throwable messages, or stack traces.
 
+### Preset and artifact payload contracts
+
+The mode schema version is `1`; canonical PHP resources under `resources/modes/` are Kernel-owned and loaded through `CanonicalPresetSource`, while custom application presets under `<applicationRoot>/<kernel.modes.overrides_path>/` are loaded through `CustomPresetSource`. The application cannot shadow a reserved canonical name. Each preset declares the exact fields `schemaVersion`, `name`, `description`, `required`, `modules`, `featureBundles`, `metadata`; `required` roots cannot be excluded and `modules` roots can be removed through selected-app-target `moduleOverrides.exclude`. `moduleOverrides.include` adds selected roots; raw override errors fail in Bootstrap Phase A. Source inspection provides exactly one namespace-owned fingerprint candidate without executing preset PHP.
+
+The resolved `ModulePlan` is distinct from policy `ModePreset`, effective intent `ModuleSelection`, and the installed-discovery `ModuleManifest`. It exports exactly `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`. The existing `module-manifest@1` envelope contains precisely this plan payload with `_meta.schemaVersion = 1` and `payload.schemaVersion = 1`; runtime boot hydrates `ModulePlan` without loading presets or Composer metadata. All compile-host orchestration, preset source and effective-selection services are excluded from compiled runtime definitions.
+
+## Application dependency synchronization
+
+Kernel owns explicit consumer dependency synchronization under `Coretsia\Kernel\DependencySync`.
+
+The public facade is:
+
+```text
+Coretsia\Kernel\DependencySync\ProjectDependencySync
+```
+
+Failures are fail-closed through the public `DependencySyncErrorCodes` / `DependencySyncException` boundary. Invalid application intent/catalog/managed state, unsupported Composer policy, stale project state, protected-root changes, lock/recovery failures, installed-state divergence, and verifier protocol failures are never converted into clean success.
+
+Public installation inputs/results are immutable values. `ProjectApplicationSet` identifies one explicit non-empty target set; `ProjectInstallationIntent` optionally fixes an installation preset for selected targets; `ProjectPackagePlan` records per-target planning expectations and the project-wide desired Coretsia root requirements.
+
+The package-distributed planning catalog is:
+
+```text
+resources/packaging/installation-catalog.php
+```
+
+Its schema maps canonical module ids to Composer package names plus validated module dependency/conflict edges and release-line constraints. Repository source topology is not part of the catalog.
+
+The planning flow reuses the existing Phase A selection path for each explicit target, resolves the target against catalog entries, retains one target-local module closure, and forms one project-wide physical union. `ModuleSelection` remains Kernel-internal.
+
+Composer root reconciliation is ownership-aware. DependencySync may rewrite/remove only Coretsia root requirements recorded in `extra.coretsia.dependencySync`. Untracked roots remain project-owned. Explicit non-Coretsia `require`/`require-dev` roots are protected across synchronization; their root constraints, locked identities, and installed identities cannot be changed by a Coretsia solve.
+
+Effects occur only for an explicit apply policy. Scripts/plugins are disabled by default, broad update and vendor repair require separate authorization, and Composer executes through exact argv without shell fallback. Runtime boot never invokes Composer synchronization.
+
+Effectful synchronization uses Foundation `ScopedFileLock` at `var/locks/dependency-sync.lock`. Durable recovery material is written under `var/dependency-sync/recovery/<recoveryReceiptId>/`. Once an effectful Composer process has started, later Composer or verification failures expose `RECOVERY_REQUIRED`; the coordinator does not claim transactional rollback of `composer.json`, `composer.lock`, and `vendor/`.
+
+Post-install verification runs through the package-local `bin/dependency-sync-verify.php` in a fresh PHP process using current consumer autoload metadata. Each explicit target is independently resolved to one installed `ModulePlan` and compared with the approved `ProjectPackagePlan`.
+
+DependencySync has no direct implementation dependency on Kernel Artifact or Runtime subsystems. Artifact/Runtime implementations likewise do not depend on DependencySync. Shared lower-level Foundation primitives do not transfer subsystem ownership.
+
+Normative behavior is defined by:
+
+```text
+docs/ssot/application-dependency-sync.md
+docs/adr/ADR-0033-application-dependency-sync-installation-intent.md
+```
+
 ## ModulePlan resolution
 
 ModulePlan resolution is Kernel-owned runtime policy.
@@ -1004,36 +1062,45 @@ ModulePlan resolution is Kernel-owned runtime policy.
 The canonical orchestration entrypoint is:
 
 ```text
-Coretsia\Kernel\Module\ModulePlanResolver
+Coretsia\Kernel\Module\ModuleResolutionOrchestrator
 ```
 
-ModulePlan resolution uses these single-choice inputs:
+`ModuleResolutionOrchestrator` owns preset loading, effective module selection, one installed `ModuleManifest` discovery snapshot, and resolution observability.
+
+`ModulePlanResolver` is a pure Phase B coordinator. It receives an already resolved `ModuleSelection` and the installed `ModuleManifest`, then delegates graph policy to `ModuleGraphResolver`.
+
+The resolution flow is:
 
 ```text
 BootstrapConfig::preset()
-BootstrapConfig::appTarget()
-Composer installed metadata
-mode preset files
+    -> PresetNamespaceResolver
+    -> namespace-bound FilesystemModePresetLoader
+    -> ModePreset
+
+ModePreset + BootstrapConfig::moduleOverrides()
+    -> ModuleSelectionFactory
+    -> ModuleSelection
+
+ModuleSelection + installed ModuleManifest
+    -> ModulePlanResolver
+    -> ModuleGraphResolver
+    -> ModulePlan
 ```
 
-`BootstrapConfig::preset()` selects the mode preset.
+`BootstrapConfig::appTarget()` selects the applicable bootstrap module overrides and is exported as `ModulePlan::app()` metadata. It does not alter dependency graph traversal or introduce filesystem-derived module selection.
 
-`BootstrapConfig::appTarget()` is output metadata for `ModulePlan::app()` and app-root derivation only. It MUST NOT create a parallel module-selection source.
-
-Mode preset lookup order is:
+Preset namespace membership is determined exclusively by the requested preset name:
 
 ```text
-1. application override: config/modes/<preset>.php
-2. Kernel package default: resources/modes/<preset>.php
+canonical name -> Kernel package preset source
+custom name    -> application preset source
 ```
 
-The first existing preset file wins.
-
-Application mode preset overrides replace Kernel package defaults. They are not merged.
+There is no filesystem fallback between preset namespaces. Application files MUST NOT override reserved canonical preset names.
 
 Kernel-owned loaded mode preset construction is not weaker than preset schema validation.
 
-`Coretsia\Kernel\Module\ModePreset` is internal, but direct construction still rejects values that would be rejected by `ModePresetSchemaValidator`, including unsafe preset names, path-like descriptions, unsafe feature bundle / metadata strings or keys, excessive JSON-like depth/key/string limits, and overlapping required / optional / disabled module sets.
+`Coretsia\Kernel\Module\ModePreset` is internal, but direct construction still rejects values that would be rejected by `ModePresetSchemaValidator`, including unsafe preset names, path-like descriptions, unsafe feature bundle / metadata strings or keys, excessive JSON-like depth/key/string limits, duplicate module ids within a source collection, and overlapping `required` / `modules` sets.
 
 Module discovery is metadata-only. Runtime module discovery uses Composer installed metadata and Coretsia module metadata under:
 
@@ -1063,15 +1130,17 @@ ModulePlan output is deterministic and artifact-ready.
 
 `ModulePlan` is an immutable artifact-ready value object and rejects contradictory module set state.
 
-The following intersections MUST be empty:
+The following intersection MUST be empty:
 
 ```text
-enabled ∩ disabled
-enabled ∩ optionalMissing
-disabled ∩ optionalMissing
+enabled ∩ excluded
 ```
 
-A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
+`topologicalOrder` MUST contain every enabled module exactly once and no other modules.
+
+`modules` MUST contain exactly one entry for every enabled module and no other modules. Every required dependency of an enabled module MUST also be enabled. No enabled module pair may violate a declared conflict.
+
+`ModulePlan` exports only the six canonical payload fields; preset provenance and compile-host selection state do not enter the artifact.
 
 ModulePlan resolution itself does not write artifacts. Kernel artifact production may materialize the ModulePlan-derived `module-manifest.php` artifact through `ArtifactCompiler` and `ModuleManifestBuilder`.
 
@@ -1089,7 +1158,7 @@ outcome
 operation: resolve
 ```
 
-The span wraps one `resolveResolution()` operation.
+The span wraps one `ModuleResolutionOrchestrator::resolve()` operation.
 
 Tracer failures are observability-isolated and do not change ModulePlan resolution behavior or failure precedence.
 
@@ -1099,6 +1168,7 @@ Allowed `outcome` values are:
 success
 preset_not_found
 preset_invalid
+selection_invalid
 manifest_invalid
 discovery_source_unsupported
 conflict
@@ -1119,10 +1189,25 @@ Related documents:
 
 ```text
 docs/adr/ADR-0024-kernel-module-plan-resolution.md
-docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
 docs/ssot/modules-and-manifests.md
 docs/ssot/modes.md
 ```
+
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
 
 ## ModulePlan diagnostics
 
@@ -1138,12 +1223,7 @@ CORETSIA_MODULE_DISCOVERY_SOURCE_UNSUPPORTED
 CORETSIA_MODULE_CYCLE_DETECTED
 CORETSIA_MODULE_CONFLICT
 CORETSIA_MODULE_REQUIRED_MISSING
-```
-
-Optional missing modules are non-fatal warnings:
-
-```text
-CORETSIA_MODULE_OPTIONAL_MISSING
+CORETSIA_MODULE_SELECTION_INVALID
 ```
 
 Diagnostics expose only stable reason tokens and safe deterministic context.
@@ -1584,25 +1664,25 @@ Runtime and ConfigKernel Phase B consumers read the merged global configuration 
 
 Canonical Kernel config keys:
 
-| key                                           | default                                                    |
-|-----------------------------------------------|------------------------------------------------------------|
-| `kernel.boot.default_env`                     | `"local"`                                                  |
-| `kernel.boot.default_preset`                  | `"micro"`                                                  |
-| `kernel.boot.default_debug`                   | `false`                                                    |
-| `kernel.boot.default_artifacts_cache_dir`     | `"var/cache"`                                              |
-| `kernel.runtime.http_driver`                  | `"http.classic"`                                           |
-| `kernel.env.source_policy.default_local`      | `"strict_dotenv"`                                          |
-| `kernel.env.source_policy.default_production` | `"allow_system"`                                           |
-| `kernel.env.dotenv.files`                     | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
-| `kernel.modules.discovery.source`             | `"composer"`                                               |
-| `kernel.modules.discovery.allowed_sources`    | `["composer"]`                                             |
-| `kernel.modes.schema_version`                 | `1`                                                        |
-| `kernel.modes.defaults_path`                  | `"resources/modes"`                                        |
-| `kernel.modes.overrides_path`                 | `"config/modes"`                                           |
-| `kernel.config.forbidden_top_level_roots`     | `["coretsia", "_internal"]`                                |
+| key                                              | default                                                    |
+|--------------------------------------------------|------------------------------------------------------------|
+| `kernel.boot.default_env`                        | `"local"`                                                  |
+| `kernel.boot.default_preset`                     | `"micro"`                                                  |
+| `kernel.boot.default_debug`                      | `false`                                                    |
+| `kernel.boot.default_artifacts_cache_dir`        | `"var/cache"`                                              |
+| `kernel.runtime.http_driver`                     | `"http.classic"`                                           |
+| `kernel.env.source_policy.default_local`         | `"strict_dotenv"`                                          |
+| `kernel.env.source_policy.default_production`    | `"allow_system"`                                           |
+| `kernel.env.dotenv.files`                        | `[".env", ".env.local", ".env.<env>", ".env.<env>.local"]` |
+| `kernel.modules.discovery.source`                | `"composer"`                                               |
+| `kernel.modules.discovery.allowed_sources`       | `["composer"]`                                             |
+| `kernel.modes.schema_version`                    | `1`                                                        |
+| `kernel.modes.defaults_path`                     | `"resources/modes"`                                        |
+| `kernel.modes.overrides_path`                    | `"config/modes"`                                           |
+| `kernel.config.forbidden_top_level_roots`        | `["coretsia", "_internal"]`                                |
 | `kernel.fingerprint.application_ignore_prefixes` | `["var/maintenance"]`                                      |
-| `kernel.uow.attributes.max_depth`             | `10`                                                       |
-| `kernel.uow.attributes.max_keys`              | `200`                                                      |
+| `kernel.uow.attributes.max_depth`                | `10`                                                       |
+| `kernel.uow.attributes.max_keys`                 | `200`                                                      |
 
 `kernel.boot.default_artifacts_cache_dir` is the package fallback for the Bootstrap Phase A artifact cache directory.
 
@@ -1676,7 +1756,7 @@ RuntimeDriverContributions
 
 When Worker participates in runtime-driver selection, `platform/worker` converts `worker.task_type` into `RuntimeDriverContributions` before calling `RuntimeDriverResolver`.
 
-`kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModulePlanResolver` against `kernel.modules.discovery.allowed_sources`.
+`kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModuleResolutionOrchestrator` against `kernel.modules.discovery.allowed_sources` before preset loading or Composer manifest discovery.
 
 `kernel.modes.defaults_path` is package-relative.
 
@@ -2509,6 +2589,21 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+DependencySync public API symbols are:
+
+```text
+Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy
+Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes
+Coretsia\Kernel\DependencySync\Exception\DependencySyncException
+Coretsia\Kernel\DependencySync\ProjectApplicationSet
+Coretsia\Kernel\DependencySync\ProjectDependencySync
+Coretsia\Kernel\DependencySync\ProjectDependencySyncResult
+Coretsia\Kernel\DependencySync\ProjectInstallationIntent
+Coretsia\Kernel\DependencySync\ProjectPackagePlan
+```
+
+Composer reconciliation, catalog loading, installed verification, process execution, and verification protocol helpers under the DependencySync implementation remain internal.
+
 Artifact-only production runtime boot public API symbols are:
 
 ```text
@@ -2532,7 +2627,6 @@ Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
-
 
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 
@@ -2566,6 +2660,8 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 
 ## References
 
+- [Application Dependency Sync SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/application-dependency-sync.md)
+- [ADR-0033: Application dependency synchronization from explicit installation intent](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Kernel package source](https://github.com/coretsia/monorepo/tree/main/packages/core/kernel)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)

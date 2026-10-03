@@ -30,6 +30,7 @@ use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class FingerprintInstalledManifestNormalizationTest extends TestCase
@@ -143,6 +144,7 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Api,
             applicationRoot: self::applicationRoot(),
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -150,13 +152,10 @@ final class FingerprintInstalledManifestNormalizationTest extends TestCase
     {
         return new ModulePlan(
             app: 'api',
-            preset: 'micro',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

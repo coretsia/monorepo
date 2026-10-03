@@ -21,197 +21,59 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ModulePlanSetInvariantsContractTest extends TestCase
 {
-    /**
-     * @param list<ModuleId> $enabled
-     * @param list<ModuleId> $disabled
-     * @param list<ModuleId> $optionalMissing
-     */
-    #[DataProvider('overlappingModuleIdSetsProvider')]
-    public function testModulePlanRejectsOverlappingModuleIdSets(
-        array $enabled,
-        array $disabled,
-        array $optionalMissing,
-        string $expectedReason,
-    ): void {
+    public function testRejectsOverlappingEnabledAndExcluded(): void
+    {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage($expectedReason);
-
-        new ModulePlan(
-            app: 'api',
-            preset: 'micro',
-            enabled: $enabled,
-            disabled: $disabled,
-            optionalMissing: $optionalMissing,
-            topologicalOrder: [
-                self::moduleId('core.kernel'),
-            ],
-            modules: [
-                new ModulePlanEntry(
-                    moduleId: self::moduleId('core.kernel'),
-                    composerName: 'coretsia/core-kernel',
-                ),
-            ],
+        $this->expectExceptionMessage('module-plan-enabled-excluded-overlap');
+        self::plan(
+            enabled: [ModuleId::fromString('core.kernel')],
+            excluded: [ModuleId::fromString('core.kernel')],
         );
     }
 
-    /**
-     * @return iterable<string, array{
-     *     enabled: list<ModuleId>,
-     *     disabled: list<ModuleId>,
-     *     optionalMissing: list<ModuleId>,
-     *     expectedReason: string
-     * }>
-     */
-    public static function overlappingModuleIdSetsProvider(): iterable
+    public function testRejectsAssociativeEnabledCollection(): void
     {
-        yield 'enabled-disabled-overlap' => [
-            'enabled' => [
-                self::moduleId('core.kernel'),
-            ],
-            'disabled' => [
-                self::moduleId('core.kernel'),
-            ],
-            'optionalMissing' => [],
-            'expectedReason' => 'module-plan-enabled-disabled-overlap',
-        ];
-
-        yield 'enabled-optional-missing-overlap' => [
-            'enabled' => [
-                self::moduleId('core.kernel'),
-            ],
-            'disabled' => [],
-            'optionalMissing' => [
-                self::moduleId('core.kernel'),
-            ],
-            'expectedReason' => 'module-plan-enabled-optional-missing-overlap',
-        ];
-
-        yield 'disabled-optional-missing-overlap' => [
-            'enabled' => [
-                self::moduleId('core.kernel'),
-            ],
-            'disabled' => [
-                self::moduleId('platform.http'),
-            ],
-            'optionalMissing' => [
-                self::moduleId('platform.http'),
-            ],
-            'expectedReason' => 'module-plan-disabled-optional-missing-overlap',
-        ];
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('module-plan-enabled-module-ids-must-be-list');
+        self::plan(enabled: ['kernel' => ModuleId::fromString('core.kernel')]);
     }
 
-    public function testModulePlanAllowsPairwiseDisjointModuleIdSets(): void
+    public function testRejectsAssociativeExcludedCollection(): void
     {
-        $plan = new ModulePlan(
-            app: 'api',
-            preset: 'micro',
-            enabled: [
-                self::moduleId('core.kernel'),
-            ],
-            disabled: [
-                self::moduleId('platform.http'),
-            ],
-            optionalMissing: [
-                self::moduleId('platform.tracing'),
-            ],
-            topologicalOrder: [
-                self::moduleId('core.kernel'),
-            ],
-            modules: [
-                new ModulePlanEntry(
-                    moduleId: self::moduleId('core.kernel'),
-                    composerName: 'coretsia/core-kernel',
-                ),
-            ],
-        );
-
-        self::assertSame(
-            [
-                'core.kernel',
-            ],
-            self::moduleIdValues($plan->enabled()),
-        );
-
-        self::assertSame(
-            [
-                'platform.http',
-            ],
-            self::moduleIdValues($plan->disabled()),
-        );
-
-        self::assertSame(
-            [
-                'platform.tracing',
-            ],
-            self::moduleIdValues($plan->optionalMissing()),
-        );
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('module-plan-excluded-module-ids-must-be-list');
+        self::plan(excluded: ['http' => ModuleId::fromString('platform.http')]);
     }
 
-    public function testModulePlanExposesDeterministicMembershipQueries(): void
+    public function testDisjointSetsAndMembershipQueries(): void
     {
-        $plan = new ModulePlan(
-            app: 'web',
-            preset: 'micro',
-            enabled: [
-                ModuleId::fromString('core.foundation'),
-                ModuleId::fromString('core.kernel'),
-            ],
-            disabled: [
-                ModuleId::fromString('platform.worker'),
-            ],
-            optionalMissing: [
-                ModuleId::fromString('platform.http'),
-            ],
-            topologicalOrder: [
-                ModuleId::fromString('core.foundation'),
-                ModuleId::fromString('core.kernel'),
-            ],
-            modules: [
-                new ModulePlanEntry(
-                    moduleId: ModuleId::fromString('core.foundation'),
-                    composerName: 'coretsia/core-foundation',
-                ),
-                new ModulePlanEntry(
-                    moduleId: ModuleId::fromString('core.kernel'),
-                    composerName: 'coretsia/core-kernel',
-                ),
-            ],
-            warnings: [],
+        $plan = self::plan(excluded: [ModuleId::fromString('platform.http')]);
+        self::assertSame(
+            ['core.kernel'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $plan->enabled()),
         );
-
+        self::assertSame(
+            ['platform.http'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $plan->excluded()),
+        );
         self::assertTrue($plan->hasEnabledModule('core.kernel'));
-        self::assertFalse($plan->hasEnabledModule('platform.worker'));
-
-        self::assertTrue($plan->hasDisabledModule('platform.worker'));
-        self::assertFalse($plan->hasDisabledModule('core.kernel'));
-
-        self::assertTrue($plan->hasOptionalMissingModule('platform.http'));
-        self::assertFalse($plan->hasOptionalMissingModule('core.foundation'));
+        self::assertFalse($plan->hasEnabledModule('platform.http'));
+        self::assertSame(['platform.http'], $plan->toArray()['excluded']);
     }
 
-    private static function moduleId(string $value): ModuleId
+    private static function plan(?array $enabled = null, array $excluded = []): ModulePlan
     {
-        return ModuleId::fromString($value);
-    }
-
-    /**
-     * @param list<ModuleId> $moduleIds
-     *
-     * @return list<string>
-     */
-    private static function moduleIdValues(array $moduleIds): array
-    {
-        $values = [];
-
-        foreach ($moduleIds as $moduleId) {
-            $values[] = $moduleId->value();
-        }
-
-        return $values;
+        $id = ModuleId::fromString('core.kernel');
+        return new ModulePlan(
+            app: 'api',
+            enabled: $enabled ?? [$id],
+            excluded: $excluded,
+            topologicalOrder: [$id],
+            modules: [new ModulePlanEntry(moduleId: $id, composerName: 'coretsia/core-kernel')],
+        );
     }
 }

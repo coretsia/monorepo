@@ -23,15 +23,9 @@ return [
     'required' => [
         'core.foundation',
         'core.kernel',
-        'platform.cli',
-        'platform.http',
     ],
-    'optional' => [
-        'platform.logging',
-        'platform.metrics',
-        'platform.tracing',
+    'modules' => [
     ],
-    'disabled' => [],
     'featureBundles' => [
         'observability' => 'minimal',
     ],

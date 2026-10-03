@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
+use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
 use PHPUnit\Framework\TestCase;
 
 final class ComposerManifestReaderReadsOnlyComposerMetadataTest extends TestCase
@@ -43,7 +44,12 @@ final class ComposerManifestReaderReadsOnlyComposerMetadataTest extends TestCase
                     'acme/not-a-coretsia-module' => [
                         'type' => 'library',
                         'install_path' => '/tmp/must-not-be-read',
-                        'extra' => [],
+                        'extra' => [
+                            'unrelated' => [
+                                'ratio' => 1.25,
+                                'nestedEmptyObject' => new \stdClass(),
+                            ],
+                        ],
                     ],
                     'coretsia/core-kernel' => [
                         'type' => 'library',
@@ -143,6 +149,33 @@ final class ComposerManifestReaderReadsOnlyComposerMetadataTest extends TestCase
             'config/kernel.php',
             $kernel->metadata()['defaultsConfigPath'] ?? null,
         );
+    }
+
+    public function testMalformedCoretsiaMetadataRemainsRejected(): void
+    {
+        $reader = self::readerForInstalledData([
+            [
+                'root' => [
+                    'name' => 'coretsia/test-app',
+                    'type' => 'project',
+                    'extra' => [],
+                ],
+                'versions' => [
+                    'coretsia/broken-runtime' => [
+                        'type' => 'library',
+                        'extra' => [
+                            'coretsia' => [
+                                'kind' => 'runtime',
+                                'moduleId' => 123,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->expectException(ModuleManifestInvalidException::class);
+        $reader->read();
     }
 
     /**

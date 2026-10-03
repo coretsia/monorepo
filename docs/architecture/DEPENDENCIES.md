@@ -160,6 +160,27 @@ Monorepo co-location is not an architectural dependency boundary.
 
 ---
 
+### 2.5. DependencySync internal dependency direction
+
+Application dependency synchronization is Kernel-owned consumer-side orchestration.
+
+Allowed implementation direction is:
+
+```text
+Coretsia\Kernel\DependencySync\**
+    -> Coretsia\Kernel\Boot\** / Coretsia\Kernel\Module\**
+    -> Coretsia\Foundation\** shared low-level primitives
+    -> Coretsia\Contracts\**
+```
+
+`DependencySync` MUST NOT depend directly on Kernel Artifact or Runtime implementation namespaces. Artifact/Runtime implementation MUST NOT depend on `DependencySync`.
+
+Artifact generation and DependencySync MAY both depend on Foundation `ScopedFileLock`. DependencySync verification MAY reuse Foundation `Coretsia\Foundation\Serialization\StableJsonDecoder`. These are shared lower-level primitives and do not merge subsystem ownership.
+
+Composer effects exist only behind explicit consumer DependencySync invocation. Runtime Phase B MUST NOT depend on the installation catalog, Composer process runner, recovery state, or repository tooling.
+
+Post-Composer verification MUST execute with a fresh process/autoload state rather than treating pre-update loaded Composer/Kernel metadata as authoritative.
+
 ## 3) Canonical matrix format (SSoT, parse-friendly) (MUST)
 
 ### 3.1. Single canonical representation
@@ -364,9 +385,9 @@ Architecture tooling MUST fail when any of the following occurs:
 
 Tooling MUST NOT silently widen the dependency graph to make an otherwise forbidden dependency pass.
 
-### 6.3. Package index independence
+### 6.3. Package index and installation catalog independence
 
-The generated package index and the canonical dependency matrix are separate concerns.
+The generated repository package index, the consumer installation catalog, and the canonical dependency matrix are separate concerns.
 
 Package metadata such as:
 
@@ -385,7 +406,9 @@ is discovered from package manifests and belongs to package-index generation.
 
 The package index MUST NOT use this dependency matrix as the source of package metadata.
 
-Likewise, this dependency matrix MUST NOT be generated from the package index or inferred automatically from existing source-code dependencies.
+The consumer installation catalog is generated from validated runtime package manifests plus release-line policy and contains only consumer-safe module/package planning fields. It MUST NOT expose repository source topology or replace this dependency matrix.
+
+Likewise, this dependency matrix MUST NOT be generated from the package index or installation catalog, and MUST NOT be inferred automatically from existing source-code dependencies.
 
 The architecture policy remains explicit.
 

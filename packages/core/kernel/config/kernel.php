@@ -195,7 +195,7 @@ return [
      * MUST NOT scan package source trees, vendor directories, application config
      * directories, or module classes at runtime.
      *
-     * `source` is validated by ModulePlanResolver against `allowed_sources`
+     * `source` is validated by ModuleResolutionOrchestrator against `allowed_sources`
      * before discovery. Config rules validate only the string/list shape.
      */
     'modules' => [

@@ -43,13 +43,11 @@ final class ContainerProviderPlanRejectsDuplicateProviderTest extends TestCase
             manifest: $manifest,
             plan: new ModulePlan(
                 app: 'api',
-                preset: 'micro',
                 enabled: [
                     $alpha,
                     $beta,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $alpha,
                     $beta,

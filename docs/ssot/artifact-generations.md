@@ -615,6 +615,21 @@ docs/ssot/artifacts.md
 
 This document owns the artifact-specific header restrictions and payload semantics.
 
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
+
 ## Generation Manifest Envelope (MUST)
 
 The top-level envelope is exactly:
@@ -888,6 +903,8 @@ Its generation-envelope operation MUST:
 - normalize the envelope through the shared payload normalizer.
 
 The operation MUST NOT accept a `requires` argument.
+
+Every generation records `module-manifest@1` with its unchanged artifact identity and schema version. Its validated payload contains exactly `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, and `topologicalOrder` and hydrates the immutable runtime `ModulePlan`. The installed contracts `ModuleManifest` is used only to produce the compile-host `ModuleResolution` snapshot; runtime boot does not reload that snapshot, presets, or Composer metadata.
 
 ## Generation Manifest Validation (MUST)
 

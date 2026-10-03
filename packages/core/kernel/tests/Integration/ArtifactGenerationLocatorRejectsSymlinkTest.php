@@ -39,6 +39,7 @@ use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Tests\Support\FilesystemLinkTestSupport;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -48,10 +49,6 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
     public function testRejectsSymlinkSubstitution(
         string $scenario,
     ): void {
-        if (!\function_exists('symlink')) {
-            self::markTestSkipped('symlink() is unavailable in this environment.');
-        }
-
         $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-generation-symlink-' . $scenario);
         $artifactRoot = $root . '/var/cache/web';
 
@@ -155,7 +152,7 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
                 self::assertTrue(
                     \unlink($currentPath),
                 );
-                self::createSymlinkOrSkip(
+                self::createSymlinkOrFail(
                     $targetPath,
                     $currentPath,
                 );
@@ -171,7 +168,7 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
                         $targetDirectory,
                     ),
                 );
-                self::createSymlinkOrSkip(
+                self::createSymlinkOrFail(
                     $targetDirectory,
                     $generation->generationDirectory(),
                 );
@@ -188,7 +185,7 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
                         $targetDirectory,
                     ),
                 );
-                self::createSymlinkOrSkip(
+                self::createSymlinkOrFail(
                     $targetDirectory,
                     $generationsDirectory,
                 );
@@ -204,7 +201,7 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
                         $targetPath,
                     ),
                 );
-                self::createSymlinkOrSkip(
+                self::createSymlinkOrFail(
                     $targetPath,
                     $generation->configPath(),
                 );
@@ -216,13 +213,15 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
         }
     }
 
-    private static function createSymlinkOrSkip(
+    private static function createSymlinkOrFail(
         string $target,
         string $link,
     ): void {
-        if (!@\symlink($target, $link)) {
-            self::markTestSkipped('Filesystem symlink creation is unavailable in this environment.');
-        }
+        FilesystemLinkTestSupport::symlink(
+            $target,
+            $link,
+            \is_dir($target),
+        );
 
         self::assertTrue(
             \is_link($link),
@@ -306,13 +305,10 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

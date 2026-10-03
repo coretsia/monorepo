@@ -23,6 +23,7 @@ use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
+use Coretsia\Kernel\Artifacts\Exception\FingerprintSymlinkForbiddenException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Boot\BootstrapConfig;
@@ -327,8 +328,7 @@ final readonly class ConfigFingerprintInputBuilder
             'hash' => self::hashJsonLike($payload),
             'moduleCount' => self::safeCount($payload['modules'] ?? null),
             'enabledModuleCount' => self::safeCount($payload['enabled'] ?? null),
-            'disabledModuleCount' => self::safeCount($payload['disabled'] ?? null),
-            'warningCount' => self::safeCount($payload['warnings'] ?? null),
+            'excludedModuleCount' => self::safeCount($payload['excluded'] ?? null),
         ];
     }
 
@@ -462,9 +462,9 @@ final readonly class ConfigFingerprintInputBuilder
         \usort(
             $out,
             static function (array $a, array $b): int {
-                return \strcmp((string)($a['sourceId'] ?? ''), (string)($b['sourceId'] ?? ''))
-                    ?: \strcmp((string)($a['keyPath'] ?? ''), (string)($b['keyPath'] ?? ''))
-                        ?: \strcmp((string)($a['type'] ?? ''), (string)($b['type'] ?? ''));
+                return \strcmp((string) ($a['sourceId'] ?? ''), (string) ($b['sourceId'] ?? ''))
+                    ?: \strcmp((string) ($a['keyPath'] ?? ''), (string) ($b['keyPath'] ?? ''))
+                        ?: \strcmp((string) ($a['type'] ?? ''), (string) ($b['type'] ?? ''));
             },
         );
 
@@ -679,12 +679,12 @@ final readonly class ConfigFingerprintInputBuilder
         \usort(
             $out,
             static fn (array $a, array $b): int => \strcmp(
-                (string)($a['sourceId'] ?? ''),
-                (string)($b['sourceId'] ?? '')
+                (string) ($a['sourceId'] ?? ''),
+                (string) ($b['sourceId'] ?? ''),
             )
-                ?: \strcmp((string)($a['path'] ?? ''), (string)($b['path'] ?? ''))
-                    ?: \strcmp((string)($a['layer'] ?? ''), (string)($b['layer'] ?? ''))
-                        ?: \strcmp((string)($a['kind'] ?? ''), (string)($b['kind'] ?? '')),
+                ?: \strcmp((string) ($a['path'] ?? ''), (string) ($b['path'] ?? ''))
+                    ?: \strcmp((string) ($a['layer'] ?? ''), (string) ($b['layer'] ?? ''))
+                        ?: \strcmp((string) ($a['kind'] ?? ''), (string) ($b['kind'] ?? '')),
         );
 
         return $out;
@@ -740,9 +740,9 @@ final readonly class ConfigFingerprintInputBuilder
         \usort(
             $out,
             static function (array $a, array $b): int {
-                return \strcmp((string)($a['sourceId'] ?? ''), (string)($b['sourceId'] ?? ''))
-                    ?: \strcmp((string)($a['path'] ?? ''), (string)($b['path'] ?? ''))
-                        ?: \strcmp((string)($a['kind'] ?? ''), (string)($b['kind'] ?? ''));
+                return \strcmp((string) ($a['sourceId'] ?? ''), (string) ($b['sourceId'] ?? ''))
+                    ?: \strcmp((string) ($a['path'] ?? ''), (string) ($b['path'] ?? ''))
+                        ?: \strcmp((string) ($a['kind'] ?? ''), (string) ($b['kind'] ?? ''));
             },
         );
 
@@ -783,15 +783,136 @@ final readonly class ConfigFingerprintInputBuilder
             return $metadata;
         }
 
-        $metadata += $this->contentFingerprintForExplicitCandidate(
-            filesystemPath: $filesystemPath,
-            applicationRoot: $applicationRoot,
-            applicationIgnorePrefixes: $applicationIgnorePrefixes,
-        );
+        if ($kind === self::SOURCE_KIND_MODE_PRESET) {
+            self::assertModePresetCandidateBoundary(
+                candidate: $candidate,
+                filesystemPath: $filesystemPath,
+                applicationRoot: $applicationRoot,
+            );
+        }
+
+        if ($kind === self::SOURCE_KIND_MODE_PRESET && @\is_link($filesystemPath)) {
+            $directory = @\realpath(\dirname($filesystemPath));
+            $target = @\realpath($filesystemPath);
+
+            if (
+                $directory === false
+                || $target === false
+                || !@\is_file($target)
+                || !\str_starts_with($target, \rtrim($directory, '/\\') . \DIRECTORY_SEPARATOR)
+            ) {
+                throw FingerprintSymlinkForbiddenException::withReason();
+            }
+
+            $metadata += [
+                'exists' => self::EXISTS_TRUE,
+                'contentKind' => 'file',
+                'file' => self::fileFingerprintEntry(
+                    self::basename($filesystemPath),
+                    $target,
+                ),
+            ];
+        } else {
+            $metadata += $this->contentFingerprintForExplicitCandidate(
+                filesystemPath: $filesystemPath,
+                applicationRoot: $applicationRoot,
+                applicationIgnorePrefixes: $applicationIgnorePrefixes,
+            );
+        }
 
         \ksort($metadata, \SORT_STRING);
 
         return $metadata;
+    }
+
+    /**
+     * @param array<string, mixed> $candidate
+     */
+    private static function assertModePresetCandidateBoundary(
+        array $candidate,
+        string $filesystemPath,
+        string $applicationRoot,
+    ): void {
+        $relative = $candidate['path'] ?? null;
+        $sourceId = $candidate['sourceId'] ?? null;
+
+        if (!\is_string($relative) || !\is_string($sourceId)) {
+            throw FingerprintSymlinkForbiddenException::withReason();
+        }
+
+        $segments = \explode('/', $relative);
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                throw FingerprintSymlinkForbiddenException::withReason();
+            }
+        }
+
+        $suffix = \DIRECTORY_SEPARATOR . \implode(\DIRECTORY_SEPARATOR, $segments);
+
+        if (!\str_ends_with($filesystemPath, $suffix)) {
+            throw FingerprintSymlinkForbiddenException::withReason();
+        }
+
+        $root = \substr($filesystemPath, 0, -\strlen($suffix));
+        $root = $root === '' ? \DIRECTORY_SEPARATOR : $root;
+        $resolvedRoot = @\realpath($root);
+
+        if (
+            $resolvedRoot === false
+            || $resolvedRoot !== $root
+            || !@\is_dir($root)
+            || (
+                $sourceId !== ('core/kernel:' . $relative)
+                && (
+                    $sourceId !== ('application:' . $relative)
+                    || $resolvedRoot !== @\realpath($applicationRoot)
+                )
+            )
+        ) {
+            throw FingerprintSymlinkForbiddenException::withReason();
+        }
+
+        $prefix = \rtrim($root, '/\\') . \DIRECTORY_SEPARATOR;
+        $current = $root;
+
+        foreach (\array_slice($segments, 0, -1) as $segment) {
+            $next = \rtrim($current, '/\\') . \DIRECTORY_SEPARATOR . $segment;
+
+            if (!@\file_exists($next) && !@\is_link($next)) {
+                $current = $next;
+
+                continue;
+            }
+
+            $resolved = @\realpath($next);
+
+            if (
+                $resolved === false
+                || !@\is_dir($resolved)
+                || (
+                    $resolved !== $root
+                    && !\str_starts_with($resolved, $prefix)
+                )
+            ) {
+                throw FingerprintSymlinkForbiddenException::withReason();
+            }
+
+            $current = $resolved;
+        }
+
+        if (@\file_exists($filesystemPath) || @\is_link($filesystemPath)) {
+            $target = @\realpath($filesystemPath);
+            $directoryPrefix = \rtrim($current, '/\\') . \DIRECTORY_SEPARATOR;
+
+            if (
+                $target === false
+                || !@\is_file($target)
+                || !\str_starts_with($target, $directoryPrefix)
+            ) {
+                throw FingerprintSymlinkForbiddenException::withReason();
+            }
+        }
     }
 
     /**
@@ -1153,8 +1274,8 @@ final readonly class ConfigFingerprintInputBuilder
         \usort(
             $out,
             static fn (array $a, array $b): int => \strcmp(
-                (string)($a['sourceId'] ?? ''),
-                (string)($b['sourceId'] ?? '')
+                (string) ($a['sourceId'] ?? ''),
+                (string) ($b['sourceId'] ?? ''),
             ),
         );
 
@@ -1232,8 +1353,8 @@ final readonly class ConfigFingerprintInputBuilder
 
         \usort(
             $out,
-            static fn (array $a, array $b): int => \strcmp((string)($a['path'] ?? ''), (string)($b['path'] ?? ''))
-                ?: \strcmp((string)($a['env'] ?? ''), (string)($b['env'] ?? '')),
+            static fn (array $a, array $b): int => \strcmp((string) ($a['path'] ?? ''), (string) ($b['path'] ?? ''))
+                ?: \strcmp((string) ($a['env'] ?? ''), (string) ($b['env'] ?? '')),
         );
 
         return $out;
@@ -1359,7 +1480,7 @@ final readonly class ConfigFingerprintInputBuilder
         $keys = \array_keys($value);
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -1680,13 +1801,13 @@ final readonly class ConfigFingerprintInputBuilder
     private static function assertCompiledConfigShape(array $compiledConfig): void
     {
         if (!isset($compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS]) || !\is_array(
-            $compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS]
+            $compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS],
         )) {
             throw new \InvalidArgumentException('fingerprint-compiled-env-overlay-mappings-missing');
         }
 
         if (!isset($compiledConfig[self::KEY_CONFIG_SOURCE_FILES]) || !\is_array(
-            $compiledConfig[self::KEY_CONFIG_SOURCE_FILES]
+            $compiledConfig[self::KEY_CONFIG_SOURCE_FILES],
         )) {
             throw new \InvalidArgumentException('fingerprint-compiled-config-source-files-missing');
         }
@@ -1708,19 +1829,19 @@ final readonly class ConfigFingerprintInputBuilder
         }
 
         if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]
+            $compiledConfig[self::KEY_VALIDATION_SUBJECTS],
         )) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-missing');
         }
 
         if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated']) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated']
+            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated'],
         )) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-invalid');
         }
 
         if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated']) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated']
+            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated'],
         )) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-invalid');
         }

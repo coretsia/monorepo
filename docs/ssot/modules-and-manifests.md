@@ -22,7 +22,7 @@ owner: core/contracts
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, deterministic module descriptor ordering, runtime module dependency metadata, and ordered compile-time provider metadata.
+This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, the consumer installation catalog boundary, installed module manifest shape policy, per-target module plans, manifest reader semantics, deterministic module descriptor ordering, runtime module dependency metadata, and ordered compile-time provider metadata.
 
 This document governs contracts introduced by epic `1.70.0` under:
 
@@ -309,55 +309,58 @@ Class existence, instantiability, declarative-provider compatibility, global dup
 
 ## Kernel ModulePlan output invariants
 
-Kernel-owned `ModulePlan` output is artifact-ready resolved module graph state.
+`ModuleManifest` in `core/contracts` is the immutable installed-module discovery snapshot. It is not the Kernel-generated `module-manifest@1` artifact, which contains the resolved `ModulePlan::toArray()` payload. No separate runtime installed-manifest type is introduced.
 
-The resolved module id sets:
+`ModePreset` is namespace-owned policy source data. Kernel-internal compile-host `ModuleSelection` is the unique effective runtime selection input to Phase B; it has canonical, unique, `strcmp`-sorted, disjoint `roots` and `excluded` collections. `ModuleGraphResolver` reads the installed `ModuleManifest` and `ModuleSelection` only. Selected roots must exist; required dependency closure is preserved; excluded transitive dependencies fail even if not installed; all installed descriptors are validated before graph-policy failure selection.
+
+Kernel-owned `ModulePlan` exports exactly:
 
 ```text
+app
 enabled
-disabled
-optionalMissing
+excluded
+modules
+schemaVersion
+topologicalOrder
 ```
 
-MUST be pairwise disjoint.
+`ModulePlan::SCHEMA_VERSION` is `1`. `enabled` and `excluded` are sorted, unique and disjoint; `topologicalOrder` contains each enabled module exactly once, in dependency-first graph order, and `modules` contains exactly the enabled entries. The plan does not carry provider class lists, provider instances, provider-order indexes, complete installed `ModuleManifest`, preset source metadata, filesystem paths, or compile-host services.
 
-The following intersections MUST be empty:
+Provider metadata remains available through the manifest of the same `ModuleResolution` snapshot. `ContainerProviderPlanResolver` consumes that snapshot at compile time; no provider-planning context is added to the artifact-ready `ModulePlan`.
 
-```text
-enabled ∩ disabled
-enabled ∩ optionalMissing
-disabled ∩ optionalMissing
-```
-
-A module id MUST NOT be exported as enabled, disabled, and/or optional-missing at the same time.
-
-`topologicalOrder` and `modules` are derived from enabled modules only. They MUST NOT contain disabled modules or optional-missing modules.
-
-`ModulePlan` MUST NOT contain or export:
-
-- `metadata.providers`;
-- provider class lists;
-- provider instances;
-- provider-order indexes;
-- `ContainerProviderPlan`;
-- the full installed `ModuleManifest`.
-
-Provider metadata remains available through the installed manifest contained by Kernel-owned `ModuleResolution`.
-
-Provider planning consumes that `ModuleResolution` at compile time.
-
-The contracts-level `ModulePlan` shape MUST NOT be expanded merely to carry compile-time provider-planning context.
-
-Detailed graph-resolution ordering, conflict classification, optional-missing behavior, and ModulePlan construction policy are owned by:
+Detailed failure precedence and deterministic graph resolution are defined in:
 
 ```text
 docs/adr/ADR-0024-kernel-module-plan-resolution.md
-docs/adr/ADR-0025-kernel-conflicts-optional-missing-policy.md
+docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
 ```
+
+## Installation catalog, installed ModuleManifest, and per-target ModulePlan
+
+Coretsia uses three different module structures at different lifecycle stages:
+
+```text
+ReleaseInstallationCatalog
+    = package-distributed pre-install planning data
+
+ModuleManifest
+    = validated installed runtime module metadata from Composer
+
+ModulePlan
+    = resolved enabled runtime graph for one explicit application target
+```
+
+The installation catalog is a versioned `core/kernel` package resource. It maps canonical `ModuleId` values to Composer package identities and validated module dependency/conflict edges before optional packages are installed. It is not installed-state discovery and MUST NOT contain repository source paths.
+
+`ModuleManifest` describes what is actually installed in the current Composer environment. Runtime/compile-host installed discovery MUST use Composer installed metadata and MUST NOT substitute the installation catalog for the installed manifest.
+
+`ModulePlan` is target-local. It is resolved from one effective `ModuleSelection` and validated graph entries. Physical packages present for another target or as Composer transitive dependencies MUST NOT expand a target's enabled runtime modules automatically.
+
+DependencySync uses the installation catalog to derive an immutable `ProjectPackagePlan`, executes explicitly authorized Composer effects, then verifies every selected target against the fresh installed `ModuleManifest`.
 
 ## Runtime metadata and tooling package-index boundary
 
-Repository package-index tooling is tooling-only and MUST NOT become a runtime manifest source.
+Repository package-index tooling is tooling-only and MUST NOT become a runtime manifest source or a consumer installation-planning catalog.
 
 Runtime manifest construction MUST use installed Composer metadata through `ManifestReaderInterface`.
 
@@ -1132,6 +1135,16 @@ Provider metadata MUST NOT contain:
 - runtime payloads.
 
 Secret-backed runtime behavior belongs to runtime owner packages, not to contracts descriptors.
+
+## DependencySync boundary
+
+Physical package planning and installed runtime planning share module identities and graph semantics but not data sources.
+
+DependencySync MAY use the package-distributed installation catalog before Composer. After Composer, verification MUST use current installed metadata in a fresh process and resolve one `ModulePlan` per explicit target.
+
+Composer package dependency edges remain Composer solver input. Runtime selected modules remain `ModuleGraphResolver` policy. One MUST NOT be inferred from the other.
+
+The normative synchronization lifecycle is defined in `docs/ssot/application-dependency-sync.md`.
 
 ## Non-goals
 

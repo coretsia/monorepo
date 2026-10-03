@@ -548,6 +548,14 @@ Those services include:
 Bootstrap Phase A services
 dotenv loaders
 Composer metadata readers
+ModuleResolutionOrchestrator
+ModuleSelectionFactory
+PresetNamespaceResolver
+CanonicalPresetSource
+CustomPresetSource
+ModuleSelection
+ResolvedModuleOverrides
+ModuleGraphResolver
 ModulePlanResolver
 ContainerProviderPlanResolver
 ConfigKernel
@@ -602,6 +610,8 @@ container definition graph.
 Only Kernel runtime services belong in the Kernel provider contribution.
 
 Compile-host services may produce or validate runtime artifacts, but they are not runtime graph definitions and must not appear as runtime service or alias bindings, required services, service references, factory-service targets, tagged services, or constructed service classes in the compiled graph.
+
+`ModuleResolutionOrchestrator` owns the compile-host selection/discovery operation; `ModulePlanResolver` is a pure Phase B coordinator requiring an already built `ModuleSelection` and `ModuleManifest`. All preset sources, namespace resolution, module-override state, selection factory, graph resolver, and orchestrator are excluded from runtime definitions. The validated artifact hydrates only `ModulePlan` as the immutable module-graph runtime seed.
 
 ### Decision 14: Compile-time provider planning consumes one ModuleResolution
 
@@ -928,7 +938,7 @@ Tests must also prove:
 - Kernel compile-host service ids do not appear in the Kernel runtime definition stream;
 - mandatory and possible container-owned graph lookups resolved through `ContainerInterface` have matching required-service declarations;
 - one module-resolution run reads the installed manifest exactly once;
-- `resolve()` delegates through `resolveResolution()->plan()`;
+- `ModuleResolutionOrchestrator::resolve()` returns one `ModuleResolution`, and provider planning consumes its `plan()` without repeating discovery;
 - `ModuleResolution` contains the exact manifest supplied to graph resolution;
 - `ContainerProviderPlan` contains class names and ordering metadata only;
 - `ModulePlan` remains free of provider class lists;

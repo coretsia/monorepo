@@ -242,9 +242,7 @@ same declared configuration sources
 same effective allowed environment
 +
 same precedence
-
 ↓
-
 same effective configuration
 +
 same source attribution
@@ -280,13 +278,11 @@ For the same semantic module graph:
 manifest permutation A
 manifest permutation B
 manifest permutation C
-
 ↓
-
 identical ModulePlan
 ```
 
-Module identity, dependency closure, optional-missing state, conflicts, warnings, and topological ordering MUST be derived deterministically.
+`ModuleSelection` roots and exclusions, installed-descriptor validation, required-dependency closure, excluded-dependency failures, enabled-module conflicts, selected-root missing failures, cycles, and topological ordering MUST be derived deterministically. An excluded dependency takes precedence over required-missing candidates even if its descriptor is absent. A nonselected invalid installed descriptor fails before graph-policy selection.
 
 Topological ordering MUST satisfy dependency order first and use canonical deterministic tie-breaking when several modules are simultaneously eligible.
 
@@ -295,6 +291,8 @@ Module diagnostics expose canonical module identifiers and MUST NOT depend on di
 Application target metadata MUST NOT accidentally change module selection where it is defined only as output metadata.
 
 ---
+
+Canonical mode-preset names select Kernel-owned resources and custom names select application-owned resources without filesystem fallback. Each selected preset contributes one deterministic namespace-owned fingerprint candidate (`path`, `filesystemPath`, `sourceId`, `precedence`), even when a custom file is absent; inspection executes no PHP. Phase A rejects malformed per-target `moduleOverrides` and preserves raw-list duplicate evidence until validation. `ModuleSelectionFactory` creates canonical effective roots and exclusions without manifest access; only this selection reaches `ModuleGraphResolver`. `ModulePlan` exports exactly `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, and dependency-ordered `topologicalOrder`. The `module-manifest@1` envelope and schema version remain unchanged.
 
 ## Provider and container ordering
 
@@ -394,9 +392,7 @@ Determinism requires both invariance and sensitivity.
 same semantic application
 +
 different irrelevant physical state
-
 ↓
-
 same fingerprint
 ```
 
@@ -404,9 +400,7 @@ same fingerprint
 
 ```
 fingerprint-relevant semantic change
-
 ↓
-
 different fingerprint
 ```
 
@@ -482,9 +476,7 @@ different physical root
 different relevant file creation order
 +
 different irrelevant filesystem state
-
 ↓
-
 same fingerprint
 +
 same generation id
@@ -608,9 +600,7 @@ For the same invalid semantic state:
 
 ```
 same invalid state
-
 ↓
-
 same error classification
 +
 same reason
@@ -815,8 +805,6 @@ The production rule remains:
 canonical semantic inputs
 +
 controlled entropy boundaries
-
 ↓
-
 canonical semantic results
 ```

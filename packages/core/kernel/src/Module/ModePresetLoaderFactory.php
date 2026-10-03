@@ -19,7 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Module;
 
 use Coretsia\Kernel\Boot\BootstrapConfig;
-use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
+use Coretsia\Kernel\Module\Exception\CanonicalPresetOverrideException;
+use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
+use Coretsia\Kernel\Module\Preset\CanonicalPresetNames;
+use Coretsia\Kernel\Module\Preset\CanonicalPresetSource;
+use Coretsia\Kernel\Module\Preset\CustomPresetSource;
+use Coretsia\Kernel\Module\Preset\PresetNamespace;
+use Coretsia\Kernel\Module\Preset\PresetSourceInterface;
 
 /**
  * Creates per-resolution filesystem mode preset loaders.
@@ -52,8 +58,6 @@ final readonly class ModePresetLoaderFactory
 {
     private const int SUPPORTED_SCHEMA_VERSION = 1;
     private const int MAX_RELATIVE_PATH_BYTES = 256;
-    private const int SOURCE_PRECEDENCE_KERNEL_DEFAULT = 10;
-    private const int SOURCE_PRECEDENCE_APPLICATION_OVERRIDE = 20;
 
     private string $packageRoot;
     private string $defaultsPath;
@@ -87,86 +91,101 @@ final readonly class ModePresetLoaderFactory
         );
     }
 
-    public function createFor(BootstrapConfig $bootstrapConfig): FilesystemModePresetLoader
-    {
-        $resolvedPaths = $this->resolvedPaths($bootstrapConfig);
-
-        return new FilesystemModePresetLoader(
-            kernelDefaultsPath: $resolvedPaths['kernelDefaultsPath'],
-            applicationOverridesPath: $resolvedPaths['applicationOverridesPath'],
-            schemaValidator: $this->schemaValidator,
-        );
-    }
-
-    /**
-     * Returns both declared preset source candidates for fingerprint topology.
-     * Candidate existence does not affect emission.
-     *
-     * @return list<array{
-     *     path: string,
-     *     filesystemPath: string,
-     *     sourceId: string,
-     *     precedence: int
-     * }>
-     */
-    public function sourceCandidatesFor(
+    public function createFor(
         BootstrapConfig $bootstrapConfig,
-    ): array {
-        $preset = $bootstrapConfig->preset();
-
-        if (!self::isSafePresetName($preset)) {
-            throw ModePresetNotFoundException::invalidPresetName();
-        }
-
-        $resolvedPaths = $this->resolvedPaths($bootstrapConfig);
-        $overrideLogicalPath = $this->overridesPath . '/' . $preset . '.php';
-        $kernelLogicalPath = $this->defaultsPath . '/' . $preset . '.php';
-
-        return [
-            [
-                'path' => $overrideLogicalPath,
-                'filesystemPath' => self::joinPath(
-                    root: $resolvedPaths['applicationOverridesPath'],
-                    relativePath: $preset . '.php',
-                ),
-                'sourceId' => 'application:' . $overrideLogicalPath,
-                'precedence' => self::SOURCE_PRECEDENCE_APPLICATION_OVERRIDE,
-            ],
-            [
-                'path' => $kernelLogicalPath,
-                'filesystemPath' => self::joinPath(
-                    root: $resolvedPaths['kernelDefaultsPath'],
-                    relativePath: $preset . '.php',
-                ),
-                'sourceId' => 'core/kernel:' . $kernelLogicalPath,
-                'precedence' => self::SOURCE_PRECEDENCE_KERNEL_DEFAULT,
-            ],
-        ];
+        PresetNamespace $namespace,
+    ): FilesystemModePresetLoader {
+        return new FilesystemModePresetLoader($this->sourceFor($bootstrapConfig, $namespace), $this->schemaValidator);
     }
 
     /**
      * @return array{
-     *     kernelDefaultsPath: string,
-     *     applicationOverridesPath: string
+     *     path:string,
+     *     filesystemPath:string,
+     *     sourceId:string,
+     *     precedence:int
      * }
      */
-    private function resolvedPaths(BootstrapConfig $bootstrapConfig): array
-    {
-        $applicationRoot = self::normalizeRootBoundary(
-            root: $bootstrapConfig->applicationRoot(),
-            reason: 'mode-preset-loader-factory-application-root-invalid',
-        );
+    public function sourceCandidateFor(
+        BootstrapConfig $bootstrapConfig,
+        PresetNamespace $namespace,
+    ): array {
+        return $this->sourceFor($bootstrapConfig, $namespace)->sourceCandidate($bootstrapConfig->preset());
+    }
 
-        return [
-            'kernelDefaultsPath' => self::joinPath(
-                root: $this->packageRoot,
-                relativePath: $this->defaultsPath,
-            ),
-            'applicationOverridesPath' => self::joinPath(
-                root: $applicationRoot,
-                relativePath: $this->overridesPath,
-            ),
-        ];
+    private function sourceFor(
+        BootstrapConfig $config,
+        PresetNamespace $namespace,
+    ): PresetSourceInterface {
+        $appRoot = self::validatedRoot($config->applicationRoot(), 'mode-preset-application-root-invalid');
+        $kernelRoot = self::validatedRoot($this->packageRoot, 'mode-preset-kernel-root-invalid');
+        $applicationDirectory = self::validatedDirectory($appRoot, $this->overridesPath, $config->preset());
+        foreach (CanonicalPresetNames::all() as $canonicalName) {
+            $reserved = \rtrim($applicationDirectory, '/\\') . \DIRECTORY_SEPARATOR . $canonicalName . '.php';
+            if (\file_exists($reserved) || \is_link($reserved)) {
+                throw CanonicalPresetOverrideException::forPreset($canonicalName);
+            }
+        }
+        if ($namespace === PresetNamespace::Canonical) {
+            return new CanonicalPresetSource(
+                self::validatedDirectory($kernelRoot, $this->defaultsPath, $config->preset()),
+                $this->defaultsPath,
+                $kernelRoot,
+            );
+        }
+        return new CustomPresetSource(
+            $applicationDirectory,
+            $this->overridesPath,
+            $appRoot,
+        );
+    }
+
+    private static function validatedRoot(string $root, string $reason): string
+    {
+        $resolved = \realpath($root);
+        if ($resolved === false || !\is_dir($resolved)) {
+            throw new \InvalidArgumentException($reason);
+        }
+        return $resolved;
+    }
+
+    /**
+     * Resolve existing ancestors one segment at a time;
+     * no configured directory may escape its owning root via symlinks.
+     */
+    private static function validatedDirectory(string $root, string $relativePath, string $name): string
+    {
+        $current = $root;
+        $declared = $root;
+
+        foreach (\explode('/', $relativePath) as $segment) {
+            $declared = \rtrim($declared, '/\\') . \DIRECTORY_SEPARATOR . $segment;
+            $next = \rtrim($current, '/\\') . \DIRECTORY_SEPARATOR . $segment;
+
+            if (\file_exists($next) || \is_link($next)) {
+                $resolved = \realpath($next);
+
+                if ($resolved === false || !\is_dir($resolved) || !self::within($resolved, $root)) {
+                    throw ModePresetInvalidException::forPreset(self::safeName($name));
+                }
+
+                $current = $resolved;
+            } else {
+                $current = $next;
+            }
+        }
+
+        return $declared;
+    }
+
+    private static function safeName(string $name): string
+    {
+        return self::isSafePresetName($name) ? $name : 'invalid';
+    }
+
+    private static function within(string $path, string $root): bool
+    {
+        return $path === $root || \str_starts_with($path, \rtrim($root, '/\\') . \DIRECTORY_SEPARATOR);
     }
 
     private static function isSafePresetName(string $preset): bool
@@ -275,18 +294,6 @@ final readonly class ModePresetLoaderFactory
         }
 
         return $root;
-    }
-
-    private static function joinPath(string $root, string $relativePath): string
-    {
-        $trimmedRoot = \rtrim($root, '/\\');
-        $relativePath = \str_replace('/', \DIRECTORY_SEPARATOR, $relativePath);
-
-        if ($trimmedRoot === '') {
-            return \DIRECTORY_SEPARATOR . $relativePath;
-        }
-
-        return $trimmedRoot . \DIRECTORY_SEPARATOR . $relativePath;
     }
 
     private static function isSafeRelativePathSegment(string $segment): bool

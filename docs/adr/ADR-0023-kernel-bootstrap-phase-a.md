@@ -37,6 +37,7 @@ debug
 artifactsCacheDir
 envSourcePolicy
 appRoot
+moduleOverrides: ResolvedModuleOverrides
 immutable EnvRepositoryInterface snapshot
 ```
 
@@ -144,6 +145,7 @@ debug
 artifactsCacheDir
 envSourcePolicy
 appRoot
+moduleOverrides: ResolvedModuleOverrides
 immutable EnvRepositoryInterface snapshot
 ```
 
@@ -211,6 +213,24 @@ Phase A must not infer the application target from filesystem state.
 
 Phase A must not choose an application by scanning sibling app directories.
 
+## Installation-planning boundary
+
+Bootstrap Phase A resolves policy for one explicit `AppTarget`; it does not own a project-wide installation set.
+
+`ProjectApplicationSet` is the separate DependencySync input that names every target participating in one consumer installation operation. DependencySync reuses the existing Phase A path independently for each selected target. Application directories and per-target configuration keys do not add targets implicitly.
+
+`ProjectInstallationIntent::fixedPresetByTarget()` may intentionally provide the explicit `BootstrapInput::preset()` value for a selected target. When no fixed preset is declared for that target, DependencySync leaves `BootstrapInput::preset()` unset so the normal Phase A precedence remains authoritative:
+
+```text
+config/app.php presets[appTarget]
+config/app.php preset
+kernel.boot.default_preset
+```
+
+The installation-only fixed preset is therefore an explicit caller decision through the existing precedence seam, not another persistent preset source. It does not mutate `config/app.php`.
+
+Phase A itself remains non-effectful: it does not edit `composer.json`, execute Composer, or inspect the DependencySync installation catalog during runtime boot.
+
 ## Decision 3: BootstrapInput is entrypoint-owned input only
 
 `Coretsia\Kernel\Boot\BootstrapInput` is the immutable entrypoint-owned input object.
@@ -266,6 +286,7 @@ envSourcePolicy
 appTarget
 applicationRoot
 appRoot
+moduleOverrides: ResolvedModuleOverrides
 ```
 
 `BootstrapConfig` must not:
@@ -304,6 +325,7 @@ preset
 debug
 artifactsCacheDir
 envSourcePolicy
+moduleOverrides: ResolvedModuleOverrides
 ```
 
 Artifact cache directory resolution has this deterministic precedence:
@@ -343,7 +365,7 @@ The `presets` map must not:
 - infer app target;
 - modify app target;
 - scan `apps/*`;
-- participate in module enable/disable composition.
+- determine effective module-selection roots; the separately validated selected-target `moduleOverrides` value is handled by `BootstrapConfigResolver`.
 
 If `presets` exists but does not contain the selected app target, the resolver falls back to the global `preset` override.
 
@@ -359,7 +381,7 @@ Phase A must not validate preset file existence.
 
 Phase A must not validate preset schema.
 
-Preset file existence and preset schema validation are owned by ModulePlan resolution.
+Preset file existence and schema validation are owned by the compile-host `ModuleResolutionOrchestrator` and its namespace-bound preset loader, not Bootstrap Phase A.
 
 The resolver returns a resolved `BootstrapConfig`.
 
@@ -433,6 +455,7 @@ preset
 presets
 debug
 artifactsCacheDir
+moduleOverrides
 ```
 
 Unknown top-level keys fail with:
@@ -449,6 +472,7 @@ preset: non-empty safe string
 presets: string-keyed map of appTarget => non-empty safe preset string
 debug: bool
 artifactsCacheDir: portable applicationRoot-relative artifact output directory
+moduleOverrides: partial map<appTarget, {include?: list<string>, exclude?: list<string>}>
 ```
 
 `preset` is a global fallback preset override.
@@ -486,6 +510,12 @@ return [
         'web' => 'express',
         'console' => 'hybrid',
         'worker' => 'enterprise',
+    ],
+    'moduleOverrides' => [
+        'web' => [
+            'include' => ['integrations.foo'],
+            'exclude' => ['platform.worker'],
+        ],
     ],
 ];
 ```
@@ -525,7 +555,7 @@ BootstrapException::REASON_OVERRIDES_INVALID
 - infer app target;
 - modify app target;
 - scan `apps/*`;
-- participate in module enable/disable composition.
+- determine effective module-selection roots; the separately validated selected-target `moduleOverrides` value is handled by `BootstrapConfigResolver`.
 
 The loader must not read:
 
@@ -537,11 +567,19 @@ config/environments/**
 apps/<appTarget>/config/**
 ```
 
-Module enable/disable composition is not handled by Phase A.
+Phase A validates selected-app-target include/exclude override input but does not load preset policy or resolve effective roots and dependency closure.
 
-Module composition is owned by ModulePlan resolution and is resolved from preset files plus Composer metadata.
+`BootstrapConfigResolver` validates selected-app-target `moduleOverrides` in Phase A. For installed runtime resolution, the compile-host orchestrator combines them with namespace-owned preset policy into `ModuleSelection`, then resolves that selection against installed module metadata.
+
+For explicit DependencySync installation planning, the same Phase A result is produced independently per selected target and the resulting `ModuleSelection` is resolved against the versioned installation catalog before Composer. Phase A itself does not know or read that catalog.
 
 Override values must not appear in exception messages.
+
+### Bootstrap app-target module overrides
+
+`config/app.php` MAY contain a partial `moduleOverrides` map keyed only by `api`, `console`, `web`, and `worker`, each with optional `include` and `exclude` **list<string>** fields. The loader validates the raw shape for every provided target, rejects unknown keys/invalid list items and preserves source duplicates without sorting or constructing module ids. Missing list keys default to empty lists.
+
+For the already selected app target, `BootstrapConfigResolver` validates each external id against its exact canonical `ModuleId::value()` and rejects duplicates within either source list and `include ∩ exclude`. It normalizes valid lists using `ModuleIdSetNormalizer` and constructs one immutable `ResolvedModuleOverrides`; an absent selected target yields empty `include` and `exclude`. Invalid raw or canonical id input fails with `BootstrapException::REASON_OVERRIDES_INVALID` and path-safe diagnostics. Phase A does **not** load a preset, read `ModuleManifest`, construct `ModuleSelection`, or resolve dependency closure. `BootstrapConfig` keeps the already resolved preset name alongside this immutable override value.
 
 ## Decision 7: BootstrapEnvSourcePolicy is source precedence only
 
@@ -912,7 +950,7 @@ transport / CLI owner
   -> KernelArtifactOperation
   -> BootstrapConfigResolver
   -> EnvRepositoryBuilder
-  -> ModulePlanResolver::resolveResolution()
+  -> ModuleResolutionOrchestrator::resolve()
   -> ConfigSourceLocationBuilder
   -> ArtifactCompiler / CacheVerifier
 ```
@@ -974,6 +1012,15 @@ BootstrapConfigResolver
 DotenvLoader
 EnvRepositoryBuilder
 Composer metadata readers
+ModuleResolutionOrchestrator
+ModuleSelectionFactory
+PresetNamespaceResolver
+ModePresetLoaderFactory
+CanonicalPresetSource
+CustomPresetSource
+ModuleSelection
+ResolvedModuleOverrides
+ModuleGraphResolver
 ModulePlanResolver
 ComposerPackageInstallPathResolver
 ConfigSourceLocationBuilder
@@ -1005,6 +1052,23 @@ KernelRuntimeInterface alias
 ```
 
 Phase A or Phase B services must not be re-read by Kernel runtime factories.
+
+The compile-host-only boundary includes `ModuleResolutionOrchestrator`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `CanonicalPresetSource`, `CustomPresetSource`, `ModuleSelection`, `ResolvedModuleOverrides`, and pure `ModulePlanResolver`. These types never become compiled runtime definitions or runtime seeds. Only `ModulePlan` is hydrated as the approved immutable module-graph runtime seed from the validated `module-manifest@1` payload, whose exact keys are `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, and `topologicalOrder`; artifact identity and both schema versions remain `1`. Runtime boot never invokes preset loading or Composer discovery.
+
+### ModulePlan-derived module-manifest payload
+
+The existing `module-manifest@1` artifact has envelope `_meta.schemaVersion = 1` and an exact `ModulePlan`-derived `payload.schemaVersion = 1`. Its only payload keys are:
+
+```text
+app
+enabled
+excluded
+modules
+schemaVersion
+topologicalOrder
+```
+
+`enabled` and `excluded` are disjoint unique sorted module-id lists; `topologicalOrder` preserves dependency-first order, not alphabetical order. `modules` contains exactly enabled module entries. `ModulePlanArtifactHydrator` validates and restores this payload as the immutable runtime `ModulePlan`; the contracts `ModuleManifest` remains a distinct compile-host installed-discovery snapshot. No compile-host selection or namespace-source object enters the payload or runtime seeds. `config@1`, `container@1`, and `artifact-generation@1` retain their identities and schema versions.
 
 ## Decision 17: Artifact-only runtime boot is separate from Bootstrap Phase A
 
@@ -1124,7 +1188,7 @@ Artifact cache location is resolved before artifact lookup without depending on 
 
 Applications may relocate Kernel artifacts within the application root through a bootstrap-only override while preserving deterministic precedence.
 
-Per-app preset selection can be expressed in bootstrap-only `config/app.php` without introducing a module-selection source.
+Per-app preset selection and selected-target module overrides are represented separately in bootstrap-only `config/app.php`; Phase A resolves the preset name and validates the immutable `ResolvedModuleOverrides` without traversing the installed module graph.
 
 The selected app target remains explicit even when `presets` contains entries for multiple app targets.
 
@@ -1171,7 +1235,7 @@ Entrypoints or platform packages that need only the narrow Phase A values may co
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
-`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, and `artifactsCacheDir`.
+`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, `artifactsCacheDir`, and `moduleOverrides`.
 
 Other bootstrap inputs require explicit entrypoint input or an explicit extension of the Bootstrap Phase A contract.
 
@@ -1179,7 +1243,7 @@ Artifact cache relocation is limited to a portable, bounded, `applicationRoot`-r
 
 Absolute paths and relocation into source, config, public, dependency, or repository-owned roots are intentionally unsupported.
 
-`presets` can select different preset names per app target, but it does not validate that those preset files exist. Missing preset files are reported later by ModulePlan resolution.
+`presets` can select different preset names per app target, but it does not validate that those preset files exist. Missing selected preset files are reported later by the namespace-bound loader invoked by `ModuleResolutionOrchestrator`.
 
 Phase A does not validate the existence of `appRoot`, so later phases must own application root existence checks when needed.
 
@@ -1221,7 +1285,7 @@ from explicit input only.
 
 Rejected.
 
-Module enable/disable composition is owned by ModulePlan.
+Preset-policy combination with validated include/exclude overrides is owned by `ModuleSelectionFactory`, and installed dependency-graph resolution is owned by `ModuleGraphResolver`.
 
 Phase A reads only bootstrap-only `config/app.php`.
 
@@ -1379,7 +1443,7 @@ This ADR does not introduce:
 - config explain output;
 - env overlays;
 - module planning;
-- module enable/disable composition;
+- preset-policy combination into effective selected roots;
 - preset file parsing;
 - storing `presets` in `BootstrapConfig`;
 - validating preset file existence during Phase A;
@@ -1433,6 +1497,9 @@ Verification must prove:
 - `BootstrapOverridesLoader` reads `config/app.php` when present;
 - `BootstrapOverridesLoader` does not read `config/modules.php`;
 - unknown override keys fail deterministically;
+- moduleOverrides accepts only known app targets and per-target include/exclude list keys;
+- duplicate and non-canonical selected-target module ids, include/exclude overlap and invalid override input fail with `BootstrapException::REASON_OVERRIDES_INVALID`;
+- missing selected-target moduleOverrides produce empty immutable `ResolvedModuleOverrides`;
 - raw override values do not leak in exception messages;
 - bare application boot works without any application config files;
 - package defaults are used when explicit input and overrides are absent;
@@ -1484,6 +1551,7 @@ Verification must prove:
 
 ## Related SSoT
 
+- `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/config-and-env.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/uow-and-reset-contracts.md`
@@ -1495,3 +1563,4 @@ Verification must prove:
 ## Related ADR
 
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
+- `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`

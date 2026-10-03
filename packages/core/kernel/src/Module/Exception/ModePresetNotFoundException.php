@@ -21,8 +21,7 @@ namespace Coretsia\Kernel\Module\Exception;
 /**
  * Deterministic mode preset not-found failure.
  *
- * Used when the selected preset cannot be resolved from the application override
- * path or the Kernel package default path.
+ * Used when a selected preset is absent in its already-bound namespace source.
  *
  * Diagnostics intentionally expose only the safe preset name and stable reason
  * token. They must not expose resolved filesystem paths, application root,

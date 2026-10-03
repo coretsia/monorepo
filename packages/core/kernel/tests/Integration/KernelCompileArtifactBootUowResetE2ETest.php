@@ -43,8 +43,12 @@ use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
+use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -94,8 +98,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                     'required' => [
                         'platform.lifecycle-fixture',
                     ],
-                    'optional' => [],
-                    'disabled' => [],
+                    'modules' => [],
                     'featureBundles' => [],
                     'metadata' => [],
                 ],
@@ -155,20 +158,11 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 . 'composer.json',
             );
 
-            self::assertSame(
-                'coretsia/core-foundation',
-                $foundationComposer['name'] ?? null,
-            );
+            self::assertSame('coretsia/core-foundation', $foundationComposer['name'] ?? null);
             self::assertSame('library', $foundationComposer['type'] ?? null);
-            self::assertSame(
-                'coretsia/core-kernel',
-                $kernelComposer['name'] ?? null,
-            );
+            self::assertSame('coretsia/core-kernel', $kernelComposer['name'] ?? null);
             self::assertSame('library', $kernelComposer['type'] ?? null);
-            self::assertSame(
-                'coretsia/kernel-lifecycle-fixture',
-                $fixtureComposer['name'] ?? null,
-            );
+            self::assertSame('coretsia/kernel-lifecycle-fixture', $fixtureComposer['name'] ?? null);
             self::assertSame('library', $fixtureComposer['type'] ?? null);
 
             $installedData = [
@@ -210,12 +204,17 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $configSourceLocationBuilder = new ConfigSourceLocationBuilder(
                 installPathResolver: $installPathResolver,
                 modePresetLoaderFactory: $modePresetLoaderFactory,
+                presetNamespaceResolver: new PresetNamespaceResolver(),
             );
-            $modulePlanResolver = new ModulePlanResolver(
+            $moduleResolutionOrchestrator = new ModuleResolutionOrchestrator(
                 presetLoaderFactory: $modePresetLoaderFactory,
+                presetNamespaceResolver: new PresetNamespaceResolver(),
+                moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
                 manifestReader: $manifestReader,
-                graphResolver: new ModuleGraphResolver(
-                    new TopologicalSorter(),
+                modulePlanResolver: new ModulePlanResolver(
+                    graphResolver: new ModuleGraphResolver(
+                        new TopologicalSorter(),
+                    ),
                 ),
                 tracer: new NoopTracer(),
                 meter: new NoopMeter(),
@@ -225,6 +224,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             );
             $bootstrapConfigResolver = new BootstrapConfigResolver(
                 new BootstrapOverridesLoader(),
+                new ModuleIdSetNormalizer(),
             );
             $envRepositoryBuilder = new EnvRepositoryBuilder(
                 new DotenvLoader(),
@@ -232,7 +232,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $operation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
                 envRepositoryBuilder: $envRepositoryBuilder,
-                modulePlanResolver: $modulePlanResolver,
+                moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
@@ -609,10 +609,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
 
                     $service->remember('uow-after-failure');
 
-                    self::assertSame(
-                        'uow-after-failure',
-                        $service->state(),
-                    );
+                    self::assertSame('uow-after-failure', $service->state());
 
                     return 'recovered';
                 },
@@ -680,8 +677,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                     'required' => [
                         'platform.lifecycle-fixture',
                     ],
-                    'optional' => [],
-                    'disabled' => [],
+                    'modules' => [],
                     'featureBundles' => [],
                     'metadata' => [],
                 ],
@@ -816,12 +812,17 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $configSourceLocationBuilder = new ConfigSourceLocationBuilder(
                 installPathResolver: $installPathResolver,
                 modePresetLoaderFactory: $modePresetLoaderFactory,
+                presetNamespaceResolver: new PresetNamespaceResolver(),
             );
-            $modulePlanResolver = new ModulePlanResolver(
+            $moduleResolutionOrchestrator = new ModuleResolutionOrchestrator(
                 presetLoaderFactory: $modePresetLoaderFactory,
+                presetNamespaceResolver: new PresetNamespaceResolver(),
+                moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
                 manifestReader: $manifestReader,
-                graphResolver: new ModuleGraphResolver(
-                    new TopologicalSorter(),
+                modulePlanResolver: new ModulePlanResolver(
+                    graphResolver: new ModuleGraphResolver(
+                        new TopologicalSorter(),
+                    ),
                 ),
                 tracer: new NoopTracer(),
                 meter: new NoopMeter(),
@@ -831,6 +832,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             );
             $bootstrapConfigResolver = new BootstrapConfigResolver(
                 new BootstrapOverridesLoader(),
+                new ModuleIdSetNormalizer(),
             );
             $envRepositoryBuilder = new EnvRepositoryBuilder(
                 new DotenvLoader(),
@@ -838,7 +840,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $operation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
                 envRepositoryBuilder: $envRepositoryBuilder,
-                modulePlanResolver: $modulePlanResolver,
+                moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
@@ -892,11 +894,15 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
 
             $variantMetadataProvider = new ComposerInstalledMetadataProvider($variantInstalledData);
             $variantManifestReader = new ComposerManifestReader($variantMetadataProvider);
-            $variantModulePlanResolver = new ModulePlanResolver(
+            $variantModuleResolutionOrchestrator = new ModuleResolutionOrchestrator(
                 presetLoaderFactory: $modePresetLoaderFactory,
+                presetNamespaceResolver: new PresetNamespaceResolver(),
+                moduleSelectionFactory: new ModuleSelectionFactory(new ModuleIdSetNormalizer()),
                 manifestReader: $variantManifestReader,
-                graphResolver: new ModuleGraphResolver(
-                    new TopologicalSorter(),
+                modulePlanResolver: new ModulePlanResolver(
+                    graphResolver: new ModuleGraphResolver(
+                        new TopologicalSorter(),
+                    ),
                 ),
                 tracer: new NoopTracer(),
                 meter: new NoopMeter(),
@@ -909,8 +915,8 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 $bootstrapInput,
                 $kernelConfig,
             );
-            $baselineResolutionForGraphProof = $modulePlanResolver->resolveResolution($graphProofBootstrapConfig);
-            $variantResolutionForGraphProof = $variantModulePlanResolver->resolveResolution($graphProofBootstrapConfig);
+            $baselineResolutionForGraphProof = $moduleResolutionOrchestrator->resolve($graphProofBootstrapConfig);
+            $variantResolutionForGraphProof = $variantModuleResolutionOrchestrator->resolve($graphProofBootstrapConfig);
 
             self::assertSame(
                 $baselineResolutionForGraphProof->plan()->toArray(),
@@ -954,7 +960,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $variantOperation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
                 envRepositoryBuilder: $envRepositoryBuilder,
-                modulePlanResolver: $variantModulePlanResolver,
+                moduleResolutionOrchestrator: $variantModuleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
@@ -1047,10 +1053,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
 
             self::assertIsString($bytes);
 
-            $hashes[$path] = \hash(
-                'sha256',
-                $bytes,
-            );
+            $hashes[$path] = \hash('sha256', $bytes);
         }
 
         return $hashes;

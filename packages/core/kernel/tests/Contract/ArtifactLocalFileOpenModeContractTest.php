@@ -22,18 +22,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ArtifactLocalFileOpenModeContractTest extends TestCase
 {
-    public function testGenerationLockUsesPlatformAwareCloseOnExecMode(): void
-    {
-        $source = self::source(
-            'src/Artifacts/Generation/ArtifactGenerationLock.php',
-        );
-
-        self::assertStringContainsString('self::openMode()', $source);
-        self::assertStringContainsString("? 'c+b'", $source);
-        self::assertStringContainsString(": 'c+be'", $source);
-        self::assertStringNotContainsString("fopen(\$lockPath, 'c+b')", $source);
-    }
-
     public function testArtifactWriterUsesPlatformAwareCloseOnExecMode(): void
     {
         $source = self::source('src/Artifacts/ArtifactWriter.php');

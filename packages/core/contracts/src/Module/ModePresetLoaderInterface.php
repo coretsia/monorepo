@@ -19,10 +19,10 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Module;
 
 /**
- * Port for loading mode presets by canonical or owner-defined preset name.
+ * Port for loading presets within one already-bound owner-defined namespace/source.
  *
- * Coretsia canonical names are "micro", "express", "hybrid", and
- * "enterprise". The implementation source is intentionally hidden.
+ * Each instance operates exclusively inside its bound namespace. No canonical/custom
+ * filesystem precedence is defined by this contracts-level port.
  */
 interface ModePresetLoaderInterface
 {

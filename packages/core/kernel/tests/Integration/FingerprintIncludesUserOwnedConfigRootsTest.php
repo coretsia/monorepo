@@ -41,6 +41,7 @@ use Coretsia\Kernel\Config\ConfigValidator;
 use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -370,6 +371,7 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: \sys_get_temp_dir() . '/coretsia-fingerprint-user-roots-bootstrap',
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -377,13 +379,10 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
     {
         return new ModulePlan(
             app: 'web',
-            preset: 'default',
             enabled: [],
-            disabled: [],
-            optionalMissing: [],
+            excluded: [],
             topologicalOrder: [],
             modules: [],
-            warnings: [],
         );
     }
 

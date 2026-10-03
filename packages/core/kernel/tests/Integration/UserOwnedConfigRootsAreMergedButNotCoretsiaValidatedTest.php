@@ -31,6 +31,7 @@ use Coretsia\Kernel\Config\DirectiveProcessor;
 use Coretsia\Kernel\Config\Explain\ConfigExplainer;
 use Coretsia\Kernel\Config\Loaders\ApplicationConfigLoader;
 use Coretsia\Kernel\Config\Validation\ConfigNamespaceGuard;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class UserOwnedConfigRootsAreMergedButNotCoretsiaValidatedTest extends TestCase
@@ -322,6 +323,7 @@ final class UserOwnedConfigRootsAreMergedButNotCoretsiaValidatedTest extends Tes
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 

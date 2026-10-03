@@ -19,201 +19,79 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Module\ModuleId;
-use Coretsia\Kernel\Module\FilesystemModePresetLoader;
+use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
+use Coretsia\Kernel\Module\Preset\PresetNamespace;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class ModePresetLoaderDoesNotMergeOverrideWithDefaultTest extends TestCase
 {
-    private string $tempRoot;
-
-    protected function setUp(): void
+    public function testCustomPresetIsLoadedOnlyFromApplicationAndNotMergedWithCanonicalResource(): void
     {
-        $this->tempRoot = self::createTempDirectory();
-    }
-
-    protected function tearDown(): void
-    {
-        self::removeDirectory($this->tempRoot);
-    }
-
-    public function testApplicationOverrideIsLoadedAsWholePresetAndIsNotMergedWithKernelDefault(): void
-    {
-        $kernelDefaultsPath = $this->tempRoot . '/package/resources/modes';
-        $applicationOverridesPath = $this->tempRoot . '/application/config/modes';
-
-        self::writePresetFile(
-            directory: $kernelDefaultsPath,
-            name: 'express',
-            payload: [
-                'schemaVersion' => 1,
-                'name' => 'express',
-                'description' => 'Kernel package default express mode.',
-                'required' => [
-                    'core.foundation',
-                    'core.kernel',
-                    'platform.cli',
-                ],
-                'optional' => [
-                    'platform.http',
-                    'platform.logging',
-                    'platform.metrics',
-                    'platform.tracing',
-                ],
-                'disabled' => [],
-                'featureBundles' => [
-                    'observability' => 'kernel-package-default',
-                    'http' => 'kernel-package-default',
-                ],
-                'metadata' => [
-                    'source' => 'kernel-package-default',
-                    'defaultOnly' => true,
-                ],
-            ],
+        $root = \sys_get_temp_dir() . '/coretsia-preset-no-merge-' . \bin2hex(\random_bytes(8));
+        $packageRoot = $root . '/package';
+        $applicationRoot = $root . '/application';
+        \mkdir($packageRoot . '/resources/modes', 0777, true);
+        \mkdir($applicationRoot . '/config/modes', 0777, true);
+        $payload = [
+            'schemaVersion' => 1,
+            'name' => 'custom-mode',
+            'description' => 'Application owned.',
+            'required' => ['core.kernel'],
+            'modules' => ['platform.worker'],
+            'featureBundles' => ['applicationOnly' => true],
+            'metadata' => [],
+        ];
+        \file_put_contents(
+            $applicationRoot . '/config/modes/custom-mode.php',
+            '<?php return ' . \var_export($payload, true) . ';',
         );
-
-        self::writePresetFile(
-            directory: $applicationOverridesPath,
-            name: 'express',
-            payload: [
-                'schemaVersion' => 1,
-                'name' => 'express',
-                'description' => 'Application override express mode.',
-                'required' => [
-                    'core.kernel',
-                ],
-                'optional' => [],
-                'disabled' => [
-                    'platform.http',
-                ],
-                'featureBundles' => [
-                    'overrideOnly' => true,
-                ],
-                'metadata' => [],
-            ],
+        \file_put_contents(
+            $packageRoot . '/resources/modes/custom-mode.php',
+            '<?php throw new \\LogicException("wrong-source");',
         );
-
-        $loader = new FilesystemModePresetLoader(
-            kernelDefaultsPath: $kernelDefaultsPath,
-            applicationOverridesPath: $applicationOverridesPath,
-            schemaValidator: new ModePresetSchemaValidator(),
-        );
-
-        $preset = $loader->load('express');
-
-        self::assertSame('Application override express mode.', $preset->description());
-
-        self::assertSame(
-            [
-                'core.kernel',
-            ],
-            self::moduleIdValues($preset->required()),
-        );
-
-        self::assertSame([], self::moduleIdValues($preset->optional()));
-
-        self::assertSame(
-            [
-                'platform.http',
-            ],
-            self::moduleIdValues($preset->disabled()),
-        );
-
-        self::assertSame(
-            [
-                'overrideOnly' => true,
-            ],
-            $preset->featureBundles(),
-        );
-
-        self::assertSame([], $preset->metadata());
-
-        self::assertSame(
-            [
-                'core.kernel',
-            ],
-            self::moduleIdValues($preset->moduleIds()),
-        );
-
-        self::assertArrayNotHasKey('observability', $preset->featureBundles());
-        self::assertArrayNotHasKey('http', $preset->featureBundles());
-        self::assertArrayNotHasKey('source', $preset->metadata());
-        self::assertArrayNotHasKey('defaultOnly', $preset->metadata());
-    }
-
-    /**
-     * @param list<ModuleId> $moduleIds
-     *
-     * @return list<string>
-     */
-    private static function moduleIdValues(array $moduleIds): array
-    {
-        return \array_map(
-            static fn (ModuleId $moduleId): string => $moduleId->value(),
-            $moduleIds,
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function writePresetFile(string $directory, string $name, array $payload): void
-    {
-        if (!\is_dir($directory) && !\mkdir($directory, 0777, true) && !\is_dir($directory)) {
-            throw new \RuntimeException('test-directory-create-failed');
+        try {
+            $factory = new ModePresetLoaderFactory($packageRoot, [
+                'schema_version' => 1,
+                'defaults_path' => 'resources/modes',
+                'overrides_path' => 'config/modes',
+            ], new ModePresetSchemaValidator());
+            $bootstrap = new BootstrapConfig(
+                appEnv: 'prod',
+                preset: 'custom-mode',
+                debug: false,
+                artifactsCacheDir: 'var/cache',
+                envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
+                appTarget: AppTarget::Web,
+                applicationRoot: $applicationRoot,
+                moduleOverrides: new ResolvedModuleOverrides([], []),
+            );
+            $preset = $factory->createFor($bootstrap, PresetNamespace::Custom)->load('custom-mode');
+            self::assertSame('Application owned.', $preset->description());
+            self::assertSame(
+                ['core.kernel'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required()),
+            );
+            self::assertSame(
+                ['platform.worker'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
+            );
+            self::assertSame(['applicationOnly' => true], $preset->featureBundles());
+            self::assertSame([], $preset->metadata());
+        } finally {
+            @\unlink($applicationRoot . '/config/modes/custom-mode.php');
+            @\unlink($packageRoot . '/resources/modes/custom-mode.php');
+            @\rmdir($applicationRoot . '/config/modes');
+            @\rmdir($applicationRoot . '/config');
+            @\rmdir($applicationRoot);
+            @\rmdir($packageRoot . '/resources/modes');
+            @\rmdir($packageRoot . '/resources');
+            @\rmdir($packageRoot);
+            @\rmdir($root);
         }
-
-        $file = $directory . '/' . $name . '.php';
-        $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . \var_export($payload, true) . ";\n";
-
-        if (\file_put_contents($file, $contents) === false) {
-            throw new \RuntimeException('test-preset-write-failed');
-        }
-    }
-
-    private static function createTempDirectory(): string
-    {
-        $directory = \sys_get_temp_dir()
-            . '/coretsia-mode-preset-no-merge-'
-            . \str_replace('\\', '_', self::class)
-            . '-'
-            . \bin2hex(\random_bytes(8));
-
-        if (!\mkdir($directory, 0777, true) && !\is_dir($directory)) {
-            throw new \RuntimeException('test-temp-directory-create-failed');
-        }
-
-        return $directory;
-    }
-
-    private static function removeDirectory(string $directory): void
-    {
-        if (!\is_dir($directory)) {
-            return;
-        }
-
-        $entries = \scandir($directory);
-
-        if (!\is_array($entries)) {
-            return;
-        }
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-
-            $path = $directory . '/' . $entry;
-
-            if (\is_dir($path)) {
-                self::removeDirectory($path);
-
-                continue;
-            }
-
-            @\unlink($path);
-        }
-
-        @\rmdir($directory);
     }
 }

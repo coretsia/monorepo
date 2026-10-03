@@ -25,6 +25,7 @@ use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapDotenvRespectedUnderStrictPolicyTest extends TestCase
@@ -184,6 +185,7 @@ final class BootstrapDotenvRespectedUnderStrictPolicyTest extends TestCase
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
 
         return new EnvRepositoryBuilder(

@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Kernel\Module\Exception\CanonicalPresetOverrideException;
+use Coretsia\Kernel\Module\Exception\InvalidModuleSelectionException;
 use Coretsia\Kernel\Module\Exception\ModePresetInvalidException;
 use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 use Coretsia\Kernel\Module\Exception\ModuleConflictException;
@@ -131,30 +133,43 @@ final class ModuleResolutionExceptionShapeContractTest extends TestCase
                 ],
             ],
             [
-                'exception' => ModuleConflictException::requiredModuleDisabled(
-                    moduleId: $coreKernel,
-                    disabledModuleId: $coreFoundation,
+                'exception' => ModuleConflictException::dependencyExcluded(
+                    requiredByModuleId: $coreKernel,
+                    excludedModuleId: $coreFoundation,
                     previous: new \RuntimeException('previous throwable message must not leak'),
                 ),
                 'code' => ModuleErrorCodes::CORETSIA_MODULE_CONFLICT,
-                'reason' => ModuleConflictException::REASON_REQUIRED_MODULE_DISABLED,
+                'reason' => ModuleConflictException::REASON_DEPENDENCY_EXCLUDED,
                 'context' => [
-                    'disabledModuleId' => 'core.foundation',
-                    'moduleId' => 'core.kernel',
+                    'excludedModuleId' => 'core.foundation',
+                    'requiredByModuleId' => 'core.kernel',
                 ],
             ],
             [
-                'exception' => ModuleRequiredMissingException::presetRequiredModuleMissing(
-                    presetName: 'micro',
+                'exception' => ModuleRequiredMissingException::selectedRootModuleMissing(
                     missingModuleId: $platformHttp,
                     previous: new \RuntimeException('previous throwable message must not leak'),
                 ),
                 'code' => ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING,
-                'reason' => ModuleRequiredMissingException::REASON_PRESET_REQUIRED_MODULE_MISSING,
+                'reason' => ModuleRequiredMissingException::REASON_SELECTED_ROOT_MODULE_MISSING,
                 'context' => [
                     'missingModuleId' => 'platform.http',
-                    'preset' => 'micro',
                 ],
+            ],
+            [
+                'exception' => InvalidModuleSelectionException::withReason(
+                    InvalidModuleSelectionException::REASON_REQUIRED_EXCLUDED,
+                    ['moduleId' => 'core.kernel'],
+                ),
+                'code' => ModuleErrorCodes::CORETSIA_MODULE_SELECTION_INVALID,
+                'reason' => InvalidModuleSelectionException::REASON_REQUIRED_EXCLUDED,
+                'context' => ['moduleId' => 'core.kernel'],
+            ],
+            [
+                'exception' => CanonicalPresetOverrideException::forPreset('micro'),
+                'code' => ModuleErrorCodes::CORETSIA_MODE_PRESET_INVALID,
+                'reason' => 'canonical-preset-override-forbidden',
+                'context' => ['preset' => 'micro'],
             ],
             [
                 'exception' => ModuleRequiredMissingException::dependencyRequiredModuleMissing(
@@ -193,6 +208,8 @@ final class ModuleResolutionExceptionShapeContractTest extends TestCase
         $classes = [
             ModePresetNotFoundException::class,
             ModePresetInvalidException::class,
+            InvalidModuleSelectionException::class,
+            CanonicalPresetOverrideException::class,
             ModuleManifestInvalidException::class,
             ModuleDiscoverySourceUnsupportedException::class,
             ModuleCycleDetectedException::class,

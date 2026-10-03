@@ -32,6 +32,8 @@ use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -106,14 +108,14 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
                     'foundation',
                     'core/foundation',
                     'core.foundation',
-                    $roots['coretsia/core-foundation']
+                    $roots['coretsia/core-foundation'],
                 ),
                 self::rulesCandidate('kernel', 'core/kernel', 'core.kernel', $roots['coretsia/core-kernel']),
                 self::rulesCandidate(
                     'worker',
                     'platform/worker',
                     'platform.worker',
-                    $roots['coretsia/platform-worker']
+                    $roots['coretsia/platform-worker'],
                 ),
             ],
             $set->packageRuleSources(),
@@ -198,15 +200,15 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
         self::assertSame([], $set->splitRoots());
     }
 
-    public function testDisabledModuleIsIgnoredWithoutInstallRootLookup(): void
+    public function testExcludedModuleIsIgnoredWithoutInstallRootLookup(): void
     {
         $enabled = self::descriptor('core.kernel', 'coretsia/core-kernel', 'config/kernel.php');
-        $disabled = self::descriptor('platform.worker', 'coretsia/platform-worker', 'config/worker.php');
+        $excluded = self::descriptor('platform.worker', 'coretsia/platform-worker', 'config/worker.php');
         $kernelRoot = $this->installRoot('kernel');
         $resolution = self::resolution(
-            descriptors: [$disabled, $enabled],
+            descriptors: [$excluded, $enabled],
             enabledComposerNames: ['core.kernel' => 'coretsia/core-kernel'],
-            disabledModuleIds: ['platform.worker'],
+            excludedModuleIds: ['platform.worker'],
         );
 
         $set = $this->builder([
@@ -324,18 +326,16 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
         self::assertSame([], $set->explicitEnvOverlayMappings());
     }
 
-    public function testModeCandidatesContainMissingApplicationOverrideAndKernelDefault(): void
+    public function testModeCandidatesContainOnlyOneCanonicalNamespaceOwnedPresetSource(): void
     {
         [$builder, $resolution] = $this->canonicalFixture();
 
         $candidates = $builder->build($this->bootstrapConfig(), $resolution)->modePresetSourceCandidates();
 
-        self::assertCount(2, $candidates);
-        self::assertSame('application:config/modes/micro.php', $candidates[0]['sourceId']);
-        self::assertSame(20, $candidates[0]['precedence']);
-        self::assertFileDoesNotExist($candidates[0]['filesystemPath']);
-        self::assertSame('core/kernel:resources/modes/micro.php', $candidates[1]['sourceId']);
-        self::assertSame(10, $candidates[1]['precedence']);
+        self::assertCount(1, $candidates);
+        self::assertSame('core/kernel:resources/modes/micro.php', $candidates[0]['sourceId']);
+        self::assertSame('resources/modes/micro.php', $candidates[0]['path']);
+        self::assertSame(10, $candidates[0]['precedence']);
     }
 
     public function testInvalidInstallRootFailureDoesNotLeakTemporaryPath(): void
@@ -422,6 +422,7 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
                 ],
                 schemaValidator: new ModePresetSchemaValidator(),
             ),
+            presetNamespaceResolver: new PresetNamespaceResolver(),
         );
     }
 
@@ -435,6 +436,7 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             appTarget: AppTarget::Web,
             applicationRoot: $this->applicationRoot,
+            moduleOverrides: new ResolvedModuleOverrides([], []),
         );
     }
 
@@ -489,13 +491,13 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
     /**
      * @param list<ModuleDescriptor> $descriptors
      * @param array<string,string> $enabledComposerNames
-     * @param list<string> $disabledModuleIds
+     * @param list<string> $excludedModuleIds
      * @param list<string>|null $topologicalOrder
      */
     private static function resolution(
         array $descriptors,
         array $enabledComposerNames,
-        array $disabledModuleIds = [],
+        array $excludedModuleIds = [],
         ?array $topologicalOrder = null,
     ): ModuleResolution {
         $enabled = [];
@@ -510,9 +512,9 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
             );
         }
 
-        $disabled = \array_map(
+        $excluded = \array_map(
             static fn (string $moduleId): ModuleId => ModuleId::fromString($moduleId),
-            $disabledModuleIds,
+            $excludedModuleIds,
         );
         $order = \array_map(
             static fn (string $moduleId): ModuleId => ModuleId::fromString($moduleId),
@@ -523,13 +525,10 @@ final class ConfigSourceLocationBuilderBuildsCanonicalSourceSetTest extends Test
             manifest: new ModuleManifest($descriptors),
             plan: new ModulePlan(
                 app: 'web',
-                preset: 'micro',
                 enabled: $enabled,
-                disabled: $disabled,
-                optionalMissing: [],
+                excluded: $excluded,
                 topologicalOrder: $order,
                 modules: $entries,
-                warnings: [],
             ),
         );
     }

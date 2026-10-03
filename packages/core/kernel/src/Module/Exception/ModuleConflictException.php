@@ -24,7 +24,7 @@ use Coretsia\Contracts\Module\ModuleId;
  * Deterministic module conflict failure.
  *
  * Used when module graph policy detects incompatible enabled modules or an
- * enabled module requires a disabled module.
+ * enabled module requires an excluded module.
  *
  * Diagnostics intentionally expose only deterministic module ids and stable
  * reason tokens. They must not expose raw Composer metadata, raw preset
@@ -36,7 +36,7 @@ use Coretsia\Contracts\Module\ModuleId;
 final class ModuleConflictException extends ModuleResolutionException
 {
     public const string REASON_MODULE_CONFLICT = 'module-conflict';
-    public const string REASON_REQUIRED_MODULE_DISABLED = 'required-module-disabled';
+    public const string REASON_DEPENDENCY_EXCLUDED = 'dependency-excluded';
 
     private function __construct(
         string $reason,
@@ -71,16 +71,16 @@ final class ModuleConflictException extends ModuleResolutionException
         );
     }
 
-    public static function requiredModuleDisabled(
-        ModuleId $moduleId,
-        ModuleId $disabledModuleId,
+    public static function dependencyExcluded(
+        ModuleId $requiredByModuleId,
+        ModuleId $excludedModuleId,
         ?\Throwable $previous = null,
     ): self {
         return new self(
-            self::REASON_REQUIRED_MODULE_DISABLED,
+            self::REASON_DEPENDENCY_EXCLUDED,
             [
-                'moduleId' => $moduleId->value(),
-                'disabledModuleId' => $disabledModuleId->value(),
+                'requiredByModuleId' => $requiredByModuleId->value(),
+                'excludedModuleId' => $excludedModuleId->value(),
             ],
             $previous,
         );

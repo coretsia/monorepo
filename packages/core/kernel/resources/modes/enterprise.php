@@ -23,16 +23,10 @@ return [
     'required' => [
         'core.foundation',
         'core.kernel',
-        'platform.cli',
     ],
-    'optional' => [
-        'platform.http',
+    'modules' => [
         'platform.worker',
-        'platform.logging',
-        'platform.metrics',
-        'platform.tracing',
     ],
-    'disabled' => [],
     'featureBundles' => [
         'observability' => 'minimal',
     ],

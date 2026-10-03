@@ -22,6 +22,7 @@ use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModuleResolution;
+use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 
 /**
  * Builds the canonical deterministic config-source set for one
@@ -37,6 +38,7 @@ final readonly class ConfigSourceLocationBuilder
     public function __construct(
         private ComposerPackageInstallPathResolver $installPathResolver,
         private ModePresetLoaderFactory $modePresetLoaderFactory,
+        private PresetNamespaceResolver $presetNamespaceResolver,
     ) {
     }
 
@@ -120,13 +122,21 @@ final readonly class ConfigSourceLocationBuilder
             static fn (string $a, string $b): int => \strcmp($a, $b),
         );
 
+        $namespace = $this->presetNamespaceResolver->resolve($bootstrapConfig->preset());
+        $modePresetSourceCandidates = [
+            $this->modePresetLoaderFactory->sourceCandidateFor(
+                $bootstrapConfig,
+                $namespace,
+            ),
+        ];
+
         return new ConfigSourceSet(
             packageDefaultSources: $packageDefaultSources,
             packageRuleSources: $packageRuleSources,
             splitRoots: $splitRoots,
             explicitRuleSources: [],
             explicitEnvOverlayMappings: [],
-            modePresetSourceCandidates: $this->modePresetLoaderFactory->sourceCandidatesFor($bootstrapConfig),
+            modePresetSourceCandidates: $modePresetSourceCandidates,
         );
     }
 
@@ -169,8 +179,6 @@ final readonly class ConfigSourceLocationBuilder
 
     private static function sourceInvalid(): ConfigInvalidException
     {
-        return ConfigInvalidException::withReason(
-            ConfigInvalidException::REASON_SOURCE_INVALID,
-        );
+        return ConfigInvalidException::withReason(ConfigInvalidException::REASON_SOURCE_INVALID);
     }
 }

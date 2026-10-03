@@ -57,9 +57,7 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         $instances[\stdClass::class] = new \stdClass();
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'runtime-container-seed-set-ids-invalid',
-        );
+        $this->expectExceptionMessage('runtime-container-seed-set-ids-invalid');
 
         new RuntimeContainerSeedSet($instances);
     }
@@ -70,9 +68,7 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         unset($instances[ModulePlan::class]);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'runtime-container-seed-set-ids-invalid',
-        );
+        $this->expectExceptionMessage('runtime-container-seed-set-ids-invalid');
 
         new RuntimeContainerSeedSet($instances);
     }
@@ -80,9 +76,7 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
     public function testRejectsListShapedSeedInput(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'runtime-container-seed-set-ids-invalid',
-        );
+        $this->expectExceptionMessage('runtime-container-seed-set-ids-invalid');
 
         new RuntimeContainerSeedSet(
             \array_values(self::validInstances()),
@@ -95,9 +89,7 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         $instances[ConfigRepositoryInterface::class] = new \stdClass();
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'runtime-container-seed-set-instance-invalid',
-        );
+        $this->expectExceptionMessage('runtime-container-seed-set-instance-invalid');
 
         new RuntimeContainerSeedSet($instances);
     }
@@ -118,12 +110,10 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
             ]),
             ModulePlan::class => new ModulePlan(
                 app: 'worker',
-                preset: 'default',
                 enabled: [
                     $moduleId,
                 ],
-                disabled: [],
-                optionalMissing: [],
+                excluded: [],
                 topologicalOrder: [
                     $moduleId,
                 ],
@@ -133,7 +123,6 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
                         composerName: 'coretsia/core-kernel',
                     ),
                 ],
-                warnings: [],
             ),
             RuntimePathContext::class => new RuntimePathContext(
                 applicationRoot: $root,

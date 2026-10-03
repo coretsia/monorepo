@@ -102,8 +102,9 @@ composer sync:check                        # verify repository sync again
 If package manifests, package structure, dependency table, or deptrac policy changed:
 
 ```bash
-composer arch:package-index:generate       # regenerate package index
-composer arch:deptrac:generate             # regenerate deptrac.yaml and deptrac artifacts
+composer arch:package-index:generate        # regenerate package index
+composer arch:installation-catalog:generate # regenerate consumer installation catalog
+composer arch:deptrac:generate              # regenerate deptrac.yaml and deptrac artifacts
 ```
 
 If package scaffold, `composer package:new`, package compliance, `README.md`, `LICENSE`, `NOTICE`, `config/rules.php`, or `packages/**` structure changed:
@@ -131,9 +132,11 @@ If `tools/release/release-line.json`, internal `coretsia/*` Composer constraints
 composer sync:repos                                # update path repository options.versions from release-line devVersion
 composer release-line:workspace:sync               # sync root composer.json internal coretsia/* require-dev constraints
 composer release-line:public-constraints:sync      # sync package composer.json internal coretsia/* public constraints
+composer arch:installation-catalog:generate        # regenerate release-bound consumer installation catalog
 composer sync:check                                # verify managed repositories/options.versions
 composer release-line:workspace:check              # verify root workspace release-line drift
 composer release-line:public-constraints:check     # verify package public constraint drift
+composer arch:installation-catalog:check           # verify installation catalog drift
 composer package-publish-safety:gate               # targeted split/Packagist allowlist safety gate
 ```
 
@@ -147,7 +150,7 @@ composer validate                          # validate composer manifests
 composer security                          # run dedicated security rail / Composer audit gate
 composer gates                             # run main tooling gates
 composer dto:gate                          # run DTO policy rail
-composer arch                              # check package index, deptrac config, and deptrac analyze
+composer arch                              # check package index, installation catalog, deptrac config, and deptrac analyze
 composer quality                           # run cs:check and phpstan
 composer test                              # run main test suite
 composer lock:check                        # check lock files for accidental drift
@@ -391,8 +394,9 @@ composer sync:repos                        # sync managed composer repositories
 composer sync:check                        # verify repository sync again
 
 # If package/deptrac/generated arch inputs changed:
-composer arch:package-index:generate       # regenerate package index
-composer arch:deptrac:generate             # regenerate deptrac config and artifacts
+composer arch:package-index:generate        # regenerate package index
+composer arch:installation-catalog:generate # regenerate consumer installation catalog
+composer arch:deptrac:generate              # regenerate deptrac config and artifacts
 
 # If package scaffold/package compliance/package shape inputs changed:
 composer package-scaffold:check -- framework       # read-only scaffold/legal drift check
@@ -408,9 +412,11 @@ composer package-compliance:gate -- framework      # run package compliance gate
 composer sync:repos                                # update path repository options.versions from release-line devVersion
 composer release-line:workspace:sync               # sync root workspace internal constraints
 composer release-line:public-constraints:sync      # sync package internal public constraints
+composer arch:installation-catalog:generate        # regenerate release-bound consumer installation catalog
 composer sync:check                                # verify managed repositories/options.versions
 composer release-line:workspace:check              # verify workspace release-line drift
 composer release-line:public-constraints:check     # verify package public constraint drift
+composer arch:installation-catalog:check           # verify installation catalog drift
 composer package-publish-safety:gate               # verify split/Packagist allowlisted packages
 
 rm -rf var/phpstan                         # clear phpstan cache

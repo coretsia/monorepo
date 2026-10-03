@@ -116,7 +116,7 @@ Entrypoint: `composer ci` \
 Category: CI / verification \
 Outputs:
 - No tracked outputs on success (MUST be rerun-no-diff w.r.t. tracked files)
-- Installs root workspace dependencies into `vendor/**` (untracked) and runs validation + gates + DTO rail + arch + quality + tests
+- Installs root workspace dependencies into `vendor/**` (untracked) and runs validation + gates + DTO rail + arch + quality + default tests + slow tests
 - Fails if `composer.lock` changes after install
 
 Determinism:
@@ -137,7 +137,8 @@ Notes:
   8) `composer arch`
   9) `composer quality`
   10) `composer test`
-  11) `composer lock:check`
+  11) `composer test:slow`
+  12) `composer lock:check`
 - Release-line drift checks run before installs:
   - `composer release-line:workspace:check`
   - `composer release-line:public-constraints:check`
@@ -145,8 +146,11 @@ Notes:
 - `composer dto:gate` is the canonical aggregate DTO policy rail and MUST run after baseline gates and before arch/quality/tests.
 - `composer arch` is the canonical aggregate architecture rail and MUST remain rerun-no-diff.
 - `composer quality` is a third-party quality aggregate rail and MAY emit native ECS/PHPStan diagnostics.
+- `composer test` runs the default package test suite and excludes tests in the PHPUnit `slow` group.
+- `composer test:slow` runs only tests in the PHPUnit `slow` group.
+- `composer ci` runs both test rails, so the local aggregate still verifies the complete default + slow test set.
 - `composer test` MUST support args-forwarding via `--` (see `project.test`).
-- Dedicated GitHub workflows may run additional CI-only rails that are intentionally not part of the local `composer ci` aggregate, such as architecture generator evidence.
+- Dedicated GitHub workflows may run CI rails independently or in parallel; in particular, default and slow test suites may execute as separate jobs while remaining part of the local `composer ci` aggregate.
 
 Usage (repo root):
 - `composer ci`

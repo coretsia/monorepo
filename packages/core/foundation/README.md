@@ -88,10 +88,41 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Float-free duration measurement through `Stopwatch`.
 - Reset orchestration through the effective Foundation reset discovery tag.
 - Stable JSON encoding for diagnostics and runtime-safe artifacts through `StableJsonEncoder`, backed by `JsonLikeNormalizer`.
+- Shared scoped filesystem locking through `ScopedFileLock` with safe path handling and explicit lock lifecycle.
 
 `core/kernel` owns lifecycle trigger points.
 
 `core/foundation` owns the reusable runtime mechanisms that kernel and platform packages consume.
+
+## Scoped filesystem locking
+
+Foundation provides `Coretsia\Foundation\Filesystem\ScopedFileLock` as a shared domain-neutral filesystem primitive.
+
+Supported operations are:
+
+```text
+shared(path, operation)
+exclusive(path, operation)
+exclusiveNonBlocking(path, operation)
+```
+
+The primitive owns:
+
+- blocking shared/exclusive lock acquisition;
+- non-blocking exclusive acquisition;
+- persistent lock-file ownership;
+- safe lock-directory and lock-file handling;
+- platform-aware file open mode;
+- explicit unlock and close lifecycle;
+- stable domain-neutral failure reasons.
+
+Lock directories are created by the primitive as needed. Unsafe symlink boundaries are rejected. The persistent lock file is not removed merely because one operation completed.
+
+`ScopedFileLockException` exposes the stable Foundation error code `CORETSIA_SCOPED_FILE_LOCK_FAILED` and bounded reasons for busy contention or lock infrastructure failure.
+
+`ScopedFileLock` is not a DependencySync service, Artifact service, runtime boot service, or distributed lock. Higher-level owners choose their own lock paths and translate Foundation failures into their own domain errors.
+
+Kernel Artifact generation and DependencySync may both use this primitive without sharing domain ownership or lock namespaces.
 
 ## Configuration
 

@@ -44,20 +44,27 @@ Coretsia therefore treats module composition, generated artifacts, package bound
 Coretsia's framework composition model is based on explicit inputs:
 
 ```text
-selected mode preset
-+ Composer installed package metadata
-+ canonical Coretsia module metadata
+explicit application target set
++ per-target mode preset / module overrides
         ↓
-deterministic ModulePlan
+per-target ModuleSelection
         ↓
-ordered provider planning
+release installation catalog
         ↓
-compiled config, container, and module artifacts
+ProjectPackagePlan + managed Coretsia root requirements
+        ↓
+Composer lock/vendor graph
+        ↓
+fresh installed metadata verification
+        ↓
+per-target deterministic ModulePlan
+        ↓
+ordered provider planning and runtime artifacts
         ↓
 runtime
 ```
 
-Runtime module discovery uses Composer metadata only. It does not scan package directories or source trees to infer application composition.
+Runtime module discovery uses Composer installed metadata only. It does not scan package directories or source trees to infer application composition. Physical mode-dependent package requirements are planned separately from an explicit application target set through the Kernel installation catalog and are applied only by explicit dependency synchronization.
 
 ## Progressive capability modes
 
@@ -122,7 +129,7 @@ Its intended difference is the way those capabilities are composed and governed.
 
 ### Deterministic module composition
 
-A namespace-owned `ModePreset` and the selected application target's validated `ResolvedModuleOverrides` produce one immutable `ModuleSelection`. The Kernel resolves this selection against one installed `ModuleManifest` snapshot to produce a deterministic `ModulePlan`.
+A namespace-owned `ModePreset` and one explicit application target's validated `ResolvedModuleOverrides` produce an immutable target-local `ModuleSelection`. For dependency synchronization, the Kernel resolves each selected target against the release installation catalog, retains per-target closures, and forms one immutable `ProjectPackagePlan` for the shared Composer graph. After Composer, a fresh process resolves each target independently against the installed `ModuleManifest` to produce its deterministic `ModulePlan`.
 
 The plan records:
 
@@ -199,6 +206,8 @@ Development status by capability track:
 - contracts, foundation, and Kernel package baseline;
 - deterministic mode-preset and module-plan contracts;
 - Composer-metadata module discovery;
+- explicit multi-target application dependency planning and managed Composer root synchronization;
+- package-distributed installation catalog and fresh installed per-target verification;
 - module dependency and conflict resolution;
 - deterministic topological ordering;
 - immutable module-resolution snapshots;
@@ -274,9 +283,9 @@ docs/
 ```
 
 - `packages/framework/` — public `coretsia/framework` distribution;
-- `packages/applications/skeleton/` — public `coretsia/skeleton` application template;
+- `packages/applications/skeleton/` — public `coretsia/skeleton` application template, including the consumer `bin/dependency-sync.php` integration entrypoint;
 - `packages/{core,platform,integrations,devtools}/**` — publishable split Composer packages;
-- `tools/**` — repository tooling, generators, and CI support;
+- `tools/**` — repository tooling, generators, and CI support, including installation-catalog generation/checking;
 - `var/**` — mutable/generated repository workspace state;
 - `docs/ssot/**` — canonical invariants, schemas, ownership, and policies;
 - `docs/architecture/**` — architecture guidance that refers to SSoT for normative truth;
@@ -344,14 +353,15 @@ composer ci
 ```
 
 - `composer setup` configures the repository development environment and managed Composer repositories;
-- `composer ci` runs the full verification pipeline, including the test suite and architecture checks.
+- `composer ci` runs the full verification pipeline, including default tests, the dedicated slow test rail, and architecture checks.
 
-This is a framework-development workflow, not yet an end-user application installation flow.
+This is the framework-development workflow. Consumer package synchronization uses the skeleton `bin/dependency-sync.php` entrypoint after the baseline application dependencies are installed.
 
 ## Canonical documentation
 
 ### Start here
 
+- [Application Dependency Sync SSoT](docs/ssot/application-dependency-sync.md)
 - [SSoT index](docs/ssot/INDEX.md)
 - [Quickstart for repository development](docs/guides/quickstart.md)
 - [Developer onboarding checklist](docs/guides/onboarding.md)
@@ -359,6 +369,7 @@ This is a framework-development workflow, not yet an end-user application instal
 
 ### Architecture and operations
 
+- [ADR-0033: Application dependency synchronization](docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
 - [Canonical packaging strategy](docs/architecture/PACKAGING.md)
 - [Coretsia determinism contract](docs/architecture/DETERMINISM.md)
 - [Repository structure](docs/architecture/STRUCTURE.md)

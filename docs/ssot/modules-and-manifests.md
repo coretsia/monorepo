@@ -22,7 +22,7 @@ owner: core/contracts
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, module manifest shape policy, manifest reader semantics, deterministic module descriptor ordering, runtime module dependency metadata, and ordered compile-time provider metadata.
+This document is the Single Source of Truth for Coretsia module identity, module descriptor shape policy, the consumer installation catalog boundary, installed module manifest shape policy, per-target module plans, manifest reader semantics, deterministic module descriptor ordering, runtime module dependency metadata, and ordered compile-time provider metadata.
 
 This document governs contracts introduced by epic `1.70.0` under:
 
@@ -335,9 +335,32 @@ docs/adr/ADR-0024-kernel-module-plan-resolution.md
 docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
 ```
 
+## Installation catalog, installed ModuleManifest, and per-target ModulePlan
+
+Coretsia uses three different module structures at different lifecycle stages:
+
+```text
+ReleaseInstallationCatalog
+    = package-distributed pre-install planning data
+
+ModuleManifest
+    = validated installed runtime module metadata from Composer
+
+ModulePlan
+    = resolved enabled runtime graph for one explicit application target
+```
+
+The installation catalog is a versioned `core/kernel` package resource. It maps canonical `ModuleId` values to Composer package identities and validated module dependency/conflict edges before optional packages are installed. It is not installed-state discovery and MUST NOT contain repository source paths.
+
+`ModuleManifest` describes what is actually installed in the current Composer environment. Runtime/compile-host installed discovery MUST use Composer installed metadata and MUST NOT substitute the installation catalog for the installed manifest.
+
+`ModulePlan` is target-local. It is resolved from one effective `ModuleSelection` and validated graph entries. Physical packages present for another target or as Composer transitive dependencies MUST NOT expand a target's enabled runtime modules automatically.
+
+DependencySync uses the installation catalog to derive an immutable `ProjectPackagePlan`, executes explicitly authorized Composer effects, then verifies every selected target against the fresh installed `ModuleManifest`.
+
 ## Runtime metadata and tooling package-index boundary
 
-Repository package-index tooling is tooling-only and MUST NOT become a runtime manifest source.
+Repository package-index tooling is tooling-only and MUST NOT become a runtime manifest source or a consumer installation-planning catalog.
 
 Runtime manifest construction MUST use installed Composer metadata through `ManifestReaderInterface`.
 
@@ -1112,6 +1135,16 @@ Provider metadata MUST NOT contain:
 - runtime payloads.
 
 Secret-backed runtime behavior belongs to runtime owner packages, not to contracts descriptors.
+
+## DependencySync boundary
+
+Physical package planning and installed runtime planning share module identities and graph semantics but not data sources.
+
+DependencySync MAY use the package-distributed installation catalog before Composer. After Composer, verification MUST use current installed metadata in a fresh process and resolve one `ModulePlan` per explicit target.
+
+Composer package dependency edges remain Composer solver input. Runtime selected modules remain `ModuleGraphResolver` policy. One MUST NOT be inferred from the other.
+
+The normative synchronization lifecycle is defined in `docs/ssot/application-dependency-sync.md`.
 
 ## Non-goals
 

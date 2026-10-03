@@ -108,6 +108,14 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\BootstrapConfig`
   - `Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy`
   - `Coretsia\Kernel\Boot\Exception\BootstrapException`
+- Explicit application dependency synchronization public boundary:
+  - `Coretsia\Kernel\DependencySync\ProjectApplicationSet`
+  - `Coretsia\Kernel\DependencySync\ProjectInstallationIntent`
+  - `Coretsia\Kernel\DependencySync\ProjectPackagePlan`
+  - `Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy`
+  - `Coretsia\Kernel\DependencySync\ProjectDependencySync`
+  - `Coretsia\Kernel\DependencySync\ProjectDependencySyncResult`
+  - stable error contract through `DependencySyncErrorCodes` and `DependencySyncException`
 - Bootstrap Phase A internal implementation services registered through DI:
   - `Coretsia\Kernel\Boot\BootstrapConfigResolver`
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
@@ -1005,6 +1013,47 @@ artifact-runtime-boot-runtime-container-invalid
 The mode schema version is `1`; canonical PHP resources under `resources/modes/` are Kernel-owned and loaded through `CanonicalPresetSource`, while custom application presets under `<applicationRoot>/<kernel.modes.overrides_path>/` are loaded through `CustomPresetSource`. The application cannot shadow a reserved canonical name. Each preset declares the exact fields `schemaVersion`, `name`, `description`, `required`, `modules`, `featureBundles`, `metadata`; `required` roots cannot be excluded and `modules` roots can be removed through selected-app-target `moduleOverrides.exclude`. `moduleOverrides.include` adds selected roots; raw override errors fail in Bootstrap Phase A. Source inspection provides exactly one namespace-owned fingerprint candidate without executing preset PHP.
 
 The resolved `ModulePlan` is distinct from policy `ModePreset`, effective intent `ModuleSelection`, and the installed-discovery `ModuleManifest`. It exports exactly `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`. The existing `module-manifest@1` envelope contains precisely this plan payload with `_meta.schemaVersion = 1` and `payload.schemaVersion = 1`; runtime boot hydrates `ModulePlan` without loading presets or Composer metadata. All compile-host orchestration, preset source and effective-selection services are excluded from compiled runtime definitions.
+
+## Application dependency synchronization
+
+Kernel owns explicit consumer dependency synchronization under `Coretsia\Kernel\DependencySync`.
+
+The public facade is:
+
+```text
+Coretsia\Kernel\DependencySync\ProjectDependencySync
+```
+
+Failures are fail-closed through the public `DependencySyncErrorCodes` / `DependencySyncException` boundary. Invalid application intent/catalog/managed state, unsupported Composer policy, stale project state, protected-root changes, lock/recovery failures, installed-state divergence, and verifier protocol failures are never converted into clean success.
+
+Public installation inputs/results are immutable values. `ProjectApplicationSet` identifies one explicit non-empty target set; `ProjectInstallationIntent` optionally fixes an installation preset for selected targets; `ProjectPackagePlan` records per-target planning expectations and the project-wide desired Coretsia root requirements.
+
+The package-distributed planning catalog is:
+
+```text
+resources/packaging/installation-catalog.php
+```
+
+Its schema maps canonical module ids to Composer package names plus validated module dependency/conflict edges and release-line constraints. Repository source topology is not part of the catalog.
+
+The planning flow reuses the existing Phase A selection path for each explicit target, resolves the target against catalog entries, retains one target-local module closure, and forms one project-wide physical union. `ModuleSelection` remains Kernel-internal.
+
+Composer root reconciliation is ownership-aware. DependencySync may rewrite/remove only Coretsia root requirements recorded in `extra.coretsia.dependencySync`. Untracked roots remain project-owned. Explicit non-Coretsia `require`/`require-dev` roots are protected across synchronization; their root constraints, locked identities, and installed identities cannot be changed by a Coretsia solve.
+
+Effects occur only for an explicit apply policy. Scripts/plugins are disabled by default, broad update and vendor repair require separate authorization, and Composer executes through exact argv without shell fallback. Runtime boot never invokes Composer synchronization.
+
+Effectful synchronization uses Foundation `ScopedFileLock` at `var/locks/dependency-sync.lock`. Durable recovery material is written under `var/dependency-sync/recovery/<recoveryReceiptId>/`. Once an effectful Composer process has started, later Composer or verification failures expose `RECOVERY_REQUIRED`; the coordinator does not claim transactional rollback of `composer.json`, `composer.lock`, and `vendor/`.
+
+Post-install verification runs through the package-local `bin/dependency-sync-verify.php` in a fresh PHP process using current consumer autoload metadata. Each explicit target is independently resolved to one installed `ModulePlan` and compared with the approved `ProjectPackagePlan`.
+
+DependencySync has no direct implementation dependency on Kernel Artifact or Runtime subsystems. Artifact/Runtime implementations likewise do not depend on DependencySync. Shared lower-level Foundation primitives do not transfer subsystem ownership.
+
+Normative behavior is defined by:
+
+```text
+docs/ssot/application-dependency-sync.md
+docs/adr/ADR-0033-application-dependency-sync-installation-intent.md
+```
 
 ## ModulePlan resolution
 
@@ -2540,6 +2589,21 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+DependencySync public API symbols are:
+
+```text
+Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy
+Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes
+Coretsia\Kernel\DependencySync\Exception\DependencySyncException
+Coretsia\Kernel\DependencySync\ProjectApplicationSet
+Coretsia\Kernel\DependencySync\ProjectDependencySync
+Coretsia\Kernel\DependencySync\ProjectDependencySyncResult
+Coretsia\Kernel\DependencySync\ProjectInstallationIntent
+Coretsia\Kernel\DependencySync\ProjectPackagePlan
+```
+
+Composer reconciliation, catalog loading, installed verification, process execution, and verification protocol helpers under the DependencySync implementation remain internal.
+
 Artifact-only production runtime boot public API symbols are:
 
 ```text
@@ -2596,6 +2660,8 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 
 ## References
 
+- [Application Dependency Sync SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/application-dependency-sync.md)
+- [ADR-0033: Application dependency synchronization from explicit installation intent](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Kernel package source](https://github.com/coretsia/monorepo/tree/main/packages/core/kernel)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)

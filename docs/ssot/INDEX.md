@@ -47,6 +47,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 
 ## Shapes and Contracts
 
+- [Application Dependency Sync SSoT](./application-dependency-sync.md) — owner: core/kernel — ssotVersion: 1 — scope: composer,dependency-sync,installation-intent,kernel,modules,verification
 - [Config and env SSoT](./config-and-env.md) — owner: core/contracts — ssotVersion: 1 — scope: config,contracts,directives,env,ruleset,source-tracking
 - [Config Directives Examples](./config-directives.md) — owner: core/kernel — ssotVersion: 1 — scope: config,directives,examples,merge,runtime
 - [Config Merge Order](./config-merge-order.md) — owner: core/kernel — ssotVersion: 1 — scope: config,kernel,merge,phase-b,precedence

@@ -213,6 +213,24 @@ Phase A must not infer the application target from filesystem state.
 
 Phase A must not choose an application by scanning sibling app directories.
 
+## Installation-planning boundary
+
+Bootstrap Phase A resolves policy for one explicit `AppTarget`; it does not own a project-wide installation set.
+
+`ProjectApplicationSet` is the separate DependencySync input that names every target participating in one consumer installation operation. DependencySync reuses the existing Phase A path independently for each selected target. Application directories and per-target configuration keys do not add targets implicitly.
+
+`ProjectInstallationIntent::fixedPresetByTarget()` may intentionally provide the explicit `BootstrapInput::preset()` value for a selected target. When no fixed preset is declared for that target, DependencySync leaves `BootstrapInput::preset()` unset so the normal Phase A precedence remains authoritative:
+
+```text
+config/app.php presets[appTarget]
+config/app.php preset
+kernel.boot.default_preset
+```
+
+The installation-only fixed preset is therefore an explicit caller decision through the existing precedence seam, not another persistent preset source. It does not mutate `config/app.php`.
+
+Phase A itself remains non-effectful: it does not edit `composer.json`, execute Composer, or inspect the DependencySync installation catalog during runtime boot.
+
 ## Decision 3: BootstrapInput is entrypoint-owned input only
 
 `Coretsia\Kernel\Boot\BootstrapInput` is the immutable entrypoint-owned input object.
@@ -551,7 +569,9 @@ apps/<appTarget>/config/**
 
 Phase A validates selected-app-target include/exclude override input but does not load preset policy or resolve effective roots and dependency closure.
 
-`BootstrapConfigResolver` validates selected-app-target `moduleOverrides` in Phase A; the compile-host orchestrator combines them with namespace-owned preset policy into `ModuleSelection`, then resolves it against installed module metadata.
+`BootstrapConfigResolver` validates selected-app-target `moduleOverrides` in Phase A. For installed runtime resolution, the compile-host orchestrator combines them with namespace-owned preset policy into `ModuleSelection`, then resolves that selection against installed module metadata.
+
+For explicit DependencySync installation planning, the same Phase A result is produced independently per selected target and the resulting `ModuleSelection` is resolved against the versioned installation catalog before Composer. Phase A itself does not know or read that catalog.
 
 Override values must not appear in exception messages.
 
@@ -1531,6 +1551,7 @@ Verification must prove:
 
 ## Related SSoT
 
+- `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/config-and-env.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/uow-and-reset-contracts.md`
@@ -1542,3 +1563,4 @@ Verification must prove:
 ## Related ADR
 
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
+- `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`

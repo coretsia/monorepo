@@ -26,6 +26,8 @@
   - `docs/architecture/PACKAGING.md`
 - Exact direct compile-time dependency permissions between layered packages MUST comply with:
   - `docs/architecture/DEPENDENCIES.md`
+- Application installation intent, managed Composer roots, explicit effects, and installed-state verification MUST comply with:
+  - `docs/ssot/application-dependency-sync.md`
 
 ### 0.1. Layered package identity and special distributions
 
@@ -84,10 +86,13 @@
 
 - `packages/applications/skeleton/` is the public `coretsia/skeleton` create-project template.
 - Template-owned application surfaces may include `apps/`, `modules/`, `config/`, `resources/`, `var/`, and `tests/`.
+- `packages/applications/skeleton/bin/dependency-sync.php` is the shipped thin consumer integration seam for explicit dependency-sync `plan` / `review` / `apply` invocation.
 - `config/` in the skeleton template contains application overrides only, not framework defaults.
 - Defaults live in owning runtime packages under `packages/<layer>/<slug>/config`.
 - After `composer create-project coretsia/skeleton <app>`, the extracted template root becomes the consumer application root.
+- The installation application set is explicit caller input; the presence of `apps/<appTarget>/`, preset keys, or other application directories MUST NOT infer target membership.
 - Runtime/package code MUST NOT depend on `packages/applications/skeleton/` or any other monorepo source path.
+- Consumer DependencySync MUST NOT discover package identity by walking monorepo `packages/**` or importing repository-only `tools/**`.
 
 ### 0.5. “contracts” — the single source of truth for ports
 
@@ -95,6 +100,24 @@
 - Implementations live in concrete packages (`integrations/*`, `platform/*`).
 - Minimize “Contracts in packages”. If absolutely needed, only private internal interfaces, not cross-package APIs.
 - If a capability already has a sufficient external standard port (e.g. `Psr\SimpleCache\CacheInterface`), `core/contracts` MAY NOT introduce a duplicate port without a separate framework-specific need.
+
+### 0.6. DependencySync ownership and distribution boundary
+
+- Application dependency synchronization is Kernel-owned consumer-side functionality under `packages/core/kernel/src/DependencySync/**`.
+- Shared low-level scoped file locking is Foundation-owned in `packages/core/foundation/src/Filesystem/ScopedFileLock.php`.
+- Repository authoring generates the installation catalog through `tools/build/installation_catalog.php`:
+
+```bash
+php tools/build/installation_catalog.php --apply
+php tools/build/installation_catalog.php --check
+```
+
+- Consumer/runtime code MUST NOT import that repository-only tool.
+- The generated consumer-safe catalog is distributed as `packages/core/kernel/resources/packaging/installation-catalog.php`.
+- The catalog maps implemented runtime `ModuleId` values to materialized Composer package identities and package-level module edges for the current release line.
+- Runtime installed-state discovery still comes from the installed `ModuleManifest`; the installation catalog is not a substitute for installed Composer metadata.
+- DependencySync and Artifact/Runtime implementation code do not depend directly on each other; both may reuse lower-level Foundation primitives.
+- Composer effects are explicit consumer tooling effects and never execute as part of normal runtime boot.
 
 ---
 
@@ -133,12 +156,22 @@ coretsia/
 │   │   └── composer.json
 │   ├── applications/
 │   │   └── skeleton/
+│   │       ├── bin/
+│   │       │   └── dependency-sync.php
 │   │       ├── composer.json
 │   │       ├── .env.example
 │   │       ├── config/
 │   │       ├── apps/
 │   │       └── var/
 │   ├── core/
+│   │   ├── foundation/
+│   │   │   └── src/Filesystem/ScopedFileLock.php
+│   │   └── kernel/
+│   │       ├── bin/dependency-sync-verify.php
+│   │       ├── resources/
+│   │       │   ├── modes/
+│   │       │   └── packaging/installation-catalog.php
+│   │       └── src/DependencySync/
 │   ├── platform/
 │   ├── integrations/
 │   ├── enterprise/
@@ -149,6 +182,7 @@ coretsia/
 │   ├── bin/
 │   ├── http/
 │   ├── build/
+│   │   └── installation_catalog.php
 │   ├── release/
 │   ├── gates/
 │   ├── architecture/
@@ -272,18 +306,48 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
 - Custom names belong to the consumer application under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`, normally `config/modes/*.php`, and are read exclusively through `CustomPresetSource`.
 - Application files cannot override reserved canonical names; names determine source ownership, never file-existence precedence.
 - Each schema-version-1 preset declares disjoint `required` (non-excludable) and `modules` (explicitly excludable) runtime-module ids plus feature bundles. `ModuleSelectionFactory` combines this policy with selected app-target `moduleOverrides` before graph resolution.
+- Selecting a runtime preset does not itself install or update Composer packages. Physical dependency synchronization occurs only through an explicit DependencySync invocation for an explicit application target set.
 
 ### 5.2. Preset packages (composer dependency convenience)
 
-- Live as layered packages under `packages/presets/preset-*/`
-- They make “composer require coretsia/presets-preset-express” pull the recommended dependency set for the corresponding release line
-- They do not replace mode presets. They only install dependencies.
+- Planned preset-package distributions live under `packages/presets/preset-*/` when they are materialized for a release line.
+- Their role is Composer dependency convenience for the corresponding release line; an unmaterialized preset package is not a current consumer command or installation source.
+- They do not replace mode presets. They only describe dependency convenience when such a package exists.
 - Preset package MUST be phase-consistent with `ROADMAP.md`:
   - `preset-micro` — `micro` baseline only
   - `preset-express` — `micro` + required `express` additions
   - `preset-hybrid` — `express` + `hybrid` additions
   - `preset-enterprise` — `hybrid` + `enterprise` additions
 - Composer convenience packages MAY offer additional dependencies, but they do not determine runtime roots. `required` lists non-excludable implemented runtime modules; `modules` lists other implemented mode-selected runtime modules that application overrides can exclude. An unimplemented capability is not declared as a current selected root.
+
+### 5.3. Mode intent vs physical package planning
+
+For DependencySync, the runtime-mode policy and the physical Composer graph remain separate:
+
+```text
+explicit application targets
+    → per-target ModePreset + moduleOverrides
+    → per-target ModuleSelection
+    → versioned installation catalog
+    → per-target installation closure
+    → project-wide physical module union
+    → managed Coretsia Composer roots
+    → one composer.lock / vendor graph
+    → fresh installed-state verification
+    → one ModulePlan per target
+```
+
+The installation catalog is the only consumer-side mapping from implemented runtime `ModuleId` values to materialized Composer package identities. Planned package names in sections 9–10 do not become DependencySync inputs until the package exists in the validated catalog source set and is emitted into the release installation catalog.
+
+The currently materialized examples include:
+
+```text
+core.foundation -> coretsia/core-foundation
+core.kernel     -> coretsia/core-kernel
+platform.worker -> coretsia/platform-worker
+```
+
+A package installed for the project-wide Composer graph is not automatically enabled for every target. Target-local `exclude` remains runtime policy; it is not a project-global Composer package removal instruction.
 
 ---
 
@@ -370,6 +434,7 @@ Conceptual layer-direction matrix:
 - template overrides — `packages/applications/skeleton/config`, `packages/applications/skeleton/apps/*/config`, `packages/applications/skeleton/modules/*/config`
 - consumer overrides after `create-project` — `config`, `apps/*/config`, `modules/*/config`
 - validators/metadata — `config/rules.php` (package) + explain/source tracking in kernel
+- application target membership for DependencySync is explicit caller input; neither `apps/*` directories nor `config/app.php.presets` keys implicitly add targets to the installation set
 
 3. A package is always “enabled” through Module + Provider
 
@@ -387,7 +452,13 @@ Conceptual layer-direction matrix:
 > - Adds — capabilities this mode adds on top of the previous one;
 > - Optional / later addons — not mode-defining minimums and may appear later in the same phase or in later phases.
 
-The membership catalog below describes **intended capabilities and packages**, not an inventory of already implemented runtime modules. The current four canonical PHP resources declare only their implemented runtime-module subset; this does not alter their intended mode membership. Future runtime packages enter every applicable canonical resource when implemented. Until then, different canonical modes may legitimately select the same currently available runtime-module subset without changing their intended membership. A package name such as `platform/http`, a conceptual capability, and a runtime ModuleId such as `platform.http` are distinct identifiers. `core/contracts` is a Composer library, never a runtime selection root. A selected root must have an actual installed runtime descriptor. EPIC 2 does not install packages or require unimplemented runtime modules.
+The membership catalog below describes **intended capabilities and planned package placement**, not an inventory of already materialized runtime modules or current DependencySync catalog entries. The current canonical PHP resources declare only their implemented runtime-module subset; this does not alter the intended long-term mode membership shown here. Future runtime packages enter the applicable canonical resources only when implemented and backed by an installed runtime descriptor plus validated installation-catalog metadata.
+
+The `Required` / `Adds` / `Optional` labels in this section are product-structure taxonomy for the intended mode map; they are not a replacement schema for the current `required` / `modules` ModePreset contract.
+
+A planned package name such as `coretsia/platform-http`, a conceptual capability such as HTTP, and a runtime ModuleId such as `platform.http` are distinct identifiers. Planned names in this section MUST NOT be used by current consumer DependencySync until the corresponding package manifest and installation-catalog entry exist. `core/contracts` is a Composer library, never a runtime selection root. A selected runtime root must have an actual installed runtime descriptor.
+
+For the currently materialized canonical subset, `micro` and `express` may legitimately resolve to the same implemented runtime roots, while `hybrid` and `enterprise` add the currently materialized `platform.worker` root. DependencySync synchronizes only that validated current subset; it does not infer unimplemented packages from this intended mode map.
 
 ### Custom
 
@@ -511,7 +582,7 @@ Notes:
 ### Preset packages vs runtime modes
 
 - Runtime mode presets are Kernel-owned canonical resources under `packages/core/kernel/resources/modes/*.php` or application-owned custom files under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`. Presets supply `required`/`modules` policy; `ModuleSelectionFactory` derives effective roots; `ModuleGraphResolver` builds the module plan.
-- Composer preset package (`packages/presets/preset-*`) defines the dependency convenience set.
+- A materialized Composer preset package (`packages/presets/preset-*`) defines only a dependency convenience set; planned preset-package identities are not current installation inputs until the package exists.
 - A preset package MUST NOT declare capabilities that do not yet exist in the corresponding roadmap release line.
 - Recommended mapping:
   - `preset-micro` → required payload `micro`
@@ -521,10 +592,11 @@ Notes:
 
 ---
 
-## 10) Full package catalog (DDD-friendly, PSR-first)
+## 10) Planned full package catalog (DDD-friendly, PSR-first)
 
-Below is the maximally complete set that gives a “full stack”, while still preserving minimal dependencies through a split into
-“platform + integrations adapters”.
+Below is the maximally complete **planned** set that gives a “full stack”, while still preserving minimal dependencies through a split into “platform + integrations adapters”.
+
+This is a structural/product catalog, not a claim that every listed package is already materialized in the current checkout or available to DependencySync. A planned Composer identity becomes a current installation input only after its package manifest exists, its runtime metadata is valid where applicable, and the package is present in the validated release installation catalog source set. Consumer examples and current sync flows MUST use only such materialized identities.
 
 ### A) Core Runtime / Kernel (indispensable)
 
@@ -610,3 +682,13 @@ Below is the maximally complete set that gives a “full stack”, while still p
 50. `coretsia/enterprise-tenancy`
 51. `coretsia/enterprise-compliance`
 52. `coretsia/enterprise-sso`
+
+---
+
+## 11) Required references
+
+- `docs/architecture/PACKAGING.md`
+- `docs/architecture/DEPENDENCIES.md`
+- `docs/ssot/application-dependency-sync.md`
+- `docs/ssot/modes.md`
+- `docs/ssot/modules-and-manifests.md`

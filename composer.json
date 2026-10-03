@@ -241,6 +241,7 @@
       "@arch",
       "@quality",
       "@test",
+      "@test:slow",
       "@lock:check"
     ],
     "composer-audit:gate": "@php tools/gates/composer_audit_gate.php",

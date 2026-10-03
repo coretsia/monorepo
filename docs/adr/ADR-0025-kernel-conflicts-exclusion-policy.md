@@ -24,13 +24,17 @@ owner: core/kernel
 
 Phase A supplies immutable `ModuleSelection` roots and explicit exclusions. Phase B receives that selection plus one validated installed `ModuleManifest` snapshot. Graph policy must distinguish selected-root absence, required dependency absence, prohibited dependency activation, conflicts between enabled modules, and dependency cycles without consulting `ModePreset` or Composer package dependency edges.
 
+A consumer project may synchronize several explicit application targets into one physical Composer graph. Runtime module exclusions and conflicts remain target-local graph policy, while the physical package union and Composer package solving are project-wide concerns. These domains MUST remain separate: a target-local exclusion is not a project-wide package removal request, and a Composer package conflict is not a runtime module conflict.
+
 Graph-policy results MUST remain deterministic across operating systems, process locales, installed-manifest descriptor ordering, filesystem ordering, and repeated runs. Module-id sets and failure candidates use byte-order `strcmp` ordering; incidental traversal order MUST NOT determine the selected failure.
 
 ADR-0024 defines the complete module-resolution pipeline. This ADR defines the graph-policy decisions applied within Phase B and the corresponding deterministic failure contracts.
 
 ## Decision
 
-`ModuleGraphResolver` consumes only `ModuleManifest`, `ModuleSelection`, and the selected app-target string. It returns a deterministic `ModulePlan` or throws a deterministic `ModuleResolutionException`. The manifest is the contracts-level installed discovery snapshot, distinct from the generated `module-manifest@1` artifact.
+For installed Phase B resolution, `ModuleGraphResolver::resolve()` consumes only the selected app-target string, installed `ModuleManifest`, and `ModuleSelection`. It returns a deterministic `ModulePlan` or throws a deterministic `ModuleResolutionException`. The manifest is the contracts-level installed discovery snapshot, distinct from the generated `module-manifest@1` artifact.
+
+`ModuleGraphResolver` remains the Kernel graph-policy owner for runtime dependency/exclusion/conflict semantics. For pre-install planning, DependencySync reuses the same graph policy through `ModuleGraphResolver::resolveEntries()` against validated installation-catalog entries, but it MUST NOT turn Composer package `require` / `conflict` / platform solving into runtime graph policy. Composer remains authoritative for the physical package graph.
 
 ## Installed manifest and descriptor validation
 
@@ -54,9 +58,36 @@ All selected roots and their transitive required dependencies must become enable
 
 An attempted exclusion of a non-excludable `ModePreset::required` root fails earlier in `ModuleSelectionFactory` as `CORETSIA_MODULE_SELECTION_INVALID` (`module-selection-required-excluded`); Phase B does not reinterpret that preset policy.
 
+Exclusion is application-target-local. For a multi-target DependencySync operation, one target may exclude a module that another target selects. That exclusion MUST NOT remove the module from the project-wide physical package union when another selected target requires it.
+
+For example:
+
+```text
+Target A selects platform.worker
+Target B excludes platform.worker
+
+project-wide physical package union may contain platform.worker
+ModulePlan(A) may enable platform.worker
+ModulePlan(B) MUST NOT enable platform.worker
+```
+
 ## Enabled-module conflicts
 
 After required dependency closure is collected, every enabled descriptor's `extra.coretsia.conflicts` is checked against all enabled module ids. An explicitly excluded, non-enabled module does not create an enabled-module conflict. For each conflicting enabled pair, collect a sorted candidate and throw `ModuleConflictException::between()` as `CORETSIA_MODULE_CONFLICT`, reason `module-conflict`; pair ordering and candidate choice are independent of descriptor order.
+
+Enabled-module conflicts are evaluated within one target's resolved runtime graph. Conflicts that occur only across otherwise disjoint target plans MUST NOT be promoted into an invented project-global runtime conflict when Composer can co-install the underlying packages.
+
+## Composer package conflicts and project-wide package union
+
+DependencySync derives each selected target's installation closure from the versioned release installation catalog, preserves the target-local runtime policy, and forms one project-wide physical module/package union for the consumer project.
+
+The installation catalog maps runtime `ModuleId` values to materialized Composer package identities. The resulting desired Coretsia root requirements are then reconciled under DependencySync ownership rules.
+
+Composer owns package-level `require`, `conflict`, platform, and transitive dependency solving for the one consumer `composer.json` / `composer.lock` / `vendor` graph. `ModuleGraphResolver` and `ProjectPackagePlanner` MUST NOT emulate that solver.
+
+A Composer solve failure remains a Composer/dependency-sync failure and MUST NOT be reclassified as `CORETSIA_MODULE_CONFLICT`.
+
+Conversely, a package that is physically installed because it is required by another target or by Composer transitive resolution does not become enabled in a target's `ModulePlan` unless that target's runtime selection and graph resolution enable it.
 
 ## Graph failure precedence
 
@@ -108,6 +139,8 @@ The immutable `ModulePlan` exports exactly `app`, `enabled`, `excluded`, `module
 
 `ModulePlan::SCHEMA_VERSION` remains `1`. The generated module-manifest artifact retains the identity `module-manifest@1`, envelope schema version `1`, and the exact ModulePlan-derived payload defined above.
 
+For DependencySync, the project-wide physical package union is represented separately by `ProjectPackagePlan`. It MUST NOT be merged into one target's `ModulePlan`, and physically installed packages outside that target's enabled runtime graph MUST NOT appear merely because they exist in `vendor/`.
+
 ## Safe diagnostics and observability
 
 Graph exceptions inherit the stable message format defined by `ModuleResolutionException`:
@@ -140,9 +173,11 @@ Runtime module dependency and conflict metadata remain independent of Composer p
 
 `ModulePlan` is an immutable, deterministic representation of the resolved executable runtime graph. Runtime boot consumes its validated artifact-derived representation without reloading preset policy or recomputing module selection.
 
+In a multi-target project, one target can therefore exclude a runtime module without forcing removal of a physical package required by another target. Runtime conflicts remain per-target; Composer remains authoritative for project-wide physical package conflicts. Installation planning does not invent cross-target runtime bans.
+
 ## Non-goals
 
-This ADR does not define Composer dependency solving, package installation, package synchronization, or mutation of the installed module set.
+This ADR defines only the boundary between runtime graph policy and physical Composer package policy. It does not define Composer solver internals, managed-root reconciliation, recovery semantics, package publication, or the dependency-sync execution protocol.
 
 It does not define module boot lifecycle, service provider execution, configuration Phase B merge, generated artifact writing, CLI command output, or HTTP middleware selection.
 
@@ -152,6 +187,7 @@ It does not introduce runtime preset loading, runtime module-graph recomputation
 
 ## Related SSoT
 
+- `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/modes.md`
 - `docs/ssot/artifacts.md`
@@ -161,3 +197,4 @@ It does not introduce runtime preset loading, runtime module-graph recomputation
 
 - `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
 - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
+- `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`

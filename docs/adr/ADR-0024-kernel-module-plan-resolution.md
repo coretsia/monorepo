@@ -24,20 +24,28 @@ owner: core/kernel
 
 Kernel module compilation must separate preset policy, effective module selection, installed-module discovery, and the resolved executable graph. Bootstrap Phase A returns the selected preset name and immutable app-target-specific module overrides; the compile-host orchestration then resolves one installed manifest snapshot and one module plan. No runtime boot operation reloads presets or re-discovers Composer packages.
 
+Application dependency synchronization introduces an earlier installation-planning stage for an explicit set of application targets. Before optional Coretsia packages are materialized in `vendor/`, DependencySync reuses Phase A target-local selection and resolves that selection against the versioned release installation catalog. After Composer effects, installed verification returns to the existing installed `ModuleManifest` + `ModuleGraphResolver` path in a fresh PHP process.
+
+Pre-install installation metadata and post-install installed metadata are different sources and MUST NOT be collapsed into one discovery mechanism.
+
 ## Decision
 
-The six ownership values are distinct:
+The ownership values are distinct:
 
 ```text
 BootstrapConfig = resolved bootstrap name/state + ResolvedModuleOverrides
 ModePreset = namespace-owned preset policy source
-ModuleSelection = immutable effective module-selection intent (compile host)
+ModuleSelection = immutable effective target-local module-selection intent (compile host)
+ReleaseInstallationCatalog = versioned consumer-safe pre-install module/package graph
+ProjectPackagePlan = immutable explicit multi-target physical installation plan
 ModuleManifest = installed-module discovery snapshot (contracts)
-ModulePlan = resolved executable runtime graph
+ModulePlan = resolved executable runtime graph for one target
 ModuleResolution = one ModuleManifest + ModulePlan snapshot
 ```
 
-`ModePreset != ModuleSelection != ModulePlan`. The contracts `ModuleManifest` snapshot is **not** the generated `module-manifest@1` artifact.
+`ModePreset != ModuleSelection != ProjectPackagePlan != ModulePlan`. `ModuleSelection` remains Kernel-internal compile-host state; it is not a public contracts export, Composer package list, runtime seed, or artifact payload.
+
+The contracts `ModuleManifest` snapshot is **not** the generated `module-manifest@1` artifact. `ReleaseInstallationCatalog` is likewise not installed-state discovery.
 
 ## Phase A: bootstrap and namespace-bound preset policy
 
@@ -68,6 +76,22 @@ excluded = exclude
 
 Both outputs are immutable unique `strcmp`-sorted `ModuleId` lists. `ModuleSelectionFactory` has no `ModuleManifest` dependency and does not resolve graph dependencies. Required-module exclusion fails before manifest reading; the selected app target determines overrides but does not alter graph traversal semantics.
 
+For DependencySync, the application set is explicit caller input. The planner invokes this same Phase A path independently for every selected target and MUST NOT infer target membership from `apps/**`, preset-map keys, installed packages, or filesystem layout.
+
+An explicitly declared installation-only fixed preset for one selected target uses the existing `BootstrapInput::preset()` seam. It does not create another persistent preset source and does not mutate application configuration.
+
+## Pre-install installation closure
+
+Before optional Coretsia packages are installed, DependencySync resolves each target's `ModuleSelection` against validated entries from the versioned `ReleaseInstallationCatalog`.
+
+The catalog is distributed with `coretsia/core-kernel` and contains consumer-safe `ModuleId` → Composer identity plus module `requires` / `conflicts` data for the release line. It is not the repository-only tooling package index and MUST NOT expose monorepo source paths.
+
+`ModuleGraphResolver` remains the single Kernel owner of dependency, exclusion, conflict, cycle, failure-precedence, and deterministic topological-order semantics. Its validated-entry resolution path applies the same graph-policy law to installation-catalog entries without pretending that the packages are already installed.
+
+Each selected target retains its own enabled/excluded installation closure. Only the enabled module ids are unioned to derive one project-wide physical package plan.
+
+`ProjectPackagePlan` records the approved planning expectations and desired Coretsia root requirements for the explicit target set. It represents intended physical installation state, not installed runtime state, and it MUST NOT be used as a runtime `ModulePlan`.
+
 ## Phase B: installed discovery and pure graph coordination
 
 `ModuleResolutionOrchestrator::resolve(BootstrapConfig)` is the compile-host orchestration entrypoint. It first validates the configured discovery source (only the configured allowed Composer source), resolves and loads the namespace-owned preset, creates `ModuleSelection`, reads `ManifestReaderInterface::read()` **exactly once** into `ModuleManifest`, and invokes:
@@ -80,7 +104,9 @@ $plan = $modulePlanResolver->resolve(
 );
 ```
 
-The result is one `ModuleResolution(manifest: $manifest, plan: $plan)` snapshot. The pure `ModulePlanResolver` only coordinates already supplied `app`, `ModuleManifest`, and `ModuleSelection` with `ModuleGraphResolver`; it does not load presets, discover packages, or own observability. Only metadata under installed Composer `extra.coretsia` supplies module descriptors; package-index tooling, Composer package `require`/`conflict` edges and application `config/modules.php` do not select the runtime graph.
+The result is one `ModuleResolution(manifest: $manifest, plan: $plan)` snapshot. The pure `ModulePlanResolver` only coordinates already supplied `app`, `ModuleManifest`, and `ModuleSelection` with `ModuleGraphResolver`; it does not load presets, discover packages, or own observability. Only metadata under installed Composer `extra.coretsia` supplies installed module descriptors; package-index tooling, the release installation catalog, Composer package `require`/`conflict` edges and application `config/modules.php` do not select the runtime graph.
+
+The installation catalog may be used before Composer for installation planning, but it MUST NOT replace the installed `ModuleManifest` during Phase B or runtime verification.
 
 ### Installed module discovery
 
@@ -97,6 +123,24 @@ Compile-time container provider declarations are read from `extra.coretsia.provi
 Provider declaration order is semantic and MUST be preserved in `ModuleDescriptor::metadata()['providers']`. Provider FQCNs MUST NOT be alphabetically sorted or normalized as an unordered set. Provider metadata is available to compile-time provider planning through the installed manifest; it is not exported as part of `ModulePlan`.
 
 `ModuleGraphResolver` validates all installed descriptors, including unselected descriptors, **before** graph-policy failure selection. It rejects missing selected roots, expands the transitive dependency closure, rejects excluded dependencies including excluded modules absent from the installed manifest, detects conflicts among enabled modules, and detects cycles. Failure precedence and deterministic candidate ordering are specified in ADR-0025. Topological order puts dependencies first and deterministically breaks ties; it is not a final alphabetical sort.
+
+## Fresh post-install verification
+
+After an effectful Composer operation, DependencySync verifies the approved installation plan in a fresh PHP process using the consumer project's current autoload and current Composer-installed metadata.
+
+Every explicit application target is resolved independently:
+
+```text
+approved ProjectPackagePlan expectation
+    + current target policy
+    + installed ModuleManifest
+    -> ModuleGraphResolver
+    -> target-local ModulePlan
+```
+
+The resulting target-local installed graph is compared with the approved planning expectations. A package physically present in `vendor/` because another target selected it or because Composer installed it transitively does not become enabled unless that target's own `ModuleSelection` and graph resolution reach it.
+
+The parent process that executed or initiated a Composer update MUST NOT reuse previously loaded Kernel/package classes or stale installed metadata as post-update verification authority.
 
 ## Compile-time operation snapshot and consumer boundary
 
@@ -161,6 +205,8 @@ The `modules` map is keyed by module id and exported in byte-order `strcmp` orde
 The contained manifest MUST be the same snapshot supplied to `ModuleGraphResolver` when producing the contained plan. `ModuleResolution` MUST NOT introduce a second discovery run, be serialized into an artifact, become part of `ModulePlan`, be retained by runtime services, or enter the compiled runtime container-definition graph.
 
 Only the validated, artifact-hydrated `ModulePlan` crosses the module-resolution boundary into runtime boot. The installed `ModuleManifest` and compile-time provider metadata remain compile-host state.
+
+`ProjectPackagePlan` remains an installation-planning value and MUST NOT cross into runtime boot, replace `ModulePlan`, or be serialized as the runtime module-plan artifact.
 
 ## Compile-time container provider plan
 
@@ -250,13 +296,19 @@ Per-operation freshness applies to the namespace-bound preset loader, loaded pre
 
 `ModuleResolutionOrchestrator`, `ModulePlanResolver`, `ModuleGraphResolver`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `ResolvedModuleOverrides`, `ModuleSelection`, preset sources, the preset loader, and Composer metadata discovery remain compile-host-only. They are not runtime graph definitions or runtime seeds. Only an immutable, artifact-hydrated `ModulePlan` (along with the approved runtime config and path seeds) crosses into runtime boot. Worker runtime consumers read that plan without re-running Phase A selection, preset loading or installed discovery.
 
+DependencySync planning, installation-catalog loading, Composer reconciliation/execution, and post-install verification are explicit consumer tooling operations. They MUST NOT execute as part of HTTP, CLI application, worker, or other runtime boot, and runtime boot MUST NOT consume `ProjectPackagePlan` or the release installation catalog.
+
 ## Consequences
 
 The preset name remains a resolved bootstrap selection input; the preset source never becomes runtime intent by itself. Per-target overrides are validated at bootstrap, runtime graph selection is explicit, and no file's incidental presence changes namespace ownership. Artifact identity remains stable while its strict payload contract is the one defined above.
 
+One Kernel graph-policy owner now serves both validated pre-install catalog entries and installed runtime descriptors without merging their source semantics. Pre-install planning does not pretend optional packages are already installed; installed resolution never treats the release catalog as installed state.
+
+Each explicit application target retains its own `ModulePlan` even though DependencySync forms one project-wide Composer graph. Physical installation of a package does not automatically enable its runtime module for unrelated targets.
+
 ## Non-goals
 
-This ADR does not define Composer dependency solving, package installation, package synchronization, or mutation of the installed package set.
+This ADR defines the module-resolution boundary used by installation planning and post-install verification, but it does not define Composer root ownership, solver policy, manifest reconciliation, subprocess recovery, package publication, or the DependencySync execution protocol. Those rules are owned by ADR-0033 and `docs/ssot/application-dependency-sync.md`.
 
 It does not define module boot lifecycle, runtime service-provider lifecycle, provider instance construction, execution of provider `define()` methods, collection or merging of provider-produced definition sets, or the internal compilation rules for canonical runtime container definitions. The production container-definition boundary is specified by ADR-0030.
 
@@ -268,6 +320,7 @@ It does not introduce new artifact identities or schema versions, runtime preset
 
 ## Related SSoT
 
+- `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/modes.md`
 - `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/config-roots.md`
@@ -283,3 +336,4 @@ It does not introduce new artifact identities or schema versions, runtime preset
 - `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
+- `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`

@@ -24,7 +24,9 @@ owner: core/contracts
 
 Coretsia needs a stable contracts surface that allows the future Kernel owner package to build a deterministic module plan without coupling `core/contracts` to runtime package implementations, filesystem scanning, platform code, integrations, HTTP abstractions, or vendor-specific infrastructure.
 
-Runtime module discovery is Composer-metadata-driven. Repository package-index tooling is tooling-only and MUST NOT become a runtime input.
+Runtime module discovery is Composer-metadata-driven. Repository package-index tooling is tooling-only and MUST NOT become a runtime or consumer installation-planning input.
+
+Pre-install package planning uses a separate versioned Kernel installation catalog. The catalog maps canonical `ModuleId` values to Composer package identities and validated module dependency/conflict edges without exposing repository source topology.
 
 The Kernel must derive canonical module identity from installed Composer metadata in a deterministic way. Contracts must define the stable ports and value objects used by the Kernel and other runtime owners, but contracts must not implement discovery, filesystem traversal, Composer scanning, dependency resolution, DI wiring, or mode preset storage.
 
@@ -96,7 +98,9 @@ Concrete owner packages remain responsible for enforcing loaded-preset construct
 
 The mode preset contracts do not expose their storage format.
 
-`ModuleManifest` is the contracts-level installed-module discovery snapshot. It is distinct from the Kernel-generated `module-manifest@1` artifact, whose payload is a resolved `ModulePlan` (`app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`). `ModuleSelection` is a Kernel-internal immutable compile-host value representing effective selection intent; it is not a contracts export or a runtime seed. Only the hydrated `ModulePlan` crosses the artifact/runtime boundary.
+`ModuleManifest` is the contracts-level installed-module discovery snapshot. It is distinct from both the consumer installation catalog and the Kernel-generated `module-manifest@1` artifact. The installation catalog is Kernel package planning data used before optional packages are installed; `ModuleManifest` describes what is actually installed; the artifact payload is a resolved `ModulePlan` (`app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`).
+
+`ModuleSelection` is a Kernel-internal immutable compile-host value representing effective target-local selection intent. It is not a contracts export, Composer package list, or runtime seed. Kernel DependencySync may consume `ModuleSelection` together with the installation catalog to produce the public immutable `ProjectPackagePlan`; only installed `ModulePlan` state crosses the artifact/runtime boundary.
 
 ## Determinism
 
@@ -190,7 +194,7 @@ Trade-offs:
 - Contracts do not provide discovery implementation.
 - Contracts do not validate actual Composer metadata at runtime.
 - Contracts do not define DI wiring or Kernel boot behavior.
-- A later Kernel owner epic must implement `ManifestReaderInterface`.
+- Installed manifest reading and pre-install package planning remain separate Kernel-owned implementations behind their respective boundaries.
 
 ## Non-goals
 
@@ -208,5 +212,11 @@ This ADR does not implement:
 
 ## Related SSoT
 
+- `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/modules-and-manifests.md`
 - `docs/ssot/modes.md`
+
+## Related ADR
+
+- `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
+- `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`

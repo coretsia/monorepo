@@ -14,793 +14,12 @@
 
 ## PHASE 2 — Mode Infrastructure & CLI (Non-product doc)
 
-### 2.10.0 Mode preset PHP source schema + packaging policy (MUST) [IMPL]
-
----
-type: code
-phase: 2
-epic_id: "2.10.0"
-owner_path: "packages/core/kernel/"
-
-goal: "Зацементувати й реалізаційно посилити canonical Kernel-owned PHP mode preset source contract, deterministic source-to-loaded-state round trip та packaging ownership."
-provides:
-- "Strict canonical PHP mode preset source payload enforced by ModePresetSchemaValidator"
-- "Exact source-to-export round-trip invariant for every accepted preset payload"
-- "Fail-fast rejection of non-canonical module-id sets and non-canonical map ordering"
-- "Supported in-process isolation for ordinary buffered PHP output and callback-handled PHP diagnostics"
-- "Clear separation between source payload, immutable ModePreset state, moduleIds() accessor projection, and toArray() export"
-- "Packaging policy for framework-owned canonical presets and user-owned skeleton overrides"
-- "Aligned contracts SSoT, Kernel ADR, code, tests, resources, and packaging law"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-
-ssot_refs:
-- "docs/ssot/modes.md"
-- "docs/ssot/mode-preset-sources.md"
-- "docs/architecture/PACKAGING.md"
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Existing documentation updated by this epic:
-  - `docs/ssot/INDEX.md`
-  - `docs/ssot/modes.md`
-  - `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-  - `docs/architecture/PACKAGING.md`
-
-- Existing implementation hardened by this epic:
-  - `packages/core/kernel/src/Module/ModePreset.php`
-  - `packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
-  - `packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
-  - `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
-  - `packages/core/kernel/resources/modes/hybrid.php`
-  - `packages/core/kernel/resources/modes/enterprise.php`
-
-- Existing contracts and implementation surfaces retained:
-  - `packages/core/contracts/src/Module/ModePresetInterface.php`
-  - `packages/core/contracts/src/Module/ModuleId.php`
-  - `packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
-  - `packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php`
-  - `packages/core/kernel/config/kernel.php`
-  - `packages/core/kernel/resources/modes/micro.php`
-  - `packages/core/kernel/resources/modes/express.php`
-
-- Existing packaging enforcement retained:
-  - `tools/gates/no_skeleton_mode_presets_default_gate.php`
-
-- Scope constraints:
-  - no new public runtime entrypoint is introduced
-  - no new package dependency edge is introduced
-  - no new config root or config key is introduced
-  - no new ErrorCode is introduced
-  - no new Composer command or gate is introduced
-  - stable validation reason tokens MAY be added under the existing `CORETSIA_MODE_PRESET_INVALID` ErrorCode
-  - implementation, tests, canonical preset resources, and documentation MAY be modified where required to enforce the accepted source contract
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- `core/contracts` — existing `core/kernel` dependency only
-
-Forbidden:
-- new package dependency edges introduced by this epic
-- `platform/*`
-- `integrations/*`
-- framework tooling packages
-
-### Entry points / integration points (MUST)
-
-- No new public runtime entrypoint is introduced.
-
-- Existing runtime integration path:
-  - retained:
-    - `ModePresetLoaderFactory::createFor(BootstrapConfig)`
-  - hardened:
-    - `FilesystemModePresetLoader::load(string)`
-    - `FilesystemModePresetLoader::tryLoad(string)`
-    - `ModePresetSchemaValidator::validate(string, mixed)`
-    - `ModePreset::__construct(...)`
-    - `ModePreset::toArray()`
-
-- Public signatures remain unchanged:
-  - `ModePresetInterface`
-  - `ModePresetLoaderInterface`
-  - `ModuleId`
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `docs/ssot/mode-preset-sources.md`
-  - [ ] document metadata:
-    - [ ] `ssotVersion: 1`
-    - [ ] `status: pre-stable`
-    - [ ] `owner: core/kernel`
-  - [ ] scope:
-    - [ ] defines and documents the canonical Kernel PHP mode-preset source contract
-    - [ ] hardens the existing implementation where it currently accepts non-canonical source representations
-    - [ ] does not redefine the format-neutral `ModePresetInterface` accessor surface
-    - [ ] does not introduce an alternative loader, validator, source path, precedence rule, config input, or ErrorCode
-    - [ ] `ModePresetSchemaValidator` is the executable owner of raw payload validation and canonical source enforcement
-    - [ ] `ModePreset` is the executable owner of immutable semantic loaded-state invariants
-    - [ ] `FilesystemModePresetLoader` is the executable owner of PHP file lookup, output isolation, and loading
-    - [ ] `ModePresetLoaderFactory` is the executable owner of config-relative source-directory resolution
-    - [ ] accepted source payloads MUST satisfy the exact round-trip invariant:
-      - [ ] `ModePresetSchemaValidator::validate($name, $payload)->toArray() === $payload`
-    - [ ] semantic validation failures take precedence over canonical-representation failures
-  - [ ] implementation references:
-    - [ ] `Coretsia\Contracts\Module\ModePresetInterface`
-    - [ ] `Coretsia\Contracts\Module\ModuleId`
-    - [ ] `Coretsia\Kernel\Module\ModePreset`
-    - [ ] `Coretsia\Kernel\Module\ModePresetSchemaValidator`
-    - [ ] `Coretsia\Kernel\Module\FilesystemModePresetLoader`
-    - [ ] `Coretsia\Kernel\Module\ModePresetLoaderFactory`
-    - [ ] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-  - [ ] source-directory resolution:
-    - [ ] runtime source directories are config-derived rather than hardcoded inside the loader
-    - [ ] framework defaults directory resolves as:
-      - [ ] `<core/kernel-package-root>/<kernel.modes.defaults_path>`
-    - [ ] skeleton overrides directory resolves as:
-      - [ ] `<BootstrapConfig::applicationRoot()>/<kernel.modes.overrides_path>`
-    - [ ] current canonical config defaults are:
-      - [ ] `kernel.modes.schema_version = 1`
-      - [ ] `kernel.modes.defaults_path = resources/modes`
-      - [ ] `kernel.modes.overrides_path = config/modes`
-    - [ ] current shipped framework location is therefore:
-      - [ ] `packages/core/kernel/resources/modes/*.php`
-    - [ ] current default skeleton override location is therefore:
-      - [ ] `packages/applications/skeleton/config/modes/*.php`
-  - [ ] lookup and precedence:
-    - [ ] requested preset name is supplied by `BootstrapConfig::preset()`
-    - [ ] skeleton override file is checked first
-    - [ ] framework default file is checked second
-    - [ ] first existing file wins
-    - [ ] skeleton and framework payloads are never merged
-    - [ ] missing skeleton override is not an error
-    - [ ] missing both sources maps to `CORETSIA_MODE_PRESET_NOT_FOUND`
-    - [ ] present but unreadable, unexecutable, or invalid source maps to `CORETSIA_MODE_PRESET_INVALID`
-  - [ ] PHP file loading contract:
-    - [ ] candidate filename is exactly `<requested-preset-name>.php`
-    - [ ] only direct `.php` files under the resolved source directory participate
-    - [ ] nested directories are not recursively discovered
-    - [ ] the selected file is executed through PHP `require` inside a static local closure
-    - [ ] the return value is passed to `ModePresetSchemaValidator`
-    - [ ] the returned value MUST be an associative array
-    - [ ] supported in-process source execution isolation:
-      - [ ] immediately before `require`, the loader records the current output-buffer level
-      - [ ] the loader starts exactly one loader-owned output buffer
-      - [ ] failure to start the output buffer maps to generic invalid-source failure
-      - [ ] the loader installs a temporary error handler for `E_ALL`
-      - [ ] the return value of `set_error_handler()` is retained as the previous handler
-      - [ ] callback-handled warnings, notices, and deprecations are converted into a caught `ErrorException`
-      - [ ] the temporary handler does not delegate source diagnostics to the previously installed handler
-    - [ ] ordinary PHP output behavior:
-      - [ ] output routed through the loader-owned PHP output buffer is captured
-      - [ ] captured bytes are never forwarded to the caller or an outer output buffer
-      - [ ] captured bytes are discarded and never included in diagnostics
-      - [ ] when `require` otherwise completes successfully, any non-empty captured output maps to:
-        - [ ] `ModePresetInvalidException::REASON_SOURCE_OUTPUT_FORBIDDEN`
-    - [ ] cleanup for supported sources:
-      - [ ] the loader closes only the output buffer it created
-      - [ ] output buffers that existed before loading MUST NOT be closed
-      - [ ] the previous error handler is restored in `finally`
-      - [ ] restoration uses `restore_error_handler()` exactly once for the loader-owned handler
-      - [ ] normal success and normal failure restore the original output-buffer level
-      - [ ] normal success and normal failure restore the previous error handler
-    - [ ] unsupported source behavior:
-      - [ ] a preset source MUST NOT call output-buffer management functions
-      - [ ] a preset source MUST NOT replace or restore error handlers
-      - [ ] a preset source MUST NOT write directly to `STDOUT`, `STDERR`, or equivalent direct streams
-      - [ ] a preset source MUST NOT rely on:
-        - [ ] mutation of global state
-        - [ ] environment-dependent values
-        - [ ] timestamps
-        - [ ] randomness
-        - [ ] filesystem mutation
-        - [ ] network access
-        - [ ] process-specific state
-      - [ ] deliberate output-buffer, error-handler, or direct-stream manipulation is outside the in-process containment guarantee
-      - [ ] the loader does not claim to sandbox arbitrary PHP execution
-      - [ ] detected loader-owned state corruption maps to generic invalid-source failure
-      - [ ] cleanup of additional source-created output buffers is best-effort
-      - [ ] the loader MUST NOT claim that caller-owned buffers destroyed by arbitrary source code can be reconstructed
-  - [ ] existing-source failure precedence:
-    1. [ ] unreadable source file:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-      - [ ] `mode-preset-invalid`
-    2. [ ] source execution Throwable, callback-handled PHP diagnostic, or loader-owned isolation setup/cleanup failure:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-      - [ ] `mode-preset-invalid`
-    3. [ ] successful source execution with non-empty captured ordinary PHP output:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-      - [ ] `mode-preset-source-output-forbidden`
-    4. [ ] structural, type, schema, safety, or set-overlap validation:
-      - [ ] retains the existing most-specific semantic reason
-    5. [ ] semantically valid but non-canonical payload:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-      - [ ] `mode-preset-source-not-canonical`
-  - [ ] failure-precedence implications:
-    - [ ] a source execution Throwable takes precedence over output captured before that Throwable
-    - [ ] source output takes precedence over payload validation because an output-producing source is not an accepted payload producer
-    - [ ] semantic payload validation takes precedence over canonical round-trip comparison
-    - [ ] canonical round-trip comparison is performed only after all semantic validation succeeds
-  - [ ] exact canonical raw top-level shape:
-    - [ ] the payload contains exactly eight keys in this insertion order:
-      1. `schemaVersion`
-      2. `name`
-      3. `description`
-      4. `required`
-      5. `optional`
-      6. `disabled`
-      7. `featureBundles`
-      8. `metadata`
-    - [ ] all eight keys are required
-    - [ ] missing keys are rejected
-    - [ ] unknown keys are rejected
-    - [ ] non-string top-level keys are rejected
-    - [ ] reordered top-level keys are rejected as non-canonical source
-    - [ ] root wrappers `kernel`, `mode`, and `modes` are rejected
-    - [ ] `moduleIds` is forbidden in source payloads
-  - [ ] field contract:
-    - [ ] `schemaVersion`:
-      - [ ] exact integer `ModePresetInterface::SCHEMA_VERSION`
-      - [ ] currently `1`
-    - [ ] `name`:
-      - [ ] string
-      - [ ] non-empty
-      - [ ] maximum `64` bytes
-      - [ ] first byte is lowercase ASCII letter
-      - [ ] remaining bytes use lowercase ASCII letters, digits, or hyphen
-      - [ ] must equal the requested preset name byte-for-byte
-    - [ ] `description`:
-      - [ ] `null` or non-empty string
-      - [ ] maximum `512` bytes
-      - [ ] no C0/DEL control bytes
-      - [ ] no path-like value
-    - [ ] `required`, `optional`, and `disabled`:
-      - [ ] each value is a PHP list
-      - [ ] every item is a string accepted by `ModuleId::fromString()`
-    - [ ] `featureBundles` and `metadata`:
-      - [ ] each value is a JSON-like map
-      - [ ] empty array is accepted as the empty map representation
-  - [ ] canonical source module-id contract:
-    - [ ] `required`, `optional`, and `disabled` are set-shaped PHP lists
-    - [ ] source list order is not domain-semantic, but canonical source representation is normative
-    - [ ] every item is parsed through `ModuleId::fromString()`
-    - [ ] every raw source string MUST equal `ModuleId::value()` byte-for-byte
-    - [ ] source values that require ASCII case normalization are rejected as non-canonical
-    - [ ] duplicate module ids within one source list are rejected
-    - [ ] duplicate identity is evaluated using canonical `ModuleId::value()`
-    - [ ] every source list MUST already be sorted ascending using byte-order `strcmp`
-    - [ ] unsorted source lists are rejected
-    - [ ] `required`, `optional`, and `disabled` MUST be pairwise disjoint
-    - [ ] cross-list overlap is checked using canonical module-id identity
-    - [ ] overlap is a semantic invalid-preset failure and takes precedence over generic non-canonical-source failure
-  - [ ] loaded-state module-id contract:
-    - [ ] `ModePreset` stores canonical `ModuleId` objects
-    - [ ] `ModePreset` MAY sort direct-construction input because set order is not semantic
-    - [ ] `ModePreset` MUST reject duplicate `ModuleId` values supplied through direct construction
-    - [ ] `ModePreset` MUST reject pairwise overlap between `required`, `optional`, and `disabled`
-    - [ ] `ModePreset` MUST NOT silently collapse duplicate direct-construction values
-  - [ ] JSON-like normalization contract:
-    - [ ] allowed scalar values are:
-      - [ ] `null`
-      - [ ] `bool`
-      - [ ] `int`
-      - [ ] `string`
-    - [ ] nested lists preserve list order
-    - [ ] nested list order remains semantic source data and is not sorted
-    - [ ] nested map keys are sorted recursively using byte-order `strcmp`
-    - [ ] raw source map keys MUST already be recursively sorted using byte-order `strcmp`
-    - [ ] a semantically valid map that would change key order during normalization is rejected as non-canonical source
-    - [ ] maximum recursive depth is `16`
-    - [ ] recursive depth counts array containers, not scalar leaves
-    - [ ] the top-level `featureBundles` or `metadata` map is container depth `0`
-    - [ ] every nested list or map increments container depth by `1`
-    - [ ] an array container at depth greater than `16` is rejected
-    - [ ] a scalar value does not create an additional container depth
-    - [ ] every individual list or map container may contain at most `256` entries
-    - [ ] the `256`-entry limit applies equally to lists and maps
-    - [ ] maximum string length is `1024` bytes
-    - [ ] control characters in strings and map keys are rejected
-    - [ ] path-like strings and map keys are rejected
-    - [ ] floats, objects, closures, resources, streams, services, and filesystem handles are rejected
-  - [ ] loaded-state and export distinction:
-    - [ ] `ModePreset::required()`, `optional()`, and `disabled()` return canonical `list<ModuleId>`
-    - [ ] `ModePreset::moduleIds()` is a derived compatibility accessor projection
-    - [ ] `moduleIds()` is not independently stored source state
-    - [ ] `moduleIds` is forbidden in source payloads
-    - [ ] `moduleIds` is not emitted by `ModePreset::toArray()`
-    - [ ] excluding `moduleIds` prevents redundant exported state and preserves one source of truth
-    - [ ] `ModePreset::toArray()` emits exactly these eight fields in this order:
-      1. `schemaVersion`
-      2. `name`
-      3. `description`
-      4. `required`
-      5. `optional`
-      6. `disabled`
-      7. `featureBundles`
-      8. `metadata`
-    - [ ] module-id fields in `toArray()` are canonical strings
-    - [ ] map keys in `featureBundles` and `metadata` are recursively `strcmp`-sorted
-    - [ ] nested list order is preserved
-    - [ ] `toArray()` is the canonical scalar representation of source-owned preset state
-    - [ ] every accepted source payload MUST satisfy:
-      - [ ] `$preset = $validator->validate($requestedName, $payload)`
-      - [ ] `$preset->toArray() === $payload`
-    - [ ] a semantically valid payload that fails this strict equality is rejected with `mode-preset-source-not-canonical`
-  - [ ] diagnostics and redaction:
-    - [ ] resolved filesystem paths are not exposed
-    - [ ] raw source payloads are not exposed
-    - [ ] raw PHP warning or Throwable details MUST NOT appear in deterministic diagnostic surfaces:
-      - [ ] `errorCode()`
-      - [ ] `reason()`
-      - [ ] `getMessage()`
-      - [ ] `context()`
-      - [ ] logs
-      - [ ] metric labels
-      - [ ] span attributes
-      - [ ] exported diagnostic payloads
-    - [ ] the original source Throwable MAY remain attached as `getPrevious()` according to the existing module-resolution exception chaining policy
-    - [ ] the previous Throwable chain MUST NOT be copied or serialized into deterministic diagnostics or observability
-    - [ ] `ModePresetInvalidException` adds:
-      - [ ] `REASON_SOURCE_NOT_CANONICAL = mode-preset-source-not-canonical`
-      - [ ] `REASON_SOURCE_OUTPUT_FORBIDDEN = mode-preset-source-output-forbidden`
-    - [ ] both reasons remain under the existing:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-    - [ ] no new ErrorCode is introduced
-    - [ ] secrets, environment values, stack traces, and source contents are not exposed
-
-#### Modifies
-
-- [ ] `packages/core/kernel/src/Module/ModePresetSchemaValidator.php`
-  - [ ] retain existing structural, type, safety, and pairwise-disjointness validation
-  - [ ] construct the normalized immutable `ModePreset`
-  - [ ] before returning, compare:
-    - [ ] `$preset->toArray()`
-    - [ ] original raw `$payload`
-  - [ ] comparison uses strict PHP array identity semantics:
-    - [ ] value
-    - [ ] type
-    - [ ] list order
-    - [ ] map key insertion order
-  - [ ] mismatch throws:
-    - [ ] `ModePresetInvalidException::REASON_SOURCE_NOT_CANONICAL`
-  - [ ] semantic validation executes before canonical round-trip comparison
-  - [ ] validator MUST NOT silently accept source casing, duplicate sets, set reordering, or map-key reordering
-
-- [ ] `packages/core/kernel/src/Module/ModePreset.php`
-  - [ ] retain canonical sorting of direct-construction module-id sets
-  - [ ] change `normalizeModuleIdSet()` so duplicate canonical `ModuleId::value()` entries are rejected
-  - [ ] duplicate rejection uses stable field-specific internal reason:
-    - [ ] `mode-preset-<field>-module-id-duplicate`
-  - [ ] retain pairwise-disjointness checks
-  - [ ] retain recursive JSON-like normalization
-  - [ ] retain the exact eight-field `toArray()` export
-  - [ ] do not add `moduleIds` to `toArray()`
-
-- [ ] `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php`
-  - [ ] add:
-    - [ ] `REASON_SOURCE_NOT_CANONICAL`
-    - [ ] `REASON_SOURCE_OUTPUT_FORBIDDEN`
-  - [ ] add both reasons to the internal reason allowlist
-  - [ ] retain `CORETSIA_MODE_PRESET_INVALID`
-  - [ ] do not add or rename an ErrorCode
-  - [ ] diagnostics remain limited to safe preset name and reason token
-
-- [ ] `packages/core/kernel/src/Module/FilesystemModePresetLoader.php`
-  - [ ] retain override-first/default-second lookup
-  - [ ] retain first-existing-file-wins behavior
-  - [ ] retain no-merge behavior
-  - [ ] execute the selected source under a loader-owned output buffer
-  - [ ] install and restore a temporary PHP error handler around `require`
-  - [ ] restore output/error-handler state through `finally`
-  - [ ] reject non-empty source output with `REASON_SOURCE_OUTPUT_FORBIDDEN`
-  - [ ] prevent ordinary PHP output routed through the loader-owned buffer and callback-handled PHP diagnostics from escaping under supported source behavior
-  - [ ] retain generic invalid-source mapping for thrown source exceptions
-  - [ ] enforce exact existing-source failure precedence:
-    - [ ] execution failure before captured-output failure
-    - [ ] captured-output failure before payload validation
-    - [ ] semantic validation before canonicality validation
-  - [ ] source Throwable MAY be retained only as the exception `previous`
-  - [ ] raw source Throwable data MUST NOT be copied into message, reason, context, logs, metrics, spans, or exported diagnostics
-  - [ ] do not expose resolved paths or raw source content
-
-- [ ] `packages/core/kernel/resources/modes/hybrid.php`
-  - [ ] reorder `optional` to exact byte-order `strcmp` order:
-    1. `platform.http`
-    2. `platform.logging`
-    3. `platform.metrics`
-    4. `platform.tracing`
-    5. `platform.worker`
-  - [ ] no semantic module membership change
-
-- [ ] `packages/core/kernel/resources/modes/enterprise.php`
-  - [ ] reorder `optional` to exact byte-order `strcmp` order:
-    1. `platform.http`
-    2. `platform.logging`
-    3. `platform.metrics`
-    4. `platform.tracing`
-    5. `platform.worker`
-  - [ ] no semantic module membership change
-
-- [ ] `packages/core/kernel/tests/Contract/ModePresetConstructorPolicyContractTest.php`
-  - [ ] add direct-construction duplicate rejection coverage for:
-    - [ ] duplicate `required`
-    - [ ] duplicate `optional`
-    - [ ] duplicate `disabled`
-  - [ ] retain acceptance of unsorted but otherwise valid direct-construction sets
-  - [ ] assert returned loaded sets are `strcmp`-sorted
-
-- [ ] `packages/core/kernel/tests/Contract/ModePresetExportShapeContractTest.php`
-  - [ ] retain exact eight-field export order
-  - [ ] explicitly assert `moduleIds` key is absent
-  - [ ] retain separate `moduleIds()` accessor coverage
-
-- [ ] `packages/core/kernel/tests/Contract/ModuleResolutionExceptionsExposeSafeDiagnosticsContractTest.php`
-  - [ ] include both new reasons in ModePreset invalid-exception coverage:
-    - [ ] `mode-preset-source-not-canonical`
-    - [ ] `mode-preset-source-output-forbidden`
-  - [ ] use a previous Throwable containing:
-    - [ ] an absolute path
-    - [ ] a token-like value
-    - [ ] a newline
-  - [ ] assert raw previous data is absent from:
-    - [ ] error code
-    - [ ] reason
-    - [ ] message
-    - [ ] context
-  - [ ] retain the existing exception-chaining policy
-
-- [ ] `docs/ssot/INDEX.md`
-  - [ ] register `docs/ssot/mode-preset-sources.md` exactly once
-  - [ ] add the entry under `Shapes and Contracts`
-  - [ ] use the exact entry: - [Mode Preset Sources SSoT](./mode-preset-sources.md) — owner: core/kernel — ssotVersion: 1 — scope: kernel,mode-preset,php,source,validation
-  - [ ] place the entry immediately before `./modes.md`
-  - [ ] preserve byte-order `strcmp` ordering by relative path
-  - [ ] index `ssotVersion` MUST equal the document `ssotVersion`
-
-- [ ] `docs/ssot/modes.md`
-  - [ ] remains owned by `core/contracts`
-  - [ ] remains source-format neutral at the contracts boundary
-  - [ ] does not duplicate the exact PHP source payload schema
-  - [ ] update the document scope so it owns:
-    - [ ] canonical mode vocabulary
-    - [ ] `ModePresetInterface` semantics
-    - [ ] format-neutral loader-port semantics
-    - [ ] loaded-preset invariants
-  - [ ] replace absolute source-validator/direct-constructor parity wording:
-    - [ ] `ModePreset` direct construction enforces semantic loaded-state safety
-    - [ ] source-only canonical representation is owned by `ModePresetSchemaValidator`
-    - [ ] source-only rules include:
-      - [ ] raw top-level key insertion order
-      - [ ] canonical raw module-id spelling
-      - [ ] canonical source set order
-      - [ ] canonical recursive map-key order
-    - [ ] direct construction does not receive raw source strings or raw source map ordering
-    - [ ] direct construction MAY canonicalize non-semantic ordering
-    - [ ] direct construction MUST reject:
-      - [ ] duplicate module-id identities
-      - [ ] pairwise set overlap
-      - [ ] unsafe name or description
-      - [ ] unsafe JSON-like values
-  - [ ] remove or replace stale future-tense statements:
-    - [ ] remove `A concrete loader implementation belongs to a future owner package.`
-    - [ ] replace it with a statement that the current Kernel-owned implementation is documented by:
-      - [ ] `docs/ssot/mode-preset-sources.md`
-      - [ ] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-  - [ ] correct `ModePreset exported shape`:
-    - [ ] retain `moduleIds()` as a derived interface accessor
-    - [ ] remove `moduleIds` from the documented current `toArray()` field list
-    - [ ] document the canonical eight-field `toArray()` shape:
-      - [ ] `schemaVersion`
-      - [ ] `name`
-      - [ ] `description`
-      - [ ] `required`
-      - [ ] `optional`
-      - [ ] `disabled`
-      - [ ] `featureBundles`
-      - [ ] `metadata`
-    - [ ] state that the eight-field shape intentionally matches canonical source state
-    - [ ] state that accepted Kernel PHP sources round-trip exactly through `toArray()`
-    - [ ] state that `moduleIds()` is derived and therefore excluded to avoid duplicate exported state
-    - [ ] state that `moduleIds()` is not source state and is not part of the current exported array
-  - [ ] replace the concrete-source items in `Non-goals`:
-    - [ ] this contracts SSoT does not itself define the concrete PHP source format
-    - [ ] this contracts SSoT does not itself own source-directory resolution
-    - [ ] the concrete Kernel implementation is normatively documented in `docs/ssot/mode-preset-sources.md`
-    - [ ] lookup/resolution architecture remains documented in ADR-0024
-  - [ ] retain format neutrality:
-    - [ ] `ModePresetInterface` does not expose PHP filenames or source directories
-    - [ ] callers continue to depend on the interface rather than `FilesystemModePresetLoader`
-
-- [ ] `docs/adr/ADR-0024-kernel-module-plan-resolution.md`
-  - [ ] retain existing implementation ownership and resolution pipeline
-  - [ ] retain the existing mode-preset loading section
-  - [ ] retain config-derived path resolution:
-    - [ ] skeleton override first
-    - [ ] framework default second
-    - [ ] first existing file wins
-    - [ ] no merge
-  - [ ] add a normative reference to `docs/ssot/mode-preset-sources.md` for:
-    - [ ] exact raw PHP payload key set
-    - [ ] field validation
-    - [ ] normalization behavior
-    - [ ] loaded/exported shape distinction
-  - [ ] clarify source validation vs loaded-state construction:
-    - [ ] `ModePresetSchemaValidator` owns exact source canonicality
-    - [ ] `ModePreset` owns safe semantic loaded state
-    - [ ] direct construction is not required to revalidate raw PHP array insertion order
-    - [ ] direct construction rejects duplicate and overlapping module identities
-    - [ ] direct construction may canonicalize non-semantic ordering
-  - [ ] document canonical round-trip:
-    - [ ] every accepted source payload equals its `ModePreset::toArray()` result
-    - [ ] semantically equivalent but non-canonical source payloads fail deterministically
-    - [ ] `moduleIds()` remains derived and is not duplicated in the canonical export
-  - [ ] document source execution isolation:
-    - [ ] ordinary PHP output routed through the loader-owned buffer is captured, discarded, and rejected
-    - [ ] callback-handled PHP warnings, notices, and deprecations do not escape
-    - [ ] direct-stream writes and deliberate output-buffer or error-handler manipulation are outside the in-process containment guarantee
-    - [ ] arbitrary PHP execution is not represented as fully sandboxed
-  - [ ] do not duplicate the complete eight-key schema inside the ADR
-  - [ ] do not describe the loader or validator as future work
-
-- [ ] `docs/architecture/PACKAGING.md`
-  - [ ] add a normative “Mode preset packaging” section
-  - [ ] framework distribution:
-    - [ ] `core/kernel` ships the four canonical preset files:
-      - [ ] `packages/core/kernel/resources/modes/micro.php`
-      - [ ] `packages/core/kernel/resources/modes/express.php`
-      - [ ] `packages/core/kernel/resources/modes/hybrid.php`
-      - [ ] `packages/core/kernel/resources/modes/enterprise.php`
-    - [ ] every shipped framework preset MUST satisfy the canonical source round-trip contract
-    - [ ] shipped framework preset module-id sets MUST already be unique and `strcmp`-sorted
-    - [ ] shipped framework preset map keys MUST already be recursively `strcmp`-sorted
-    - [ ] the shipped package-relative directory matches the current default:
-      - [ ] `kernel.modes.defaults_path = resources/modes`
-  - [ ] default skeleton distribution:
-    - [ ] default skeleton ships no preset PHP file matching:
-      - [ ] `packages/applications/skeleton/config/modes/*.php`
-    - [ ] this matches the current application-relative default:
-      - [ ] `kernel.modes.overrides_path = config/modes`
-    - [ ] absence of the directory is valid
-    - [ ] an empty directory has no runtime semantic effect
-  - [ ] project ownership:
-    - [ ] project owners MAY add `packages/applications/skeleton/config/modes/<preset>.php`
-    - [ ] those files are user-owned overrides
-    - [ ] user-owned overrides use the same strict source schema as framework-owned presets
-    - [ ] override status does not weaken canonicality, safety, output, or redaction requirements
-    - [ ] an override replaces the framework preset of the same name
-    - [ ] override and framework source are never merged
-    - [ ] the default-skeleton packaging prohibition does not prohibit post-creation user-owned override files
-  - [ ] path semantics:
-    - [ ] packaging locations describe currently shipped files
-    - [ ] runtime directories are resolved from `kernel.modes.defaults_path` and `kernel.modes.overrides_path`
-    - [ ] PACKAGING MUST NOT imply that those path strings are hardcoded in `FilesystemModePresetLoader`
-  - [ ] reference:
-    - [ ] link exact PHP source and normalization rules to `docs/ssot/mode-preset-sources.md`
-    - [ ] link runtime lookup architecture to ADR-0024
-
-### Verification (MUST)
-
-#### Canonical source contract
-
-- [ ] all four framework preset files load successfully
-- [ ] all four framework preset payloads satisfy:
-  - [ ] `$validator->validate($name, $payload)->toArray() === $payload`
-- [ ] exact top-level key order is enforced
-- [ ] `moduleIds` is rejected as a source key
-- [ ] non-canonical module-id casing is rejected
-- [ ] duplicate source module ids are rejected
-- [ ] unsorted source module-id lists are rejected
-- [ ] unsorted source map keys are rejected
-- [ ] unsorted nested map keys are rejected
-- [ ] nested list order remains preserved
-- [ ] pairwise set overlap retains its dedicated semantic failure precedence
-
-#### Loaded-state contract
-
-- [ ] direct `ModePreset` construction rejects duplicate module identities
-- [ ] direct construction rejects pairwise set overlap
-- [ ] direct construction may accept unsorted set input
-- [ ] loaded module-id sets are emitted in byte-order `strcmp` order
-- [ ] `moduleIds()` remains a derived accessor
-- [ ] `ModePreset::toArray()` contains exactly eight fields
-- [ ] `moduleIds` is absent from `toArray()`
-
-#### Source execution isolation
-
-- [ ] ordinary PHP output routed through the loader-owned buffer does not escape
-- [ ] non-empty captured output fails with `mode-preset-source-output-forbidden`
-- [ ] callback-handled PHP warnings, notices, and deprecations do not escape
-- [ ] the original output-buffer level is restored on supported success and failure paths
-- [ ] output buffers that existed before loading remain open
-- [ ] the previous error handler is restored on supported success and failure paths
-- [ ] raw warning text and source paths are absent from deterministic diagnostics
-- [ ] verification does not claim containment of direct `STDOUT`/`STDERR` writes or deliberate output-buffer/error-handler manipulation
-
-#### Documentation and implementation alignment
-
-- [ ] source field set and order match `ModePreset::toArray()`
-- [ ] schema version matches `ModePresetInterface::SCHEMA_VERSION`
-- [ ] field limits match `ModePresetSchemaValidator` and `ModePreset`
-- [ ] depth boundary tests use the exact container-depth counting rule:
-  - [ ] depth `16` container is accepted
-  - [ ] depth `17` container is rejected
-- [ ] both lists and maps reject more than `256` entries
-- [ ] source-only canonical rules are distinguished from loaded-state semantic rules
-- [ ] lookup precedence matches `FilesystemModePresetLoader`
-- [ ] path resolution matches `ModePresetLoaderFactory`
-- [ ] failure reasons match `ModePresetInvalidException`
-- [ ] packaging paths match `kernel.modes.defaults_path` and `kernel.modes.overrides_path`
-
-#### Scope proof
-
-- [ ] no public method signature changes
-- [ ] no package dependency changes
-- [ ] no config root or config key changes
-- [ ] no ErrorCode changes
-- [ ] no Composer command changes
-- [ ] no gate-chain changes
-- [ ] only the two approved stable reason tokens are added
-
-### Tests (MUST)
-
-- Contract:
-  - [ ] `packages/core/kernel/tests/Contract/ModePresetCanonicalSourceRoundTripContractTest.php`
-    - [ ] loads all four framework-owned canonical PHP preset payloads
-    - [ ] validates each payload through `ModePresetSchemaValidator`
-    - [ ] asserts strict identity:
-      - [ ] `$preset->toArray() === $payload`
-    - [ ] asserts canonical top-level key order
-    - [ ] asserts all module-id source lists are canonical, unique, and `strcmp`-sorted
-    - [ ] asserts all recursive map keys are canonical and `strcmp`-sorted
-    - [ ] asserts `moduleIds` is absent from source payload and `toArray()`
-
-- Integration:
-  - [ ] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorRejectsNonCanonicalSourceTest.php`
-    - [ ] data-provider coverage for:
-      - [ ] reordered top-level keys
-      - [ ] uppercase/non-canonical module-id source string
-      - [ ] duplicate module id within one list
-      - [ ] unsorted module-id list
-      - [ ] unsorted `featureBundles` map keys
-      - [ ] unsorted nested map keys
-      - [ ] unsorted `metadata` map keys
-    - [ ] every case fails with:
-      - [ ] `CORETSIA_MODE_PRESET_INVALID`
-      - [ ] `mode-preset-source-not-canonical`
-    - [ ] semantic validation reasons retain precedence over source canonicality:
-      - [ ] invalid module-id syntax remains `mode-preset-module-id-invalid`
-      - [ ] cross-list overlap remains `mode-preset-sets-overlap`
-      - [ ] unsafe metadata remains its existing safety reason
-
-  - [ ] `packages/core/kernel/tests/Integration/ModePresetLoaderSourceIsolationTest.php`
-    - [ ] creates isolated temporary defaults and overrides directories
-    - [ ] removes every temporary source file and directory in `finally`
-    - [ ] ordinary output case:
-      - [ ] source executes `echo` before returning a valid canonical payload
-      - [ ] no captured source byte reaches the test output or an outer output buffer
-      - [ ] load fails with:
-        - [ ] `CORETSIA_MODE_PRESET_INVALID`
-        - [ ] `mode-preset-source-output-forbidden`
-      - [ ] captured source bytes are absent from message and context
-    - [ ] source diagnostic case:
-      - [ ] source triggers a warning or user warning before returning
-      - [ ] the PHP diagnostic is not emitted
-      - [ ] load fails with:
-        - [ ] `CORETSIA_MODE_PRESET_INVALID`
-        - [ ] `mode-preset-invalid`
-      - [ ] raw warning text is absent from deterministic message and context
-    - [ ] failure-precedence case:
-      - [ ] source emits output and then throws
-      - [ ] no captured output escapes
-      - [ ] execution failure wins over output failure
-      - [ ] result reason is `mode-preset-invalid`
-    - [ ] `tryLoad()` behavior:
-      - [ ] an absent preset still returns `null`
-      - [ ] an existing output-producing source does not return `null`
-      - [ ] an existing output-producing source throws the same deterministic invalid-preset failure as `load()`
-      - [ ] an existing warning-producing or throwing source throws the same generic invalid-source failure as `load()`
-    - [ ] output-buffer restoration:
-      - [ ] test creates an outer output buffer before loading
-      - [ ] test records the original output-buffer level
-      - [ ] success restores the original level
-      - [ ] output failure restores the original level
-      - [ ] source execution failure restores the original level
-      - [ ] pre-existing outer-buffer content remains unchanged
-    - [ ] error-handler restoration:
-      - [ ] test installs a pre-existing error handler before loading
-      - [ ] success restores that handler
-      - [ ] output failure restores that handler
-      - [ ] source execution failure restores that handler
-    - [ ] supported-boundary assertion:
-      - [ ] tests cover ordinary buffered PHP output and callback-handled PHP diagnostics
-      - [ ] tests MUST NOT claim containment of deliberate direct `STDOUT`/`STDERR` writes
-      - [ ] tests MUST NOT claim reconstruction of caller-owned buffers deliberately destroyed by arbitrary source code
-
-### DoD (MUST)
-
-- [ ] Epic `2.10.0` is classified as implementation work rather than documentation-only work.
-- [ ] Kernel-owned PHP mode preset source contract has one dedicated SSoT.
-- [ ] The dedicated SSoT matches the hardened executable implementation.
-- [ ] Contracts-level `docs/ssot/modes.md` remains source-format neutral.
-- [ ] ADR-0024 references the dedicated source SSoT.
-- [ ] PACKAGING documents framework and project ownership without hardcoding loader internals.
-- [ ] Raw PHP source payload has exactly eight required top-level keys.
-- [ ] Top-level key insertion order is canonical and enforced.
-- [ ] Unknown, missing, non-string, reordered, and wrapped top-level shapes are rejected.
-- [ ] `moduleIds` is forbidden in source payloads.
-- [ ] Every accepted source module-id string is already canonical.
-- [ ] Non-canonical ASCII casing is rejected.
-- [ ] Source module-id lists contain no duplicates.
-- [ ] Source module-id lists are byte-order `strcmp`-sorted.
-- [ ] `required`, `optional`, and `disabled` are pairwise disjoint.
-- [ ] Semantic overlap failures take precedence over generic canonical-source failures.
-- [ ] Raw source maps are recursively byte-order `strcmp`-sorted.
-- [ ] Nested list order is preserved.
-- [ ] Recursive JSON-like safety and resource limits match the implementation.
-- [ ] Floats, objects, closures, resources, unsafe strings, unsafe keys, and path-like values remain rejected.
-- [ ] Every accepted source satisfies:
-  - [ ] `validate($name, $payload)->toArray() === $payload`
-- [ ] Semantically equivalent but non-canonical source is rejected with:
-  - [ ] `mode-preset-source-not-canonical`
-- [ ] `ModePreset` rejects duplicate direct-construction module identities.
-- [ ] `ModePreset` rejects pairwise set overlap.
-- [ ] `ModePreset` may canonicalize non-semantic direct-construction order.
-- [ ] `ModePreset::toArray()` exports exactly eight canonical source-state fields.
-- [ ] `moduleIds()` remains a derived compatibility accessor.
-- [ ] `moduleIds` is absent from source payload and `toArray()`.
-- [ ] No redundant module-id projection is added to canonical exported state.
-- [ ] Ordinary PHP output routed through the loader-owned buffer is captured, discarded, and rejected.
-- [ ] Non-empty captured output fails with:
-  - [ ] `mode-preset-source-output-forbidden`
-- [ ] Callback-handled PHP warnings, notices, and deprecations do not escape source execution.
-- [ ] The original output-buffer level and previous error handler are restored on every supported success and failure path.
-- [ ] Pre-existing caller-owned output buffers remain open.
-- [ ] The documentation does not claim containment of direct-stream writes or deliberate output-buffer/error-handler manipulation.
-- [ ] The documentation does not claim full arbitrary-PHP sandboxing.
-- [ ] `hybrid.php` optional module ids are canonical and `strcmp`-sorted.
-- [ ] `enterprise.php` optional module ids are canonical and `strcmp`-sorted.
-- [ ] All four framework preset files pass the canonical round-trip test.
-- [ ] Framework-owned presets remain under `packages/core/kernel/resources/modes/*.php`.
-- [ ] Default skeleton ships no `packages/applications/skeleton/config/modes/*.php` files.
-- [ ] Project-owned overrides remain allowed under `packages/applications/skeleton/config/modes/*.php`.
-- [ ] Framework and project-owned sources use the same strict schema.
-- [ ] Skeleton override precedence and no-merge behavior remain unchanged.
-- [ ] No public API signature changes.
-- [ ] No package dependency changes.
-- [ ] No config root or config key changes.
-- [ ] No ErrorCode changes.
-- [ ] No Composer command or gate-chain changes.
-- [ ] Existing mode-preset lookup, path-resolution, and failure-precedence contracts remain intact.
-- [ ] `docs/ssot/mode-preset-sources.md` is registered exactly once in `docs/ssot/INDEX.md`.
-- [ ] The SSoT index entry is in deterministic relative-path order.
-- [ ] The index and document both declare `ssotVersion: 1`.
-- [ ] Ordinary PHP output successfully routed through the loader-owned buffer is captured, discarded, and rejected.
-- [ ] The epic does not claim containment of arbitrary direct-stream or output-buffer manipulation.
-- [ ] Source execution failure takes precedence over captured-output failure.
-- [ ] Captured-output failure takes precedence over payload validation.
-- [ ] Semantic validation takes precedence over canonical representation validation.
-- [ ] Raw previous Throwable details are absent from every deterministic diagnostic surface.
-- [ ] Existing module-resolution previous-Throwable chaining policy remains unchanged.
-- [ ] JSON-like depth counting uses container depth with the root map at depth `0`.
-- [ ] Depth `16` is accepted and depth `17` is rejected.
-- [ ] The `256`-entry limit applies to both lists and maps.
-
----
-
-### 2.20.0 Kernel fixtures for mode presets (SHOULD) [IMPL]
+### 2.10.0 Mode preset PHP source execution hardening (MUST) [IMPL]
 
 ---
 type: package
 phase: 2
-epic_id: "2.20.0"
+epic_id: "2.10.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -808,19 +27,19 @@ composer: "coretsia/core-kernel"
 kind: runtime
 module_id: "core.kernel"
 
-goal: "Додати kernel-owned fixture trees для deterministic boot/e2e тестів режимів без потреби в skeleton overrides."
+goal: "Посилити існуючий Kernel-owned PHP mode-preset source-execution boundary containment та discard incidental ordinary buffered PHP output без зміни прийнятих ModePreset, ModuleSelection, ModulePlan і error-taxonomy semantics."
+
 provides:
-- "Fixture trees для Micro/Express/Hybrid/Enterprise (kernel-owned)"
-- "Test-ready scaffolding to validate mode preset behavior deterministically"
-- "No change to packaging policy: skeleton ships no default modes"
+- "Ordinary buffered PHP output containment for the existing namespace-bound mode-preset source execution path"
+- "Preservation of existing preset validation and error-taxonomy semantics while incidental source output is contained and discarded"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: none
+
+adr: docs/adr/ADR-0024-kernel-module-plan-resolution.md
 ssot_refs:
-- "docs/ssot/modes.md"
-- "docs/ssot/config-roots.md"   # subtree rule for fixture config files
+- docs/ssot/modes.md
 ---
 
 ### Dependencies (MUST)
@@ -828,87 +47,315 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 2.10.0 — modes SSoT + packaging enforcement gate
+  - N/A
 
 - Required deliverables (exact paths):
-  - `packages/core/kernel/resources/modes/micro.php`
-  - `packages/core/kernel/resources/modes/express.php`
-  - `packages/core/kernel/resources/modes/hybrid.php`
-  - `packages/core/kernel/resources/modes/enterprise.php`
-  - `docs/ssot/modes.md`
+  - `packages/core/contracts/src/Module/ModePresetInterface.php` — existing format-neutral preset value contract returned by the loader.
+  - `packages/core/contracts/src/Module/ModePresetLoaderInterface.php` — existing loader API whose `load()` / `tryLoad()` semantics remain unchanged.
+  - `packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — existing one-source-bound PHP preset loader hardened by this epic.
+  - `packages/core/kernel/src/Module/ModePresetSchemaValidator.php` — existing payload-validation boundary invoked after successful source execution.
+  - `packages/core/kernel/src/Module/Preset/PresetSourceInterface.php` — existing single-source abstraction consumed by the loader.
+  - `packages/core/kernel/src/Module/Exception/ModePresetInvalidException.php` — existing generic invalid-source boundary reused without modification.
+  - `packages/core/kernel/src/Module/Exception/ModePresetNotFoundException.php` — existing missing-source boundary whose semantics remain unchanged.
+  - `docs/ssot/modes.md` — canonical mode/preset loading-policy SSoT.
+  - `docs/architecture/DEPENDENCIES.md` — canonical direct-dependency matrix used by this epic's compile-time dependency constraints.
+  - `packages/core/kernel/tests/Support/ModeInfrastructureTestSupport.php` — existing package-local integration-test support reused by the new output-containment test.
+  - `docs/adr/ADR-0024-kernel-module-plan-resolution.md` — existing related architecture decision referenced by this epic but not modified.
+
+- Required config roots/keys:
+  - N/A
+
+- Required tags:
+  - N/A
+
+- Required contracts / ports:
+  - `Coretsia\Contracts\Module\ModePresetInterface` — preset value returned by the existing loader API.
+  - `Coretsia\Contracts\Module\ModePresetLoaderInterface` — existing `load()` / `tryLoad()` API surface preserved by this epic.
+
+- Accepted architectural invariants:
+  - `PresetNamespaceResolver` is the sole name-based namespace selector and MUST NOT probe the filesystem.
+  - canonical names resolve only to `PresetNamespace::Canonical`.
+  - non-canonical safe names resolve only to `PresetNamespace::Custom`.
+  - `CanonicalPresetSource` and `CustomPresetSource` are disjoint source owners.
+  - canonical names never load application preset files.
+  - custom names never fall back to Kernel canonical resources.
+  - application-owned canonical-name files are rejected; they do not override canonical resources.
+  - there is no first-existing-file-wins policy.
+  - there is no canonical/custom payload merge.
+  - `FilesystemModePresetLoader` is bound to exactly one `PresetSourceInterface`.
+  - accepted Phase-A flow remains:
+
+```text
+BootstrapConfig::preset()
+        +
+PresetNamespaceResolver
+        ↓
+PresetNamespace
+        ↓
+ModePresetLoaderFactory::createFor(
+    BootstrapConfig,
+    PresetNamespace
+)
+        ↓
+namespace-bound PresetSourceInterface
+        ↓
+FilesystemModePresetLoader
+        ↓
+ModePresetSchemaValidator
+        ↓
+ModePreset
+        +
+ResolvedModuleOverrides
+        ↓
+ModuleSelectionFactory
+        ↓
+ModuleSelection
+```
+
+- this epic MUST NOT change `ModuleSelection`, `ResolvedModuleOverrides`, `ModuleSelectionFactory`, `ModuleGraphResolver`, `ModulePlan`, DependencySync planning law, installation-catalog semantics, artifact identities, or Composer dependency synchronization.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
-- none (fixtures only)
+
+- `core/contracts`
+- `core/foundation` — existing `core/kernel` package dependency; this epic introduces no new dependency edge
 
 Forbidden:
-- none
+
+- any materialized layered package not listed in the `core/kernel` `depends_on` cell of `docs/architecture/DEPENDENCIES.md`
+- any new package dependency edge introduced by this epic
+
+#### Uses ports (API surface, NOT deps)
+
+- Contracts:
+  - `Coretsia\Contracts\Module\ModePresetInterface`
+  - `Coretsia\Contracts\Module\ModePresetLoaderInterface`
+
+### Entry points / integration points (MUST)
+
+- Other compile-host integration points:
+  - `Coretsia\Kernel\Module\Preset\PresetNamespaceResolver` → resolves requested preset name to the already accepted canonical/custom namespace.
+  - `Coretsia\Kernel\Module\ModePresetLoaderFactory::createFor(...)` → creates one namespace-bound `FilesystemModePresetLoader`.
+  - `Coretsia\Kernel\Module\FilesystemModePresetLoader::load(string)` → existing preset-loading entrypoint hardened by this epic.
+  - `Coretsia\Kernel\Module\FilesystemModePresetLoader::tryLoad(string)` → existing nullable loading entrypoint; existing-but-invalid source MUST still fail rather than be translated to absence.
+  - `Coretsia\Kernel\Module\ModePresetSchemaValidator::validate(string, mixed)` → existing raw source-payload validation boundary.
+
+- Notes:
+  - no new public runtime entrypoint is introduced.
+  - no new CLI, HTTP route, Kernel tag, discovery tag, or artifact read/write entrypoint is introduced.
+  - namespace selection remains a loader-construction concern and MUST NOT be added to `ModePresetLoaderInterface` method signatures.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-Kernel-owned fixture trees (tests-only; deterministic content; LF-only):
+- [x] `packages/core/kernel/tests/Integration/ModePresetLoaderOutputContainmentTest.php` — proves ordinary buffered-output containment, supported cleanup and preservation of existing validation/error semantics.
 
-- [ ] `packages/core/kernel/tests/Fixtures/_POLICY.md`
-  - [ ] MUST state:
-    - [ ] fixtures are tests-only
-    - [ ] LF-only, final newline
-    - [ ] no absolute paths, no machine-specific bytes
-    - [ ] MUST NOT ship `config/modes/*` anywhere inside fixtures
-    - [ ] config files follow subtree rule (no root wrapper)
+#### Modifies
 
-- [ ] `packages/core/kernel/tests/Fixtures/MicroApp/`
-  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/README.md`
-  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/config/modules.php`
-  - [ ] `packages/core/kernel/tests/Fixtures/MicroApp/config/kernel.php` (optional minimal subtree)
+- [x] `packages/core/kernel/src/Module/FilesystemModePresetLoader.php` — add ordinary buffered-output containment around the existing source execution path while preserving current namespace-bound loading, validation and error-taxonomy behavior:
+  - [x] retain the existing static local `require` closure.
+  - [x] record the current caller output-buffer level before creating loader-owned buffering state.
+  - [x] install the existing temporary PHP error handler before output-buffer initialization and retain the existing rule that diagnostics are not delegated to a previously installed handler.
+  - [x] execute loader-owned output-buffer initialization and source `require` under the same generic invalid-source execution boundary.
+  - [x] start exactly one loader-owned discard buffer using a side-effect-free output handler that returns an empty string and a fixed implementation-local chunk size of `8192` bytes.
+  - [x] ordinary source output MUST be discarded incrementally during execution; the loader MUST NOT retain unbounded ordinary output solely because of its containment buffer until final cleanup.
+  - [x] output-buffer initialization failure or a callback-handled diagnostic raised during initialization maps to the existing generic invalid-source failure.
+  - [x] keep the temporary loader error handler installed through the complete output-buffer cleanup attempt so cleanup diagnostics cannot reach or invoke the caller-owned previous handler.
+  - [x] restore the previous error handler in an outer `finally` only after the output-buffer cleanup attempt has completed or failed.
+  - [x] for supported source behavior that neither depends on nor deliberately inspects, flushes, closes, replaces, or otherwise manipulates PHP output-buffer state, does not terminate or abort the current PHP process outside normal Throwable control flow, and does not defer output beyond source execution, synchronous ordinary PHP output routed through the loader-owned buffer MUST NOT reach the caller or any pre-existing caller-owned outer output buffer.
+  - [x] ordinary buffered source output MUST NOT enter deterministic diagnostics.
+  - [x] output produced during otherwise successful source execution is discarded and MUST NOT by itself change preset validity, ErrorCode, reason token or payload-validation precedence.
+  - [x] source execution Throwable or callback-handled PHP diagnostic retains the existing generic invalid-source semantics; buffered output produced before that failure is discarded during cleanup.
+  - [x] in `finally`, best-effort close and discard only output-buffer levels above the recorded caller level; final cleanup discards any residual bytes not already consumed by the loader-owned discard handler.
+  - [x] best-effort cleanup MUST stop if `ob_end_clean()` returns `false` or raises a Throwable through the temporary loader error handler; either condition marks cleanup as failed and cleanup MUST NOT spin indefinitely.
+  - [x] successful supported cleanup restores exactly the recorded caller output-buffer level.
+  - [x] if cleanup finishes with an output-buffer level different from the recorded caller level, fail through the existing generic invalid-source boundary; the loader MUST NOT claim recovery of caller-owned buffering deliberately destroyed by arbitrary source PHP.
+  - [x] after successful source execution and successful output cleanup, pass the returned payload to `ModePresetSchemaValidator` exactly as before.
+  - [x] do not add fallback, merging, namespace selection, ModuleSelection interpretation, Composer state access, or a second source path.
 
-- [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/`
-  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/README.md`
-  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
-  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/kernel.php` (optional minimal subtree)
+- [x] `docs/ssot/modes.md` — extend the existing `Determinism and security` / `Security and redaction` policy with synchronous ordinary buffered PHP output containment/discard and the trusted-PHP/non-sandbox boundary; supported preset source semantics MUST NOT depend on loader-internal output-buffer state, terminate/abort the loading process, or rely on deferred output, and ordinary output presence alone MUST NOT redefine preset validity or existing failure taxonomy.
 
-- [ ] `packages/core/kernel/tests/Fixtures/HybridApp/`
-  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/README.md`
-  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/config/modules.php`
-  - [ ] `packages/core/kernel/tests/Fixtures/HybridApp/config/kernel.php` (optional minimal subtree)
+#### Package skeleton (if type=package)
 
-- [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
-  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/README.md`
-  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/modules.php`
-  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/config/kernel.php` (optional minimal subtree)
+N/A — `core/kernel` is an existing runtime package. This epic does not create or restructure its package skeleton.
+
+#### Configuration (keys + defaults)
+
+N/A — this epic introduces and modifies no configuration root, key or default.
+
+#### Wiring / DI tags (when applicable)
+
+N/A — no tag ownership, tag consumption, ServiceProvider registration, DI identity or reserved-tag change is introduced.
+
+#### Artifacts / outputs (if applicable)
+
+N/A — this epic does not create, modify, read or write a versioned runtime artifact contract.
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+N/A
+
+#### Observability (policy-compliant)
+
+N/A — this epic introduces or modifies no span, metric, log event, label, attribute, or observability outcome.
+
+#### Errors
+
+- Exceptions introduced:
+  - N/A
+
+- [x] Existing error taxonomy retained:
+  - [x] unreadable namespace-owned source → existing `CORETSIA_MODE_PRESET_INVALID` / `REASON_PRESET_INVALID`.
+  - [x] source execution Throwable → existing `CORETSIA_MODE_PRESET_INVALID` / `REASON_PRESET_INVALID`.
+  - [x] callback-handled PHP diagnostic → existing `CORETSIA_MODE_PRESET_INVALID` / `REASON_PRESET_INVALID`.
+  - [x] output-buffer initialization or unrecoverable cleanup failure → existing `CORETSIA_MODE_PRESET_INVALID` / `REASON_PRESET_INVALID`.
+  - [x] these failures are execution-boundary failures only; they MUST NOT be translated into payload/schema-specific reason tokens.
+  - [x] ordinary buffered output presence alone → no failure and no reason-token change.
+  - [x] payload structural/type/schema/safety violation → existing most-specific validator reason, regardless of previously discarded ordinary buffered output.
+  - [x] absent namespace-owned source → existing `ModePresetNotFoundException` / `tryLoad() === null` semantics as applicable.
+  - [x] no new ErrorCode, exception type, reason token or output-specific failure precedence is introduced.
+
+- Mapping:
+  - N/A — reuse the existing ModePreset/ModuleResolution exception boundary.
+
+#### Security / Redaction
+
+- [x] retain the existing safe `ModePresetInvalidException` diagnostic contract.
+- [x] for supported source behavior defined above, buffered ordinary source output MUST NOT:
+  - [x] reach caller-owned ordinary output buffers.
+  - [x] appear in `ModePresetInvalidException::errorCode()`.
+  - [x] appear in `ModePresetInvalidException::reason()`.
+  - [x] appear in `ModePresetInvalidException::getMessage()`.
+  - [x] appear in `ModePresetInvalidException::context()`.
+- [x] callback-handled PHP diagnostic text MUST remain suppressed from deterministic diagnostics.
+- [x] source execution Throwable translation MUST preserve the existing loader behavior and MUST NOT introduce new Throwable chaining merely for output isolation.
+- [x] preset PHP remains trusted Kernel/application code; the loader MUST NOT claim arbitrary-PHP sandboxing.
+- [x] source behavior that depends on, inspects, flushes, closes, replaces, or otherwise manipulates PHP output-buffer state, manipulates error-handler ownership, writes directly to `STDOUT`, `STDERR`, or equivalent process streams, terminates/aborts the PHP process outside normal Throwable control flow, or schedules deferred output remains outside the supported ordinary-output containment guarantee.
+- [x] arbitrary filesystem/network/process/global-state side effects remain possible because preset PHP is trusted executable code; this epic does not sandbox or prevent them, but their presence alone does not disable ordinary buffered-output containment when the source otherwise stays within the supported execution model.
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [x] If Context writes exist → N/A; this epic performs no Context writes.
+- [x] If `kernel.reset` used → N/A; this epic introduces no resettable service or reset tag.
+- [x] If metrics/spans/logs exist → N/A; this epic introduces no observability emitter.
+- [x] If redaction exists → `packages/core/kernel/tests/Integration/ModePresetLoaderOutputContainmentTest.php`
+  - [x] buffered source output does not reach caller-owned output buffers.
+  - [x] when an independent source-execution or payload-validation failure produces `ModePresetInvalidException`, buffered source output does not appear in `errorCode()`, `reason()`, `getMessage()` or `context()`.
+  - [x] existing PHP diagnostic and Throwable-message no-leak behavior remains unchanged under the new output-buffer wrapper.
+
+#### Test harness / fixtures (when integration is needed)
+
+- [x] reuse `packages/core/kernel/tests/Support/ModeInfrastructureTestSupport.php` for temporary roots, preset payloads, source writing and loader construction.
+- [x] create output-producing preset PHP files only under per-test temporary roots; no committed fixture application is introduced.
+- [x] caller-owned output-buffer and error-handler fixtures MUST be restored in `finally` so a failed assertion cannot contaminate the PHPUnit process.
+- [x] per-test temporary roots MUST be removed in `finally` through `ModeInfrastructureTestSupport::remove()`.
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/core/kernel/tests/Unit/ModePresetResourcesExistAndReturnArrayTest.php`
-    - [ ] MUST only assert file presence + `is_array(require ...)`
+  - N/A — the changed behavior exists only at the filesystem source-execution boundary and is verified through integration coverage.
 
-  - [ ] `packages/core/kernel/tests/Unit/ModeFixturesDoNotShipModeOverridesTest.php`
-    - [ ] Assert: no `tests/Fixtures/**/config/modes/*` present
+- Contract:
+  - N/A — no public contract, ErrorCode, exception type, or stable reason-token taxonomy is changed.
 
-  - [ ] `packages/core/kernel/tests/Unit/ModeFixtureConfigFilesReturnArrayTest.php`
-    - [ ] For each fixture app dir:
-      - [ ] assert `config/modules.php` exists and `is_array(require ...)`
-      - [ ] if `config/kernel.php` exists, assert `is_array(require ...)`
-    - [ ] MUST NOT assert any machine-specific values; presence + type only
+- Integration:
+  - [x] `packages/core/kernel/tests/Integration/ModePresetLoaderOutputContainmentTest.php`
+    - [x] a silent valid source retains the existing successful loading semantics and leaves the caller output-buffer level and previous error handler unchanged.
+    - [x] otherwise-valid source emitting `echo 'unexpected-output'` still loads successfully and the emitted bytes do not reach any caller-owned outer output buffer.
+    - [x] otherwise-valid source emitting at least three separate ordinary-output writes of `8192` bytes each still loads successfully; every chunk is discarded, no emitted bytes reach the caller-owned outer buffer, and the caller output-buffer level is restored.
+    - [x] output-producing success restores the caller output-buffer level.
+    - [x] whitespace/newline-only output is discarded and does not change successful loading.
+    - [x] source emits a sensitive fixture marker before returning an otherwise-valid payload with invalid `schemaVersion`; the marker is absent from the thrown exception `errorCode()`, `reason()`, `getMessage()` and `context()`, and from any caller-owned outer output buffer, while `ModePresetInvalidException::REASON_SCHEMA_VERSION_INVALID` is preserved.
+    - [x] source emits ordinary output and then a callback-handleable PHP diagnostic containing a sensitive fixture marker; neither value escapes, the diagnostic retains the existing generic invalid-source failure semantics, and the previously installed caller error handler is not invoked during source execution.
+    - [x] the callback-handled PHP diagnostic fixture marker is absent from `ModePresetInvalidException::errorCode()`, `reason()`, `getMessage()` and `context()`, and the translated exception keeps `getPrevious() === null`.
+    - [x] output followed by Throwable does not escape output, retains the existing generic invalid-source failure semantics, does not expose the raw Throwable message, and keeps `getPrevious() === null`.
+    - [x] source-execution failure after buffered output restores the caller output-buffer level.
+    - [x] output-producing existing source passed to `tryLoad()` returns the loaded preset and does not emit its ordinary buffered output to the caller.
+    - [x] caller-owned outer buffer remains open.
+    - [x] caller-owned outer-buffer content survives supported success/failure paths.
+    - [x] previous caller-owned error handler is restored after supported success/failure paths; an explicit diagnostic triggered after the loader returns is handled by the restored caller handler.
+    - [x] tests MUST NOT claim stable source-visible output-buffer state or containment under source-owned `ob_*` inspection/manipulation, direct `STDOUT`/`STDERR` writes, destruction of caller-owned buffers, deliberate source-owned error-handler manipulation, source-driven process termination/abort, or deferred output.
+    - [x] tests MUST NOT claim sandboxing or prevention of arbitrary filesystem/network/process/global-state side effects performed by trusted preset PHP.
+
+  - [x] existing namespace regression coverage remains green:
+    - [x] `PresetNamespaceResolverTest`.
+    - [x] `ModePresetLoaderUsesCanonicalSourceOnlyTest`.
+    - [x] `ModePresetLoaderUsesCustomSourceOnlyTest`.
+    - [x] `ModePresetLoaderRejectsCanonicalShadowingTest`.
+    - [x] `ModePresetLoaderDoesNotMergeOverrideWithDefaultTest`.
+    - [x] canonical name never loads application source.
+    - [x] custom name never loads Kernel canonical source.
+    - [x] no cross-namespace fallback.
+    - [x] no source merge.
+    - [x] no filesystem-derived namespace selection.
+
+- Gates/Arch:
+  - [x] deptrac update: N/A — no dependency edge changes.
+  - [x] new gate: N/A — no new gate is introduced.
+  - [x] architecture analysis confirms no new dependency edge from `core/kernel`.
+  - [x] production package code modified by this epic introduces no dependency on repository tooling under `tools/**`.
+
+- Repository validation:
+  - [x] run using the actual complete repository checkout and existing root Composer scripts.
+  - [x] `composer test`
+  - [x] `composer gates`
+  - [x] `composer arch`
+  - [x] `composer quality`
+  - [x] `composer ci`
+  - [x] do not reconstruct missing validation tooling from an incomplete review snapshot.
+  - [x] do not introduce new Composer scripts merely for this epic if existing aggregate commands already provide the required coverage.
 
 ### DoD (MUST)
 
-- [ ] Fixture trees exist (paths exact)
-- [ ] Fixtures deterministic (LF-only, no machine-specific content)
-- [ ] Fixtures do not include any `config/modes/*`
-- [ ] Skeleton default `packages/applications/skeleton/config/modes/*` still forbidden (enforced by 2.10.0 gate)
+- [x] Deliverables complete (creates+modifies), paths exact.
+- [x] Preconditions satisfied (no forward references).
+- [x] `type=package`, `package_id=core/kernel`, `composer=coretsia/core-kernel`, `kind=runtime`, `module_id=core.kernel` are correct.
+- [x] deps/forbidden respected; deptrac remains green and no package dependency cycle is introduced.
+- [x] Verification tests present where applicable.
+- [x] `FilesystemModePresetLoader` remains bound to exactly one source.
+- [x] ordinary buffered PHP output is contained and discarded without making output presence itself a preset-validation failure.
+- [x] loader-owned containment discards ordinary output incrementally with a fixed non-zero chunk size and does not accumulate unbounded ordinary source output until cleanup.
+- [x] callback-handled PHP diagnostics do not escape preset execution.
+- [x] original caller output-buffer state is restored for supported source behavior.
+- [x] previous error-handler state is restored for supported source behavior.
+- [x] source-execution and loader-owned cleanup diagnostics are not delegated to the caller-owned previous error handler.
+- [x] loader does not claim arbitrary-PHP sandboxing.
+- [x] containment guarantees cover synchronous ordinary buffered output during supported source execution only; they do not cover source-driven process termination/abort, deferred output, direct process streams, or deliberate output-buffer/error-handler manipulation.
+- [x] the loader does not sandbox or prevent arbitrary filesystem/network/process/global-state side effects performed by trusted preset PHP.
+- [x] supported preset source semantics do not depend on loader-internal PHP output-buffer state.
+- [x] Kernel-owned and application-owned preset PHP is documented as trusted PHP code rather than sandboxed input.
+- [x] buffered ordinary source output does not reach caller-owned output buffers or `ModePresetInvalidException` deterministic diagnostics.
+- [x] existing PHP diagnostic and Throwable-message no-leak behavior remains unchanged.
+- [x] existing payload-validation reason semantics remain unchanged when ordinary buffered output was produced before the returned payload.
+- [x] `docs/ssot/modes.md` remains the single mode/preset SSoT and documents the new source-execution/output-isolation contract without creating a competing SSoT.
+- [x] no public API signature change is introduced.
+- [x] no config root/key/default change is introduced.
+- [x] no new tag is introduced.
+- [x] no artifact identity/schema is introduced or modified.
+- [x] no new ErrorCode is introduced.
+- [x] no new `ModePresetInvalidException` reason token is introduced; ordinary buffered output presence alone does not create a failure, while independent existing source-execution or payload-validation failures retain their existing reasons.
+- [x] no Composer command/script is introduced solely by this epic.
+- [x] no new gate is introduced.
+- [x] ordinary buffered output presence alone does not alter successful `load()` / `tryLoad()` results.
+- [x] ordinary buffered output preceding an invalid returned payload does not alter the validator-selected failure reason.
+- [x] Docs updated:
+  - [x] `docs/ssot/modes.md`
+- [x] complete repository `composer ci` is green.
 
 ---
 
-### 2.25.0 Kernel ops façade for CLI (MUST) [IMPL]
+### 2.20.0 Kernel ops façade for CLI (MUST) [IMPL]
 
 ---
 type: package
 phase: 2
-epic_id: "2.25.0"
+epic_id: "2.20.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -1008,7 +455,7 @@ ssot_refs:
   - `Psr\Log\LoggerInterface`
   - `Coretsia\Foundation\Time\Stopwatch`
 
-- Cross-package deliverable (embedded into 2.25) — new ports introduced in `core/contracts`
+- Cross-package deliverable (embedded into 2.20.0) — new ports introduced in `core/contracts`
   - `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
   - `Coretsia\Contracts\Kernel\Ops\KernelOpsRequest`
   - `Coretsia\Contracts\Kernel\Ops\OpsResult`
@@ -2008,12 +1455,12 @@ Forbidden:
 
 ---
 
-### 2.27.0 Sensitive data redaction boundary (MUST) [CONTRACTS+IMPL+DOC]
+### 2.25.0 Sensitive data redaction boundary (MUST) [CONTRACTS+IMPL+DOC]
 
 ---
 type: package
 phase: 2
-epic_id: "2.27.0"
+epic_id: "2.25.0"
 owner_path: "packages/platform/redaction/"
 
 package_id: "platform/redaction"
@@ -2056,7 +1503,7 @@ ssot_refs:
   - 1.275.0 — Foundation json-like normalization and stable JSON encoding primitives exist.
 
 - Adjacent boundary, not an implementation dependency:
-  - 2.25.0 Kernel Ops results remain safe by construction.
+  - 2.20.0 Kernel Ops results remain safe by construction.
   - `core/kernel` MUST NOT consume `SensitiveDataRedactorInterface`.
   - this epic MUST NOT modify Kernel Ops production source or result DTOs.
 
@@ -3281,9 +2728,9 @@ CLI renders the effective preset returned by `OpsResult`.
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 2.25.0 — Kernel ops façade exists **as a contracts port implementation**:
+  - 2.20.0 — Kernel ops façade exists **as a contracts port implementation**:
     - `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` is bound in container to kernel implementation
-  - 2.27.0 — Sensitive data redaction boundary exists:
+  - 2.25.0 — Sensitive data redaction boundary exists:
     - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` exists
     - the source-operations host composition that enables `platform.cli` enables one redaction implementation owner
     - exactly one `SensitiveDataRedactorInterface` binding is available before `CliServiceFactory` and `OutputFormatter` are resolved
@@ -5782,8 +5229,8 @@ Workflow configuration MUST NOT modify Kernel Bootstrap preset selection.
 
 #### Epic prerequisites (MUST)
 
-- 2.25.0 — Kernel Ops façade and source-operations host exist.
-- 2.27.0 — `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` exists and one implementation is available in the source host.
+- 2.20.0 — Kernel Ops façade and source-operations host exist.
+- 2.25.0 — `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` exists and one implementation is available in the source host.
 - 2.30.0 — tag-first CLI baseline exists, including:
   - `CommandCatalog`;
   - `CommandDescriptor`;

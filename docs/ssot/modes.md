@@ -248,9 +248,15 @@ The `worker` preset key alone does not select `worker`, and target-local exclusi
 
 Preset names are safe lowercase ASCII tokens and are compared byte-for-byte. Schema validation rejects unsafe strings, invalid list shapes and disallowed JSON-like values. Source discovery never executes PHP during candidate inspection, never searches the other namespace and never leaks filesystem paths, raw source payloads, credentials or previous exception messages. Logical preset loading and set normalization use byte-order `strcmp`, not filesystem traversal order, locale, or Composer declaration order.
 
+Preset source PHP is executed only by the selected namespace-bound loader. For supported source behavior, `FilesystemModePresetLoader` owns a temporary discard buffer while the source is required. Synchronous ordinary PHP output routed through that buffer is discarded incrementally and MUST NOT reach caller-owned buffers or change preset validity, `load()` / `tryLoad()` results, validator reason selection, or the existing module-resolution error taxonomy. Payload validation begins only after source execution and supported output-buffer cleanup complete.
+
+Supported preset source semantics MUST NOT depend on loader-internal output-buffer state, terminate or abort the current PHP process outside normal Throwable control flow, or rely on deferred output. Direct `STDOUT` / `STDERR` writes, output-buffer or error-handler manipulation, process termination or abort, and deferred output are outside the ordinary-output containment guarantee.
+
 ## Security and redaction
 
-Mode presets MUST NOT contain secrets.
+Mode presets MUST NOT contain secrets. Preset PHP is trusted Kernel/application executable code, not sandboxed input. Arbitrary filesystem, network, process, or global-state side effects remain possible; ordinary-output containment neither authorizes nor prevents those side effects.
+
+Buffered source output and callback-handled PHP diagnostic text MUST NOT be copied into deterministic mode-preset diagnostics. When an independent source-execution or payload-validation failure occurs, the existing `ModePresetInvalidException` error-code, reason and context semantics remain unchanged. Source-execution Throwables continue to translate to the generic invalid-source failure without exposing raw Throwable messages or adding previous-Throwable chaining.
 
 Mode preset diagnostics and exported metadata MUST NOT expose:
 

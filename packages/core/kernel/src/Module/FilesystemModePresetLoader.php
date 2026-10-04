@@ -31,6 +31,8 @@ use Coretsia\Kernel\Module\Preset\PresetSourceInterface;
  */
 final readonly class FilesystemModePresetLoader implements ModePresetLoaderInterface
 {
+    private const int OUTPUT_BUFFER_CHUNK_SIZE = 8192;
+
     public function __construct(
         private PresetSourceInterface $source,
         private ModePresetSchemaValidator $schemaValidator,
@@ -73,17 +75,57 @@ final readonly class FilesystemModePresetLoader implements ModePresetLoaderInter
         if (!\is_readable($file)) {
             throw ModePresetInvalidException::forPreset($name);
         }
+
+        $callerOutputBufferLevel = \ob_get_level();
+        $payload = null;
+        $sourceExecutionFailed = false;
+        $outputBufferCleanupFailed = false;
+
         \set_error_handler(static function (): never {
             throw new \RuntimeException('mode-preset-php-execution-invalid');
         });
+
         try {
-            $payload = (static fn (string $path): mixed => require $path)($file);
-        } catch (\Throwable) {
-            throw ModePresetInvalidException::forPreset($name);
+            try {
+                if (!\ob_start(
+                    static fn (string $_buffer, int $_phase): string => '',
+                    self::OUTPUT_BUFFER_CHUNK_SIZE,
+                )) {
+                    throw new \RuntimeException('mode-preset-output-buffer-initialization-invalid');
+                }
+
+                $payload = (static fn (string $path): mixed => require $path)($file);
+            } catch (\Throwable) {
+                $sourceExecutionFailed = true;
+            } finally {
+                \set_error_handler(static fn (): bool => true);
+
+                try {
+                    $outputBufferCleanupFailed = !self::discardOutputBuffersAbove($callerOutputBufferLevel);
+                } finally {
+                    \restore_error_handler();
+                }
+            }
         } finally {
             \restore_error_handler();
         }
+
+        if ($sourceExecutionFailed || $outputBufferCleanupFailed) {
+            throw ModePresetInvalidException::forPreset($name);
+        }
+
         return $this->schemaValidator->validate($name, $payload);
+    }
+
+    private static function discardOutputBuffersAbove(int $callerOutputBufferLevel): bool
+    {
+        while (\ob_get_level() > $callerOutputBufferLevel) {
+            if (!\ob_end_clean()) {
+                return false;
+            }
+        }
+
+        return \ob_get_level() === $callerOutputBufferLevel;
     }
 
     private static function isSafeName(string $name): bool

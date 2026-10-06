@@ -24,7 +24,10 @@ use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Container as FoundationContainer;
+use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\Exception\ContainerException;
+use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
@@ -80,6 +83,7 @@ use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
 use Coretsia\Kernel\Module\ComposerManifestReader;
+use Coretsia\Kernel\Module\KernelModule;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
@@ -89,6 +93,9 @@ use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
 use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Ops\KernelOpsExecutionServices;
+use Coretsia\Kernel\Ops\KernelOpsFacade;
+use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
@@ -112,8 +119,10 @@ use Psr\Log\LoggerInterface;
  * - no request-local or unit-of-work-local data.
  *
  * The caller owns when this factory is invoked and which config snapshot is
- * supplied. The factory only validates the small Kernel-owned config subset and
- * constructs Kernel-owned runtime services from already-registered DI services.
+ * supplied. The factory validates only Kernel-owned wiring/config inputs and
+ * constructs services either from already-registered DI services or, for the
+ * dedicated Kernel Ops execution-service set, from one preserved baseline
+ * Foundation/Kernel provider composition.
  *
  * This factory does not invent UnitOfWork lifecycle behavior. Lifecycle
  * orchestration belongs to KernelRuntime.
@@ -1440,6 +1449,176 @@ final class KernelServiceFactory
             artifactCompiler: $artifactCompiler,
             cacheVerifier: $cacheVerifier,
             kernelConfig: self::kernelConfig($container),
+        );
+    }
+
+    /**
+     * Creates the baseline-configured target-operation service set.
+     *
+     * The dedicated container uses only the preserved Foundation/Kernel seed
+     * configuration and provider list. Final source-host observability instances
+     * replace the baseline defaults before any operation service is resolved.
+     *
+     * @param array{
+     *     foundation: array<string,mixed>,
+     *     kernel: array<string,mixed>
+     * } $baselineConfig
+     * @param list<class-string<ServiceProviderInterface>> $baselineProviderClasses
+     */
+    public static function kernelOpsExecutionServices(
+        array $baselineConfig,
+        array $baselineProviderClasses,
+        LoggerInterface $logger,
+        TracerPortInterface $tracer,
+        MeterPortInterface $meter,
+        Stopwatch $stopwatch,
+    ): KernelOpsExecutionServices {
+        /** @var list<ServiceProviderInterface> $providers */
+        $providers = [];
+
+        foreach ($baselineProviderClasses as $providerClass) {
+            $provider = new $providerClass();
+
+            if (
+                !$provider instanceof ServiceProviderInterface
+                || !$provider instanceof ContainerDefinitionProviderInterface
+            ) {
+                throw new ContainerException('kernel-ops-execution-provider-invalid');
+            }
+
+            $providers[] = $provider;
+        }
+
+        $builder = new ContainerBuilder(config: $baselineConfig);
+        $builder->registerProviders($providers);
+
+        $builder
+            ->instance(LoggerInterface::class, $logger)
+            ->instance(TracerPortInterface::class, $tracer)
+            ->instance(MeterPortInterface::class, $meter)
+            ->instance(Stopwatch::class, $stopwatch);
+
+        $container = $builder->build();
+
+        $bootstrapConfigResolver = self::bootService(
+            $container,
+            BootstrapConfigResolver::class,
+        );
+        $envRepositoryBuilder = self::bootService(
+            $container,
+            EnvRepositoryBuilder::class,
+        );
+        $moduleResolutionOrchestrator = self::modulePlanService(
+            $container,
+            ModuleResolutionOrchestrator::class,
+        );
+        $configKernel = self::configService(
+            $container,
+            ConfigKernel::class,
+        );
+        $runtimeContainerGraphCompiler = self::artifactService(
+            $container,
+            RuntimeContainerGraphCompiler::class,
+        );
+        $configFingerprintInputBuilder = self::artifactService(
+            $container,
+            ConfigFingerprintInputBuilder::class,
+        );
+        $fingerprintCalculator = self::artifactService(
+            $container,
+            FingerprintCalculator::class,
+        );
+        $configSourceLocationBuilder = self::configService(
+            $container,
+            ConfigSourceLocationBuilder::class,
+        );
+        $kernelArtifactOperation = self::artifactService(
+            $container,
+            KernelArtifactOperation::class,
+        );
+
+        if (
+            !$bootstrapConfigResolver instanceof BootstrapConfigResolver
+            || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
+            || !$moduleResolutionOrchestrator instanceof ModuleResolutionOrchestrator
+            || !$configKernel instanceof ConfigKernel
+            || !$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler
+            || !$configFingerprintInputBuilder instanceof ConfigFingerprintInputBuilder
+            || !$fingerprintCalculator instanceof FingerprintCalculator
+            || !$configSourceLocationBuilder instanceof ConfigSourceLocationBuilder
+            || !$kernelArtifactOperation instanceof KernelArtifactOperation
+        ) {
+            throw new ContainerException('kernel-ops-execution-dependency-invalid');
+        }
+
+        return new KernelOpsExecutionServices(
+            kernelConfig: self::requiredMapConfig(
+                config: $baselineConfig,
+                key: KernelModule::CONFIG_ROOT,
+                reason: 'kernel-ops-execution-kernel-config-invalid',
+            ),
+            bootstrapConfigResolver: $bootstrapConfigResolver,
+            envRepositoryBuilder: $envRepositoryBuilder,
+            moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
+            configKernel: $configKernel,
+            runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
+            configFingerprintInputBuilder: $configFingerprintInputBuilder,
+            fingerprintCalculator: $fingerprintCalculator,
+            configSourceLocationBuilder: $configSourceLocationBuilder,
+            kernelArtifactOperation: $kernelArtifactOperation,
+        );
+    }
+
+    /**
+     * Creates the internal Kernel Ops façade from final source-host services and
+     * the shared baseline-configured target-operation service set.
+     *
+     * This factory performs wiring only. It does not execute Bootstrap Phase A,
+     * module resolution, config compilation, graph/fingerprint calculation,
+     * artifact publication, cache verification, or observability operations.
+     */
+    public static function kernelOpsFacade(
+        ContainerInterface $container,
+    ): KernelOpsFacade {
+        $executionServices = self::service(
+            $container,
+            KernelOpsExecutionServices::class,
+        );
+        $hostInput = self::service(
+            $container,
+            KernelOpsHostInput::class,
+        );
+        $contextAccessor = self::service(
+            $container,
+            ContextAccessorInterface::class,
+        );
+
+        if (
+            !$executionServices instanceof KernelOpsExecutionServices
+            || !$hostInput instanceof KernelOpsHostInput
+            || !$contextAccessor instanceof ContextAccessorInterface
+        ) {
+            throw new ContainerException('kernel-ops-dependency-invalid');
+        }
+
+        return new KernelOpsFacade(
+            hostInput: $hostInput,
+            bootstrapConfigResolver: $executionServices->bootstrapConfigResolver(),
+            envRepositoryBuilder: $executionServices->envRepositoryBuilder(),
+            moduleResolutionOrchestrator: $executionServices->moduleResolutionOrchestrator(),
+            configKernel: $executionServices->configKernel(),
+            runtimeContainerGraphCompiler: $executionServices->runtimeContainerGraphCompiler(),
+            configFingerprintInputBuilder: $executionServices->configFingerprintInputBuilder(),
+            fingerprintCalculator: $executionServices->fingerprintCalculator(),
+            configSourceLocationBuilder: $executionServices->configSourceLocationBuilder(),
+            kernelArtifactOperation: $executionServices->kernelArtifactOperation(),
+            kernelConfig: $executionServices->kernelConfig(),
+            contextAccessor: $contextAccessor,
+            correlationIdProvider: self::correlationIdProvider($container),
+            tracer: self::tracer($container),
+            meter: self::meter($container),
+            logger: self::logger($container),
+            stopwatch: self::stopwatch($container),
         );
     }
 

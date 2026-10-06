@@ -341,13 +341,25 @@ It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which rema
 
 Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package.
 
-For normal artifact compile/verify entrypoints, transport and CLI owners construct `BootstrapInput` and delegate compile-host orchestration to internal:
+Transport and CLI owners MUST NOT invoke internal compile-host services directly for Kernel operations.
+
+`platform/cli` invokes Kernel operations through the contracts-owned port:
+
+```text
+Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+```
+
+The dedicated Kernel source-operations host is booted through `Coretsia\Kernel\Ops\KernelOpsHostBooter` using `Coretsia\Kernel\Ops\KernelOpsHostInput`.
+
+`KernelOpsFacade` remains the internal implementation of `KernelOpsInterface`.
+
+For `compileConfig()` and `verifyCache()`, the façade delegates to internal:
 
 ```text
 Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
 ```
 
-`KernelArtifactOperation` is an internal artifact compile-host operation, not a public Phase A facade or aggregate Phase A result.
+`KernelArtifactOperation` remains the canonical internal `BootstrapInput` → Bootstrap → env → `ModuleResolution` → `ConfigSourceSet` preparation and routing owner for compile and verify. It is not a public Phase A facade or aggregate Phase A result.
 
 ## ConfigKernel Phase B — full configuration pipeline
 
@@ -2589,6 +2601,21 @@ Coretsia\Kernel\Boot\BootstrapInput
 Coretsia\Kernel\Boot\Exception\BootstrapException
 ```
 
+Kernel source-operations-host public API symbols are:
+
+```text
+Coretsia\Kernel\Ops\KernelOpsHostBooter
+Coretsia\Kernel\Ops\KernelOpsHostInput
+```
+
+Kernel operation invocation itself is exposed through the contracts-owned port:
+
+```text
+Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+```
+
+`KernelOpsHostBooter` constructs the dedicated source-operations host without requiring generated runtime artifacts. `KernelOpsHostInput` carries the application root used by that host.
+
 DependencySync public API symbols are:
 
 ```text
@@ -2627,6 +2654,17 @@ Coretsia\Kernel\Runtime\Driver\RuntimeDrivers
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException
 Coretsia\Kernel\Runtime\Exception\RuntimeDriverInvalidConfigException
 ```
+
+Kernel source-operations-host implementation helpers are internal and MUST NOT be listed as public API:
+
+```text
+Coretsia\Kernel\Ops\KernelOpsFacade
+Coretsia\Kernel\Ops\KernelOpsExecutionServices
+Coretsia\Kernel\Ops\KernelOpsHostSeedConfigLoader
+Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter
+```
+
+Callers depend on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`, not on `KernelOpsFacade` or source-host wiring helpers.
 
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 

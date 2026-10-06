@@ -39,6 +39,7 @@ final class NoopSpan implements SpanInterface
      * synthetic name keeps `name()` contract-safe without storing user/runtime
      * payloads.
      */
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(string $name = self::NAME)
     {
         unset($name);

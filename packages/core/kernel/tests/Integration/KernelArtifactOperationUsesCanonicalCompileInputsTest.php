@@ -66,6 +66,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
 
         $this->writePackageConfig('v1');
         $this->writeModePreset($this->applicationRoot . '/config/modes/test.php');
+        $this->writeBootstrapPhaseACounter();
     }
 
     protected function tearDown(): void
@@ -79,8 +80,10 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
             'coretsia/core-kernel' => $this->packageRoot,
         ]);
 
-        $fixture['operation']->compile($this->bootstrapInput());
+        $result = $fixture['operation']->compile($this->bootstrapInput());
 
+        self::assertSame('test', $result['effectivePreset'] ?? null);
+        self::assertSame(1, $this->bootstrapPhaseAReadCount());
         self::assertSame(1, $fixture['manifestReader']->readCount);
 
         $payload = ArtifactPipelineTestSupport::configPayloadFromArtifact($this->applicationRoot);
@@ -100,6 +103,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
 
         $fixture['operation']->compile($input);
 
+        self::assertSame(1, $this->bootstrapPhaseAReadCount());
         self::assertSame(1, $fixture['manifestReader']->readCount);
 
         ArtifactPipelineTestSupport::writePhpReturn(
@@ -111,6 +115,8 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
 
         $result = $fixture['operation']->verify($input);
 
+        self::assertSame('test', $result['effectivePreset'] ?? null);
+        self::assertSame(2, $this->bootstrapPhaseAReadCount());
         self::assertSame(2, $fixture['manifestReader']->readCount);
         self::assertSame('dirty', $result['outcome']);
         self::assertFalse($result['clean']);
@@ -283,7 +289,7 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
             applicationRoot: $this->applicationRoot,
             appTarget: AppTarget::Web,
             appEnv: 'prod',
-            preset: 'test',
+            preset: null,
             debug: false,
             envSourcePolicy: BootstrapEnvSourcePolicy::StrictDotenv,
             artifactsCacheDir: 'var/cache',
@@ -310,6 +316,48 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
                     ],
                 ],
             ];
+    }
+
+    private function writeBootstrapPhaseACounter(): void
+    {
+        $path = $this->applicationRoot . '/config/app.php';
+        $source = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+$counterPath = \dirname(__DIR__) . '/bootstrap-phase-a-count.txt';
+$count = \is_file($counterPath)
+    ? (int) \file_get_contents($counterPath)
+    : 0;
+
+\file_put_contents($counterPath, (string) ($count + 1));
+
+return [
+    'preset' => 'test',
+];
+PHP;
+
+        if (\file_put_contents($path, $source) === false) {
+            self::fail('Unable to write Bootstrap Phase-A counter fixture.');
+        }
+    }
+
+    private function bootstrapPhaseAReadCount(): int
+    {
+        $path = $this->applicationRoot . '/bootstrap-phase-a-count.txt';
+
+        if (!\is_file($path)) {
+            return 0;
+        }
+
+        $count = \file_get_contents($path);
+
+        if (!\is_string($count)) {
+            self::fail('Unable to read Bootstrap Phase-A counter fixture.');
+        }
+
+        return (int) $count;
     }
 
     private function writePackageConfig(string $value): void

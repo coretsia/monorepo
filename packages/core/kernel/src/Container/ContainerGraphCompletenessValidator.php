@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Container;
 
+use Coretsia\Contracts\Kernel\Ops\KernelOpsInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
@@ -75,6 +76,12 @@ use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
 use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Ops\KernelOpsExecutionServices;
+use Coretsia\Kernel\Ops\KernelOpsFacade;
+use Coretsia\Kernel\Ops\KernelOpsHostBooter;
+use Coretsia\Kernel\Ops\KernelOpsHostInput;
+use Coretsia\Kernel\Ops\KernelOpsHostSeedConfigLoader;
+use Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter;
 
 /**
  * Validates that one compiled runtime container graph is production-complete.
@@ -152,6 +159,19 @@ final class ContainerGraphCompletenessValidator
         KernelArtifactOperation::class,
     ];
 
+    /**
+     * @var list<class-string>
+     */
+    private const array SOURCE_OPERATIONS_HOST_SERVICE_IDS = [
+        KernelOpsHostBooter::class,
+        KernelOpsHostInput::class,
+        KernelOpsHostSeedConfigLoader::class,
+        KernelOpsExecutionServices::class,
+        KernelOpsSourceDefinitionProviderAdapter::class,
+        KernelOpsFacade::class,
+        KernelOpsInterface::class,
+    ];
+
     public function validate(
         DefinitionGraph $graph,
         ContainerDefinitionSet $definitions,
@@ -165,9 +185,7 @@ final class ContainerGraphCompletenessValidator
         $runtimeSeedIds = self::serviceIdSet(
             RuntimeContainerSeedIds::all(),
         );
-        $compileHostServiceIds = self::serviceIdSet(
-            self::COMPILE_HOST_SERVICE_IDS,
-        );
+        $forbiddenRuntimeServiceIds = self::forbiddenRuntimeServiceIdSet();
 
         self::assertForbiddenBindingsAbsent(
             services: $services,
@@ -178,7 +196,7 @@ final class ContainerGraphCompletenessValidator
         self::assertForbiddenBindingsAbsent(
             services: $services,
             aliases: $aliases,
-            forbiddenServiceIds: $compileHostServiceIds,
+            forbiddenServiceIds: $forbiddenRuntimeServiceIds,
         );
 
         self::assertServiceAndAliasBindingIdsDistinct(
@@ -191,7 +209,7 @@ final class ContainerGraphCompletenessValidator
                 alias: $alias,
                 services: $services,
                 aliases: $aliases,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 path: [],
             );
         }
@@ -203,7 +221,7 @@ final class ContainerGraphCompletenessValidator
                 aliases: $aliases,
                 parameterNames: $parameterNames,
                 runtimeSeedIds: $runtimeSeedIds,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
             );
         }
 
@@ -213,7 +231,7 @@ final class ContainerGraphCompletenessValidator
                     serviceId: $taggedService['id'],
                     services: $services,
                     aliases: $aliases,
-                    compileHostServiceIds: $compileHostServiceIds,
+                    forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 );
             }
         }
@@ -224,7 +242,7 @@ final class ContainerGraphCompletenessValidator
                 services: $services,
                 aliases: $aliases,
                 runtimeSeedIds: $runtimeSeedIds,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 reason: ContainerDefinitionInvalidException::REASON_REQUIRED_SERVICE_INVALID,
             );
         }
@@ -271,7 +289,7 @@ final class ContainerGraphCompletenessValidator
      * @param array<string, string> $aliases
      * @param array<string, true> $parameterNames
      * @param array<string, true> $runtimeSeedIds
-     * @param array<string, true> $compileHostServiceIds
+     * @param array<string, true> $forbiddenRuntimeServiceIds
      */
     private static function assertServiceComplete(
         array $service,
@@ -279,7 +297,7 @@ final class ContainerGraphCompletenessValidator
         array $aliases,
         array $parameterNames,
         array $runtimeSeedIds,
-        array $compileHostServiceIds,
+        array $forbiddenRuntimeServiceIds,
     ): void {
         $construction = $service['construction'] ?? null;
         $arguments = $service['arguments'] ?? null;
@@ -295,7 +313,7 @@ final class ContainerGraphCompletenessValidator
 
         if (
             \is_string($class)
-            && isset($compileHostServiceIds[$class])
+            && isset($forbiddenRuntimeServiceIds[$class])
         ) {
             throw self::invalidDefinition();
         }
@@ -316,7 +334,7 @@ final class ContainerGraphCompletenessValidator
                     serviceId: $factoryServiceId,
                     services: $services,
                     aliases: $aliases,
-                    compileHostServiceIds: $compileHostServiceIds,
+                    forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 );
             }
         }
@@ -327,21 +345,21 @@ final class ContainerGraphCompletenessValidator
             aliases: $aliases,
             parameterNames: $parameterNames,
             runtimeSeedIds: $runtimeSeedIds,
-            compileHostServiceIds: $compileHostServiceIds,
+            forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
         );
     }
 
     /**
      * @param array<string, array<string, mixed>> $services
      * @param array<string, string> $aliases
-     * @param array<string, true> $compileHostServiceIds
+     * @param array<string, true> $forbiddenRuntimeServiceIds
      * @param array<string, true> $path
      */
     private static function assertGraphAliasResolves(
         string $alias,
         array $services,
         array $aliases,
-        array $compileHostServiceIds,
+        array $forbiddenRuntimeServiceIds,
         array $path,
     ): void {
         if (isset($path[$alias])) {
@@ -355,7 +373,7 @@ final class ContainerGraphCompletenessValidator
             throw self::invalidReference();
         }
 
-        if (isset($compileHostServiceIds[$target])) {
+        if (isset($forbiddenRuntimeServiceIds[$target])) {
             throw self::invalidReference();
         }
 
@@ -368,7 +386,7 @@ final class ContainerGraphCompletenessValidator
                 alias: $target,
                 services: $services,
                 aliases: $aliases,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 path: $path,
             );
 
@@ -381,15 +399,15 @@ final class ContainerGraphCompletenessValidator
     /**
      * @param array<string, array<string, mixed>> $services
      * @param array<string, string> $aliases
-     * @param array<string, true> $compileHostServiceIds
+     * @param array<string, true> $forbiddenRuntimeServiceIds
      */
     private static function assertGraphBindingResolvable(
         string $serviceId,
         array $services,
         array $aliases,
-        array $compileHostServiceIds,
+        array $forbiddenRuntimeServiceIds,
     ): void {
-        if (isset($compileHostServiceIds[$serviceId])) {
+        if (isset($forbiddenRuntimeServiceIds[$serviceId])) {
             throw self::invalidReference();
         }
 
@@ -402,7 +420,7 @@ final class ContainerGraphCompletenessValidator
                 alias: $serviceId,
                 services: $services,
                 aliases: $aliases,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 path: [],
             );
 
@@ -416,17 +434,17 @@ final class ContainerGraphCompletenessValidator
      * @param array<string, array<string, mixed>> $services
      * @param array<string, string> $aliases
      * @param array<string, true> $runtimeSeedIds
-     * @param array<string, true> $compileHostServiceIds
+     * @param array<string, true> $forbiddenRuntimeServiceIds
      */
     private static function assertExternalReferenceResolvable(
         string $serviceId,
         array $services,
         array $aliases,
         array $runtimeSeedIds,
-        array $compileHostServiceIds,
+        array $forbiddenRuntimeServiceIds,
         string $reason,
     ): void {
-        if (isset($compileHostServiceIds[$serviceId])) {
+        if (isset($forbiddenRuntimeServiceIds[$serviceId])) {
             throw ContainerDefinitionInvalidException::withReason(
                 reason: $reason,
             );
@@ -445,7 +463,7 @@ final class ContainerGraphCompletenessValidator
                     alias: $serviceId,
                     services: $services,
                     aliases: $aliases,
-                    compileHostServiceIds: $compileHostServiceIds,
+                    forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                     path: [],
                 );
             } catch (ContainerDefinitionInvalidException) {
@@ -467,7 +485,7 @@ final class ContainerGraphCompletenessValidator
      * @param array<string, string> $aliases
      * @param array<string, true> $parameterNames
      * @param array<string, true> $runtimeSeedIds
-     * @param array<string, true> $compileHostServiceIds
+     * @param array<string, true> $forbiddenRuntimeServiceIds
      */
     private static function assertValueReferencesResolvable(
         mixed $value,
@@ -475,7 +493,7 @@ final class ContainerGraphCompletenessValidator
         array $aliases,
         array $parameterNames,
         array $runtimeSeedIds,
-        array $compileHostServiceIds,
+        array $forbiddenRuntimeServiceIds,
     ): void {
         if (!\is_array($value)) {
             return;
@@ -487,7 +505,7 @@ final class ContainerGraphCompletenessValidator
                 services: $services,
                 aliases: $aliases,
                 runtimeSeedIds: $runtimeSeedIds,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
                 reason: ContainerDefinitionInvalidException::REASON_REFERENCE_INVALID,
             );
 
@@ -509,7 +527,7 @@ final class ContainerGraphCompletenessValidator
                 aliases: $aliases,
                 parameterNames: $parameterNames,
                 runtimeSeedIds: $runtimeSeedIds,
-                compileHostServiceIds: $compileHostServiceIds,
+                forbiddenRuntimeServiceIds: $forbiddenRuntimeServiceIds,
             );
         }
     }
@@ -551,6 +569,24 @@ final class ContainerGraphCompletenessValidator
 
         foreach ($parameters as $parameterName => $_value) {
             $set[$parameterName] = true;
+        }
+
+        return $set;
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private static function forbiddenRuntimeServiceIdSet(): array
+    {
+        $set = [];
+
+        foreach (self::COMPILE_HOST_SERVICE_IDS as $serviceId) {
+            $set[$serviceId] = true;
+        }
+
+        foreach (self::SOURCE_OPERATIONS_HOST_SERVICE_IDS as $serviceId) {
+            $set[$serviceId] = true;
         }
 
         return $set;

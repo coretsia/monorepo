@@ -935,19 +935,32 @@ EnvRepositoryInterface
 
 The design keeps the public API stable and minimal:
 
-- entrypoints construct `BootstrapInput`;
+- entrypoints that own narrow Phase A composition may construct `BootstrapInput`;
 - internal resolver returns `BootstrapConfig`;
 - internal builder returns `EnvRepositoryInterface`;
-- normal artifact compile/verify entrypoints delegate compile-host orchestration to internal `KernelArtifactOperation`.
+- `KernelArtifactOperation` remains the internal canonical compile/verify input-preparation owner;
+- `platform/cli` invokes Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
 
-For artifact compile/verify, the transport/CLI owner MUST NOT manually reconstruct the full compile-host pipeline.
+For CLI-owned Kernel operations, `platform/cli` MUST NOT construct the compile-host pipeline or call `KernelArtifactOperation` directly.
 
-The canonical handoff is:
+The canonical CLI handoff is:
 
 ```text
-transport / CLI owner
-  -> BootstrapInput
-  -> KernelArtifactOperation
+platform/cli
+  -> Coretsia\Kernel\Ops\KernelOpsHostBooter
+  -> source-operations ContainerInterface
+  -> Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+  -> internal Coretsia\Kernel\Ops\KernelOpsFacade
+```
+
+Operation routing then remains Kernel-owned:
+
+```text
+validateConfig() / debugConfig() / hashConfig() / debugModules()
+  -> existing Kernel orchestration services
+
+compileConfig() / verifyCache()
+  -> internal KernelArtifactOperation
   -> BootstrapConfigResolver
   -> EnvRepositoryBuilder
   -> ModuleResolutionOrchestrator::resolve()
@@ -955,20 +968,11 @@ transport / CLI owner
   -> ArtifactCompiler / CacheVerifier
 ```
 
-`KernelArtifactOperation` is an internal Kernel compile-host operation.
+`KernelArtifactOperation` remains an internal Kernel compile-host operation and the canonical `BootstrapInput` → compile/verify input-preparation owner.
 
-It is not a Phase-A result object, not a public bootstrap facade, and not a replacement for the narrow Phase A result values `BootstrapConfig` and `EnvRepositoryInterface`.
+`KernelArtifactOperation`, `ArtifactCompiler`, and `CacheVerifier` remain internal implementation services. The Kernel Ops public boundary does not promote them to package public API.
 
-A public bootstrap orchestration facade may be introduced only if an actual platform entrypoint contract requires it.
-
-Example future CLI commands:
-
-```text
-coretsia config:compile
-coretsia cache:verify
-```
-
-may pass `BootstrapInput` to `KernelArtifactOperation` while keeping Phase A resolution, env snapshot construction, config-source location construction, artifact production, and cache verification ownership boundaries explicit.
+`KernelOpsFacade` is likewise an internal implementation behind `KernelOpsInterface`; the public Kernel source-host boot API is `KernelOpsHostBooter` plus `KernelOpsHostInput`.
 
 ## Decision 16: Phase A and Kernel compile-host services are not runtime graph definitions
 
@@ -1231,7 +1235,7 @@ The public API remains small.
 
 There is no one-call public bootstrap facade.
 
-Entrypoints or platform packages that need only the narrow Phase A values may compose `BootstrapConfigResolver` and `EnvRepositoryBuilder` through DI. Normal artifact compile/verify entrypoints MUST instead pass `BootstrapInput` to internal `KernelArtifactOperation` and MUST NOT reconstruct the compile-host pipeline themselves.
+Entrypoints that own only narrow Phase A composition may use `BootstrapConfigResolver` and `EnvRepositoryBuilder` through their existing Kernel wiring. `platform/cli` MUST instead resolve `KernelOpsInterface` through the dedicated Kernel source-operations host and MUST NOT call `KernelArtifactOperation` directly. Internal `KernelOpsFacade` preserves `KernelArtifactOperation` as the canonical compile/verify preparation owner for `compileConfig()` and `verifyCache()`.
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 

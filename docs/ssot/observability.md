@@ -188,6 +188,8 @@ The method/type mapping is canonical:
 | kernel.uow_duration_ms                   | `core/kernel`     | observe | `operation`, `outcome`        |
 | kernel.modules_resolve_total             | `core/kernel`     | counter | `operation`, `outcome`        |
 | kernel.modules_resolve_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`        |
+| kernel.operation_total                   | `core/kernel`     | counter | `operation`, `outcome`        |
+| kernel.operation_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`        |
 | kernel.config_merge_total                | `core/kernel`     | counter | `outcome`                     |
 | kernel.config_merge_duration_ms          | `core/kernel`     | observe | `outcome`                     |
 | kernel.config_explain_total              | `core/kernel`     | counter | `outcome`                     |
@@ -308,6 +310,76 @@ ModulePlan resolution observability failures and stopwatch failures MUST NOT cha
 Observability failures MUST NOT trigger recursive observability reporting on this boundary.
 
 Canonical application shadowing (`CanonicalPresetOverrideException`) maps to the bounded `preset_invalid` outcome; invalid effective module selection (`InvalidModuleSelectionException`) maps to `selection_invalid`. Module-id context from a dependency-excluded failure uses `excludedModuleId` and `requiredByModuleId` only after canonical safe-id filtering, deduplication and `strcmp` sorting; no path or raw input reaches metrics, span attributes or safe logs. The orchestrator isolates tracer, meter, logger and stopwatch failures and finalizes a started span exactly once without replacing the primary module-resolution exception.
+
+### Kernel operations façade observability policy
+
+Kernel operation façade observability is owned by `core/kernel`.
+
+The canonical aggregate span is:
+
+```text
+kernel.operation
+```
+
+The canonical metrics are:
+
+```text
+kernel.operation_total
+kernel.operation_duration_ms
+```
+
+Both metric families MUST use exactly:
+
+```text
+operation
+outcome
+```
+
+Allowed `operation` values are exactly:
+
+```text
+config.validate
+config.debug
+config.compile
+config.hash
+cache.verify
+modules.debug
+```
+
+Allowed `outcome` values are exactly:
+
+```text
+success
+handled_error
+failure
+```
+
+The bounded `kernel.operation` span attributes are limited to:
+
+```text
+operation
+app_target
+preset
+outcome
+```
+
+`app_target` MAY be emitted only after canonical app-target validation completes.
+
+`preset` MAY be emitted only after the same façade-owned operation has completed `ModuleResolution` successfully or after a successful `KernelArtifactOperation` result has returned its `effectivePreset`.
+
+`preset` MUST be omitted for `ModuleResolutionException` and every earlier failure for which safe preset eligibility has not been established.
+
+Observability MUST NOT independently validate a preset, execute Bootstrap Phase A, or repeat module resolution only to make `preset` available.
+
+`app_target` and `preset` are bounded span attributes only. They MUST NOT be emitted as metric labels.
+
+Generation ids, fingerprints, artifact identities, artifact names, filesystem paths, config values, env values, and exception messages MUST NOT be emitted as `kernel.operation` metric labels or span attributes.
+
+`kernel.operation` is an aggregate façade lifecycle signal. It MUST NOT replace, suppress, or rename existing lower-level Kernel telemetry.
+
+Existing Bootstrap/module/config/artifact/fingerprint/container/cache observability remains owned and emitted by its current lower-level services through the same final source-host `LoggerInterface`, `TracerPortInterface`, `MeterPortInterface`, and Foundation `Stopwatch` instances.
+
+Failures in `kernel.operation` observability MUST NOT alter the Kernel operation result or exception semantics.
 
 ### Kernel config metrics label policy
 
@@ -700,6 +772,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 - `foundation.reset`
 - `kernel.uow`
 - `kernel.modules_resolve`
+- `kernel.operation`
 - `kernel.config_merge`
 - `kernel.config_explain`
 - `kernel.artifacts_write`

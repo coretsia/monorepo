@@ -372,13 +372,13 @@ provides:
 - "Graph-bound expected generation ID calculation without artifact writes"
 - "Current-generation verification across all four generation files"
 - "Stable json-like result DTOs safe for platform rendering"
-- "Single ModuleResolution snapshot for each operation"
+- "At most one ModuleResolution snapshot per invocation; exactly one for each successful module-aware operation"
 - "No direct artifact, fingerprint, module, provider, or filesystem orchestration in platform/cli"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []     # uses existing kernel artifacts; does not introduce new artifact schemas
-adr: none
+adr: "docs/adr/ADR-0023-kernel-bootstrap-phase-a.md"
 ssot_refs:
 - "docs/ssot/cache-verify.md"
 - "docs/ssot/artifacts.md"
@@ -402,6 +402,9 @@ ssot_refs:
   - `ConfigKernel` is available for validate/debug flows;
   - `ArtifactCompiler` is available for immutable-generation publication;
   - `CacheVerifier` is available for current-generation verification;
+  - `KernelArtifactOperation` is available as the canonical compile-host input-preparation and routing entrypoint for artifact compile and cache verify;
+  - `ConfigSourceLocationBuilder` is available as the canonical `ConfigSourceSet` builder;
+  - `ModuleResolutionOrchestrator` is available as the canonical owner of one installed-manifest + `ModulePlan` snapshot.
   - `RuntimeContainerGraphCompiler` is available for canonical graph production;
   - `ConfigFingerprintInputBuilder` is available for graph-bound fingerprint input construction;
   - `FingerprintCalculator` is available only for hashing an already-built canonical fingerprint input;
@@ -421,38 +424,40 @@ ssot_refs:
   - MUST NOT become a source fallback for HTTP or Worker production runtime.
 
 - Existing Kernel configuration pipeline:
-  - [ ] `KernelServiceProvider` and `KernelServiceFactory` already wire:
-    - [ ] Bootstrap Phase A services
-    - [ ] `EnvRepositoryBuilder`
-    - [ ] `ModulePlanResolver`
-    - [ ] `ConfigKernel`
-    - [ ] existing config loaders
-    - [ ] `ConfigMerger`
-    - [ ] `ConfigValidator`
-    - [ ] `ConfigExplainer`
-    - [ ] artifact compilation and verification services
-  - [ ] `ConfigKernel` remains the sole Config Phase B orchestration entrypoint
-  - [ ] `ArtifactCompiler` remains the compile and publication orchestrator
-  - [ ] `CacheVerifier` remains the current-generation verification orchestrator
-  - [ ] this epic introduces no separate public config-location capability or prerequisite epic
-  - [ ] this epic introduces exactly one internal compile-host argument-preparation helper
-  - [ ] no public source-plan API or source-plan DTO is introduced
-  - [ ] no parallel config loader, merger, validator, explainer, or repository implementation is introduced
+  - [x] `KernelServiceProvider` and `KernelServiceFactory` already wire:
+    - [x] Bootstrap Phase A services
+    - [x] `EnvRepositoryBuilder`
+    - [x] `ModulePlanResolver`
+    - [x] `ConfigKernel`
+    - [x] existing config loaders
+    - [x] `ConfigMerger`
+    - [x] `ConfigValidator`
+    - [x] `ConfigExplainer`
+    - [x] artifact compilation and verification services
+  - [x] `ConfigKernel` remains the sole Config Phase B orchestration entrypoint
+  - [x] `ArtifactCompiler` remains the compile and publication orchestrator
+  - [x] `CacheVerifier` remains the current-generation verification orchestrator
+  - [x] this epic introduces no separate public config-location capability or prerequisite epic
+  - [x] this epic introduces no second compile/verify input-preparation path; existing `KernelArtifactOperation` remains the canonical owner of compile/verify input preparation
+  - [x] no public source-plan API or source-plan DTO is introduced
+  - [x] no parallel config loader, merger, validator, explainer, or repository implementation is introduced
 
 - Compiled application runtime is not a dependency of Kernel Ops:
-  - `KernelOpsFacade` is compile-host-only;
-  - `KernelOpsFacade` and `KernelOpsInterface` MUST NOT enter the compiled runtime definition graph;
+  - `KernelOpsFacade`, `KernelOpsInterface`, `KernelOpsHostInput`, and `KernelOpsExecutionServices` are dedicated source-operations-host-only wiring ids;
+  - none of those ids is a canonical compile-host service-list entry or production runtime seed id;
+  - source-host wiring for those ids is owned exclusively by `KernelOpsHostBooter`;
+  - none of those ids may enter canonical runtime definitions, compiled runtime graphs, or compiled-runtime references;
   - Kernel operations MUST NOT boot the application through `ArtifactRuntimeBooter`.
 
 - Required contracts / ports (exact FQCNs) (MUST)
-  - `Coretsia\Contracts\Module\ModePresetLoaderInterface`
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
-  - `Coretsia\Contracts\Config\ConfigValidatorInterface`
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Context\ContextKeys`
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Psr\Log\LoggerInterface`
+  - `Psr\Container\ContainerInterface`
   - `Coretsia\Foundation\Time\Stopwatch`
 
 - Cross-package deliverable (embedded into 2.20.0) — new ports introduced in `core/contracts`
@@ -468,7 +473,11 @@ ssot_refs:
     - `packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
     - `packages/core/contracts/src/Kernel/Ops/OpsResult.php`
     - `packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
+    - `packages/core/contracts/README.md`
+    - `packages/core/contracts/tests/Contract/KernelOpsContractsShapeContractTest.php`
     - `docs/ssot/observability.md`
+    - `docs/ssot/runtime-container-definitions.md`
+    - `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
   - this epic MUST NOT introduce unrelated `core/contracts` surface beyond the Kernel Ops port
 
 ### Kernel operation target and preset ownership (MUST)
@@ -508,14 +517,14 @@ new BootstrapInput(
 Effective preset ownership remains:
 
 ```text
-packages/applications/skeleton/config/app.php presets[appTarget]
-→ packages/applications/skeleton/config/app.php preset
+applicationRoot/config/app.php presets[appTarget]
+→ applicationRoot/config/app.php preset
 → kernel.boot.default_preset
 ```
 
 Kernel Ops MUST NOT accept, infer, or synthesize a preset override.
 
-`OpsResult::preset()` returns the nullable effective preset; null is allowed only for a handled error produced before preset resolution completes.
+`OpsResult::preset()` returns the nullable effective preset. It MUST be non-null for every successful result. For façade-owned validate/debug/modules/hash flows, `preset` becomes exposable only after the operation's `ModuleResolutionOrchestrator::resolve()` completes successfully; a handled `ModuleResolutionException` MUST use `preset = null` even when the preceding `BootstrapConfig` already contains an effective preset candidate. For `compileConfig()` / `verifyCache()`, the value MUST come from the successful `KernelArtifactOperation` result produced from the same internally prepared `BootstrapConfig`; a handled delegated failure before that result is returned MUST use `preset = null`. `KernelOpsFacade` MUST NOT independently validate the preset or re-run Bootstrap Phase A only to recover it.
 
 The operations host uses `AppTarget::Console` only for CLI service composition. It MUST NOT replace the operation target.
 
@@ -546,12 +555,30 @@ KernelOpsFacade
            appTarget = explicit request target,
            preset = null
        )
+
+debugModules()
+    -> existing BootstrapConfigResolver
+    -> existing ModuleResolutionOrchestrator::resolve()
+    -> one ModuleResolution
+
+validateConfig() / debugConfig() / hashConfig()
     -> existing BootstrapConfigResolver
     -> existing EnvRepositoryBuilder
-    -> existing ModulePlanResolver::resolveResolution()
+    -> existing ModuleResolutionOrchestrator::resolve()
     -> one ModuleResolution
-    -> existing ConfigKernel Phase B when configuration is required
-    -> existing operation-specific Kernel service
+    -> existing ConfigSourceLocationBuilder
+    -> existing ConfigKernel Phase B
+    -> operation-specific existing Kernel service
+
+compileConfig() / verifyCache()
+    -> existing KernelArtifactOperation
+    -> existing BootstrapConfigResolver
+    -> existing EnvRepositoryBuilder
+    -> existing ModuleResolutionOrchestrator::resolve()
+    -> one ModuleResolution
+    -> existing ConfigSourceLocationBuilder
+    -> existing ArtifactCompiler / CacheVerifier
+
     -> safe generation-aware OpsResult
 ```
 
@@ -570,6 +597,7 @@ debugModules()
     -> safe ModuleResolution and ModulePlan summary
 
 compileConfig()
+    -> KernelArtifactOperation::compile()
     -> ArtifactCompiler
     -> ArtifactGenerationPublisher
     -> published ArtifactGeneration
@@ -583,6 +611,7 @@ hashConfig()
     -> no writes and no current-generation read
 
 verifyCache()
+    -> KernelArtifactOperation::verify()
     -> CacheVerifier
     -> expected generation reconstruction
     -> current-generation location and validation
@@ -591,14 +620,16 @@ verifyCache()
 
 For one invocation of any target-aware Kernel operation:
 
-- `ModulePlanResolver::resolveResolution()` MUST be invoked at most once;
-- `ModulePlanResolver::resolve()` MUST NOT be used because it discards the installed manifest snapshot;
-- `ManifestReaderInterface::read()` MUST NOT be invoked again after `resolveResolution()` returns;
-- the same `ModuleResolution` instance MUST be supplied to every downstream component that requires module or provider context;
+- `ModuleResolutionOrchestrator::resolve()` MUST be invoked at most once per operation that requires installed module resolution;
+- for `validateConfig()`, `debugConfig()`, `debugModules()`, and `hashConfig()`, that invocation is owned by `KernelOpsFacade`;
+- for `compileConfig()` and `verifyCache()`, that invocation is owned exclusively by `KernelArtifactOperation`; `KernelOpsFacade` MUST NOT resolve a second `ModuleResolution`;
+- `KernelOpsFacade` MUST NOT invoke `ModulePlanResolver` or `ManifestReaderInterface` directly; installed-manifest reading and Phase-B graph resolution remain owned by `ModuleResolutionOrchestrator`;
+- `ManifestReaderInterface::read()` MUST NOT be invoked again after the operation's single `ModuleResolutionOrchestrator::resolve()` invocation returns;
+- the same `ModuleResolution` instance MUST be supplied by the owning orchestration layer to every downstream component that requires module or provider context;
 - the same `ModuleResolution::plan()` instance MUST be supplied to ConfigKernel and fingerprint-input construction;
 - `RuntimeContainerGraphCompiler` MUST receive that same `ModuleResolution`;
 - `RuntimeContainerGraphCompiler` owns `ContainerProviderPlanResolver` invocation and provider-definition collection;
-- `KernelOpsFacade` MUST NOT resolve a separate provider plan before invoking `ArtifactCompiler`, `CacheVerifier`, or `RuntimeContainerGraphCompiler`;
+- neither `KernelOpsFacade` nor `KernelArtifactOperation` MUST resolve a separate provider plan before invoking `ArtifactCompiler`, `CacheVerifier`, or `RuntimeContainerGraphCompiler`;
 - provider definitions MUST be collected exactly once in canonical provider-plan order for each graph-producing operation;
 - `ModuleResolution` and `ContainerProviderPlan` MUST remain compile-time values and MUST NOT be exported into artifacts;
 - `ModulePlan` MUST NOT contain provider class lists;
@@ -625,833 +656,1166 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - Public Kernel operations service for `platform/cli`:
-  - resolved from the Kernel source/operations host container;
-  - registered as compile-host wiring by `KernelServiceProvider::register()`;
+  - resolved only from the dedicated Kernel source/operations host container;
+  - source-host wiring for `KernelOpsExecutionServices`, `KernelOpsFacade`, and `KernelOpsInterface` is owned by `KernelOpsHostBooter`;
+  - `KernelServiceProvider::register()` MUST NOT register `KernelOpsExecutionServices`, `KernelOpsFacade`, or `KernelOpsInterface` into generic source/compile-host containers;
   - MUST NOT enter canonical runtime definitions produced by `KernelServiceProvider::define()`;
   - MUST NOT be exported into compiled container artifacts;
-  - exposes only `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`;
+  - `platform/cli` MUST invoke Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`;
+  - `KernelOpsFacade` remains an internal implementation even though the dedicated source-operations host owns and resolves its shared instance;
   - performs no stdout/stderr writes;
   - exposes deterministic safe exceptions and result DTOs.
 
 #### Configuration (MUST)
 
-- [ ] This epic introduces no `kernel.operation.*` config subtree.
-- [ ] Kernel Ops consumes only existing target-specific Bootstrap, env, mode, module, and Kernel configuration.
-- [ ] Effective preset is resolved exclusively through `BootstrapConfigResolver`.
-- [ ] `KernelOpsFacade` MUST NOT read `cli.*`.
-- [ ] Observability, context access, and UoW participation MUST NOT be controlled by Kernel Ops feature flags.
-- [ ] No config key may disable result safety, safe-shape-by-construction rules, tracing, metrics, or context boundary rules.
+- [x] This epic introduces no `kernel.operation.*` config subtree.
+- [x] Kernel Ops uses the existing Foundation/Kernel package seed configuration for compile-host service construction and operation policy.
+- [x] Every target-aware operation resolves its explicit-target Bootstrap Phase A state through the existing pipeline.
+- [x] Configuration-aware operations additionally resolve env and Config Phase-B state through the existing pipelines; `debugModules()` does not execute Config Phase B.
+- [x] The validated console-host Phase-B configuration is the final source-host runtime/provider/command configuration; it MUST NOT become bootstrap, mode, module, artifact, verification, or fingerprint policy input for target-aware Kernel Ops execution.
+- [x] Effective preset is resolved exclusively through `BootstrapConfigResolver`.
+- [x] `KernelOpsFacade` MUST NOT read `cli.*`.
+- [x] Observability, context access, and UoW participation MUST NOT be controlled by Kernel Ops feature flags.
+- [x] No config key may disable result safety, safe-shape-by-construction rules, tracing, metrics, or context boundary rules.
 
 #### Existing configuration pipeline reuse (MUST)
 
-- [ ] Kernel Ops reuses the existing Bootstrap Phase A and ConfigKernel Phase B implementations.
-- [ ] Existing ownership remains unchanged:
-  - [ ] `BootstrapConfigResolver` owns Bootstrap Phase A resolution
-  - [ ] `EnvRepositoryBuilder` owns immutable env snapshot construction
-  - [ ] `ModulePlanResolver::resolveResolution()` owns target preset and enabled-module resolution
-  - [ ] `ConfigKernel` owns config loading, directives, merge, validation, and explain
-  - [ ] `RuntimeContainerGraphCompiler` owns provider planning and graph compilation
-  - [ ] `ArtifactCompiler` owns artifact generation and publication
-  - [ ] `CacheVerifier` owns current-generation verification
-- [ ] Kernel Ops MUST NOT introduce:
-  - [ ] a package config loader
-  - [ ] a skeleton config loader
-  - [ ] a rules loader
-  - [ ] a config merger
-  - [ ] a config validator
-  - [ ] a config explainer
-  - [ ] a second `ConfigRepositoryInterface` implementation
-  - [ ] a parallel config source-plan DTO
-  - [ ] a second mode-preset resolver
-  - [ ] a separate config-location epic
-- [ ] The explicit source-candidate arguments already required by `ConfigKernel`, `ArtifactCompiler`, and `CacheVerifier` remain orchestration inputs to those existing APIs.
-- [ ] Preparing those arguments MUST NOT implement config loading, merge, validation, or explain semantics.
-- [ ] No new public contract, config root, artifact schema, or package-level configuration mechanism is introduced for those arguments.
-- [ ] The operations-host `ConfigRepositoryInterface` represents the validated console-host configuration.
-- [ ] It MAY be consumed by console-host package factories and services.
-- [ ] It MUST NOT be treated as the target configuration for a Kernel operation whose request target is `web|api|worker`.
-- [ ] Every target-aware Kernel operation resolves and compiles configuration for its explicit request target through the existing Phase A and Phase B pipeline.
+- [x] Kernel Ops reuses the existing Bootstrap Phase A and ConfigKernel Phase B implementations.
+- [x] Existing ownership remains unchanged:
+  - [x] `BootstrapConfigResolver` owns Bootstrap Phase A resolution, including effective preset selection
+  - [x] `EnvRepositoryBuilder` owns immutable env snapshot construction
+  - [x] `ModuleResolutionOrchestrator::resolve()` owns mode-preset/module selection, one installed-manifest snapshot, and the corresponding `ModulePlan`
+  - [x] `ModulePlanResolver::resolve()` remains the pure resolver used internally by `ModuleResolutionOrchestrator`
+  - [x] `ConfigSourceLocationBuilder` owns canonical `ConfigSourceSet` construction
+  - [x] `ConfigKernel` owns config loading, directives, merge, validation, and explain
+  - [x] `RuntimeContainerGraphCompiler` owns provider planning and graph compilation
+  - [x] `KernelArtifactOperation` owns canonical compile/verify input preparation and routing from `BootstrapInput`
+  - [x] `ArtifactCompiler` owns artifact generation and publication
+  - [x] `CacheVerifier` owns current-generation verification
+- [x] Kernel Ops MUST NOT introduce:
+  - [x] a second Config Phase-B package-defaults loader
+  - [x] a second Config Phase-B application-config loader
+  - [x] a rules loader
+  - [x] a config merger
+  - [x] a config validator
+  - [x] a config explainer
+  - [x] a second `ConfigRepositoryInterface` implementation
+  - [x] a parallel config source-plan DTO
+  - [x] a second mode-preset resolver
+  - [x] a separate config-location epic
+- [x] `ConfigSourceLocationBuilder` remains the sole canonical owner of target config-source location construction.
+- [x] Every successful configuration-aware Kernel Ops invocation uses exactly one `ConfigSourceSet` built by `ConfigSourceLocationBuilder`.
+- [x] Every configuration-aware invocation builds at most one `ConfigSourceSet`; a handled error MAY terminate before `ConfigSourceLocationBuilder::build()` is reached.
+- [x] `KernelOpsFacade` owns that construction for validate/debug/hash flows, while `KernelArtifactOperation` owns it for compile/verify flows.
+- [x] `KernelOpsFacade` MUST NOT reconstruct `ConfigSourceSet` from separate source arrays or introduce a parallel config-source model.
+- [x] The operations-host `ConfigRepositoryInterface` represents the validated console-host configuration.
+- [x] It MAY be consumed by console-host package factories and services.
+- [x] It MUST NOT be treated as the target configuration for a Kernel operation whose request target is `web|api|worker`.
+- [x] Every configuration-aware Kernel operation resolves and compiles configuration for its explicit request target through the existing Phase A and Phase B pipeline.
+- [x] `debugModules()` resolves only the target-specific Bootstrap Phase A state and `ModuleResolution`; it MUST NOT execute Config Phase B.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `packages/core/kernel/src/Config/CompileHostConfigInputBuilder.php`
-  - [ ] internal readonly/stateless helper
-  - [ ] is not a public contract
-  - [ ] introduces no DTO
-  - [ ] canonical seed API:
-    - [ ] `/** @return array{foundation: array<string, mixed>, kernel: array<string, mixed>}*/`
-    - [ ] `public static function seedConfig(): array`
-  - [ ] `seedConfig()` loads exactly:
-    - [ ] `coretsia/core-foundation/config/foundation.php`
-    - [ ] `coretsia/core-kernel/config/kernel.php`
-  - [ ] package install roots are resolved only through `Composer\InstalledVersions::getInstallPath()`
-  - [ ] performs no directory scanning
-  - [ ] validates that both files return map arrays
-  - [ ] reads no skeleton, app, environment, preset, or generated-artifact files
-  - [ ] canonical operation-input API:
-    - [ ] `/** @return array{kernelConfig: array<string, mixed>, packageDefaultSources: list<array<string, mixed>>, packageRuleSources: list<array<string, mixed>>, splitRoots: list<string>, explicitRuleSources: list<array<string, mixed>>, explicitEnvOverlayMappings: list<array<string, mixed>>, modePresetSourceCandidates: list<array<string, mixed>>} */`
-    - [ ] `public function build(BootstrapConfig $bootstrapConfig, ModuleResolution $moduleResolution): array`
-  - [ ] consumes only the supplied `BootstrapConfig` and `ModuleResolution`
-  - [ ] obtains enabled modules only from `ModuleResolution::plan()`
-  - [ ] obtains package descriptors only from `ModuleResolution::manifest()`
-  - [ ] MUST NOT invoke `ModulePlanResolver`
-  - [ ] MUST NOT invoke `ManifestReaderInterface`
-  - [ ] MUST NOT read the Composer manifest a second time
-  - [ ] resolves package install roots without package-directory scanning
-  - [ ] package defaults use only descriptor `defaultsConfigPath`
-  - [ ] package rules use only package-owned `config/rules.php`
-  - [ ] produces deterministic canonical source order
-  - [ ] performs no config source loading
-  - [ ] performs no directives, merge, validation, explain, fingerprint, graph, or artifact operations
+- [x] `packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
+  - [x] readonly value object
+  - [x] contains only `appTarget: string`
+  - [x] rejects empty, multiline, or control-byte input
+  - [x] performs no Kernel-specific target validation
+  - [x] contains no mode, preset, paths, config, or artifact state
 
-- [ ] `packages/core/contracts/src/Kernel/Ops/KernelOpsRequest.php`
-  - [ ] readonly value object
-  - [ ] contains only `appTarget: string`
-  - [ ] rejects empty, multiline, or control-byte input
-  - [ ] performs no Kernel-specific target validation
-  - [ ] contains no mode, preset, paths, config, or artifact state
+- [x] `packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
+  - [x] Methods (single-choice; deterministic; no stdout/stderr):
+    - [x] `validateConfig(KernelOpsRequest $request): OpsResult`
+    - [x] `debugConfig(KernelOpsRequest $request): OpsResult`
+    - [x] `compileConfig(KernelOpsRequest $request): OpsResult`
+    - [x] `hashConfig(KernelOpsRequest $request): OpsResult`
+    - [x] `verifyCache(KernelOpsRequest $request): OpsResult`
+    - [x] `debugModules(KernelOpsRequest $request): OpsResult`
+  - [x] is a narrow port for Kernel-owned operations only
+  - [x] MUST NOT become a generic CLI command bus
+  - [x] MUST NOT acquire worker, migration, database, queue, storage, or integration-owned methods
 
-- [ ] `packages/core/contracts/src/Kernel/Ops/KernelOpsInterface.php`
-  - [ ] Methods (single-choice; deterministic; no stdout/stderr):
-    - [ ] `validateConfig(KernelOpsRequest $request): OpsResult`
-    - [ ] `debugConfig(KernelOpsRequest $request): OpsResult`
-    - [ ] `compileConfig(KernelOpsRequest $request): OpsResult`
-    - [ ] `hashConfig(KernelOpsRequest $request): OpsResult`
-    - [ ] `verifyCache(KernelOpsRequest $request): OpsResult`
-    - [ ] `debugModules(KernelOpsRequest $request): OpsResult`
-  - [ ] is a narrow port for Kernel-owned operations only
-  - [ ] MUST NOT become a generic CLI command bus
-  - [ ] MUST NOT acquire worker, migration, database, queue, storage, or integration-owned methods
+- [x] `packages/core/contracts/src/Kernel/Ops/OpsResult.php`
+  - [x] Immutable DTO / readonly:
+    - [x] `public const int SCHEMA_VERSION = 1`
+    - [x] `schemaVersion(): int` always returns `SCHEMA_VERSION`
+    - [x] `operation: string`
+    - [x] `appTarget: ?string` — canonical accepted app target
+    - [x] `appTarget` MUST be non-null for every successful operation result
+    - [x] `appTarget` MAY be null only for `handled_error` produced before canonical app-target validation completes
+    - [x] rejected raw app-target input MUST NOT be copied into `OpsResult`
+    - [x] `preset: ?string` — effective preset resolved by `BootstrapConfigResolver`
+    - [x] `preset` MUST be non-null for every successful operation result
+    - [x] `preset` MUST be null for `handled_error` produced before successful `ModuleResolution` completes, including `ModuleResolutionException`
+    - [x] façade-owned `handled_error` produced after successful `ModuleResolution` MAY preserve the same validated effective preset
+    - [x] `compileConfig()` / `verifyCache()` `handled_error` produced before `KernelArtifactOperation` returns its successful metadata MUST use `preset = null`
+    - [x] `outcome: string` (`success|handled_error`)
+    - [x] `success` requires a non-null effective preset
+    - [x] `handled_error` represents an expected, safely classified operation rejection
+    - [x] unexpected internal failures MUST throw `KernelOpsFailedException`
+    - [x] `reason: ?string` — stable safe reason token for `handled_error`
+    - [x] `reason` MUST be null when `outcome = success`
+    - [x] `reason` MUST be non-null when `outcome = handled_error`
+    - [x] Kernel Ops MUST reuse an existing safe Kernel reason token when the handled rejection originates from an existing Kernel exception/result; it MUST NOT rename the same condition into a second Ops-specific reason vocabulary
+    - [x] `data: array` — json-like; no floats; maps recursively `strcmp`-sorted; list order preserved
+    - [x] `fatal_error` MUST NOT be represented both as a result and an exception
+  - [x] MUST NOT include raw values or absolute filesystem paths
+  - [x] MAY include only safe tokens, canonical ids, basenames, counts, hashes, lengths, and the `ConfigExplainer`-normalized repo-relative or logical source paths explicitly allowed for `debugConfig()`
+  - [x] `compileConfig()` success data contains exactly:
+    - [x] `'artifacts' => list<array{basename: string, identity: string}>`
+    - [x] `'generation_id' => string`
+  - [x] `compileConfig()` artifact list order and values are exactly:
+    - [x] `identity = module-manifest@1`, `basename = module-manifest.php`
+    - [x] `identity = config@1`, `basename = config.php`
+    - [x] `identity = container@1`, `basename = container.php`
+    - [x] `identity = artifact-generation@1`, `basename = generation-manifest.php`
+  - [x] `compileConfig()` data contains no filesystem paths
+  - [x] `hashConfig()` success data contains exactly:
+    - [x] `'generation_id' => string`
+  - [x] `hashConfig()` performs no artifact writes or current-generation reads
+  - [x] `verifyCache()` success data contains exactly:
+    - [x] `'artifacts' => list<array{basename: string, existing_byte_count: int|null, expected_byte_count: int, name: string, reason: string, status: string}>`
+    - [x] `'current_generation_id' => string|null`
+    - [x] `'expected_generation_id' => string`
+    - [x] `'state' => 'clean'|'dirty'|'invalid'`
+  - [x] artifact `name` values are projected unchanged from `CacheVerifier` and are exactly `module-manifest|config|container|artifact-generation`
+  - [x] `KernelOpsFacade` MUST NOT synthesize versioned artifact identities for `verifyCache()`
+  - [x] `verifyCache()` preserves the deterministic artifact order returned by `CacheVerifier`; `KernelOpsFacade` MUST NOT reorder the list solely to match `compileConfig()`
+  - [x] artifact `status` values are exactly `clean|dirty|invalid`
+  - [x] artifact `reason` values are exactly `ok|missing|changed|fingerprint_mismatch|invalid`
+  - [x] `verifyCache()` data contains no filesystem paths
+  - [x] `validateConfig()` data contains only validation status and counts:
+    - [x] `counts.unvalidated_root_count` => int
+    - [x] `counts.validated_root_count` => int
+    - [x] `counts.violation_count` => int
+    - [x] `valid` => bool
+  - [x] `debugConfig()` success data contains exactly:
+    - [x] `explain` => `<the non-null safe explain result returned by ConfigKernel>`
+  - [x] `debugConfig()` MAY preserve repo-relative or logical source paths only when they are already normalized by `ConfigExplainer`
+  - [x] `KernelOpsFacade` MUST normalize `OpsResult::data` through the existing `Coretsia\Foundation\Serialization\JsonLikeNormalizer`; it MUST NOT introduce a second recursive json-like normalizer
+  - [x] `KernelOpsFacade` MUST NOT remove, reconstruct, enrich, or join explain fields with raw config, env, filesystem, or Composer data
+  - [x] absolute filesystem paths remain forbidden
+  - [x] `debugModules()` contains only safe ModulePlan summary:
+    - [x] `'enabled' => list<string>`
+    - [x] `'excluded' => list<string>`
+    - [x] `'topological_order' => list<string>`
+  - [x] `debugModules()` MUST NOT expose legacy selection state such as `disabled`, `optional_missing`, or `warnings`
+  - [x] `debugModules()` MUST NOT call `ModulePlan::toArray()` directly because the current exported shape contains `modules` entries with Composer-owned package metadata
 
-- [ ] `packages/core/contracts/src/Kernel/Ops/OpsResult.php`
-  - [ ] Immutable DTO / readonly:
-    - [ ] `schemaVersion: int`
-    - [ ] `operation: string`
-    - [ ] `appTarget: string`
-    - [ ] `preset: ?string` — effective preset resolved by `BootstrapConfigResolver`
-    - [ ] `preset` MUST be non-null for every successful operation result
-    - [ ] `preset` MAY be null only for `handled_error` produced before effective preset resolution completes
-    - [ ] `outcome: string` (`success|handled_error`)
-    - [ ] `success` requires a non-null effective preset
-    - [ ] `handled_error` represents an expected, safely classified operation rejection
-    - [ ] unexpected internal failures MUST throw `KernelOpsFailedException`
-    - [ ] `reason: string` — stable safe reason token
-    - [ ] `data: array` — json-like; no floats; maps recursively `strcmp`-sorted; list order preserved
-    - [ ] `fatal_error` MUST NOT be represented both as a result and an exception
-  - [ ] MUST NOT include raw values or absolute filesystem paths
-  - [ ] MAY include only safe tokens, canonical ids, basenames, counts, hashes, lengths, and the `ConfigExplainer`-normalized repo-relative or logical source paths explicitly allowed for `debugConfig()`
-  - [ ] `compileConfig()` success data contains exactly:
-    - [ ] `'artifacts' => list<array{basename: string, identity: string}>`
-    - [ ] `'generation_id' => string`
-  - [ ] `compileConfig()` artifact list order and values are exactly:
-    - [ ] `identity = module-manifest@1`, `basename = module-manifest.php`
-    - [ ] `identity = config@1`, `basename = config.php`
-    - [ ] `identity = container@1`, `basename = container.php`
-    - [ ] `identity = artifact-generation@1`, `basename = generation-manifest.php`
-  - [ ] `compileConfig()` data contains no filesystem paths
-  - [ ] `hashConfig()` success data contains exactly:
-    - [ ] `'generation_id' => string`
-  - [ ] `hashConfig()` performs no artifact writes or current-generation reads
-  - [ ] `verifyCache()` success data contains exactly:
-    - [ ] `'artifacts' => list<array{basename: string, existing_byte_count: int|null, expected_byte_count: int, identity: string, reason: string, status: string}>`
-    - [ ] `'current_generation_id' => string|null`
-    - [ ] `'expected_generation_id' => string`
-    - [ ] `'state' => 'clean'|'dirty'|'invalid'`
-  - [ ] `verifyCache()` artifact list order and identities match `compileConfig()`
-  - [ ] artifact `status` values are exactly `clean|dirty|invalid`
-  - [ ] artifact `reason` values are exactly `ok|missing|changed|fingerprint_mismatch|invalid`
-  - [ ] `verifyCache()` data contains no filesystem paths
-  - [ ] `validateConfig()` data contains only validation status and counts:
-    - [ ] `counts.unvalidated_root_count` => int
-    - [ ] `counts.validated_root_count` => int
-    - [ ] `counts.violation_count` => int
-    - [ ] `valid` => bool
-  - [ ] `debugConfig()` success data contains exactly:
-    - [ ] `explain` => `<the non-null safe explain result returned by ConfigKernel>`
-  - [ ] `debugConfig()` MAY preserve repo-relative or logical source paths only when they are already normalized by `ConfigExplainer`
-  - [ ] `KernelOpsFacade` MUST apply only the generic recursive json-like normalization required by `OpsResult`
-  - [ ] `KernelOpsFacade` MUST NOT remove, reconstruct, enrich, or join explain fields with raw config, env, filesystem, or Composer data
-  - [ ] absolute filesystem paths remain forbidden
-  - [ ] `debugModules()` contains only safe ModulePlan summary:
-    - [ ] `'disabled' => list<string>`
-    - [ ] `'enabled' => list<string>`
-    - [ ] `'optional_missing' => list<string>`
-    - [ ] `'topological_order' => list<string>`
-    - [ ] `'warnings' => list<array{code: string, module_id: string, reason: string}>`
-  - [ ] `debugModules()` MUST NOT call `ModulePlan::toArray()` directly because the current exported shape contains Composer-owned module metadata
+- [x] `packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
+  - [x] deterministic code-first public exception
+  - [x] `public const string ERROR_CODE = 'CORETSIA_KERNEL_OPS_FAILED'`
+  - [x] `errorCode(): string` returns exactly `ERROR_CODE`
+  - [x] allowed stable reasons are exactly:
+    - [x] `operation-failed`
+    - [x] `host-boot-failed`
+  - [x] `reason(): string` returns the selected stable reason
+  - [x] public message is exactly `ERROR_CODE . ': ' . reason`
+  - [x] `operation-failed` is the public classification for unexpected `KernelOpsFacade` implementation failures
+  - [x] `host-boot-failed` is the public classification for failures crossing the `KernelOpsHostBooter::boot()` boundary
+  - [x] MUST NOT retain a previous Throwable
+  - [x] Intended for catch/handling in `platform/*` without depending on internal `Coretsia\Kernel\*` exception types
 
-- [ ] `packages/core/contracts/src/Kernel/Ops/Exception/KernelOpsFailedException.php`
-  - [ ] Deterministic code-first; message safe (no secrets/abs paths)
-  - [ ] Intended for catch/handling in `platform/*` without `Coretsia\Kernel\*` imports
+- [x] `packages/core/kernel/src/Ops/KernelOpsHostSeedConfigLoader.php`
+  - [x] internal readonly/stateless helper
+  - [x] source class docblock MUST contain `@internal`
+  - [x] constructor receives exactly one `ComposerPackageInstallPathResolver`
+  - [x] resolves package identities through `FoundationModule::COMPOSER_PACKAGE` and `KernelModule::COMPOSER_PACKAGE`; package names MUST NOT be duplicated as independent string policy
+  - [x] canonical API:
+    - [x] `public function load(): array`
+  - [x] loads exactly:
+    - [x] `coretsia/core-foundation/config/foundation.php`
+    - [x] `coretsia/core-kernel/config/kernel.php`
+  - [x] resolves package install roots only through the existing `ComposerPackageInstallPathResolver`
+  - [x] validates that both files return map arrays
+  - [x] validates each resolved config file with `is_file()` and `is_readable()` before loading
+  - [x] loads each file through one internal warning-safe require helper
+  - [x] PHP warnings/notices produced during file loading MUST be converted to a deterministic internal failure and MUST NOT reach stdout/stderr
+  - [x] restores the previous PHP error handler in `finally`
+  - [x] MUST NOT expose the resolved package root or config filesystem path through an exception message
+  - [x] returns exactly:
+    - [x] `'foundation' => <the map returned by foundation.php>`
+    - [x] `'kernel' => <the map returned by kernel.php>`
+  - [x] MUST NOT flatten, recursively merge, or cross-merge the two package configuration subtrees
+  - [x] reads no skeleton, application, environment, preset, or generated-artifact files
+  - [x] performs no ConfigKernel Phase-B loading, directives, merge, validation, explain, fingerprint, graph, or artifact operations
 
-- [ ] `packages/core/kernel/src/Ops/KernelOpsFacade.php`
-  - [ ] MUST `implements Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
-  - [ ] constructor receives the exact `KernelOpsHostInput` seeded by `KernelOpsHostBooter`
-  - [ ] constructor receives operation services explicitly:
-    - [ ] `BootstrapConfigResolver`
-    - [ ] `EnvRepositoryBuilder`
-    - [ ] `ModulePlanResolver`
-    - [ ] `ConfigKernel`
-    - [ ] `RuntimeContainerGraphCompiler`
-    - [ ] `ConfigFingerprintInputBuilder`
-    - [ ] `FingerprintCalculator`
-    - [ ] `ArtifactCompiler`
-    - [ ] `CacheVerifier`
-    - [ ] `CompileHostConfigInputBuilder`
-  - [ ] uses `KernelOpsHostInput::applicationRoot()` as the sole skeleton root for every target-specific `BootstrapInput`
-  - [ ] constructor receives:
-    - [ ] `ContextAccessorInterface`
-    - [ ] `TracerPortInterface`
-    - [ ] `MeterPortInterface`
-    - [ ] `LoggerInterface`
-    - [ ] Foundation `Stopwatch`
-  - [ ] MUST NOT instantiate noop logger, tracer, or meter directly
-  - [ ] MUST NOT read observability services from a service locator
-  - [ ] MUST NOT derive the skeleton root from CWD, argv, environment variables, artifacts, or target config
-  - [ ] MUST return `Coretsia\Contracts\Kernel\Ops\OpsResult` (contracts DTO; no kernel-local duplicate DTO)
-  - [ ] MUST throw `Coretsia\Contracts\Kernel\Ops\Exception\KernelOpsFailedException` (contracts exception; no kernel-local duplicate exception)
-  - [ ] maps `expectedGenerationId` and `currentGenerationId` into `OpsResult`
-  - [ ] removes every lower-level artifact `path` field
-  - [ ] preserves `ConfigExplainer`-normalized repo-relative or logical source paths only inside `debugConfig().data.explain`
-  - [ ] MUST delegate to existing Kernel components:
-    - [ ] `BootstrapConfigResolver`
-    - [ ] `EnvRepositoryBuilder`
-    - [ ] `ModulePlanResolver::resolveResolution()`
-    - [ ] `ConfigKernel`
-    - [ ] `RuntimeContainerGraphCompiler`
-    - [ ] `ConfigFingerprintInputBuilder`
-    - [ ] `FingerprintCalculator`
-    - [ ] `ArtifactCompiler`
-    - [ ] `CacheVerifier`
-  - [ ] MUST NOT print; MUST NOT leak raw config/env values; MUST NOT leak absolute paths
-  - [ ] Results MUST be json-like (no floats; no objects/resources)
-  - [ ] MUST own Kernel-side orchestration for:
-    - [ ] `validateConfig()`
-    - [ ] `debugConfig()`
-    - [ ] `debugModules()`
-    - [ ] `compileConfig()`
-    - [ ] `hashConfig()`
-      - [ ] failed config validation maps to safe `handled_error`
-      - [ ] container graph and fingerprint calculation occur only after successful validation
-      - [ ] passes the same Kernel config and source-provenance inputs required by the existing compile and verify fingerprint pipeline
-      - [ ] MUST NOT define a separate hash-only config interpretation
-      - [ ] `KernelOpsFacade` MUST inspect the `ConfigValidationResult` returned by the single `ConfigKernel::compile()` call
-      - [ ] failed validation MUST be mapped to `handled_error` before graph compilation
-      - [ ] `KernelOpsFacade` MUST NOT call `ConfigValidator` or repeat validation
-    - [ ] `verifyCache()`
-  - [ ] module-aware operations MUST use `ModulePlanResolver::resolveResolution()`
-  - [ ] MUST NOT use `ModulePlanResolver::resolve()` for module-aware operations because it discards the installed manifest snapshot
-  - [ ] MUST invoke `resolveResolution()` at most once per operation
-  - [ ] canonical safe operation ids:
-    - [ ] `config.validate`
-    - [ ] `config.debug`
-    - [ ] `config.compile`
-    - [ ] `config.hash`
-    - [ ] `cache.verify`
-    - [ ] `modules.debug`
-  - [ ] observability ownership:
-    - [ ] creates one `kernel.operation` span per operation
-    - [ ] span attributes are limited to:
-      - [ ] `operation`
-      - [ ] `app_target`
-      - [ ] `preset`, only after effective preset resolution
-      - [ ] `outcome`
-    - [ ] `preset` is omitted when resolution did not complete
-    - [ ] observability outcomes are exactly `success|handled_error|failure`
-    - [ ] emits `kernel.operation_total`
-      - [ ] labels: `operation|outcome`
-    - [ ] emits `kernel.operation_duration_ms`
-      - [ ] labels: `operation|outcome`
-    - [ ] duration is measured only through Foundation `Stopwatch`
-    - [ ] metric values are integer-based; floats are forbidden
-    - [ ] `app_target` and `preset` MUST NOT be metric labels
-    - [ ] generation ids, fingerprints, artifact names, paths, counts, and exception messages MUST NOT be metric labels
-    - [ ] generation ids and fingerprints MUST NOT be span attributes
-    - [ ] observability failures MUST NOT alter operation result or exception semantics
-  - [ ] logging:
-    - [ ] emits only a safe completion/failure summary
-    - [ ] safe fields are limited to `operation|app_target|preset|outcome`
-    - [ ] MAY include safe `correlation_id|uow_id` when available through `ContextAccessorInterface`
-    - [ ] MUST NOT log raw config, env values, Composer metadata, artifact data, paths, generation ids, fingerprints, previous throwable messages, or stack traces
-  - [ ] context reads:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
-    - [ ] reads no other context keys
-    - [ ] reads only through `ContextAccessorInterface`
-    - [ ] missing context values are allowed and MUST NOT fail the operation
-  - [ ] context writes:
-    - [ ] MUST NOT write `ContextStore` directly
-    - [ ] MUST NOT create correlation ids or UoW ids
-    - [ ] MUST NOT replace `uow_type`
-  - [ ] UoW boundary:
-    - [ ] assumes the caller may already execute inside a canonical Kernel UoW
-    - [ ] MUST NOT create a nested UoW
-    - [ ] MUST NOT invoke `KernelRuntimeInterface`
-    - [ ] MUST NOT invoke hooks or reset orchestration
-    - [ ] MUST NOT enumerate `kernel.reset`
-  - [ ] unsupported app target MUST return:
-    - [ ] `outcome = handled_error`
-    - [ ] `reason = app-target-invalid`
-    - [ ] `preset = null`
-  - [ ] invalid Bootstrap or target-preset selection MUST return a safe `handled_error`
-  - [ ] unexpected implementation failures MUST throw `KernelOpsFailedException`
-  - [ ] MUST pass the returned `ModuleResolution` directly to `ArtifactCompiler`, `CacheVerifier`, or `RuntimeContainerGraphCompiler` according to the selected operation
-  - [ ] MUST NOT invoke `ContainerProviderPlanResolver` separately from `RuntimeContainerGraphCompiler`
-  - [ ] MUST NOT invoke `ManifestReaderInterface::read()` after `resolveResolution()` returns
-  - [ ] MUST use the same `ModuleResolution::plan()` instance throughout the complete operation
-  - [ ] MUST NOT collect provider definitions directly
-  - [ ] MUST pass the same `ModuleResolution` instance to `RuntimeContainerGraphCompiler`
-  - [ ] provider planning and definition collection remain owned by `RuntimeContainerGraphCompiler`
-  - [ ] MUST NOT expose `ModuleResolution`, `ContainerProviderPlan`, provider instances, raw Composer metadata, or absolute paths through `KernelOpsInterface` or `OpsResult`
-  - [ ] `compileConfig()` MUST return the generation id produced by `ArtifactCompiler`
-  - [ ] `compileConfig()` MUST report all four generation files
-  - [ ] `hashConfig()` MUST use the same config, graph, and fingerprint-input pipeline as compile/verify
-  - [ ] `hashConfig()` MUST NOT invoke `ArtifactCompiler`, `ArtifactGenerationPublisher`, `ArtifactGenerationLocator`, or `CacheVerifier`
-  - [ ] `verifyCache()` MUST preserve Kernel clean/dirty/invalid classification
-  - [ ] no operation may call `ArtifactRuntimeBooter`
-  - [ ] every target-aware operation resolves exactly:
-    - [ ] one target-specific `BootstrapConfig`
-    - [ ] one `ModuleResolution`
-  - [ ] configuration-aware operations resolve exactly one immutable `EnvRepositoryInterface`:
-    - [ ] `validateConfig()`
-    - [ ] `debugConfig()`
-    - [ ] `compileConfig()`
-    - [ ] `hashConfig()`
-    - [ ] `verifyCache()`
-  - [ ] configuration-aware operations invoke `CompileHostConfigInputBuilder::build()` exactly once
-  - [ ] `debugModules()`:
-    - [ ] MUST NOT invoke `EnvRepositoryBuilder`
-    - [ ] MUST NOT invoke `CompileHostConfigInputBuilder`
-    - [ ] MUST NOT load package config, config rules, skeleton config, dotenv, or generated artifacts
-  - [ ] invokes only existing production APIs:
-    - [ ] `validateConfig()` and `debugConfig()` invoke the existing `ConfigKernel`
-    - [ ] `compileConfig()` invokes the existing `ArtifactCompiler`
-    - [ ] `verifyCache()` invokes the existing `CacheVerifier`
-    - [ ] `hashConfig()` uses the same existing ConfigKernel → graph → fingerprint pipeline without publication
-  - [ ] passes the exact target-specific `BootstrapConfig` and `ModuleResolution`
-  - [ ] passes the returned arguments unchanged to the existing Kernel services
-  - [ ] MUST NOT construct package paths or source-candidate arrays directly
-  - [ ] source-candidate preparation MUST NOT:
-    - [ ] include or parse config files
-    - [ ] execute package or skeleton config loaders directly
-    - [ ] process directives
-    - [ ] merge config values
-    - [ ] validate config
-    - [ ] build explain output
-    - [ ] create a second repository
-    - [ ] read the Composer manifest a second time
-  - [ ] passes all prepared arguments unchanged to the existing Kernel services
-  - [ ] MUST NOT substitute the console-host `ConfigRepositoryInterface` for target-specific Phase B compilation
+- [x] `packages/core/kernel/src/Ops/KernelOpsExecutionServices.php`
+  - [x] internal readonly wiring value; not a public service-locator API
+  - [x] source class docblock MUST contain `@internal`
+  - [x] contains the exact baseline `kernel` configuration subtree used for target-aware Kernel operations
+  - [x] contains the exact operation-service instances required by `KernelOpsFacade`:
+    - [x] `BootstrapConfigResolver`
+    - [x] `EnvRepositoryBuilder`
+    - [x] `ModuleResolutionOrchestrator`
+    - [x] `ConfigKernel`
+    - [x] `RuntimeContainerGraphCompiler`
+    - [x] `ConfigFingerprintInputBuilder`
+    - [x] `FingerprintCalculator`
+    - [x] `ConfigSourceLocationBuilder`
+    - [x] `KernelArtifactOperation`
+  - [x] is materialized at most once per final source-operations host through one shared host-owned factory
+  - [x] operation-service construction uses the exact baseline Foundation/Kernel seed configuration, never the final console-host Phase-B `kernel.*` configuration
+  - [x] operation-service construction uses one dedicated internal `ContainerBuilder`
+  - [x] the dedicated builder applies the same preserved Foundation/Kernel baseline provider class list
+  - [x] before any operation service is resolved, the dedicated builder overrides the baseline Foundation observability defaults with the exact final source-host instances of:
+    - [x] `LoggerInterface`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] Foundation `Stopwatch`
+  - [x] target-operation services MUST therefore retain their existing native Kernel observability through the final source-host ports and MUST NOT be pinned to seed-stage Noop observability implementations
+  - [x] the dedicated execution container is discarded after the required service instances are captured and MUST NOT be exposed or retained
+  - [x] the dedicated execution container MUST NOT resolve `KernelOpsFacade` or `KernelOpsInterface`
+  - [x] performs no Kernel operation itself
+  - [x] MUST NOT contain the final source-host `ContainerInterface`
+  - [x] MUST NOT contain the console-host `ConfigRepositoryInterface`
 
-- [ ] `packages/core/kernel/src/Ops/KernelOpsHostInput.php`
-  - [ ] readonly normalized `applicationRoot`
-  - [ ] contains no target, preset, config, or artifact paths
-  - [ ] performs no filesystem reads
-  - [ ] the exact normalized instance is seeded into the source operations container
+- [x] `packages/core/kernel/src/Ops/KernelOpsFacade.php`
+  - [x] MUST `implements Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+  - [x] source class docblock MUST contain `@internal`; callers depend on `KernelOpsInterface`, not the concrete façade
+  - [x] constructor receives the exact `KernelOpsHostInput` seeded by `KernelOpsHostBooter`
+  - [x] constructor receives operation services explicitly:
+    - [x] `BootstrapConfigResolver`
+    - [x] `EnvRepositoryBuilder`
+    - [x] `ModuleResolutionOrchestrator`
+    - [x] `ConfigKernel`
+    - [x] `RuntimeContainerGraphCompiler`
+    - [x] `ConfigFingerprintInputBuilder`
+    - [x] `FingerprintCalculator`
+    - [x] `ConfigSourceLocationBuilder`
+    - [x] `KernelArtifactOperation`
+  - [x] constructor additionally receives the exact baseline `kernel` configuration subtree carried by `KernelOpsExecutionServices`
+  - [x] `hashConfig()` MUST pass that exact baseline `kernel` configuration to `ConfigFingerprintInputBuilder`
+  - [x] `KernelOpsFacade` MUST NOT obtain Kernel operation policy from the console-host `ConfigRepositoryInterface` or from final source-host container configuration
+  - [x] uses `KernelOpsHostInput::applicationRoot()` as the sole application root for every target-specific `BootstrapInput`
+  - [x] constructor receives:
+    - [x] `ContextAccessorInterface`
+    - [x] `CorrelationIdProviderInterface`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] `LoggerInterface`
+    - [x] Foundation `Stopwatch`
+  - [x] MUST NOT instantiate noop logger, tracer, or meter directly
+  - [x] MUST NOT read observability services from a service locator
+  - [x] MUST NOT derive the application root from CWD, argv, environment variables, artifacts, or target config
+  - [x] MUST return `Coretsia\Contracts\Kernel\Ops\OpsResult` (contracts DTO; no kernel-local duplicate DTO)
+  - [x] MUST throw `Coretsia\Contracts\Kernel\Ops\Exception\KernelOpsFailedException` (contracts exception; no kernel-local duplicate exception)
+  - [x] maps `expectedGenerationId` and `currentGenerationId` into `OpsResult`
+  - [x] maps `KernelArtifactOperation::compile()` / `verify()` `effectivePreset` into `OpsResult::preset()` without performing another Bootstrap Phase-A resolution
+  - [x] removes every lower-level artifact `path` field
+  - [x] preserves `ConfigExplainer`-normalized repo-relative or logical source paths only inside `debugConfig().data.explain`
+  - [x] MUST delegate to existing Kernel components:
+    - [x] `BootstrapConfigResolver`
+    - [x] `EnvRepositoryBuilder`
+    - [x] `ModuleResolutionOrchestrator::resolve()`
+    - [x] `ConfigSourceLocationBuilder`
+    - [x] `ConfigKernel`
+    - [x] `RuntimeContainerGraphCompiler`
+    - [x] `ConfigFingerprintInputBuilder`
+    - [x] `FingerprintCalculator`
+    - [x] `KernelArtifactOperation` for `compileConfig()` / `verifyCache()`
+  - [x] `compileConfig()` MUST NOT invoke `ArtifactCompiler` directly
+  - [x] `verifyCache()` MUST NOT invoke `CacheVerifier` directly
+  - [x] MUST NOT print; MUST NOT leak raw config/env values; MUST NOT leak absolute paths
+  - [x] Results MUST be json-like (no floats; no objects/resources)
+  - [x] MUST own Kernel-side orchestration for:
+    - [x] `validateConfig()`
+    - [x] `debugConfig()`
+      - [x] `KernelOpsFacade` MUST inspect the `ConfigValidationResult` returned by the single `ConfigKernel::compile(..., explain: true)` call
+      - [x] failed validation MUST be mapped to safe `handled_error` with the existing `config-validation-failed` reason token
+      - [x] `KernelOpsFacade` MUST NOT call `ConfigValidator` or repeat validation
+    - [x] `debugModules()`
+    - [x] `compileConfig()`
+    - [x] `hashConfig()`
+      - [x] failed config validation maps to safe `handled_error`
+      - [x] container graph and fingerprint calculation occur only after successful validation
+      - [x] passes the exact baseline `kernel` configuration and the same target-specific source-provenance inputs required by the existing compile and verify fingerprint pipeline
+      - [x] MUST NOT define a separate hash-only config interpretation
+      - [x] `KernelOpsFacade` MUST inspect the `ConfigValidationResult` returned by the single `ConfigKernel::compile()` call
+      - [x] failed validation MUST be mapped to `handled_error` before graph compilation
+      - [x] `KernelOpsFacade` MUST NOT call `ConfigValidator` or repeat validation
+    - [x] `verifyCache()`
+  - [x] `validateConfig()`, `debugConfig()`, `debugModules()`, and `hashConfig()` MUST use `ModuleResolutionOrchestrator::resolve()` for installed module resolution
+  - [x] `KernelOpsFacade` MUST NOT invoke `ModulePlanResolver` or `ManifestReaderInterface` directly
+  - [x] those façade-owned operations MUST invoke `ModuleResolutionOrchestrator::resolve()` at most once per operation
+  - [x] `compileConfig()` and `verifyCache()` MUST NOT invoke `ModuleResolutionOrchestrator::resolve()` in `KernelOpsFacade`; their single module-resolution snapshot remains owned by `KernelArtifactOperation`
+  - [x] canonical safe operation ids:
+    - [x] `config.validate`
+    - [x] `config.debug`
+    - [x] `config.compile`
+    - [x] `config.hash`
+    - [x] `cache.verify`
+    - [x] `modules.debug`
+  - [x] observability ownership:
+    - [x] creates one `kernel.operation` span per operation
+    - [x] span attributes are limited to:
+      - [x] `operation`
+      - [x] `app_target`, only after canonical app-target validation completes
+      - [x] `preset`, only after the same façade-owned operation has completed `ModuleResolution` successfully or a successful `KernelArtifactOperation` result has returned `effectivePreset`
+      - [x] `outcome`
+    - [x] `preset` is omitted for `ModuleResolutionException` and every failure that occurs before safe preset eligibility is established
+    - [x] observability MUST NOT independently validate a preset or re-run Bootstrap Phase A to make `preset` available
+    - [x] `app_target` is omitted when canonical app-target validation did not complete
+    - [x] observability MUST NOT trigger Bootstrap Phase A only to recover `preset`
+    - [x] observability outcomes are exactly `success|handled_error|failure`
+    - [x] emits `kernel.operation_total`
+      - [x] labels: `operation|outcome`
+    - [x] emits `kernel.operation_duration_ms`
+      - [x] labels: `operation|outcome`
+    - [x] duration is measured only through Foundation `Stopwatch`
+    - [x] metric values are integer-based; floats are forbidden
+    - [x] `app_target` and `preset` MUST NOT be metric labels
+    - [x] generation ids, fingerprints, artifact names, paths, counts, and exception messages MUST NOT be metric labels
+    - [x] generation ids and fingerprints MUST NOT be span attributes
+    - [x] observability failures MUST NOT alter operation result or exception semantics
+  - [x] logging:
+    - [x] emits only a safe completion/failure summary
+    - [x] safe fields are limited to `operation|app_target|preset|outcome|correlation_id|uow_id`
+    - [x] `app_target` MAY be logged only after canonical app-target validation completes
+    - [x] `preset` MAY be logged only under the same safe preset eligibility rule used by `OpsResult` and `kernel.operation` span attributes
+    - [x] the rejected raw app-target input MUST NOT be logged
+    - [x] MAY include safe `correlation_id` when available through `CorrelationIdProviderInterface`
+    - [x] MAY include safe `uow_id` when available through `ContextAccessorInterface`
+    - [x] MUST NOT log raw config, env values, Composer metadata, artifact data, paths, generation ids, fingerprints, previous throwable messages, or stack traces
+  - [x] context reads:
+    - [x] `correlation_id` is obtained only through `CorrelationIdProviderInterface::correlationId()`
+    - [x] `KernelOpsFacade` MUST NOT read `ContextKeys::CORRELATION_ID` directly
+    - [x] `uow_id` is read only through `ContextAccessorInterface` using `ContextKeys::UOW_ID`
+    - [x] reads no other context keys through `ContextAccessorInterface`
+    - [x] values returned by `ContextAccessorInterface` are treated as `mixed`
+    - [x] `uow_id` MAY be copied into log context only when the retrieved value is a non-empty safe id string containing no whitespace or control bytes
+    - [x] missing, null, non-string, or unsafe `uow_id` values are treated as unavailable and MUST be omitted
+    - [x] `CorrelationIdProviderInterface::correlationId()` failure and `ContextAccessorInterface::has()` / `get()` failure MUST be isolated and MUST NOT alter operation result or exception semantics
+  - [x] context writes:
+    - [x] MUST NOT write `ContextStore` directly
+    - [x] MUST NOT create correlation ids or UoW ids
+    - [x] MUST NOT replace `uow_type`
+  - [x] UoW boundary:
+    - [x] assumes the caller may already execute inside a canonical Kernel UoW
+    - [x] MUST NOT create a nested UoW
+    - [x] MUST NOT invoke `KernelRuntimeInterface`
+    - [x] MUST NOT invoke hooks or reset orchestration
+    - [x] MUST NOT enumerate `kernel.reset`
+  - [x] a structurally valid `KernelOpsRequest::appTarget()` that is not a canonical `AppTarget` and therefore reaches `KernelOpsFacade` MUST return:
+    - [x] `outcome = handled_error`
+    - [x] `reason = bootstrap-invalid-app-target`
+    - [x] `appTarget = null`
+    - [x] `preset = null`
+    - [x] the rejected raw app-target input MUST NOT appear in the result, logs, span attributes, or metric labels
+  - [x] handled Kernel-owned rejection mapping:
+    - [x] `BootstrapException` → `handled_error` with the exact existing `BootstrapException::reason()` token
+    - [x] `ModuleResolutionException` → `handled_error` with the exact existing `ModuleResolutionException::reason()` token
+    - [x] `ConfigInvalidException` → `handled_error` with the exact existing `ConfigInvalidException::reason()` token
+    - [x] `ConfigReservedNamespaceException` → `handled_error` with the exact existing `ConfigReservedNamespaceException::reason()` token
+    - [x] `ConfigDirectiveMixedLevelException` → `handled_error` with the exact existing `ConfigDirectiveMixedLevelException::reason()` token
+    - [x] `ConfigDirectiveTypeMismatchException` → `handled_error` with the exact existing `ConfigDirectiveTypeMismatchException::reason()` token
+    - [x] a failed `ConfigValidationResult` handled directly by façade-owned validate/debug/hash flow uses the existing `config-validation-failed` reason token without constructing a second validation pipeline
+    - [x] exception context, previous Throwable, and exception message MUST NOT be copied into `OpsResult`
+  - [x] unexpected implementation failures MUST throw `KernelOpsFailedException` with stable reason `operation-failed`
+  - [x] for façade-owned graph production, MUST pass the returned `ModuleResolution` directly to `RuntimeContainerGraphCompiler`; for `compileConfig()` / `verifyCache()`, the internally resolved `ModuleResolution` is passed unchanged by `KernelArtifactOperation` to `ArtifactCompiler` / `CacheVerifier`
+  - [x] MUST NOT invoke `ContainerProviderPlanResolver` separately from `RuntimeContainerGraphCompiler`
+  - [x] MUST NOT invoke `ManifestReaderInterface::read()` directly or introduce a second manifest-read path after the operation's single `ModuleResolutionOrchestrator::resolve()` invocation
+  - [x] the owning orchestration layer MUST use the same `ModuleResolution::plan()` instance throughout the complete operation; for `compileConfig()` / `verifyCache()` that ownership remains inside `KernelArtifactOperation`
+  - [x] MUST NOT collect provider definitions directly
+  - [x] the graph-producing owner MUST pass the same operation-scoped `ModuleResolution` instance to `RuntimeContainerGraphCompiler`
+  - [x] provider planning and definition collection remain owned by `RuntimeContainerGraphCompiler`
+  - [x] MUST NOT expose `ModuleResolution`, `ContainerProviderPlan`, provider instances, raw Composer metadata, or absolute paths through `KernelOpsInterface` or `OpsResult`
+  - [x] `compileConfig()` MUST return the generation id produced by `ArtifactCompiler`
+  - [x] `compileConfig()` MUST report all four generation files
+  - [x] `hashConfig()` MUST use the same config, graph, and fingerprint-input pipeline as compile/verify
+  - [x] `hashConfig()` MUST NOT invoke `ArtifactCompiler`, `ArtifactGenerationPublisher`, `ArtifactGenerationLocator`, or `CacheVerifier`
+  - [x] `verifyCache()` MUST preserve Kernel clean/dirty/invalid classification
+  - [x] no operation may call `ArtifactRuntimeBooter`
+  - [x] every successful target-aware operation resolves exactly:
+    - [x] one target-specific `BootstrapConfig`
+    - [x] one `ModuleResolution`
+  - [x] every target-aware operation resolves at most one target-specific `BootstrapConfig` and at most one `ModuleResolution`; a handled error MAY terminate before either value is available
+  - [x] every successful configuration-aware operation resolves exactly one immutable `EnvRepositoryInterface`:
+    - [x] `validateConfig()`
+    - [x] `debugConfig()`
+    - [x] `compileConfig()`
+    - [x] `hashConfig()`
+    - [x] `verifyCache()`
+  - [x] every configuration-aware operation invokes `EnvRepositoryBuilder` and `ConfigSourceLocationBuilder::build()` at most once; a handled error MAY terminate before either invocation
+  - [x] when `ConfigSourceLocationBuilder::build()` is reached, the call is owned by `KernelOpsFacade` for validate/debug/hash and by `KernelArtifactOperation` for compile/verify
+  - [x] `debugModules()`:
+    - [x] MUST NOT invoke `EnvRepositoryBuilder`
+    - [x] MUST NOT invoke `ConfigSourceLocationBuilder`
+    - [x] MUST NOT invoke `ConfigKernel`
+    - [x] MUST NOT load Config Phase-B package config, config rules, target application config, dotenv, or generated artifacts
+    - [x] MAY read `applicationRoot/config/app.php` through `BootstrapConfigResolver`
+    - [x] MAY load the selected canonical or application-owned mode preset through the existing module-resolution pipeline
+  - [x] invokes only existing production APIs:
+    - [x] `validateConfig()` and `debugConfig()` invoke the existing `ConfigKernel`
+    - [x] `compileConfig()` invokes the existing `KernelArtifactOperation::compile()`
+    - [x] `verifyCache()` invokes the existing `KernelArtifactOperation::verify()`
+    - [x] `hashConfig()` uses the same existing ConfigKernel → graph → fingerprint pipeline without publication
+  - [x] façade-owned operations pass the exact target-specific `BootstrapConfig`, `EnvRepositoryInterface`, `ModuleResolution::plan()`, `ModuleResolution`, and `ConfigSourceSet` to the existing Kernel services as applicable
+  - [x] `compileConfig()` and `verifyCache()` pass only the canonical target-specific `BootstrapInput` to `KernelArtifactOperation`
+  - [x] MUST NOT construct package paths or source-candidate arrays directly
+  - [x] source-candidate preparation MUST NOT:
+    - [x] include or parse config files
+    - [x] execute package or skeleton config loaders directly
+    - [x] process directives
+    - [x] merge config values
+    - [x] validate config
+    - [x] build explain output
+    - [x] create a second repository
+    - [x] read the Composer manifest a second time
+  - [x] façade-owned operations pass all prepared arguments unchanged to the existing Kernel services
+  - [x] MUST NOT substitute the console-host `ConfigRepositoryInterface` for target-specific Phase B compilation
+  - [x] `compileConfig()` and `verifyCache()` MUST delegate canonical `BootstrapInput` → Bootstrap → env → `ModuleResolution` → `ConfigSourceSet` preparation and routing to the existing `KernelArtifactOperation`
+  - [x] `KernelOpsFacade` MUST NOT resolve `BootstrapConfig`, `EnvRepositoryInterface`, `ModuleResolution`, or `ConfigSourceSet` separately for those two operations
+  - [x] successful `KernelArtifactOperation::compile()` / `verify()` results MUST additionally expose `effectivePreset`, taken from the same internally prepared `BootstrapConfig`
+  - [x] obtaining `effectivePreset` MUST NOT cause a second Bootstrap Phase-A resolution or a second `ModuleResolutionOrchestrator::resolve()` invocation
 
-- [ ] `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
-  - [ ] public stateless zero-constructor boot façade
-  - [ ] canonical API:
-    - [ ] `public function boot(KernelOpsHostInput $input): ContainerInterface`
-  - [ ] may be constructed directly before any container exists
-  - [ ] requires no generated artifacts or `current`
-  - [ ] never calls `ArtifactRuntimeBooter`
-  - [ ] bootstrap seed stage:
-    - [ ] creates one seed `ContainerBuilder`
-    - [ ] obtains the exact Foundation and Kernel seed configuration only through `CompileHostConfigInputBuilder::seedConfig()`
-    - [ ] registers only canonical Foundation and Kernel bootstrap providers
-    - [ ] applies them as one declarative-capable provider batch
-    - [ ] builds one seed container
-    - [ ] MUST NOT discover or register external package providers during the seed stage
-  - [ ] resolves the console source-host state through existing Kernel services:
-    - [ ] one console-target `BootstrapConfig`
-    - [ ] one immutable `EnvRepositoryInterface`
-    - [ ] one console `ModuleResolution`
-    - [ ] one ConfigKernel Phase B result for the console host
-    - [ ] after the single `ConfigKernel::compile()` invocation, inspect `$compiledConfig['validation']`
-    - [ ] if `validation->isFailure()`, `throw ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`
-    - [ ] this is an assertion over the validation result already produced by `ConfigKernel`; it MUST NOT invoke `ConfigValidator` or repeat validation
-    - [ ] the assertion MUST occur before:
-      - [ ] `ArrayConfigRepository` construction
-      - [ ] final `ContainerBuilder` creation
-      - [ ] enabled-provider instantiation or registration
-    - [ ] one validated console-host `ConfigRepositoryInterface`
-    - [ ] one canonical provider plan
-  - [ ] creates the console-host `ConfigRepositoryInterface` from the validated Phase B config result using the existing Kernel repository implementation
-  - [ ] MUST NOT introduce another repository implementation
-  - [ ] MUST NOT treat source-host config compilation as a Kernel operation command
-  - [ ] MUST NOT emit `kernel.operation` observability for host construction
-  - [ ] final source-host stage:
-    - [ ] creates a separate final `ContainerBuilder`
-    - [ ] uses the validated complete source configuration
-    - [ ] seeds the exact `KernelOpsHostInput`
-    - [ ] seeds canonical source values required by enabled providers:
-      - [ ] console `BootstrapConfig`
-      - [ ] `EnvRepositoryInterface`
-      - [ ] `ConfigRepositoryInterface`
-      - [ ] resolved `ModulePlan`
-      - [ ] runtime path context
-  - [ ] final provider application:
-    - [ ] uses the canonical `ContainerProviderPlan`
-    - [ ] instantiates enabled providers in exact provider-plan order
-    - [ ] every provider selected for the final source-operations host MUST implement:
-      - [ ] `ServiceProviderInterface`
-      - [ ] `ContainerDefinitionProviderInterface`
-    - [ ] `KernelOpsHostBooter` MUST validate both capabilities before any provider `register()` method is invoked
-    - [ ] a definition-only provider is valid for production graph compilation but is not source-host-capable
-    - [ ] a selected definition-only provider MUST cause a deterministic safe source-host boot failure
-    - [ ] all validated dual-interface providers are supplied to `ContainerBuilder::registerProviders()` as one canonical batch in exact `ContainerProviderPlan` order
-    - [ ] each provider contribution is collected exactly once
-    - [ ] each builder applies exactly one complete definition set
-    - [ ] no imperative-only module-provider lane exists
-    - [ ] no second provider plan or provider discovery path exists
-    - [ ] no package is special-cased by FQCN
-  - [ ] returned container can resolve:
-    - [ ] `KernelOpsInterface`
-    - [ ] `KernelRuntimeInterface`
-    - [ ] canonical logger, tracer, meter, context accessor, and stopwatch
-    - [ ] source-host-only services contributed through `register()` by enabled dual-interface providers
-    - [ ] commands contributed through enabled package providers
-  - [ ] host boot itself MUST NOT:
-    - [ ] require package config files directly
-    - [ ] derive package config or rules paths
-    - [ ] introduce a separate source-candidate DTO or config subsystem
-    - [ ] load, merge, validate, or explain config outside the existing ConfigKernel pipeline
-    - [ ] implement config merge or validation
-    - [ ] create a command UoW
-    - [ ] write runtime context values
-    - [ ] execute a command
-    - [ ] publish or verify artifacts
-    - [ ] load generated compiled-container definitions or generated container artifacts
-    - [ ] applying enabled providers through their source `define()` methods is required and is not artifact-runtime boot
-  - [ ] failures are deterministic and MUST NOT expose absolute paths, config values, env values, provider instances, or previous Throwable messages
+- [x] `packages/core/kernel/src/Ops/KernelOpsSourceDefinitionProviderAdapter.php`
+  - [x] internal readonly source-host adapter
+  - [x] source class docblock MUST contain `@internal`
+  - [x] implements:
+    - [x] `ServiceProviderInterface`
+    - [x] `ContainerDefinitionProviderInterface`
+  - [x] wraps exactly one `ContainerDefinitionProviderInterface` used by `KernelOpsHostBooter` when the canonical provider does not implement `ServiceProviderInterface`
+  - [x] `register()` contributes this adapter through `ContainerBuilder::registerDefinitionProvider($this)`
+  - [x] `define()` delegates unchanged to the wrapped `ContainerDefinitionProviderInterface`
+  - [x] MUST NOT modify, reorder, enrich, filter, or duplicate the wrapped provider definitions
+  - [x] MUST NOT introduce source-only services, aliases, parameters, or tags of its own
+  - [x] MUST NOT become part of `ContainerProviderPlan`
+  - [x] MUST NOT enter canonical runtime definitions or compiled artifacts
 
-- [ ] Lower-level Kernel operation services:
-  - [ ] `ArtifactCompiler` MUST receive already-resolved operation inputs
-  - [ ] `FingerprintCalculator` MUST receive already-resolved operation inputs
-  - [ ] `CacheVerifier` MUST receive already-resolved operation inputs
-  - [ ] none of these services may depend on:
-    - [ ] `ModulePlanResolver`
-    - [ ] `ManifestReaderInterface`
-    - [ ] `ComposerManifestReader`
-    - [ ] `ContainerProviderPlanResolver`
+- [x] `packages/core/kernel/src/Ops/KernelOpsHostInput.php`
+  - [x] public `core/kernel` package API value
+  - [x] MUST be listed in `packages/core/kernel/PUBLIC_API.md`
+  - [x] readonly `applicationRoot`
+  - [x] validates `applicationRoot` as a non-empty safe single-line string without filesystem normalization
+  - [x] preserves the exact accepted `applicationRoot` value for every target-specific `BootstrapInput`
+  - [x] contains no target, preset, config, or artifact paths
+  - [x] performs no filesystem reads
+  - [x] the exact instance is seeded into the source operations container
+
+- [x] `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+  - [x] public stateless zero-constructor boot façade
+  - [x] public `core/kernel` package API façade
+  - [x] MUST be listed in `packages/core/kernel/PUBLIC_API.md`
+  - [x] canonical API:
+    - [x] `public function boot(KernelOpsHostInput $input): ContainerInterface`
+  - [x] may be constructed directly before any container exists
+  - [x] requires no generated artifacts or `current`
+  - [x] never calls `ArtifactRuntimeBooter`
+  - [x] bootstrap seed stage:
+    - [x] creates one seed `ContainerBuilder`
+    - [x] obtains the exact Foundation and Kernel seed configuration only through `KernelOpsHostSeedConfigLoader`
+    - [x] constructs `KernelOpsHostSeedConfigLoader` with the existing `KernelServiceFactory::composerPackageInstallPathResolver()` construction path
+    - [x] obtains the baseline provider list from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] preserves exact module-declared provider order
+    - [x] the current declared baseline resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
+    - [x] MUST NOT duplicate the Foundation/Kernel provider registry as a hard-coded provider list
+    - [x] instantiates each module-declared baseline provider class exactly once for the seed builder in that order
+    - [x] validates every instantiated baseline provider as both `ServiceProviderInterface` and `ContainerDefinitionProviderInterface` before any provider `register()` method is invoked
+    - [x] supplies the validated provider instances to `ContainerBuilder::registerProviders()` as one declarative-capable provider batch
+    - [x] builds one seed container
+    - [x] preserves the exact loaded Foundation/Kernel seed configuration and the exact module-declared baseline provider class list for later `KernelOpsExecutionServices` construction
+    - [x] MUST NOT capture seed-container operation-service instances for target-aware Kernel Ops execution
+    - [x] MUST NOT discover or register external package providers during the seed stage
+  - [x] resolves the console source-host state through existing Kernel services:
+    - [x] one console-target `BootstrapConfig`
+    - [x] one immutable `EnvRepositoryInterface`
+    - [x] one console `ModuleResolution`
+    - [x] one console `ConfigSourceSet` built exactly once by `ConfigSourceLocationBuilder` from that same `BootstrapConfig` and `ModuleResolution`
+    - [x] one ConfigKernel Phase B result for the console host
+    - [x] after the single `ConfigKernel::compile()` invocation, inspect `$compiledConfig['validation']`
+    - [x] if `validation->isFailure()`, `throw ConfigInvalidException::fromValidationResult($compiledConfig['validation'])`
+    - [x] this is an assertion over the validation result already produced by `ConfigKernel`; it MUST NOT invoke `ConfigValidator` or repeat validation
+    - [x] the assertion MUST occur before:
+      - [x] `ArrayConfigRepository` construction
+      - [x] final `ContainerBuilder` creation
+      - [x] enabled-provider instantiation or registration
+    - [x] one validated console-host `ConfigRepositoryInterface`
+    - [x] one canonical provider plan
+  - [x] creates the console-host `ConfigRepositoryInterface` from the validated Phase B config result using the existing Kernel repository implementation
+  - [x] MUST NOT introduce another repository implementation
+  - [x] MUST NOT treat source-host config compilation as a Kernel operation command
+  - [x] MUST NOT emit `kernel.operation` observability for host construction
+  - [x] final source-host stage:
+    - [x] creates a separate final `ContainerBuilder`
+    - [x] uses the validated complete source configuration for final source-runtime, provider, and command composition
+    - [x] MUST NOT reconstruct Kernel operation services or Kernel Ops operation policy from the final console-host configuration
+  - [x] final provider application:
+    - [x] uses the canonical `ContainerProviderPlan`
+    - [x] instantiates enabled providers in exact provider-plan order
+    - [x] every provider selected by `ContainerProviderPlan` MUST implement `ContainerDefinitionProviderInterface`
+    - [x] `KernelOpsHostBooter` MUST instantiate and validate the complete ordered provider sequence before any provider `register()` method is invoked
+    - [x] a provider that also implements `ServiceProviderInterface` is supplied unchanged to source-host registration
+    - [x] a definition-only provider is wrapped exactly once in `KernelOpsSourceDefinitionProviderAdapter`
+    - [x] definition-only providers remain source-host-capable through that adapter and MUST NOT be rejected solely because they do not implement `ServiceProviderInterface`
+    - [x] the resulting source-provider sequence consists only of objects implementing both `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+    - [x] that resulting sequence is supplied to `ContainerBuilder::registerProviders()` as one canonical declarative batch in exact `ContainerProviderPlan` order
+    - [x] each canonical provider contribution is collected exactly once
+    - [x] the final builder applies exactly one complete provider definition set
+    - [x] before installing or seeding host-owned wiring, validates the resulting `TagRegistry`
+    - [x] no provider-contributed tag may target a host-owned or source-operations-host-only id that will be replaced or seeded by the host:
+      - [x] `BootstrapConfig`
+      - [x] `EnvRepositoryInterface`
+      - [x] `ConfigRepositoryInterface`
+      - [x] `ModulePlan`
+      - [x] `RuntimePathContext`
+      - [x] `KernelOpsHostBooter`
+      - [x] `KernelOpsHostInput`
+      - [x] `KernelOpsHostSeedConfigLoader`
+      - [x] `KernelOpsExecutionServices`
+      - [x] `KernelOpsSourceDefinitionProviderAdapter`
+      - [x] `KernelOpsFacade`
+      - [x] `KernelOpsInterface`
+    - [x] conflicting tags cause deterministic safe host-boot failure; Kernel Ops MUST NOT silently remove or rewrite provider-contributed tags
+    - [x] after that provider batch is applied and before final `build()`, installs the canonical host-owned source wiring:
+      - [x] `RuntimePathContext` factory through the existing `KernelServiceFactory::runtimePathContext()` construction path
+      - [x] one shared `KernelOpsExecutionServices` factory using the preserved baseline Foundation/Kernel configuration and provider class list plus the final source-host observability ports
+      - [x] one shared `KernelOpsFacade` factory through `KernelServiceFactory`
+      - [x] one `KernelOpsInterface` factory returning the exact shared `KernelOpsFacade` instance
+    - [x] Kernel Ops host-owned factories are installed only by `KernelOpsHostBooter`
+    - [x] those host-owned factories deterministically replace any same-id definition contributed by an enabled provider
+    - [x] then seeds the exact host-owned instances:
+      - [x] `KernelOpsHostInput`
+      - [x] console `BootstrapConfig`
+      - [x] `EnvRepositoryInterface`
+      - [x] `ConfigRepositoryInterface`
+      - [x] resolved `ModulePlan`
+    - [x] host-owned seeded instances deterministically replace any same-id source definition
+    - [x] `KernelOpsHostBooter` MUST NOT directly construct or seed a duplicate `RuntimePathContext`
+    - [x] builds the final source-operations container only after host-owned factories and instances are installed
+    - [x] before `boot()` returns, resolves `KernelOpsInterface` exactly once from the final source-operations container as a host-boot preflight
+    - [x] that preflight MUST materialize the shared `KernelOpsExecutionServices`, `KernelOpsFacade`, and `KernelOpsInterface` wiring without invoking any Kernel operation
+    - [x] any failure while resolving that preflight MUST remain inside the public `boot()` boundary and MUST be mapped to `KernelOpsFailedException` with stable reason `host-boot-failed`
+    - [x] the successfully preflighted `KernelOpsInterface` remains the same shared instance returned by subsequent container resolution
+    - [x] no imperative-only module-provider lane exists
+    - [x] no second provider plan or provider discovery path exists
+    - [x] no package is special-cased by FQCN
+  - [x] returned container can resolve:
+    - [x] `KernelOpsInterface`
+    - [x] `KernelRuntimeInterface`
+    - [x] canonical logger, tracer, meter, context accessor, correlation-id provider, and stopwatch
+    - [x] source-host-only services contributed through `register()` by enabled dual-interface providers
+    - [x] commands contributed through enabled package providers
+  - [x] host boot itself MUST NOT:
+    - [x] require package config files directly
+    - [x] derive package config or rules paths
+    - [x] introduce a separate source-candidate DTO or config subsystem
+    - [x] load, merge, validate, or explain config outside the existing ConfigKernel pipeline
+    - [x] implement config merge or validation
+    - [x] create a command UoW
+    - [x] write runtime context values
+    - [x] execute a command
+    - [x] publish or verify artifacts
+    - [x] load generated compiled-container definitions or generated container artifacts
+    - [x] applying enabled providers through their source `define()` methods is required and is not artifact-runtime boot
+  - [x] every failure crossing the public `boot()` boundary MUST be mapped to `KernelOpsFailedException` with stable reason `host-boot-failed`
+  - [x] public host-boot failures MUST NOT expose or retain the underlying Throwable
+  - [x] public host-boot failures MUST NOT expose absolute paths, config values, env values, provider instances, PHP warning text, or previous Throwable messages
 
 #### Modifies
 
-- [ ] `packages/core/kernel/src/Module/ModePresetLoaderFactory.php`
-  - [ ] add:
-    - [ ] `public function sourceCandidatesFor(BootstrapConfig $bootstrapConfig): array`
-  - [ ] returns the exact framework-default and application-override candidates used by `createFor()`
-  - [ ] `createFor()` and `sourceCandidatesFor()` MUST share one private path-resolution implementation
-  - [ ] MUST NOT reimplement mode path resolution in `CompileHostConfigInputBuilder`
+- [x] `packages/core/kernel/src/Artifacts/Operation/KernelArtifactOperation.php`
+  - [x] preserve the existing canonical `compile(BootstrapInput $input)` and `verify(BootstrapInput $input)` APIs
+  - [x] preserve existing internal Bootstrap → env → `ModuleResolution` → `ConfigSourceSet` preparation ownership
+  - [x] successful `compile()` and `verify()` results additionally contain `effectivePreset: non-empty-string`
+  - [x] `effectivePreset` is taken from the same prepared `BootstrapConfig`
+  - [x] existing delegated `ArtifactCompiler` / `CacheVerifier` result fields and semantics remain unchanged
+  - [x] obtaining `effectivePreset` MUST NOT execute Bootstrap Phase A, env construction, module resolution, or config-source construction a second time
+  - [x] the additional `effectivePreset` metadata MUST NOT expose `BootstrapConfig`, `EnvRepositoryInterface`, `ModuleResolution`, `ConfigSourceSet`, raw config/env values, or introduce additional filesystem paths
 
-- [ ] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
-  - [ ] register `KernelOpsFacade` as compile-host/source-operations wiring
-  - [ ] bind `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface::class` to `KernelOpsFacade::class`
-  - [ ] registration and binding MUST remain in `register()`
-  - [ ] `KernelOpsFacade` MUST NOT be contributed by `define()`
-  - [ ] `KernelOpsFacade` and `KernelOpsInterface` MUST NOT enter the canonical runtime definition graph
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] add deterministic construction for `KernelOpsExecutionServices`
+  - [x] `KernelOpsExecutionServices` construction receives:
+    - [x] the preserved baseline Foundation/Kernel configuration
+    - [x] the preserved baseline Foundation/Kernel provider class list
+    - [x] the final source-host `LoggerInterface`
+    - [x] the final source-host `TracerPortInterface`
+    - [x] the final source-host `MeterPortInterface`
+    - [x] the final source-host Foundation `Stopwatch`
+  - [x] constructs one dedicated internal baseline `ContainerBuilder`
+  - [x] applies the preserved baseline provider class list in canonical order
+  - [x] replaces baseline observability defaults with the exact supplied final source-host observability instances before resolving any operation service
+  - [x] builds the dedicated execution container exactly once
+  - [x] resolves exactly the operation services declared by `KernelOpsExecutionServices`
+  - [x] discards the dedicated execution container after constructing `KernelOpsExecutionServices`
+  - [x] MUST NOT use the final console-host `ConfigRepositoryInterface` or final Phase-B `kernel.*` configuration for target-operation service construction
+  - [x] add deterministic construction for `KernelOpsFacade`
+  - [x] resolve the exact shared `KernelOpsExecutionServices`
+  - [x] inject the baseline `kernel` configuration and exact operation-service instances from `KernelOpsExecutionServices` into `KernelOpsFacade`
+  - [x] inject the seeded `KernelOpsHostInput` into `KernelOpsFacade`
+  - [x] inject `ContextAccessorInterface`
+  - [x] inject `CorrelationIdProviderInterface`
+  - [x] inject `TracerPortInterface`
+  - [x] inject `MeterPortInterface`
+  - [x] inject `LoggerInterface`
+  - [x] inject Foundation `Stopwatch`
+  - [x] factory construction MUST NOT execute module resolution, config compilation, fingerprint calculation, artifact writing, or cache verification
+  - [x] MUST NOT let `KernelOpsFacade` resolve operation services through `ContainerInterface`
+  - [x] MUST NOT read CLI configuration
+  - [x] MUST NOT construct noop observability implementations
+  - [x] MUST NOT execute observability during service construction
 
-- [ ] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
-  - [ ] add deterministic construction for `KernelOpsFacade`
-  - [ ] wire explicit Kernel operation dependencies
-  - [ ] factory construction MUST NOT execute module resolution, config compilation, fingerprint calculation, artifact writing, or cache verification
-  - [ ] inject the seeded `KernelOpsHostInput` into `KernelOpsFacade`
-  - [ ] inject `ContextAccessorInterface`
-  - [ ] inject `TracerPortInterface`
-  - [ ] inject `MeterPortInterface`
-  - [ ] inject `LoggerInterface`
-  - [ ] inject Foundation `Stopwatch`
-  - [ ] inject every operation service listed by `KernelOpsFacade`
-  - [ ] MUST NOT let `KernelOpsFacade` resolve operation services through `ContainerInterface`
-  - [ ] MUST NOT read CLI configuration
-  - [ ] MUST NOT construct noop observability implementations
-  - [ ] MUST NOT execute observability during service construction
+- [x] `packages/core/kernel/src/Container/ContainerGraphCompletenessValidator.php`
+  - [x] preserve the existing canonical compile-host service-id set unchanged
+  - [x] add one separate canonical source-operations-host-only forbidden-runtime set containing:
+    - [x] `KernelOpsHostBooter`
+    - [x] `KernelOpsHostInput`
+    - [x] `KernelOpsHostSeedConfigLoader`
+    - [x] `KernelOpsExecutionServices`
+    - [x] `KernelOpsSourceDefinitionProviderAdapter`
+    - [x] `KernelOpsFacade`
+    - [x] `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+  - [x] none of those ids may be added to production `RuntimeContainerSeedIds`
+  - [x] combine the existing compile-host set and the new source-operations-host-only set only for runtime-graph rejection; the canonical compile-host classification itself remains unchanged
+  - [x] apply the new forbidden-runtime set at every enforcement point already used for compile-host exclusion:
+    - [x] service and alias binding ids
+    - [x] service construction class
+    - [x] alias targets
+    - [x] service-method factory service ids
+    - [x] tagged service ids
+    - [x] required service ids
+    - [x] nested service-value references
+  - [x] preserve the existing compile-host/runtime graph boundary semantics
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] register canonical span `kernel.operation`
-  - [ ] register counter `kernel.operation_total`
-  - [ ] register observation `kernel.operation_duration_ms`
-  - [ ] metric labels are exactly `operation|outcome`
-  - [ ] allowed `operation` values:
-    - [ ] `config.validate`
-    - [ ] `config.debug`
-    - [ ] `config.compile`
-    - [ ] `config.hash`
-    - [ ] `cache.verify`
-    - [ ] `modules.debug`
-  - [ ] allowed outcome values:
-    - [ ] `success`
-    - [ ] `handled_error`
-    - [ ] `failure`
-  - [ ] `preset` span attribute is omitted when effective preset resolution did not complete
-  - [ ] `app_target|preset` are allowed only as bounded span attributes
-  - [ ] generation ids, fingerprints, artifact identities, paths, config values, and exception messages are forbidden labels and attributes
+- [x] `packages/core/kernel/tests/Integration/KernelArtifactOperationUsesCanonicalCompileInputsTest.php`
+  - [x] assert `compile()` returns `effectivePreset` from the same prepared `BootstrapConfig`
+  - [x] assert `verify()` returns `effectivePreset` from the same prepared `BootstrapConfig`
+  - [x] assert exposing `effectivePreset` does not add a second Bootstrap Phase-A resolution
+  - [x] assert exposing `effectivePreset` does not add a second manifest read or `ModuleResolutionOrchestrator::resolve()` invocation
+
+- [x] `packages/core/kernel/PUBLIC_API.md`
+  - [x] add `Coretsia\Kernel\Ops\KernelOpsHostBooter`
+  - [x] add `Coretsia\Kernel\Ops\KernelOpsHostInput`
+  - [x] MUST NOT list `KernelOpsFacade`
+  - [x] MUST NOT list `KernelOpsExecutionServices`
+  - [x] MUST NOT list `KernelOpsHostSeedConfigLoader`
+  - [x] MUST NOT list `KernelOpsSourceDefinitionProviderAdapter`
+  - [x] replace the existing conditional wording that artifact, fingerprint, container-compilation, and cache-verification services remain internal only until a dedicated public artifact/cache/kernel-ops façade or contract exists
+  - [x] explicitly state that those lower-level compile-host services remain internal after this epic; platform consumers access Kernel operations only through `KernelOpsInterface` and the public source-host boot API
+
+- [x] `packages/core/contracts/README.md`
+  - [x] register `Coretsia\Contracts\Kernel\Ops` as the contracts-owned transport-neutral Kernel operations boundary
+  - [x] document `KernelOpsInterface`, `KernelOpsRequest`, `OpsResult`, and `KernelOpsFailedException`
+  - [x] state that operation orchestration, DI wiring, config/module discovery, artifact I/O, observability execution, and source-host boot remain `core/kernel` implementation responsibilities
+
+- [x] `packages/core/kernel/README.md`
+  - [x] document `Coretsia\Kernel\Ops\KernelOpsHostBooter` and `Coretsia\Kernel\Ops\KernelOpsHostInput` in the package Public API section
+  - [x] state that operation invocation itself is exposed through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+  - [x] replace the existing statement that transport and CLI owners directly construct `BootstrapInput` and delegate to `KernelArtifactOperation`; `platform/cli` MUST invoke Kernel operations through `KernelOpsInterface`
+  - [x] preserve `KernelArtifactOperation` as the internal canonical compile/verify input-preparation owner behind `KernelOpsFacade`
+  - [x] keep `KernelOpsFacade` and all source-host wiring helpers explicitly internal
+
+- [x] `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
+  - [x] preserve `KernelArtifactOperation` as the internal canonical `BootstrapInput` → compile/verify input-preparation owner
+  - [x] update the CLI-specific handoff and examples so `platform/cli` resolves `KernelOpsInterface` through the dedicated Kernel source-operations host and MUST NOT call `KernelArtifactOperation` directly
+  - [x] document the canonical CLI handoff as `platform/cli` → `KernelOpsInterface` → internal `KernelOpsFacade`; only `compileConfig()` / `verifyCache()` continue through `KernelArtifactOperation`
+  - [x] keep `KernelArtifactOperation`, `ArtifactCompiler`, and `CacheVerifier` internal; this epic MUST NOT promote compile-host implementation services to public API
+
+- [x] `docs/ssot/runtime-container-definitions.md`
+  - [x] preserve the existing compile-host service-id classification unchanged
+  - [x] register `KernelOpsHostBooter`, `KernelOpsHostInput`, `KernelOpsHostSeedConfigLoader`, `KernelOpsExecutionServices`, `KernelOpsSourceDefinitionProviderAdapter`, `KernelOpsFacade`, and `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` as source-operations-host-only symbols/service ids
+  - [x] explicitly state that none of those source-operations-host-only ids is a production runtime seed id
+  - [x] explicitly forbid those source-operations-host-only implementation classes and service ids from canonical runtime definitions, compiled runtime graphs, and compiled-runtime references
+  - [x] document that `ContainerProviderPlan` eligibility remains defined solely by `ContainerDefinitionProviderInterface`
+  - [x] document that source-operations hosting MAY adapt a definition-only provider to `ServiceProviderInterface` only for one-batch source registration
+  - [x] the source adapter MUST delegate the canonical `define()` contribution unchanged and MUST NOT alter provider order or production eligibility
+  - [x] this adaptation MUST NOT introduce a second provider-discovery or provider-planning path
+
+- [x] `docs/ssot/observability.md`
+  - [x] register canonical span `kernel.operation`
+  - [x] register counter `kernel.operation_total`
+  - [x] register observation `kernel.operation_duration_ms`
+  - [x] metric labels are exactly `operation|outcome`
+  - [x] allowed `operation` values:
+    - [x] `config.validate`
+    - [x] `config.debug`
+    - [x] `config.compile`
+    - [x] `config.hash`
+    - [x] `cache.verify`
+    - [x] `modules.debug`
+  - [x] allowed outcome values:
+    - [x] `success`
+    - [x] `handled_error`
+    - [x] `failure`
+  - [x] `preset` span attribute is emitted only after successful façade-owned `ModuleResolution` or from a successful `KernelArtifactOperation` result
+  - [x] `preset` span attribute is omitted for `ModuleResolutionException` and every earlier failure; observability MUST NOT independently validate a preset or re-run Bootstrap Phase A to make it available
+  - [x] `app_target` span attribute is omitted when canonical app-target validation did not complete
+  - [x] `app_target|preset` are allowed only as bounded span attributes
+  - [x] generation ids, fingerprints, artifact identities, paths, config values, and exception messages are forbidden labels and attributes
+  - [x] existing lower-level Kernel observability remains emitted by its current owners through the same final source-host observability ports
+  - [x] `kernel.operation` is an aggregate façade lifecycle and MUST NOT replace or suppress existing lower-level Kernel telemetry
 
 ### Cross-cutting (MUST)
 
 #### Context & UoW
 
-- [ ] `KernelOpsFacade` is UoW-neutral:
-  - [ ] works both with and without an already-active caller-owned UoW
-  - [ ] MUST NOT invoke `KernelRuntimeInterface`
-  - [ ] MUST NOT begin, finish, or nest a UoW
-  - [ ] MUST NOT invoke lifecycle hooks
-  - [ ] MUST NOT invoke reset orchestration
-  - [ ] MUST NOT enumerate `kernel.reset`
-- [ ] Context reads:
-  - [ ] only through `ContextAccessorInterface`
-  - [ ] allowed keys:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] missing keys are allowed
-  - [ ] context values are used only for safe logging and observability correlation
-  - [ ] operation results MUST NOT depend on context availability
-- [ ] Context writes:
-  - [ ] `KernelOpsFacade` MUST NOT import or resolve `ContextStore`
-  - [ ] MUST NOT create correlation ids or UoW ids
-  - [ ] MUST NOT replace `uow_type`
-  - [ ] MUST NOT write operation target, preset, generation id, or fingerprint into runtime context
-- [ ] State and reset:
-  - [ ] `KernelOpsFacade` is stateless
-  - [ ] `KernelOpsHostBooter` is stateless
-  - [ ] no operation result, module resolution, config result, generation, or verification state is cached across calls
-  - [ ] neither service implements `ResetInterface`
-  - [ ] neither service is tagged `kernel.stateful` or `kernel.reset`
+- [x] `KernelOpsFacade` is UoW-neutral:
+  - [x] works both with and without an already-active caller-owned UoW
+  - [x] MUST NOT invoke `KernelRuntimeInterface`
+  - [x] MUST NOT begin, finish, or nest a UoW
+  - [x] MUST NOT invoke lifecycle hooks
+  - [x] MUST NOT invoke reset orchestration
+  - [x] MUST NOT enumerate `kernel.reset`
+- [x] Context reads:
+  - [x] `correlation_id` is obtained only through `CorrelationIdProviderInterface`
+  - [x] `KernelOpsFacade` MUST NOT read `ContextKeys::CORRELATION_ID` directly
+  - [x] `uow_id` is read only through `ContextAccessorInterface` using `ContextKeys::UOW_ID`
+  - [x] no other context key is read through `ContextAccessorInterface`
+  - [x] missing, null, non-string, unsafe, or failed `uow_id` reads are treated as unavailable
+  - [x] correlation-provider failure is treated as unavailable correlation context
+  - [x] only the provider-returned `correlation_id` and validated safe `uow_id` MAY be used for log correlation
+  - [x] `correlation_id|uow_id` MUST NOT become `kernel.operation` span attributes or metric labels
+  - [x] operation results and exception semantics MUST NOT depend on context availability
+- [x] Context writes:
+  - [x] `KernelOpsFacade` MUST NOT import or resolve `ContextStore`
+  - [x] MUST NOT create correlation ids or UoW ids
+  - [x] MUST NOT replace `uow_type`
+  - [x] MUST NOT write operation target, preset, generation id, or fingerprint into runtime context
+- [x] State and reset:
+  - [x] `KernelOpsFacade` is stateless
+  - [x] `KernelOpsHostBooter` is stateless
+  - [x] no operation result, module resolution, config result, generation, or verification state is cached across calls
+  - [x] neither service implements `ResetInterface`
+  - [x] neither service is tagged `kernel.stateful` or `kernel.reset`
 
 #### Observability
 
-- [ ] Ownership:
-  - [ ] `KernelOpsFacade` owns Kernel-operation observability
-  - [ ] lower-level operation services MUST NOT emit duplicate `kernel.operation` lifecycle spans
-  - [ ] transport adapters such as `platform/cli` MUST NOT emit duplicate Kernel-operation metrics
-- [ ] Span:
-  - [ ] name: `kernel.operation`
-  - [ ] exactly one span per Kernel Ops invocation
-  - [ ] safe attributes:
-    - [ ] `operation`
-    - [ ] `app_target`
-    - [ ] `preset` only after effective preset resolution
-    - [ ] `outcome`
-  - [ ] if preset resolution fails, the `preset` attribute is omitted
-  - [ ] generation ids, fingerprints, artifact identities, paths, config values, env values, and exception messages are forbidden span attributes
-- [ ] Metrics:
-  - [ ] `kernel.operation_total`
-    - [ ] labels exactly `operation|outcome`
-  - [ ] `kernel.operation_duration_ms`
-    - [ ] labels exactly `operation|outcome`
-  - [ ] duration is measured through Foundation `Stopwatch`
-  - [ ] duration is emitted as integer milliseconds
-  - [ ] allowed outcomes:
-    - [ ] `success`
-    - [ ] `handled_error`
-    - [ ] `failure`
-  - [ ] `app_target|preset|generation_id|fingerprint|correlation_id|uow_id` MUST NOT be metric labels
-- [ ] Outcome mapping:
-  - [ ] successful `OpsResult` → `success`
-  - [ ] `OpsResult::outcome() === handled_error` → `handled_error`
-  - [ ] thrown exception → `failure`
-- [ ] expected outcome classification:
-  - [ ] valid validation result → `success`
-  - [ ] invalid configuration → `handled_error`
-  - [ ] unsupported target or invalid preset selection → `handled_error`
-  - [ ] completed cache verification, including `clean|dirty|invalid`, → `success`
-  - [ ] unexpected thrown failure → observability `failure` and `KernelOpsFailedException`
-- [ ] Logging:
-  - [ ] emits at most one safe completion or failure summary
-  - [ ] safe fields:
-    - [ ] `operation`
-    - [ ] `app_target`
-    - [ ] resolved `preset`, when available
-    - [ ] `outcome`
-  - [ ] MAY include `correlation_id|uow_id` when safely available
-  - [ ] MUST NOT log raw config, env values, Composer metadata, artifacts, paths, generation ids, fingerprints, exception messages, previous throwables, or stack traces
-- [ ] Failure isolation:
-  - [ ] tracer, meter, or logger failure MUST NOT alter a successful `OpsResult`
-  - [ ] observability failure MUST NOT replace the primary Kernel operation exception
-  - [ ] observability failure MUST NOT trigger operation retry
+- [x] Ownership:
+  - [x] `KernelOpsFacade` owns Kernel-operation observability
+  - [x] lower-level operation services MUST NOT emit duplicate `kernel.operation` lifecycle spans
+  - [x] existing lower-level module, config, graph, fingerprint, artifact, and cache observability remains owned by those existing services
+  - [x] those lower-level services MUST use the canonical final source-host observability ports supplied through `KernelOpsExecutionServices`
+  - [x] only the aggregate `kernel.operation` lifecycle is newly owned by `KernelOpsFacade`
+  - [x] seed-stage Foundation Noop observability bindings MUST NOT suppress existing lower-level Kernel telemetry for target-aware Kernel Ops
+- [x] Span:
+  - [x] name: `kernel.operation`
+  - [x] exactly one span per Kernel Ops invocation
+  - [x] safe attributes:
+    - [x] `operation`
+    - [x] `app_target` only after canonical app-target validation completes
+    - [x] `preset` only after the same façade-owned operation has completed `ModuleResolution` successfully or a successful `KernelArtifactOperation` result has returned `effectivePreset`
+    - [x] `outcome`
+  - [x] `preset` is omitted for `ModuleResolutionException` and every failure that occurs before safe preset eligibility is established
+  - [x] span construction MUST NOT independently validate a preset or re-run Bootstrap Phase A to make `preset` available
+  - [x] when canonical app-target validation did not complete, the `app_target` attribute is omitted
+  - [x] generation ids, fingerprints, artifact identities, paths, config values, env values, and exception messages are forbidden span attributes
+- [x] Metrics:
+  - [x] `kernel.operation_total`
+    - [x] labels exactly `operation|outcome`
+  - [x] `kernel.operation_duration_ms`
+    - [x] labels exactly `operation|outcome`
+  - [x] duration is measured through Foundation `Stopwatch`
+  - [x] duration is emitted as integer milliseconds
+  - [x] allowed outcomes:
+    - [x] `success`
+    - [x] `handled_error`
+    - [x] `failure`
+  - [x] `app_target|preset|generation_id|fingerprint|correlation_id|uow_id` MUST NOT be metric labels
+- [x] Outcome mapping:
+  - [x] successful `OpsResult` → `success`
+  - [x] `OpsResult::outcome() === handled_error` → `handled_error`
+  - [x] thrown exception → `failure`
+- [x] expected outcome classification:
+  - [x] valid validation result → `success`
+  - [x] invalid configuration → `handled_error`
+  - [x] unsupported target or invalid preset selection → `handled_error`
+  - [x] completed cache verification, including `clean|dirty|invalid`, → `success`
+  - [x] unexpected thrown failure → observability `failure` and `KernelOpsFailedException`
+- [x] Logging:
+  - [x] emits at most one safe completion or failure summary
+  - [x] safe fields:
+    - [x] `operation`
+    - [x] canonical `app_target`, only after app-target validation completes
+    - [x] resolved `preset`, only under the same safe preset eligibility rule used by `OpsResult` and the `kernel.operation` span
+    - [x] `outcome`
+  - [x] rejected raw app-target input MUST NOT be logged
+  - [x] MAY include `correlation_id|uow_id` when safely available
+  - [x] MUST NOT log raw config, env values, Composer metadata, artifacts, paths, generation ids, fingerprints, exception messages, previous throwables, or stack traces
+- [x] Failure isolation:
+  - [x] tracer, meter, or logger failure MUST NOT alter a successful `OpsResult`
+  - [x] observability failure MUST NOT replace the primary Kernel operation exception
+  - [x] observability failure MUST NOT trigger operation retry
 
 ### Security / Result safety (MUST)
 
-- [ ] Kernel Ops results are safe by construction.
-- [ ] Every successful or handled-error `OpsResult` is already safe at the `KernelOpsInterface` boundary.
-- [ ] `OpsResult` MUST NOT require formatter-side, transport-side, or late redaction to become safe for rendering.
-- [ ] CLI defense-in-depth redaction MAY process an `OpsResult` after transport mapping, but MUST NOT be relied upon to remove:
-  - [ ] raw Kernel config or env values
-  - [ ] Composer metadata
-  - [ ] artifact payloads
-  - [ ] filesystem paths
-  - [ ] Throwable messages or traces
-- [ ] `core/kernel` MUST NOT depend on:
-  - [ ] `platform/redaction`
-  - [ ] `SensitiveDataRedactorInterface`
-  - [ ] CLI output or formatter classes
-- [ ] `OpsResult` MAY expose only:
-  - [ ] stable reason and outcome tokens
-  - [ ] canonical operation, target, preset, artifact, and generation identifiers
-  - [ ] safe basenames
-  - [ ] integer counts and lengths
-  - [ ] safe hashes
-  - [ ] recursively normalized json-like maps and lists
-- [ ] `OpsResult` MUST NOT expose:
-  - [ ] raw config or env values
-  - [ ] dotenv values
-  - [ ] Composer metadata
-  - [ ] provider instances or class lists
-  - [ ] absolute filesystem paths
-  - [ ] relative filesystem paths except `ConfigExplainer`-normalized repo-relative or logical source paths inside `debugConfig().data.explain`
-  - [ ] artifact payloads or PHP source
-  - [ ] tokens, credentials, headers, cookies, SQL, or arbitrary payloads
-  - [ ] Throwable objects, messages, traces, or previous exceptions
-- [ ] `KernelOpsFailedException`:
-  - [ ] is code-first
-  - [ ] exposes only a stable safe reason
-  - [ ] MUST NOT include the wrapped Throwable message
-  - [ ] MUST NOT include paths, config values, fingerprints, or generation data
-- [ ] Safety MUST NOT be configurable:
-  - [ ] no config key disables result normalization
-  - [ ] no config key enables raw diagnostics
-  - [ ] no debug mode exposes unsafe values
+- [x] Kernel Ops results are safe by construction.
+- [x] Every successful or handled-error `OpsResult` is already safe at the `KernelOpsInterface` boundary.
+- [x] `OpsResult` MUST NOT require formatter-side, transport-side, or late redaction to become safe for rendering.
+- [x] CLI defense-in-depth redaction MAY process an `OpsResult` after transport mapping, but MUST NOT be relied upon to remove:
+  - [x] raw Kernel config or env values
+  - [x] Composer metadata
+  - [x] artifact payloads
+  - [x] filesystem paths
+  - [x] Throwable messages or traces
+- [x] `core/kernel` MUST NOT depend on:
+  - [x] `platform/redaction`
+  - [x] `SensitiveDataRedactorInterface`
+  - [x] CLI output or formatter classes
+- [x] `OpsResult` MAY expose only:
+  - [x] stable reason and outcome tokens
+  - [x] canonical operation, target, preset, artifact, and generation identifiers
+  - [x] safe basenames
+  - [x] integer counts and lengths
+  - [x] safe hashes
+  - [x] recursively normalized json-like maps and lists
+- [x] `OpsResult` MUST NOT expose:
+  - [x] raw config or env values
+  - [x] dotenv values
+  - [x] Composer metadata
+  - [x] provider instances or class lists
+  - [x] absolute filesystem paths
+  - [x] relative filesystem paths except `ConfigExplainer`-normalized repo-relative or logical source paths inside `debugConfig().data.explain`
+  - [x] artifact payloads or PHP source
+  - [x] tokens, credentials, headers, cookies, SQL, or arbitrary payloads
+  - [x] Throwable objects, messages, traces, or previous exceptions
+- [x] `KernelOpsFailedException`:
+  - [x] is code-first
+  - [x] exposes only a stable safe reason through its public message and domain fields
+  - [x] MUST NOT retain a previous Throwable (`getPrevious() === null`)
+  - [x] public message and domain fields MUST NOT contain wrapped Throwable messages, filesystem paths, config values, fingerprints, or generation data
+- [x] Safety MUST NOT be configurable:
+  - [x] no config key disables result normalization
+  - [x] no config key enables raw diagnostics
+  - [x] no debug mode exposes unsafe values
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeDoesNotLeakAbsolutePathsTest.php`
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeImplementsContractsPortTest.php`
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsHostSeedConfigLoaderIsWarningSafeTest.php`
+    - [x] missing Foundation seed config produces a deterministic internal failure without PHP warning output
+    - [x] an injected temporary Kernel package root whose config file emits a PHP warning produces a deterministic internal failure without PHP warning output
+    - [x] temporary package roots are supplied through `ComposerPackageInstallPathResolver` explicit `installRoots`; the test does not mutate process-global Composer installed metadata
+    - [x] Throwable emitted by a seed config file is not exposed verbatim
+    - [x] absolute package/config paths are absent from the public failure surface
+    - [x] the previous PHP error handler is restored
 
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeReturnsJsonLikeResultsTest.php`
-    - [ ] MUST assert deep “json-like” invariants for `OpsResult->data`:
-      - [ ] allowed scalar types: null|bool|int|string
-      - [ ] arrays only; no objects/resources
-      - [ ] floats forbidden (hard-fail)
-      - [ ] maps are recursively key-sorted (`strcmp`) by the producer (kernel), lists preserve order
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsFacadeReturnsJsonLikeResultsTest.php`
+    - [x] MUST assert deep “json-like” invariants for `OpsResult->data`:
+      - [x] allowed scalar types: null|bool|int|string
+      - [x] arrays only; no objects/resources
+      - [x] floats forbidden (hard-fail)
+      - [x] maps are recursively key-sorted (`strcmp`) by the producer (kernel), lists preserve order
 
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsResultIsSafeWithoutLateRedactionTest.php`
-    - [ ] covers every successful and handled-error operation result shape
-    - [ ] uses raw sensitive fixture values and absolute-path fixtures in lower-level fake inputs
-    - [ ] asserts none reaches the returned `OpsResult`
-    - [ ] asserts no `SensitiveDataRedactorInterface` service is resolved or invoked
-    - [ ] asserts result safety before any CLI formatter or output pipeline is involved
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsResultIsSafeWithoutLateRedactionTest.php`
+    - [x] covers every successful and handled-error operation result shape
+    - [x] uses raw sensitive fixture values and absolute-path fixtures in lower-level fake inputs
+    - [x] asserts none reaches the returned `OpsResult`
+    - [x] asserts no `SensitiveDataRedactorInterface` service is resolved or invoked
+    - [x] asserts result safety before any CLI formatter or output pipeline is involved
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigPreservesSafeExplainPathsTest.php`
-    - [ ] preserves `ConfigExplainer`-normalized repo-relative or logical source paths
-    - [ ] rejects absolute filesystem paths
-    - [ ] preserves list order and recursively `strcmp`-sorts maps through `OpsResult` normalization
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsFacadeObservabilityTest.php`
+    - [x] emits exactly one `kernel.operation` span
+    - [x] emits exactly one total metric
+    - [x] emits exactly one duration metric
+    - [x] uses the canonical operation id
+    - [x] labels are limited to `operation|outcome`
+    - [x] no generation id, fingerprint, path, or raw value reaches observability
 
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeObservabilityTest.php`
-    - [ ] emits exactly one `kernel.operation` span
-    - [ ] emits exactly one total metric
-    - [ ] emits exactly one duration metric
-    - [ ] uses the canonical operation id
-    - [ ] labels are limited to `operation|outcome`
-    - [ ] no generation id, fingerprint, path, or raw value reaches observability
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsFailedExceptionIsSafeTest.php`
+    - [x] previous Throwable is not retained
+    - [x] public message and domain fields contain no previous Throwable message, filesystem path, or raw value
+    - [x] `errorCode()` is exactly `CORETSIA_KERNEL_OPS_FAILED`
+    - [x] reasons are limited to `operation-failed|host-boot-failed`
+    - [x] public message is exactly `CORETSIA_KERNEL_OPS_FAILED: <reason>`
 
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFailedExceptionIsSafeTest.php`
-    - [ ] previous Throwable message is absent
-    - [ ] paths and raw values are absent
-    - [ ] public code and reason are deterministic
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsFacadeContextBoundaryTest.php`
+    - [x] obtains `correlation_id` only through `CorrelationIdProviderInterface`
+    - [x] MUST NOT read `ContextKeys::CORRELATION_ID` through `ContextAccessorInterface`
+    - [x] reads only `ContextKeys::UOW_ID` through `ContextAccessorInterface`
+    - [x] performs no context writes
+    - [x] missing context values do not fail the operation
+    - [x] null, non-string, whitespace-containing, or control-byte `uow_id` values are omitted from log context
+    - [x] a throwing `CorrelationIdProviderInterface::correlationId()` does not alter the operation result or primary exception
+    - [x] a throwing `ContextAccessorInterface::has()` or `get()` does not alter the operation result or primary exception
+    - [x] `correlation_id|uow_id` never become `kernel.operation` span attributes or metric labels
 
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsFacadeContextBoundaryTest.php`
-    - [ ] reads only:
-      - [ ] `ContextKeys::CORRELATION_ID`
-      - [ ] `ContextKeys::UOW_ID`
-      - [ ] `ContextKeys::UOW_TYPE`
-    - [ ] performs no context writes
-    - [ ] missing context values do not fail the operation
-
-  - [ ] `packages/core/kernel/tests/Unit/KernelOpsObservabilityFailureDoesNotChangeOutcomeTest.php`
-    - [ ] tracer failure does not change successful result
-    - [ ] meter failure does not change successful result
-    - [ ] logger failure does not replace the operation result or primary exception
+  - [x] `packages/core/kernel/tests/Unit/KernelOpsObservabilityFailureDoesNotChangeOutcomeTest.php`
+    - [x] tracer failure does not change successful result
+    - [x] meter failure does not change successful result
+    - [x] logger failure does not replace the operation result or primary exception
 
 - Integration:
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsUsesConfiguredTargetPresetTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugModulesDoesNotBuildEnvOrConfigInputsTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDoesNotSetExplicitBootstrapPresetTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostBootsWithoutCurrentGenerationTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostUsesConsoleTargetForCommandCompositionTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsOperationsRequireExplicitAppTargetTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompilePublishesAndReportsCurrentGenerationTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashMatchesCompiledGenerationIdTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsMissingCurrentAsDirtyTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsResultsDoNotExposeSyntheticCurrentGenerationPathsTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsUsesHostApplicationRootForTargetBootstrapTest.php`
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugModulesUsesSingleModuleResolutionSnapshotTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsPublicOperationsE2ETest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostBootsWithoutCurrentGenerationTest.php`
+    - [x] returned container resolves `KernelOpsInterface`
+    - [x] `KernelOpsInterface` and `KernelOpsFacade` resolve to the exact same shared instance
+    - [x] resolving either id performs no Kernel operation
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsAllFourGenerationFilesTest.php`
-    - [ ] result data contains exactly `artifacts|current_generation_id|expected_generation_id|state`
-    - [ ] artifact entries contain exactly `basename|existing_byte_count|expected_byte_count|identity|reason|status`
-    - [ ] artifact identities match the canonical compile order
-    - [ ] no artifact entry contains a path
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsTagsForHostOwnedWiringTest.php`
+    - [x] a provider-contributed tag targeting `KernelOpsFacade` fails source-host boot before final container build
+    - [x] a provider-contributed tag targeting `RuntimePathContext` fails source-host boot before final container build
+    - [x] the conflict crosses the public boundary only as safe `KernelOpsFailedException`
+    - [x] non-conflicting external command/service tags remain visible unchanged through the final `TagRegistry`
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashReturnsExpectedGenerationIdWithoutWritesTest.php`
-    - [ ] result data contains exactly `generation_id`
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHandledErrorsPreserveCanonicalKernelReasonsTest.php`
+    - [x] `BootstrapException` reason is projected unchanged
+    - [x] missing/invalid target preset produced by `ModuleResolutionOrchestrator` preserves the exact `ModuleResolutionException::reason()`
+    - [x] `ModuleResolutionException` produced before successful module resolution returns `preset = null`
+    - [x] the rejected preset candidate is absent from the `KernelOpsFacade` completion/failure log and `kernel.operation` span attributes; existing lower-level `ModuleResolutionOrchestrator` safe logging remains unchanged
+    - [x] `ConfigInvalidException` reason is projected unchanged
+    - [x] `ConfigReservedNamespaceException` reason is projected unchanged
+    - [x] `ConfigDirectiveMixedLevelException` reason is projected unchanged
+    - [x] `ConfigDirectiveTypeMismatchException` reason is projected unchanged
+    - [x] failed validation uses `config-validation-failed`
+    - [x] failed validation returned by `debugConfig()` maps to `handled_error` with `config-validation-failed` without invoking `ConfigValidator` a second time
+    - [x] successful operations return `reason = null`
+    - [x] no exception context, message, previous Throwable, or filesystem path reaches `OpsResult`
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileReportsAllFourGenerationFilesTest.php`
-    - [ ] result data contains exactly `artifacts|generation_id`
-    - [ ] artifact entries contain exactly `basename|identity`
-    - [ ] artifact identities and basenames match the canonical order
+  - [x] `packages/core/kernel/tests/Integration/KernelServiceProviderDoesNotRegisterKernelOpsOutsideOpsHostTest.php`
+    - [x] a normal Foundation + Kernel source container built only through `FoundationServiceProvider` and `KernelServiceProvider` does not register:
+      - [x] `KernelOpsExecutionServices`
+      - [x] `KernelOpsFacade`
+      - [x] `KernelOpsInterface`
+    - [x] `KernelOpsHostBooter` remains the sole owner of those source-operations-host registrations
+    - [x] existing non-Ops Kernel source services remain resolvable unchanged
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsDefinitionOnlyProviderBeforeRegistrationTest.php`
-    - [ ] no provider `register()` method is invoked before the capability failure
-    - [ ] no partial final definition set is applied
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsOperationsRequireExplicitAppTargetTest.php`
+    - [x] structurally valid but non-canonical raw target produces `handled_error` with `reason = bootstrap-invalid-app-target`
+    - [x] returned `OpsResult::appTarget()` is null
+    - [x] returned `OpsResult::preset()` is null
+    - [x] rejected raw target is absent from `OpsResult::data`, logs, span attributes, and metric labels
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsInvalidConsoleConfigBeforeFinalProviderRegistrationTest.php`
-    - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
-    - [ ] `KernelOpsHostBooter` converts it through `ConfigInvalidException::fromValidationResult(...)`
-    - [ ] `ConfigValidator` is not invoked a second time
-    - [ ] no final source-host provider is instantiated or registered
-    - [ ] no final source operations container is built
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsUsesHostApplicationRootForTargetBootstrapTest.php`
+    - [x] the exact accepted `KernelOpsHostInput::applicationRoot()` value is passed unchanged into target-specific `BootstrapInput`
+    - [x] no `realpath()`, CWD resolution, separator rewriting, or filesystem normalization occurs in `KernelOpsHostInput`
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileInvalidConfigDoesNotPublishTest.php`
-    - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
-    - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
-    - [ ] `ConfigValidator` is not invoked a second time
-    - [ ] KernelOpsFacade maps the failure safely
-    - [ ] KernelOpsFacade performs no duplicate validation
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostBootFailureIsSafeTest.php`
+    - [x] invalid console-host configuration crosses `boot()` only as `KernelOpsFailedException`
+    - [x] provider instantiation or source-registration failure crosses `boot()` only as `KernelOpsFailedException`
+    - [x] `KernelOpsExecutionServices`, `KernelOpsFacade`, or `KernelOpsInterface` factory-resolution failure occurs during the `boot()` preflight and crosses `boot()` only as `KernelOpsFailedException`
+    - [x] public reason is exactly `host-boot-failed`
+    - [x] `getPrevious() === null`
+    - [x] public message contains no absolute path, config value, provider class, PHP warning text, or previous Throwable message
+    - [x] host boot emits no stdout/stderr diagnostics containing internal failure data
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashInvalidConfigDoesNotBuildGraphTest.php`
-    - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
-    - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
-    - [ ] `ConfigValidator` is not invoked a second time
-    - [ ] KernelOpsFacade maps the failure safely
-    - [ ] KernelOpsFacade performs no duplicate validation
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsTargetOperationsDoNotUseConsoleHostPhaseBKernelConfigTest.php`
+    - [x] console-host Phase-B `kernel.*` overrides do not alter `web|api|worker` Bootstrap, mode, module, artifact, verification, or fingerprint policy
+    - [x] `KernelOpsFacade` receives the exact operation services constructed by the shared `KernelOpsExecutionServices` factory from baseline Foundation/Kernel configuration
+    - [x] those operation services are not constructed from final console-host Phase-B `kernel.*` configuration
+    - [x] `hashConfig()` uses the same baseline `kernel` fingerprint policy as `compileConfig()`
+    - [x] `hashConfig()` and `compileConfig()` produce the same generation id for the same target inputs
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsVerifyInvalidConfigDoesNotReadCurrentTest.php`
-    - [ ] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
-    - [ ] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
-    - [ ] `ConfigValidator` is not invoked a second time
-    - [ ] KernelOpsFacade maps the failure safely
-    - [ ] KernelOpsFacade performs no duplicate validation
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsExecutionServicesUseFinalSourceObservabilityBindingsTest.php`
+    - [x] the final source host uses non-Noop `LoggerInterface`, `TracerPortInterface`, and `MeterPortInterface` bindings supplied through canonical provider composition
+    - [x] `KernelOpsExecutionServices` operation services receive those exact final source-host observability instances
+    - [x] seed-stage Foundation Noop logger, tracer, and meter instances are not retained by target-operation services
+    - [x] the final source-host Foundation `Stopwatch` instance is reused
+    - [x] operation-service construction still uses the baseline Foundation/Kernel configuration rather than console-host Phase-B `kernel.*`
+    - [x] constructing `KernelOpsExecutionServices` executes no module resolution, ConfigKernel compilation, graph compilation, fingerprint calculation, artifact publication, or cache verification
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsReusesCanonicalConfigPipelineTest.php`
-    - [ ] uses one Bootstrap Phase A resolution
-    - [ ] uses one `ModuleResolution`
-    - [ ] uses one canonical config-location input set
-    - [ ] delegates loading, merge, validation, and explain to existing `ConfigKernel`
-    - [ ] KernelOpsFacade performs no package-path or config-file discovery
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigPreservesSafeExplainPathsTest.php`
+    - [x] preserves `ConfigExplainer`-normalized repo-relative or logical source paths
+    - [x] rejects absolute filesystem paths
+    - [x] preserves list order and recursively `strcmp`-sorts maps through `KernelOpsFacade` producer normalization before `OpsResult` validation
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
-    - [ ] seed and final source-host builders are distinct instances
-    - [ ] seed builder contains only Foundation and Kernel bootstrap providers
-    - [ ] final builder receives the validated complete source configuration
-    - [ ] exact canonical source values are seeded before provider registration
-    - [ ] providers are instantiated in `ContainerProviderPlan` order
-    - [ ] every enabled provider implements both `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
-    - [ ] exactly one complete provider batch is submitted
-    - [ ] exactly one complete definition set is applied
-    - [ ] no imperative-only provider lane exists
-    - [ ] external tagged commands are visible through the final `TagRegistry`
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyReportsAllFourGenerationFilesTest.php`
+    - [x] result data contains exactly `artifacts|current_generation_id|expected_generation_id|state`
+    - [x] artifact entries contain exactly `basename|existing_byte_count|expected_byte_count|name|reason|status`
+    - [x] artifact names preserve the deterministic order returned by `CacheVerifier`
+    - [x] no artifact entry contains a path
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsRunsInsideExistingCallerUowWithoutNestingTest.php`
-    - [ ] an arbitrary caller-owned UoW remains the only UoW
-    - [ ] the test does not require or instantiate platform/cli
-    - [ ] KernelOpsFacade does not call KernelRuntime
-    - [ ] KernelOpsFacade does not trigger reset directly
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHashReturnsExpectedGenerationIdWithoutWritesTest.php`
+    - [x] result data contains exactly `generation_id`
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCompileUsesSingleModuleResolutionSnapshotTest.php`
-    - [ ] `resolveResolution()` is called exactly once
-    - [ ] `resolve()` is not called
-    - [ ] Composer manifest is read exactly once
-    - [ ] the returned `ModuleResolution` is passed unchanged to the operation-specific graph-producing service, and provider planning occurs only inside `RuntimeContainerGraphCompiler`
-    - [ ] the same `ModulePlan` instance is supplied to downstream compilation
-    - [ ] no second manifest read occurs during provider definition collection
-    - [ ] `ArtifactCompiler` does not resolve module services itself
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsCompileReportsAllFourGenerationFilesTest.php`
+    - [x] result data contains exactly `artifacts|generation_id`
+    - [x] artifact entries contain exactly `basename|identity`
+    - [x] artifact identities and basenames match the canonical order
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsHashUsesSingleModuleResolutionSnapshotTest.php`
-    - [ ] one module-resolution snapshot is used for the complete hash operation
-    - [ ] no second manifest read occurs
-    - [ ] `FingerprintCalculator` does not resolve modules itself
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostSupportsDefinitionOnlyProviderThroughSourceAdapterTest.php`
+    - [x] a canonical `ContainerProviderPlan` may contain a provider implementing only `ContainerDefinitionProviderInterface`
+    - [x] the definition-only provider is instantiated exactly once
+    - [x] it is wrapped exactly once in `KernelOpsSourceDefinitionProviderAdapter`
+    - [x] its `define()` contribution is collected exactly once
+    - [x] no synthetic `register()` requirement is imposed on the wrapped provider
+    - [x] its canonical service, alias, parameter, and tag definitions remain visible through the final source operations container
+    - [x] provider order remains exactly the `ContainerProviderPlan` order
+    - [x] exactly one complete provider definition set is applied
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyUsesSingleModuleResolutionSnapshotTest.php`
-    - [ ] `resolveResolution()` is called exactly once
-    - [ ] Composer manifest is read exactly once
-    - [ ] provider planning consumes the returned snapshot
-    - [ ] the same plan is supplied to verification inputs
-    - [ ] `CacheVerifier` does not resolve modules itself
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsInvalidConsoleConfigBeforeFinalProviderRegistrationTest.php`
+    - [x] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
+    - [x] `KernelOpsHostBooter` converts it through `ConfigInvalidException::fromValidationResult(...)`
+    - [x] `ConfigValidator` is not invoked a second time
+    - [x] no final source-host provider is instantiated or registered
+    - [x] no final source operations container is built
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsValidateConfigUsesSingleModuleResolutionSnapshotTest.php`
-    - [ ] one `ModuleResolution` is used for the complete validation operation
-    - [ ] Composer manifest is read exactly once
-    - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
-    - [ ] no provider or manifest discovery is repeated
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsCompileInvalidConfigDoesNotPublishTest.php`
+    - [x] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
+    - [x] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
+    - [x] `ConfigValidator` is not invoked a second time
+    - [x] KernelOpsFacade maps the failure safely
+    - [x] KernelOpsFacade performs no duplicate validation
 
-  - [ ] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigUsesSingleModuleResolutionSnapshotTest.php`
-    - [ ] one `ModuleResolution` is used for the complete debug operation
-    - [ ] Composer manifest is read exactly once
-    - [ ] the same `ModulePlan` is supplied to `ConfigKernel`
-    - [ ] safe explain output does not expose raw config or env values
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHashInvalidConfigDoesNotBuildGraphTest.php`
+    - [x] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
+    - [x] `KernelOpsFacade` maps that existing failed result directly to safe `handled_error`
+    - [x] `ConfigInvalidException` construction is not required for the façade-owned hash flow
+    - [x] `ConfigValidator` is not invoked a second time
+    - [x] `RuntimeContainerGraphCompiler` is not invoked
+    - [x] `ConfigFingerprintInputBuilder` is not invoked
+    - [x] `FingerprintCalculator` is not invoked
+    - [x] KernelOpsFacade performs no duplicate validation
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsVerifyInvalidConfigDoesNotReadCurrentTest.php`
+    - [x] `ConfigKernel` produces exactly one failed `ConfigValidationResult`
+    - [x] the operation owner converts that existing failed result into `ConfigInvalidException::fromValidationResult(...)`
+    - [x] `ConfigValidator` is not invoked a second time
+    - [x] KernelOpsFacade maps the failure safely
+    - [x] KernelOpsFacade performs no duplicate validation
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsReusesCanonicalConfigPipelineTest.php`
+    - [x] uses one Bootstrap Phase A resolution
+    - [x] uses one `ModuleResolution`
+    - [x] uses one canonical config-location input set
+    - [x] delegates loading, merge, validation, and explain to existing `ConfigKernel`
+    - [x] KernelOpsFacade performs no package-path or config-file discovery
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
+    - [x] seed and final source-host builders are distinct instances
+    - [x] seed builder obtains providers from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] current module-declared order resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
+    - [x] module-declared provider class strings are instantiated exactly once before seed registration
+    - [x] both baseline instances implement `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+    - [x] no duplicate hard-coded baseline provider registry exists in Kernel Ops
+    - [x] final builder receives the validated complete source configuration
+    - [x] canonical Kernel Ops host-owned factories are installed after the single provider batch is applied and before the final container is built
+    - [x] host-owned `RuntimePathContext`, `KernelOpsExecutionServices`, `KernelOpsFacade`, and `KernelOpsInterface` wiring deterministically replaces any same-id enabled-provider definition
+    - [x] exact host-owned source values are seeded after provider definition application and before the final container is built
+    - [x] host-owned factories and seeded instances deterministically replace any same-id source definition
+    - [x] `KernelOpsInterface` still resolves to the exact shared `KernelOpsFacade` instance
+    - [x] canonical providers are instantiated in `ContainerProviderPlan` order
+    - [x] source adaptation does not create a second canonical provider instance or change that order
+    - [x] every enabled provider implements `ContainerDefinitionProviderInterface`
+    - [x] providers already implementing `ServiceProviderInterface` are supplied unchanged
+    - [x] definition-only providers are wrapped exactly once in `KernelOpsSourceDefinitionProviderAdapter`
+    - [x] every object submitted to the final `ContainerBuilder::registerProviders()` batch implements both required source-registration interfaces
+    - [x] exactly one complete provider batch is submitted
+    - [x] exactly one complete provider definition set is applied before host-owned instance seeding
+    - [x] no imperative-only provider lane exists
+    - [x] external tagged commands are visible through the final `TagRegistry`
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsRunsInsideExistingCallerUowWithoutNestingTest.php`
+    - [x] an arbitrary caller-owned UoW remains the only UoW
+    - [x] the test does not require or instantiate platform/cli
+    - [x] KernelOpsFacade does not call KernelRuntime
+    - [x] KernelOpsFacade does not trigger reset directly
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsCompileUsesSingleModuleResolutionSnapshotTest.php`
+    - [x] `KernelOpsFacade` does not invoke `ModuleResolutionOrchestrator::resolve()` for `compileConfig()`
+    - [x] `KernelArtifactOperation` invokes `ModuleResolutionOrchestrator::resolve()` exactly once
+    - [x] Composer manifest is read exactly once
+    - [x] the returned `ModuleResolution` is passed unchanged from `KernelArtifactOperation` to `ArtifactCompiler`
+    - [x] provider planning occurs only inside `RuntimeContainerGraphCompiler`
+    - [x] the same `ModulePlan` instance is supplied to downstream compilation
+    - [x] no second manifest read occurs during provider definition collection
+    - [x] `ArtifactCompiler` does not resolve module services itself
+    - [x] `effectivePreset` comes from the same prepared `BootstrapConfig`
+    - [x] obtaining `effectivePreset` causes no second Bootstrap Phase-A resolution
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsHashUsesSingleModuleResolutionSnapshotTest.php`
+    - [x] one module-resolution snapshot is used for the complete hash operation
+    - [x] no second manifest read occurs
+    - [x] `FingerprintCalculator` does not resolve modules itself
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsCacheVerifyUsesSingleModuleResolutionSnapshotTest.php`
+    - [x] `KernelOpsFacade` does not invoke `ModuleResolutionOrchestrator::resolve()` for `verifyCache()`
+    - [x] `KernelArtifactOperation` invokes `ModuleResolutionOrchestrator::resolve()` exactly once
+    - [x] Composer manifest is read exactly once
+    - [x] the returned `ModuleResolution` is passed unchanged from `KernelArtifactOperation` to `CacheVerifier`
+    - [x] provider planning consumes that same snapshot
+    - [x] the same plan is supplied to verification inputs
+    - [x] `CacheVerifier` does not resolve modules itself
+    - [x] `effectivePreset` comes from the same prepared `BootstrapConfig`
+    - [x] obtaining `effectivePreset` causes no second Bootstrap Phase-A resolution
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsValidateConfigUsesSingleModuleResolutionSnapshotTest.php`
+    - [x] one `ModuleResolution` is used for the complete validation operation
+    - [x] Composer manifest is read exactly once
+    - [x] the same `ModulePlan` is supplied to `ConfigKernel`
+    - [x] no provider or manifest discovery is repeated
+
+  - [x] `packages/core/kernel/tests/Integration/KernelOpsDebugConfigUsesSingleModuleResolutionSnapshotTest.php`
+    - [x] one `ModuleResolution` is used for the complete debug operation
+    - [x] Composer manifest is read exactly once
+    - [x] the same `ModulePlan` is supplied to `ConfigKernel`
+    - [x] safe explain output does not expose raw config or env values
 
 - Contract:
-  - [ ] `packages/core/kernel/tests/Contract/KernelOpsHasNoRedactionOrCliDependencyContractTest.php`
-    - [ ] rejects `SensitiveDataRedactorInterface`
-    - [ ] rejects `platform/redaction` package and namespace references
-    - [ ] rejects redaction-service resolution
-    - [ ] rejects `Coretsia\Platform\*`
-    - [ ] rejects CLI formatter and output classes
+  - [x] `packages/core/kernel/tests/Contract/KernelOpsHasNoRedactionOrCliDependencyContractTest.php`
+    - [x] rejects `SensitiveDataRedactorInterface`
+    - [x] rejects `platform/redaction` package and namespace references
+    - [x] rejects redaction-service resolution
+    - [x] rejects `Coretsia\Platform\*`
+    - [x] rejects CLI formatter and output classes
 
-  - [ ] `packages/core/kernel/tests/Contract/KernelOpsDoesNotDuplicateConfigPipelineContractTest.php`
-    - [ ] rejects Kernel Ops-local implementations of:
-      - [ ] `ConfigLoaderInterface`
-      - [ ] `MergeStrategyInterface`
-      - [ ] `ConfigValidatorInterface`
-    - [ ] rejects Kernel Ops-local config merger, rules loader, directive processor, validator, and explainer classes
-    - [ ] rejects direct `require|include` of package, skeleton, environment, or app config files from `src/Ops`
-    - [ ] rejects a second `ConfigRepositoryInterface` implementation
-    - [ ] rejects `ConfigSourcePlan` or equivalent parallel config model
-    - [ ] allows only orchestration calls into the existing Bootstrap, module, ConfigKernel, artifact, and verification services
+  - [x] `packages/core/kernel/tests/Contract/KernelOpsSourceHostServicesAreNotRuntimeDefinitionsContractTest.php`
+    - [x] existing canonical compile-host service-id assertions remain unchanged
+    - [x] locks the complete source-operations-host-only forbidden-runtime set
+    - [x] asserts none of those ids is a production `RuntimeContainerSeedId`
+    - [x] rejects each source-host-only symbol as a runtime service id or alias id
+    - [x] rejects each source-host-only implementation class as a service construction class even when registered under another id
+    - [x] rejects alias targets, service-method factory references, tags, required-service references, and nested service references to source-host-only ids
+    - [x] asserts none enters generated runtime definition descriptors
 
-  - [ ] `packages/core/kernel/tests/Contract/KernelOpsDoesNotWriteContextOrControlUowContractTest.php`
-    - [ ] no direct `ContextStore` write
-    - [ ] no `KernelRuntimeInterface` dependency
-    - [ ] no `ResetOrchestrator`
-    - [ ] no `kernel.reset` discovery
+  - [x] `packages/core/contracts/tests/Contract/KernelOpsContractsShapeContractTest.php`
+    - [x] locks the exact six-method `KernelOpsInterface` surface
+    - [x] locks `KernelOpsRequest` to explicit `appTarget` only
+    - [x] locks constructor-level rejection of empty, multiline, and control-byte `appTarget` input before any `KernelOpsInterface` invocation
+    - [x] locks `OpsResult::SCHEMA_VERSION === 1`
+    - [x] locks `OpsResult` outcome and nullable-reason semantics
+    - [x] locks the public `KernelOpsFailedException` error-code/reason API
+    - [x] rejects `Coretsia\Kernel\*`, `Coretsia\Platform\*`, filesystem, container-builder, and transport implementation dependencies from the contracts-owned port
 
-  - [ ] `packages/core/kernel/tests/Contract/KernelOpsFacadeIsCompileHostOnlyContractTest.php`
-    - [ ] source container contains `KernelOpsFacade`
-    - [ ] source container binds `KernelOpsInterface`
-    - [ ] Kernel runtime definitions contain neither service id
-    - [ ] generated definition descriptors contain neither service id
+  - [x] `packages/core/kernel/tests/Contract/KernelOpsDoesNotDuplicateConfigPipelineContractTest.php`
+    - [x] rejects Kernel Ops-local implementations of:
+      - [x] `ConfigLoaderInterface`
+      - [x] `MergeStrategyInterface`
+      - [x] `ConfigValidatorInterface`
+    - [x] rejects Kernel Ops-local config merger, rules loader, directive processor, validator, and explainer classes
+    - [x] rejects direct `require|include` of package, application, environment, preset, or generated config files from `src/Ops`, except `KernelOpsHostSeedConfigLoader`
+    - [x] `KernelOpsHostSeedConfigLoader` MAY load only the two declared Foundation/Kernel seed config files resolved through `ComposerPackageInstallPathResolver`
+    - [x] all other Kernel Ops classes MUST NOT directly `require|include` config files
+    - [x] rejects a second `ConfigRepositoryInterface` implementation
+    - [x] rejects `ConfigSourcePlan` or equivalent parallel config model
+    - [x] `KernelOpsFacade` allows only orchestration calls into the existing Bootstrap, module, ConfigKernel, graph, fingerprint, artifact, and verification services
+    - [x] `KernelOpsHostBooter` MAY additionally compose the existing container, module-provider, provider-plan, and seed-config infrastructure required to build the source operations host
 
-  - [ ] `packages/core/kernel/tests/Contract/KernelOperationServicesDoNotResolveModulesContractTest.php`
-    - [ ] `ArtifactCompiler` does not depend on module-resolution services
-    - [ ] `FingerprintCalculator` does not depend on module-resolution services
-    - [ ] `CacheVerifier` does not depend on module-resolution services
-    - [ ] none references:
-      - [ ] `ModulePlanResolver`
-      - [ ] `ManifestReaderInterface`
-      - [ ] `ComposerManifestReader`
-      - [ ] `ContainerProviderPlanResolver`
+  - [x] `packages/core/kernel/tests/Contract/KernelOpsDoesNotWriteContextOrControlUowContractTest.php`
+    - [x] `KernelOpsFacade` has no direct `ContextStore` write
+    - [x] `KernelOpsFacade` has no `KernelRuntimeInterface` dependency
+    - [x] `KernelOpsFacade` has no `ResetOrchestrator`
+    - [x] `KernelOpsFacade` performs no `kernel.reset` discovery
+    - [x] `KernelOpsHostBooter` MAY compose a container that provides `KernelRuntimeInterface`, but MUST NOT resolve or invoke it
+    - [x] `KernelOpsHostBooter` MUST NOT begin a UoW, invoke lifecycle hooks, invoke reset orchestration, or enumerate `kernel.reset`
 
 ### DoD (MUST)
 
-- [ ] `KernelOpsRequest` contains only explicit app target
-- [ ] effective preset is resolved exclusively by BootstrapConfigResolver
-- [ ] each operation uses one `ModuleResolution`
-- [ ] compile returns the actually published generation id
-- [ ] hash performs no writes or current read
-- [ ] verify reports four artifacts and `clean|dirty|invalid`
-- [ ] Ops results contain no raw values or absolute filesystem paths
-- [ ] Every `OpsResult` is safe before any CLI formatter or defense-in-depth redactor receives it.
-- [ ] Kernel Ops result safety does not depend on late redaction.
-- [ ] only `debugConfig().data.explain` may contain `ConfigExplainer`-normalized repo-relative or logical source paths
-- [ ] Kernel Ops remains compile-host-only
-- [ ] Kernel Ops introduces no config subtree
-- [ ] Kernel Ops emits canonical span/metrics through injected ports
-- [ ] observability failures never alter operation semantics
-- [ ] Kernel Ops reads only safe context values and performs no context writes
-- [ ] Kernel Ops never creates nested UoW or triggers reset directly
-- [ ] source operations host never submits a mixed declarative/imperative provider batch
-- [ ] source operations host rejects invalid console-host configuration before final provider registration
-- [ ] source operations host rejects definition-only providers before any provider registration
-- [ ] `KernelOpsHostBooter` can be constructed before any container exists
-- [ ] Kernel Ops has no CLI, formatter, ANSI, or redaction dependency
-- [ ] `OpsResult` outcomes are exactly `success|handled_error`
-- [ ] observability outcomes are exactly `success|handled_error|failure`
+- [x] `KernelOpsRequest` contains only explicit app target
+- [x] effective preset is resolved exclusively by BootstrapConfigResolver
+- [x] each successful module-aware operation uses exactly one `ModuleResolution`; every invocation performs module resolution at most once
+- [x] compile returns the actually published generation id
+- [x] hash performs no writes or current read
+- [x] verify reports four artifacts and `clean|dirty|invalid`
+- [x] Ops results contain no raw values or absolute filesystem paths
+- [x] Every `OpsResult` is safe before any CLI formatter or defense-in-depth redactor receives it.
+- [x] Kernel Ops result safety does not depend on late redaction.
+- [x] only `debugConfig().data.explain` may contain `ConfigExplainer`-normalized repo-relative or logical source paths
+- [x] Kernel Ops remains dedicated source-operations-host-only and does not enter generic compile-host wiring or compiled application runtime
+- [x] Kernel Ops introduces no config subtree
+- [x] Kernel Ops emits canonical span/metrics through injected ports
+- [x] observability failures never alter operation semantics
+- [x] Kernel Ops reads only safe context values and performs no context writes
+- [x] Kernel Ops never creates nested UoW or triggers reset directly
+- [x] source operations host never submits a mixed declarative/imperative provider batch
+- [x] source operations host rejects invalid console-host configuration before final provider registration
+- [x] source operations host preserves canonical `ContainerProviderPlan` eligibility and adapts definition-only providers without changing their definitions or order
+- [x] `KernelOpsHostBooter` can be constructed before any container exists
+- [x] Kernel Ops has no CLI, formatter, ANSI, or redaction dependency
+- [x] `OpsResult` outcomes are exactly `success|handled_error`
+- [x] observability outcomes are exactly `success|handled_error|failure`
+- [x] target-operation services use baseline Kernel operation policy together with final source-host observability ports; seed-stage Noop observability implementations are not retained
 
 ---
 
@@ -3817,9 +4181,10 @@ Runner + diagnostics:
     - [ ] no raw extensions
   - [ ] MUST NOT copy:
     - [ ] Throwable message or class
+    - [ ] Throwable file or line
     - [ ] stack trace
     - [ ] previous Throwable
-    - [ ] path
+    - [ ] filesystem path
     - [ ] argv or option values
   - [ ] performs no rendering, logging, redaction, or stream writes
 
@@ -3830,7 +4195,7 @@ Runner + diagnostics:
     - [ ] HTTP status
     - [ ] severity internals
     - [ ] arbitrary descriptor extensions
-  - [ ] MUST NOT include Throwable messages, traces, previous exceptions, or paths
+  - [ ] MUST NOT include or render Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
 Redaction:
 - [ ] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
@@ -4718,9 +5083,16 @@ Legacy tests and fixtures:
     - [ ] contributes external name `help` for deterministic collision testing
 
 - Unit:
-  - [ ] `packages/platform/cli/tests/Unit/ColorResolverDisablesAutoWhenStderrIsRedirectedTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
   - [ ] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
+    - [ ] maps `KernelOpsFailedException` only through its stable public code/reason contract
+    - [ ] mapped `ErrorDescriptor` contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
+
+  - [ ] `packages/platform/cli/tests/Unit/ExceptionRendererDoesNotExposeThrowableMetadataTest.php`
+    - [ ] renderer consumes only `ErrorDescriptor`, never a raw Throwable
+    - [ ] rendered output contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
+
+  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/ColorResolverDisablesAutoWhenStderrIsRedirectedTest.php`
   - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
   - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
   - [ ] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`

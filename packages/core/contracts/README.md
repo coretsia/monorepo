@@ -66,6 +66,7 @@ This package provides the canonical public boundaries shared across Coretsia pac
 Contract areas include:
 
 - CLI command, input, and output boundaries;
+- transport-neutral Kernel operations boundary;
 - module identity, descriptors, manifests, and mode preset access;
 - config, environment, source-tracking, and validation result shapes;
 - runtime reset and UnitOfWork lifecycle ports;
@@ -170,6 +171,35 @@ A command contract:
 - returns a standard process exit code.
 
 Command discovery, command catalog construction, argument parsing, output rendering, and binary dispatch remain implementation-owned.
+
+## Kernel operations contracts
+
+The transport-neutral Kernel operations boundary is owned by:
+
+```text
+Coretsia\Contracts\Kernel\Ops
+```
+
+The canonical public contracts are:
+
+```text
+Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+Coretsia\Contracts\Kernel\Ops\KernelOpsRequest
+Coretsia\Contracts\Kernel\Ops\OpsResult
+Coretsia\Contracts\Kernel\Ops\Exception\KernelOpsFailedException
+```
+
+`KernelOpsInterface` is the narrow transport-neutral port for invoking Kernel-owned operations.
+
+`KernelOpsRequest` carries only the explicit application target required by one Kernel operation.
+
+`OpsResult` is the deterministic transport-neutral result boundary for safely classified Kernel operation results.
+
+`KernelOpsFailedException` is the deterministic public failure boundary for unexpected Kernel operation or source-host boot failures.
+
+`core/contracts` owns only these cross-package operation contracts and result/failure vocabulary.
+
+Operation orchestration, dependency-injection wiring, Bootstrap/config/module discovery, artifact and cache I/O, observability execution, and Kernel source-operations-host boot remain `core/kernel` implementation responsibilities.
 
 ## Runtime contracts
 

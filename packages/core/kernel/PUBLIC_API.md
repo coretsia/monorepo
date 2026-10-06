@@ -41,6 +41,8 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Module\KernelModule`
 - `Coretsia\Kernel\Module\ModulePlan`
 - `Coretsia\Kernel\Module\ModulePlanEntry`
+- `Coretsia\Kernel\Ops\KernelOpsHostBooter`
+- `Coretsia\Kernel\Ops\KernelOpsHostInput`
 - `Coretsia\Kernel\Provider\KernelServiceProvider`
 - `Coretsia\Kernel\Runtime\Driver\BackgroundDriver`
 - `Coretsia\Kernel\Runtime\Driver\HttpDriver`
@@ -73,6 +75,6 @@ Bootstrap Phase A implementation helpers such as config resolvers, dotenv loader
 
 Config Phase B implementation services such as the config orchestrator, merger, directive processor, validator, explainer, config loaders, namespace guards, and config-specific exceptions are not public API and must remain marked `@internal` in source until a dedicated public config facade or contract is introduced.
 
-Artifact, fingerprint, container compilation, compiled-container runtime boot, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal` until a dedicated public artifact/cache/kernel-ops facade or contract is introduced.
+Artifact, fingerprint, container compilation, compiled-container runtime boot, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal`. The Kernel Ops API introduced by this package does not promote those lower-level compile-host services to public API. Platform consumers access Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` and the public source-host boot API provided by `Coretsia\Kernel\Ops\KernelOpsHostBooter` and `Coretsia\Kernel\Ops\KernelOpsHostInput`.
 
 Compiled-container implementation models such as service definitions, parameter bags, and definition graphs are internal Kernel compilation models. They are not DTO marker classes, not transport contracts, and not public package API unless a later dedicated public contract explicitly promotes them.

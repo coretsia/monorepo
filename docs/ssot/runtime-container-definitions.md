@@ -283,6 +283,8 @@ Compile-mode orchestration that uses module composition supplies provider order 
 
 Neither path may sort provider FQCNs.
 
+`ContainerProviderPlan` eligibility is defined solely by `ContainerDefinitionProviderInterface`. Implementing `ServiceProviderInterface` is not a production provider-plan eligibility requirement.
+
 The same provider implementation MUST be used by both modes whenever the provider implements the declarative SPI.
 
 The following providers MUST use their `define()` methods as their only runtime wiring sources:
@@ -460,6 +462,51 @@ not a runtime definition
 ```
 
 These values MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
+
+### Kernel source-operations-host-only boundary (MUST)
+
+The existing Kernel compile-host service-id classification remains unchanged.
+
+The following symbols/service ids are source-operations-host-only:
+
+```text
+Coretsia\Kernel\Ops\KernelOpsHostBooter
+Coretsia\Kernel\Ops\KernelOpsHostInput
+Coretsia\Kernel\Ops\KernelOpsHostSeedConfigLoader
+Coretsia\Kernel\Ops\KernelOpsExecutionServices
+Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter
+Coretsia\Kernel\Ops\KernelOpsFacade
+Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
+```
+
+These ids are not compile-host classification entries and are not production runtime seed ids.
+
+They MUST NOT appear as:
+
+- canonical runtime service or alias definitions;
+- service construction classes in a compiled runtime graph;
+- alias targets in a compiled runtime graph;
+- service-method factory service ids;
+- tagged service ids;
+- required service ids;
+- nested service-value references;
+- generated compiled-runtime references.
+
+The production `RuntimeContainerSeedIds` set MUST NOT include any source-operations-host-only id.
+
+Source-operations hosting does not change `ContainerProviderPlan` eligibility. Eligibility remains defined solely by `ContainerDefinitionProviderInterface`.
+
+For one-batch source registration, the source-operations host MAY adapt a canonical definition-only provider to `ServiceProviderInterface` through `KernelOpsSourceDefinitionProviderAdapter`.
+
+That adapter MUST:
+
+- wrap exactly the already-selected canonical `ContainerDefinitionProviderInterface`;
+- delegate its canonical `define()` contribution unchanged;
+- preserve the resolved provider order;
+- introduce no service, alias, parameter, or tag contribution of its own;
+- leave production `ContainerProviderPlan` eligibility unchanged.
+
+The source-host adaptation MUST NOT introduce a second provider-discovery path, provider-plan resolution path, provider order, or production definition source.
 
 Kernel source-host orchestration MAY additionally register a factory for:
 

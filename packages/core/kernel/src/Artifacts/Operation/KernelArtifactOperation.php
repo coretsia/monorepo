@@ -59,13 +59,17 @@ final readonly class KernelArtifactOperation
     ): array {
         $prepared = $this->prepare($input);
 
-        return $this->artifactCompiler->compile(
+        $result = $this->artifactCompiler->compile(
             bootstrapConfig: $prepared['bootstrapConfig'],
             moduleResolution: $prepared['moduleResolution'],
             env: $prepared['env'],
             kernelConfig: $this->kernelConfig,
             configSources: $prepared['configSources'],
         );
+
+        $result['effectivePreset'] = $prepared['bootstrapConfig']->preset();
+
+        return $result;
     }
 
     /**
@@ -76,13 +80,17 @@ final readonly class KernelArtifactOperation
     ): array {
         $prepared = $this->prepare($input);
 
-        return $this->cacheVerifier->verify(
+        $result = $this->cacheVerifier->verify(
             bootstrapConfig: $prepared['bootstrapConfig'],
             moduleResolution: $prepared['moduleResolution'],
             env: $prepared['env'],
             kernelConfig: $this->kernelConfig,
             configSources: $prepared['configSources'],
         );
+
+        $result['effectivePreset'] = $prepared['bootstrapConfig']->preset();
+
+        return $result;
     }
 
     /**

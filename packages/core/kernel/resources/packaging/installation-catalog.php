@@ -55,6 +55,17 @@ return array(
       array(
       ),
     ),
+    'platform.redaction' =>
+    array(
+      'composerName' => 'coretsia/platform-redaction',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+      ),
+    ),
     'platform.worker' =>
     array(
       'composerName' => 'coretsia/platform-worker',

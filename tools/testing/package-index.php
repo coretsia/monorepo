@@ -127,6 +127,23 @@ return array(
     ),
     6 =>
     array(
+      'composerName' => 'coretsia/platform-redaction',
+      'defaultsConfigPath' => null,
+      'id' => 'platform.redaction',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Redaction\\Module\\RedactionModule',
+      'moduleId' => 'platform.redaction',
+      'path' => 'packages/platform/redaction',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Redaction\\Provider\\RedactionServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Redaction\\',
+      'slug' => 'redaction',
+    ),
+    7 =>
+    array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',
       'id' => 'platform.worker',

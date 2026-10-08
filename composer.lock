@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "97fde1ebe6e8014a3cfa6a2fd94db819",
+    "content-hash": "9f9cd282678813fb5b6b658862505aa8",
     "packages": [],
     "packages-dev": [
         {
@@ -587,6 +587,77 @@
                 "php",
                 "redaction",
                 "runtime"
+            ],
+            "support": {
+                "issues": "https://github.com/coretsia/monorepo/issues",
+                "source": "https://github.com/coretsia/monorepo"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "coretsia/platform-redaction",
+            "version": "0.7.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/redaction",
+                "reference": "c9354ebea861fc9c3a756baf13dd41d6661ecff0"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.7.0",
+                "coretsia/core-foundation": "^0.7.0",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.redaction",
+                    "moduleClass": "Coretsia\\Platform\\Redaction\\Module\\RedactionModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Redaction\\Provider\\RedactionServiceProvider"
+                    ],
+                    "requires": [
+                        "core.foundation"
+                    ],
+                    "conflicts": []
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Redaction\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Redaction\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Vladyslav Mudrichenko",
+                    "email": "vladyslav@coretsia.dev",
+                    "role": "Creator and Lead Developer"
+                }
+            ],
+            "description": "Coretsia sensitive-data redaction runtime package: deterministic classification, redaction summaries, and fail-closed diagnostic/output safety.",
+            "homepage": "https://coretsia.dev/",
+            "keywords": [
+                "coretsia",
+                "data-safety",
+                "deterministic",
+                "diagnostics",
+                "framework",
+                "php",
+                "redaction",
+                "runtime",
+                "security",
+                "sensitive-data"
             ],
             "support": {
                 "issues": "https://github.com/coretsia/monorepo/issues",
@@ -4340,16 +4411,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.3.2",
+            "version": "13.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "91848a91bfe688ee2c597c5d9f03d47c8855c743"
+                "reference": "ba6667df7d3318294cfd9b2a172b429004d1eacd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/91848a91bfe688ee2c597c5d9f03d47c8855c743",
-                "reference": "91848a91bfe688ee2c597c5d9f03d47c8855c743",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/ba6667df7d3318294cfd9b2a172b429004d1eacd",
+                "reference": "ba6667df7d3318294cfd9b2a172b429004d1eacd",
                 "shasum": ""
             },
             "require": {
@@ -4381,9 +4452,10 @@
                 "static analysis"
             ],
             "support": {
-                "source": "https://github.com/ecsphp/ecs/tree/13.3.2"
+                "issues": "https://github.com/ecsphp/ecs/issues",
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.3"
             },
-            "time": "2026-09-07T09:07:35+00:00"
+            "time": "2026-10-07T08:45:24+00:00"
         },
         {
             "name": "theseer/tokenizer",
@@ -4446,6 +4518,7 @@
         "coretsia/devtools-internal-toolkit": 20,
         "coretsia/framework": 20,
         "coretsia/platform-cli": 20,
+        "coretsia/platform-redaction": 20,
         "coretsia/platform-worker": 20,
         "coretsia/skeleton": 20
     },

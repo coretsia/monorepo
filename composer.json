@@ -47,6 +47,7 @@
     "coretsia/devtools-internal-toolkit": "0.7.x-dev",
     "coretsia/framework": "0.7.x-dev",
     "coretsia/platform-cli": "0.7.x-dev",
+    "coretsia/platform-redaction": "0.7.x-dev",
     "coretsia/platform-worker": "0.7.x-dev",
     "coretsia/skeleton": "0.7.x-dev",
     "deptrac/deptrac": "^4.6",
@@ -159,6 +160,18 @@
         "reference": "config",
         "versions": {
           "coretsia/platform-cli": "0.7.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/redaction",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-redaction": "0.7.x-dev"
         }
       },
       "coretsia_managed": true

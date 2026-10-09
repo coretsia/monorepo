@@ -1424,11 +1424,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.3.0",
+            "version": "2.3.1",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/b1f9890d9af53a25c58129e78f0aadd31f90d7f4",
-                "reference": "b1f9890d9af53a25c58129e78f0aadd31f90d7f4",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/6155239b488e95d26d1ebd95c6b4bb294d7f09db",
+                "reference": "6155239b488e95d26d1ebd95c6b4bb294d7f09db",
                 "shasum": ""
             },
             "require": {
@@ -1484,7 +1484,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-06T06:15:36+00:00"
+            "time": "2026-10-08T21:09:11+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -4411,16 +4411,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.3.3",
+            "version": "13.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "ba6667df7d3318294cfd9b2a172b429004d1eacd"
+                "reference": "596a55e076886e5f94346c939ba650b94f3d80a7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/ba6667df7d3318294cfd9b2a172b429004d1eacd",
-                "reference": "ba6667df7d3318294cfd9b2a172b429004d1eacd",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/596a55e076886e5f94346c939ba650b94f3d80a7",
+                "reference": "596a55e076886e5f94346c939ba650b94f3d80a7",
                 "shasum": ""
             },
             "require": {
@@ -4453,9 +4453,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ecsphp/ecs/issues",
-                "source": "https://github.com/ecsphp/ecs/tree/13.3.3"
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.4"
             },
-            "time": "2026-10-07T08:45:24+00:00"
+            "time": "2026-10-09T09:07:45+00:00"
         },
         {
             "name": "theseer/tokenizer",

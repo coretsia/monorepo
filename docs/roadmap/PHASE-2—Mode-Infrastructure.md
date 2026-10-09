@@ -1108,7 +1108,7 @@ Forbidden:
     - [x] creates one seed `ContainerBuilder`
     - [x] obtains the exact Foundation and Kernel seed configuration only through `KernelOpsHostSeedConfigLoader`
     - [x] constructs `KernelOpsHostSeedConfigLoader` with the existing `KernelServiceFactory::composerPackageInstallPathResolver()` construction path
-    - [x] obtains the baseline provider list from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] obtains the baseline provider list from `new FoundationModule()->providers()` followed by `new KernelModule()->providers()`
     - [x] preserves exact module-declared provider order
     - [x] the current declared baseline resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
     - [x] MUST NOT duplicate the Foundation/Kernel provider registry as a hard-coded provider list
@@ -1674,7 +1674,7 @@ Forbidden:
 
   - [x] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
     - [x] seed and final source-host builders are distinct instances
-    - [x] seed builder obtains providers from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] seed builder obtains providers from `new FoundationModule()->providers()` followed by `new KernelModule()->providers()`
     - [x] current module-declared order resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
     - [x] module-declared provider class strings are instantiated exactly once before seed registration
     - [x] both baseline instances implement `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
@@ -2657,11 +2657,11 @@ Docs:
   - [ ] register `platform.redaction` in the current committed installation-catalog identity table
   - [ ] record `coretsia/platform-redaction` with dependency edge `core.foundation`
 
-- [ ] `docs/ssot/INDEX.md`
-  - [ ] register `docs/ssot/sensitive-data-redaction.md`
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `docs/ssot/sensitive-data-redaction.md`
 
-- [ ] `docs/adr/INDEX.md`
-  - [ ] register `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+- [x] `docs/adr/INDEX.md`
+  - [x] register `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
 
 - [ ] `docs/architecture/PACKAGING.md`
   - [ ] align runtime metadata with `docs/ssot/modules-and-manifests.md`: `defaultsConfigPath` is optional
@@ -3314,7 +3314,7 @@ Required assertions:
 - [ ] No config root, config files, disable toggle, runtime pattern registry, or env-controlled behavior exists.
 - [ ] `RedactionModule` and Composer metadata match exactly.
 - [ ] Composer requires only PHP, `core/contracts`, and `core/foundation`.
-- [ ] Package `LICENSE` and `NOTICE` are byte-identical to the canonical monorepo-root legal files.
+- [x] Package `LICENSE` and `NOTICE` are byte-identical to the canonical monorepo-root legal files.
 - [ ] Explicit application of the provider declared by `RedactionModule` contributes exactly one `SensitiveDataRedactorInterface` binding to the default implementation.
 - [ ] Package presence or `RedactionModule` construction alone contributes no provider or redactor binding; enabled/disabled module-plan semantics remain Kernel-owned.
 - [ ] Provider source registration and declarative definitions are semantically identical.
@@ -3333,11 +3333,11 @@ Required assertions:
   - [ ] `packages/core/contracts/README.md`
   - [ ] `packages/core/foundation/README.md`
   - [ ] `packages/platform/redaction/README.md`
-  - [ ] `packages/platform/redaction/SECURITY.md`
+  - [x] `packages/platform/redaction/SECURITY.md`
   - [ ] `docs/architecture/PACKAGING.md`
   - [ ] `docs/architecture/STRUCTURE.md`
-  - [ ] `docs/architecture/DEPENDENCIES.md`
-  - [ ] `docs/ssot/sensitive-data-redaction.md`
+  - [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] `docs/ssot/sensitive-data-redaction.md`
   - [ ] `docs/ssot/json-like-runtime-values.md`
   - [ ] `docs/ssot/application-dependency-sync.md`
   - [ ] `docs/ssot/error-descriptor.md`
@@ -3345,9 +3345,9 @@ Required assertions:
   - [ ] `docs/ssot/observability.md`
   - [ ] `docs/ssot/secrets-contracts.md`
   - [ ] `docs/ssot/config-and-env.md`
-  - [ ] `docs/ssot/INDEX.md`
-  - [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
-  - [ ] `docs/adr/INDEX.md`
+  - [x] `docs/ssot/INDEX.md`
+  - [x] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+  - [x] `docs/adr/INDEX.md`
 - [ ] All contract, unit, integration, architecture, package, ECS, and PHPStan checks pass.
 - [ ] Non-goals remain:
   - [ ] secret resolution

@@ -97,6 +97,86 @@ final class DocVersionDriftGateTest extends TestCase
         );
     }
 
+    public function testUnregisteredAdrAndSsotDocumentsEmitDrift(): void
+    {
+        $result = $this->runGate('UnregisteredDocuments');
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame(
+            "CORETSIA_DOC_VERSION_DRIFT\n"
+            . "docs/adr/ADR-0002-unregistered.md: document-not-registered\n"
+            . "docs/ssot/unregistered.md: document-not-registered\n",
+            $result['stderr'],
+        );
+    }
+
+    public function testDuplicateIndexRegistrationEmitsDrift(): void
+    {
+        $result = $this->runGate('DuplicateRegistration');
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame(
+            "CORETSIA_DOC_VERSION_DRIFT\n"
+            . "docs/ssot/example.md: document-registered-multiple-times\n",
+            $result['stderr'],
+        );
+    }
+
+    public function testEmptyIndexEmitsDriftAndUnregisteredDocument(): void
+    {
+        $result = $this->runGate('EmptyIndex');
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame(
+            "CORETSIA_DOC_VERSION_DRIFT\n"
+            . "docs/ssot/INDEX.md: index-empty\n"
+            . "docs/ssot/example.md: document-not-registered\n",
+            $result['stderr'],
+        );
+    }
+
+    public function testUnsortedIndexEntriesWithinSectionEmitDrift(): void
+    {
+        $result = $this->runGate('UnsortedIndex');
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame(
+            "CORETSIA_DOC_VERSION_DRIFT\n"
+            . "docs/ssot/INDEX.md: index-entry-order-invalid:line-20\n",
+            $result['stderr'],
+        );
+    }
+
+    public function testMalformedDuplicateLinkCannotBypassIndexFormat(): void
+    {
+        $result = $this->runGate('MalformedDuplicate');
+
+        self::assertSame(1, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame(
+            "CORETSIA_DOC_VERSION_DRIFT\n"
+            . "docs/ssot/INDEX.md: index-entry-format-invalid:line-20\n",
+            $result['stderr'],
+        );
+    }
+
+    public function testMarkdownSuffixedDirectoryIsNotTreatedAsDocument(): void
+    {
+        self::assertFileExists(
+            $this->fixtureRoot('MarkdownNamedDirectory') . '/docs/ssot/a bad.md/.gitkeep',
+        );
+
+        $result = $this->runGate('MarkdownNamedDirectory');
+
+        self::assertSame(0, $result['exit']);
+        self::assertSame('', $result['stdout']);
+        self::assertSame('', $result['stderr']);
+    }
+
     public function testDiagnosticsAreSortedByByteOrder(): void
     {
         $result = $this->runGate('SortedDiagnostics');
@@ -106,6 +186,7 @@ final class DocVersionDriftGateTest extends TestCase
         self::assertSame(
             "CORETSIA_DOC_VERSION_DRIFT\n"
             . "docs/adr/ADR-0001-a.md: adrVersion-drift index-version-2 file-version-1\n"
+            . "docs/ssot/INDEX.md: index-entry-order-invalid:line-20\n"
             . "docs/ssot/a.md: ssotVersion-drift index-version-2 file-version-1\n"
             . "docs/ssot/b.md: ssotVersion-drift index-version-3 file-version-1\n",
             $result['stderr'],

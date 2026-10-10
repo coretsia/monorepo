@@ -2167,20 +2167,20 @@ Package scaffold:
 
 - [x] `packages/platform/redaction/SECURITY.md`
 
-- [ ] `packages/platform/redaction/README.md`
-  - [ ] package purpose and ownership
-  - [ ] includes the canonical `## Observability`, `## Errors`, and `## Security / Redaction` package-policy sections
-  - [ ] direct string versus recursive json-like entrypoints
-  - [ ] cross-package consumers use `SensitiveDataRedactorInterface`; `SensitiveKeyClassifier`, `SensitiveValueClassifier`, and `StableRedactionHasher` are package-internal implementation details
-  - [ ] examples use synthetic values only
-  - [ ] consumers explicitly construct bounded `RedactionContext`
-  - [ ] omission and safe-by-construction output are preferred
-  - [ ] redaction is defense in depth
-  - [ ] hash and length modes are not declassification
-  - [ ] recursive non-placeholder mode selection is boundary-wide: the same mode applies to every branch selected during one `redactJsonLike()` call
-  - [ ] heterogeneous boundaries use omission or `Placeholder` unless owner policy explicitly permits the same metadata disclosure for every potentially selected branch
-  - [ ] package has no config, disable switch, logger, runtime `ContextStore`/`ContextAccessorInterface`, UoW, or reset dependency; `RedactionContext` remains an explicit immutable method argument
-  - [ ] points to `docs/ssot/sensitive-data-redaction.md` for canonical policy
+- [x] `packages/platform/redaction/README.md`
+  - [x] package purpose and ownership
+  - [x] includes the canonical `## Observability`, `## Errors`, and `## Security / Redaction` package-policy sections
+  - [x] direct string versus recursive json-like entrypoints
+  - [x] cross-package consumers use `SensitiveDataRedactorInterface`; `SensitiveKeyClassifier`, `SensitiveValueClassifier`, and `StableRedactionHasher` are package-internal implementation details
+  - [x] examples use synthetic values only
+  - [x] consumers explicitly construct bounded `RedactionContext`
+  - [x] omission and safe-by-construction output are preferred
+  - [x] redaction is defense in depth
+  - [x] hash and length modes are not declassification
+  - [x] recursive non-placeholder mode selection is boundary-wide: the same mode applies to every branch selected during one `redactJsonLike()` call
+  - [x] heterogeneous boundaries use omission or `Placeholder` unless owner policy explicitly permits the same metadata disclosure for every potentially selected branch
+  - [x] package has no config, disable switch, logger, runtime `ContextStore`/`ContextAccessorInterface`, UoW, or reset dependency; `RedactionContext` remains an explicit immutable method argument
+  - [x] points to `docs/ssot/sensitive-data-redaction.md` for canonical policy
 
 Module and provider:
 - [x] `packages/platform/redaction/src/Module/RedactionModule.php`
@@ -2584,78 +2584,78 @@ Docs:
   - [x] a canonical `Placeholder` `RedactedValue::toArray()` is structurally admissible under an otherwise safe owner-defined extension key when all existing `ErrorDescriptor` bounds are satisfied
   - [x] non-placeholder disclosure safety remains producer-owned and is not established merely by `RedactedValue` shape validity
 
-- [ ] `packages/core/contracts/README.md`
-  - [ ] document the Security redaction contracts
-  - [ ] document exact direct-string and json-like entrypoints
-  - [ ] clarify that the contracts package owns no implementation or classifier policy
+- [x] `packages/core/contracts/README.md`
+  - [x] document the Security redaction contracts
+  - [x] document exact direct-string and json-like entrypoints
+  - [x] clarify that the contracts package owns no implementation or classifier policy
 
-- [ ] `packages/core/foundation/README.md`
-  - [ ] document the optional aggregate string-byte normalization budget
+- [x] `packages/core/foundation/README.md`
+  - [x] document the optional aggregate string-byte normalization budget
 
-- [ ] `docs/ssot/error-descriptor.md`
-  - [ ] record that canonical `RedactedValue::toArray()` remains recursively subject to the existing semantic-key, absolute-local-path, and resource-budget invariants
-  - [ ] a forbidden extension key remains forbidden even when its value is a canonical redacted summary
-  - [ ] the redacted-summary shape is owned by `docs/ssot/sensitive-data-redaction.md`; this document owns only `ErrorDescriptor` admissibility
-  - [ ] structural acceptance of a canonical redacted summary does not override the existing producer-owned safe-derivation and non-reconstruction requirements
-  - [ ] `Length|Hash|HashAndLength` are not automatically admissible merely because the summary shape is valid; deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy input
+- [x] `docs/ssot/error-descriptor.md`
+  - [x] record that canonical `RedactedValue::toArray()` remains recursively subject to the existing semantic-key, absolute-local-path, and resource-budget invariants
+  - [x] a forbidden extension key remains forbidden even when its value is a canonical redacted summary
+  - [x] the redacted-summary shape is owned by `docs/ssot/sensitive-data-redaction.md`; this document owns only `ErrorDescriptor` admissibility
+  - [x] structural acceptance of a canonical redacted summary does not override the existing producer-owned safe-derivation and non-reconstruction requirements
+  - [x] `Length|Hash|HashAndLength` are not automatically admissible merely because the summary shape is valid; deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy input
 
-- [ ] `docs/ssot/json-like-runtime-values.md`
-  - [ ] add optional `maxTotalStringBytes` to the canonical normalization-limit model
-  - [ ] preserve positive-integer requirements for `maxDepth`, `maxNodes`, and `maxStringBytes`
-  - [ ] `maxTotalStringBytes` is either `null` or a positive integer; `null` means that no aggregate-string-byte limit is imposed by that limits instance
-  - [ ] `0` MUST NOT represent an unlimited or disabled aggregate budget
-  - [ ] define aggregate accounting as byte-oriented `strlen()` accounting over every encountered string map key and string value exactly once, including a root string
-  - [ ] map keys do not consume nodes but do consume aggregate string bytes
-  - [ ] map-key aggregate accounting follows canonical `strcmp` traversal order
-  - [ ] individual-string byte validation precedes aggregate accounting for that same string or map key
-  - [ ] a string rejected by the individual-string limit does not consume aggregate string bytes
-  - [ ] adding aggregate accounting does not reorder existing depth, node, map-key-type, or individual-string failure precedence
-  - [ ] add exact `json-like-total-string-bytes-exceeded` failure reason
-  - [ ] aggregate-string-byte failures use the existing canonical safe diagnostic-path contract; the new limit introduces no separate path-rendering policy
-  - [ ] existing normalization behavior remains unchanged when `maxTotalStringBytes === null`
+- [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] add optional `maxTotalStringBytes` to the canonical normalization-limit model
+  - [x] preserve positive-integer requirements for `maxDepth`, `maxNodes`, and `maxStringBytes`
+  - [x] `maxTotalStringBytes` is either `null` or a positive integer; `null` means that no aggregate-string-byte limit is imposed by that limits instance
+  - [x] `0` MUST NOT represent an unlimited or disabled aggregate budget
+  - [x] define aggregate accounting as byte-oriented `strlen()` accounting over every encountered string map key and string value exactly once, including a root string
+  - [x] map keys do not consume nodes but do consume aggregate string bytes
+  - [x] map-key aggregate accounting follows canonical `strcmp` traversal order
+  - [x] individual-string byte validation precedes aggregate accounting for that same string or map key
+  - [x] a string rejected by the individual-string limit does not consume aggregate string bytes
+  - [x] adding aggregate accounting does not reorder existing depth, node, map-key-type, or individual-string failure precedence
+  - [x] add exact `json-like-total-string-bytes-exceeded` failure reason
+  - [x] aggregate-string-byte failures use the existing canonical safe diagnostic-path contract; the new limit introduces no separate path-rendering policy
+  - [x] existing normalization behavior remains unchanged when `maxTotalStringBytes === null`
 
-- [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] add the shared redaction mechanism
-  - [ ] preserve safe-by-construction as the primary requirement
-  - [ ] forbid relying on late redaction to legitimize unsafe diagnostic shapes
-  - [ ] preserve the existing prohibition on exporting raw stack traces; `platform/redaction` owns safe exception messages/custom state, not PHP Throwable-trace sanitization
-  - [ ] preserve existing owner-specific safe derivations such as `hash(value)`, `len(value)`, counts, and stable categories; canonical `RedactedValue` summaries are an additional shared representation for eligible consumers, not a migration requirement for lower-layer Core producers
-  - [ ] classifier non-match MUST NOT be treated as authorization to emit a raw value to an observability or diagnostic sink
-  - [ ] point `ErrorDescriptor` redacted-summary admissibility to `docs/ssot/error-descriptor.md` without redefining its field-by-field extension schema
-  - [ ] reporter payloads and other diagnostic extensions may use canonical redacted summaries only where their owner schema and boundary policy permit them
+- [x] `docs/ssot/observability-and-errors.md`
+  - [x] add the shared redaction mechanism
+  - [x] preserve safe-by-construction as the primary requirement
+  - [x] forbid relying on late redaction to legitimize unsafe diagnostic shapes
+  - [x] preserve the existing prohibition on exporting raw stack traces; `platform/redaction` owns safe exception messages/custom state, not PHP Throwable-trace sanitization
+  - [x] preserve existing owner-specific safe derivations such as `hash(value)`, `len(value)`, counts, and stable categories; canonical `RedactedValue` summaries are an additional shared representation for eligible consumers, not a migration requirement for lower-layer Core producers
+  - [x] classifier non-match MUST NOT be treated as authorization to emit a raw value to an observability or diagnostic sink
+  - [x] point `ErrorDescriptor` redacted-summary admissibility to `docs/ssot/error-descriptor.md` without redefining its field-by-field extension schema
+  - [x] reporter payloads and other diagnostic extensions may use canonical redacted summaries only where their owner schema and boundary policy permit them
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] point generic redaction mechanics to `docs/ssot/sensitive-data-redaction.md`; this document retains sink naming, schema, type, cardinality, and allowlist authority
-  - [ ] canonical redacted summaries are admissible in logs, spans, and span events only where the owner-defined sink schema and boundary policy permit their shape
-  - [ ] `Hash|HashAndLength` summaries remain subject to the existing deterministic, non-reversible, policy-approved safe-derivation requirement; canonical redaction shape validity does not waive that rule
-  - [ ] `Length|Hash|HashAndLength` disclosure remains owner-approved metadata and MUST NOT become automatically admissible merely because `platform/redaction` produced it
-  - [ ] existing span/event attribute allowlists remain authoritative; redaction does not introduce new attribute keys or widen an existing span schema
-  - [ ] metrics remain allowlist-only
-  - [ ] canonical redacted summary maps MUST NOT be emitted as metric label values
-  - [ ] redaction MUST NOT permit arbitrary metric labels
-  - [ ] raw payloads, headers, cookies, tokens, SQL, env values, provider payloads, and absolute paths remain forbidden span attributes
-  - [ ] record that `platform/redaction` emits no baseline logs, spans, or metrics
+- [x] `docs/ssot/observability.md`
+  - [x] point generic redaction mechanics to `docs/ssot/sensitive-data-redaction.md`; this document retains sink naming, schema, type, cardinality, and allowlist authority
+  - [x] canonical redacted summaries are admissible in logs, spans, and span events only where the owner-defined sink schema and boundary policy permit their shape
+  - [x] `Hash|HashAndLength` summaries remain subject to the existing deterministic, non-reversible, policy-approved safe-derivation requirement; canonical redaction shape validity does not waive that rule
+  - [x] `Length|Hash|HashAndLength` disclosure remains owner-approved metadata and MUST NOT become automatically admissible merely because `platform/redaction` produced it
+  - [x] existing span/event attribute allowlists remain authoritative; redaction does not introduce new attribute keys or widen an existing span schema
+  - [x] metrics remain allowlist-only
+  - [x] canonical redacted summary maps MUST NOT be emitted as metric label values
+  - [x] redaction MUST NOT permit arbitrary metric labels
+  - [x] raw payloads, headers, cookies, tokens, SQL, env values, provider payloads, and absolute paths remain forbidden span attributes
+  - [x] record that `platform/redaction` emits no baseline logs, spans, or metrics
 
-- [ ] `docs/ssot/secrets-contracts.md`
-  - [ ] raw resolved secret values are never diagnostic-safe
-  - [ ] preserve the existing owner-approved safe-reference policy: a stable secret reference MAY remain directly observable only when its owner already classifies it as safe
-  - [ ] unsafe or deployment-sensitive secret references require omission or a safe derivation; `SecretReference` is the explicit shared redaction kind for eligible runtime consumers
-  - [ ] omission is preferred
-  - [ ] where a resolved secret value or unsafe reference summary is unavoidable, consumers allowed to depend on `platform/redaction` use the shared port with explicit kind and context; lower-layer Core owners retain owner-owned safe derivations and MUST NOT introduce an upward dependency
-  - [ ] preserve the existing non-reconstruction requirement: `Length|Hash|HashAndLength` MAY be selected only when owner policy explicitly permits disclosure of that metadata for the value class
-  - [ ] deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy secrets; when that requirement cannot be established, omission or `Placeholder` remains mandatory
+- [x] `docs/ssot/secrets-contracts.md`
+  - [x] raw resolved secret values are never diagnostic-safe
+  - [x] preserve the existing owner-approved safe-reference policy: a stable secret reference MAY remain directly observable only when its owner already classifies it as safe
+  - [x] unsafe or deployment-sensitive secret references require omission or a safe derivation; `SecretReference` is the explicit shared redaction kind for eligible runtime consumers
+  - [x] omission is preferred
+  - [x] where a resolved secret value or unsafe reference summary is unavoidable, consumers allowed to depend on `platform/redaction` use the shared port with explicit kind and context; lower-layer Core owners retain owner-owned safe derivations and MUST NOT introduce an upward dependency
+  - [x] preserve the existing non-reconstruction requirement: `Length|Hash|HashAndLength` MAY be selected only when owner policy explicitly permits disclosure of that metadata for the value class
+  - [x] deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy secrets; when that requirement cannot be established, omission or `Placeholder` remains mandatory
 
-- [ ] `docs/ssot/config-and-env.md`
-  - [ ] raw env values MUST NOT reach diagnostics
-  - [ ] explain/source traces may expose only safe provenance metadata
-  - [ ] preserve the distinction between a raw env value and safe source/provenance metadata such as the canonical `env|dotenv` source vocabulary or an owner-approved environment-variable name
-  - [ ] an `env`, `environment`, or `dotenv` structural key alone MUST NOT imply `RedactionKind::EnvValue`
-  - [ ] redaction does not permit raw configuration trees or env dumps
-  - [ ] omission is preferred when a summary is unnecessary
+- [x] `docs/ssot/config-and-env.md`
+  - [x] raw env values MUST NOT reach diagnostics
+  - [x] explain/source traces may expose only safe provenance metadata
+  - [x] preserve the distinction between a raw env value and safe source/provenance metadata such as the canonical `env|dotenv` source vocabulary or an owner-approved environment-variable name
+  - [x] an `env`, `environment`, or `dotenv` structural key alone MUST NOT imply `RedactionKind::EnvValue`
+  - [x] redaction does not permit raw configuration trees or env dumps
+  - [x] omission is preferred when a summary is unnecessary
 
-- [ ] `docs/ssot/application-dependency-sync.md`
-  - [ ] register `platform.redaction` in the current committed installation-catalog identity table
-  - [ ] record `coretsia/platform-redaction` with dependency edge `core.foundation`
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] register `platform.redaction` in the current committed installation-catalog identity table
+  - [x] record `coretsia/platform-redaction` with dependency edge `core.foundation`
 
 - [x] `docs/ssot/INDEX.md`
   - [x] register `docs/ssot/sensitive-data-redaction.md`
@@ -2663,26 +2663,26 @@ Docs:
 - [x] `docs/adr/INDEX.md`
   - [x] register `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
 
-- [ ] `docs/architecture/PACKAGING.md`
-  - [ ] align runtime metadata with `docs/ssot/modules-and-manifests.md`: `defaultsConfigPath` is optional
-  - [ ] when present, `defaultsConfigPath` follows the canonical `config/<root>.php` config-root contract
-  - [ ] require `config/`, a defaults file, and `config/rules.php` only for runtime packages that own a config root
-  - [ ] a config-free runtime package MUST NOT be required to create placeholder config files or placeholder `defaultsConfigPath` metadata
+- [x] `docs/architecture/PACKAGING.md`
+  - [x] align runtime metadata with `docs/ssot/modules-and-manifests.md`: `defaultsConfigPath` is optional
+  - [x] when present, `defaultsConfigPath` follows the canonical `config/<root>.php` config-root contract
+  - [x] require `config/`, a defaults file, and `config/rules.php` only for runtime packages that own a config root
+  - [x] a config-free runtime package MUST NOT be required to create placeholder config files or placeholder `defaultsConfigPath` metadata
 
-- [ ] `docs/architecture/STRUCTURE.md`
-  - [ ] make the canonical runtime-package `config/` subtree conditional on the package owning a config root
-  - [ ] make module `defaults config path` conditional on `defaultsConfigPath` being declared
-  - [ ] preserve `config/<root>.php`, `config/rules.php`, and optional deprecations for runtime packages that own config
-  - [ ] explicitly allow config-free runtime packages without `config/`, `CONFIG_ROOT`, `configRoot()`, or `defaultsConfigPath`
-  - [ ] align the layered runtime-package template with the current Composer-metadata-driven runtime: remove the stale `(ModuleInterface)` requirement from the package `src/Module/` template
-  - [ ] package-local runtime module helpers such as `FoundationModule`, `KernelModule`, and `RedactionModule` are not runtime discovery sources and are not required to implement `Coretsia\Contracts\Module\ModuleInterface`
-  - [ ] runtime module identity, dependency/conflict edges, provider planning metadata, and optional default-config metadata remain authoritative under validated `extra.coretsia`; Kernel discovery MUST NOT instantiate module classes to derive them
-  - [ ] replace the stale `src/Module/*Module.php exports: id/version/deps/providers; defaults config path` convention with the current package-local helper contract
-  - [ ] package-local runtime module helpers MAY mirror stable package metadata through `id()`, `packageId()`, `composerPackage()`, `kind()`, and `providers()`; a config-owning package MAY additionally expose its owner-local `configRoot()`
-  - [ ] package-local runtime module helpers MUST NOT be documented as the source of package version, runtime dependency/conflict edges, `defaultsConfigPath`, or provider-planning metadata; those values remain Composer-metadata-owned
-  - [ ] keep the separate application/user `ModuleInterface` guidance unchanged
-  - [ ] register `coretsia/platform-redaction` in the planned full package catalog as the shared generic redaction runtime package
-  - [ ] keep planned `platform/security` distinct from generic redaction ownership; it MUST NOT define a competing generic redaction engine or mutable classifier registry
+- [x] `docs/architecture/STRUCTURE.md`
+  - [x] make the canonical runtime-package `config/` subtree conditional on the package owning a config root
+  - [x] make module `defaults config path` conditional on `defaultsConfigPath` being declared
+  - [x] preserve `config/<root>.php`, `config/rules.php`, and optional deprecations for runtime packages that own config
+  - [x] explicitly allow config-free runtime packages without `config/`, `CONFIG_ROOT`, `configRoot()`, or `defaultsConfigPath`
+  - [x] align the layered runtime-package template with the current Composer-metadata-driven runtime: remove the stale `(ModuleInterface)` requirement from the package `src/Module/` template
+  - [x] package-local runtime module helpers such as `FoundationModule`, `KernelModule`, and `RedactionModule` are not runtime discovery sources and are not required to implement `Coretsia\Contracts\Module\ModuleInterface`
+  - [x] runtime module identity, dependency/conflict edges, provider planning metadata, and optional default-config metadata remain authoritative under validated `extra.coretsia`; Kernel discovery MUST NOT instantiate module classes to derive them
+  - [x] replace the stale `src/Module/*Module.php exports: id/version/deps/providers; defaults config path` convention with the current package-local helper contract
+  - [x] package-local runtime module helpers MAY mirror stable package metadata through `id()`, `packageId()`, `composerPackage()`, `kind()`, and `providers()`; a config-owning package MAY additionally expose its owner-local `configRoot()`
+  - [x] package-local runtime module helpers MUST NOT be documented as the source of package version, runtime dependency/conflict edges, `defaultsConfigPath`, or provider-planning metadata; those values remain Composer-metadata-owned
+  - [x] keep the separate application/user `ModuleInterface` guidance unchanged
+  - [x] register `coretsia/platform-redaction` in the planned full package catalog as the shared generic redaction runtime package
+  - [x] keep planned `platform/security` distinct from generic redaction ownership; it MUST NOT define a competing generic redaction engine or mutable classifier registry
 
 - [x] repo-root `composer.json`
   - [x] include `coretsia/platform-redaction: 0.7.x-dev` in workspace `require-dev`
@@ -2827,7 +2827,7 @@ N/A.
 - [x] No observability port is injected.
 - [x] No logger is injected.
 - [x] Redaction input, classification decisions, hashes, lengths, kinds, scopes, failures, and rejected values are not self-observed.
-- [ ] The caller MAY observe only its own already-safe operation outcome under the caller-owned observability policy.
+- [x] The caller MAY observe only its own already-safe operation outcome under the caller-owned observability policy.
 - [x] A redaction failure throws `RedactionException`; the redactor does not log and does not return a fallback.
 
 #### Errors
@@ -2899,7 +2899,7 @@ Every other caught Throwable is converted to `internalFailure()` without copying
 - [x] No output mode returns the original value of a branch selected for redaction.
 - [x] No failure returns unchanged or partially redacted input.
 - [x] No rejected or redacted raw value appears in `RedactionException` messages or custom state, logs, spans, metrics, diagnostics, or provider definitions.
-- [ ] Throwable stack traces are not a redaction output surface and MUST NOT be exported through consumer diagnostic/output sinks under the existing Core error-boundary policy.
+- [x] Throwable stack traces are not a redaction output surface and MUST NOT be exported through consumer diagnostic/output sinks under the existing Core error-boundary policy.
 
 The no-leak guarantee applies when sensitivity is established through:
 - explicit owner classification passed to `redactValue()`
@@ -3143,11 +3143,11 @@ Required assertions:
     - [x] hash output is stable
 
 - Unit:
-  - [ ] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+  - [x] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
     - [x] exact canonicalization
     - [x] exact key vocabulary
-    - [ ] every alias listed in `docs/ssot/sensitive-data-redaction.md` is covered
-    - [ ] aliases map to exactly the documented `RedactionKind`
+    - [x] every alias listed in `docs/ssot/sensitive-data-redaction.md` is covered
+    - [x] aliases map to exactly the documented `RedactionKind`
     - [x] case and separator variants
     - [x] no locale dependence
     - [x] unknown keys return null
@@ -3161,9 +3161,9 @@ Required assertions:
     - [x] `env`, `environment`, and `dotenv` remain unclassified because their structural key alone does not establish a raw environment value
     - [x] `env_value` and `raw_env_value` classify exactly as `RedactionKind::EnvValue`
 
-  - [ ] `packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+  - [x] `packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
     - [x] exact high-confidence patterns
-    - [ ] covers every SSoT-defined baseline pattern class
+    - [x] covers every SSoT-defined baseline pattern class
     - [x] precedence collisions resolve according to the exact documented order
     - [x] exact precedence
     - [x] non-sensitive controls remain unclassified
@@ -3275,90 +3275,90 @@ Required assertions:
     - [x] the test does not emulate Kernel `ModulePlan` or provider-plan resolution
 
 - Gates / architecture:
-  - [ ] package index regenerated and green
-  - [ ] canonical direct dependency matrix includes `platform/redaction` and matches Composer/deptrac edges
-  - [ ] installation catalog regenerated and green
-  - [ ] deptrac generated and green
-  - [ ] package compliance green for the canonical config-free runtime-package shape
-  - [ ] package scaffold check green and does not require or synthesize `config/` when `defaultsConfigPath` is absent
-  - [ ] `sync:check` green
-  - [ ] `release-line:workspace:check` and `release-line:public-constraints:check` green
-  - [ ] `package-publish-safety:gate` green
-  - [ ] package PHPUnit configuration gate green
-  - [ ] contracts-only ports gate green
-  - [ ] ECS and PHPStan green
+  - [x] package index regenerated and green
+  - [x] canonical direct dependency matrix includes `platform/redaction` and matches Composer/deptrac edges
+  - [x] installation catalog regenerated and green
+  - [x] deptrac generated and green
+  - [x] package compliance green for the canonical config-free runtime-package shape
+  - [x] package scaffold check green and does not require or synthesize `config/` when `defaultsConfigPath` is absent
+  - [x] `sync:check` green
+  - [x] `release-line:workspace:check` and `release-line:public-constraints:check` green
+  - [x] `package-publish-safety:gate` green
+  - [x] package PHPUnit configuration gate green
+  - [x] contracts-only ports gate green
+  - [x] ECS and PHPStan green
 
 ### DoD (MUST)
 
-- [ ] `SensitiveDataRedactorInterface` exposes exactly `redactValue()` and `redactJsonLike()`.
-- [ ] The public redaction failure type belongs to `core/contracts`; consumers need no dependency on the concrete platform implementation to catch redaction failures.
-- [ ] `RedactionKind` and `RedactionMode` contain exactly the canonical enum values.
-- [ ] `RedactionContext` has exact bounded scope and mode semantics.
-- [ ] `RedactedValue` has the exact deterministic six-key exported shape.
-- [ ] No mode or config option returns the original value of a branch selected for redaction.
-- [ ] Placeholder is the default mode.
-- [ ] Length is byte length.
-- [ ] Hashing uses the exact domain-separated SHA-256 contract.
-- [ ] After complete Foundation input normalization succeeds, recursive semantic traversal uses exact key-first classification precedence; sensitive structural keys do not bypass input type or resource-limit validation.
-- [ ] Lists preserve order and maps are recursively `strcmp` sorted.
-- [ ] Direct-string and recursive json-like resource limits are enforced through the shared Foundation normalization primitive; `platform/redaction` contains no parallel byte-limit guard.
-- [ ] Invalid input and internal failures fail closed.
-- [ ] No complete or partial original value is returned after failure.
-- [ ] Map keys unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier` fail deterministically with `sensitive-map-key`.
-- [ ] Every `RedactionException` exposes only `CORETSIA_REDACTION_FAILED` and an allowlisted reason.
-- [ ] `RedactionContext` invariant violations expose only `InvalidArgumentException('redaction-context-scope-invalid')`.
-- [ ] `RedactedValue` invariant violations expose only `InvalidArgumentException('redacted-value-shape-invalid')`.
-- [ ] No exception message contains rejected constructor input, redaction input, field keys, hashes, paths, payload fragments, or previous Throwable messages.
-- [ ] Concrete runtime services are stateless and shared; the `SensitiveDataRedactorInterface` alias is a canonical non-shared delegation wrapper and preserves the lifecycle of its shared `DefaultSensitiveDataRedactor` target.
-- [ ] No ContextStore, UoW, reset, logging, tracing, metrics, or reporter dependency exists.
-- [ ] No config root, config files, disable toggle, runtime pattern registry, or env-controlled behavior exists.
-- [ ] `RedactionModule` and Composer metadata match exactly.
-- [ ] Composer requires only PHP, `core/contracts`, and `core/foundation`.
+- [x] `SensitiveDataRedactorInterface` exposes exactly `redactValue()` and `redactJsonLike()`.
+- [x] The public redaction failure type belongs to `core/contracts`; consumers need no dependency on the concrete platform implementation to catch redaction failures.
+- [x] `RedactionKind` and `RedactionMode` contain exactly the canonical enum values.
+- [x] `RedactionContext` has exact bounded scope and mode semantics.
+- [x] `RedactedValue` has the exact deterministic six-key exported shape.
+- [x] No mode or config option returns the original value of a branch selected for redaction.
+- [x] Placeholder is the default mode.
+- [x] Length is byte length.
+- [x] Hashing uses the exact domain-separated SHA-256 contract.
+- [x] After complete Foundation input normalization succeeds, recursive semantic traversal uses exact key-first classification precedence; sensitive structural keys do not bypass input type or resource-limit validation.
+- [x] Lists preserve order and maps are recursively `strcmp` sorted.
+- [x] Direct-string and recursive json-like resource limits are enforced through the shared Foundation normalization primitive; `platform/redaction` contains no parallel byte-limit guard.
+- [x] Invalid input and internal failures fail closed.
+- [x] No complete or partial original value is returned after failure.
+- [x] Map keys unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier` fail deterministically with `sensitive-map-key`.
+- [x] Every `RedactionException` exposes only `CORETSIA_REDACTION_FAILED` and an allowlisted reason.
+- [x] `RedactionContext` invariant violations expose only `InvalidArgumentException('redaction-context-scope-invalid')`.
+- [x] `RedactedValue` invariant violations expose only `InvalidArgumentException('redacted-value-shape-invalid')`.
+- [x] No exception message contains rejected constructor input, redaction input, field keys, hashes, paths, payload fragments, or previous Throwable messages.
+- [x] Concrete runtime services are stateless and shared; the `SensitiveDataRedactorInterface` alias is a canonical non-shared delegation wrapper and preserves the lifecycle of its shared `DefaultSensitiveDataRedactor` target.
+- [x] No ContextStore, UoW, reset, logging, tracing, metrics, or reporter dependency exists.
+- [x] No config root, config files, disable toggle, runtime pattern registry, or env-controlled behavior exists.
+- [x] `RedactionModule` and Composer metadata match exactly.
+- [x] Composer requires only PHP, `core/contracts`, and `core/foundation`.
 - [x] Package `LICENSE` and `NOTICE` are byte-identical to the canonical monorepo-root legal files.
-- [ ] Explicit application of the provider declared by `RedactionModule` contributes exactly one `SensitiveDataRedactorInterface` binding to the default implementation.
-- [ ] Package presence or `RedactionModule` construction alone contributes no provider or redactor binding; enabled/disabled module-plan semantics remain Kernel-owned.
-- [ ] Provider source registration and declarative definitions are semantically identical.
-- [ ] Cross-package consumers use `SensitiveDataRedactorInterface`; classifiers and `StableRedactionHasher` remain package-internal implementation details.
-- [ ] Redaction does not replace producer-owned safe-by-construction diagnostic shapes.
-- [ ] Classifier non-match is not declassification and MUST NOT authorize transporting arbitrary raw diagnostic/output data.
-- [ ] Existing lower-layer Core boundary-specific validation, rejection, omission, hashing, and safe-derivation guards remain owner-local and are not rewritten to depend on `platform/redaction`.
-- [ ] Foundation-owned json-like type validation, map-key-type validation, normalization, and structural resource accounting are reused from `core/foundation`; `platform/redaction` contains no parallel validator, normalizer, or resource-budget walker for those Foundation-owned concerns.
-- [ ] The post-normalization C0/DEL check for map keys reached by semantic traversal before classification is a redaction-specific output-safety policy and MUST NOT become a second json-like structural-validity, resource-budget, or whole-input pre-scan model.
-- [ ] `StableJsonEncoder` is used only when canonical bytes of a non-string sensitive branch are required by `Length|Hash|HashAndLength`; whole-result serialization remains consumer-owned.
-- [ ] Canonical redacted summaries do not bypass stricter consumer-boundary policy, including `ErrorDescriptor` semantic-key, absolute-local-path, and resource-budget invariants.
-- [ ] Kernel Ops remains independent from `platform/redaction`.
-- [ ] No Phase 3–6 production package is modified by this epic.
-- [ ] No future roadmap epic is rewritten as an implementation deliverable of this package.
-- [ ] Docs updated:
-  - [ ] `packages/core/contracts/README.md`
-  - [ ] `packages/core/foundation/README.md`
-  - [ ] `packages/platform/redaction/README.md`
+- [x] Explicit application of the provider declared by `RedactionModule` contributes exactly one `SensitiveDataRedactorInterface` binding to the default implementation.
+- [x] Package presence or `RedactionModule` construction alone contributes no provider or redactor binding; enabled/disabled module-plan semantics remain Kernel-owned.
+- [x] Provider source registration and declarative definitions are semantically identical.
+- [x] Cross-package consumers use `SensitiveDataRedactorInterface`; classifiers and `StableRedactionHasher` remain package-internal implementation details.
+- [x] Redaction does not replace producer-owned safe-by-construction diagnostic shapes.
+- [x] Classifier non-match is not declassification and MUST NOT authorize transporting arbitrary raw diagnostic/output data.
+- [x] Existing lower-layer Core boundary-specific validation, rejection, omission, hashing, and safe-derivation guards remain owner-local and are not rewritten to depend on `platform/redaction`.
+- [x] Foundation-owned json-like type validation, map-key-type validation, normalization, and structural resource accounting are reused from `core/foundation`; `platform/redaction` contains no parallel validator, normalizer, or resource-budget walker for those Foundation-owned concerns.
+- [x] The post-normalization C0/DEL check for map keys reached by semantic traversal before classification is a redaction-specific output-safety policy and MUST NOT become a second json-like structural-validity, resource-budget, or whole-input pre-scan model.
+- [x] `StableJsonEncoder` is used only when canonical bytes of a non-string sensitive branch are required by `Length|Hash|HashAndLength`; whole-result serialization remains consumer-owned.
+- [x] Canonical redacted summaries do not bypass stricter consumer-boundary policy, including `ErrorDescriptor` semantic-key, absolute-local-path, and resource-budget invariants.
+- [x] Kernel Ops remains independent from `platform/redaction`.
+- [x] No Phase 3–6 production package is modified by this epic.
+- [x] No future roadmap epic is rewritten as an implementation deliverable of this package.
+- [x] Docs updated:
+  - [x] `packages/core/contracts/README.md`
+  - [x] `packages/core/foundation/README.md`
+  - [x] `packages/platform/redaction/README.md`
   - [x] `packages/platform/redaction/SECURITY.md`
-  - [ ] `docs/architecture/PACKAGING.md`
-  - [ ] `docs/architecture/STRUCTURE.md`
+  - [x] `docs/architecture/PACKAGING.md`
+  - [x] `docs/architecture/STRUCTURE.md`
   - [x] `docs/architecture/DEPENDENCIES.md`
   - [x] `docs/ssot/sensitive-data-redaction.md`
-  - [ ] `docs/ssot/json-like-runtime-values.md`
-  - [ ] `docs/ssot/application-dependency-sync.md`
-  - [ ] `docs/ssot/error-descriptor.md`
-  - [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] `docs/ssot/observability.md`
-  - [ ] `docs/ssot/secrets-contracts.md`
-  - [ ] `docs/ssot/config-and-env.md`
+  - [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] `docs/ssot/application-dependency-sync.md`
+  - [x] `docs/ssot/error-descriptor.md`
+  - [x] `docs/ssot/observability-and-errors.md`
+  - [x] `docs/ssot/observability.md`
+  - [x] `docs/ssot/secrets-contracts.md`
+  - [x] `docs/ssot/config-and-env.md`
   - [x] `docs/ssot/INDEX.md`
   - [x] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
   - [x] `docs/adr/INDEX.md`
-- [ ] All contract, unit, integration, architecture, package, ECS, and PHPStan checks pass.
-- [ ] Non-goals remain:
-  - [ ] secret resolution
-  - [ ] Vault/AWS/GCP integrations
-  - [ ] request-body inspection or semantic payload parsing
-  - [ ] SQL parsing
-  - [ ] mail-body rewriting
-  - [ ] AI guardrail or PII rewriting
-  - [ ] configurable/custom policy packs
-  - [ ] stateful classifier learning
-  - [ ] partially masked previews
+- [x] All contract, unit, integration, architecture, package, ECS, and PHPStan checks pass.
+- [x] Non-goals remain:
+  - [x] secret resolution
+  - [x] Vault/AWS/GCP integrations
+  - [x] request-body inspection or semantic payload parsing
+  - [x] SQL parsing
+  - [x] mail-body rewriting
+  - [x] AI guardrail or PII rewriting
+  - [x] configurable/custom policy packs
+  - [x] stateful classifier learning
+  - [x] partially masked previews
 
 ---
 

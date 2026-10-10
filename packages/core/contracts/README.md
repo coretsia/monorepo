@@ -83,6 +83,7 @@ Contract areas include:
 - rate-limit ports;
 - mail ports;
 - secrets ports;
+- security redaction ports and immutable redacted summary shapes;
 - transport-neutral Worker task-source and task-settlement ports.
 
 `core/contracts` owns boundary vocabulary and public cross-package shapes only.
@@ -509,6 +510,70 @@ Unsafe runtime values SHOULD be omitted, normalized, redacted, or represented th
 
 Concrete redaction policy remains an implementation-owner responsibility.
 
+### Sensitive data redaction contracts
+
+`core/contracts` defines the public, implementation-neutral sensitive-data redaction boundary under:
+
+```text
+Coretsia\Contracts\Security\SensitiveDataRedactorInterface
+Coretsia\Contracts\Security\RedactionContext
+Coretsia\Contracts\Security\RedactionKind
+Coretsia\Contracts\Security\RedactionMode
+Coretsia\Contracts\Security\RedactedValue
+Coretsia\Contracts\Security\Exception\RedactionException
+```
+
+`SensitiveDataRedactorInterface` exposes exactly two entrypoints:
+
+```php
+public function redactValue(
+    string $value,
+    RedactionKind $kind,
+    RedactionContext $context,
+): RedactedValue;
+
+public function redactJsonLike(mixed $value, RedactionContext $context): mixed;
+```
+
+`redactValue()` accepts a string already known by its producer to be sensitive. The caller MUST explicitly select its `RedactionKind` rather than rely on generic value classification.
+
+`redactJsonLike()` operates on recursively json-like values: `null`, `bool`, `int`, `string`, lists, and string-keyed maps. Its return value is restricted to the same json-like value model. Key and value classification, traversal, and replacement behavior are implementation-owned.
+
+Both entrypoints require an explicitly supplied immutable `RedactionContext`. Its scope is a stable, low-cardinality operation or output-boundary identifier matching `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z` and is limited to 128 bytes. Scopes MUST NOT be derived from paths, endpoints, user or tenant identifiers, request identifiers, tokens, field values, or other high-cardinality runtime data.
+
+`RedactionMode` defines exactly `Placeholder`, `Length`, `Hash`, and `HashAndLength`. `Placeholder` is the default. Non-placeholder modes require explicit owner approval for the metadata they disclose. One context mode applies uniformly to every selected sensitive branch during a recursive redaction operation.
+
+`RedactedValue` is a final readonly summary value. Its `toArray()` representation contains exactly these deterministic `strcmp`-ordered fields:
+
+```text
+hash
+kind
+length
+mode
+redacted
+schemaVersion
+```
+
+`redacted` is always `true`, and `schemaVersion` is `1`. Placeholder summaries expose neither length nor hash. The summary does not retain the original value, raw bytes, context, source metadata, or previous Throwable.
+
+Redaction failures use the contracts-owned `RedactionException` with error code `CORETSIA_REDACTION_FAILED` and one of these stable reasons:
+
+```text
+input-invalid
+input-limit-exceeded
+sensitive-map-key
+output-invalid
+internal-failure
+```
+
+The exception message and custom state MUST NOT disclose rejected values, map keys, scopes, hashes, paths, payload fragments, or previous Throwable messages. Native PHP stack traces remain subject to the existing diagnostic boundary policy.
+
+`core/contracts` owns only the public port, immutable value objects, enums, and failure vocabulary. It does not own redaction execution, key or value classifiers, hashing algorithms, traversal policy, container wiring, configurable classifiers, or mutable policy registries.
+
+The default redaction implementation and its classification and hashing policies belong to `platform/redaction`. Cross-package consumers MUST depend on `SensitiveDataRedactorInterface`, not on concrete redaction services or package-internal classifiers.
+
+Redaction remains defense in depth. Producer-owned safe-by-construction output, omission, and destination-specific schema, semantic-key, path, cardinality, and resource-limit policies remain authoritative. A valid redacted summary or classifier non-match does not authorize exporting otherwise unsafe diagnostic data.
+
 ## References
 
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
@@ -526,4 +591,5 @@ Concrete redaction policy remains an implementation-owner responsibility.
 - [Rate Limit Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/rate-limit-contracts.md)
 - [Mail Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/mail-contracts.md)
 - [Secrets Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/secrets-contracts.md)
+- [Sensitive Data Redaction SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/sensitive-data-redaction.md)
 - [Worker Task Sources SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/worker-task-sources.md)

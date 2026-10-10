@@ -1069,6 +1069,32 @@ Runtime access ports MAY return raw env values to owner implementation code wher
 - logs;
 - artifacts.
 
+Raw environment values MUST NOT reach diagnostic or observability output boundaries.
+
+Explain traces and source-tracking results MAY expose only owner-approved safe provenance metadata. They MUST NOT expose raw config values, raw env values, credential material, or arbitrary portions of the merged configuration tree.
+
+The canonical `ConfigSourceType` vocabulary includes `env` and `dotenv` as safe source-origin identifiers. Those identifiers describe provenance, not the contents of environment variables.
+
+An owner-approved environment-variable name MAY be exposed as safe source metadata only when its content, syntax, and destination-boundary policy make that disclosure safe. It MUST NOT be confused with the corresponding raw environment value.
+
+The shared redaction classification policy is defined by:
+
+```text
+docs/ssot/sensitive-data-redaction.md
+```
+
+A structural key named `env`, `environment`, or `dotenv` MUST NOT by itself imply `RedactionKind::EnvValue`.
+
+Automatic `EnvValue` structural classification is limited to the canonical explicit raw-value aliases defined by the shared redaction policy. An owner-known raw environment value MAY be explicitly classified as `RedactionKind::EnvValue` through `SensitiveDataRedactorInterface::redactValue()` where the shared port is an allowed dependency.
+
+Classifier non-match MUST NOT be treated as proof that an environment-derived value is safe to export.
+
+Shared redaction MUST NOT authorize raw configuration trees, environment dumps, raw source values, or unsafe explain payloads in diagnostic or observability output.
+
+Omission is preferred when a value or summary is not operationally necessary. Any permitted derived metadata remains subject to the destination owner's disclosure, non-reconstruction, and resource-limit policies.
+
+Lower-layer Core owners retain their existing safe provenance and diagnostic derivation policies without introducing an upward dependency on `platform/redaction`.
+
 Secret-backed runtime behavior belongs to owner packages, not to contracts shapes.
 
 ## Non-goals

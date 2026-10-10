@@ -249,11 +249,33 @@ The value object defines:
 maxDepth
 maxNodes
 maxStringBytes
+maxTotalStringBytes
 ```
 
-All values MUST be positive integers.
+The canonical constructor is:
 
-`0` MUST NOT represent an unlimited or disabled mode.
+```php
+public function __construct(
+    public int $maxDepth,
+    public int $maxNodes,
+    public int $maxStringBytes,
+    public ?int $maxTotalStringBytes = null,
+);
+```
+
+`maxDepth`, `maxNodes`, and `maxStringBytes` MUST be positive integers.
+
+`maxTotalStringBytes` MUST be either `null` or a positive integer. A `null` value means that no aggregate-string-byte limit is imposed by that limits instance.
+
+`0` MUST NOT represent an unlimited or disabled budget for any limit.
+
+An invalid non-null aggregate budget MUST fail with exactly:
+
+```text
+InvalidArgumentException('json-like-normalization-max-total-string-bytes-invalid')
+```
+
+Omitting `maxTotalStringBytes` or explicitly passing `null` MUST preserve existing normalization behavior without an aggregate-string-byte cap.
 
 Depth semantics are:
 
@@ -279,6 +301,21 @@ String-byte semantics are:
 - limits apply to string values;
 - limits apply to nested string map keys;
 - byte length is not Unicode character length.
+
+When `maxTotalStringBytes` is non-null, aggregate accounting MUST follow these rules:
+
+- every encountered string value contributes its `strlen()` byte length exactly once, including a root string;
+- every encountered string map key contributes its `strlen()` byte length exactly once;
+- map keys consume aggregate string bytes but MUST NOT consume nodes;
+- map-key aggregate accounting follows canonical byte-order `strcmp` traversal order;
+- the aggregate budget is shared across the complete recursive normalization operation;
+- individual-string byte validation MUST precede aggregate accounting for the same string value or map key;
+- a string rejected by the individual-string limit MUST NOT consume aggregate string bytes;
+- aggregate accounting MUST remain overflow-safe.
+
+Adding aggregate accounting MUST NOT reorder existing depth, node, map-key-type, or individual-string failure precedence.
+
+In particular, the existing map-node budget precheck MUST retain precedence over map-key sorting, per-key validation, and aggregate accounting when the map's direct entry count exceeds the remaining node budget.
 
 Limits MUST be checked during the same recursive traversal used for baseline normalization.
 
@@ -571,6 +608,7 @@ json-like-type-forbidden
 json-like-max-depth-exceeded
 json-like-max-nodes-exceeded
 json-like-string-bytes-exceeded
+json-like-total-string-bytes-exceeded
 ```
 
 These reason tokens are owned by:
@@ -633,6 +671,10 @@ value.safe[<empty-key>]
 ```
 
 Invalid root paths MUST be sanitized before they are used in diagnostics.
+
+Aggregate string-byte limit failures MUST use the same canonical safe path-to-value contract as existing type and resource-limit failures.
+
+The `json-like-total-string-bytes-exceeded` reason MUST NOT introduce a separate path-rendering policy or expose rejected string values, raw map keys, or other sensitive input bytes.
 
 ## StableJsonEncoder boundary
 

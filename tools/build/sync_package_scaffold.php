@@ -565,11 +565,18 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
 
     $studlySlug = coretsia_sync_package_scaffold_studly($slug);
 
+    $composer = ComposerJson::readObject($packageRoot . '/composer.json');
+    $extra = $composer['extra']['coretsia'] ?? [];
+    $hasConfigRoot = \is_array($extra) && \array_key_exists('defaultsConfigPath', $extra);
+
     $requiredDirs = [
         'src/Module',
         'src/Provider',
-        'config',
     ];
+
+    if ($hasConfigRoot) {
+        $requiredDirs[] = 'config';
+    }
 
     foreach ($requiredDirs as $dir) {
         $path = $packageRoot . '/' . $dir;
@@ -595,9 +602,12 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
             $layer,
             $slug
         ),
-        'config/' . $slug . '.php' => coretsia_sync_package_scaffold_runtime_defaults_config_template(),
-        'config/rules.php' => coretsia_sync_package_scaffold_runtime_rules_config_template(),
     ];
+
+    if ($hasConfigRoot) {
+        $runtimeFiles['config/' . $slug . '.php'] = coretsia_sync_package_scaffold_runtime_defaults_config_template();
+        $runtimeFiles['config/rules.php'] = coretsia_sync_package_scaffold_runtime_rules_config_template();
+    }
 
     foreach ($runtimeFiles as $file => $content) {
         $path = $packageRoot . '/' . $file;

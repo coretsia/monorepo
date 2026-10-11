@@ -835,6 +835,43 @@ When omitted, existing baseline normalization behavior remains unchanged.
 
 Resource budgets are owner-specific and do not alter the baseline accepted value types.
 
+`JsonLikeNormalizationLimits` accepts four constructor arguments in this order:
+
+```text
+maxDepth
+maxNodes
+maxStringBytes
+maxTotalStringBytes
+```
+
+`maxDepth`, `maxNodes`, and `maxStringBytes` MUST be positive integers. The optional fourth argument is `?int $maxTotalStringBytes = null`.
+
+A `null` aggregate limit preserves the existing unbounded aggregate-string-byte behavior for that limits instance. A non-null limit MUST be a positive integer. Zero MUST NOT represent an unlimited or disabled budget.
+
+An invalid aggregate limit fails with exactly:
+
+```text
+InvalidArgumentException('json-like-normalization-max-total-string-bytes-invalid')
+```
+
+When enabled, aggregate accounting uses byte-oriented `strlen()` over every string value and string map key encountered during the existing recursive normalization traversal, including a root string.
+
+Each string value and map key contributes its byte length exactly once. Map-key aggregate accounting follows deterministic `strcmp` ordering. Map keys do not introduce an additional aggregate-accounting traversal or a separate node-budget model.
+
+Individual-string byte validation runs before aggregate accounting for the same string or map key. A string rejected by the individual-string limit does not consume aggregate string bytes.
+
+Existing depth, node, map-key-type, and individual-string validation semantics and failure precedence remain unchanged. The existing map-node budget precheck retains precedence over per-key validation and aggregate accounting when the direct map entries cannot fit the remaining node budget.
+
+Aggregate-limit enforcement uses overflow-safe accounting. Exceeding the configured aggregate budget throws `JsonLikeNormalizationException` with the stable reason:
+
+```text
+json-like-total-string-bytes-exceeded
+```
+
+The failure uses the existing safe path-to-value diagnostic model. It MUST NOT expose rejected raw values, unsafe map keys, secrets, payload fragments, or environment-specific data.
+
+Aggregate accounting remains part of the canonical `JsonLikeNormalizer` traversal. Callers MUST NOT introduce a parallel structural normalizer or aggregate-byte counter to enforce the same resource budget.
+
 The canonical baseline exception is:
 
 ```text

@@ -806,13 +806,31 @@ function coretsia_package_compliance_gate_validate_runtime_package(
     $providerFile = 'src/Provider/' . $studlySlug . 'ServiceProvider.php';
     $defaultsConfigFile = 'config/' . $slug . '.php';
 
-    foreach (['src/Module', 'src/Provider', 'config'] as $dir) {
+    $extra = $composer['extra']['coretsia'] ?? null;
+    if (!\is_array($extra)) {
+        $extra = [];
+    }
+
+    $hasConfigRoot = \array_key_exists('defaultsConfigPath', $extra);
+
+    $requiredDirs = ['src/Module', 'src/Provider'];
+    $requiredFiles = [$moduleFile, $providerFile];
+
+    if ($hasConfigRoot) {
+        $requiredDirs[] = 'config';
+        $requiredFiles[] = $defaultsConfigFile;
+        $requiredFiles[] = 'config/rules.php';
+    } elseif (\is_dir($packageRoot . '/config')) {
+        $diagnostics[] = $relativeRoot . '/config: unexpected-config-free-runtime-directory';
+    }
+
+    foreach ($requiredDirs as $dir) {
         if (!\is_dir($packageRoot . '/' . $dir)) {
             $diagnostics[] = $relativeRoot . '/' . $dir . ': missing-runtime-directory';
         }
     }
 
-    foreach ([$moduleFile, $providerFile, $defaultsConfigFile, 'config/rules.php'] as $file) {
+    foreach ($requiredFiles as $file) {
         if (!\is_file($packageRoot . '/' . $file)) {
             $diagnostics[] = $relativeRoot . '/' . $file . ': missing-runtime-file';
         }
@@ -820,11 +838,6 @@ function coretsia_package_compliance_gate_validate_runtime_package(
 
     $moduleFqcn = $namespaceRoot . 'Module\\' . $studlySlug . 'Module';
     $providerFqcn = $namespaceRoot . 'Provider\\' . $studlySlug . 'ServiceProvider';
-
-    $extra = $composer['extra']['coretsia'] ?? null;
-    if (!\is_array($extra)) {
-        $extra = [];
-    }
 
     if (!\array_key_exists('moduleId', $extra)) {
         $diagnostics[] = $relativeRoot . '/composer.json: missing-runtime-metadata-moduleId';
@@ -844,13 +857,11 @@ function coretsia_package_compliance_gate_validate_runtime_package(
         $diagnostics[] = $relativeRoot . '/composer.json: invalid-runtime-metadata-providers';
     }
 
-    if (!\array_key_exists('defaultsConfigPath', $extra)) {
-        $diagnostics[] = $relativeRoot . '/composer.json: missing-runtime-metadata-defaultsConfigPath';
-    } elseif ($extra['defaultsConfigPath'] !== $defaultsConfigFile) {
+    if ($hasConfigRoot && $extra['defaultsConfigPath'] !== $defaultsConfigFile) {
         $diagnostics[] = $relativeRoot . '/composer.json: invalid-runtime-metadata-defaultsConfigPath';
     }
 
-    if (\is_file($packageRoot . '/' . $defaultsConfigFile)) {
+    if ($hasConfigRoot && \is_file($packageRoot . '/' . $defaultsConfigFile)) {
         foreach (
             coretsia_package_compliance_gate_validate_runtime_defaults_config(
                 $packageRoot . '/' . $defaultsConfigFile,
@@ -862,7 +873,7 @@ function coretsia_package_compliance_gate_validate_runtime_package(
         }
     }
 
-    if (\is_file($packageRoot . '/config/rules.php')) {
+    if ($hasConfigRoot && \is_file($packageRoot . '/config/rules.php')) {
         foreach (
             coretsia_package_compliance_gate_validate_runtime_rules_config(
                 $packageRoot . '/config/rules.php',

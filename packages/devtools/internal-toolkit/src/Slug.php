@@ -87,7 +87,7 @@ final class Slug
         return preg_replace_callback(
             '/[A-Z]/',
             static fn (array $m): string => chr(ord($m[0]) + 32),
-            $s
+            $s,
         ) ?? $s;
     }
 

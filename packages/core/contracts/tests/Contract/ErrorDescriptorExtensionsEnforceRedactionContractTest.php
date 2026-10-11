@@ -19,6 +19,9 @@ declare(strict_types=1);
 namespace Coretsia\Contracts\Tests\Contract;
 
 use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
+use Coretsia\Contracts\Security\RedactedValue;
+use Coretsia\Contracts\Security\RedactionKind;
+use Coretsia\Contracts\Security\RedactionMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -171,6 +174,84 @@ final class ErrorDescriptorExtensionsEnforceRedactionContractTest extends TestCa
                 $exception->getMessage(),
             );
         }
+    }
+
+    public function testCanonicalRedactedSummaryDoesNotPermitForbiddenExtensionKeys(): void
+    {
+        $summary = new RedactedValue(
+            RedactionKind::Secret,
+            RedactionMode::Placeholder,
+            null,
+            null,
+        )->toArray();
+
+        foreach (['password', 'authorization', 'payload'] as $key) {
+            try {
+                new ErrorDescriptor(
+                    code: 'core.example',
+                    message: 'Example message.',
+                    extensions: [$key => $summary],
+                );
+
+                self::fail('Expected forbidden extension key rejection.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertStringContainsString(
+                    'Unsafe error descriptor extension key',
+                    $exception->getMessage(),
+                );
+            }
+        }
+    }
+
+    public function testCanonicalPlaceholderSummaryIsStructurallyAdmissibleUnderSafeKey(): void
+    {
+        $summary = new RedactedValue(
+            RedactionKind::Secret,
+            RedactionMode::Placeholder,
+            null,
+            null,
+        )->toArray();
+
+        $descriptor = new ErrorDescriptor(
+            code: 'core.example',
+            message: 'Example message.',
+            extensions: ['diagnosticSummary' => $summary],
+        );
+
+        self::assertSame(
+            ['diagnosticSummary' => $summary],
+            $descriptor->extensions(),
+        );
+    }
+
+    public function testNonPlaceholderSummaryShapeDoesNotOverrideProducerDisclosurePolicy(): void
+    {
+        $summary = new RedactedValue(
+            RedactionKind::Secret,
+            RedactionMode::Hash,
+            null,
+            'sha256:' . \str_repeat('a', 64),
+        )->toArray();
+
+        // Structural acceptance does not establish hash-disclosure safety.
+        $descriptor = new ErrorDescriptor(
+            code: 'core.example',
+            message: 'Example message.',
+            extensions: ['diagnosticSummary' => $summary],
+        );
+
+        self::assertSame(
+            ['diagnosticSummary' => $summary],
+            $descriptor->extensions(),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        new ErrorDescriptor(
+            code: 'core.example',
+            message: 'Example message.',
+            extensions: ['password' => $summary],
+        );
     }
 
     /** @return iterable<string, array{0: string, 1: string}> */

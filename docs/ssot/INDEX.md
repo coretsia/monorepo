@@ -66,6 +66,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Rate Limit Contracts SSoT](./rate-limit-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,ports,rate-limit,redaction
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,http-app,routing,ports,redaction
 - [Secrets Contracts SSoT](./secrets-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,redaction,secrets
+- [Sensitive Data Redaction SSoT](./sensitive-data-redaction.md) — owner: platform/redaction — ssotVersion: 1 — scope: classification,contracts,redaction,security
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,reset,uow,hooks,runtime
 - [UnitOfWork Outcome Policy SSoT](./uow-outcome-policy.md) — owner: core/kernel — ssotVersion: 1 — scope: lifecycle,mapping,outcome,policy,uow
 - [UnitOfWork Shapes SSoT](./uow-shapes.md) — owner: core/kernel — ssotVersion: 1 — scope: context,json-like,result,shape,uow

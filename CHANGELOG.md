@@ -47,6 +47,42 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.8.0
+
+### Added
+
+- Introduced the config-free `coretsia/platform-redaction` runtime package for deterministic, fail-closed sensitive-data redaction of string and json-like diagnostic/output values.
+- Added the contracts-level `SensitiveDataRedactorInterface`, immutable redaction context and result shapes, sensitivity kinds, disclosure modes, and stable redaction failure reasons.
+- Added canonical sensitive-key and high-confidence value classification, recursive key-first traversal, complete sensitive-branch replacement, and deterministic domain-separated SHA-256 summaries.
+- Added six explicit-target Kernel source-host operations for configuration, cache, and module workflows, reusing canonical bootstrap, module-resolution, configuration, and artifact pipelines without requiring generated runtime artifacts.
+- Introduced Kernel-owned application dependency synchronization with explicit application targets, deterministic package planning, managed Composer root reconciliation, safe exact-argv process execution, project locking, durable recovery, and fresh-process installed-state verification.
+- Added the versioned release installation catalog, deterministic catalog generation and validation tooling, and the consumer dependency-sync plan/review/apply adapter.
+- Added the Foundation `ScopedFileLock` primitive for shared filesystem locking with domain-specific ownership and error handling.
+- Expanded contract, unit, integration, and consumer-project test coverage for redaction, source-host operations, mode selection, dependency synchronization, recovery, and runtime isolation.
+
+### Changed
+
+- Refactored Kernel mode infrastructure so Phase A resolves namespace-bound preset policy and per-target overrides into `ModuleSelection`, while Phase B derives a deterministic `ModulePlan` from installed Composer metadata.
+- Replaced the legacy mode preset selection model with the required/modules policy and explicit canonical and custom preset namespaces.
+- Extended Foundation json-like normalization with an optional aggregate string-byte budget while preserving existing structural validation, traversal order, error precedence, and backward-compatible behavior when the budget is unset.
+- Reused Foundation normalization, stable JSON encoding, and declarative container definitions for redaction instead of introducing duplicate validation, serialization, or runtime wiring mechanisms.
+- Registered `platform.redaction` in Composer workspace metadata, the installation catalog, package index, and architecture dependency analysis, with `core.foundation` as its runtime module dependency.
+- Updated runtime package scaffold synchronization and compliance checks to support packages without configuration roots, default configuration files, or placeholder config metadata.
+- Aligned package documentation, public API declarations, runtime packaging conventions, architecture rules, and diagnostic, observability, secrets, configuration, and environment safety policies with the new runtime boundaries.
+
+### Fixed
+
+- Contained and incrementally discarded synchronous PHP output from mode preset sources while preserving caller-owned output buffers, error handlers, source validation, and deterministic invalid-source failure behavior.
+- Strengthened documentation registration validation to detect missing, duplicate, and incorrectly ordered entries, with regression fixtures for invalid documentation layouts.
+
+### Security
+
+- Established shared sensitive-data redaction as a defense-in-depth mechanism while retaining producer-owned safe-by-construction diagnostic shapes and destination-specific schema restrictions.
+- Enforced bounded redaction input and output, complete sensitive-branch replacement, safe failure messages, and fail-closed handling of invalid input, sensitive map keys, resource-limit violations, and internal failures.
+- Made placeholder redaction the default and restricted length and hash metadata disclosure to explicitly approved owner policies; deterministic SHA-256 is not treated as declassification or protection against reconstruction of low-entropy values.
+- Preserved restrictions on exporting raw secrets, environment values, payloads, credentials, SQL, local paths, exception internals, and unsafe observability attributes.
+- Preserved lower-layer Core and Kernel Ops safe-by-construction ownership; classifier non-matches do not authorize emission to diagnostic or observability sinks.
+
 ## v0.7.0
 
 ### Added

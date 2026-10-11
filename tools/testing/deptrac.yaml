@@ -23,6 +23,7 @@ deptrac:
     - '../../packages/core/kernel/src'
     - '../../packages/devtools/internal-toolkit/src'
     - '../../packages/platform/cli/src'
+    - '../../packages/platform/redaction/src'
     - '../../packages/platform/worker/src'
 
   exclude_files:
@@ -55,6 +56,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Cli\\.*'
+    - name: 'platform.redaction'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Redaction\\.*'
     - name: 'platform.worker'
       collectors:
         - type: classLike
@@ -71,6 +76,9 @@ deptrac:
     'devtools.internal-toolkit': [ ]
     'platform.cli':
       - 'core.contracts'
+    'platform.redaction':
+      - 'core.contracts'
+      - 'core.foundation'
     'platform.worker':
       - 'core.contracts'
       - 'core.foundation'

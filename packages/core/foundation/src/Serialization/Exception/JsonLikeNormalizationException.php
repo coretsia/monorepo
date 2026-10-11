@@ -45,6 +45,7 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
     public const string REASON_MAX_DEPTH_EXCEEDED = 'json-like-max-depth-exceeded';
     public const string REASON_MAX_NODES_EXCEEDED = 'json-like-max-nodes-exceeded';
     public const string REASON_STRING_BYTES_EXCEEDED = 'json-like-string-bytes-exceeded';
+    public const string REASON_TOTAL_STRING_BYTES_EXCEEDED = 'json-like-total-string-bytes-exceeded';
 
     /**
      * @var array<string, true>
@@ -60,6 +61,7 @@ final class JsonLikeNormalizationException extends \InvalidArgumentException
         self::REASON_MAX_DEPTH_EXCEEDED => true,
         self::REASON_MAX_NODES_EXCEEDED => true,
         self::REASON_STRING_BYTES_EXCEEDED => true,
+        self::REASON_TOTAL_STRING_BYTES_EXCEEDED => true,
     ];
 
     private readonly string $path;

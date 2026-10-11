@@ -658,6 +658,34 @@ raw producer value
 -> ErrorDescriptor
 ```
 
+### Canonical redacted summary admissibility
+
+The canonical `RedactedValue::toArray()` summary shape is owned by:
+
+```text
+docs/ssot/sensitive-data-redaction.md
+```
+
+This document owns only the admissibility of such summaries within `ErrorDescriptor.extensions`. It MUST NOT redefine the canonical redacted-summary shape, classification policy, or hashing algorithm.
+
+A canonical redacted summary remains recursively subject to all existing `ErrorDescriptor.extensions` invariants:
+
+- semantic-key rejection at every nesting depth;
+- absolute-local-path rejection for string values;
+- canonical json-like value and deterministic map-ordering requirements;
+- depth, node, individual-string-byte, and aggregate-string-byte resource budgets;
+- producer-owned safe derivation and non-reconstruction requirements.
+
+A forbidden extension key remains forbidden even when its associated value is a canonical redacted summary. Replacing a forbidden value with `RedactedValue::toArray()` MUST NOT bypass semantic-key rejection or authorize an otherwise forbidden extension channel.
+
+Structural acceptance of a canonical summary does not establish that the original value was safe to derive, disclose, or reconstruct. Producers MUST establish admissibility before constructing `ErrorDescriptor`.
+
+`RedactionMode::Length`, `RedactionMode::Hash`, and `RedactionMode::HashAndLength` disclose metadata and MUST NOT be treated as automatically admissible merely because the summary shape is valid.
+
+Deterministic SHA-256 MUST NOT be assumed non-reversible for low-entropy or otherwise guessable inputs. A canonical hash does not by itself establish compliance with the existing non-reconstruction requirement.
+
+When the producer cannot establish that the selected metadata disclosure is permitted and non-reconstructable under its boundary policy, it MUST prefer omission or an owner-approved `Placeholder` summary, subject to the same extension-key, value, and resource constraints.
+
 ## Extensions determinism
 
 Extension maps MUST be ordered deterministically by string key using byte-order `strcmp`.

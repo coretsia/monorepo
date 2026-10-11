@@ -28,18 +28,52 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
     {
         $reflection = new ReflectionClass(Dto::class);
 
-        self::assertTrue($reflection->isFinal(), 'DTO marker attribute must remain final.');
-        self::assertFalse($reflection->isAbstract(), 'DTO marker attribute must not be abstract.');
-        self::assertFalse($reflection->isInterface(), 'DTO marker attribute must not be an interface.');
-        self::assertFalse($reflection->isTrait(), 'DTO marker attribute must not be a trait.');
+        self::assertTrue(
+            $reflection->isFinal(),
+            'DTO marker attribute must remain final.',
+        );
+        self::assertFalse(
+            $reflection->isAbstract(),
+            'DTO marker attribute must not be abstract.',
+        );
+        self::assertFalse(
+            $reflection->isInterface(),
+            'DTO marker attribute must not be an interface.',
+        );
+        self::assertFalse(
+            $reflection->isTrait(),
+            'DTO marker attribute must not be a trait.',
+        );
 
-        self::assertFalse($reflection->getParentClass(), 'DTO marker attribute must not extend another class.');
-        self::assertSame([], $reflection->getInterfaceNames(), 'DTO marker attribute must not implement interfaces.');
-        self::assertSame([], $reflection->getTraitNames(), 'DTO marker attribute must not use traits.');
+        self::assertFalse(
+            $reflection->getParentClass(),
+            'DTO marker attribute must not extend another class.',
+        );
+        self::assertSame(
+            [],
+            $reflection->getInterfaceNames(),
+            'DTO marker attribute must not implement interfaces.',
+        );
+        self::assertSame(
+            [],
+            $reflection->getTraitNames(),
+            'DTO marker attribute must not use traits.',
+        );
 
-        self::assertNull($reflection->getConstructor(), 'DTO marker attribute must not define a constructor.');
-        self::assertSame([], $reflection->getProperties(), 'DTO marker attribute must not define state.');
-        self::assertSame([], $reflection->getMethods(), 'DTO marker attribute must not define behavior.');
+        self::assertNull(
+            $reflection->getConstructor(),
+            'DTO marker attribute must not define a constructor.',
+        );
+        self::assertSame(
+            [],
+            $reflection->getProperties(),
+            'DTO marker attribute must not define state.',
+        );
+        self::assertSame(
+            [],
+            $reflection->getMethods(),
+            'DTO marker attribute must not define behavior.',
+        );
     }
 
     public function testPackageComposerMetadataStaysPhpOnlyLibraryPackage(): void

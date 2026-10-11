@@ -51,9 +51,11 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  * runtime json-like value model.
  *
  * Optional owner-supplied limits bound recursive container depth, total map
- * values/list items, and individual string byte length during the same
- * recursive traversal. Omitting limits preserves the baseline behavior for
- * existing consumers.
+ * values/list items, individual string byte length, and optionally aggregate
+ * string bytes across values and map keys in the same recursive traversal.
+ * Individual-string validation precedes aggregate accounting. A null
+ * aggregate limit preserves unbounded aggregate behavior for existing callers.
+ * Omitting limits preserves the baseline behavior for existing consumers.
  *
  * Diagnostics are intentionally stable and safe. They include only a safe
  * path-to-value and a stable reason token. They must never include rejected
@@ -76,6 +78,8 @@ final class JsonLikeNormalizer
      *
      * This method is shape-insensitive for empty arrays: an empty map and an
      * empty list both normalize to PHP `[]`.
+     * Optional limits may bound aggregate string bytes across root/nested
+     * string values and map keys during the same traversal.
      *
      * @return null|bool|int|string|array<int|string, mixed>
      */
@@ -85,6 +89,7 @@ final class JsonLikeNormalizer
         ?JsonLikeNormalizationLimits $limits = null,
     ): mixed {
         $nodeCount = 0;
+        $totalStringBytes = 0;
 
         return self::normalizeValue(
             value: $value,
@@ -92,6 +97,7 @@ final class JsonLikeNormalizer
             parentContainerDepth: 0,
             limits: $limits,
             nodeCount: $nodeCount,
+            totalStringBytes: $totalStringBytes,
         );
     }
 
@@ -104,6 +110,7 @@ final class JsonLikeNormalizer
         int $parentContainerDepth,
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
+        int &$totalStringBytes,
     ): null|bool|int|string|array {
         if ($value === null || \is_bool($value) || \is_int($value)) {
             return $value;
@@ -114,6 +121,13 @@ final class JsonLikeNormalizer
                 value: $value,
                 path: $path,
                 limits: $limits,
+            );
+
+            self::consumeTotalStringBytes(
+                value: $value,
+                path: $path,
+                limits: $limits,
+                totalStringBytes: $totalStringBytes,
             );
 
             return $value;
@@ -169,6 +183,7 @@ final class JsonLikeNormalizer
                 containerDepth: $containerDepth,
                 limits: $limits,
                 nodeCount: $nodeCount,
+                totalStringBytes: $totalStringBytes,
             );
         }
 
@@ -178,6 +193,7 @@ final class JsonLikeNormalizer
             containerDepth: $containerDepth,
             limits: $limits,
             nodeCount: $nodeCount,
+            totalStringBytes: $totalStringBytes,
         );
     }
 
@@ -192,6 +208,7 @@ final class JsonLikeNormalizer
         int $containerDepth,
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
+        int &$totalStringBytes,
     ): array {
         $normalized = [];
 
@@ -210,6 +227,7 @@ final class JsonLikeNormalizer
                 parentContainerDepth: $containerDepth,
                 limits: $limits,
                 nodeCount: $nodeCount,
+                totalStringBytes: $totalStringBytes,
             );
         }
 
@@ -227,6 +245,7 @@ final class JsonLikeNormalizer
         int $containerDepth,
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
+        int &$totalStringBytes,
     ): array {
         if (
             $limits !== null
@@ -274,12 +293,20 @@ final class JsonLikeNormalizer
                 nodeCount: $nodeCount,
             );
 
+            self::consumeTotalStringBytes(
+                value: $key,
+                path: $itemPath,
+                limits: $limits,
+                totalStringBytes: $totalStringBytes,
+            );
+
             $normalized[$key] = self::normalizeValue(
                 value: $value[$key],
                 path: $itemPath,
                 parentContainerDepth: $containerDepth,
                 limits: $limits,
                 nodeCount: $nodeCount,
+                totalStringBytes: $totalStringBytes,
             );
         }
 
@@ -341,6 +368,28 @@ final class JsonLikeNormalizer
             $path,
             JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
         );
+    }
+
+    private static function consumeTotalStringBytes(
+        string $value,
+        string $path,
+        ?JsonLikeNormalizationLimits $limits,
+        int &$totalStringBytes,
+    ): void {
+        if ($limits === null || $limits->maxTotalStringBytes === null) {
+            return;
+        }
+
+        $bytes = \strlen($value);
+
+        if ($bytes > $limits->maxTotalStringBytes - $totalStringBytes) {
+            throw JsonLikeNormalizationException::atPath(
+                $path,
+                JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+            );
+        }
+
+        $totalStringBytes += $bytes;
     }
 
     private static function listPath(string $path, int $index): string

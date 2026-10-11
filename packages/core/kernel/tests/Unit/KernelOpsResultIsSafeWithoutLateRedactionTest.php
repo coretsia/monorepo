@@ -407,7 +407,7 @@ final class KernelOpsResultIsSafeWithoutLateRedactionTest extends TestCase
 
     private static function facadeWithoutConstructor(): KernelOpsFacade
     {
-        $facade = (new ReflectionClass(KernelOpsFacade::class))
+        $facade = new ReflectionClass(KernelOpsFacade::class)
             ->newInstanceWithoutConstructor();
 
         self::assertInstanceOf(KernelOpsFacade::class, $facade);

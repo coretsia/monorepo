@@ -1108,7 +1108,7 @@ Forbidden:
     - [x] creates one seed `ContainerBuilder`
     - [x] obtains the exact Foundation and Kernel seed configuration only through `KernelOpsHostSeedConfigLoader`
     - [x] constructs `KernelOpsHostSeedConfigLoader` with the existing `KernelServiceFactory::composerPackageInstallPathResolver()` construction path
-    - [x] obtains the baseline provider list from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] obtains the baseline provider list from `new FoundationModule()->providers()` followed by `new KernelModule()->providers()`
     - [x] preserves exact module-declared provider order
     - [x] the current declared baseline resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
     - [x] MUST NOT duplicate the Foundation/Kernel provider registry as a hard-coded provider list
@@ -1674,7 +1674,7 @@ Forbidden:
 
   - [x] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
     - [x] seed and final source-host builders are distinct instances
-    - [x] seed builder obtains providers from `(new FoundationModule())->providers()` followed by `(new KernelModule())->providers()`
+    - [x] seed builder obtains providers from `new FoundationModule()->providers()` followed by `new KernelModule()->providers()`
     - [x] current module-declared order resolves to `FoundationServiceProvider` followed by `KernelServiceProvider`
     - [x] module-declared provider class strings are instantiated exactly once before seed registration
     - [x] both baseline instances implement `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
@@ -1832,13 +1832,13 @@ composer: "coretsia/platform-redaction"
 kind: runtime
 module_id: "platform.redaction"
 
-goal: "Надати до 2.30.0 єдиний config-free deterministic sensitive-data redaction port і default platform implementation для scalar та json-like diagnostic/output values, з canonical classification, traversal, summary, hashing і fail-closed semantics; producer-owned safe-by-construction shapes залишаються обов’язковими."
+goal: "Надати до 2.30.0 єдиний config-free deterministic sensitive-data redaction port і default platform implementation для string та json-like diagnostic/output values, з canonical classification, traversal, summary, hashing і fail-closed semantics; producer-owned safe-by-construction shapes залишаються обов’язковими."
 provides:
-- "Exact contracts-level redaction port for explicitly sensitive scalar values and recursively processed json-like diagnostic/output values."
+- "Exact contracts-level redaction port for explicitly sensitive string values and recursively processed json-like diagnostic/output values."
 - "Immutable RedactionContext, RedactionKind, RedactionMode, and RedactedValue contracts with exact deterministic shapes."
 - "Default config-free platform redactor with canonical key classification, value classification, traversal precedence, placeholder, byte-length, and domain-separated SHA-256 summary policies."
 - "Fixed resource limits and deterministic fail-closed behavior for invalid or unsafe redaction input."
-- "One shared SSoT for platform/cli and later runtime diagnostic/output consumers instead of package-local redaction engines or policy registries."
+- "One shared SSoT for platform/cli and later eligible runtime diagnostic/output consumers instead of duplicate generic redaction engines or mutable policy registries; lower-layer Core safe-by-construction guards remain owner-local."
 - "Policy: redaction is defense in depth and MUST NOT replace producer-owned safe-by-construction diagnostic shapes."
 - "Boundary: Kernel Ops results remain safe by construction and MUST NOT consume this redaction package or port."
 
@@ -1849,6 +1849,10 @@ artifacts_introduced: []
 adr: "docs/adr/ADR-0010-sensitive-data-redaction-boundary.md"
 ssot_refs:
 - "docs/ssot/sensitive-data-redaction.md"
+- "docs/ssot/json-like-runtime-values.md"
+- "docs/ssot/modules-and-manifests.md"
+- "docs/ssot/application-dependency-sync.md"
+- "docs/ssot/error-descriptor.md"
 - "docs/ssot/observability-and-errors.md"
 - "docs/ssot/observability.md"
 - "docs/ssot/secrets-contracts.md"
@@ -1866,6 +1870,20 @@ ssot_refs:
   - 1.200.0 — Foundation declarative DI/container baseline exists.
   - 1.275.0 — Foundation json-like normalization and stable JSON encoding primitives exist.
 
+- Repository packaging baseline:
+  - repo-root `LICENSE` and `NOTICE` MUST exist before this epic is implemented because `docs/architecture/PACKAGING.md` defines them as the canonical legal SSoT for layered packages
+  - if either canonical root legal file is absent, implementation MUST stop and the repository packaging baseline MUST be repaired outside this epic first
+  - this epic MUST NOT promote an arbitrary existing package copy into the canonical legal SSoT or synthesize root legal files as part of `platform/redaction`
+
+- Repository architecture-tooling baseline:
+  - canonical architecture generators referenced by repo-root Composer scripts and architecture SSoT MUST exist before this epic is implemented
+  - required generator entrypoints include:
+    - `tools/build/package_index.php`
+    - `tools/build/installation_catalog.php`
+    - `tools/build/deptrac_generate.php`
+  - if the canonical repository tooling baseline is absent, implementation MUST stop and that baseline MUST be repaired outside this epic first
+  - this epic MAY regenerate derived architecture artifacts but MUST NOT synthesize, replace, or redefine the canonical repository generator/gate implementations
+
 - Adjacent boundary, not an implementation dependency:
   - 2.20.0 Kernel Ops results remain safe by construction.
   - `core/kernel` MUST NOT consume `SensitiveDataRedactorInterface`.
@@ -1876,6 +1894,7 @@ ssot_refs:
   - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php`
   - `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
   - `packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php`
+  - `packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`
   - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
   - `packages/core/foundation/src/Container/ServiceProviderInterface.php`
   - `packages/core/foundation/src/Container/ContainerBuilder.php`
@@ -1925,6 +1944,7 @@ Required contracts:
 Required Foundation APIs:
 - `Coretsia\Foundation\Serialization\JsonLikeNormalizer`
 - `Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits`
+- `Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException`
 - `Coretsia\Foundation\Serialization\StableJsonEncoder`
 - declarative Foundation container-definition APIs
 
@@ -1941,18 +1961,20 @@ Required Foundation APIs:
 
 - Module composition:
   - this epic does not modify framework-default mode presets;
-  - package-level tests enable `platform.redaction` explicitly through a composed fixture;
+  - package-level tests validate module/provider metadata and explicit Foundation provider application only; Kernel-owned module enablement and provider-plan selection are not reimplemented inside this package;
   - consumer modules own their dependency edge on `platform.redaction`;
   - 2.30.0 `platform.cli` MUST require module `platform.redaction` through canonical module metadata;
   - absence of a required redaction module MUST fail during module planning rather than during `OutputFormatter` resolution.
 
-- Direct scalar redaction:
-  - consumers that already know a scalar value is sensitive call `redactValue(...)` with an explicit `RedactionKind`.
-  - callers MUST NOT pass an unclassified known-sensitive scalar through generic value detection.
+- Direct string redaction:
+  - consumers that already know a string value is sensitive call `redactValue(...)` with an explicit `RedactionKind`.
+  - callers MUST NOT pass an unclassified known-sensitive string through generic value detection.
 
 - Recursive json-like redaction:
-  - diagnostic/output boundaries call `redactJsonLike(...)`.
+  - consumer diagnostic/output boundaries whose owner policy requires this shared defense-in-depth layer call `redactJsonLike(...)`.
+  - boundaries defined as safe by construction, including Kernel Ops, remain independent from this port.
   - key and value classification, recursive traversal, and summary generation remain owned by `platform/redaction`.
+  - successful redaction does not grant destination-boundary admissibility; consumer-owned schema, semantic-key, path, cardinality, and resource-limit policies remain authoritative.
 
 - Package owners:
   - producer packages MUST emit safe-by-construction shapes.
@@ -1971,474 +1993,728 @@ Required Foundation APIs:
 #### Creates
 
 Contracts:
-- [ ] `packages/core/contracts/src/Security/Exception/RedactionException.php`
-  - [ ] final contracts-level port failure
-  - [ ] extends `RuntimeException`
-  - [ ] implements the exact error code, reason allowlist, named constructors, and message contract defined under `Cross-cutting → Errors`
-  - [ ] constructor is private
-  - [ ] instances are created only through the exact named constructors
-  - [ ] exact named constructors:
-    - [ ] `public static function inputInvalid(): self`
-    - [ ] `public static function inputLimitExceeded(): self`
-    - [ ] `public static function sensitiveMapKey(): self`
-    - [ ] `public static function outputInvalid(): self`
-    - [ ] `public static function internalFailure(): self`
-  - [ ] exact accessors:
-    - [ ] `public function errorCode(): string`
-    - [ ] `public function reason(): string`
-  - [ ] stores only the stable reason
-  - [ ] does not accept or retain a previous Throwable
-  - [ ] contains no rejected value, map key, scope, hash, length, path, pattern, class name, resource id, or payload fragment
+- [x] `packages/core/contracts/src/Security/Exception/RedactionException.php`
+  - [x] final contracts-level port failure
+  - [x] extends `RuntimeException`
+  - [x] public typed constants:
+    - [x] `public const string ERROR_CODE = 'CORETSIA_REDACTION_FAILED'`
+    - [x] `public const string REASON_INPUT_INVALID = 'input-invalid'`
+    - [x] `public const string REASON_INPUT_LIMIT_EXCEEDED = 'input-limit-exceeded'`
+    - [x] `public const string REASON_SENSITIVE_MAP_KEY = 'sensitive-map-key'`
+    - [x] `public const string REASON_OUTPUT_INVALID = 'output-invalid'`
+    - [x] `public const string REASON_INTERNAL_FAILURE = 'internal-failure'`
+  - [x] exact private reason allowlist is defined from those constants only
+  - [x] implements the exact error code, reason allowlist, named constructors, and message contract defined under `Cross-cutting → Errors`
+  - [x] constructor is private
+  - [x] instances are created only through the exact named constructors
+  - [x] exact named constructors:
+    - [x] `public static function inputInvalid(): self`
+    - [x] `public static function inputLimitExceeded(): self`
+    - [x] `public static function sensitiveMapKey(): self`
+    - [x] `public static function outputInvalid(): self`
+    - [x] `public static function internalFailure(): self`
+  - [x] exact accessors:
+    - [x] `public function errorCode(): string`
+    - [x] `public function reason(): string`
+  - [x] custom exception state stores only the stable reason
+  - [x] does not accept or retain a previous Throwable
+  - [x] the exception message and custom exception state contain no rejected value, map key, scope, hash, length, path, pattern, class name, resource id, or payload fragment
+  - [x] PHP `Throwable` stack-trace storage is not redefined or sanitized by this package; existing Core error/observability boundary policy remains authoritative and raw stack traces MUST NOT be exported through diagnostic/output sinks
 
-- [ ] `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
-  - [ ] exact API:
-    - [ ] `public function redactValue(string $value, RedactionKind $kind, RedactionContext $context): RedactedValue`
-    - [ ] `public function redactJsonLike(mixed $value, RedactionContext $context): mixed`
-  - [ ] `redactJsonLike()` return is restricted by PHPDoc to recursively json-like `null|bool|int|string|array`
-  - [ ] `redactValue()` requires an explicit owner-selected `RedactionKind`
-  - [ ] `redactJsonLike()` uses only the canonical platform key/value classification policy
-  - [ ] no callback, mutable policy registry, config argument, logger, observability, ContextStore, or service-locator surface
-  - [ ] no platform implementation type appears in the contracts API
-  - [ ] both methods declare through PHPDoc:
-    - [ ] `@throws Coretsia\Contracts\Security\Exception\RedactionException`
-  - [ ] no platform-local exception type appears in the contracts API
-  - [ ] neither method writes stdout/stderr
-  - [ ] neither method may return an original sensitive scalar from a redacted branch
+- [x] `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+  - [x] exact API:
+    - [x] `public function redactValue(string $value, RedactionKind $kind, RedactionContext $context): RedactedValue`
+    - [x] `public function redactJsonLike(mixed $value, RedactionContext $context): mixed`
+  - [x] `redactJsonLike()` return is restricted by PHPDoc to recursively json-like `null|bool|int|string|array`
+  - [x] `redactValue()` requires an explicit owner-selected `RedactionKind`
+  - [x] `redactJsonLike()` uses only the canonical platform key/value classification policy
+  - [x] no callback, mutable policy registry, config argument, logger, observability, ContextStore, or service-locator surface
+  - [x] no platform implementation type appears in the contracts API
+  - [x] both methods declare through PHPDoc:
+    - [x] `@throws \Coretsia\Contracts\Security\Exception\RedactionException`
+  - [x] no platform-local exception type appears in the contracts API
+  - [x] neither method writes stdout/stderr
+  - [x] neither method may return the original string value or complete json-like branch once that value or branch has been selected for redaction
 
-- [ ] `packages/core/contracts/src/Security/RedactionContext.php`
-  - [ ] final readonly value object
-  - [ ] `public const int SCHEMA_VERSION = 1`
-  - [ ] constructor:
-    - [ ] `string $scope`
-    - [ ] `RedactionMode $mode = RedactionMode::PLACEHOLDER`
-  - [ ] exact accessors:
-    - [ ] `schemaVersion(): int`
-    - [ ] `scope(): string`
-    - [ ] `mode(): RedactionMode`
-  - [ ] `scope`:
-    - [ ] is a stable operation/output-boundary identifier
-    - [ ] matches `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`
-    - [ ] is at most 128 bytes
-    - [ ] rejects empty, multiline, NUL, ESC, and control-byte values
-  - [ ] invalid scope throws exactly `InvalidArgumentException('redaction-context-scope-invalid')`
-  - [ ] constructor validation is limited to the exact syntax, byte bound, and control-byte policy
-  - [ ] callers MUST NOT construct scopes from paths, endpoints, user/tenant ids, tokens, field values, request ids, correlation ids, or other high-cardinality runtime data
-  - [ ] semantic high-cardinality policy is caller-owned and documented in SSoT; the value object MUST NOT inspect runtime context to infer it
-  - [ ] examples of valid scopes: `cli.output`, `logging.record`, `http.problem-detail`
-  - [ ] contains no raw redacted value or runtime ContextStore dependency
+- [x] `packages/core/contracts/src/Security/RedactionContext.php`
+  - [x] final readonly value object
+  - [x] `public const int SCHEMA_VERSION = 1`
+  - [x] constructor:
+    - [x] `string $scope`
+    - [x] `RedactionMode $mode = RedactionMode::Placeholder`
+  - [x] exact accessors:
+    - [x] `schemaVersion(): int`
+    - [x] `scope(): string`
+    - [x] `mode(): RedactionMode`
+  - [x] `scope`:
+    - [x] is a stable operation/output-boundary identifier
+    - [x] matches `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`
+    - [x] is at most 128 bytes
+    - [x] rejects empty, multiline, NUL, ESC, and control-byte values
+  - [x] invalid scope throws exactly `InvalidArgumentException('redaction-context-scope-invalid')`
+  - [x] constructor validation is limited to the exact syntax, byte bound, and control-byte policy
+  - [x] callers MUST NOT construct scopes from paths, endpoints, user/tenant ids, tokens, field values, request ids, correlation ids, or other high-cardinality runtime data
+  - [x] semantic high-cardinality policy is caller-owned and documented in SSoT; the value object MUST NOT inspect runtime context to infer it
+  - [x] examples of valid scopes: `cli.output`, `logging.record`, `http.problem-detail`
+  - [x] contains no raw redacted value or runtime ContextStore dependency
 
-- [ ] `packages/core/contracts/src/Security/RedactionKind.php`
-  - [ ] string-backed enum with exactly:
-    - [ ] `UNKNOWN = 'unknown'`
-    - [ ] `SECRET = 'secret'`
-    - [ ] `SECRET_REFERENCE = 'secret-reference'`
-    - [ ] `CREDENTIAL = 'credential'`
-    - [ ] `AUTHORIZATION = 'authorization'`
-    - [ ] `COOKIE = 'cookie'`
-    - [ ] `SESSION_ID = 'session-id'`
-    - [ ] `TOKEN = 'token'`
-    - [ ] `PAYLOAD = 'payload'`
-    - [ ] `SQL = 'sql'`
-    - [ ] `PII = 'pii'`
-    - [ ] `ENV_VALUE = 'env-value'`
-    - [ ] `LOCAL_PATH = 'local-path'`
-  - [ ] contains identifiers only
-  - [ ] contains no key/value classification, hashing, config, or presentation logic
+- [x] `packages/core/contracts/src/Security/RedactionKind.php`
+  - [x] string-backed enum with exactly:
+    - [x] `Unknown = 'unknown'`
+    - [x] `Secret = 'secret'`
+    - [x] `SecretReference = 'secret-reference'`
+    - [x] `Credential = 'credential'`
+    - [x] `Authorization = 'authorization'`
+    - [x] `Cookie = 'cookie'`
+    - [x] `SessionId = 'session-id'`
+    - [x] `Token = 'token'`
+    - [x] `Payload = 'payload'`
+    - [x] `Sql = 'sql'`
+    - [x] `Pii = 'pii'`
+    - [x] `EnvValue = 'env-value'`
+    - [x] `LocalPath = 'local-path'`
+  - [x] contains identifiers only
+  - [x] contains no key/value classification, hashing, config, or presentation logic
 
-- [ ] `packages/core/contracts/src/Security/RedactionMode.php`
-  - [ ] string-backed enum with exactly:
-    - [ ] `PLACEHOLDER = 'placeholder'`
-    - [ ] `LENGTH = 'length'`
-    - [ ] `HASH = 'hash'`
-    - [ ] `HASH_AND_LENGTH = 'hash-and-length'`
-  - [ ] `PLACEHOLDER` is the default
-  - [ ] `LENGTH|HASH|HASH_AND_LENGTH` require explicit owner selection through `RedactionContext`
-  - [ ] contains no `raw|none|disabled|passthrough|debug` mode
-  - [ ] debug or environment state MUST NOT change the selected disclosure mode
+- [x] `packages/core/contracts/src/Security/RedactionMode.php`
+  - [x] string-backed enum with exactly:
+    - [x] `Placeholder = 'placeholder'`
+    - [x] `Length = 'length'`
+    - [x] `Hash = 'hash'`
+    - [x] `HashAndLength = 'hash-and-length'`
+  - [x] `Placeholder` is the default
+  - [x] `Length|Hash|HashAndLength` require explicit owner selection through `RedactionContext`
+  - [x] one `RedactionContext::mode()` applies uniformly to every branch selected for redaction during one `redactJsonLike()` call
+  - [x] the redactor MUST NOT silently downgrade, upgrade, or replace the selected mode per `RedactionKind`, field, branch, or classifier result
+  - [x] callers MAY use a non-placeholder mode with `redactJsonLike()` only when the owner/boundary policy explicitly permits that same metadata disclosure for every sensitive branch that may be selected during that call
+  - [x] when a recursive boundary may contain branches with different disclosure requirements, omission or `Placeholder` is mandatory unless the owner splits those values into separately governed redaction operations
+  - [x] per-kind or per-branch disclosure-policy registries are not introduced by this epic
+  - [x] contains no `raw|none|disabled|passthrough|debug` mode
+  - [x] debug or environment state MUST NOT change the selected disclosure mode
 
-- [ ] `packages/core/contracts/src/Security/RedactedValue.php`
-  - [ ] final readonly value object
-  - [ ] `public const int SCHEMA_VERSION = 1`
-  - [ ] constructor receives exactly:
-    - [ ] `RedactionKind $kind`
-    - [ ] `RedactionMode $mode`
-    - [ ] `?int $length`
-    - [ ] `?string $hash`
-  - [ ] exact accessors:
-    - [ ] `schemaVersion(): int`
-    - [ ] `kind(): RedactionKind`
-    - [ ] `mode(): RedactionMode`
-    - [ ] `length(): ?int`
-    - [ ] `hash(): ?string`
-    - [ ] `toArray(): array`
-    - [ ] exact PHPDoc:
-      - [ ] `@return array{hash: ?string, kind: string, length: ?int, mode: string, redacted: true, schemaVersion: 1}`
-  - [ ] `toArray()` returns exactly these `strcmp`-ordered keys:
-    - [ ] `hash`
-    - [ ] `kind`
-    - [ ] `length`
-    - [ ] `mode`
-    - [ ] `redacted`
-    - [ ] `schemaVersion`
-  - [ ] exported values:
-    - [ ] `redacted = true`
-    - [ ] `schemaVersion = 1`
-    - [ ] enum fields are exported through their string values
-  - [ ] mode invariants:
-    - [ ] `placeholder` → `length = null`, `hash = null`
-    - [ ] `length` → non-negative `length`, `hash = null`
-    - [ ] `hash` → `length = null`, required `hash`
-    - [ ] `hash-and-length` → non-negative `length`, required `hash`
-  - [ ] hash matches `\Asha256:[a-f0-9]{64}\z`
-  - [ ] every invalid constructor combination throws exactly `InvalidArgumentException('redacted-value-shape-invalid')`
-  - [ ] negative lengths throw the same fixed exception
-  - [ ] malformed hashes throw the same fixed exception
-  - [ ] exception messages contain no hash value or other constructor input
-  - [ ] MUST NOT retain the raw value, raw bytes, context, path, source metadata, or previous Throwable
+- [x] `packages/core/contracts/src/Security/RedactedValue.php`
+  - [x] final readonly value object
+  - [x] `public const int SCHEMA_VERSION = 1`
+  - [x] constructor receives exactly:
+    - [x] `RedactionKind $kind`
+    - [x] `RedactionMode $mode`
+    - [x] `?int $length`
+    - [x] `?string $hash`
+  - [x] exact accessors:
+    - [x] `schemaVersion(): int`
+    - [x] `kind(): RedactionKind`
+    - [x] `mode(): RedactionMode`
+    - [x] `length(): ?int`
+    - [x] `hash(): ?string`
+    - [x] `toArray(): array`
+    - [x] exact PHPDoc:
+      - [x] `@return array{hash: ?string, kind: string, length: ?int, mode: string, redacted: true, schemaVersion: 1}`
+  - [x] `toArray()` returns exactly these `strcmp`-ordered keys:
+    - [x] `hash`
+    - [x] `kind`
+    - [x] `length`
+    - [x] `mode`
+    - [x] `redacted`
+    - [x] `schemaVersion`
+  - [x] exported values:
+    - [x] `redacted = true`
+    - [x] `schemaVersion = 1`
+    - [x] enum fields are exported through their string values
+  - [x] mode invariants:
+    - [x] `placeholder` → `length = null`, `hash = null`
+    - [x] `length` → non-negative `length`, `hash = null`
+    - [x] `hash` → `length = null`, required `hash`
+    - [x] `hash-and-length` → non-negative `length`, required `hash`
+  - [x] hash matches `\Asha256:[a-f0-9]{64}\z`
+  - [x] every invalid constructor combination throws exactly `InvalidArgumentException('redacted-value-shape-invalid')`
+  - [x] negative lengths throw the same fixed exception
+  - [x] malformed hashes throw the same fixed exception
+  - [x] exception messages contain no hash value or other constructor input
+  - [x] MUST NOT retain the raw value, raw bytes, context, path, source metadata, or previous Throwable
 
 Package scaffold:
-- [ ] `packages/platform/redaction/composer.json`
-  - [ ] `name = coretsia/platform-redaction`
-  - [ ] `type = library`
-  - [ ] requires exactly:
-    - [ ] `php: ^8.4`
-    - [ ] `coretsia/core-contracts: ^0.5.0`
-    - [ ] `coretsia/core-foundation: ^0.5.0`
-  - [ ] MUST NOT require:
-    - [ ] `coretsia/core-kernel`
-    - [ ] another platform package
-    - [ ] `psr/log`
-    - [ ] a vendor SDK
-  - [ ] PSR-4:
-    - [ ] `Coretsia\Platform\Redaction\` → `src/`
-  - [ ] autoload-dev:
-    - [ ] `Coretsia\Platform\Redaction\Tests\` → `tests/`
-  - [ ] `extra.coretsia` exact metadata:
-    - [ ] `kind = runtime`
-    - [ ] `moduleId = platform.redaction`
-    - [ ] `moduleClass = Coretsia\Platform\Redaction\Module\RedactionModule`
-    - [ ] `providers = [Coretsia\Platform\Redaction\Provider\RedactionServiceProvider]`
-    - [ ] `requires = [core.foundation]`
-    - [ ] `conflicts = []`
-    - [ ] no `defaultsConfigPath`
+- [x] `packages/platform/redaction/composer.json`
+  - [x] `name = coretsia/platform-redaction`
+  - [x] `type = library`
+  - [x] `license = Apache-2.0`
+  - [x] requires exactly:
+    - [x] `php: ^8.4`
+    - [x] `coretsia/core-contracts: ^0.7.0`
+    - [x] `coretsia/core-foundation: ^0.7.0`
+  - [x] MUST NOT require:
+    - [x] `coretsia/core-kernel`
+    - [x] another platform package
+    - [x] `psr/log`
+    - [x] a vendor SDK
+  - [x] PSR-4:
+    - [x] `Coretsia\Platform\Redaction\` → `src/`
+  - [x] autoload-dev:
+    - [x] `Coretsia\Platform\Redaction\Tests\` → `tests/`
+  - [x] `extra.coretsia` exact metadata:
+    - [x] `kind = runtime`
+    - [x] `moduleId = platform.redaction`
+    - [x] `moduleClass = Coretsia\Platform\Redaction\Module\RedactionModule`
+    - [x] `providers = [Coretsia\Platform\Redaction\Provider\RedactionServiceProvider]`
+    - [x] `requires = [core.foundation]`
+    - [x] `conflicts = []`
+    - [x] no `defaultsConfigPath`
 
-- [ ] `packages/platform/redaction/LICENSE`
-- [ ] `packages/platform/redaction/NOTICE`
-- [ ] `packages/platform/redaction/SECURITY.md`
+- [x] `packages/platform/redaction/LICENSE`
+  - [x] byte-identical to the canonical monorepo-root `LICENSE`
 
-- [ ] `packages/platform/redaction/README.md`
-  - [ ] package purpose and ownership
-  - [ ] scalar versus recursive json-like entrypoints
-  - [ ] examples use synthetic values only
-  - [ ] consumers explicitly construct bounded `RedactionContext`
-  - [ ] omission and safe-by-construction output are preferred
-  - [ ] redaction is defense in depth
-  - [ ] hash and length modes are not declassification
-  - [ ] package has no config, disable switch, logger, context, UoW, or reset dependency
-  - [ ] points to `docs/ssot/sensitive-data-redaction.md` for canonical policy
+- [x] `packages/platform/redaction/NOTICE`
+  - [x] byte-identical to the canonical monorepo-root `NOTICE`
+
+- [x] `packages/platform/redaction/SECURITY.md`
+
+- [x] `packages/platform/redaction/README.md`
+  - [x] package purpose and ownership
+  - [x] includes the canonical `## Observability`, `## Errors`, and `## Security / Redaction` package-policy sections
+  - [x] direct string versus recursive json-like entrypoints
+  - [x] cross-package consumers use `SensitiveDataRedactorInterface`; `SensitiveKeyClassifier`, `SensitiveValueClassifier`, and `StableRedactionHasher` are package-internal implementation details
+  - [x] examples use synthetic values only
+  - [x] consumers explicitly construct bounded `RedactionContext`
+  - [x] omission and safe-by-construction output are preferred
+  - [x] redaction is defense in depth
+  - [x] hash and length modes are not declassification
+  - [x] recursive non-placeholder mode selection is boundary-wide: the same mode applies to every branch selected during one `redactJsonLike()` call
+  - [x] heterogeneous boundaries use omission or `Placeholder` unless owner policy explicitly permits the same metadata disclosure for every potentially selected branch
+  - [x] package has no config, disable switch, logger, runtime `ContextStore`/`ContextAccessorInterface`, UoW, or reset dependency; `RedactionContext` remains an explicit immutable method argument
+  - [x] points to `docs/ssot/sensitive-data-redaction.md` for canonical policy
 
 Module and provider:
-- [ ] `packages/platform/redaction/src/Module/RedactionModule.php`
-  - [ ] constants:
-    - [ ] `MODULE_ID = 'platform.redaction'`
-    - [ ] `PACKAGE_ID = 'platform/redaction'`
-    - [ ] `COMPOSER_PACKAGE = 'coretsia/platform-redaction'`
-    - [ ] `KIND = 'runtime'`
-  - [ ] instance methods:
-    - [ ] `id()`
-    - [ ] `packageId()`
-    - [ ] `composerPackage()`
-    - [ ] `kind()`
-    - [ ] `providers()`
-  - [ ] `providers()` returns only `RedactionServiceProvider::class`
-  - [ ] no `CONFIG_ROOT`
-  - [ ] no `configRoot()`
-  - [ ] no config reads, service resolution, filesystem access, or runtime work
+- [x] `packages/platform/redaction/src/Module/RedactionModule.php`
+  - [x] final class
+  - [x] public typed constants:
+    - [x] `public const string MODULE_ID = 'platform.redaction'`
+    - [x] `public const string PACKAGE_ID = 'platform/redaction'`
+    - [x] `public const string COMPOSER_PACKAGE = 'coretsia/platform-redaction'`
+    - [x] `public const string KIND = 'runtime'`
+  - [x] exact instance methods:
+    - [x] `public function id(): string`
+    - [x] `public function packageId(): string`
+    - [x] `public function composerPackage(): string`
+    - [x] `public function kind(): string`
+    - [x] `public function providers(): array`
+  - [x] `providers()` declares `@return list<class-string<ServiceProviderInterface>>`
+  - [x] `providers()` returns only `RedactionServiceProvider::class`
+  - [x] no `CONFIG_ROOT`
+  - [x] no `configRoot()`
+  - [x] no config reads, service resolution, filesystem access, or runtime work
 
-- [ ] `packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
-  - [ ] implements `ServiceProviderInterface`
-  - [ ] implements `ContainerDefinitionProviderInterface`
-  - [ ] `register()` calls `assertDefinitionProviderRegistrationAllowed()`
-  - [ ] `register()` delegates through `registerDefinitionProvider($this)`
-  - [ ] `define()` is the single wiring source
-  - [ ] definitions are declarative and contain no closures or runtime objects
-  - [ ] no config root is read
-  - [ ] no tags are introduced
+- [x] `packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+  - [x] final class
+  - [x] implements `ServiceProviderInterface`
+  - [x] implements `ContainerDefinitionProviderInterface`
+  - [x] `register()` calls `assertDefinitionProviderRegistrationAllowed()`
+  - [x] `register()` delegates through `registerDefinitionProvider($this)`
+  - [x] `define()` is the single wiring source
+  - [x] declarative constructor dependencies use the existing Foundation `ContainerValueReference::service()` primitive; the package introduces no second service-reference representation
+  - [x] definitions are declarative and contain no closures or runtime objects
+  - [x] no config root is read
+  - [x] no tags are introduced
 
 Implementation:
-- [ ] `packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
-  - [ ] implements the exact `SensitiveDataRedactorInterface`
-  - [ ] constructor receives exactly:
-    - [ ] `SensitiveKeyClassifier`
-    - [ ] `SensitiveValueClassifier`
-    - [ ] `StableRedactionHasher`
-  - [ ] `redactValue()`:
-    - [ ] uses the exact input string bytes
-    - [ ] rejects values longer than `65536` bytes with `input-limit-exceeded`
-    - [ ] `PLACEHOLDER` exposes neither length nor hash
-    - [ ] `LENGTH` uses byte-oriented `strlen`
-    - [ ] `HASH` delegates to `StableRedactionHasher`
-    - [ ] `HASH_AND_LENGTH` exposes both byte length and stable hash
-  - [ ] `redactJsonLike()` input stage:
-    - [ ] normalizes input through `JsonLikeNormalizer::normalize()`
-    - [ ] uses one immutable `JsonLikeNormalizationLimits(32, 10000, 65536)`
-    - [ ] max-node semantics are exactly the Foundation normalizer semantics
-    - [ ] forbidden input type or structurally invalid input maps to `input-invalid`
-    - [ ] input depth/node/string limit violation maps to `input-limit-exceeded`
-  - [ ] complete sensitive branch summary materialization:
-    - [ ] `PLACEHOLDER` replaces the complete branch without calculating length, hashing, or invoking `StableJsonEncoder`
-    - [ ] `LENGTH|HASH|HASH_AND_LENGTH` materialize canonical branch bytes exactly once
-    - [ ] a string branch uses its exact string bytes
-    - [ ] a non-string branch uses `StableJsonEncoder::encodeStable()`
-    - [ ] encoded bytes MUST end in exactly one LF
-    - [ ] exactly that final LF is removed
-    - [ ] `HASH_AND_LENGTH` reuses the same materialized bytes for both outputs
-    - [ ] missing or malformed final-LF output maps to `internal-failure`
-    - [ ] encoder failure while representing an input branch maps to `input-invalid`
-  - [ ] traversal:
-    - [ ] classify structural map key first
-    - [ ] a sensitive structural key replaces its complete associated branch with one `RedactedValue::toArray()`
-    - [ ] an unclassified key recurses into its value
-    - [ ] string leaves are then classified through `SensitiveValueClassifier`
-    - [ ] null, bool, and int leaves pass through unchanged unless their owning key is sensitive
-    - [ ] list order is preserved
-    - [ ] map keys are preserved and maps remain recursively `strcmp` sorted
-    - [ ] map keys containing NUL, CR, LF, ESC, or C0 control bytes fail with `input-invalid`
-    - [ ] a dynamic map key matching a sensitive-value pattern fails with `sensitive-map-key`
-    - [ ] floats, objects, closures, resources, and non-string map keys fail with `input-invalid`
-    - [ ] input is never cast, serialized, reflected, inspected, or passed through `__toString()`
-    - [ ] JSON, URLs, base64, JWT payloads, SQL, and provider payloads are not decoded or semantically parsed
-  - [ ] output stage:
-    - [ ] normalizes the completed result with the same fixed limits
-    - [ ] fixed limits are private class constants and are not constructor parameters or config values
-    - [ ] validates the complete normalized result through `StableJsonEncoder::encodeStable()`
-    - [ ] output normalization, output-limit, or final stable-encoding failure maps to `output-invalid`
-    - [ ] failure to construct an implementation-generated `RedactedValue` maps to `output-invalid`
-    - [ ] returns the normalized value, not the validation JSON bytes
-  - [ ] failure handling:
-    - [ ] returns neither unchanged input nor a partial result
-    - [ ] an existing `Coretsia\Contracts\Security\Exception\RedactionException` propagates unchanged
-    - [ ] every other unexpected Throwable becomes safe `internal-failure`
-  - [ ] stateless; never retains input, result, current path, classifier decision, or previous failure
+- [x] `packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
+  - [x] final class
+  - [x] implements the exact `SensitiveDataRedactorInterface`
+  - [x] constructor receives exactly:
+    - [x] `SensitiveKeyClassifier`
+    - [x] `SensitiveValueClassifier`
+    - [x] `StableRedactionHasher`
+  - [x] `redactValue()`:
+    - [x] validates the input string through `JsonLikeNormalizer::normalize()` using the same fixed `JsonLikeNormalizationLimits(32, 10000, 65536, 1048576)`
+    - [x] the normalized result remains a string byte-identical to the input
+    - [x] individual-string limit failure maps to `input-limit-exceeded`
+    - [x] no package-local direct-string size limiter or duplicate `strlen($value) > 65536` guard is introduced
+    - [x] `Placeholder` exposes neither length nor hash
+    - [x] `Length` uses byte-oriented `strlen`
+    - [x] `Hash` delegates to `StableRedactionHasher::hashString()` using the exact input string bytes
+    - [x] `HashAndLength` exposes both byte length and `hashString()` over the same exact input string bytes
+  - [x] `redactJsonLike()` input stage:
+    - [x] normalizes input through `JsonLikeNormalizer::normalize()`
+    - [x] uses one immutable `JsonLikeNormalizationLimits(32, 10000, 65536, 1048576)`
+    - [x] depth, node, individual-string-byte, and aggregate-string-byte semantics are exactly the Foundation normalizer semantics
+    - [x] structural resource accounting remains Foundation-owned; the redactor introduces no parallel depth, node, string, or aggregate-byte counters
+    - [x] forbidden input type or structurally invalid input maps to `input-invalid`
+    - [x] input depth/node/individual-string/aggregate-string limit violation maps to `input-limit-exceeded`
+    - [x] semantic traversal receives only the normalized json-like value returned by Foundation
+    - [x] semantic traversal MUST NOT repeat Foundation-owned forbidden-type, map-key-type, depth, node, individual-string-byte, or aggregate-string-byte validation
+  - [x] complete sensitive branch summary materialization:
+    - [x] `Placeholder` replaces the complete branch without materializing branch-summary bytes, calculating a disclosed summary length, hashing, or invoking `StableJsonEncoder` for branch-summary materialization
+    - [x] `Length|Hash|HashAndLength` materialize canonical branch bytes exactly once
+    - [x] a string branch uses its exact string bytes as branch-summary bytes
+    - [x] a non-string branch uses `StableJsonEncoder::encodeStable()`
+    - [x] branch-summary materialization relies on the Foundation-owned `StableJsonEncoder` contract that stable JSON ends with one encoder-owned final LF
+    - [x] exactly that encoder-owned final LF is removed from non-string branch-summary bytes
+    - [x] the redactor MUST NOT introduce a second final-LF validation or framing policy
+    - [x] `Length` counts branch-summary bytes only; the hash representation discriminator is not included in disclosed length
+    - [x] a string branch hashes through `StableRedactionHasher::hashString()`
+    - [x] a non-string branch hashes through `StableRedactionHasher::hashJsonLike()`
+    - [x] `HashAndLength` reuses the same branch-summary bytes for its length and hash inputs; only the hasher-owned representation discriminator differs between string and non-string domains
+    - [x] encoder failure while representing an input branch maps to `input-invalid`
+  - [x] traversal:
+    - [x] after complete Foundation input normalization succeeds, validate each structural map key reached by semantic traversal against the redaction-specific control-byte policy immediately before classification
+    - [x] keys nested only inside a complete branch already selected for replacement are not traversed solely for this redaction-specific policy
+    - [x] within input that already passed Foundation type and resource validation, a reached map key containing an ASCII C0 control byte or DEL (`0x7F`) fails with `input-invalid`
+    - [x] Foundation depth, node, individual-string-byte, aggregate-string-byte, and map-key-type failures retain precedence over this redaction-specific control-byte check
+    - [x] classify the original structural map key through `SensitiveKeyClassifier` first
+    - [x] a sensitive structural key replaces its complete associated branch with one `RedactedValue::toArray()`
+    - [x] when `SensitiveKeyClassifier::classify()` returns `null`, classify the original key through `SensitiveValueClassifier` before semantic traversal of its associated normalized value begins
+    - [x] any non-null value-classifier result for such a map key fails with `sensitive-map-key`
+    - [x] only a map key unclassified by both classifiers recurses into its associated value
+    - [x] string leaves are then classified through `SensitiveValueClassifier`
+    - [x] null, bool, and int leaves pass through unchanged unless their owning key is sensitive
+    - [x] list order is preserved
+    - [x] map keys are preserved and maps remain recursively `strcmp` sorted
+    - [x] unsupported/non-json-like input is never coerced, reflected, inspected for object state, or passed through `__toString()`; Foundation rejects it before semantic traversal
+    - [x] normalized string values and map keys are inspected only by the documented key/value classifiers
+    - [x] normalized non-string sensitive branches are serialized only through `StableJsonEncoder::encodeStable()` for the documented `Length|Hash|HashAndLength` branch-summary materialization; no other input serialization occurs
+    - [x] JSON, URLs, base64, JWT payloads, SQL, and provider payloads are not decoded or semantically parsed
+  - [x] output stage:
+    - [x] normalizes the completed result with the same fixed limits
+    - [x] fixed limits are private class constants and are not constructor parameters or config values
+    - [x] output depth/node/individual-string/aggregate-string limit violation maps to `output-invalid`
+    - [x] returns the normalized value
+    - [x] no whole-result `StableJsonEncoder` pass is performed; stable JSON serialization remains consumer-owned
+  - [x] failure handling:
+    - [x] returns neither unchanged input nor a partial result
+    - [x] a `Coretsia\Contracts\Security\Exception\RedactionException` produced by an explicit stage mapping propagates with its original allowlisted reason and MUST NOT be remapped to `internal-failure`
+    - [x] every other unexpected Throwable becomes safe `internal-failure`
+  - [x] stateless; never retains input, result, current path, classifier decision, or previous failure
 
-- [ ] `packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
-  - [ ] stateless
-  - [ ] canonical API:
-    - [ ] `public function classify(string $key): ?RedactionKind`
-  - [ ] classification uses a temporary canonical key:
-    - [ ] ASCII lowercase only
-    - [ ] removes ASCII `-`, `_`, `.`, and space separators
-    - [ ] no locale-sensitive case conversion
-    - [ ] no Unicode normalization
-  - [ ] original key is never modified
-  - [ ] uses only the immutable exact alias table defined in `docs/ssot/sensitive-data-redaction.md`
-  - [ ] supported groups are exactly:
-    - [ ] `secret-reference`
-    - [ ] `secret`
-    - [ ] `credential`
-    - [ ] `authorization`
-    - [ ] `cookie`
-    - [ ] `session-id`
-    - [ ] `token`
-    - [ ] `payload`
-    - [ ] `sql`
-    - [ ] `pii`
-    - [ ] `env-value`
-    - [ ] `local-path`
-  - [ ] unknown keys return `null`
-  - [ ] no config, env, mutable registry, learned state, or runtime regex loading
+- [x] `packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
+  - [x] final class
+  - [x] stateless
+  - [x] package-internal implementation service; documented `@internal`
+  - [x] package-internal API:
+    - [x] `public function classify(string $key): ?RedactionKind`
+  - [x] classification uses a temporary canonical key:
+    - [x] ASCII lowercase only
+    - [x] removes ASCII `-`, `_`, `.`, and space separators
+    - [x] no locale-sensitive case conversion
+    - [x] no Unicode normalization
+  - [x] original key is never modified
+  - [x] uses only the immutable exact alias table defined in `docs/ssot/sensitive-data-redaction.md`
+  - [x] supported groups are exactly:
+    - [x] `secret-reference`
+    - [x] `secret`
+    - [x] `credential`
+    - [x] `authorization`
+    - [x] `cookie`
+    - [x] `session-id`
+    - [x] `token`
+    - [x] `payload`
+    - [x] `sql`
+    - [x] `pii`
+    - [x] `env-value`
+    - [x] `local-path`
+  - [x] unknown keys return `null`
+  - [x] no config, env, mutable registry, learned state, or runtime regex loading
 
-- [ ] `packages/platform/redaction/src/Redaction/SensitiveValueClassifier.php`
-  - [ ] stateless
-  - [ ] canonical API:
-    - [ ] `public function classify(string $value): ?RedactionKind`
-  - [ ] exact precedence:
-    - [ ] `authorization`
-    - [ ] `cookie`
-    - [ ] `credential`
-    - [ ] `token`
-    - [ ] `sql`
-    - [ ] `local-path`
-    - [ ] `pii`
-  - [ ] unkeyed values are never automatically classified as:
-    - [ ] `secret`
-    - [ ] `secret-reference`
-    - [ ] `session-id`
-    - [ ] `payload`
-    - [ ] `env-value`
-  - [ ] those kinds require either a sensitive structural key or explicit `redactValue()` owner classification
-  - [ ] baseline high-confidence recognition covers exactly:
-    - [ ] complete `Basic` or `Bearer` authorization values
-    - [ ] complete `Cookie:` or `Set-Cookie:` header-like values
-    - [ ] credential-bearing URI/DSN values
-    - [ ] JWT-shaped three-segment tokens
-    - [ ] AWS access-key-shaped `AKIA|ASIA` values
-    - [ ] prefixed token values beginning exactly with `sk_|tok_|token_` followed by `8..512` ASCII characters from `[A-Za-z0-9_-]`
-    - [ ] SQL values beginning with the SSoT-defined operation-prefix set
-    - [ ] Unix, Windows-drive, and UNC absolute paths
-    - [ ] email-address-shaped values
-  - [ ] unclassified values return `null`
-  - [ ] MUST NOT use entropy scoring or classify every long string as a token
-  - [ ] MUST NOT classify arbitrary numeric strings as phone numbers
-  - [ ] MUST NOT perform network calls, read config/env, decode payloads, or load mutable patterns
-  - [ ] no locale-dependent classification
+- [x] `packages/platform/redaction/src/Redaction/SensitiveValueClassifier.php`
+  - [x] final class
+  - [x] stateless
+  - [x] package-internal implementation service; documented `@internal`
+  - [x] package-internal API:
+    - [x] `public function classify(string $value): ?RedactionKind`
+  - [x] exact precedence:
+    - [x] `authorization`
+    - [x] `cookie`
+    - [x] `credential`
+    - [x] `token`
+    - [x] `local-path`
+    - [x] `pii`
+  - [x] unkeyed values are never automatically classified as:
+    - [x] `secret`
+    - [x] `secret-reference`
+    - [x] `session-id`
+    - [x] `payload`
+    - [x] `sql`
+    - [x] `env-value`
+  - [x] those kinds require either a sensitive structural key or explicit `redactValue()` owner classification
+  - [x] baseline high-confidence recognition covers exactly:
+    - [x] complete direct `Bearer` authorization values
+    - [x] complete non-empty `Authorization:` or `Proxy-Authorization:` header-like values regardless of the authorization scheme
+    - [x] complete `Cookie:` or `Set-Cookie:` header-like values
+    - [x] credential-bearing URI values matching the exact SSoT grammar
+    - [x] JWT-shaped three-segment tokens matching the exact conservative SSoT grammar
+    - [x] AWS access-key-shaped `AKIA|ASIA` values
+    - [x] prefixed token values beginning exactly with `sk_|tok_` followed by `8..512` ASCII characters from `[A-Za-z0-9_-]`
+    - [x] Windows drive/UNC and `file://` absolute local-path forms defined by the SSoT
+    - [x] email-address-shaped values
+  - [x] unclassified values return `null`
+  - [x] MUST NOT use entropy scoring or classify every long string as a token
+  - [x] MUST NOT classify arbitrary numeric strings as phone numbers
+  - [x] MUST NOT perform network calls, read config/env, decode payloads, or load mutable patterns
+  - [x] no locale-dependent classification
 
-- [ ] `packages/platform/redaction/src/Redaction/StableRedactionHasher.php`
-  - [ ] stateless
-  - [ ] canonical API:
-    - [ ] `public function hash(string $bytes, RedactionKind $kind, RedactionContext $context): string`
-  - [ ] SHA-256 input is exactly:
-    - [ ] `"coretsia.redaction@1\0" . $context->scope() . "\0" . $kind->value . "\0" . $bytes`
-  - [ ] output is exactly `sha256:` followed by 64 lowercase hexadecimal characters
-  - [ ] same scope, kind, and bytes always produce the same hash
-  - [ ] changing scope or kind changes the hash domain
-  - [ ] no salt, timestamp, hostname, process id, random bytes, env value, or machine-specific input participates
-  - [ ] hashing MUST NOT be documented as encryption or proof that low-entropy input is non-sensitive
+- [x] `packages/platform/redaction/src/Redaction/StableRedactionHasher.php`
+  - [x] final class
+  - [x] stateless
+  - [x] package-internal implementation service; documented `@internal`
+  - [x] package-internal API:
+    - [x] `public function hashString(string $bytes, RedactionKind $kind, RedactionContext $context): string`
+    - [x] `public function hashJsonLike(string $bytes, RedactionKind $kind, RedactionContext $context): string`
+  - [x] both public package-internal methods delegate to one private SHA-256 implementation; no duplicate hashing algorithm exists
+  - [x] exact representation discriminators:
+    - [x] `string`
+    - [x] `json-like`
+  - [x] SHA-256 input is exactly:
+    - [x] `"coretsia.redaction@1\0" . $context->scope() . "\0" . $kind->value . "\0" . $representation . "\0" . $bytes`
+  - [x] `hashString()` uses representation `string`
+  - [x] `hashJsonLike()` uses representation `json-like`
+  - [x] output is exactly `sha256:` followed by 64 lowercase hexadecimal characters
+  - [x] same scope, kind, representation, and bytes always produce the same hash
+  - [x] changing scope, kind, or representation changes the hash domain
+  - [x] no salt, timestamp, hostname, process id, random bytes, env value, or machine-specific input participates
+  - [x] hashing MUST NOT be documented as encryption or proof that low-entropy input is non-sensitive
 
 Docs:
-- [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
-  - [ ] records one contracts port plus one default platform implementation
-  - [ ] records config-free, stateless, fail-closed policy
-  - [ ] records placeholder as the default disclosure mode
-  - [ ] records explicit owner selection for length/hash summaries
-  - [ ] records domain-separated SHA-256
-  - [ ] records that redaction does not replace safe-by-construction producer shapes
-  - [ ] rejects:
-    - [ ] package-local redaction engines
-    - [ ] config-driven classifiers
-    - [ ] mutable policy registries
-    - [ ] raw/debug/passthrough modes
-    - [ ] redactor-owned observability
-    - [ ] semantic payload parsing
+- [x] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+  - [x] records one contracts port plus one default platform implementation
+  - [x] records that cross-package consumers depend on `SensitiveDataRedactorInterface`; classifiers and hashing helpers remain package-internal implementation services rather than extension points
+  - [x] records config-free, stateless, fail-closed policy
+  - [x] records placeholder as the default disclosure mode
+  - [x] records explicit owner selection for length/hash summaries
+  - [x] records domain-separated SHA-256
+  - [x] records that redaction does not replace safe-by-construction producer shapes
+  - [x] records that lower-layer Core boundary-specific validation, rejection, omission, and safe derivation remain owner-local and MUST NOT acquire an upward dependency on `platform/redaction`
+  - [x] records reuse of Foundation json-like normalization/resource-budget primitives and rejects a package-local structural normalizer or parallel resource-budget walker
+  - [x] records the optional Foundation `maxTotalStringBytes` extension as a domain-neutral structural resource-budget primitive with backward-compatible `null` semantics; `platform/redaction` MUST NOT own a parallel aggregate-byte counter
+  - [x] records reuse of the Foundation stable-JSON framing contract only for non-string sensitive-branch summary materialization; whole-result stable JSON serialization remains consumer-owned and no final whole-result encoding pass is introduced
+  - [x] records `platform.redaction` as the single owner of shared generic semantic redaction; future `platform/security` remains a distinct security capability and MUST NOT introduce a competing generic redaction engine
+  - [x] rejects:
+    - [x] duplicate generic package-local redaction engines in consumers that are allowed to depend on the shared port
+    - [x] config-driven classifiers
+    - [x] mutable policy registries
+    - [x] raw/debug/passthrough modes
+    - [x] redactor-owned observability
+    - [x] semantic payload parsing
 
-- [ ] `docs/ssot/sensitive-data-redaction.md`
-  - [ ] exact public contract signatures and immutable result shapes
-  - [ ] exact contracts-level failure type `Coretsia\Contracts\Security\Exception\RedactionException`
-  - [ ] exact error code, reason allowlist, private construction, and named constructors
-  - [ ] exact `RedactionKind` and `RedactionMode` values
-  - [ ] exact `RedactionContext` scope syntax and bounds
-  - [ ] exact `RedactedValue::toArray()` shape and mode invariants
-  - [ ] exact key canonicalization procedure
-  - [ ] exact immutable key alias table:
-    - [ ] `secret-reference = secretref|secretreference|keyref`
-    - [ ] `secret = secret|secretvalue|password|passwd|pwd|clientsecret|privatekey|secretkey`
-    - [ ] `credential = credential|credentials|dsn|connectionstring`
-    - [ ] `authorization = authorization|proxyauthorization`
-    - [ ] `cookie = cookie|cookies|setcookie`
-    - [ ] `session-id = session|sessionid`
-    - [ ] `token = token|accesstoken|refreshtoken|idtoken|bearertoken|apikey|xapikey|accesskey|csrf|csrftoken|xsrf|xsrftoken`
-    - [ ] `payload = payload|body|requestbody|responsebody`
-    - [ ] `sql = sql|query|bindings`
-    - [ ] `pii = email|emailaddress|phone|phonenumber|firstname|lastname|fullname|address|dateofbirth|birthdate|dob`
-    - [ ] `env-value = env|environment|envvalue|dotenv`
-    - [ ] `local-path = path|filepath|absolutepath|directory|workingdirectory|cwd`
-  - [ ] exact value-classifier precedence and deterministic pattern definitions
-  - [ ] value patterns are fully anchored and ASCII-defined
-  - [ ] exact value grammars:
-    - [ ] authorization:
-      - [ ] ASCII case-insensitive `Basic|Bearer`
-      - [ ] followed by one or more ASCII space/tab bytes
-      - [ ] followed by a non-empty value containing no CR/LF
-    - [ ] cookie:
-      - [ ] ASCII case-insensitive `Cookie:|Set-Cookie:`
-      - [ ] followed by optional ASCII space/tab bytes
-      - [ ] followed by a non-empty value containing no CR/LF
-    - [ ] credential-bearing URI:
-      - [ ] ASCII scheme matching `[A-Za-z][A-Za-z0-9+.-]*`
-      - [ ] followed by `://`
-      - [ ] non-empty user component
-      - [ ] `:`
-      - [ ] non-empty password component
-      - [ ] `@`
-    - [ ] JWT:
-      - [ ] exactly three non-empty base64url-shaped segments separated by `.`
-    - [ ] AWS access key:
-      - [ ] exact prefix `AKIA|ASIA`
-      - [ ] followed by exactly 16 uppercase ASCII alphanumeric characters
-    - [ ] prefixed token:
-      - [ ] exact prefix `sk_|tok_|token_`
-      - [ ] followed by `8..512` ASCII `[A-Za-z0-9_-]` characters
-    - [ ] SQL:
-      - [ ] optional leading ASCII space/tab bytes
-      - [ ] ASCII case-insensitive first token from `SELECT|INSERT|UPDATE|DELETE|MERGE|REPLACE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|CALL|EXEC|EXECUTE`
-      - [ ] followed by a token boundary
-    - [ ] local path:
-      - [ ] Unix absolute path beginning `/`
-      - [ ] Windows drive path beginning `[A-Za-z]:\` or `[A-Za-z]:/`
-      - [ ] UNC path beginning `\\`
-    - [ ] email:
-      - [ ] exactly one `@`
-      - [ ] non-empty ASCII local part
-      - [ ] domain contains at least one `.`
-      - [ ] domain labels are non-empty and do not begin or end with `-`
-  - [ ] near-miss strings remain unclassified
-  - [ ] exact key-first recursive traversal algorithm
-  - [ ] sensitive dynamic map-key failure policy
-  - [ ] exact byte-length and stable JSON branch-summary rules
-  - [ ] `PLACEHOLDER` performs no branch-byte materialization or hashing
-  - [ ] `LENGTH|HASH|HASH_AND_LENGTH` materialize canonical branch bytes exactly once
-  - [ ] exact domain-separated SHA-256 input and output
-  - [ ] fixed limits:
-    - [ ] depth `32`
-    - [ ] nodes `10000`
-    - [ ] string bytes `65536`
-  - [ ] exact fail-closed reason mapping
-  - [ ] exact allowed redacted summary fields
-  - [ ] explicit prohibition of decoding or semantically parsing payloads
-  - [ ] omission-first and safe-by-construction producer policy
-  - [ ] warning that hash and length summaries may remain sensitive metadata
+- [x] `docs/ssot/sensitive-data-redaction.md`
+  - [x] exact public contract signatures and immutable result shapes
+  - [x] exact contracts-level failure type `Coretsia\Contracts\Security\Exception\RedactionException`
+  - [x] exact error code, reason allowlist, private construction, and named constructors
+  - [x] exact `RedactionKind` and `RedactionMode` values
+  - [x] exact `RedactionContext` scope syntax and bounds
+  - [x] exact `RedactedValue::toArray()` shape and mode invariants
+  - [x] exact key canonicalization procedure
+  - [x] exact immutable key alias table:
+    - [x] `secret-reference = secretref|secretreference|keyref`
+    - [x] `secret = secret|secrets|secretvalue|password|passwords|passwd|pwd|clientsecret|privatekey|privatekeys|secretkey`
+    - [x] `credential = credential|credentials|dsn|connectionstring`
+    - [x] `authorization = authorization|authorizationdata|authorizationheader|auth|authdata|proxyauthorization|proxyauthorizationheader`
+    - [x] `cookie = cookie|cookies|setcookie`
+    - [x] `session-id = session|sessionid|sessionidentifier|sessionidentifiers`
+    - [x] `token = token|tokens|accesstoken|refreshtoken|idtoken|bearertoken|apikey|xapikey|accesskey|csrf|csrftoken|xsrf|xsrftoken`
+    - [x] `payload = payload|rawpayload|body|rawbody|header|headers|rawheader|rawheaders|query|rawquery|querystring|requestheader|requestheaders|rawrequestheader|rawrequestheaders|responseheader|responseheaders|rawresponseheader|rawresponseheaders|requestbody|rawrequestbody|requestpayload|rawrequestpayload|responsebody|rawresponsebody|responsepayload|rawresponsepayload|providerpayload|rawproviderpayload`
+    - [x] `sql = sql|rawsql|sqlquery|rawsqlquery|sqlbindings|sqlstatement`
+    - [x] `pii = email|emailaddress|phone|phonenumber|username|firstname|lastname|fullname|dateofbirth|birthdate|dob`
+    - [x] `env-value = envvalue|rawenvvalue`
+    - [x] `local-path = localpath|filepath|absolutepath|workingdirectory|cwd`
+  - [x] ambiguous structural `query|rawquery|querystring` channels are classified as opaque `payload`, not `sql`
+  - [x] SQL classification is structural or owner-explicit only: an explicitly SQL-shaped structural key such as `sql|rawsql|sqlquery|rawsqlquery|sqlbindings|sqlstatement` selects `RedactionKind::Sql`, and known-sensitive scalar SQL uses explicit `redactValue(..., RedactionKind::Sql, ...)`
+  - [x] generic `statement` has no automatic shared kind because the structural key alone does not establish SQL semantics; SQL statement branches use `sql_statement` or explicit owner classification
+  - [x] generic `bindings` has no automatic shared kind because Core also uses that vocabulary for non-SQL DI/container/config semantics; SQL binding branches use an explicit SQL-shaped key such as `sql_bindings` or remain subject to their owner-defined safe-by-construction policy
+  - [x] `SensitiveValueClassifier` MUST NOT infer `RedactionKind::Sql` from unkeyed string content; classifier non-match is not declassification
+  - [x] raw header collections are classified as complete `payload` branches; nested traversal is not relied upon to discover authorization, cookie, or other sensitive header values
+  - [x] owner-specific forbidden diagnostic channels MUST NOT be imported mechanically from `ErrorDescriptor`, Kernel UoW, observability, or another lower-layer denylist into the shared classifier vocabulary
+  - [x] a lower-layer key being forbidden does not by itself establish a canonical `RedactionKind`
+  - [x] `authidentifier|authidentifiers|userid|tenantid|requestid|correlationid|customer|customerdata|privatecustomerdata` have no automatic shared kind solely because an owner-specific sink policy forbids them
+  - [x] generic `address|path|rawpath|directory` keys have no automatic shared kind because the key alone does not establish PII or local-filesystem semantics
+  - [x] generic `env|environment|dotenv` keys have no automatic shared kind because the key alone does not establish a raw environment value
+  - [x] existing Core source/provenance vocabulary and safe environment-variable-name metadata MUST NOT be reclassified as `EnvValue` solely from an `env`, `environment`, or `dotenv` structural key
+  - [x] `EnvValue` structural classification requires the explicit canonical aliases `envvalue|rawenvvalue`; an owner-known raw env value may always use explicit `redactValue(..., RedactionKind::EnvValue, ...)`
+  - [x] when such a value requires redaction, its owner uses explicit `redactValue()` with `RedactionKind::Unknown` or another semantically correct kind; destination-boundary rejection remains authoritative
+  - [x] exact value-classifier precedence and deterministic pattern definitions
+  - [x] every value pattern matches the complete classification candidate
+  - [x] for every kind except `local-path`, the classification candidate is the exact input string
+  - [x] `local-path` alone may use the documented temporary candidate with leading ASCII space/tab bytes removed
+  - [x] classifier syntax tokens, separators, case folding, and explicit character classes are ASCII-defined
+  - [x] opaque suffix or remainder bytes are not decoded, Unicode-normalized, or semantically interpreted and are governed only by their grammar-specific byte exclusions
+  - [x] exact value grammars:
+    - [x] authorization:
+      - [x] direct form:
+        - [x] ASCII case-insensitive `Bearer`
+        - [x] followed by one or more ASCII space/tab bytes
+        - [x] followed by a non-empty value containing no CR/LF
+      - [x] an unkeyed direct `Basic ...` string is not automatically classified as authorization because `Basic` is ambiguous ordinary text
+      - [x] Basic authorization remains classified through the complete `Authorization:` / `Proxy-Authorization:` header-like form, an authorization structural key, or explicit owner classification through `redactValue(..., RedactionKind::Authorization, ...)`
+      - [x] header-like form:
+        - [x] ASCII case-insensitive `Authorization:|Proxy-Authorization:`
+        - [x] followed by optional ASCII space/tab bytes
+        - [x] followed by a non-empty value containing no CR/LF
+        - [x] the header-like form does not parse or restrict the authorization scheme
+    - [x] cookie:
+      - [x] ASCII case-insensitive `Cookie:|Set-Cookie:`
+      - [x] followed by optional ASCII space/tab bytes
+      - [x] followed by a non-empty value containing no CR/LF
+    - [x] credential-bearing URI:
+      - [x] the complete candidate contains only visible ASCII bytes `0x21..0x7E`
+      - [x] ASCII scheme matches `[A-Za-z][A-Za-z0-9+.-]*`
+      - [x] scheme is followed by `://`
+      - [x] userinfo ends at the first `@` occurring before any `/`, `?`, or `#`
+      - [x] the first `:` inside userinfo separates a non-empty user component from a non-empty password component
+      - [x] the user component contains no `:`, `@`, `/`, `?`, or `#`
+      - [x] the password component contains no `@`, `/`, `?`, or `#`; additional `:` bytes are allowed
+      - [x] a non-empty authority component follows `@`
+      - [x] optional path, query, or fragment bytes may follow the authority
+      - [x] no percent-decoding, URI parsing, hostname validation, or credential decoding is performed
+    - [x] JWT:
+      - [x] exactly three non-empty segments separated by exactly two `.`
+      - [x] the first segment begins exactly with ASCII `eyJ`
+      - [x] every segment contains only ASCII `[A-Za-z0-9_-]`
+      - [x] `=` padding is not accepted
+      - [x] the complete input is matched; segments are not base64url-decoded or JSON-decoded
+      - [x] the `eyJ` requirement is a conservative high-confidence discriminator only and MUST NOT be treated as complete JWT validation
+    - [x] AWS access key:
+      - [x] exact prefix `AKIA|ASIA`
+      - [x] followed by exactly 16 uppercase ASCII alphanumeric characters
+    - [x] prefixed token:
+      - [x] exact prefix `sk_|tok_`
+      - [x] followed by `8..512` ASCII `[A-Za-z0-9_-]` characters
+      - [x] generic `token_...` values are not automatically classified from value content alone; an owner-known token uses a token structural key or explicit `redactValue(..., RedactionKind::Token, ...)`
+    - [x] local path:
+      - [x] classification uses a temporary candidate with leading ASCII space/tab bytes removed; the original value bytes are never modified
+      - [x] UNC path beginning `\\`
+      - [x] Windows drive path beginning `[A-Za-z]:\` or `[A-Za-z]:/`
+      - [x] ASCII case-insensitive `file://` absolute-path form where `file://` is followed by `/` or by a non-empty authority followed by `/` or `\`
+      - [x] a generic single-backslash-rooted value beginning `\` is not automatically classified as `local-path`; it is ambiguous with PHP FQCN/class-like values
+      - [x] a generic forward-slash-rooted value beginning `/` is not automatically classified as `local-path`; it is ambiguous with safe route templates and transport paths
+      - [x] an actual POSIX or single-backslash Windows rooted local filesystem path requires an explicit local-path structural key or explicit owner classification through `redactValue(..., RedactionKind::LocalPath, ...)`
+    - [x] email:
+      - [x] exactly one `@`
+      - [x] local part is non-empty and contains only ASCII `[A-Za-z0-9.!#$%&'*+/=?^_{}|~-]`
+      - [x] local part does not begin or end with `.`
+      - [x] local part contains no consecutive `..`
+      - [x] domain contains at least two non-empty labels separated by `.`
+      - [x] every domain label matches `[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?`
+      - [x] no ASCII whitespace, control byte, Unicode byte sequence, or trailing `.` is accepted
+  - [x] near-miss strings remain unclassified
+  - [x] exact key-first recursive traversal algorithm
+  - [x] Foundation input normalization, structural type rejection, and resource-limit validation complete before semantic key/value traversal begins
+  - [x] after Foundation normalization succeeds, redaction-specific C0/DEL validation runs immediately before classification for each map key reached by semantic traversal; keys nested only inside a complete branch already selected for replacement are not traversed solely for this policy, and any earlier Foundation failure retains its canonical reason precedence
+  - [x] a sensitive structural key MUST NOT bypass Foundation input validity or resource-limit enforcement for its associated branch
+  - [x] exact failure policy for a map key unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier`
+  - [x] exact byte-length and stable JSON branch-summary rules
+  - [x] `Placeholder` performs no branch-byte materialization or hashing
+  - [x] `Length|Hash|HashAndLength` materialize canonical branch bytes exactly once
+  - [x] stable-JSON framing and final-LF semantics remain Foundation-owned for non-string sensitive-branch summary materialization; redaction strips the canonical encoder-owned final LF from those branch-summary bytes only and performs no whole-result stable JSON validation
+  - [x] exact domain-separated SHA-256 input and output
+  - [x] exact hash representation domains are `string` and `json-like`
+  - [x] direct strings and recursively redacted string branches use the `string` domain
+  - [x] recursively redacted non-string branches use the `json-like` domain
+  - [x] the representation discriminator participates in hashing only and does not contribute to disclosed `Length`
+  - [x] structurally different string/non-string values with identical branch-summary bytes MUST use distinct SHA-256 preimages through the `string|json-like` representation discriminator
+  - [x] representation-domain separation does not claim collision-freedom beyond the SHA-256 contract
+  - [x] fixed limits:
+    - [x] depth `32`
+    - [x] nodes `10000`
+    - [x] individual string bytes `65536`
+    - [x] aggregate string bytes `1048576`
+  - [x] exact fail-closed reason mapping
+  - [x] exact allowed redacted summary fields
+  - [x] explicit prohibition of decoding or semantically parsing payloads
+  - [x] omission-first and safe-by-construction producer policy
+  - [x] warning that hash and length summaries may remain sensitive metadata
+  - [x] `Length|Hash|HashAndLength` are disclosure metadata, not proof of sink safety or non-reconstructability
+  - [x] applicable consumer/owner policy remains authoritative for non-placeholder disclosure
+  - [x] `Length|Hash|HashAndLength` MUST be selected only when that owner policy explicitly permits the disclosed metadata for every branch to which the selected mode may apply
+  - [x] one `redactJsonLike()` call applies one mode uniformly to all classified branches; the redactor performs no per-kind or per-branch automatic downgrade, upgrade, or fallback
+  - [x] if any branch that may be selected requires stricter treatment because it is low-entropy, reconstructable, or otherwise sensitive, the recursive call MUST use omission or `Placeholder`, or the owner MUST split the separately governed value into another redaction operation
+  - [x] successful redaction does not grant destination-boundary admissibility; stricter consumer schema, semantic-key, path, cardinality, and resource-limit policies remain authoritative
 
 #### Modifies
 
-- [ ] `packages/core/contracts/README.md`
-  - [ ] document the Security redaction contracts
-  - [ ] document exact scalar and json-like entrypoints
-  - [ ] clarify that the contracts package owns no implementation or classifier policy
+- [x] `packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php`
+  - [x] add optional `?int $maxTotalStringBytes = null` as the fourth constructor/public readonly field
+  - [x] constructor PHPDoc declares `$maxTotalStringBytes` as `int<1, max>|null`
+  - [x] non-null `maxTotalStringBytes` MUST be positive
+  - [x] invalid value throws exactly `InvalidArgumentException('json-like-normalization-max-total-string-bytes-invalid')`
+  - [x] `null` preserves the existing unbounded-aggregate behavior for existing callers
 
-- [ ] `docs/ssot/INDEX.md`
-  - [ ] register `docs/ssot/sensitive-data-redaction.md`
+- [x] `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+  - [x] update class/method PHPDoc so the optional limits model explicitly includes aggregate string-byte accounting
+  - [x] when `maxTotalStringBytes !== null`, count every string value, including a root string, and every string map key exactly once during the existing recursive traversal
+  - [x] existing individual-string byte validation runs before aggregate accounting for that same string value or map key
+  - [x] only a string that passed the individual-string byte limit consumes aggregate string bytes
+  - [x] existing depth, node, map-key-type, and individual-string failure precedence remains authoritative
+  - [x] the existing `normalizeMap()` bulk remaining-node precheck remains before map-key-type validation, sorting, per-key string validation, and aggregate accounting
+  - [x] when the direct map-entry count cannot fit the remaining node budget, `REASON_MAX_NODES_EXCEEDED` is thrown at the map path before any key-specific validation or aggregate accounting
+  - [x] after the bulk map-node precheck succeeds, all map-key types are validated before sorting or per-key byte accounting
+  - [x] for each sorted string map key, existing individual-string validation remains before `consumeNode()`, while aggregate-string accounting occurs only after that map entry successfully consumes its node
+  - [x] for list/map values, the parent item node remains consumed before value-level individual-string and aggregate-string accounting, preserving the existing traversal order
+  - [x] for a root string, individual-string validation precedes aggregate-string accounting
+  - [x] map-key aggregate accounting follows the existing canonical `strcmp` traversal order after map-key type validation and sorting
+  - [x] aggregate-limit comparison is overflow-safe and occurs before incrementing the accumulated byte count
+  - [x] aggregate overflow throws `JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED`
+  - [x] no second aggregate-budget traversal is introduced
+  - [x] existing behavior is unchanged when `maxTotalStringBytes === null`
 
-- [ ] `docs/adr/INDEX.md`
-  - [ ] register `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+- [x] `packages/core/foundation/src/Serialization/Exception/JsonLikeNormalizationException.php`
+  - [x] add `public const string REASON_TOTAL_STRING_BYTES_EXCEEDED = 'json-like-total-string-bytes-exceeded'`
+  - [x] include `REASON_TOTAL_STRING_BYTES_EXCEEDED` in the exact internal reason allowlist
 
-- [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] add the shared redaction mechanism
-  - [ ] preserve safe-by-construction as the primary requirement
-  - [ ] forbid relying on late redaction to legitimize unsafe diagnostic shapes
-  - [ ] allow only safe fields or canonical redacted summaries in error descriptors, reporter payloads, and diagnostic extensions
+- [x] `packages/core/foundation/tests/Contract/JsonLikeNormalizationLimitsContractTest.php`
+  - [x] exact public readonly property order becomes `maxDepth`, `maxNodes`, `maxStringBytes`, `maxTotalStringBytes`
+  - [x] `maxTotalStringBytes` defaults to `null` when the fourth constructor argument is omitted
+  - [x] preserve constructor compatibility when the fourth argument is omitted
+  - [x] reject zero and negative aggregate limits with the exact fixed exception
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] logs and spans may contain only safe values or canonical redacted summaries
-  - [ ] metrics remain allowlist-only
-  - [ ] redaction MUST NOT permit arbitrary metric labels
-  - [ ] raw payloads, headers, cookies, tokens, SQL, env values, provider payloads, and absolute paths remain forbidden span attributes
-  - [ ] record that `platform/redaction` emits no baseline logs, spans, or metrics
+- [x] `packages/core/foundation/tests/Contract/JsonLikeNormalizerContractTest.php`
+  - [x] aggregate budget counts every map key and string value exactly once
+  - [x] root string participates in the aggregate budget
+  - [x] exact aggregate-byte boundary is accepted and boundary plus one byte is rejected
+  - [x] when the same string exceeds both `maxStringBytes` and the remaining `maxTotalStringBytes`, the existing `REASON_STRING_BYTES_EXCEEDED` reason wins
+  - [x] aggregate accounting does not change existing depth, node, map-key-type, or individual-string failure precedence
+  - [x] the existing bulk map-node precheck still wins before map-key-type, key-string, or aggregate validation when the direct map entries cannot fit the remaining node budget
+  - [x] when a later map key would exceed both the remaining node budget and aggregate-string budget, `REASON_MAX_NODES_EXCEEDED` wins
+  - [x] after the bulk map-node precheck has succeeded, when a later string map key exceeds its individual-string limit, `REASON_STRING_BYTES_EXCEEDED` still wins before that key's per-entry node or aggregate accounting
+  - [x] list/map value node-budget failure still occurs before aggregate accounting for that value
+  - [x] map aggregate-limit failure is independent from PHP map insertion order
+  - [x] aggregate overflow exposes only `json-like-total-string-bytes-exceeded`
+  - [x] aggregate overflow reports the same canonical safe path model as every existing normalization-limit failure
+  - [x] root-string aggregate overflow reports path `value`
+  - [x] aggregate overflow caused by an unsafe map key reports the sanitized `[<key>]` path form and exposes neither the raw key nor its bytes in the exception message or `path()`
+  - [x] reason-vocabulary assertion includes exact `REASON_TOTAL_STRING_BYTES_EXCEEDED = 'json-like-total-string-bytes-exceeded'`
 
-- [ ] `docs/ssot/secrets-contracts.md`
-  - [ ] resolved secrets are never diagnostic-safe
-  - [ ] raw secret references remain sensitive metadata
-  - [ ] omission is preferred
-  - [ ] where a summary is unavoidable, consumers use the shared redaction port with explicit kind and context
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorExtensionsEnforceRedactionContractTest.php`
+  - [x] a canonical `RedactedValue::toArray()` does not make an otherwise forbidden `ErrorDescriptor` extension key admissible
+  - [x] a canonical `Placeholder` `RedactedValue::toArray()` is structurally admissible under an otherwise safe owner-defined extension key when all existing `ErrorDescriptor` bounds are satisfied
+  - [x] non-placeholder disclosure safety remains producer-owned and is not established merely by `RedactedValue` shape validity
 
-- [ ] `docs/ssot/config-and-env.md`
-  - [ ] raw env values MUST NOT reach diagnostics
-  - [ ] explain/source traces may expose only safe provenance metadata
-  - [ ] redaction does not permit raw configuration trees or env dumps
-  - [ ] omission is preferred when a summary is unnecessary
+- [x] `packages/core/contracts/README.md`
+  - [x] document the Security redaction contracts
+  - [x] document exact direct-string and json-like entrypoints
+  - [x] clarify that the contracts package owns no implementation or classifier policy
 
-- [ ] repo-root `composer.json`
-  - [ ] include `coretsia/platform-redaction` in canonical generated path-package version metadata
+- [x] `packages/core/foundation/README.md`
+  - [x] document the optional aggregate string-byte normalization budget
 
-- [ ] `framework/composer.json`
-  - [ ] include `coretsia/platform-redaction: 0.5.x-dev` in workspace `require-dev`
-  - [ ] include the package in canonical generated path-package version metadata
+- [x] `docs/ssot/error-descriptor.md`
+  - [x] record that canonical `RedactedValue::toArray()` remains recursively subject to the existing semantic-key, absolute-local-path, and resource-budget invariants
+  - [x] a forbidden extension key remains forbidden even when its value is a canonical redacted summary
+  - [x] the redacted-summary shape is owned by `docs/ssot/sensitive-data-redaction.md`; this document owns only `ErrorDescriptor` admissibility
+  - [x] structural acceptance of a canonical redacted summary does not override the existing producer-owned safe-derivation and non-reconstruction requirements
+  - [x] `Length|Hash|HashAndLength` are not automatically admissible merely because the summary shape is valid; deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy input
 
-- [ ] `tools/testing/package-index.php`
-  - [ ] regenerate through the canonical package-index generator
+- [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] add optional `maxTotalStringBytes` to the canonical normalization-limit model
+  - [x] preserve positive-integer requirements for `maxDepth`, `maxNodes`, and `maxStringBytes`
+  - [x] `maxTotalStringBytes` is either `null` or a positive integer; `null` means that no aggregate-string-byte limit is imposed by that limits instance
+  - [x] `0` MUST NOT represent an unlimited or disabled aggregate budget
+  - [x] define aggregate accounting as byte-oriented `strlen()` accounting over every encountered string map key and string value exactly once, including a root string
+  - [x] map keys do not consume nodes but do consume aggregate string bytes
+  - [x] map-key aggregate accounting follows canonical `strcmp` traversal order
+  - [x] individual-string byte validation precedes aggregate accounting for that same string or map key
+  - [x] a string rejected by the individual-string limit does not consume aggregate string bytes
+  - [x] adding aggregate accounting does not reorder existing depth, node, map-key-type, or individual-string failure precedence
+  - [x] add exact `json-like-total-string-bytes-exceeded` failure reason
+  - [x] aggregate-string-byte failures use the existing canonical safe diagnostic-path contract; the new limit introduces no separate path-rendering policy
+  - [x] existing normalization behavior remains unchanged when `maxTotalStringBytes === null`
 
-- [ ] `tools/testing/deptrac.yaml`
-  - [ ] regenerate to include `packages/platform/redaction/src`
-  - [ ] enforce only the allowed `core/contracts` and `core/foundation` edges
+- [x] `docs/ssot/observability-and-errors.md`
+  - [x] add the shared redaction mechanism
+  - [x] preserve safe-by-construction as the primary requirement
+  - [x] forbid relying on late redaction to legitimize unsafe diagnostic shapes
+  - [x] preserve the existing prohibition on exporting raw stack traces; `platform/redaction` owns safe exception messages/custom state, not PHP Throwable-trace sanitization
+  - [x] preserve existing owner-specific safe derivations such as `hash(value)`, `len(value)`, counts, and stable categories; canonical `RedactedValue` summaries are an additional shared representation for eligible consumers, not a migration requirement for lower-layer Core producers
+  - [x] classifier non-match MUST NOT be treated as authorization to emit a raw value to an observability or diagnostic sink
+  - [x] point `ErrorDescriptor` redacted-summary admissibility to `docs/ssot/error-descriptor.md` without redefining its field-by-field extension schema
+  - [x] reporter payloads and other diagnostic extensions may use canonical redacted summaries only where their owner schema and boundary policy permit them
+
+- [x] `docs/ssot/observability.md`
+  - [x] point generic redaction mechanics to `docs/ssot/sensitive-data-redaction.md`; this document retains sink naming, schema, type, cardinality, and allowlist authority
+  - [x] canonical redacted summaries are admissible in logs, spans, and span events only where the owner-defined sink schema and boundary policy permit their shape
+  - [x] `Hash|HashAndLength` summaries remain subject to the existing deterministic, non-reversible, policy-approved safe-derivation requirement; canonical redaction shape validity does not waive that rule
+  - [x] `Length|Hash|HashAndLength` disclosure remains owner-approved metadata and MUST NOT become automatically admissible merely because `platform/redaction` produced it
+  - [x] existing span/event attribute allowlists remain authoritative; redaction does not introduce new attribute keys or widen an existing span schema
+  - [x] metrics remain allowlist-only
+  - [x] canonical redacted summary maps MUST NOT be emitted as metric label values
+  - [x] redaction MUST NOT permit arbitrary metric labels
+  - [x] raw payloads, headers, cookies, tokens, SQL, env values, provider payloads, and absolute paths remain forbidden span attributes
+  - [x] record that `platform/redaction` emits no baseline logs, spans, or metrics
+
+- [x] `docs/ssot/secrets-contracts.md`
+  - [x] raw resolved secret values are never diagnostic-safe
+  - [x] preserve the existing owner-approved safe-reference policy: a stable secret reference MAY remain directly observable only when its owner already classifies it as safe
+  - [x] unsafe or deployment-sensitive secret references require omission or a safe derivation; `SecretReference` is the explicit shared redaction kind for eligible runtime consumers
+  - [x] omission is preferred
+  - [x] where a resolved secret value or unsafe reference summary is unavoidable, consumers allowed to depend on `platform/redaction` use the shared port with explicit kind and context; lower-layer Core owners retain owner-owned safe derivations and MUST NOT introduce an upward dependency
+  - [x] preserve the existing non-reconstruction requirement: `Length|Hash|HashAndLength` MAY be selected only when owner policy explicitly permits disclosure of that metadata for the value class
+  - [x] deterministic SHA-256 MUST NOT be treated as non-reversible for low-entropy secrets; when that requirement cannot be established, omission or `Placeholder` remains mandatory
+
+- [x] `docs/ssot/config-and-env.md`
+  - [x] raw env values MUST NOT reach diagnostics
+  - [x] explain/source traces may expose only safe provenance metadata
+  - [x] preserve the distinction between a raw env value and safe source/provenance metadata such as the canonical `env|dotenv` source vocabulary or an owner-approved environment-variable name
+  - [x] an `env`, `environment`, or `dotenv` structural key alone MUST NOT imply `RedactionKind::EnvValue`
+  - [x] redaction does not permit raw configuration trees or env dumps
+  - [x] omission is preferred when a summary is unnecessary
+
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] register `platform.redaction` in the current committed installation-catalog identity table
+  - [x] record `coretsia/platform-redaction` with dependency edge `core.foundation`
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `docs/ssot/sensitive-data-redaction.md`
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+
+- [x] `docs/architecture/PACKAGING.md`
+  - [x] align runtime metadata with `docs/ssot/modules-and-manifests.md`: `defaultsConfigPath` is optional
+  - [x] when present, `defaultsConfigPath` follows the canonical `config/<root>.php` config-root contract
+  - [x] require `config/`, a defaults file, and `config/rules.php` only for runtime packages that own a config root
+  - [x] a config-free runtime package MUST NOT be required to create placeholder config files or placeholder `defaultsConfigPath` metadata
+
+- [x] `docs/architecture/STRUCTURE.md`
+  - [x] make the canonical runtime-package `config/` subtree conditional on the package owning a config root
+  - [x] make module `defaults config path` conditional on `defaultsConfigPath` being declared
+  - [x] preserve `config/<root>.php`, `config/rules.php`, and optional deprecations for runtime packages that own config
+  - [x] explicitly allow config-free runtime packages without `config/`, `CONFIG_ROOT`, `configRoot()`, or `defaultsConfigPath`
+  - [x] align the layered runtime-package template with the current Composer-metadata-driven runtime: remove the stale `(ModuleInterface)` requirement from the package `src/Module/` template
+  - [x] package-local runtime module helpers such as `FoundationModule`, `KernelModule`, and `RedactionModule` are not runtime discovery sources and are not required to implement `Coretsia\Contracts\Module\ModuleInterface`
+  - [x] runtime module identity, dependency/conflict edges, provider planning metadata, and optional default-config metadata remain authoritative under validated `extra.coretsia`; Kernel discovery MUST NOT instantiate module classes to derive them
+  - [x] replace the stale `src/Module/*Module.php exports: id/version/deps/providers; defaults config path` convention with the current package-local helper contract
+  - [x] package-local runtime module helpers MAY mirror stable package metadata through `id()`, `packageId()`, `composerPackage()`, `kind()`, and `providers()`; a config-owning package MAY additionally expose its owner-local `configRoot()`
+  - [x] package-local runtime module helpers MUST NOT be documented as the source of package version, runtime dependency/conflict edges, `defaultsConfigPath`, or provider-planning metadata; those values remain Composer-metadata-owned
+  - [x] keep the separate application/user `ModuleInterface` guidance unchanged
+  - [x] register `coretsia/platform-redaction` in the planned full package catalog as the shared generic redaction runtime package
+  - [x] keep planned `platform/security` distinct from generic redaction ownership; it MUST NOT define a competing generic redaction engine or mutable classifier registry
+
+- [x] repo-root `composer.json`
+  - [x] include `coretsia/platform-redaction: 0.7.x-dev` in workspace `require-dev`
+  - [x] add the canonical managed path repository:
+    - [x] `type = path`
+    - [x] `url = packages/platform/redaction`
+    - [x] `options.symlink = true`
+    - [x] `options.reference = config`
+    - [x] `options.versions.coretsia/platform-redaction = 0.7.x-dev`
+    - [x] `coretsia_managed = true`
+  - [x] preserve canonical managed-repository ordering
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add `platform/redaction` to the canonical direct dependency matrix
+  - [x] exact direct dependency row:
+    - [x] `platform/redaction` → `core/contracts, core/foundation`
+  - [x] preserve canonical `strcmp` package-row ordering
+  - [x] keep the matrix aligned with package Composer dependencies and generated deptrac policy
+
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through canonical `tools/build/installation_catalog.php`
+  - [x] include `platform.redaction` → `coretsia/platform-redaction`
+  - [x] catalog edge is exactly `requires = [core.foundation]`
+  - [x] catalog `conflicts = []`
+
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate through canonical `tools/build/package_index.php`
+
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate through canonical `tools/build/deptrac_generate.php`
+  - [x] include `packages/platform/redaction/src`
+  - [x] enforce only the allowed `core/contracts` and `core/foundation` edges
 
 #### Configuration (keys + defaults)
 
@@ -2468,7 +2744,7 @@ cli.redaction.enabled
 ```
 
 Rules:
-- the redaction boundary cannot be disabled
+- once `platform.redaction` is enabled by module composition, its redaction behavior cannot be disabled or bypassed through config, env, debug/app environment, service availability, or another runtime switch
 - the default mode is selected explicitly by `RedactionContext`, not global config
 - classifier vocabulary and precedence are SSoT-owned code policy
 - no runtime-regex registry is loaded from config
@@ -2493,21 +2769,22 @@ SensitiveDataRedactorInterface alias
 
 Exact declarative wiring:
 
-- [ ] class service:
-  - [ ] `Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier`
-- [ ] class service:
-  - [ ] `Coretsia\Platform\Redaction\Redaction\SensitiveValueClassifier`
-- [ ] class service:
-  - [ ] `Coretsia\Platform\Redaction\Redaction\StableRedactionHasher`
-- [ ] class service:
-  - [ ] id and class: `Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor`
-  - [ ] constructor service references, in order:
-    - [ ] `SensitiveKeyClassifier`
-    - [ ] `SensitiveValueClassifier`
-    - [ ] `StableRedactionHasher`
-- [ ] alias:
-  - [ ] `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
-  - [ ] → `Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor`
+- [x] class service:
+  - [x] `Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier`
+- [x] class service:
+  - [x] `Coretsia\Platform\Redaction\Redaction\SensitiveValueClassifier`
+- [x] class service:
+  - [x] `Coretsia\Platform\Redaction\Redaction\StableRedactionHasher`
+- [x] class service:
+  - [x] id and class: `Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor`
+  - [x] constructor arguments are exact typed declarative service references, in order:
+    - [x] `ContainerValueReference::service(SensitiveKeyClassifier::class)`
+    - [x] `ContainerValueReference::service(SensitiveValueClassifier::class)`
+    - [x] `ContainerValueReference::service(StableRedactionHasher::class)`
+  - [x] literal FQCN strings MUST NOT be used in place of `ContainerValueReference::service(...)`
+- [x] alias:
+  - [x] `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - [x] → `Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor`
 
 Additional rules:
 
@@ -2517,7 +2794,7 @@ Additional rules:
 - no closures exist in canonical definitions
 - no config parameters exist
 - no tags exist
-- all package services are shared
+- all concrete package service definitions are shared; the `SensitiveDataRedactorInterface` alias remains the canonical non-shared delegation wrapper and resolves the shared `DefaultSensitiveDataRedactor` target
 - all registered services are stateless and safe to share
 - source registration and declarative definitions are semantically identical
 
@@ -2529,109 +2806,109 @@ N/A.
 
 #### Context & UoW
 
-- [ ] Redaction services read no `ContextStore` values.
-- [ ] Redaction services write no context values.
-- [ ] Redaction services do not receive `ContextAccessorInterface`.
-- [ ] `RedactionContext` is an explicit immutable method argument and is unrelated to runtime `ContextStore`.
-- [ ] Redaction services do not create or participate in a Kernel UoW.
-- [ ] Redaction services do not receive `KernelRuntimeInterface`.
-- [ ] `DefaultSensitiveDataRedactor`, both classifiers, and the hasher are stateless.
-- [ ] No service implements `ResetInterface`.
-- [ ] No service is tagged `kernel.stateful`.
-- [ ] No service is tagged `kernel.reset`.
-- [ ] No static mutable cache, learned classifier state, or previous-input state exists.
-- [ ] Any future stateful/custom policy capability requires a separate epic.
+- [x] Redaction services read no `ContextStore` values.
+- [x] Redaction services write no context values.
+- [x] Redaction services do not receive `ContextAccessorInterface`.
+- [x] `RedactionContext` is an explicit immutable method argument and is unrelated to runtime `ContextStore`.
+- [x] Redaction services do not create or participate in a Kernel UoW.
+- [x] Redaction services do not receive `KernelRuntimeInterface`.
+- [x] `DefaultSensitiveDataRedactor`, both classifiers, and the hasher are stateless.
+- [x] No service implements `ResetInterface`.
+- [x] No service is tagged `kernel.stateful`.
+- [x] No service is tagged `kernel.reset`.
+- [x] No static mutable cache, learned classifier state, or previous-input state exists.
+- [x] Any future stateful/custom policy capability requires a separate epic.
 
 #### Observability
 
-- [ ] No spans are emitted.
-- [ ] No metrics are emitted.
-- [ ] No logs are emitted.
-- [ ] No observability port is injected.
-- [ ] No logger is injected.
-- [ ] Redaction input, classification decisions, hashes, lengths, kinds, scopes, failures, and rejected values are not self-observed.
-- [ ] The caller MAY observe only its own already-safe operation outcome under the caller-owned observability policy.
-- [ ] A redaction failure throws `RedactionException`; the redactor does not log and does not return a fallback.
+- [x] No spans are emitted.
+- [x] No metrics are emitted.
+- [x] No logs are emitted.
+- [x] No observability port is injected.
+- [x] No logger is injected.
+- [x] Redaction input, classification decisions, hashes, lengths, kinds, scopes, failures, and rejected values are not self-observed.
+- [x] The caller MAY observe only its own already-safe operation outcome under the caller-owned observability policy.
+- [x] A redaction failure throws `RedactionException`; the redactor does not log and does not return a fallback.
 
 #### Errors
 
-- [ ] `Coretsia\Contracts\Security\Exception\RedactionException`
-  - [ ] extends `RuntimeException`
-  - [ ] constructor is private
-  - [ ] construction is allowed only through the exact named constructors
-  - [ ] error code: `CORETSIA_REDACTION_FAILED`
-  - [ ] exact public message:
-    - [ ] `CORETSIA_REDACTION_FAILED: <reason>`
-  - [ ] exposes:
-    - [ ] `errorCode(): string`
-    - [ ] `reason(): string`
-  - [ ] allows only:
-    - [ ] `input-invalid`
-    - [ ] `input-limit-exceeded`
-    - [ ] `sensitive-map-key`
-    - [ ] `output-invalid`
-    - [ ] `internal-failure`
-  - [ ] named constructors:
-    - [ ] `public static function inputInvalid(): self`
-    - [ ] `public static function inputLimitExceeded(): self`
-    - [ ] `public static function sensitiveMapKey(): self`
-    - [ ] `public static function outputInvalid(): self`
-    - [ ] `public static function internalFailure(): self`
-  - [ ] does not accept or retain a previous Throwable
-  - [ ] contains no raw value, map key, scope, hash, length, pattern, path, class name, resource id, or payload fragment
+- [x] `Coretsia\Contracts\Security\Exception\RedactionException`
+  - [x] extends `RuntimeException`
+  - [x] constructor is private
+  - [x] construction is allowed only through the exact named constructors
+  - [x] error code: `CORETSIA_REDACTION_FAILED`
+  - [x] `public const string ERROR_CODE = 'CORETSIA_REDACTION_FAILED'`
+  - [x] exact public typed reason constants:
+    - [x] `public const string REASON_INPUT_INVALID = 'input-invalid'`
+    - [x] `public const string REASON_INPUT_LIMIT_EXCEEDED = 'input-limit-exceeded'`
+    - [x] `public const string REASON_SENSITIVE_MAP_KEY = 'sensitive-map-key'`
+    - [x] `public const string REASON_OUTPUT_INVALID = 'output-invalid'`
+    - [x] `public const string REASON_INTERNAL_FAILURE = 'internal-failure'`
+  - [x] exact public message:
+    - [x] `CORETSIA_REDACTION_FAILED: <reason>`
+  - [x] exposes:
+    - [x] `errorCode(): string`
+    - [x] `reason(): string`
+  - [x] allows only:
+    - [x] `input-invalid`
+    - [x] `input-limit-exceeded`
+    - [x] `sensitive-map-key`
+    - [x] `output-invalid`
+    - [x] `internal-failure`
+  - [x] named constructors:
+    - [x] `public static function inputInvalid(): self`
+    - [x] `public static function inputLimitExceeded(): self`
+    - [x] `public static function sensitiveMapKey(): self`
+    - [x] `public static function outputInvalid(): self`
+    - [x] `public static function internalFailure(): self`
+  - [x] does not accept or retain a previous Throwable
+  - [x] its message and custom exception state contain no raw value, map key, scope, hash, length, pattern, path, class name, resource id, or payload fragment
+  - [x] stack-trace export remains governed by the existing Core error/observability boundary policy; this package introduces no independent Throwable-trace redaction mechanism
 
 Exception mapping:
 
 - input stage:
   - unsupported input type or structurally invalid json-like input → `input-invalid`
-  - stable encoding failure while materializing a normalized input branch → `input-invalid`
-  - input normalization depth/node/string limit violation → `input-limit-exceeded`
-  - direct `redactValue()` input over `65536` bytes → `input-limit-exceeded`
+  - input normalization depth/node/individual-string/aggregate-string limit violation → `input-limit-exceeded`
+  - direct `redactValue()` Foundation individual-string limit violation → `input-limit-exceeded`
 
-- traversal stage:
-  - sensitive dynamic map key → `sensitive-map-key`
+- semantic traversal / branch-summary stage:
+  - map key unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier` → `sensitive-map-key`
+  - stable encoding failure while materializing a normalized sensitive branch → `input-invalid`
 
 - output stage:
-  - invalid implementation-generated `RedactedValue` → `output-invalid`
-  - output normalization or output-limit violation → `output-invalid`
-  - final stable-encoding validation failure → `output-invalid`
+  - output normalization depth/node/individual-string/aggregate-string limit violation → `output-invalid`
 
 - implementation invariant:
-  - missing or malformed encoder-owned final LF → `internal-failure`
-  - any other unexpected implementation failure → `internal-failure`
+  - any unexpected implementation failure not covered by the explicit stage mappings → `internal-failure`
 
-The implementation MUST rethrow an existing `Coretsia\Contracts\Security\Exception\RedactionException` unchanged.
+A `Coretsia\Contracts\Security\Exception\RedactionException` produced by an explicit stage mapping MUST preserve its original allowlisted reason and MUST NOT be remapped to `internal-failure`.
 
 Every other caught Throwable is converted to `internalFailure()` without copying or retaining the original Throwable.
 
 #### Security / Redaction
 
-- [ ] Redaction is defense in depth, not source-data authorization.
-- [ ] Producer-owned safe-by-construction shapes remain mandatory.
-- [ ] Omission is preferred when no summary is required.
-- [ ] Placeholder-only is the baseline default.
-- [ ] Length and hash disclosure require explicit `RedactionContext` mode.
-- [ ] Hashes and lengths remain potentially sensitive correlation metadata.
-- [ ] No output mode returns raw sensitive input.
-- [ ] No failure returns unchanged or partially redacted input.
-- [ ] No raw input appears in exceptions, logs, spans, metrics, diagnostics, or provider definitions.
+- [x] Redaction is defense in depth, not source-data authorization.
+- [x] Producer-owned safe-by-construction shapes remain mandatory.
+- [x] Omission is preferred when no summary is required.
+- [x] Placeholder-only is the baseline default.
+- [x] Length and hash disclosure require explicit `RedactionContext` mode.
+- [x] `redactJsonLike()` applies that selected mode uniformly to every classified branch in the call; no hidden per-kind disclosure policy exists inside the redactor.
+- [x] A non-placeholder recursive mode is valid only when owner policy permits that disclosure for every sensitive branch the boundary may contain; otherwise omission or `Placeholder` remains mandatory.
+- [x] Hashes and lengths remain potentially sensitive correlation metadata.
+- [x] No output mode returns the original value of a branch selected for redaction.
+- [x] No failure returns unchanged or partially redacted input.
+- [x] No rejected or redacted raw value appears in `RedactionException` messages or custom state, logs, spans, metrics, diagnostics, or provider definitions.
+- [x] Throwable stack traces are not a redaction output surface and MUST NOT be exported through consumer diagnostic/output sinks under the existing Core error-boundary policy.
 
-The package MUST NOT leak:
-- resolved secrets
-- raw secret references by default
-- credentials
-- authorization values
-- cookies
-- session ids
-- tokens
-- raw request or response payloads
-- raw SQL or bindings
-- environment values
-- credential-bearing DSNs
-- absolute local paths
-- provider payloads
-- PII-like values
-- dynamic sensitive map keys
+The no-leak guarantee applies when sensitivity is established through:
+- explicit owner classification passed to `redactValue()`
+- structural-key classification by `SensitiveKeyClassifier`
+- string-value classification by `SensitiveValueClassifier`
+
+For every such classified branch, the original classified value or complete classified branch MUST NOT be returned or copied into output.
+
+Classifier non-match is not declassification. The baseline classifiers are intentionally deterministic and non-exhaustive; producer-owned safe-by-construction shapes remain mandatory.
 
 Allowed redacted summary fields are exactly, in byte-order `strcmp` key order:
 
@@ -2653,21 +2930,32 @@ Tests use only synthetic values.
 Key-classification fixtures:
 
 ```text
-password            -> secret
-secret_ref          -> secret-reference
-clientSecret        -> secret
-credentials         -> credential
-Authorization       -> authorization
-proxy-authorization -> authorization
+password             -> secret
+secret_ref           -> secret-reference
+clientSecret         -> secret
+credentials          -> credential
+Authorization        -> authorization
+proxy-authorization  -> authorization
+authorization_header -> authorization
 Cookie               -> cookie
 session_id           -> session-id
 access_token         -> token
+tokens               -> token
 x-api-key            -> token
 request_body         -> payload
+raw_payload          -> payload
+request_payload      -> payload
+provider_payload     -> payload
+headers              -> payload
+query_string         -> payload
 sql                  -> sql
-bindings             -> sql
+raw_sql              -> sql
+sql_query            -> sql
+sql_bindings         -> sql
+sql_statement        -> sql
 email_address        -> pii
 env_value            -> env-value
+raw_env_value        -> env-value
 absolute_path        -> local-path
 ```
 
@@ -2675,6 +2963,15 @@ Value-classification fixtures:
 
 ```text
 Bearer synthetic-token-value
+-> authorization
+
+Authorization: Bearer synthetic-token-value
+-> authorization
+
+Authorization: Digest synthetic-digest-material
+-> authorization
+
+Proxy-Authorization: Basic c3ludGhldGljOnZhbHVl
 -> authorization
 
 Cookie: session=synthetic-session
@@ -2692,13 +2989,16 @@ AKIA1234567890ABCDEF
 tok_synthetic_example
 -> token
 
-SELECT * FROM synthetic_users WHERE email = ?
--> sql
-
-/home/synthetic/project/.env
+C:\synthetic\project\.env
 -> local-path
 
-C:\synthetic\project\.env
+\\synthetic-server\share\secret.txt
+-> local-path
+
+file:///home/synthetic/project/.env
+-> local-path
+
+file://synthetic-server/share/secret.txt
 -> local-path
 
 synthetic-user@example.test
@@ -2708,278 +3008,357 @@ synthetic-user@example.test
 Non-sensitive controls:
 
 ```text
+\Coretsia\Foundation\ExampleService
+Basic plan
+Basic configuration
 success
 handled-error
 module-id
 artifact-generation
+0.7.0
+a.b.c
 42
 true
+token_bucket_capacity
+token_generation_mode
 null
 relative/safe-logical-id
 ```
 
 Required assertions:
 
-- every sensitive fixture is absent from redacted output
-- every sensitive fixture is absent from exception messages
-- key classification wins over nested traversal
+- every original string value or complete branch selected for redaction is absent from redacted output
+- structural key labels classified by `SensitiveKeyClassifier` remain unchanged while their complete associated branch is replaced
+- a map key classified by `SensitiveValueClassifier` is never returned because redaction fails with `sensitive-map-key`
+- rejected or redacted raw fixture values are absent from exception messages
+- after complete Foundation input normalization succeeds, sensitive structural-key classification wins over recursive semantic traversal of its associated branch
+- sensitive structural keys do not bypass Foundation input type or resource-limit validation
 - non-sensitive controls remain unchanged
 - lists preserve order
 - maps are recursively `strcmp` sorted
-- repeated calls produce identical bytes and shapes
+- repeated calls produce identical normalized PHP shapes; whole-result byte serialization is not owned or required by the redactor
 - placeholder mode exposes neither length nor hash
 - length mode exposes byte length only
 - hash mode exposes domain-separated hash only
 - hash-and-length exposes both
-- changing scope changes the hash
-- changing kind changes the hash
-- the same scope, kind, and bytes produce the same hash
+- changing scope changes the hash domain
+- changing kind changes the hash domain
+- changing representation changes the hash domain
+- the same scope, kind, representation, and bytes produce the same hash
 - raw fixtures do not appear in logs, spans, metrics, or diagnostics because the package emits none
 
 ### Tests (MUST)
 
 - Contracts:
-  - [ ] `packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
-    - [ ] exact two public methods
-    - [ ] exact parameter and return types
-    - [ ] both methods document `Coretsia\Contracts\Security\Exception\RedactionException`
-    - [ ] no platform-local exception appears in the interface contract
-    - [ ] no implementation-package dependency
+  - [x] `packages/core/contracts/tests/Contract/SensitiveDataRedactorInterfaceShapeContractTest.php`
+    - [x] exact two public methods
+    - [x] exact parameter and return types
+    - [x] both methods document `Coretsia\Contracts\Security\Exception\RedactionException`
+    - [x] no platform-local exception appears in the interface contract
+    - [x] no implementation-package dependency
 
-  - [ ] `packages/core/contracts/tests/Contract/RedactionExceptionShapeContractTest.php`
-    - [ ] exact FQCN belongs to `core/contracts`
-    - [ ] exact error code is `CORETSIA_REDACTION_FAILED`
-    - [ ] exact public message is `CORETSIA_REDACTION_FAILED: <reason>`
-    - [ ] constructor is private
-    - [ ] every named constructor maps to exactly one allowlisted reason
-    - [ ] unknown reasons cannot be constructed
-    - [ ] native exception code remains `0`
-    - [ ] no previous Throwable is retained
-    - [ ] no raw fixture value appears in the message
+  - [x] `packages/core/contracts/tests/Contract/RedactionExceptionShapeContractTest.php`
+    - [x] exact FQCN belongs to `core/contracts`
+    - [x] exact error code is `CORETSIA_REDACTION_FAILED`
+    - [x] exact `ERROR_CODE` constant
+    - [x] exact five public `REASON_*` constants and values
+    - [x] `ERROR_CODE` and every public `REASON_*` constant are typed exactly `string`
+    - [x] exact public message is `CORETSIA_REDACTION_FAILED: <reason>`
+    - [x] constructor is private
+    - [x] every named constructor maps to exactly one allowlisted reason
+    - [x] unknown reasons cannot be constructed
+    - [x] native exception code remains `0`
+    - [x] no previous Throwable is retained
+    - [x] no raw fixture value appears in the message
 
-  - [ ] `packages/core/contracts/tests/Contract/RedactionContextShapeContractTest.php`
-    - [ ] exact fields and accessors
-    - [ ] default placeholder mode
-    - [ ] scope regex and byte bound
-    - [ ] invalid syntax, excessive byte length, whitespace, multiline, NUL, ESC, and control bytes throw exactly `redaction-context-scope-invalid`
-    - [ ] documents that runtime/high-cardinality semantic values are forbidden caller inputs but are not inferred by the value object
+  - [x] `packages/core/contracts/tests/Contract/RedactionContextShapeContractTest.php`
+    - [x] exact fields and accessors
+    - [x] default placeholder mode
+    - [x] scope regex and byte bound
+    - [x] invalid syntax, excessive byte length, whitespace, multiline, NUL, ESC, and control bytes throw exactly `redaction-context-scope-invalid`
+    - [x] documents that runtime/high-cardinality semantic values are forbidden caller inputs but are not inferred by the value object
 
-  - [ ] `packages/core/contracts/tests/Contract/RedactionEnumsContractTest.php`
-    - [ ] exact `RedactionKind` cases and values
-    - [ ] exact `RedactionMode` cases and values
-    - [ ] no raw/disabled mode
+  - [x] `packages/core/contracts/tests/Contract/RedactionEnumsContractTest.php`
+    - [x] exact `RedactionKind` cases and values
+    - [x] exact `RedactionMode` cases and values
+    - [x] no raw/disabled mode
 
-  - [ ] `packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
-    - [ ] exact six-key `toArray()` shape
-    - [ ] recursive json-like compatibility
-    - [ ] exact mode invariants
-    - [ ] every invalid mode/length/hash combination throws exactly `redacted-value-shape-invalid`
-    - [ ] malformed hash and negative-length inputs are absent from exception messages
-    - [ ] no original value storage
+  - [x] `packages/core/contracts/tests/Contract/RedactedValueShapeContractTest.php`
+    - [x] exact six-key `toArray()` shape
+    - [x] recursive json-like compatibility
+    - [x] exact mode invariants
+    - [x] every invalid mode/length/hash combination throws exactly `redacted-value-shape-invalid`
+    - [x] malformed hash and negative-length inputs are absent from exception messages
+    - [x] no original value storage
 
 - Package contracts:
-  - [ ] `packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-    - [ ] module and provider are loadable
-    - [ ] module metadata matches composer metadata
-    - [ ] module has no config root
-    - [ ] provider construction has no side effects
+  - [x] `packages/platform/redaction/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] module and provider are loadable
+    - [x] module metadata matches composer metadata
+    - [x] module has no config root
+    - [x] provider construction has no side effects
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionModuleComposerMetadataContractTest.php`
-    - [ ] exact package name, namespace, module id, provider, requires, and conflicts
-    - [ ] no `defaultsConfigPath`
-    - [ ] exact direct Composer dependencies
+  - [x] `packages/platform/redaction/tests/Contract/RedactionModuleComposerMetadataContractTest.php`
+    - [x] exact package name, namespace, module id, provider, requires, and conflicts
+    - [x] no `defaultsConfigPath`
+    - [x] exact direct Composer dependencies
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
-    - [ ] exact service-definition order
-    - [ ] no closures or runtime objects
-    - [ ] exact interface alias
-    - [ ] no config parameters or tags
+  - [x] `packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
+    - [x] exact service-definition order
+    - [x] `DefaultSensitiveDataRedactor` has exactly three typed `service` constructor-reference descriptors in the documented order
+    - [x] no constructor dependency is encoded as a literal FQCN string
+    - [x] no closures or runtime objects
+    - [x] exact interface alias
+    - [x] no config parameters or tags
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionProviderSourceDefinitionsParityTest.php`
-    - [ ] source-mode registration and declarative definitions resolve the same services
-    - [ ] applying the provider produces exactly one redactor binding
-    - [ ] source and declarative application produce the same binding
+  - [x] `packages/platform/redaction/tests/Contract/RedactionProviderSourceDefinitionsParityTest.php`
+    - [x] source-mode registration and declarative definitions resolve the same services
+    - [x] applying the provider produces exactly one redactor binding
+    - [x] source and declarative application produce the same binding
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionPackageHasNoConfigSurfaceContractTest.php`
-    - [ ] no config directory
-    - [ ] no config root in module metadata
-    - [ ] no disable or runtime policy keys
-    - [ ] no env reads
+  - [x] `packages/platform/redaction/tests/Contract/RedactionPackageHasNoConfigSurfaceContractTest.php`
+    - [x] no config directory
+    - [x] no config root in module metadata
+    - [x] no disable or runtime policy keys
+    - [x] no env reads
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTest.php`
-    - [ ] no ContextStore or ContextAccessor
-    - [ ] no KernelRuntimeInterface
-    - [ ] no ResetInterface
-    - [ ] no reset/stateful tags
-    - [ ] no logger, tracer, meter, or reporter
-    - [ ] no stdout/stderr writes
+  - [x] `packages/platform/redaction/tests/Contract/RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTest.php`
+    - [x] no ContextStore or ContextAccessor
+    - [x] no KernelRuntimeInterface
+    - [x] no ResetInterface
+    - [x] no reset/stateful tags
+    - [x] no logger, tracer, meter, or reporter
+    - [x] no stdout/stderr writes
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
-    - [ ] complete canonical fixture matrix
-    - [ ] output and exception messages contain no raw fixture value
+  - [x] `packages/platform/redaction/tests/Contract/RedactionDoesNotExposeRawValuesContractTest.php`
+    - [x] complete canonical fixture matrix
+    - [x] output contains no original value or complete branch selected for redaction
+    - [x] exception messages contain no rejected or redacted raw fixture value
+    - [x] preserved structural key labels are not treated as leaked redacted values
 
-  - [ ] `packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
-    - [ ] same input/context produces the same recursively normalized result
-    - [ ] map order is canonical
-    - [ ] list order is preserved
-    - [ ] hash output is stable
+  - [x] `packages/platform/redaction/tests/Contract/RedactionOutputIsDeterministicContractTest.php`
+    - [x] same input/context produces the same recursively normalized result
+    - [x] map order is canonical
+    - [x] list order is preserved
+    - [x] hash output is stable
 
 - Unit:
-  - [ ] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
-    - [ ] exact canonicalization
-    - [ ] exact key vocabulary
-    - [ ] every alias listed in `docs/ssot/sensitive-data-redaction.md` is covered
-    - [ ] aliases map to exactly the documented `RedactionKind`
-    - [ ] case and separator variants
-    - [ ] no locale dependence
-    - [ ] unknown keys return null
+  - [x] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+    - [x] exact canonicalization
+    - [x] exact key vocabulary
+    - [x] every alias listed in `docs/ssot/sensitive-data-redaction.md` is covered
+    - [x] aliases map to exactly the documented `RedactionKind`
+    - [x] case and separator variants
+    - [x] no locale dependence
+    - [x] unknown keys return null
+    - [x] generic `bindings` remains unclassified because the shared key alone does not establish SQL semantics
+    - [x] `sql_bindings` classifies exactly as `RedactionKind::Sql`
+    - [x] generic `statement` remains unclassified because the shared key alone does not establish SQL semantics
+    - [x] `sql_statement` classifies exactly as `RedactionKind::Sql`
+    - [x] owner-specific forbidden-but-unclassified identifiers remain `null` unless they are present in the canonical shared alias table
+    - [x] `auth_identifier`, `user_id`, `tenant_id`, `request_id`, and `correlation_id` are not assigned a shared `RedactionKind` merely because another Core boundary forbids them
+    - [x] `address`, `path`, `raw_path`, and `directory` remain unclassified because their structural key alone does not establish PII or local-filesystem semantics
+    - [x] `env`, `environment`, and `dotenv` remain unclassified because their structural key alone does not establish a raw environment value
+    - [x] `env_value` and `raw_env_value` classify exactly as `RedactionKind::EnvValue`
 
-  - [ ] `packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
-    - [ ] exact high-confidence patterns
-    - [ ] covers every SSoT-defined baseline pattern class
-    - [ ] precedence collisions resolve according to the exact documented order
-    - [ ] exact precedence
-    - [ ] non-sensitive controls remain unclassified
-    - [ ] no entropy or broad long-string heuristic
-    - [ ] near-miss fixtures for every pattern remain unclassified
-    - [ ] no automatic unkeyed classification exists for `secret|secret-reference|session-id|payload|env-value`
+  - [x] `packages/platform/redaction/tests/Unit/SensitiveValueClassifierTest.php`
+    - [x] exact high-confidence patterns
+    - [x] covers every SSoT-defined baseline pattern class
+    - [x] precedence collisions resolve according to the exact documented order
+    - [x] exact precedence
+    - [x] non-sensitive controls remain unclassified
+    - [x] no entropy or broad long-string heuristic
+    - [x] generic `token_...` technical identifiers such as `token_bucket_capacity` and `token_generation_mode` remain unclassified
+    - [x] near-miss fixtures for every pattern remain unclassified
+    - [x] ordinary text such as `Basic plan` and `Basic configuration` remains unclassified
+    - [x] `Authorization: Basic synthetic-value` remains classified as `authorization`
+    - [x] forward-slash-rooted route-template values such as `/health`, `/users/{id}`, and `/api/v1/items` remain unclassified
+    - [x] generic `/...` classification is not used as a substitute for owner-known POSIX local-path semantics
+    - [x] FQCN-shaped values such as `\Coretsia\Foundation\ExampleService` remain unclassified
+    - [x] generic single-backslash-rooted classification is not used as a substitute for owner-known Windows local-path semantics
+    - [x] credential-bearing URI near-misses with empty user, empty password, missing `@`, missing authority, ASCII whitespace, or a control byte remain unclassified
+    - [x] JWT near-misses with an empty segment, extra segment, `=` padding, a non-base64url ASCII byte, or a first segment not beginning with `eyJ` remain unclassified
+    - [x] ordinary dotted values such as `0.7.0` and `a.b.c` remain unclassified
+    - [x] email near-misses with whitespace, control bytes, consecutive local-part dots, a leading/trailing local-part dot, a leading/trailing domain-label hyphen, a single domain label, or Unicode bytes remain unclassified
+    - [x] no automatic unkeyed classification exists for `secret|secret-reference|session-id|payload|sql|env-value`
+    - [x] SQL-shaped unkeyed strings remain unclassified; owner-known SQL requires an SQL structural key or explicit `redactValue(..., RedactionKind::Sql, ...)`
 
-  - [ ] `packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
-    - [ ] exact domain-separated input
-    - [ ] exact NUL separators and `coretsia.redaction@1` prefix
-    - [ ] direct scalar bytes are hashed unchanged
-    - [ ] no salt, time, host, process, env, or random input participates
-    - [ ] exact `sha256:<64-lower-hex>` output
-    - [ ] scope and kind separation
-    - [ ] byte-oriented behavior
+  - [x] `packages/platform/redaction/tests/Unit/StableRedactionHasherTest.php`
+    - [x] exact domain-separated input
+    - [x] exact NUL separators and `coretsia.redaction@1` prefix
+    - [x] direct string bytes are hashed unchanged inside the `string` representation domain
+    - [x] exact fixed-vector representation-domain separation:
+      - [x] scope `cli.output`
+      - [x] kind `secret`
+      - [x] bytes `null`
+      - [x] `string` domain → `sha256:5766c080857ef006b1bd51448aed5fc55727f2e11216fa7961cc2b07fee19151`
+      - [x] `json-like` domain → `sha256:7057aa75ab01ec4fb0e07ed6fc8ad0bde295c759a85919c960ef3b92fa28d567`
+      - [x] the two fixed-vector digests differ because their canonical preimages differ
+    - [x] the test establishes exact representation-domain framing for the fixed vector and MUST NOT be documented as a general SHA-256 collision-freedom guarantee
+    - [x] no salt, time, host, process, env, or random input participates
+    - [x] exact `sha256:<64-lower-hex>` output
+    - [x] scope, kind, and representation-domain separation
+    - [x] byte-oriented behavior
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorValueTest.php`
-    - [ ] explicit scalar redaction for every kind
-    - [ ] no raw scalar is retained or returned
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorValueTest.php`
+    - [x] explicit string redaction for every kind
+    - [x] no raw string is retained or returned
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorJsonLikeTraversalTest.php`
-    - [ ] key-first branch redaction
-    - [ ] one sensitive key replaces its complete value branch with one redacted summary
-    - [ ] complete non-string branch summaries use normalized stable JSON without the encoder-owned final LF
-    - [ ] recursive value classification
-    - [ ] list preservation
-    - [ ] canonical map ordering
-    - [ ] non-sensitive scalar preservation
-    - [ ] no JSON, URL, base64, JWT payload, SQL, or provider-payload decoding occurs
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorJsonLikeTraversalTest.php`
+    - [x] key-first branch redaction
+    - [x] key-first semantic traversal begins only after complete Foundation input normalization succeeds
+    - [x] a sensitive structural key does not hide a forbidden type or input-limit violation inside its associated branch
+    - [x] one sensitive key replaces its complete value branch with one redacted summary
+    - [x] complete non-string branch summaries use normalized stable JSON without the encoder-owned final LF
+    - [x] recursive value classification
+    - [x] list preservation
+    - [x] canonical map ordering
+    - [x] non-sensitive scalar preservation
+    - [x] no JSON, URL, base64, JWT payload, SQL, or provider-payload decoding occurs
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorModesTest.php`
-    - [ ] exact placeholder, length, hash, and hash-and-length shapes
-    - [ ] placeholder mode does not encode or hash a complete sensitive branch
-    - [ ] a synthetic non-string sensitive branch containing malformed UTF-8 is safely replaced in placeholder mode
-    - [ ] the same branch fails with `input-invalid` when length or hash requires stable JSON byte materialization
-    - [ ] hash-and-length materializes and hashes one canonical byte representation
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorModesTest.php`
+    - [x] exact placeholder, length, hash, and hash-and-length shapes
+    - [x] one `RedactionContext` mode is applied uniformly to every branch selected during one `redactJsonLike()` call
+    - [x] no classifier kind triggers an implicit mode downgrade, upgrade, or fallback
+    - [x] placeholder mode does not encode or hash a complete sensitive branch
+    - [x] a synthetic non-string sensitive branch containing malformed UTF-8 is safely replaced in placeholder mode
+    - [x] the same branch fails with `input-invalid` when length or hash requires stable JSON byte materialization
+    - [x] hash-and-length materializes and hashes one canonical byte representation
+    - [x] under the same scope and kind, sensitive string `"null"` and sensitive scalar `null` produce different hashes
+    - [x] representation separation does not alter disclosed branch-summary byte length
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorRejectsSensitiveMapKeysTest.php`
-    - [ ] sensitive dynamic map key fails closed
-    - [ ] key value is absent from exception diagnostics
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorRejectsSensitiveMapKeysTest.php`
+    - [x] an unclassified map key that `SensitiveValueClassifier` classifies fails with `sensitive-map-key` before semantic traversal of its associated normalized value begins
+    - [x] an `Authorization: Bearer ...` header-like string used as a map key fails with `sensitive-map-key` before semantic traversal of its associated normalized value begins
+    - [x] an `Authorization: Digest ...` header-like string used as a map key fails with `sensitive-map-key` before semantic traversal of its associated normalized value begins
+    - [x] key value is absent from exception diagnostics
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorLimitsTest.php`
-    - [ ] exact depth, node, and string-byte limits
-    - [ ] limit failures expose only the stable reason
-    - [ ] direct `redactValue()` input over `65536` bytes fails with `input-limit-exceeded`
-    - [ ] output expansion beyond the fixed output budget fails with `output-invalid`
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorLimitsTest.php`
+    - [x] exact depth, node, individual-string-byte, and aggregate-string-byte limits
+    - [x] limit failures expose only the stable reason
+    - [x] direct `redactValue()` delegates the `65536` individual-string-byte limit to `JsonLikeNormalizer` and maps the Foundation limit failure to `input-limit-exceeded`
+    - [x] direct-string limit enforcement contains no second package-local byte-limit guard
+    - [x] output expansion beyond the fixed output budget fails with `output-invalid`
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailureStageMappingTest.php`
-    - [ ] unsupported input type → `input-invalid`
-    - [ ] input-branch stable encoding failure → `input-invalid`
-    - [ ] input normalization limit → `input-limit-exceeded`
-    - [ ] sensitive dynamic map key → `sensitive-map-key`
-    - [ ] invalid implementation-generated `RedactedValue` → `output-invalid`
-    - [ ] output normalization or output-limit failure → `output-invalid`
-    - [ ] final stable-encoding validation failure → `output-invalid`
-    - [ ] missing or malformed encoder-owned final LF → `internal-failure`
-    - [ ] unexpected implementation failure → `internal-failure`
-    - [ ] existing `RedactionException` is rethrown as the same instance
-    - [ ] no failure returns unchanged input or a partial result
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailureStageMappingTest.php`
+    - [x] unsupported input type → `input-invalid`
+    - [x] sensitive branch-summary stable encoding failure → `input-invalid`
+    - [x] input normalization limit → `input-limit-exceeded`
+    - [x] map key unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier` → `sensitive-map-key`
+    - [x] output normalization resource-limit failure → `output-invalid`
+    - [x] every explicitly mapped `RedactionException` preserves its documented allowlisted reason and is not remapped to `internal-failure`
+    - [x] no failure returns unchanged input or a partial result
 
-  - [ ] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailsClosedTest.php`
-    - [ ] rejects floats, objects, closures, resources, and non-string map keys
-    - [ ] map keys containing NUL, CR, LF, ESC, or another C0 control byte fail with `input-invalid`
-    - [ ] rejected map keys are absent from exception messages
-    - [ ] returns no unchanged input or partial result
-    - [ ] preserves no previous Throwable
+  - [x] `packages/platform/redaction/tests/Unit/DefaultSensitiveDataRedactorFailsClosedTest.php`
+    - [x] Foundation input normalization rejects floats, objects, closures, resources, and non-string map keys before semantic traversal; the redactor maps those failures to `input-invalid`
+    - [x] no package-local duplicate forbidden-type or map-key-type validator exists
+    - [x] a Foundation-valid, within-budget map key reached by semantic traversal and containing an ASCII C0 control byte or DEL (`0x7F`) fails with `input-invalid`
+    - [x] a C0/DEL map key nested only inside a complete branch already selected for replacement is not traversed solely for this policy
+    - [x] when the same candidate map key causes a Foundation resource-limit failure before semantic traversal, the canonical Foundation limit mapping to `input-limit-exceeded` wins over the later C0/DEL policy
+    - [x] rejected map keys are absent from exception messages
+    - [x] returns no unchanged input or partial result
+    - [x] preserves no previous Throwable
 
 - Integration:
-  - [ ] `packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
-    - [ ] canonical source container resolves `SensitiveDataRedactorInterface`
-    - [ ] resolved service is `DefaultSensitiveDataRedactor`
-    - [ ] classifiers and hasher are injected in exact order
-    - [ ] repeated resolution returns the same shared stateless service
-    - [ ] redaction works without config, context, Kernel runtime, or observability services
+  - [x] `packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+    - [x] canonical source container resolves `SensitiveDataRedactorInterface`
+    - [x] resolved service is `DefaultSensitiveDataRedactor`
+    - [x] classifiers and hasher are injected in exact order
+    - [x] repeated resolution returns the same shared stateless service
+    - [x] redaction works without config, `ContextStore`, `ContextAccessorInterface`, Kernel runtime, or observability services; callers still pass the explicit immutable `RedactionContext` method argument
 
-  - [ ] `packages/platform/redaction/tests/Integration/RedactionModuleRequiresExplicitEnablementTest.php`
-    - [ ] an installed but disabled package contributes no provider or binding
-    - [ ] an explicitly enabled `platform.redaction` module contributes exactly one binding
-    - [ ] no config, debug, app environment, or Composer-presence auto-enablement occurs
+  - [x] `packages/platform/redaction/tests/Integration/RedactionProviderRequiresExplicitApplicationTest.php`
+    - [x] package/autoload presence alone does not mutate a fresh Foundation `ContainerBuilder`
+    - [x] constructing `RedactionModule` alone does not mutate a fresh Foundation `ContainerBuilder`
+    - [x] explicitly applying the provider declared by `RedactionModule::providers()` contributes exactly one `SensitiveDataRedactorInterface` binding
+    - [x] no config, debug, app environment, or Composer-presence side effect applies the provider automatically
+    - [x] the test does not emulate Kernel `ModulePlan` or provider-plan resolution
 
 - Gates / architecture:
-  - [ ] package index regenerated and green
-  - [ ] deptrac generated and green
-  - [ ] package compliance green
-  - [ ] package scaffold check green
-  - [ ] package PHPUnit configuration gate green
-  - [ ] contracts-only ports gate green
-  - [ ] ECS and PHPStan green
+  - [x] package index regenerated and green
+  - [x] canonical direct dependency matrix includes `platform/redaction` and matches Composer/deptrac edges
+  - [x] installation catalog regenerated and green
+  - [x] deptrac generated and green
+  - [x] package compliance green for the canonical config-free runtime-package shape
+  - [x] package scaffold check green and does not require or synthesize `config/` when `defaultsConfigPath` is absent
+  - [x] `sync:check` green
+  - [x] `release-line:workspace:check` and `release-line:public-constraints:check` green
+  - [x] `package-publish-safety:gate` green
+  - [x] package PHPUnit configuration gate green
+  - [x] contracts-only ports gate green
+  - [x] ECS and PHPStan green
 
 ### DoD (MUST)
 
-- [ ] `SensitiveDataRedactorInterface` exposes exactly `redactValue()` and `redactJsonLike()`.
-- [ ] The public redaction failure type belongs to `core/contracts`; consumers need no dependency on the concrete platform implementation to catch redaction failures.
-- [ ] `RedactionKind` and `RedactionMode` contain exactly the canonical enum values.
-- [ ] `RedactionContext` has exact bounded scope and mode semantics.
-- [ ] `RedactedValue` has the exact deterministic six-key exported shape.
-- [ ] No mode or config option returns raw sensitive input.
-- [ ] Placeholder is the default mode.
-- [ ] Length is byte length.
-- [ ] Hashing uses the exact domain-separated SHA-256 contract.
-- [ ] Recursive traversal uses exact key-first classification precedence.
-- [ ] Lists preserve order and maps are recursively `strcmp` sorted.
-- [ ] Fixed depth, node, and string-byte limits are enforced.
-- [ ] Invalid input and internal failures fail closed.
-- [ ] No complete or partial original value is returned after failure.
-- [ ] Sensitive dynamic map keys fail deterministically.
-- [ ] Every `RedactionException` exposes only `CORETSIA_REDACTION_FAILED` and an allowlisted reason.
-- [ ] `RedactionContext` invariant violations expose only `InvalidArgumentException('redaction-context-scope-invalid')`.
-- [ ] `RedactedValue` invariant violations expose only `InvalidArgumentException('redacted-value-shape-invalid')`.
-- [ ] No exception message contains rejected constructor input, redaction input, field keys, hashes, paths, payload fragments, or previous Throwable messages.
-- [ ] Runtime services are stateless and shared.
-- [ ] No ContextStore, UoW, reset, logging, tracing, metrics, or reporter dependency exists.
-- [ ] No config root, config files, disable toggle, runtime pattern registry, or env-controlled behavior exists.
-- [ ] `RedactionModule` and Composer metadata match exactly.
-- [ ] Composer requires only PHP, `core/contracts`, and `core/foundation`.
-- [ ] An enabled `platform.redaction` module contributes exactly one `SensitiveDataRedactorInterface` binding to the default implementation.
-- [ ] An installed but disabled module contributes no provider and no redactor binding.
-- [ ] Provider source registration and declarative definitions are semantically identical.
-- [ ] Redaction does not replace producer-owned safe-by-construction diagnostic shapes.
-- [ ] Kernel Ops remains independent from `platform/redaction`.
-- [ ] No Phase 3–6 production package is modified by this epic.
-- [ ] No future roadmap epic is rewritten as an implementation deliverable of this package.
-- [ ] Docs updated:
-  - [ ] `packages/core/contracts/README.md`
-  - [ ] `packages/platform/redaction/README.md`
-  - [ ] `packages/platform/redaction/SECURITY.md`
-  - [ ] `docs/ssot/sensitive-data-redaction.md`
-  - [ ] `docs/ssot/observability-and-errors.md`
-  - [ ] `docs/ssot/observability.md`
-  - [ ] `docs/ssot/secrets-contracts.md`
-  - [ ] `docs/ssot/config-and-env.md`
-  - [ ] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
-- [ ] All contract, unit, integration, architecture, package, ECS, and PHPStan checks pass.
-- [ ] Non-goals remain:
-  - [ ] secret resolution
-  - [ ] Vault/AWS/GCP integrations
-  - [ ] request-body inspection or semantic payload parsing
-  - [ ] SQL parsing
-  - [ ] mail-body rewriting
-  - [ ] AI guardrail or PII rewriting
-  - [ ] configurable/custom policy packs
-  - [ ] stateful classifier learning
-  - [ ] partially masked previews
+- [x] `SensitiveDataRedactorInterface` exposes exactly `redactValue()` and `redactJsonLike()`.
+- [x] The public redaction failure type belongs to `core/contracts`; consumers need no dependency on the concrete platform implementation to catch redaction failures.
+- [x] `RedactionKind` and `RedactionMode` contain exactly the canonical enum values.
+- [x] `RedactionContext` has exact bounded scope and mode semantics.
+- [x] `RedactedValue` has the exact deterministic six-key exported shape.
+- [x] No mode or config option returns the original value of a branch selected for redaction.
+- [x] Placeholder is the default mode.
+- [x] Length is byte length.
+- [x] Hashing uses the exact domain-separated SHA-256 contract.
+- [x] After complete Foundation input normalization succeeds, recursive semantic traversal uses exact key-first classification precedence; sensitive structural keys do not bypass input type or resource-limit validation.
+- [x] Lists preserve order and maps are recursively `strcmp` sorted.
+- [x] Direct-string and recursive json-like resource limits are enforced through the shared Foundation normalization primitive; `platform/redaction` contains no parallel byte-limit guard.
+- [x] Invalid input and internal failures fail closed.
+- [x] No complete or partial original value is returned after failure.
+- [x] Map keys unclassified by `SensitiveKeyClassifier` but classified by `SensitiveValueClassifier` fail deterministically with `sensitive-map-key`.
+- [x] Every `RedactionException` exposes only `CORETSIA_REDACTION_FAILED` and an allowlisted reason.
+- [x] `RedactionContext` invariant violations expose only `InvalidArgumentException('redaction-context-scope-invalid')`.
+- [x] `RedactedValue` invariant violations expose only `InvalidArgumentException('redacted-value-shape-invalid')`.
+- [x] No exception message contains rejected constructor input, redaction input, field keys, hashes, paths, payload fragments, or previous Throwable messages.
+- [x] Concrete runtime services are stateless and shared; the `SensitiveDataRedactorInterface` alias is a canonical non-shared delegation wrapper and preserves the lifecycle of its shared `DefaultSensitiveDataRedactor` target.
+- [x] No ContextStore, UoW, reset, logging, tracing, metrics, or reporter dependency exists.
+- [x] No config root, config files, disable toggle, runtime pattern registry, or env-controlled behavior exists.
+- [x] `RedactionModule` and Composer metadata match exactly.
+- [x] Composer requires only PHP, `core/contracts`, and `core/foundation`.
+- [x] Package `LICENSE` and `NOTICE` are byte-identical to the canonical monorepo-root legal files.
+- [x] Explicit application of the provider declared by `RedactionModule` contributes exactly one `SensitiveDataRedactorInterface` binding to the default implementation.
+- [x] Package presence or `RedactionModule` construction alone contributes no provider or redactor binding; enabled/disabled module-plan semantics remain Kernel-owned.
+- [x] Provider source registration and declarative definitions are semantically identical.
+- [x] Cross-package consumers use `SensitiveDataRedactorInterface`; classifiers and `StableRedactionHasher` remain package-internal implementation details.
+- [x] Redaction does not replace producer-owned safe-by-construction diagnostic shapes.
+- [x] Classifier non-match is not declassification and MUST NOT authorize transporting arbitrary raw diagnostic/output data.
+- [x] Existing lower-layer Core boundary-specific validation, rejection, omission, hashing, and safe-derivation guards remain owner-local and are not rewritten to depend on `platform/redaction`.
+- [x] Foundation-owned json-like type validation, map-key-type validation, normalization, and structural resource accounting are reused from `core/foundation`; `platform/redaction` contains no parallel validator, normalizer, or resource-budget walker for those Foundation-owned concerns.
+- [x] The post-normalization C0/DEL check for map keys reached by semantic traversal before classification is a redaction-specific output-safety policy and MUST NOT become a second json-like structural-validity, resource-budget, or whole-input pre-scan model.
+- [x] `StableJsonEncoder` is used only when canonical bytes of a non-string sensitive branch are required by `Length|Hash|HashAndLength`; whole-result serialization remains consumer-owned.
+- [x] Canonical redacted summaries do not bypass stricter consumer-boundary policy, including `ErrorDescriptor` semantic-key, absolute-local-path, and resource-budget invariants.
+- [x] Kernel Ops remains independent from `platform/redaction`.
+- [x] No Phase 3–6 production package is modified by this epic.
+- [x] No future roadmap epic is rewritten as an implementation deliverable of this package.
+- [x] Docs updated:
+  - [x] `packages/core/contracts/README.md`
+  - [x] `packages/core/foundation/README.md`
+  - [x] `packages/platform/redaction/README.md`
+  - [x] `packages/platform/redaction/SECURITY.md`
+  - [x] `docs/architecture/PACKAGING.md`
+  - [x] `docs/architecture/STRUCTURE.md`
+  - [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] `docs/ssot/sensitive-data-redaction.md`
+  - [x] `docs/ssot/json-like-runtime-values.md`
+  - [x] `docs/ssot/application-dependency-sync.md`
+  - [x] `docs/ssot/error-descriptor.md`
+  - [x] `docs/ssot/observability-and-errors.md`
+  - [x] `docs/ssot/observability.md`
+  - [x] `docs/ssot/secrets-contracts.md`
+  - [x] `docs/ssot/config-and-env.md`
+  - [x] `docs/ssot/INDEX.md`
+  - [x] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+  - [x] `docs/adr/INDEX.md`
+- [x] All contract, unit, integration, architecture, package, ECS, and PHPStan checks pass.
+- [x] Non-goals remain:
+  - [x] secret resolution
+  - [x] Vault/AWS/GCP integrations
+  - [x] request-body inspection or semantic payload parsing
+  - [x] SQL parsing
+  - [x] mail-body rewriting
+  - [x] AI guardrail or PII rewriting
+  - [x] configurable/custom policy packs
+  - [x] stateful classifier learning
+  - [x] partially masked previews
 
 ---
 

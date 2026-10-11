@@ -811,6 +811,16 @@ This document does not add reset logging payload fields beyond the reset summary
 - Producers MUST prefer omission over unsafe emission.
 - When raw values are unsafe, producers MUST either drop them or convert them to an allowed safe pattern.
 - Redaction MUST NOT be bypassed merely because a sink is internal.
+- The canonical shared generic redaction mechanism is defined by `docs/ssot/sensitive-data-redaction.md`. This document retains authority over sink naming, schemas, attribute types, cardinality, metric labels, and allowlists.
+- Canonical `RedactedValue::toArray()` summaries MAY be emitted in logs, spans, and span events only when the corresponding owner-defined sink schema and boundary policy explicitly permit that shape.
+- Structural validity of a canonical redacted summary MUST NOT override existing sink-specific schema, type, attribute-key, cardinality, or safe-derivation constraints.
+- `RedactionMode::Length`, `RedactionMode::Hash`, and `RedactionMode::HashAndLength` are owner-approved metadata disclosures, not automatic declassification or emission permission.
+- `Hash` and `HashAndLength` summaries MUST satisfy the existing deterministic, non-reversible, policy-approved safe-derivation requirement. Deterministic SHA-256 MUST NOT be presumed non-reversible for low-entropy or guessable input.
+- Existing span and span-event attribute allowlists remain authoritative. Shared redaction MUST NOT introduce new attribute keys or widen an existing span or span-event schema.
+- Raw payloads, headers, cookies, tokens, SQL, environment values, provider payloads, and absolute local paths remain forbidden as span attributes. Redaction MUST NOT authorize their raw emission.
+- Metrics remain subject to the canonical global label allowlist and metric-specific catalog labels. Redaction MUST NOT introduce arbitrary metric labels or additional label dimensions.
+- Canonical redacted summary maps MUST NOT be emitted as metric label values.
+- `platform/redaction` emits no baseline logs, spans, span events, or metrics. Its services MUST NOT own observability emission or sink policy.
 
 ## Non-goals / Clarifications (MUST)
 
@@ -822,3 +832,4 @@ This document does not add reset logging payload fields beyond the reset summary
 
 - [SSoT Index](./INDEX.md)
 - [Observability and errors](./observability-and-errors.md) — reset observability safety policy, sanitized reset exception recording, and summary-only reset logs/metrics/spans.
+- [Sensitive Data Redaction SSoT](./sensitive-data-redaction.md) — canonical shared redaction mechanics, summaries, hashing, and disclosure policy.

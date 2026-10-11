@@ -45,6 +45,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0007: Validation ports](./ADR-0007-validation-ports.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,errors,validation,ports
 - [ADR-0008: Filesystem ports](./ADR-0008-filesystem-ports.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,filesystem,ports
 - [ADR-0009: Database and migrations ports](./ADR-0009-database-and-migrations-ports.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,database,migrations,ports
+- [ADR-0010: Sensitive data redaction boundary](./ADR-0010-sensitive-data-redaction-boundary.md) — owner: platform/redaction — adrVersion: 1 — scope: classification,contracts,redaction,security
 - [ADR-0011: Rate limit ports](./ADR-0011-ratelimit-ports.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,ports,rate-limit,redaction
 - [ADR-0012: Mail port](./ADR-0012-mail-port.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,mail,ports,redaction
 - [ADR-0013: Secrets port](./ADR-0013-secrets-port.md) — owner: core/contracts — adrVersion: 1 — scope: contracts,secrets,redaction
@@ -66,7 +67,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0030: Canonical Runtime Container Definitions](./ADR-0030-canonical-runtime-container-definitions.md) — owner: core/foundation — adrVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
 - [ADR-0032: Process-Exec Descriptor Safety](./ADR-0032-process-exec-descriptor-safety.md) — owner: repo — adrVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
-- [ADR-0033: Application Dependency Synchronization from Explicit Installation Intent](../adr/ADR-0033-application-dependency-sync-installation-intent.md) — owner: core/kernel — adrVersion: 1 — scope: composer,dependency-sync,installation-intent,kernel,modules,verification
+- [ADR-0033: Application Dependency Synchronization from Explicit Installation Intent](./ADR-0033-application-dependency-sync-installation-intent.md) — owner: core/kernel — adrVersion: 1 — scope: composer,dependency-sync,installation-intent,kernel,modules,verification
 
 ## Cross-references
 

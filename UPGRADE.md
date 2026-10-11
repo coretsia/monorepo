@@ -103,6 +103,194 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.7.0 to v0.8.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- This release introduces new Kernel mode, module selection, application dependency synchronization, source-host operations, and sensitive-data redaction boundaries.
+- Review custom mode preset sources, module planning integrations, runtime package metadata, and diagnostic/output consumers that depend on previous development-surface behavior.
+
+#### Mode presets and module selection
+
+Kernel mode resolution now separates the two canonical phases:
+
+- Phase A resolves namespace-bound mode policy and per-target module overrides into an immutable `ModuleSelection`.
+- Phase B resolves installed Composer module metadata and the selected module policy into a deterministic `ModulePlan`.
+
+The legacy preset selection model is replaced by the required/modules policy.
+
+Review custom mode preset sources and integrations that construct or inspect mode selection state.
+
+Canonical framework presets and owner-defined custom presets must follow their explicit namespace and ownership rules. Custom preset names must not redefine canonical framework preset identities.
+
+Module selection and module planning are distinct boundaries. Do not infer application module selection solely from installed Composer packages or reconstruct `ModulePlan` directly from preset source data.
+
+#### Application dependency synchronization
+
+Consumer application dependency synchronization is now an explicit Kernel-owned operation separate from runtime boot.
+
+The shipped consumer adapter supports:
+
+```bash
+php bin/dependency-sync.php plan --target=web
+php bin/dependency-sync.php review --target=web
+php bin/dependency-sync.php apply --target=web
+```
+
+Replace `web` with the intended application target. Multiple targets may be selected explicitly through repeated `--target` options.
+
+- `plan` computes installation requirements without performing synchronization.
+- `review` validates the proposed synchronization without intentionally changing Composer state.
+- `apply` performs authorized Composer effects and verifies the resulting installed state.
+
+Dependency synchronization uses a versioned release installation catalog to resolve runtime module identities to Composer packages.
+
+The physical Composer dependency union is project-wide, but module selection, exclusions, and runtime conflicts remain target-local.
+
+Only explicitly tracked DependencySync-managed Coretsia root requirements may be reconciled automatically. Project-owned Coretsia requirements and protected third-party roots retain their ownership.
+
+Composer scripts, plugins, broad dependency updates, and installed-vendor repair require their respective explicit authorizations.
+
+Effectful synchronization uses project locking, durable recovery records, and fresh-process installed verification. A failed Composer operation is not guaranteed to roll back `composer.json`, `composer.lock`, and `vendor/` atomically.
+
+Do not invoke dependency synchronization during HTTP, CLI application, Worker, or other runtime boot.
+
+#### Kernel source-host operations
+
+Kernel now exposes explicit-target source-host operations for configuration, cache, and module workflows.
+
+The new contracts include:
+
+```text
+KernelOpsInterface
+KernelOpsRequest
+OpsResult
+KernelOpsFailedException
+```
+
+Source-host operations reuse canonical bootstrap, mode and module resolution, configuration loading, fingerprinting, artifact compilation, and cache verification pipelines.
+
+They do not require an existing generated runtime artifact generation.
+
+Integrations that previously assembled equivalent source-host operations directly from internal Kernel services should review the new public boundary.
+
+Operations must preserve explicit application-target selection, safe deterministic result shapes, and the existing context and UnitOfWork ownership rules.
+
+Kernel source-host services are not substitutes for compiled runtime service definitions.
+
+#### Mode preset PHP source output
+
+Synchronous ordinary PHP output produced while loading mode preset sources is now contained and discarded.
+
+Mode preset sources must not rely on `echo`, `print`, or other ordinary PHP output reaching a caller-owned output buffer or transport.
+
+Source loading remains a trusted PHP execution boundary, not an execution sandbox.
+
+Source execution and output-buffer cleanup failures retain the existing generic invalid-source failure boundary without exposing captured output.
+
+Direct stream writes, process termination, deferred output, and arbitrary output-buffer manipulation remain outside the ordinary output-containment guarantee.
+
+#### Sensitive-data redaction
+
+The new shared runtime package is:
+
+```text
+coretsia/platform-redaction
+```
+
+Its runtime module identity is:
+
+```text
+platform.redaction
+```
+
+The module requires `core.foundation` and is not automatically enabled merely because its Composer package is installed.
+
+Eligible consumers requiring shared sensitive-data redaction must explicitly select the module through their owning runtime module policy and use the contracts-level `SensitiveDataRedactorInterface`.
+
+Direct known-sensitive string values use `redactValue()` with an explicit `RedactionKind` and `RedactionContext`.
+
+Recursive json-like diagnostic/output values use `redactJsonLike()` where the destination owner permits the shared redaction boundary.
+
+Unclassified values may remain unchanged. A classifier non-match is not evidence of diagnostic safety; known-sensitive values still require explicit classification, omission, or owner-owned safe derivation.
+
+`Placeholder` is the default disclosure mode. `Length`, `Hash`, and `HashAndLength` require explicit owner approval for the metadata disclosed.
+
+One recursive redaction operation applies the same selected disclosure mode to every sensitive branch it replaces.
+
+For boundaries with heterogeneous disclosure requirements, prefer omission or `Placeholder`, or split separately governed values into distinct operations.
+
+Canonical redacted summaries do not automatically authorize emission to `ErrorDescriptor` extensions, logs, spans, metrics, or other diagnostic sinks. Existing owner-defined schemas, semantic-key restrictions, resource budgets, and non-reconstruction requirements remain authoritative.
+
+Lower-layer Core producers and Kernel Ops retain their existing safe-by-construction policies and must not acquire an upward dependency on `platform/redaction`.
+
+#### Json-like normalization limits
+
+`JsonLikeNormalizationLimits` now supports an optional fourth constructor argument:
+
+```php
+?int $maxTotalStringBytes = null
+```
+
+The aggregate budget counts the byte lengths of string values and string map keys using `strlen()` during the existing deterministic normalization traversal.
+
+A non-null aggregate limit must be positive. Zero is invalid.
+
+Omitting the argument or passing `null` preserves existing normalization behavior without an aggregate string-byte cap.
+
+Existing callers using the original three constructor arguments do not require migration.
+
+Callers that opt into the aggregate budget must handle the additional stable failure reason:
+
+```text
+json-like-total-string-bytes-exceeded
+```
+
+Existing depth, node, map-key-type, individual-string-byte, and diagnostic-path contracts remain authoritative.
+
+#### Runtime package configuration
+
+Runtime packages without a reserved configuration root are no longer required to provide:
+
+```text
+config/
+CONFIG_ROOT
+configRoot()
+extra.coretsia.defaultsConfigPath
+```
+
+A runtime package that owns a configuration root must still provide its canonical defaults file and declarative rules file:
+
+```text
+config/<root>.php
+config/rules.php
+```
+
+Optional configuration deprecations remain package-owned.
+
+`defaultsConfigPath`, when declared, identifies the canonical package-relative defaults file for the reserved configuration root.
+
+Runtime module identity, dependency and conflict edges, provider declarations, and optional default-config metadata remain authoritative under validated Composer `extra.coretsia` metadata.
+
+Package-local runtime module helpers are not runtime discovery sources and are not required to implement the application/user `ModuleInterface`.
+
+Do not create placeholder configuration files or metadata for config-free runtime packages.
+
+#### Migration steps
+
+1. Review the `v0.8.0` `CHANGELOG.md` section and relevant changed runtime contracts and documentation.
+2. Update custom mode presets and module selection integrations to the namespace-bound required/modules policy and Phase A/Phase B separation.
+3. Review application targets, module inclusion/exclusion rules, and Composer requirements before adopting explicit dependency synchronization.
+4. Use the consumer dependency-sync plan and review operations before authorizing apply, and preserve recovery receipts when synchronization requires manual recovery.
+5. Review custom Kernel source-host integrations for the new explicit-target operations interface and safe result contracts.
+6. Remove assumptions that ordinary PHP output from mode preset source files is forwarded to caller-owned output buffers.
+7. Adopt `SensitiveDataRedactorInterface` only in eligible runtime consumers and preserve owner-owned diagnostic schemas, omission policies, and safe-by-construction output.
+8. Review custom normalization-limit construction if opting into the new aggregate string-byte budget.
+9. Remove placeholder configuration requirements from config-free runtime packages while retaining canonical config-root ownership for configuration-bearing packages.
+10. Update Composer dependencies to the published target release line and refresh dependency locks intentionally.
+11. Run the canonical validation or consumer installation checks appropriate to the upgraded project.
+
 ### From v0.6.0 to v0.7.0
 
 #### Compatibility

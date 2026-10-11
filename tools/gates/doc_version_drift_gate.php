@@ -102,11 +102,20 @@ function coretsia_doc_version_gate_validate_index(
     $diagnostics = $parsed['diagnostics'];
 
     if ($entries === []) {
-        throw new \RuntimeException('index-empty');
+        $diagnostics[] = $indexRelPath . ': index-empty';
     }
+
+    /** @var array<string, int> $registered */
+    $registered = [];
 
     foreach ($entries as $entry) {
         $targetRelPath = $entry['target_rel_path'];
+        $registered[$targetRelPath] = ($registered[$targetRelPath] ?? 0) + 1;
+
+        if ($registered[$targetRelPath] === 2) {
+            $diagnostics[] = $targetRelPath . ': document-registered-multiple-times';
+        }
+
         $targetCandidate = $scanRoot . '/' . $targetRelPath;
 
         if (!\is_file($targetCandidate) || !\is_readable($targetCandidate)) {
@@ -140,6 +149,38 @@ function coretsia_doc_version_gate_validate_index(
         }
     }
 
+    $indexDir = \dirname($indexRelPath);
+    $directory = $repository->resolveExistingDirectory($scanRoot . '/' . $indexDir);
+
+    if (!RepositoryContext::containsPath($scanRoot, $directory)) {
+        throw new \RuntimeException('document-directory-outside-scan-root');
+    }
+
+    $fileNames = @\scandir($directory);
+    if ($fileNames === false) {
+        throw new \RuntimeException('document-directory-scan-failed');
+    }
+
+    foreach ($fileNames as $fileName) {
+        if ($fileName === 'INDEX.md' || !\str_ends_with($fileName, '.md')) {
+            continue;
+        }
+
+        if (!\is_file($directory . '/' . $fileName)) {
+            continue;
+        }
+
+        if (\preg_match('/\A[A-Za-z0-9][A-Za-z0-9._-]*\.md\z/D', $fileName) !== 1) {
+            $diagnostics[] = $indexRelPath . ': document-name-invalid';
+            continue;
+        }
+
+        $targetRelPath = $indexDir . '/' . $fileName;
+        if (!isset($registered[$targetRelPath])) {
+            $diagnostics[] = $targetRelPath . ': document-not-registered';
+        }
+    }
+
     $diagnostics = \array_values(\array_unique($diagnostics));
     \sort($diagnostics, \SORT_STRING);
 
@@ -169,6 +210,7 @@ function coretsia_doc_version_gate_parse_index_entries(
     $diagnostics = [];
 
     $indexDir = \dirname($indexRelPath);
+    $previousTargetRelPath = null;
 
     foreach ($lines as $offset => $line) {
         if (!\is_string($line)) {
@@ -178,15 +220,15 @@ function coretsia_doc_version_gate_parse_index_entries(
         $lineNumber = $offset + 1;
         $trimmed = \trim($line);
 
+        if (\str_starts_with($trimmed, '## ')) {
+            $previousTargetRelPath = null;
+        }
+
         if (!\str_starts_with($trimmed, '- [')) {
             continue;
         }
 
         if (!\str_contains($trimmed, '](')) {
-            continue;
-        }
-
-        if (!\str_contains($trimmed, '— owner:')) {
             continue;
         }
 
@@ -219,6 +261,15 @@ function coretsia_doc_version_gate_parse_index_entries(
             $diagnostics[] = $indexRelPath . ': index-entry-target-invalid:line-' . (string) $lineNumber;
             continue;
         }
+
+        if (
+            $previousTargetRelPath !== null
+            && \strcmp($previousTargetRelPath, $targetRelPath) > 0
+        ) {
+            $diagnostics[] = $indexRelPath . ': index-entry-order-invalid:line-' . (string) $lineNumber;
+        }
+
+        $previousTargetRelPath = $targetRelPath;
 
         $entries[] = [
             'target_rel_path' => $targetRelPath,

@@ -395,7 +395,8 @@ Runtime packages MUST declare canonical runtime metadata under `extra.coretsia`:
 - `moduleId`
 - `moduleClass`
 - `providers`
-- `defaultsConfigPath`
+
+`defaultsConfigPath` is conditional on the runtime package owning a reserved config root.
 
 For a runtime package at:
 
@@ -403,12 +404,18 @@ For a runtime package at:
 packages/<layer>/<slug>/
 ```
 
-the metadata MUST be derived as follows:
+the metadata MUST follow these rules:
 
-- `moduleId` MUST equal `<layer>.<slug>`
-- `moduleClass` MUST equal the canonical runtime module FQCN
-- `providers` MUST include the canonical runtime service provider FQCN
-- `defaultsConfigPath` MUST equal `config/<slug>.php`
+- `moduleId` MUST equal `<layer>.<slug>`.
+- `moduleClass` MUST equal the canonical package-local runtime module FQCN.
+- `providers` MUST include the canonical runtime service provider FQCN.
+- `requires` and `conflicts`, when declared, MUST contain canonical runtime module ids and remain Composer-metadata-owned.
+- A runtime package that owns a reserved config root MUST declare `defaultsConfigPath`.
+- When present, `defaultsConfigPath` MUST equal `config/<root>.php`, where `<root>` is the exact reserved config root owned by that package.
+- The config root MUST follow the canonical config-root naming and ownership rules and MUST NOT be derived blindly from the package slug.
+- A config-free runtime package MUST NOT be required to declare `defaultsConfigPath` or create a placeholder defaults file.
+
+Runtime module identity, dependency/conflict edges, provider-planning declarations, and optional default-config declarations remain authoritative under validated `extra.coretsia` metadata. Package-local module helpers MUST NOT replace these metadata sources or be instantiated by Kernel discovery to derive them.
 
 The canonical runtime module class file MUST be:
 
@@ -436,27 +443,44 @@ Every runtime package MUST contain:
 - `src/Provider/`
 - `src/Module/<StudlySlug>Module.php`
 - `src/Provider/<StudlySlug>ServiceProvider.php`
+
+A runtime package that owns a reserved config root MUST additionally contain:
+
 - `config/`
-- `config/<slug>.php`
+- `config/<root>.php`
 - `config/rules.php`
+
+`<root>` MUST equal the exact config root owned by the package in the canonical config-roots registry.
+
+A config-free runtime package MAY omit `config/` entirely. It MUST NOT be required to introduce placeholder config defaults, placeholder validation rules, or placeholder `defaultsConfigPath` metadata solely to satisfy the runtime-package scaffold.
 
 ### 10.2. Runtime config shape (single-choice)
 
-Runtime package defaults file:
+For a runtime package that owns a reserved config root, the canonical defaults file is:
 
 ```text
-config/<slug>.php
+config/<root>.php
 ```
 
-MUST return a plain array subtree and MUST NOT repeat the root wrapper.
+The defaults file MUST return a plain array subtree and MUST NOT repeat the root wrapper.
 
-Runtime package rules file:
+The owning runtime package MUST also provide:
 
 ```text
 config/rules.php
 ```
 
-MUST return a plain array.
+The rules file MUST return a plain declarative ruleset array and MUST NOT introduce executable validators, closures, service instances, or runtime wiring objects.
+
+A config-owning runtime package MAY additionally provide:
+
+```text
+config/deprecations.php
+```
+
+A runtime package without a reserved config root has no package-owned default-config source. It MUST NOT be required to synthesize `config/`, defaults, rules, or deprecations files, and MUST NOT be required to declare `extra.coretsia.defaultsConfigPath`.
+
+When `defaultsConfigPath` is declared, it MUST identify the package-owned `config/<root>.php` file using the canonical logical package-relative path. It MUST NOT contain or imply a physical Composer installation path.
 
 Config root ownership and config subtree invariants are governed by:
 

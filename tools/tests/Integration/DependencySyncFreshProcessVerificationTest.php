@@ -23,6 +23,7 @@ use Coretsia\Kernel\DependencySync\Composer\ComposerSyncCoordinator;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Process\DependencySyncProcessRunner;
 use Coretsia\Kernel\DependencySync\ProjectDependencySync;
+use Coretsia\Tools\Support\ReleaseLine;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -613,6 +614,11 @@ PHP,
             "<?php\n\nreturn [];\n",
         );
 
+        $publicConstraint = ReleaseLine::fromFile(
+            $repoRoot . '/tools/release/release-line.json',
+        )->publicConstraint();
+        $releaseVersion = \substr($publicConstraint, 1);
+
         $repositories = [];
 
         foreach (
@@ -620,22 +626,22 @@ PHP,
                 [
                     'coretsia/core-contracts',
                     $repoRoot . '/packages/core/contracts',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-foundation',
                     $repoRoot . '/packages/core/foundation',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-kernel',
                     $repoRoot . '/packages/core/kernel',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/framework',
                     $repoRoot . '/packages/framework',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
             ] as [$name, $source, $version]
         ) {
@@ -679,9 +685,9 @@ PHP,
                     'repositories' => $repositories,
                     'require' => [
                         'php' => '^8.4',
-                        'coretsia/framework' => '^0.7.0',
-                        'coretsia/core-foundation' => '^0.7.0',
-                        'coretsia/core-kernel' => '^0.7.0',
+                        'coretsia/framework' => $publicConstraint,
+                        'coretsia/core-foundation' => $publicConstraint,
+                        'coretsia/core-kernel' => $publicConstraint,
                     ],
                     'config' => [
                         'sort-packages' => true,

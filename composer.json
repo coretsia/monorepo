@@ -40,16 +40,16 @@
     "ext-ctype": "*",
     "ext-dom": "*",
     "ext-libxml": "*",
-    "coretsia/core-contracts": "0.7.x-dev",
-    "coretsia/core-dto-attribute": "0.7.x-dev",
-    "coretsia/core-foundation": "0.7.x-dev",
-    "coretsia/core-kernel": "0.7.x-dev",
-    "coretsia/devtools-internal-toolkit": "0.7.x-dev",
-    "coretsia/framework": "0.7.x-dev",
-    "coretsia/platform-cli": "0.7.x-dev",
-    "coretsia/platform-redaction": "0.7.x-dev",
-    "coretsia/platform-worker": "0.7.x-dev",
-    "coretsia/skeleton": "0.7.x-dev",
+    "coretsia/core-contracts": "0.8.x-dev",
+    "coretsia/core-dto-attribute": "0.8.x-dev",
+    "coretsia/core-foundation": "0.8.x-dev",
+    "coretsia/core-kernel": "0.8.x-dev",
+    "coretsia/devtools-internal-toolkit": "0.8.x-dev",
+    "coretsia/framework": "0.8.x-dev",
+    "coretsia/platform-cli": "0.8.x-dev",
+    "coretsia/platform-redaction": "0.8.x-dev",
+    "coretsia/platform-worker": "0.8.x-dev",
+    "coretsia/skeleton": "0.8.x-dev",
     "deptrac/deptrac": "^4.6",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
@@ -75,7 +75,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/skeleton": "0.7.x-dev"
+          "coretsia/skeleton": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -87,7 +87,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-contracts": "0.7.x-dev"
+          "coretsia/core-contracts": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -99,7 +99,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-dto-attribute": "0.7.x-dev"
+          "coretsia/core-dto-attribute": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -111,7 +111,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-foundation": "0.7.x-dev"
+          "coretsia/core-foundation": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -123,7 +123,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-kernel": "0.7.x-dev"
+          "coretsia/core-kernel": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -135,7 +135,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/devtools-internal-toolkit": "0.7.x-dev"
+          "coretsia/devtools-internal-toolkit": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -147,7 +147,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/framework": "0.7.x-dev"
+          "coretsia/framework": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -159,7 +159,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-cli": "0.7.x-dev"
+          "coretsia/platform-cli": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -171,7 +171,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-redaction": "0.7.x-dev"
+          "coretsia/platform-redaction": "0.8.x-dev"
         }
       },
       "coretsia_managed": true
@@ -183,7 +183,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-worker": "0.7.x-dev"
+          "coretsia/platform-worker": "0.8.x-dev"
         }
       },
       "coretsia_managed": true

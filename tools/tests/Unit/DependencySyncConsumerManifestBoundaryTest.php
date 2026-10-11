@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Tools\Tests\Unit;
 
+use Coretsia\Tools\Support\ReleaseLine;
 use PHPUnit\Framework\TestCase;
 
 final class DependencySyncConsumerManifestBoundaryTest extends TestCase
@@ -38,7 +39,7 @@ final class DependencySyncConsumerManifestBoundaryTest extends TestCase
         self::assertCount(2, $require);
         self::assertSame('^8.4', $require['php'] ?? null);
         self::assertSame(
-            '^0.7.0',
+            ReleaseLine::fromFile($repoRoot . '/tools/release/release-line.json')->publicConstraint(),
             $require['coretsia/framework'] ?? null,
         );
         self::assertArrayNotHasKey('repositories', $manifest);

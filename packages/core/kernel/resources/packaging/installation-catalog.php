@@ -78,7 +78,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.7.0',
-  'releaseLine' => '0.7',
+  'publicConstraint' => '^0.8.0',
+  'releaseLine' => '0.8',
   'schemaVersion' => 1,
 );

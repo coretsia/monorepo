@@ -162,6 +162,22 @@ PHP,
         \mkdir($repositoryRoot, 0777, true);
         \mkdir($root . '/bin', 0777, true);
 
+        $kernelManifest = \json_decode(
+            (string) \file_get_contents($repoRoot . '/packages/core/kernel/composer.json'),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($kernelManifest);
+
+        $publicConstraint = $kernelManifest['require']['coretsia/core-contracts'] ?? null;
+        self::assertIsString($publicConstraint);
+        self::assertMatchesRegularExpression(
+            '/\A\^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.0\z/D',
+            $publicConstraint,
+        );
+        $releaseVersion = \substr($publicConstraint, 1);
+
         $repositories = [];
 
         foreach (
@@ -169,22 +185,22 @@ PHP,
                 [
                     'coretsia/core-contracts',
                     $repoRoot . '/packages/core/contracts',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-foundation',
                     $repoRoot . '/packages/core/foundation',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-kernel',
                     $repoRoot . '/packages/core/kernel',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/platform-worker',
                     $repoRoot . '/packages/platform/worker',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
             ] as [$name, $source, $version]
         ) {
@@ -228,7 +244,7 @@ PHP,
                     'repositories' => $repositories,
                     'require' => [
                         'php' => '^8.4',
-                        'coretsia/platform-worker' => '^0.7.0',
+                        'coretsia/platform-worker' => $publicConstraint,
                     ],
                     'config' => [
                         'sort-packages' => true,

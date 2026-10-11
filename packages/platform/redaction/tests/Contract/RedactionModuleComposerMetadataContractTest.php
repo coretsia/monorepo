@@ -32,13 +32,23 @@ final class RedactionModuleComposerMetadataContractTest extends TestCase
         self::assertSame('coretsia/platform-redaction', $composer['name'] ?? null);
         self::assertSame('library', $composer['type'] ?? null);
         self::assertSame('Apache-2.0', $composer['license'] ?? null);
+        $require = $composer['require'] ?? null;
+        self::assertIsArray($require);
+
+        $publicConstraint = $require['coretsia/core-contracts'] ?? null;
+        self::assertIsString($publicConstraint);
+        self::assertMatchesRegularExpression(
+            '/\A\^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.0\z/D',
+            $publicConstraint,
+        );
+
         self::assertSame(
             [
                 'php' => '^8.4',
-                'coretsia/core-contracts' => '^0.7.0',
-                'coretsia/core-foundation' => '^0.7.0',
+                'coretsia/core-contracts' => $publicConstraint,
+                'coretsia/core-foundation' => $publicConstraint,
             ],
-            $composer['require'] ?? null,
+            $require,
         );
         self::assertSame(
             ['Coretsia\\Platform\\Redaction\\' => 'src/'],

@@ -113,7 +113,7 @@ final class Path
         }
 
         // Windows drive absolute: "C:/..."
-        return (bool)preg_match('/\A[A-Za-z]:\//', $path);
+        return (bool) preg_match('/\A[A-Za-z]:\//', $path);
     }
 
     /**

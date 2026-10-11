@@ -33,11 +33,10 @@ final class PackageComplianceGateRejectsBadFixtureTest extends ToolContractTestC
             "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
             . "packages/core/broken-library/LICENSE: legal-file-drift\n"
             . "packages/core/broken-library/README.md: missing-required-file\n"
-            . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-defaultsConfigPath\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-moduleClass\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-moduleId\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-providers\n"
-            . "packages/platform/broken-runtime/config/rules.php: missing-runtime-file\n",
+            . "packages/platform/broken-runtime/config: unexpected-config-free-runtime-directory\n",
             $output,
         );
 
@@ -63,11 +62,10 @@ final class PackageComplianceGateRejectsBadFixtureTest extends ToolContractTestC
         self::assertSame(1, $code);
         self::assertSame(
             "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
-            . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-defaultsConfigPath\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-moduleClass\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-moduleId\n"
             . "packages/platform/broken-runtime/composer.json: missing-runtime-metadata-providers\n"
-            . "packages/platform/broken-runtime/config/rules.php: missing-runtime-file\n",
+            . "packages/platform/broken-runtime/config: unexpected-config-free-runtime-directory\n",
             $output,
         );
 

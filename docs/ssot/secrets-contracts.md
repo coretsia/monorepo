@@ -336,6 +336,36 @@ len(value)
 
 Safe derivations MUST NOT expose raw secret values or allow reconstruction of secret values.
 
+### Shared sensitive-data redaction boundary
+
+Raw resolved secret values are never inherently diagnostic-safe. Resolving a secret for runtime use does not authorize exposing that value through logs, spans, error descriptors, health checks, debug output, or other diagnostic sinks.
+
+A stable secret reference MAY remain directly observable only when its owner has already classified that reference as safe for the destination boundary.
+
+Unsafe or deployment-sensitive secret references MUST be omitted or represented through an owner-approved safe derivation. For eligible consumers of the shared redaction port, `RedactionKind::SecretReference` is the explicit classification for such references.
+
+Omission is preferred whenever the original value or its metadata is not operationally necessary.
+
+When a resolved secret value or unsafe reference requires a redacted representation, consumers permitted to depend on `platform/redaction` MUST use the contracts-level `SensitiveDataRedactorInterface` with an explicit `RedactionKind` and an immutable, bounded `RedactionContext`.
+
+Resolved secret values use an owner-selected sensitive kind such as `RedactionKind::Secret`. Unsafe secret references use `RedactionKind::SecretReference`.
+
+Lower-layer Core producers MUST retain their owner-owned omission, validation, and safe-derivation policies and MUST NOT introduce an upward dependency on `platform/redaction`.
+
+The shared redaction mechanism and its canonical disclosure modes are defined by:
+
+```text
+docs/ssot/sensitive-data-redaction.md
+```
+
+`RedactionMode::Length`, `RedactionMode::Hash`, and `RedactionMode::HashAndLength` MAY be selected only when the owner policy explicitly permits disclosure of that metadata for the specific secret or reference value class.
+
+Deterministic SHA-256 MUST NOT be considered non-reversible merely because it produces a hash. Low-entropy or otherwise guessable secret values may be reconstructed through candidate testing.
+
+When non-reconstruction and disclosure admissibility cannot be established, the consumer MUST omit the value or use `RedactionMode::Placeholder`, subject to its destination-boundary policy.
+
+Canonical redacted summaries MUST NOT be interpreted as automatic permission to emit secret-related metadata to arbitrary diagnostic or observability sinks.
+
 ## Missing vs empty semantics
 
 Missing and present-empty secret values MUST remain distinguishable.
@@ -1000,6 +1030,7 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [Config and env SSoT](./config-and-env.md)
+- [Sensitive Data Redaction SSoT](./sensitive-data-redaction.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [ErrorDescriptor SSoT](./error-descriptor.md)

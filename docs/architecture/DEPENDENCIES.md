@@ -265,6 +265,7 @@ The canonical empty dependency marker is:
 | core/kernel               | core/contracts, core/foundation              |       |
 | devtools/internal-toolkit | —                                            |       |
 | platform/cli              | core/contracts                               |       |
+| platform/redaction        | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
 ---

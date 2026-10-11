@@ -24,6 +24,7 @@ namespace Coretsia\Foundation\Serialization;
  * The baseline value model remains unchanged when no limits instance is
  * supplied. Owners that accept untrusted or potentially large structures may
  * provide a mandatory bounded policy through this immutable value object.
+ * Aggregate string-byte accounting is optional and defaults to unbounded.
  */
 final readonly class JsonLikeNormalizationLimits
 {
@@ -31,28 +32,28 @@ final readonly class JsonLikeNormalizationLimits
      * @param int<1, max> $maxDepth
      * @param int<1, max> $maxNodes
      * @param int<1, max> $maxStringBytes
+     * @param int<1, max>|null $maxTotalStringBytes
      */
     public function __construct(
         public int $maxDepth,
         public int $maxNodes,
         public int $maxStringBytes,
+        public ?int $maxTotalStringBytes = null,
     ) {
         if ($maxDepth < 1) {
-            throw new \InvalidArgumentException(
-                'json-like-normalization-max-depth-invalid',
-            );
+            throw new \InvalidArgumentException('json-like-normalization-max-depth-invalid');
         }
 
         if ($maxNodes < 1) {
-            throw new \InvalidArgumentException(
-                'json-like-normalization-max-nodes-invalid',
-            );
+            throw new \InvalidArgumentException('json-like-normalization-max-nodes-invalid');
         }
 
         if ($maxStringBytes < 1) {
-            throw new \InvalidArgumentException(
-                'json-like-normalization-max-string-bytes-invalid',
-            );
+            throw new \InvalidArgumentException('json-like-normalization-max-string-bytes-invalid');
+        }
+
+        if ($maxTotalStringBytes !== null && $maxTotalStringBytes < 1) {
+            throw new \InvalidArgumentException('json-like-normalization-max-total-string-bytes-invalid');
         }
     }
 }

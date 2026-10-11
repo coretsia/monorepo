@@ -121,6 +121,51 @@ final class JsonLikeNormalizationLimitsContractTest extends TestCase
         }
     }
 
+    public function testAggregateStringLimitMustBePositiveWhenProvided(): void
+    {
+        foreach ([0, -1] as $maxTotalStringBytes) {
+            try {
+                new JsonLikeNormalizationLimits(
+                    maxDepth: 8,
+                    maxNodes: 20,
+                    maxStringBytes: 100,
+                    maxTotalStringBytes: $maxTotalStringBytes,
+                );
+
+                self::fail('Expected invalid aggregate string limit rejection.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame(
+                    'json-like-normalization-max-total-string-bytes-invalid',
+                    $exception->getMessage(),
+                );
+            }
+        }
+    }
+
+    public function testOmittedAggregateLimitPreservesLegacyUnboundedAggregateBehavior(): void
+    {
+        $limits = new JsonLikeNormalizationLimits(
+            maxDepth: 8,
+            maxNodes: 20,
+            maxStringBytes: 4,
+        );
+
+        self::assertNull($limits->maxTotalStringBytes);
+        self::assertSame(
+            [
+                'a' => '1234',
+                'b' => '5678',
+            ],
+            JsonLikeNormalizer::normalize(
+                [
+                    'b' => '5678',
+                    'a' => '1234',
+                ],
+                limits: $limits,
+            ),
+        );
+    }
+
     public function testLimitsValueObjectHasStableImmutableShape(): void
     {
         $class = new \ReflectionClass(
@@ -135,6 +180,7 @@ final class JsonLikeNormalizationLimitsContractTest extends TestCase
                 'maxDepth',
                 'maxNodes',
                 'maxStringBytes',
+                'maxTotalStringBytes',
             ],
             \array_map(
                 static fn (\ReflectionProperty $property): string => $property->getName(),
@@ -151,6 +197,10 @@ final class JsonLikeNormalizationLimitsContractTest extends TestCase
         self::assertSame(8, $limits->maxDepth);
         self::assertSame(256, $limits->maxNodes);
         self::assertSame(4096, $limits->maxStringBytes);
+        self::assertNull($limits->maxTotalStringBytes);
+
+        $bounded = new JsonLikeNormalizationLimits(8, 256, 4096, 65_536);
+        self::assertSame(65_536, $bounded->maxTotalStringBytes);
     }
 
     public function testNormalizerExposesOptionalLimitsParameter(): void
@@ -348,8 +398,7 @@ final class JsonLikeNormalizationLimitsContractTest extends TestCase
         );
 
         self::assertReason(
-            operation: static fn (): mixed =>
-            JsonLikeNormalizer::normalize(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
                 '12345',
                 limits: $limits,
             ),
@@ -358,8 +407,7 @@ final class JsonLikeNormalizationLimitsContractTest extends TestCase
         );
 
         self::assertReason(
-            operation: static fn (): mixed =>
-            JsonLikeNormalizer::normalize(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
                 [
                     'abcde' => 'ok',
                 ],

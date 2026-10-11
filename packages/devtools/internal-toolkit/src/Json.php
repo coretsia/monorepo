@@ -52,7 +52,7 @@ final class Json
 
         return json_encode(
             $normalized,
-            \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR
+            \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR,
         );
     }
 
@@ -68,10 +68,14 @@ final class Json
 
         if (is_float($value)) {
             // Explicitly reject float/NaN/INF/-INF (float is forbidden in json-like payloads).
-            throw new \InvalidArgumentException(self::codeWithPath('CORETSIA_JSON_FLOAT_FORBIDDEN', $path));
+            throw new \InvalidArgumentException(
+                self::codeWithPath('CORETSIA_JSON_FLOAT_FORBIDDEN', $path),
+            );
         }
 
-        throw new \InvalidArgumentException(self::codeWithPath('CORETSIA_INTERNAL_TOOLKIT_JSON_UNSUPPORTED_TYPE', $path));
+        throw new \InvalidArgumentException(
+            self::codeWithPath('CORETSIA_INTERNAL_TOOLKIT_JSON_UNSUPPORTED_TYPE', $path),
+        );
     }
 
     /**
@@ -88,7 +92,7 @@ final class Json
         if (array_is_list($arr)) {
             $out = [];
             foreach ($arr as $i => $v) {
-                $out[] = self::normalizeValue($v, self::appendIndex($path, (int)$i));
+                $out[] = self::normalizeValue($v, self::appendIndex($path, (int) $i));
             }
             return $out;
         }
@@ -98,10 +102,12 @@ final class Json
 
         foreach ($arr as $k => $v) {
             if (!is_string($k)) {
-                throw new \InvalidArgumentException(self::codeWithPath(
-                    'CORETSIA_INTERNAL_TOOLKIT_JSON_UNSUPPORTED_TYPE',
-                    self::appendKey($path, (string)$k)
-                ));
+                throw new \InvalidArgumentException(
+                    self::codeWithPath(
+                        'CORETSIA_INTERNAL_TOOLKIT_JSON_UNSUPPORTED_TYPE',
+                        self::appendKey($path, (string) $k),
+                    ),
+                );
             }
 
             $tmp[$k] = self::normalizeValue($v, self::appendKey($path, $k));
@@ -109,7 +115,7 @@ final class Json
 
         uksort(
             $tmp,
-            static fn (string $a, string $b): int => strcmp($a, $b)
+            static fn (string $a, string $b): int => strcmp($a, $b),
         );
 
         return $tmp;

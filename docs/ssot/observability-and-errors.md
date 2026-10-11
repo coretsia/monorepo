@@ -170,6 +170,40 @@ len(value)
 
 Safe derivations MUST NOT expose raw values, secrets, PII, request bodies, response bodies, profile payloads, or raw persistence payloads.
 
+### Shared sensitive-data redaction boundary
+
+The canonical shared sensitive-data redaction mechanism is defined by:
+
+```text
+docs/ssot/sensitive-data-redaction.md
+```
+
+Eligible cross-package consumers MUST use the contracts-level `SensitiveDataRedactorInterface` rather than introduce competing generic redaction engines or mutable classifier registries.
+
+Producer-owned safe-by-construction diagnostic shapes remain the primary requirement. Omission and stable safe reason tokens are preferred when original values are not operationally necessary.
+
+Shared redaction is defense in depth. Late redaction MUST NOT be used to legitimize unsafe diagnostic shapes, bypass destination-boundary validation, or authorize transport of arbitrary raw producer values.
+
+Existing owner-specific safe derivations, including `hash(value)`, `len(value)`, counts, and stable categories, remain valid only where their owner policy permits them and they do not expose or permit reconstruction of sensitive values.
+
+Canonical `RedactedValue` summaries provide an additional shared representation for eligible consumers. They do not require lower-layer Core producers to migrate existing safe derivations or introduce an upward dependency on `platform/redaction`.
+
+A key or value not classified by the shared redactor MUST NOT be treated as authorized for emission to an observability or diagnostic sink.
+
+Reporter payloads and other diagnostic extensions MAY use canonical redacted summaries only where their owner-defined schema and boundary policy explicitly permit the summary shape and selected metadata disclosure.
+
+`ErrorDescriptor` extension admissibility, including recursive semantic-key restrictions, absolute-local-path rejection, resource budgets, and producer-owned safe derivation, remains governed exclusively by:
+
+```text
+docs/ssot/error-descriptor.md
+```
+
+This document MUST NOT redefine the field-by-field `ErrorDescriptor` extension schema.
+
+`platform/redaction` owns safe public redaction exception messages and custom exception state. It does not sanitize native PHP `Throwable` stack-trace storage.
+
+The existing prohibition on exporting raw stack traces, raw Throwable messages, and unsafe exception internals through diagnostic or observability sinks remains authoritative. Successful redaction MUST NOT weaken that prohibition.
+
 ## Observability naming, span naming, and metric catalog policy
 
 Observability naming, span naming, the canonical metrics catalog, metric-specific catalog labels, the global metric label allowlist, and global redaction policy are governed by:

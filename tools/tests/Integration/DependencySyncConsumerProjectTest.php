@@ -21,6 +21,7 @@ namespace Coretsia\Tools\Tests\Integration;
 use Composer\InstalledVersions;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Process\DependencySyncProcessRunner;
+use Coretsia\Tools\Support\ReleaseLine;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -401,7 +402,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         try {
             $before = self::lockPackage($root, 'coretsia/core-kernel');
 
-            self::assertSame('0.7.0', $before['version']);
+            self::assertSame(self::releaseVersion(), $before['version']);
 
             self::prepareKernelReplacement($root);
 
@@ -416,7 +417,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
 
             $after = self::lockPackage($root, 'coretsia/core-kernel');
 
-            self::assertSame('0.7.1', $after['version']);
+            self::assertSame(self::replacementKernelVersion(), $after['version']);
 
             $marker = $root . '/var/replaced-kernel-verifier-pid';
 
@@ -657,6 +658,23 @@ final class DependencySyncConsumerProjectTest extends TestCase
         }
     }
 
+    private static function publicConstraint(): string
+    {
+        return ReleaseLine::fromFile(
+            \dirname(__DIR__, 3) . '/tools/release/release-line.json',
+        )->publicConstraint();
+    }
+
+    private static function releaseVersion(): string
+    {
+        return \substr(self::publicConstraint(), 1);
+    }
+
+    private static function replacementKernelVersion(): string
+    {
+        return \substr(self::releaseVersion(), 0, -1) . '1';
+    }
+
     private static function consumer(
         ?string $protectedMode = null,
         bool $protectedDevelopment = false,
@@ -705,6 +723,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
             $root . '/config',
         );
 
+        $releaseVersion = self::releaseVersion();
         $repositories = [];
 
         foreach (
@@ -712,27 +731,27 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 [
                     'coretsia/core-contracts',
                     $repoRoot . '/packages/core/contracts',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-foundation',
                     $repoRoot . '/packages/core/foundation',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/core-kernel',
                     $repoRoot . '/packages/core/kernel',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/framework',
                     $repoRoot . '/packages/framework',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
                 [
                     'coretsia/platform-worker',
                     $repoRoot . '/packages/platform/worker',
-                    '0.7.0',
+                    $releaseVersion,
                 ],
             ] as [$name, $source, $version]
         ) {
@@ -767,7 +786,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
 
         $require = [
             'php' => '^8.4',
-            'coretsia/framework' => '^0.7.0',
+            'coretsia/framework' => self::publicConstraint(),
         ];
         $requireDev = [];
 
@@ -896,7 +915,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         ];
 
         if ($requiresWorker) {
-            $composer['require']['coretsia/platform-worker'] = '^0.7.0';
+            $composer['require']['coretsia/platform-worker'] = self::publicConstraint();
         }
 
         if ($conflictsWithWorker) {
@@ -975,12 +994,12 @@ PHP;
         foreach ($manifest['repositories'] as &$repository) {
             if (
                 ($repository['options']['versions']['coretsia/core-kernel'] ?? null)
-                !== '0.7.0'
+                !== self::releaseVersion()
             ) {
                 continue;
             }
 
-            $repository['options']['versions']['coretsia/core-kernel'] = '0.7.1';
+            $repository['options']['versions']['coretsia/core-kernel'] = self::replacementKernelVersion();
             $updated = true;
 
             break;

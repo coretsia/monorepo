@@ -23,6 +23,9 @@
       "package_id": "devtools/internal-toolkit"
     },
     {
+      "package_id": "platform/redaction"
+    },
+    {
       "package_id": "platform/worker"
     }
   ]

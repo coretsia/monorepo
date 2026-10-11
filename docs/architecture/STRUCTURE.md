@@ -88,7 +88,8 @@
 - Template-owned application surfaces may include `apps/`, `modules/`, `config/`, `resources/`, `var/`, and `tests/`.
 - `packages/applications/skeleton/bin/dependency-sync.php` is the shipped thin consumer integration seam for explicit dependency-sync `plan` / `review` / `apply` invocation.
 - `config/` in the skeleton template contains application overrides only, not framework defaults.
-- Defaults live in owning runtime packages under `packages/<layer>/<slug>/config`.
+- Package defaults exist only for runtime packages that own a reserved config root. Their canonical defaults files live under `packages/<layer>/<slug>/config/<root>.php` and are declared through `extra.coretsia.defaultsConfigPath`.
+- Config-free runtime packages do not contribute package default-config sources and MUST NOT be required to create placeholder config files.
 - After `composer create-project coretsia/skeleton <app>`, the extracted template root becomes the consumer application root.
 - The installation application set is explicit caller input; the presence of `apps/<appTarget>/`, preset keys, or other application directories MUST NOT infer target membership.
 - Runtime/package code MUST NOT depend on `packages/applications/skeleton/` or any other monorepo source path.
@@ -201,21 +202,21 @@ coretsia/
 
 ## 2) Canonical template for a layered runtime package
 
-> Goal: a runtime package can be included as a module, receive default config, rules, tags, commands, migrations,
-> and resources.
+> Goal: a runtime package participates in metadata-driven module and provider planning and MAY provide default config,
+> rules, tags, commands, migrations, and resources when those surfaces belong to the package.
 
 ```txt
 packages/<layer>/<slug>/
 ├── src/
-│   ├── Module/                    # <Xxx>Module (ModuleInterface)
-│   ├── Provider/                  # <Xxx>ServiceProvider
+│   ├── Module/                    # package-local <StudlySlug>Module helper
+│   ├── Provider/                  # <StudlySlug>ServiceProvider
 │   ├── Contracts/                 # ONLY if internal, not cross-package API
 │   ├── Console/                   # CLI commands (if the package adds its own)
 │   ├── Http/                      # middleware/handlers (if relevant)
 │   └── ...
-├── config/
-│   ├── <slug>.php                 # defaults (subtree; without wrapper root)
-│   ├── rules.php                  # validation/schema/metadata
+├── config/                        # only when the package owns a config root
+│   ├── <root>.php                 # defaults (subtree; without wrapper root)
+│   ├── rules.php                  # declarative validation rules
 │   └── deprecations.php           # optional
 ├── resources/                     # views/lang/assets (optional)
 │   ├── views/
@@ -233,15 +234,24 @@ packages/<layer>/<slug>/
 
 Required conventions inside the package
 
-- `src/Module/*Module.php` exports:
-  - id/version/deps/providers
-  - defaults config path (for ConfigKernel)
-  - optional: migrations/resources
-
-- `src/Provider/*ServiceProvider.php`:
-  - DI bindings
-  - tags (health/middleware/exporters/commands)
-- `config/<slug>.php` returns a subtree (without repeating the wrapper root).
+- Runtime module identity, dependency/conflict edges, provider-planning declarations, and optional default-config metadata are authoritative under validated Composer `extra.coretsia` metadata.
+- Kernel runtime discovery MUST read installed Composer metadata and MUST NOT instantiate package-local module classes to derive module identity, dependency/conflict edges, providers, or default-config paths.
+- `src/Module/<StudlySlug>Module.php` is a package-local runtime metadata helper, not a runtime discovery source.
+  - Helpers such as `FoundationModule`, `KernelModule`, and `RedactionModule` are not required to implement `Coretsia\Contracts\Module\ModuleInterface`.
+  - A helper MAY mirror stable package metadata through `id()`, `packageId()`, `composerPackage()`, `kind()`, and `providers()`.
+  - A package owning a reserved config root MAY additionally expose its owner-local `configRoot()`.
+  - Helpers MUST NOT be treated as authoritative sources of package version, runtime dependency/conflict edges, `defaultsConfigPath`, or provider-planning metadata.
+  - Package versions remain derived from canonical release tags, not module helper methods.
+- `src/Provider/<StudlySlug>ServiceProvider.php` owns runtime DI definitions and applicable service tags.
+  - Provider application remains controlled by the runtime composition owner.
+  - Composer package presence or module helper construction MUST NOT automatically enable the runtime module or apply its provider.
+- A runtime package that owns a reserved config root MUST provide `config/<root>.php` and `config/rules.php`.
+  - `config/<root>.php` MUST return a plain array subtree without repeating the root wrapper.
+  - `config/rules.php` MUST return declarative validation rules.
+  - `config/deprecations.php` MAY be provided when needed.
+- A config-free runtime package MAY omit `config/`, `CONFIG_ROOT`, `configRoot()`, and `extra.coretsia.defaultsConfigPath`.
+  - No placeholder config directory, defaults file, rules file, or metadata declaration is required.
+  - A module contributes a package default-config source only when validated `extra.coretsia.defaultsConfigPath` metadata is present.
 
 ---
 
@@ -430,15 +440,19 @@ Conceptual layer-direction matrix:
 
 2. Unified config rules
 
-- defaults — owning runtime packages only (`packages/<layer>/<slug>/config`)
+- defaults — only runtime packages owning a reserved config root (`packages/<layer>/<slug>/config/<root>.php`, declared through `extra.coretsia.defaultsConfigPath`)
 - template overrides — `packages/applications/skeleton/config`, `packages/applications/skeleton/apps/*/config`, `packages/applications/skeleton/modules/*/config`
 - consumer overrides after `create-project` — `config`, `apps/*/config`, `modules/*/config`
-- validators/metadata — `config/rules.php` (package) + explain/source tracking in kernel
+- validators/metadata — package-owned `config/rules.php` only for runtime packages owning a config root; explain/source tracking remains Kernel-owned
 - application target membership for DependencySync is explicit caller input; neither `apps/*` directories nor `config/app.php.presets` keys implicitly add targets to the installation set
 
-3. A package is always “enabled” through Module + Provider
+3. Runtime module composition is explicit and metadata-driven
 
-- even if a package is “small”: this saves you from registration chaos
+- Runtime module identity, dependency/conflict edges, and provider declarations come from validated installed Composer `extra.coretsia` metadata.
+- Kernel-owned planning determines the selected runtime modules and their providers.
+- Installing a Composer package or constructing its package-local module helper MUST NOT automatically enable the module or apply its providers.
+- Package-local module helpers MUST NOT replace Composer metadata as runtime discovery or provider-planning inputs.
+- Config-free runtime packages require neither default-config metadata nor placeholder configuration files.
 
 ---
 
@@ -630,58 +644,63 @@ This is a structural/product catalog, not a claim that every listed package is a
 19. `coretsia/platform-session`
 20. `coretsia/platform-auth`
 21. `coretsia/platform-security`
-22. `coretsia/platform-rate-limit` (optional split)
+22. `coretsia/platform-redaction`
+23. `coretsia/platform-rate-limit` (optional split)
+
+`coretsia/platform-redaction` owns shared generic deterministic sensitive-data redaction, including canonical key/value classification, redaction summaries, and hashing.
+
+The planned `coretsia/platform-security` package remains a distinct security-capability owner. It MUST NOT introduce a competing generic redaction engine or mutable classifier registry.
 
 ### E) Application Architecture (DDD/CQRS/ES)
 
-23. `coretsia/platform-events`
-24. `coretsia/platform-cqrs`
-25. `coretsia/platform-outbox`
-26. `coretsia/platform-inbox`
-27. `coretsia/platform-event-sourcing`
+24. `coretsia/platform-events`
+25. `coretsia/platform-cqrs`
+26. `coretsia/platform-outbox`
+27. `coretsia/platform-inbox`
+28. `coretsia/platform-event-sourcing`
 
 ### F) Async / Scheduling / ETL
 
-28. `coretsia/platform-queue`
-29. `coretsia/integrations-queue-redis` (adapter)
-30. `coretsia/platform-scheduler`
-31. `coretsia/platform-etl`
+29. `coretsia/platform-queue`
+30. `coretsia/integrations-queue-redis` (adapter)
+31. `coretsia/platform-scheduler`
+32. `coretsia/platform-etl`
 
 ### G) Observability (properly split)
 
-32. `coretsia/platform-logging`
-33. `coretsia/platform-metrics`
-34. `coretsia/platform-tracing`
-35. `coretsia/platform-health`
-36. `coretsia/platform-profiling` (optional)
-37. `coretsia/platform-observability` (meta/bundle)
+33. `coretsia/platform-logging`
+34. `coretsia/platform-metrics`
+35. `coretsia/platform-tracing`
+36. `coretsia/platform-health`
+37. `coretsia/platform-profiling` (optional)
+38. `coretsia/platform-observability` (meta/bundle)
 
 ### H) UX / Web product layer (optional)
 
-38. `coretsia/platform-view`
-39. `coretsia/platform-translation`
-40. `coretsia/platform-validation`
-41. `coretsia/platform-mail`
-42. `coretsia/integrations-mail-smtp` (adapter)
+39. `coretsia/platform-view`
+40. `coretsia/platform-translation`
+41. `coretsia/platform-validation`
+42. `coretsia/platform-mail`
+43. `coretsia/integrations-mail-smtp` (adapter)
 
 ### I) Feature Management
 
-43. `coretsia/platform-feature-flags`
+44. `coretsia/platform-feature-flags`
 
 ### J) Reactive / Realtime / Protocols (optional, adapters-first)
 
-44. `coretsia/platform-reactive` (optional)
-45. `coretsia/platform-websocket` (optional)
-46. `coretsia/platform-graphql` (optional)
-47. `coretsia/platform-grpc` (optional)
+45. `coretsia/platform-reactive` (optional)
+46. `coretsia/platform-websocket` (optional)
+47. `coretsia/platform-graphql` (optional)
+48. `coretsia/platform-grpc` (optional)
 
 ### K) Enterprise Meta (as a “commercial layer” or “strict stack”)
 
-48. `coretsia/enterprise-bundle` (meta/bundle)
-49. `coretsia/enterprise-audit` (optional split)
-50. `coretsia/enterprise-tenancy`
-51. `coretsia/enterprise-compliance`
-52. `coretsia/enterprise-sso`
+49. `coretsia/enterprise-bundle` (meta/bundle)
+50. `coretsia/enterprise-audit` (optional split)
+51. `coretsia/enterprise-tenancy`
+52. `coretsia/enterprise-compliance`
+53. `coretsia/enterprise-sso`
 
 ---
 

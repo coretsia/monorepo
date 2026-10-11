@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Tests\Contract;
 
 use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
+use Coretsia\Foundation\Serialization\JsonLikeNormalizationLimits;
 use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -312,7 +313,7 @@ final class JsonLikeNormalizerContractTest extends TestCase
             self::assertStringContainsString(JsonLikeNormalizationException::ERROR_CODE, $exception->getMessage());
             self::assertStringContainsString(
                 JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN,
-                $exception->getMessage()
+                $exception->getMessage(),
             );
             self::assertStringContainsString('value.safe.value', $exception->getMessage());
         }
@@ -448,17 +449,214 @@ final class JsonLikeNormalizerContractTest extends TestCase
         );
     }
 
+    public function testAggregateStringBudgetCountsMapKeysAndStringValuesExactlyOnce(): void
+    {
+        $value = [
+            'b' => '34',
+            'a' => '12',
+        ];
+
+        self::assertSame(
+            [
+                'a' => '12',
+                'b' => '34',
+            ],
+            JsonLikeNormalizer::normalize(
+                $value,
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 6),
+            ),
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                $value,
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 5),
+            ),
+            expectedPath: 'value.b',
+            expectedReason: JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+        );
+
+        self::assertSame(
+            ['a' => ['x', 'y']],
+            JsonLikeNormalizer::normalize(
+                ['a' => ['x', 'y']],
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 3),
+            ),
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['a' => ['x', 'y']],
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 2),
+            ),
+            expectedPath: 'value.a[1]',
+            expectedReason: JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+        );
+    }
+
+    public function testRootStringUsesExactByteOrientedAggregateBudget(): void
+    {
+        self::assertSame(
+            '€',
+            JsonLikeNormalizer::normalize(
+                '€',
+                limits: new JsonLikeNormalizationLimits(8, 20, 3, 3),
+            ),
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                '€',
+                limits: new JsonLikeNormalizationLimits(8, 20, 3, 2),
+            ),
+            expectedPath: 'value',
+            expectedReason: JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+        );
+    }
+
+    public function testIndividualStringLimitPrecedesAggregateLimitForValuesAndMapKeys(): void
+    {
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                'abcd',
+                limits: new JsonLikeNormalizationLimits(8, 20, 3, 1),
+            ),
+            expectedPath: 'value',
+            expectedReason: JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['long' => 0],
+                limits: new JsonLikeNormalizationLimits(8, 20, 3, 1),
+            ),
+            expectedPath: 'value.long',
+            expectedReason: JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                [
+                    'a' => ['z' => 0],
+                    'long' => 0,
+                ],
+                limits: new JsonLikeNormalizationLimits(8, 2, 3, 2),
+            ),
+            expectedPath: 'value.long',
+            expectedReason: JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
+        );
+    }
+
+    public function testExistingDepthNodeAndMapKeyTypeFailuresRetainPrecedence(): void
+    {
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['a' => ['long' => 'value']],
+                limits: new JsonLikeNormalizationLimits(1, 20, 100, 1),
+            ),
+            expectedPath: 'value.a',
+            expectedReason: JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['long' => 0, 4 => 0],
+                limits: new JsonLikeNormalizationLimits(8, 1, 3, 1),
+            ),
+            expectedPath: 'value',
+            expectedReason: JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['a' => 1, 4 => 2],
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 1),
+            ),
+            expectedPath: 'value',
+            expectedReason: JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                ['a', 'long'],
+                limits: new JsonLikeNormalizationLimits(8, 1, 100, 1),
+            ),
+            expectedPath: 'value[1]',
+            expectedReason: JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                [
+                    'a' => ['z' => 0],
+                    'b' => 0,
+                ],
+                limits: new JsonLikeNormalizationLimits(8, 2, 100, 2),
+            ),
+            expectedPath: 'value.b',
+            expectedReason: JsonLikeNormalizationException::REASON_MAX_NODES_EXCEEDED,
+        );
+    }
+
+    public function testAggregateMapFailureIsIndependentOfInsertionOrder(): void
+    {
+        $ascending = ['a' => '12', 'z' => '34'];
+        $descending = ['z' => '34', 'a' => '12'];
+        $limits = new JsonLikeNormalizationLimits(8, 20, 100, 3);
+
+        $first = self::captureAggregateFailure($ascending, $limits);
+        $second = self::captureAggregateFailure($descending, $limits);
+
+        self::assertSame('value.z', $first->path());
+        self::assertSame($first->reason(), $second->reason());
+        self::assertSame($first->path(), $second->path());
+    }
+
+    public function testAggregateOverflowUsesSafePathForUnsafeMapKeys(): void
+    {
+        $unsafeKey = 'Authorization Bearer raw-secret-token';
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize(
+                [$unsafeKey => 'raw-value-sentinel'],
+                limits: new JsonLikeNormalizationLimits(8, 20, 100, 1),
+            ),
+            expectedPath: 'value[<key>]',
+            expectedReason: JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+            forbiddenDiagnosticsNeedles: [
+                $unsafeKey,
+                'raw-secret-token',
+                'raw-value-sentinel',
+            ],
+        );
+    }
+
     public function testReasonConstantsExposeStableTokenVocabulary(): void
     {
-        self::assertSame('json-like-float-forbidden', JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN);
-        self::assertSame('json-like-resource-forbidden', JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN);
-        self::assertSame('json-like-closure-forbidden', JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN);
-        self::assertSame('json-like-object-forbidden', JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN);
+        self::assertSame(
+            'json-like-float-forbidden',
+            JsonLikeNormalizationException::REASON_FLOAT_FORBIDDEN,
+        );
+        self::assertSame(
+            'json-like-resource-forbidden',
+            JsonLikeNormalizationException::REASON_RESOURCE_FORBIDDEN,
+        );
+        self::assertSame(
+            'json-like-closure-forbidden',
+            JsonLikeNormalizationException::REASON_CLOSURE_FORBIDDEN,
+        );
+        self::assertSame(
+            'json-like-object-forbidden',
+            JsonLikeNormalizationException::REASON_OBJECT_FORBIDDEN,
+        );
         self::assertSame(
             'json-like-map-key-must-be-string',
-            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING
+            JsonLikeNormalizationException::REASON_MAP_KEY_MUST_BE_STRING,
         );
-        self::assertSame('json-like-type-forbidden', JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN);
+        self::assertSame(
+            'json-like-type-forbidden',
+            JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
+        );
         self::assertSame(
             'json-like-max-depth-exceeded',
             JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
@@ -471,6 +669,30 @@ final class JsonLikeNormalizerContractTest extends TestCase
             'json-like-string-bytes-exceeded',
             JsonLikeNormalizationException::REASON_STRING_BYTES_EXCEEDED,
         );
+        self::assertSame(
+            'json-like-total-string-bytes-exceeded',
+            JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+        );
+    }
+
+    /**
+     * @param array<string, string> $value
+     */
+    private static function captureAggregateFailure(
+        array $value,
+        JsonLikeNormalizationLimits $limits,
+    ): JsonLikeNormalizationException {
+        try {
+            JsonLikeNormalizer::normalize($value, limits: $limits);
+            self::fail('Expected aggregate normalization limit rejection.');
+        } catch (JsonLikeNormalizationException $exception) {
+            self::assertSame(
+                JsonLikeNormalizationException::REASON_TOTAL_STRING_BYTES_EXCEEDED,
+                $exception->reason(),
+            );
+
+            return $exception;
+        }
     }
 
     /**

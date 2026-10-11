@@ -55,6 +55,17 @@ return array(
       array(
       ),
     ),
+    'platform.redaction' =>
+    array(
+      'composerName' => 'coretsia/platform-redaction',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+      ),
+    ),
     'platform.worker' =>
     array(
       'composerName' => 'coretsia/platform-worker',
@@ -67,7 +78,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.7.0',
-  'releaseLine' => '0.7',
+  'publicConstraint' => '^0.8.0',
+  'releaseLine' => '0.8',
   'schemaVersion' => 1,
 );

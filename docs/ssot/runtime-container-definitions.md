@@ -1762,7 +1762,7 @@ The builder preserves call order and returns an immutable set.
 ### Applying one complete set in source mode
 
 ```php
-$container = (new ContainerBuilder($compiledConfig))
+$container = new ContainerBuilder($compiledConfig)
     ->applyDefinitions($set)
     ->build();
 ```

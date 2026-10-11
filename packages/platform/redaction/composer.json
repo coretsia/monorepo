@@ -1,0 +1,65 @@
+{
+  "name": "coretsia/platform-redaction",
+  "type": "library",
+  "description": "Coretsia sensitive-data redaction runtime package: deterministic classification, redaction summaries, and fail-closed diagnostic/output safety.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "redaction",
+    "sensitive-data",
+    "security",
+    "runtime",
+    "deterministic",
+    "diagnostics",
+    "data-safety"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.8.0",
+    "coretsia/core-foundation": "^0.8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Redaction\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Redaction\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.redaction",
+      "moduleClass": "Coretsia\\Platform\\Redaction\\Module\\RedactionModule",
+      "providers": [
+        "Coretsia\\Platform\\Redaction\\Provider\\RedactionServiceProvider"
+      ],
+      "requires": [
+        "core.foundation"
+      ],
+      "conflicts": []
+    }
+  }
+}

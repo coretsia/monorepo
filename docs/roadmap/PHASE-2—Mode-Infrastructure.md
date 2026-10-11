@@ -3385,8 +3385,8 @@ provides:
 - "Descriptor-driven structural input validation before command service resolution"
 - "Per-invocation buffered command output followed by one deterministic render"
 - "Effective preset rendering from Kernel-owned OpsResult"
-- "Safe output (deterministic JSON/table/plain) + redaction (no secrets/PII)"
-- "Reserved names implemented (`help`, `list`) and enforced"
+- "Safe-by-construction command output with deterministic JSON/table/plain rendering and shared defense-in-depth redaction; classifier non-matches do not authorize sensitive data disclosure"
+- "Reserved names implemented (`doctor`, `help`, `list`) and enforced"
 - "Package-agnostic command discovery: any enabled package may contribute lazy `cli.command` services without platform/cli source changes or compile-time dependency on the command owner."
 
 tags_introduced: [] # `cli.command` already exists; this epic implements owner-side catalog and dispatch
@@ -3394,7 +3394,7 @@ tags_introduced: [] # `cli.command` already exists; this epic implements owner-s
 config_roots_introduced: []  # `cli` root already exists
 artifacts_introduced: []     # CLI owns no artifact schema
 
-adr: "docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md"
+adr: "docs/adr/ADR-0034-cli-tag-first-command-catalog.md"
 
 ssot_refs:
 - "docs/ssot/tags.md"
@@ -3466,6 +3466,19 @@ presets[appTarget]
 
 CLI renders the effective preset returned by `OpsResult`.
 
+### Baseline installation and preset composition (MUST)
+
+- `coretsia/framework` owns the Composer-installable baseline dependency graph.
+- The canonical baseline includes Kernel and CLI, with Redaction installed through the CLI dependency closure.
+- `composer create-project coretsia/skeleton` installs the baseline through the existing project-owned `coretsia/framework` requirement.
+- `kernel.boot.default_preset = micro` remains the default runtime selection policy.
+- Installing a Composer package MUST NOT automatically enable its runtime module.
+- Canonical presets select runtime module roots; they are not Composer packages or independently versioned distributions.
+- `micro`, `express`, `hybrid`, and `enterprise` MUST reuse the existing Kernel preset loader, ModuleSelection, ModulePlan, and release installation catalog.
+- Additional mode-required packages remain owned by explicit `ProjectDependencySync` plan/review/apply operations.
+- No preset-specific Composer metapackages, second installation catalog, Composer dependency resolver, or implicit runtime-boot dependency synchronization may be introduced.
+- The released `coretsia/framework` baseline MUST be installable with the corresponding published CLI and Redaction package versions before consumer create-project compatibility is claimed.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -3475,9 +3488,17 @@ CLI renders the effective preset returned by `OpsResult`.
     - `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` is bound in container to kernel implementation
   - 2.25.0 — Sensitive data redaction boundary exists:
     - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` exists
-    - the source-operations host composition that enables `platform.cli` enables one redaction implementation owner
-    - exactly one `SensitiveDataRedactorInterface` binding is available before `CliServiceFactory` and `OutputFormatter` are resolved
-    - `platform/cli` depends only on the contracts port and does not import or instantiate the concrete redactor
+
+- Installation, module-selection, and source-host wiring postconditions established by this epic:
+  - `platform.cli` is selected for `AppTarget::Console` through canonical Bootstrap Phase A preset and module-override resolution
+  - the default `micro` preset selects `platform.cli` without requiring an application-owned preset override
+  - explicit Console module exclusions remain authoritative; excluding `platform.cli` causes normal CLI host boot to fail closed
+  - selecting `platform.cli` resolves its declared `core.kernel` and `platform.redaction` module requirements through the canonical Kernel ModulePlan
+  - `platform.redaction` is installed in the consumer Composer graph before source-host module resolution
+  - exactly one `SensitiveDataRedactorInterface` binding is contributed by the selected redaction provider before CLI services are resolved
+  - `platform/cli` consumes only the contracts port and does not import or instantiate the concrete redactor
+  - Composer package presence MUST NOT implicitly enable CLI or Redaction modules
+  - CLI MUST NOT construct a second ModulePlan, append providers manually, or register a fallback redactor to compensate for missing module selection
 
 - Required deliverables (exact paths):
   - `docs/ssot/tags.md` contains reserved tag `cli.command` (owner `platform/cli`)
@@ -3556,18 +3577,53 @@ The only files outside `packages/platform/cli/` that this epic may create or mod
 - `packages/platform/worker/src/Console/WorkerStartCommand.php`
 - `packages/platform/worker/src/Console/WorkerStopCommand.php`
 - `packages/platform/worker/src/Console/WorkerStatusCommand.php`
+- `packages/platform/worker/src/Console/WorkerHealthCommand.php`
 - `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
 - `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
 - `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
+- `packages/platform/worker/tests/Integration/WorkerCompileArtifactBootE2ETest.php`
 - `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
-- `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
+- `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/observability.md`
 - `docs/adr/INDEX.md`
 - `coretsia`
 - `tools/bin/coretsia`
+- `composer.lock`
+- `packages/core/kernel/resources/packaging/installation-catalog.php`
+- `tools/testing/package-index.php`
+- `tools/testing/deptrac.yaml`
+- `packages/core/kernel/resources/modes/micro.php`
+- `packages/core/kernel/resources/modes/express.php`
+- `packages/core/kernel/resources/modes/hybrid.php`
+- `packages/core/kernel/resources/modes/enterprise.php`
+- `packages/framework/composer.json`
+- `packages/framework/README.md`
+- `packages/applications/skeleton/README.md`
+- `packages/applications/skeleton/coretsia`
+- `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+- `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+- `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+- `packages/core/kernel/tests/Support/AppBuilder.php`
+- `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
+- `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
+- `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
+- `packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+- `docs/ssot/modes.md`
+- `docs/ssot/application-dependency-sync.md`
+- `docs/architecture/DEPENDENCIES.md`
 
 No other command-owner package may be modified solely to implement the CLI host.
+
+Framework distribution and canonical Kernel preset changes are permitted only for the explicitly defined baseline installation and module-selection policy.
+
+Kernel module planning, Composer reconciliation, release installation catalog generation, and application dependency synchronization implementations MUST remain unchanged.
+
+Existing integration fixtures and assertions affected by the new canonical preset module closure MUST be updated without weakening their runtime, dependency, and artifact invariants.
+
+Generated repository artifacts MAY change only through their canonical generators and Composer dependency synchronization.
+
+The epic MUST NOT introduce a second package index, installation catalog, dependency graph, or repository metadata generator.
 
 ### Kernel operations consumption boundary (MUST)
 
@@ -3618,6 +3674,8 @@ Depends on:
 - `core/contracts`
 - `core/foundation`
 - `core/kernel`
+
+Composer installation additionally requires `platform/redaction`, but PHP source-level redaction consumption remains contracts-only. Deptrac MUST NOT interpret this Composer requirement as permission to import the platform-owned redaction implementation.
 
 Forbidden:
 
@@ -3674,7 +3732,20 @@ These symbols belong to Kernel-side operation orchestration. Their presence in C
 - Monorepo canonical wrappers (Prelude compliance):
   - repo-root `coretsia` and `tools/bin/coretsia` MUST remain the canonical entrypoints
   - wrappers MAY delegate to `vendor/bin/coretsia` but MUST be CWD-independent
-
+- Canonical CLI executable naming:
+  - `coretsia` is the single canonical public CLI executable name
+  - monorepo invocation: `php coretsia <command>` through the monorepo-root wrapper
+  - Composer-installed Skeleton invocation: `php coretsia <command>` through the project-root Skeleton wrapper
+  - direct Composer binary invocation: `php vendor/bin/coretsia <command>`
+  - executable Composer binary invocation: `vendor/bin/coretsia <command>` on supported Unix environments
+  - the monorepo-root and Skeleton project-root wrappers are distinct files with the same public executable name
+  - the Skeleton wrapper delegates only through its installed Composer binary proxy
+  - the Composer binary proxy and Skeleton wrapper MUST reach the same packaged CLI implementation
+  - the packaged Composer binary MUST resolve the consumer application's root rather than the installed framework package or monorepo root
+  - a Skeleton wrapper invocation MUST preserve Composer-proxy application-root resolution without introducing a conflicting explicit-root source
+  - CLI MUST NOT introduce additional canonical executable names such as `c` or `cli`
+  - short names MAY be configured by users as local shell aliases but are not framework entrypoints
+  - no second CLI runtime, parser, catalog, bootstrap pipeline, or command dispatch implementation may be introduced for executable naming
 - CLI has two explicit boot paths.
 
 #### Ultra-early doctor path
@@ -3718,8 +3789,15 @@ The normal CLI path:
 - MUST NOT boot from `container.php`;
 - MUST NOT use generated config as source-host configuration;
 - MUST compose enabled external package providers through Kernel-owned module/provider planning;
+- MUST require `platform.cli` in the resolved Console ModulePlan; absence fails closed instead of bypassing module selection or constructing a separate CLI container;
+- MUST obtain `platform.redaction` through the canonical dependency closure of `platform.cli`, not through CLI-owned provider registration;
 - MUST NOT read Composer metadata from platform/cli;
 - MUST NOT become a fallback for HTTP or Worker production runtime.
+- `KernelOpsHostBooter::boot()` performs canonical Console source-config compilation and validation before `CliApplication` resolution and command dispatch.
+- Invalid Console-host configuration fails at the host-bootstrap boundary with `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`.
+- This failure occurs before `config:validate --target=<target>` can invoke `KernelOpsInterface`, regardless of the requested target.
+- `config:validate valid=false` → exit code `1` applies only when Console-host boot succeeds and Kernel Ops returns a handled validation result.
+- CLI MUST NOT bypass the Console-host validation gate or introduce a second config-loading pipeline to handle this case.
 
 - Commands:
   - `coretsia doctor`
@@ -3785,17 +3863,21 @@ The normal CLI path:
 
 - [ ] command tags MUST NOT define `priority`
 - [ ] command routing MUST NOT use priority
-- [ ] duplicate command names MUST hard-fail deterministically
+- [ ] duplicate command names across distinct tagged service ids MUST hard-fail deterministically
+- [ ] repeated registrations of the same `(tag, serviceId)` follow the existing Foundation TagRegistry first-wins policy and are not observable as separate catalog entries
 - [ ] reserved command names MUST hard-fail for external commands:
+  - [ ] `doctor`
   - [ ] `help`
   - [ ] `list`
 - [ ] reserved names are allowed only for the built-in command service ids registered by `platform/cli`
+- [ ] the reserved `doctor` identity MUST match the command used by the ultra-early entrypoint
 - [ ] CLI consumer MUST preserve TagRegistry order
 - [ ] CLI consumer MUST NOT re-sort TagRegistry output
 - [ ] CLI consumer MUST NOT silently de-dupe TagRegistry output
-- [ ] every `cli.command` tagged service MUST have actual tag priority `0`
-- [ ] a non-zero `TaggedService::priority()` hard-fails before descriptor construction
+- [ ] every `cli.command` TaggedService returned by `TagRegistry::all()` MUST have actual priority `0`
+- [ ] a non-zero `TaggedService::priority()` in canonical discovery output hard-fails before descriptor construction
 - [ ] CLI MUST NOT normalize, ignore, or overwrite a non-zero priority
+- [ ] registrations already discarded by TagRegistry first-wins MUST NOT be reconstructed or revalidated by CLI
 
 ### Lazy command discovery (MUST)
 
@@ -3849,7 +3931,85 @@ It maps only the safe `OpsResult` returned by Kernel.
 
 ### Deliverables (exact paths only) (MUST)
 
+#### Deletes
+
+Note: This section defines the initial Phase-0 cleanup. Files also listed under `Creates` or `Modifies` MUST be recreated or rewritten according to their final specifications; only files not reintroduced by those sections MUST remain absent.
+
+Legacy production files:
+- [x] `packages/platform/cli/src/Application.php`
+  - [x] remove config loading, root inference, FQCN registry, reflection, zero-argument command construction, and legacy dispatch
+  - [x] no compatibility wrapper or class alias remains
+
+- [x] `packages/platform/cli/src/Input/CliInput.php`
+  - [x] replaced by `ArgvInput` and `ArgvInputParser`
+
+- [x] `packages/platform/cli/src/Output/CliOutput.php`
+  - [x] replaced by buffer, formatters, redactor integration, and `ConsoleOutputWriter`
+
+- [x] `packages/platform/cli/src/Output/TrackedOutput.php`
+  - [x] no mutable error-tracking decorator remains
+
+- [x] `packages/platform/cli/src/Error/ErrorCodes.php`
+  - [x] error codes move to owning exception classes
+  - [x] no global CLI error-code registry remains
+
+- [x] `packages/platform/cli/src/Command/ListCommand.php`
+- [x] `packages/platform/cli/src/Command/HelpCommand.php`
+
+- [x] `packages/platform/cli/src/Exception/CliCommandClassMissingException.php`
+- [x] `packages/platform/cli/src/Exception/CliCommandFailedException.php`
+- [x] `packages/platform/cli/src/Exception/CliCommandInvalidException.php`
+- [x] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
+- [x] `packages/platform/cli/src/Exception/CliException.php`
+- [x] `packages/platform/cli/src/Exception/CliExceptionInterface.php`
+  - [x] legacy Phase-0 exception hierarchy is removed
+  - [x] no compatibility aliases remain
+
+Legacy tests and fixtures:
+- [x] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
+- [x] `packages/platform/cli/tests/Integration/ApplicationDispatchIntegrationTest.php`
+- [x] `packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
+- [x] `packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
+- [x] `packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
+- [x] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncApplyCommand.php`
+- [x] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncDryRunCommand.php`
+- [x] `packages/platform/cli/tests/Fixtures/LeakCommand.php`
+- [x] `packages/platform/cli/tests/Fixtures/LeakCommand.prepend.php`
+  - [x] replaced by tag-backed catalog, output-pipeline, security, and external-package fixtures defined by this epic
+
+- [x] `packages/platform/cli/src/Provider/CliServiceFactory.php`
+  - [x] `final class CliServiceFactory {}`
+- [x] `packages/platform/cli/src/Provider/CliServiceProvider.php`
+  - [x] `final class CliServiceProvider {}`
+
+- [x] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php`
+  - [x] `public function testNoopDoesNotThrow(): void { self::assertTrue(true); }`
+- [x] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] `public function testNoopDoesNotThrow(): void { self::assertTrue(true); }`
+
 #### Creates
+
+- [ ] `packages/applications/skeleton/coretsia`
+  - [ ] thin project-root wrapper for `php coretsia <command>`
+  - [ ] PHP executable with `#!/usr/bin/env php` and `declare(strict_types=1)`
+  - [ ] follows the canonical Coretsia PHP file-header conventions
+  - [ ] resolves the Composer binary only as `__DIR__ . '/vendor/bin/coretsia'`
+  - [ ] verifies that the Composer binary exists and is readable before requiring it
+  - [ ] missing or unreadable Composer binary:
+    - [ ] writes exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` followed by one LF to stderr
+    - [ ] exits with code `1`
+    - [ ] MUST NOT emit PHP warnings, fatal-error details, filesystem paths, or stack traces
+  - [ ] delegates using `$exitCode = require __DIR__ . '/vendor/bin/coretsia';`
+  - [ ] preserves the original CLI `argv` without modifying the launcher token, arguments, or options
+  - [ ] preserves Composer binary-proxy variables and their scope for the packaged CLI entrypoint
+  - [ ] if the delegated binary unexpectedly returns, propagate its exit code only when it is an integer within `0..255`
+  - [ ] a missing, non-integer, or out-of-range delegated return value MUST fail closed with exit code `1`
+  - [ ] MUST NOT cast `null`, `false`, or another invalid delegated return value to a successful exit code
+  - [ ] the fallback MUST NOT invoke another CLI runtime, renderer, or bootstrap pipeline
+  - [ ] the packaged CLI binary remains responsible for normal execution, diagnostics, and process termination
+  - [ ] MUST NOT introduce an additional application-root resolver or set monorepo-specific bootstrap variables
+  - [ ] MUST NOT perform command parsing, configuration loading, Kernel boot, catalog construction, formatting, or rendering
+  - [ ] MUST NOT depend on the current working directory
 
 - [ ] `packages/platform/cli/src/Output/CliOutputPolicy.php`
   - [ ] immutable readonly value object
@@ -3950,7 +4110,12 @@ It maps only the safe `OpsResult` returned by Kernel.
 - [ ] `packages/platform/cli/src/Bootstrap/CliHostBootstrap.php`
   - [ ] is the only platform/cli class allowed to import `KernelOpsHostInput` and `KernelOpsHostBooter`
   - [ ] boots the source operations container
-  - [ ] resolves `CliApplication` from that container
+  - [ ] resolves the already-built Kernel-owned `ModulePlan` from the returned source container
+  - [ ] requires `ModulePlan::app()` to equal `console`
+  - [ ] requires `ModulePlan::hasEnabledModule('platform.cli')` before resolving `CliApplication`
+  - [ ] an absent or explicitly excluded `platform.cli` fails closed even when Foundation concrete-class autowiring is enabled
+  - [ ] MUST NOT construct another ModulePlan, invoke module resolution, alter module selection, or register fallback CLI services
+  - [ ] resolves `CliApplication` from that container only after successful ModulePlan verification
   - [ ] contains no command discovery, parsing, formatting, or Kernel operation logic
   - [ ] receives the one invocation-local `TerminalCapabilities` instance created at the entrypoint boundary
   - [ ] terminal capability detection is separate from command parsing and domain logic
@@ -3968,6 +4133,7 @@ It maps only the safe `OpsResult` returned by Kernel.
   - [ ] catches failures from:
     - [ ] `KernelOpsHostBooter::boot()`
     - [ ] source-container construction
+    - [ ] resolved Console ModulePlan verification
     - [ ] `CliApplication` resolution
   - [ ] writes one fixed safe diagnostic through `ConsoleOutputWriter`:
     - [ ] code `CORETSIA_CLI_HOST_BOOT_FAILED`
@@ -3994,7 +4160,8 @@ Entrypoint + application:
   - [ ] for every other command, delegates to `CliHostBootstrap`, then runs the resolved `CliApplication`
   - [ ] contains no catalog, formatting, command-domain, or Kernel operation logic
   - [ ] performs only the minimal pre-autoload selection of one allowed autoload candidate
-  - [ ] after Composer autoload succeeds, validates and normalizes the selected autoload path and resolves the skeleton root only through `CliEntrypointPathsResolver`
+  - [ ] after Composer autoload succeeds, the exact ultra-early `doctor` invocation bypasses `CliEntrypointPathsResolver` and does not require skeleton-root resolution
+  - [ ] for every other invocation, validates and normalizes the selected autoload path and resolves the skeleton root only through `CliEntrypointPathsResolver`
   - [ ] MUST NOT reproduce application-root or Composer-layout algorithms inline
   - [ ] catches `CliBootstrapException` before the generic uncaught `Throwable` boundary
   - [ ] renders only its stable code and reason through `ConsoleOutputWriter`
@@ -4027,6 +4194,8 @@ Entrypoint + application:
   - [ ] MUST NOT create correlation or UoW ids
   - [ ] MUST NOT perform terminal capability probing
   - [ ] MUST NOT retain previous command, output batch, format, color, or exit code
+  - [ ] construction-time `CommandCatalog` and `CommandOverrides` failures occur before `CliApplication::run()` and belong to the `CliHostBootstrap` failure boundary
+  - [ ] command selection failures from `CommandCatalog::require()` during `run()` remain owned by the normal `CliApplication` error boundary
   - [ ] both `RedactionViolationException` and `CliOutputFormatException` enter the fixed non-recursive render fallback
   - [ ] canonical API:
     - [ ] `public function run(array $argv, TerminalCapabilities $capabilities, ConsoleOutputWriter $writer): int`
@@ -4094,12 +4263,16 @@ Input:
     - [ ] `public function parse(array $argv): ParsedCliInvocation`
   - [ ] structural parsing failures throw `CliInputInvalidException`
   - [ ] removes launcher token before command parsing
-  - [ ] global options are recognized only before the `--` end-of-options marker
-  - [ ] removes `format|color` from command-facing tokens and options
-  - [ ] preserves their values only in `ParsedCliInvocation`
+  - [ ] CLI-global `format|color` options are recognized only before the `--` end-of-options marker
+  - [ ] removes only recognized CLI-global `format|color` options from command-facing tokens and options
+  - [ ] preserves recognized global option values only in `ParsedCliInvocation`
+  - [ ] tokens following `--` are positional arguments, even when their literal text is `--format=...` or `--color=...`
+  - [ ] positional tokens following `--` MUST NOT be interpreted as CLI-global or command-owner options
   - [ ] Minimal parser (no external libs): `<command> [--key=val] [--flag] [args...]`; stable precedence rules.
   - [ ] repeated bare flags hard-fail
-  - [ ] repeated value options preserve `list<string>` order
+  - [ ] mixing bare `--name` and valued `--name=value` forms of the same option hard-fails deterministically
+  - [ ] repeated valued `--name=value` forms preserve `list<string>` order
+  - [ ] the parser MUST NOT silently replace a previously parsed boolean value with a scalar or list, or vice versa
   - [ ] MUST parse deterministic syntax:
     - [ ] `<command>`
     - [ ] positional arguments
@@ -4118,7 +4291,8 @@ Input:
     - [ ] `--format=<adaptive|json|table|plain>`
     - [ ] `--color=<auto|always|never>`
   - [ ] preserves both global tokens for their resolvers
-  - [ ] command-facing `InputInterface` MUST NOT expose `format` or `color`
+  - [ ] command-facing `InputInterface::options()` MUST NOT expose recognized CLI-global `format|color` options
+  - [ ] command-facing `InputInterface::tokens()` and `arguments()` MAY contain literal `--format=...` or `--color=...` tokens when supplied after `--`
   - [ ] repeated global options hard-fail
   - [ ] empty global option values hard-fail
 
@@ -4155,11 +4329,30 @@ Output:
   - [ ] `discard()` MUST NOT be called after finalization
   - [ ] `discard()` is used only by the `CliApplication` error boundary
   - [ ] buffer cannot be written after finalization
+  - [ ] enforces fixed per-invocation limits:
+    - [ ] maximum buffered records: `1024`
+    - [ ] maximum total buffered record bytes: `1048576`
+  - [ ] counts each normalized record using the byte length of its canonical Foundation `StableJsonEncoder::encodeStable()` representation
+  - [ ] performs aggregate accounting incrementally when a record is added
+  - [ ] rejects the next record before insertion when either limit would be exceeded
+  - [ ] a buffer-limit violation fails closed with one stable CLI-owned safe reason and MUST NOT emit partial buffered output
+  - [ ] MUST NOT introduce a separate JSON serializer or recursive structural resource-budget walker
   - [ ] every `text|json|error` call normalizes immediately
-  - [ ] normalizes `CRLF|CR` to `LF`
-  - [ ] rejects NUL and ESC bytes
-  - [ ] rejects C0/C1 control bytes except normalized LF and TAB
-  - [ ] applies the same string policy recursively to JSON-like payload keys and values
+  - [ ] normalizes `CRLF|CR` to `LF` in text, error-message, and JSON-like string values only
+  - [ ] `error()` messages MUST remain non-empty single-line strings after normalization
+  - [ ] a normalized LF in an error message MUST be rejected before record insertion, not silently removed or replaced
+  - [ ] permitted LF characters in `text()` and JSON-like string values remain unaffected
+  - [ ] map keys are never rewritten or line-ending-normalized by CLI
+  - [ ] rejects NUL and ESC characters
+  - [ ] normalized string values reject C0/C1 control characters and DEL except normalized LF and TAB
+  - [ ] map keys reject all C0/C1 control characters and DEL, including CR, LF, and TAB, before shared redaction
+  - [ ] control-character validation MUST distinguish Unicode code points from raw UTF-8 continuation bytes
+  - [ ] valid UTF-8 text and map keys, including non-ASCII characters, MUST NOT be rejected merely because their encoded bytes contain values in `0x80..0x9F`
+  - [ ] malformed UTF-8 fails closed before record insertion through the required Foundation `StableJsonEncoder::encodeStable()` accounting path
+  - [ ] validates incoming JSON-like values through Foundation `JsonLikeNormalizer` using explicit bounded limits
+  - [ ] applies CLI-owned line-ending normalization and presentation-specific control-character rejection to string values without introducing map-key rewriting
+  - [ ] reuses Foundation `JsonLikeNormalizer` after CLI string transformation for final resource validation and deterministic recursive map ordering
+  - [ ] MUST NOT implement a second JSON-like structural validator, resource-budget walker, recursive map sorter, or map-key collision resolver
   - [ ] owner-package output cannot inject raw ANSI sequences
 
 - [ ] `packages/platform/cli/src/Output/CommandOutputBatch.php`
@@ -4175,9 +4368,9 @@ Output:
       - [ ] `type = error`
       - [ ] `code: non-empty safe token`
       - [ ] `message: non-empty safe single-line string`
-  - [ ] recursively rejects floats, objects, resources, closures, and Throwables
-  - [ ] recursively `strcmp`-sorts map keys
-  - [ ] preserves list and record order
+  - [ ] contains only values normalized through the canonical Foundation json-like boundary
+  - [ ] relies on Foundation for rejection of floats, objects, resources, closures, Throwables, and invalid map keys
+  - [ ] preserves the canonical Foundation map ordering and original list and record order
   - [ ] contains no streams or formatter state
 
 - [ ] `packages/platform/cli/src/Output/FormattedOutput.php`
@@ -4270,10 +4463,16 @@ Output (deterministic + redacted):
   - [ ] MUST NOT read CLI config
   - [ ] MUST NOT read ContextStore
   - [ ] redaction is always applied as defense in depth
-  - [ ] redacts normalized output records before concrete formatting
+  - [ ] constructs one immutable `RedactionContext` with scope `cli.output` and mode `RedactionMode::Placeholder`
+  - [ ] extracts owner-supplied text values, JSON payload values, and error messages from normalized records before shared redaction
+  - [ ] MUST NOT pass the CLI record envelope or its structural `payload` field into `redactJsonLike()`
+  - [ ] passes the extracted values through the shared `SensitiveDataRedactorInterface` without introducing CLI-local classification or hashing
+  - [ ] reconstructs the original CLI record envelopes after redaction, preserving record order and canonical record types
+  - [ ] converts a structured redaction summary replacing a text or error-message string into one fixed safe placeholder string
+  - [ ] MUST NOT restore the original value when redaction changes its type or shape
   - [ ] MUST NOT redact an already-encoded JSON document
-  - [ ] revalidates redacted records as json-like and control-byte-safe
-  - [ ] recursively `strcmp`-sorts every redacted map before concrete formatting
+  - [ ] relies on the shared redactor for deterministic recursive json-like normalization and map ordering
+  - [ ] validates only the CLI-owned record envelope and presentation-specific string constraints after redaction
   - [ ] preserves list and record order after redaction
   - [ ] redaction MUST NOT introduce invalid map keys, floats, objects, resources, or control bytes
   - [ ] redaction cannot be disabled by config or command option
@@ -4301,6 +4500,10 @@ Output (deterministic + redacted):
 
 - [ ] `packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
   - [ ] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
+  - [ ] MUST reuse Foundation `StableJsonEncoder::encodeStableMap()` for the complete root JSON object
+  - [ ] MUST remove exactly the encoder-owned final LF before constructing `FormattedOutput`
+  - [ ] MUST NOT introduce a separate JSON encoder, recursive key sorter, or serialization policy
+  - [ ] `ConsoleOutputWriter` remains the sole owner of the final output newline
   - [ ] MUST NOT emit ANSI escape sequences
   - [ ] MUST NOT emit terminal-width-dependent output
   - [ ] MUST ignore effective color even when global color is `always`
@@ -4351,8 +4554,9 @@ Catalog:
   - [ ] MUST preserve TagRegistry order
   - [ ] MUST NOT re-sort discovery output
   - [ ] MUST NOT silently de-dupe discovery output
-  - [ ] duplicate command names MUST hard-fail with `InvalidCommandTagMetaException`
+  - [ ] duplicate command names across distinct tagged service ids MUST hard-fail with `InvalidCommandTagMetaException`
   - [ ] reserved external command name collisions MUST hard-fail:
+    - [ ] `doctor`
     - [ ] `help`
     - [ ] `list`
   - [ ] reserved names MUST be allowed only for built-in service ids registered by `platform/cli`
@@ -4387,6 +4591,9 @@ Catalog:
     - [ ] `arguments`
     - [ ] `options`
   - [ ] validates canonical command-name regex
+  - [ ] `group` MUST be a non-empty string matching `\A[a-z][a-z0-9-]*\z`
+  - [ ] `summary` MUST be non-empty static safe text satisfying canonical Foundation tag-metadata constraints
+  - [ ] `hidden` MUST be bool
   - [ ] rejects `priority` and unknown keys
   - [ ] validates ordered argument descriptors:
     - [ ] exact keys `name|summary|required|variadic`
@@ -4413,7 +4620,10 @@ Catalog:
     - [ ] repeated non-repeatable option is invalid
     - [ ] `format|color` are the baseline reserved global option names
     - [ ] `help`, `mode`, `preset`, and other names remain available to owner packages unless introduced as global options by a separate CLI contract
-  - [ ] rejects closures, objects, resources, floats, runtime filesystem path values, runtime endpoints, secrets, and non-json-like metadata
+  - [ ] rejects closures, objects, resources, floats, non-json-like metadata, and violations of the canonical static metadata shape and safe-text constraints
+  - [ ] command owners MUST NOT contribute runtime filesystem path values, runtime endpoints, env values, secrets, tokens, or runtime payloads through static command metadata
+  - [ ] structural metadata validation MUST NOT be treated as sensitive-data classification or authorization to disclose owner-supplied values
+  - [ ] MUST NOT introduce a CLI-local sensitive-key classifier, sensitive-value classifier, path classifier, endpoint classifier, or pattern registry
   - [ ] does not reject an argument or option merely because its name or summary describes a path
   - [ ] throws `InvalidCommandTagMetaException`
 
@@ -4430,7 +4640,8 @@ Catalog:
   - [ ] allows exactly `summary|hidden|group`
   - [ ] `summary` must be a non-empty safe string
   - [ ] `hidden` must be bool
-  - [ ] `group` must be a safe group token
+  - [ ] `group` must match the same `\A[a-z][a-z0-9-]*\z` token schema as base command metadata
+  - [ ] group overrides MUST NOT introduce a separate group namespace, naming policy, or normalization algorithm
   - [ ] unknown fields hard-fail deterministically
   - [ ] cannot change:
     - [ ] command name
@@ -4456,7 +4667,10 @@ Catalog:
   - [ ] MUST be immutable / readonly
   - [ ] MUST NOT contain command object instance
   - [ ] MUST NOT contain closures
-  - [ ] MUST NOT contain raw config values, secrets, paths, endpoints, or payloads
+  - [ ] MUST NOT contain unvalidated configuration values, secrets, runtime filesystem paths, endpoints, or runtime payloads
+  - [ ] MAY contain the validated catalog-view `summary|hidden|group` values produced by `CommandOverrides`
+  - [ ] MUST NOT retain the raw `cli.commands.overrides` configuration map
+  - [ ] MUST NOT expose the original override payload or bypass the canonical override-field validation
 
 Kernel operation request resolver:
 - [ ] `packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
@@ -4464,8 +4678,11 @@ Kernel operation request resolver:
   - [ ] invalid scalar target shape throws `CliInputInvalidException`
   - [ ] is used only by built-in Kernel operation commands
   - [ ] consumes only the already structurally validated `InputInterface`
-  - [ ] requires exactly one scalar `target` option
+  - [ ] requires the `target` option to be present exactly once as a non-empty scalar value
   - [ ] validates only non-empty safe token shape
+  - [ ] rejects an absent `--target` inside command dispatch before invoking `KernelOpsInterface`
+  - [ ] the descriptor's `value = required` requires a value when the option is supplied; it does not independently require option presence
+  - [ ] MUST NOT introduce a second required-option-presence validator or extend the generic option metadata schema solely for Kernel targets
   - [ ] constructs `KernelOpsRequest(appTarget)`
   - [ ] relies on `CommandInputValidator` and the selected descriptor to reject undeclared, missing-value, or repeated options before command service resolution
   - [ ] does not import or receive `CommandDescriptor`
@@ -4490,8 +4707,11 @@ Runner + diagnostics:
   - [ ] MUST NOT render command failures
   - [ ] MUST resolve command service only after catalog selects a descriptor
   - [ ] resolved service MUST implement `CommandInterface`
+  - [ ] the resolved object's actual class MUST equal `CommandDescriptor::serviceId()` exactly
+  - [ ] a container binding returning a different command class, subclass, proxy, or decorator under the tagged service id MUST fail closed
   - [ ] resolved command `name()` MUST equal descriptor name
-  - [ ] mismatch MUST throw `InvalidCommandTagMetaException`
+  - [ ] class-identity or command-name mismatch MUST throw `InvalidCommandTagMetaException`
+  - [ ] MUST NOT introduce a second service registry, command-owner lookup, or provider-origin resolver
   - [ ] MUST pass parsed `InputInterface` to command
   - [ ] MUST pass `OutputInterface` to command
   - [ ] MUST NOT let commands parse raw argv through platform-specific classes
@@ -4531,14 +4751,44 @@ Runner + diagnostics:
     - [ ] invoke reset orchestration directly
     - [ ] enumerate reset tags
     - [ ] pass raw argv/options/arguments into UoW attributes
-  - [ ] context reads inside command UoW are limited to:
+  - [ ] context reads for optional command-log correlation occur only inside the UoW callback, after KernelRuntime has written base context keys and before KernelRuntime resets ContextStore
+  - [ ] reads only through `ContextAccessorInterface::has()` and `get()`:
     - [ ] `ContextKeys::CORRELATION_ID`
     - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
+  - [ ] includes only non-empty safe identifier strings in the optional `correlation_id|uow_id` log fields
+  - [ ] missing, invalid, or unreadable context identifiers are omitted without changing command execution or its exit code
+  - [ ] MUST NOT read `ContextKeys::UOW_TYPE` merely to revalidate the already-selected `UnitOfWorkType::CLI`
+  - [ ] MUST NOT attempt to retrieve command UoW identifiers from ContextStore after `runUnitOfWork()` returns or throws
+  - [ ] MUST NOT copy the complete context, UoW attributes, or hook payloads into logs, spans, metrics, or diagnostics
   - [ ] calls:
     - [ ] `KernelRuntimeInterface::runUnitOfWork(UnitOfWorkType::CLI, ...)`
     - [ ] attributes contain exactly `operation|output_format`
   - [ ] MUST NOT write UoW attributes into ContextStore directly
+  - [ ] owns the `cli.command` execution-observability boundary independently of Kernel-owned `kernel.uow` and `kernel.operation` telemetry
+  - [ ] attempts exactly one `TracerPortInterface::startSpan('cli.command', ...)` per selected normal command execution
+  - [ ] starts the command span before entering `KernelRuntimeInterface::runUnitOfWork()`
+  - [ ] the command span covers the complete Kernel UoW invocation, including its after-hook and reset lifecycle
+  - [ ] initial span attributes contain only:
+    - [ ] `operation` = selected descriptor command name
+    - [ ] `format` = effective `json|table|plain`
+  - [ ] after UoW completion or failure, attempts one final span attribute update containing:
+    - [ ] `operation`
+    - [ ] `format`
+    - [ ] `outcome` = `success|failure`
+    - [ ] `exit_code` = returned process exit code or `1` for a thrown failure
+  - [ ] attempts `SpanInterface::end()` exactly once for a successfully started span, even when attribute updates fail
+  - [ ] a failed span start MUST NOT prevent Kernel UoW execution or trigger another span-start attempt
+  - [ ] MUST NOT use `TracerPortInterface::inSpan()` in a way that can suppress or repeat command execution when tracing fails
+  - [ ] uses Foundation `Stopwatch::start()` and `stop()` to measure the complete command UoW duration
+  - [ ] stopwatch failures are isolated and use a non-negative integer duration fallback of `0`
+  - [ ] attempts exactly one `MeterPortInterface::increment('cli.command_total', 1, $labels)` per normal command execution
+  - [ ] attempts exactly one `MeterPortInterface::observe('cli.command_duration_ms', $durationMs, $labels)` per normal command execution
+  - [ ] metric labels contain exactly `operation|outcome`
+  - [ ] counter and duration observation failures are isolated independently
+  - [ ] attempts one safe command completion/failure log through `LoggerInterface`
+  - [ ] command log fields contain only `operation|outcome|exit_code`, with optional previously captured safe `correlation_id|uow_id`
+  - [ ] every tracer, span, meter, logger, stopwatch, and optional context-read failure is isolated from the primary command result or Throwable
+  - [ ] command observability MUST NOT resolve or invoke `KernelOpsFacade`, Kernel observability internals, UoW hooks, or reset orchestration directly
 
 - [ ] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
   - [ ] implements `ErrorHandlerInterface`
@@ -4732,10 +4982,10 @@ Built-in commands:
     - [ ] `summary = Application target: web, api, console, or worker.`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
+- [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
   - [ ] MUST capture:
     - [ ] tag-first discovery via `cli.command`
-    - [ ] reserved built-in command names (`help`, `list`)
+    - [ ] reserved built-in command names (`doctor`, `help`, `list`)
     - [ ] kernel ops consumption only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
     - [ ] deterministic output + redaction policy
 
@@ -4770,47 +5020,119 @@ Errors:
   - [ ] fixed reason `output-format-failed`
   - [ ] contains no rendered bytes, raw records, paths, or previous message
 
-#### Deletes
+- [ ] `packages/platform/cli/src/Exception/CliCommandFailedException.php`
+  - [ ] code `CORETSIA_CLI_COMMAND_FAILED`
+  - [ ] code-first deterministic public message
+  - [ ] exposes fixed safe reason token
+  - [ ] previous throwable message is never included
+  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
 
-Legacy production files:
-- [ ] `packages/platform/cli/src/Application.php`
-  - [ ] remove config loading, root inference, FQCN registry, reflection, zero-argument command construction, and legacy dispatch
-  - [ ] no compatibility wrapper or class alias remains
+- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
+  - [ ] code `CORETSIA_CLI_CONFIG_INVALID`
+  - [ ] code-first deterministic public message
+  - [ ] exposes only stable safe reason tokens
+  - [ ] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
+  - [ ] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
+  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
 
-- [ ] `packages/platform/cli/src/Input/CliInput.php`
-  - [ ] replaced by `ArgvInput` and `ArgvInputParser`
+- [ ] `packages/platform/cli/src/Command/HelpCommand.php`
+  - [ ] existing Phase-0 implementation is replaced completely
+  - [ ] receives `CommandCatalog`
+  - [ ] renders general help from descriptors without resolving command services
+  - [ ] renders command-specific arguments and options from metadata
+  - [ ] unknown command fails deterministically
+  - [ ] exposes canonical command constants
+  - [ ] does not receive `list<string>` command names
+  - [ ] contains no generic “help unavailable” Phase-0 fallback
+  - [ ] does not reference Phase 0
+  - [ ] `NAME = help`
+  - [ ] `GROUP = core`
+  - [ ] `HIDDEN = false`
+  - [ ] `ARGUMENTS` contains exactly:
+    - [ ] `name = command`
+    - [ ] `summary = Command name.`
+    - [ ] `required = false`
+    - [ ] `variadic = false`
+  - [ ] `OPTIONS = []`
+  - [ ] `SUMMARY = 'Show general or command-specific help.'`
 
-- [ ] `packages/platform/cli/src/Output/CliOutput.php`
-  - [ ] replaced by buffer, formatters, redactor integration, and `ConsoleOutputWriter`
-
-- [ ] `packages/platform/cli/src/Output/TrackedOutput.php`
-  - [ ] no mutable error-tracking decorator remains
-
-- [ ] `packages/platform/cli/src/Error/ErrorCodes.php`
-  - [ ] error codes move to owning exception classes
-  - [ ] no global CLI error-code registry remains
-
-- [ ] `packages/platform/cli/src/Exception/CliCommandClassMissingException.php`
-- [ ] `packages/platform/cli/src/Exception/CliCommandInvalidException.php`
-- [ ] `packages/platform/cli/src/Exception/CliException.php`
-- [ ] `packages/platform/cli/src/Exception/CliExceptionInterface.php`
-  - [ ] legacy Phase-0 exception hierarchy is removed
-  - [ ] no compatibility aliases remain
-
-Legacy tests and fixtures:
-- [ ] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeAndMergeSemanticsTest.php`
-- [ ] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `packages/platform/cli/tests/Integration/ApplicationDispatchIntegrationTest.php`
-- [ ] `packages/platform/cli/tests/Integration/CliBootHelpWorksWithEmptyCommandsTest.php`
-- [ ] `packages/platform/cli/tests/Integration/CliRejectsMissingCommandClassDeterministicallyTest.php`
-- [ ] `packages/platform/cli/tests/Integration/OutputRedactionDoesNotLeakTest.php`
-- [ ] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncApplyCommand.php`
-- [ ] `packages/platform/cli/tests/Fake/FakeWorkspaceSyncDryRunCommand.php`
-- [ ] `packages/platform/cli/tests/Fixtures/LeakCommand.php`
-- [ ] `packages/platform/cli/tests/Fixtures/LeakCommand.prepend.php`
-  - [ ] replaced by tag-backed catalog, output-pipeline, security, and external-package fixtures defined by this epic
+- [ ] `packages/platform/cli/src/Command/ListCommand.php`
+  - [ ] existing Phase-0 implementation is replaced completely
+  - [ ] receives `CommandCatalog`
+  - [ ] renders descriptors without resolving command services
+  - [ ] excludes hidden commands
+  - [ ] groups deterministically while preserving canonical descriptor order within each group
+  - [ ] uses command metadata summaries
+  - [ ] exposes canonical command constants
+  - [ ] does not receive `list<string>` command names
+  - [ ] does not synthesize built-ins locally
+  - [ ] does not reference Phase 0
+  - [ ] `NAME = list`
+  - [ ] `GROUP = core`
+  - [ ] `HIDDEN = false`
+  - [ ] `ARGUMENTS = []`
+  - [ ] `OPTIONS = []`
+  - [ ] `SUMMARY = 'List available commands.'`
 
 #### Modifies
+
+- [ ] `packages/core/kernel/resources/modes/micro.php`
+  - [ ] preserve `required = [core.foundation, core.kernel]`
+  - [ ] set `modules = [platform.cli]`
+  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+
+- [ ] `packages/core/kernel/resources/modes/express.php`
+  - [ ] preserve `required = [core.foundation, core.kernel]`
+  - [ ] set `modules = [platform.cli]`
+  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+
+- [ ] `packages/core/kernel/resources/modes/hybrid.php`
+  - [ ] preserve `required = [core.foundation, core.kernel]`
+  - [ ] set `modules = [platform.cli, platform.worker]`
+  - [ ] preserve the existing Worker module selection
+  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+
+- [ ] `packages/core/kernel/resources/modes/enterprise.php`
+  - [ ] preserve `required = [core.foundation, core.kernel]`
+  - [ ] set `modules = [platform.cli, platform.worker]`
+  - [ ] preserve the existing Worker module selection
+  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+
+- [ ] `packages/framework/composer.json`
+  - [ ] preserve `coretsia/core-kernel` as the explicit baseline Kernel dependency
+  - [ ] add `coretsia/platform-cli` as a direct baseline dependency
+  - [ ] use the canonical release-line `publicConstraint` for both dependencies
+  - [ ] do not duplicate `coretsia/platform-redaction` as a direct framework dependency; it is required transitively by `coretsia/platform-cli`
+  - [ ] preserve Composer type `metapackage`
+  - [ ] do not introduce runtime code, configuration, autoload definitions, or installation scripts
+
+- [ ] `packages/framework/README.md`
+  - [ ] document the baseline Composer dependency graph
+  - [ ] document `coretsia/core-kernel` and `coretsia/platform-cli` as explicit framework requirements
+  - [ ] document `coretsia/platform-redaction` as a transitive dependency of CLI
+  - [ ] distinguish physical Composer installation from Kernel runtime module selection
+  - [ ] preserve explicit DependencySync ownership of additional mode-required packages
+  - [ ] do not describe the framework metapackage as a runtime module or module-selection mechanism
+
+- [ ] `packages/applications/skeleton/README.md`
+  - [ ] document the updated framework baseline containing Kernel and CLI
+  - [ ] document the canonical Skeleton CLI invocation:
+    - [ ] `php coretsia list`
+    - [ ] `php coretsia help`
+    - [ ] `php coretsia doctor`
+    - [ ] `php coretsia config:validate --target=web`
+    - [ ] explain that the project-root `coretsia` is a thin wrapper around the installed Composer binary
+    - [ ] document `php vendor/bin/coretsia <command>` as the direct equivalent invocation
+    - [ ] distinguish the Skeleton project-root wrapper from the monorepo-root wrapper
+    - [ ] document the fixed safe bootstrap failure when the Composer binary is unavailable
+    - [ ] do not require an additional CLI installation, alias, or configuration step after baseline Composer installation
+  - [ ] document Redaction as the transitive CLI runtime dependency
+  - [ ] preserve `coretsia/framework` as the only project-owned Coretsia baseline root
+  - [ ] document `micro` as the default canonical preset
+  - [ ] distinguish baseline package installation from Console ModulePlan selection
+  - [ ] preserve explicit dependency synchronization for additional selected targets and modules
+  - [ ] update canonical multi-target examples to include the CLI and Redaction module dependency closure
+  - [ ] do not introduce automatic DependencySync execution during create-project or runtime boot
 
 - [ ] `coretsia` — complete rewrite
   - [ ] repository-root wrapper
@@ -4852,66 +5174,15 @@ Legacy tests and fixtures:
   - [ ] no static-only Phase-0 module API remains
   - [ ] no config reads, command discovery, boot logic, or output logic
 
-- [ ] `packages/platform/cli/src/Exception/CliCommandFailedException.php` — complete rewrite
-  - [ ] code `CORETSIA_CLI_COMMAND_FAILED`
-  - [ ] code-first deterministic public message
-  - [ ] exposes fixed safe reason token
-  - [ ] previous throwable message is never included
-  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
-
-- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php` — complete rewrite
-  - [ ] code `CORETSIA_CLI_CONFIG_INVALID`
-  - [ ] code-first deterministic public message
-  - [ ] exposes only stable safe reason tokens
-  - [ ] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
-  - [ ] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
-  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
-
-- [ ] `packages/platform/cli/src/Command/HelpCommand.php` — complete rewrite
-  - [ ] existing Phase-0 implementation is replaced completely
-  - [ ] receives `CommandCatalog`
-  - [ ] renders general help from descriptors without resolving command services
-  - [ ] renders command-specific arguments and options from metadata
-  - [ ] unknown command fails deterministically
-  - [ ] exposes canonical command constants
-  - [ ] does not receive `list<string>` command names
-  - [ ] contains no generic “help unavailable” Phase-0 fallback
-  - [ ] does not reference Phase 0
-  - [ ] `NAME = help`
-  - [ ] `GROUP = core`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS` contains exactly:
-    - [ ] `name = command`
-    - [ ] `summary = Command name.`
-    - [ ] `required = false`
-    - [ ] `variadic = false`
-  - [ ] `OPTIONS = []`
-  - [ ] `SUMMARY = 'Show general or command-specific help.'`
-
-- [ ] `packages/platform/cli/src/Command/ListCommand.php` — complete rewrite
-  - [ ] existing Phase-0 implementation is replaced completely
-  - [ ] receives `CommandCatalog`
-  - [ ] renders descriptors without resolving command services
-  - [ ] excludes hidden commands
-  - [ ] groups deterministically while preserving canonical descriptor order within each group
-  - [ ] uses command metadata summaries
-  - [ ] exposes canonical command constants
-  - [ ] does not receive `list<string>` command names
-  - [ ] does not synthesize built-ins locally
-  - [ ] does not reference Phase 0
-  - [ ] `NAME = list`
-  - [ ] `GROUP = core`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS = []`
-  - [ ] `SUMMARY = 'List available commands.'`
-
 - [ ] `packages/platform/cli/src/Provider/CliServiceFactory.php`
   - [ ] stateless construction/wiring helper
   - [ ] MUST NOT keep caches, output buffers, terminal state, current command, or last result
   - [ ] reads CLI configuration only from the already-merged and validated `ConfigRepositoryInterface`
-  - [ ] every config-dependent factory method reads the complete `cli` root through `cliConfigRoot()` exactly once
+  - [ ] every factory method receiving `ConfigRepositoryInterface` for CLI configuration reads the complete `cli` root through `cliConfigRoot()` exactly once
+  - [ ] factory methods receiving an already-constructed `CliOutputPolicy` MUST reuse that policy without reading `ConfigRepositoryInterface` again
+  - [ ] factory methods receiving the already-extracted `cli.commands.overrides` map MUST NOT re-read configuration
   - [ ] no factory method reads individual `cli.*` paths
+  - [ ] MUST NOT introduce a second configuration cache, defaults source, merge pipeline, or validation pipeline
   - [ ] canonical private helper:
     - [ ] `/** @return array<string, mixed> */`
     - [ ] `private static function cliConfigRoot(ConfigRepositoryInterface $config): array`
@@ -4923,12 +5194,19 @@ Legacy tests and fixtures:
     - [ ] converts repository access failures into one deterministic safe container/config failure
     - [ ] performs no defaults fallback
     - [ ] performs no config file reads
-  - [ ] builds from that validated root:
-    - [ ] validated `cli.commands.overrides` map
-    - [ ] `CliOutputPolicy`
-    - [ ] `FormatResolver`
-    - [ ] `ColorResolver`
-    - [ ] `TableFormatter`
+  - [ ] extracts the canonical CLI settings from the validated root:
+    - [ ] `commands.overrides` → structurally validated override map passed to `CommandCatalog`
+    - [ ] `output.format_default` → `CliOutputPolicy::formatDefault`
+    - [ ] `output.adaptive.interactive` → `CliOutputPolicy::interactiveFormat`
+    - [ ] `output.adaptive.non_interactive` → `CliOutputPolicy::nonInteractiveFormat`
+    - [ ] `output.color_default` → `CliOutputPolicy::colorDefault`
+    - [ ] `output.table.max_width` → `CliOutputPolicy::tableMaxWidth`
+  - [ ] constructs `CliOutputPolicy` using all five output settings without silently inventing defaults
+  - [ ] constructs `FormatResolver` using the policy's format default and both adaptive formats
+  - [ ] constructs `ColorResolver` using the policy's color default
+  - [ ] constructs `TableFormatter` using the policy's table maximum width
+  - [ ] passes the override map to `CommandCatalog`, which delegates dynamic key and value validation to `CommandOverrides::apply()`
+  - [ ] MUST NOT validate dynamic command names or override values in `CliServiceFactory`
   - [ ] constructs one stateless `CommandOverrides` without config or catalog state
   - [ ] package defaults remain owned exclusively by `config/cli.php`
   - [ ] schema validation remains owned by `config/rules.php` and the existing ConfigKernel pipeline
@@ -4990,6 +5268,11 @@ Legacy tests and fixtures:
   - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
   - [ ] no dependency on `platform/cli`
 
+- [ ] `packages/platform/worker/src/Console/WorkerHealthCommand.php`
+  - [ ] remove `public const string MODE`
+  - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+  - [ ] no dependency on `platform/cli`
+
 - [ ] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
   - [ ] remove the `mode` argument from `commandMeta(...)`
   - [ ] remove the `mode` return-shape field
@@ -5027,11 +5310,13 @@ Legacy tests and fixtures:
     - [ ] `kernel-free in Phase 0`
   - [ ] require direct production dependencies used by source:
     - [ ] `php: ^8.4`
-    - [ ] `coretsia/core-contracts: ^0.5.0`
-    - [ ] `coretsia/core-foundation: ^0.5.0`
-    - [ ] `coretsia/core-kernel: ^0.5.0`
+    - [ ] `coretsia/core-contracts`: current release-line `publicConstraint`
+    - [ ] `coretsia/core-foundation`: current release-line `publicConstraint`
+    - [ ] `coretsia/core-kernel`: current release-line `publicConstraint`
+    - [ ] `coretsia/platform-redaction`: current release-line `publicConstraint`
     - [ ] `psr/container: ^2.0`
     - [ ] `psr/log: ^3.0`
+  - [ ] internal Coretsia constraints MUST follow the canonical `tools/release/release-line.json` `publicConstraint` and MUST NOT use an independently pinned historical minor version
   - [ ] declare `"bin": ["bin/coretsia"]`
   - [ ] preserve PSR-4 package namespace
   - [ ] preserve:
@@ -5046,7 +5331,9 @@ Legacy tests and fixtures:
     - [ ] `platform/worker`
     - [ ] migration/database packages
     - [ ] integrations solely for command discovery
-    - [ ] a concrete redaction implementation solely to use the contracts port
+  - [ ] require `coretsia/platform-redaction` at the Composer level to guarantee installation of the declared runtime module dependency
+  - [ ] production source MUST consume only `SensitiveDataRedactorInterface` and MUST NOT import or instantiate `DefaultSensitiveDataRedactor`
+  - [ ] Composer package installation MUST NOT implicitly register or enable runtime modules
 
 - [ ] `packages/platform/cli/src/Provider/CliServiceProvider.php`
   - [ ] existing placeholder Phase-0 provider is replaced completely
@@ -5065,7 +5352,7 @@ Legacy tests and fixtures:
     - [ ] delegates the runtime-representable contribution through:
       - [ ] `$builder->registerDefinitionProvider($this)`
   - [ ] `define()` is the single definition source for generic CLI infrastructure:
-    - [ ] `CliServiceFactory`
+    - [ ] generic CLI services constructed through static `CliServiceFactory` methods using canonical `ContainerDefinitionBuilder::classMethodFactory()`
     - [ ] parser and validated input services
     - [ ] `CommandCatalog`
     - [ ] output policy, resolvers, and formatters
@@ -5077,6 +5364,8 @@ Legacy tests and fixtures:
     - [ ] `ListCommand`
     - [ ] `DoctorCommand`
     - [ ] their generic built-in `cli.command` tags
+  - [ ] `CliServiceFactory` is a static construction helper and MUST NOT be registered or instantiated as a container service
+  - [ ] constructor-free static factory dispatch MUST reuse Foundation declarative service-method and class-method factory primitives
   - [ ] `CommandOutputBuffer` MUST NOT be registered by `register()` or `define()`
   - [ ] `CliApplication` creates exactly one invocation-local `CommandOutputBuffer` per `run()` call
   - [ ] `define()` MUST NOT reference or require:
@@ -5113,10 +5402,15 @@ Legacy tests and fixtures:
   - [ ] MUST NOT use filesystem scanning
   - [ ] MUST NOT read `cli.commands` registry list
   - [ ] MUST provide reserved built-in command service id map to catalog/factory:
+    - [ ] `doctor`
     - [ ] `help`
     - [ ] `list`
-  - [ ] declares required source-host services:
-    - [ ] `KernelOpsInterface`
+  - [ ] source-host-only Kernel Ops dependencies:
+    - [ ] `KernelOpsInterface` is consumed only by the six source-host Kernel operation command services
+    - [ ] `KernelOpsRequestResolver` is registered only in `register()`
+    - [ ] these dependencies MUST NOT enter `define()` or its declarative `requireService()` set
+    - [ ] source-host command factories resolve the existing `KernelOpsInterface` binding without registering another implementation
+  - [ ] runtime-representable generic CLI dependencies:
     - [ ] `KernelRuntimeInterface`
     - [ ] `ContextAccessorInterface`
     - [ ] `TracerPortInterface`
@@ -5124,13 +5418,17 @@ Legacy tests and fixtures:
     - [ ] `LoggerInterface`
     - [ ] `SensitiveDataRedactorInterface`
     - [ ] `ConfigRepositoryInterface`
-    - [ ] passes the same validated console-host `ConfigRepositoryInterface` to `CliServiceFactory`
+    - [ ] `Psr\Container\ContainerInterface`
+    - [ ] `TagRegistry`
+    - [ ] Foundation `Stopwatch`
+    - [ ] `define()` declares required generic service references through the canonical `ContainerDefinitionBuilder` where appropriate
+    - [ ] MUST NOT introduce a second dependency preflight or service-availability registry
+    - [ ] the canonical Foundation container remains responsible for service-reference resolution and failure
+  - [ ] configuration ownership:
+    - [ ] passes the same validated Console-host `ConfigRepositoryInterface` to `CliServiceFactory`
     - [ ] MUST NOT construct another config repository
     - [ ] MUST NOT load `config/cli.php` or `config/rules.php` directly
     - [ ] MUST NOT expose CLI config values through command input
-    - [ ] `Psr\Container\ContainerInterface` alias for the built source container
-    - [ ] `TagRegistry`
-    - [ ] Foundation `Stopwatch`
   - [ ] registers `CliOutputPolicy`
   - [ ] registers `FormatResolver`
   - [ ] registers `ColorResolver`
@@ -5225,6 +5523,76 @@ Legacy tests and fixtures:
     - [ ] unknown static keys at every schema-owned level
     - [ ] dynamic keys under `cli.commands.overrides` are the only structural exception
 
+- [ ] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — complete rewrite
+  - [ ] replace the Phase-0 static `CliModule::providers()` call with instance-based module metadata verification
+  - [ ] remove assertions for deleted `CliServiceProvider::id()` and `CliServiceProvider::factories()` APIs
+  - [ ] verify `CliServiceProvider` implements `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+  - [ ] verify `CliModule::providers()` returns the canonical `CliServiceProvider::class` through the module instance
+  - [ ] preserve output-free loading assertions for `config/cli.php` and `config/rules.php`
+  - [ ] replace legacy `cli.commands` list assertions with the canonical `cli.commands.overrides` map shape
+  - [ ] replace legacy `cli.output.format` assertions with `cli.output.format_default` and the `adaptive|json|table|plain` allowed-value set
+  - [ ] verify the canonical adaptive, color, and table-width config nodes
+  - [ ] remove all Phase-0 `MODE`, static-provider, command-registry, and configurable-redaction assumptions
+
+- [ ] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
+  - [ ] scans every production command under `src/Command`
+  - [ ] rejects:
+    - [ ] `echo`
+    - [ ] `print`
+    - [ ] `printf`
+    - [ ] `var_dump`
+    - [ ] `print_r`
+    - [ ] `error_log`
+    - [ ] direct `STDOUT|STDERR`
+    - [ ] `php://stdout|php://stderr|php://output`
+  - [ ] excludes tests and fixtures
+  - [ ] does not forbid writes inside the explicit `ConsoleOutputWriter`
+
+- [ ] `packages/core/kernel/tests/Support/AppBuilder.php`
+  - [ ] extend the existing test manifest and provider fixtures with the CLI-to-Redaction dependency closure
+  - [ ] reuse the canonical Kernel module resolver without introducing an alternate test-only module planner
+
+- [ ] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [ ] update the expected enabled module set for the canonical `micro` preset
+  - [ ] verify CLI and Redaction dependency closure without weakening compiled-artifact validation
+
+- [ ] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [ ] update the expected enabled module set for the canonical `express` preset
+  - [ ] preserve deterministic ModulePlan and artifact assertions
+
+- [ ] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [ ] update canonical preset module expectations
+  - [ ] preserve required/modules disjointness and schema validation
+  - [ ] verify Worker remains selected only by the intended canonical presets
+
+- [ ] `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
+  - [ ] update assertions affected by the canonical preset closure
+  - [ ] preserve independent per-target ModulePlan and project-wide Composer union semantics
+
+- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
+  - [ ] replace legacy `cli.commands` list validation cases with the canonical `cli.commands.overrides` map shape
+  - [ ] verify rejection of invalid static `commands|overrides` node types
+  - [ ] preserve exact structural violation-path, reason, expected-type, and actual-type assertions
+  - [ ] leave dynamic command-name and override-value validation to `CommandOverrides`
+
+- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
+  - [ ] replace legacy `cli.output.format` assertions with `cli.output.format_default`
+  - [ ] preserve wrong-type and unsupported-value validation coverage
+  - [ ] verify the canonical `adaptive|json|table|plain` allowed-value set
+
+- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+  - [ ] replace legacy command-list, `output.format`, and `output.redaction.enabled` fixtures with invalid values under the new CLI config schema
+  - [ ] update exact expected violation paths and deterministic ordering
+  - [ ] preserve assertions that rejected config values, secrets, and filesystem paths never appear in diagnostics
+
+- [ ] `packages/platform/worker/tests/Integration/WorkerCompileArtifactBootE2ETest.php`
+  - [ ] remove `mode` from the expected `commandMetadata()` return shape
+  - [ ] remove `$commandClass::MODE` access from the metadata fixture
+  - [ ] preserve exact six-key `cli.command` metadata parity across source and compiled artifact boot
+  - [ ] preserve the existing Worker-only custom preset, artifact compilation, verification, and runtime boot assertions
+  - [ ] MUST NOT add `platform.cli` or `platform.redaction` as mandatory roots to the Worker-only test preset
+  - [ ] MUST NOT weaken the canonical artifact and deterministic tag-order assertions
+
 - [ ] `docs/ssot/tags.md`
   - [ ] define that every `cli.command` service id is the exact command class FQCN
   - [ ] define lazy command-constant validation without service resolution
@@ -5241,8 +5609,8 @@ Legacy tests and fixtures:
     - [ ] `mode`
     - [ ] unknown metadata keys
   - [ ] define deterministic TagRegistry order
-  - [ ] define duplicate command-name failure
-  - [ ] define reserved external names `help|list`
+  - [ ] define duplicate command-name failure across distinct service ids, while preserving TagRegistry first-wins behavior for repeated registrations of the same service id
+  - [ ] define reserved external names `doctor|help|list`
   - [ ] document that command-owner packages depend only on contracts-level CLI ports
   - [ ] `cli.command` registrations use actual tag priority `0`
   - [ ] non-zero priority is invalid independently of metadata contents
@@ -5259,6 +5627,22 @@ Legacy tests and fixtures:
   - [ ] `format|exit_code` may be bounded span attributes
   - [ ] raw arguments, options, output records, paths, endpoints, config, and payloads are forbidden
 
+- [ ] `docs/ssot/modes.md`
+  - [ ] document `platform.cli` as a default selectable module in all four canonical presets
+  - [ ] document `platform.redaction` as a transitive runtime module dependency of CLI
+  - [ ] preserve `required` versus `modules` exclusion semantics
+  - [ ] preserve per-target module selection and deterministic dependency closure
+  - [ ] clarify that canonical presets are runtime policies, not Composer package distributions
+  - [ ] update examples of the effective canonical module sets
+
+- [ ] `docs/ssot/application-dependency-sync.md`
+  - [ ] document the updated Kernel and CLI baseline distribution
+  - [ ] update the Composer baseline dependency graph and transitive Redaction installation
+  - [ ] update canonical `micro` and multi-target ModulePlan examples
+  - [ ] preserve explicit target selection, Composer root ownership, and plan/review/apply semantics
+  - [ ] preserve the separation between physically installed packages and enabled runtime modules
+  - [ ] do not introduce implicit dependency synchronization during application boot
+
 - [ ] `packages/platform/cli/README.md` MUST include:
   - [ ] existing README is replaced completely
   - [ ] remove historical descriptions:
@@ -5270,6 +5654,16 @@ Legacy tests and fixtures:
     - [ ] package-local redaction
     - [ ] monorepo-only launcher layout
   - [ ] Errors and exit codes
+  - [ ] Canonical CLI invocation:
+    - [ ] `coretsia` is the single canonical executable name
+    - [ ] document `php coretsia <command>` for the monorepo root
+    - [ ] document `php coretsia <command>` for Composer-installed Coretsia Skeleton projects
+    - [ ] document `php vendor/bin/coretsia <command>` as the direct Composer binary invocation
+    - [ ] document `vendor/bin/coretsia <command>` where the Composer binary is directly executable
+    - [ ] distinguish the monorepo-root wrapper, Skeleton project-root wrapper, Composer binary proxy, and packaged CLI implementation
+    - [ ] explain that the Skeleton wrapper forwards without performing application boot or command parsing
+    - [ ] do not introduce or document framework-owned `c|cli` executable aliases
+    - [ ] all supported invocations use the same packaged CLI implementation
   - [ ] Security and redaction
   - [ ] Kernel target and configured-preset behavior
   - [ ] Determinism
@@ -5298,21 +5692,16 @@ Legacy tests and fixtures:
     - [ ] no arbitrary configured ANSI codes
 
 - [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-cli-tag-first-command-catalog.md`
+  - [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 
-- [ ] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
-  - [ ] scans every production command under `src/Command`
-  - [ ] rejects:
-    - [ ] `echo`
-    - [ ] `print`
-    - [ ] `printf`
-    - [ ] `var_dump`
-    - [ ] `print_r`
-    - [ ] `error_log`
-    - [ ] direct `STDOUT|STDERR`
-    - [ ] `php://stdout|php://stderr|php://output`
-  - [ ] excludes tests and fixtures
-  - [ ] does not forbid writes inside the explicit `ConsoleOutputWriter`
+- [ ] `docs/architecture/DEPENDENCIES.md`
+  - [ ] add `platform/cli` to the canonical direct dependency matrix
+  - [ ] exact direct Composer dependency row:
+    - [ ] `platform/cli` → `core/contracts, core/foundation, core/kernel, platform/redaction`
+  - [ ] preserve the distinction between the Composer installation dependency on `platform/redaction` and the contracts-only PHP source dependency on `SensitiveDataRedactorInterface`
+  - [ ] `platform/cli` production source MUST NOT import concrete `Coretsia\Platform\Redaction\*` implementation classes
+  - [ ] preserve canonical `strcmp` package-row ordering
+  - [ ] keep the matrix aligned with package Composer dependencies and generated deptrac policy
 
 ### Cross-cutting (MUST)
 
@@ -5348,13 +5737,16 @@ Legacy tests and fixtures:
     - [ ] `output_format` = resolved `json|table|plain`
   - [ ] UoW attributes remain lifecycle/hook payload data and MUST NOT be written into ContextStore by platform/cli
 - [ ] Context reads:
-  - [ ] allowed only through `ContextAccessorInterface`
-  - [ ] allowed keys:
+  - [ ] platform/cli reads runtime context only through `ContextAccessorInterface`
+  - [ ] `CommandRunner` consumes the following Kernel-owned values only for optional safe log correlation:
     - [ ] `ContextKeys::CORRELATION_ID`
     - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] `output_format` is read from invocation/UoW input, not from ContextAccessorInterface
-  - [ ] used only for safe observability and diagnostics
+  - [ ] `ContextKeys::UOW_TYPE` is written and owned by KernelRuntime; `CommandRunner` does not need to read it because the UoW type is explicitly supplied as `UnitOfWorkType::CLI`
+  - [ ] optional identifiers MUST be captured inside the UoW callback before the canonical KernelRuntime reset
+  - [ ] missing, invalid, or unavailable identifiers MUST be omitted from CLI logs
+  - [ ] failures of optional context reads MUST NOT alter command execution, UoW cleanup, exit codes, or primary exception precedence
+  - [ ] `output_format` is supplied explicitly to `CommandRunner` and passed as a UoW attribute; it is not read from ContextAccessorInterface
+  - [ ] CLI MUST NOT create or write additional ContextStore keys
   - [ ] commands and formatters MUST NOT require these values to produce their domain result
 - [ ] Reset discipline:
   - [ ] reset is triggered only by the canonical KernelRuntime lifecycle
@@ -5374,7 +5766,10 @@ Legacy tests and fixtures:
   - [ ] formatters and writers MUST NOT emit command lifecycle metrics
 - [ ] Command span:
   - [ ] name: `cli.command`
-  - [ ] exactly one span per normal command execution
+  - [ ] exactly one span-start attempt per selected normal command execution
+  - [ ] the span begins before the Kernel UoW call and finishes after its complete lifecycle
+  - [ ] a successfully started span MUST be ended exactly once
+  - [ ] failed tracing MUST NOT prevent command execution, alter exit codes, or trigger command retries
   - [ ] safe attributes:
     - [ ] `operation`
     - [ ] `outcome`
@@ -5396,6 +5791,9 @@ Legacy tests and fixtures:
   - [ ] exit code `0` → `success`
   - [ ] non-zero returned exit code → `failure`
   - [ ] thrown exception → `failure`
+  - [ ] CLI command outcomes are based on the returned process exit code or thrown Throwable, not on Kernel UoW lifecycle outcome
+  - [ ] a valid non-zero command return is a CLI command `failure` even when KernelRuntime records successful completion of the UoW callback
+  - [ ] CLI MUST NOT override Kernel-owned UoW outcomes or emit corrective `kernel.uow` telemetry
 - [ ] Logs:
   - [ ] one safe command completion/failure summary
   - [ ] safe fields:
@@ -5405,10 +5803,16 @@ Legacy tests and fixtures:
   - [ ] MAY include `correlation_id|uow_id`
   - [ ] MUST NOT include raw argv, arguments, option values, command output, paths, endpoints, payloads, env/config values, tokens, exception stack traces, or previous throwable messages
 - [ ] Failure isolation:
-  - [ ] tracer failure MUST NOT alter command exit code
-  - [ ] meter failure MUST NOT alter command exit code
+  - [ ] tracer start, attribute-update, and span-end failures MUST NOT alter command exit code
+  - [ ] meter counter and duration-observation failures MUST NOT alter command exit code
   - [ ] logger failure MUST NOT alter command exit code
+  - [ ] Foundation Stopwatch start/stop failures MUST NOT alter command exit code
+  - [ ] optional ContextAccessorInterface read failures MUST NOT alter command exit code
+  - [ ] an unavailable duration uses integer `0`
+  - [ ] observability failures MUST NOT prevent or repeat command execution
   - [ ] observability failures MUST NOT replace the primary command exception
+  - [ ] observability failures MUST NOT change Kernel-owned after-hook, reset, or failure-precedence semantics
+  - [ ] failed observability attempts MUST NOT trigger recursive reporting through the same failing port
 - [ ] Doctor:
   - [ ] ultra-early doctor does not require tracer, meter, logger, context, or UoW services
   - [ ] doctor emits no normal `cli.command` runtime span
@@ -5424,6 +5828,11 @@ Legacy tests and fixtures:
   - [ ] no global option disables it
   - [ ] no owner-package command can bypass final CLI defense-in-depth redaction
   - [ ] `OutputFormatter` always receives `SensitiveDataRedactorInterface`
+  - [ ] owner-package commands MUST produce safe-by-construction output before CLI redaction
+  - [ ] known-sensitive values MUST be omitted, safely derived, or explicitly classified by their owning producer
+  - [ ] a shared redaction classifier non-match MUST NOT be treated as authorization to emit raw values
+  - [ ] successful redaction MUST NOT widen CLI-owned output schemas or authorize arbitrary diagnostic metadata
+  - [ ] non-placeholder hash and length disclosure modes are not enabled by the baseline CLI output boundary
 - [ ] CLI MUST NOT leak:
   - [ ] dotenv or env values
   - [ ] raw config values
@@ -5438,7 +5847,7 @@ Legacy tests and fixtures:
   - [ ] stable reason tokens
   - [ ] bounded operation ids
   - [ ] integer counts and lengths
-  - [ ] safe hashes
+  - [ ] owner-approved safe hash derivations only where non-reconstruction requirements are satisfied
   - [ ] correlation and UoW ids where policy permits
 - [ ] Color safety:
   - [ ] config cannot contain arbitrary ANSI escape sequences
@@ -5452,16 +5861,141 @@ Legacy tests and fixtures:
   - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ExternalModeCommand.php`
     - [ ] implements `CommandInterface`
     - [ ] declares owner-domain `mode` option
+    - [ ] declares an additional repeatable required-value `item` option
+    - [ ] receives repeated `item` values through contracts-level `InputInterface`
+    - [ ] preserves the received `list<string>` order for test assertions
     - [ ] depends on `ExternalOwnerService`
+    - [ ] performs no Kernel preset selection or Kernel Ops invocation
 
   - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ExternalCommandServiceProvider.php`
-    - [ ] contributes the command only through `cli.command`
-    - [ ] references command constants
+    - [ ] implements `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+    - [ ] `register()` delegates through the canonical `ContainerBuilder::registerDefinitionProvider($this)` mechanism
+    - [ ] `define()` contributes `ExternalOwnerService` and `ExternalModeCommand` through canonical declarative container definitions
+    - [ ] tags `ExternalModeCommand::class` with `ReservedTags::CLI_COMMAND`
+    - [ ] uses the exact command class FQCN as its service id
+    - [ ] references `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS` command constants
+    - [ ] does not instantiate the command during provider registration or definition production
+    - [ ] does not introduce imperative-only provider registration, a second command registry, or a test-only command discovery mechanism
 
   - [ ] `packages/platform/cli/tests/Fixture/ExternalCommand/ReservedHelpCommand.php`
     - [ ] contributes external name `help` for deterministic collision testing
 
 - Unit:
+  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
+    - [ ] contains exactly one parsed `ArgvInput` and nullable global `formatOverride|colorOverride`
+    - [ ] preserves command-facing arguments and options without reconstructing raw argv
+    - [ ] global `format|color` tokens are absent from the contained command input
+    - [ ] is immutable and retains no streams, catalog, config repository, descriptor, or command service
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
+    - [ ] actual non-zero `TaggedService::priority()` hard-fails with `InvalidCommandTagMetaException`
+    - [ ] both positive and negative non-zero priorities are rejected
+    - [ ] a forbidden metadata `priority` key is not required to trigger rejection
+    - [ ] priority `0` remains valid
+    - [ ] the catalog neither overwrites priority nor re-sorts TagRegistry output
+    - [ ] no command service is instantiated during validation
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
+    - [ ] NUL, ESC, ANSI sequences, forbidden C0/C1 characters, and DEL in string values fail before record insertion
+    - [ ] CRLF and CR in permitted string values normalize to LF
+    - [ ] LF and TAB remain permitted in text and JSON-like string values
+    - [ ] error messages remain safe single-line strings
+    - [ ] valid non-ASCII UTF-8 values are not rejected because of UTF-8 continuation bytes
+    - [ ] malformed UTF-8 fails closed
+    - [ ] rejected values do not produce partial output or disclose offending content
+
+  - [ ] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
+    - [ ] resolves the application root from a valid canonical Composer binary layout
+    - [ ] resolves the application root from an explicit canonical monorepo wrapper input
+    - [ ] validates and normalizes the already-selected readable Composer autoload path
+    - [ ] conflicting application-root sources fail with `CliBootstrapException`
+    - [ ] unsupported or unresolved launcher layouts fail deterministically
+    - [ ] results do not depend on the current working directory
+    - [ ] performs no recursive parent-directory scanning or application-config loading
+    - [ ] failure diagnostics disclose no absolute paths or raw launcher values
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
+    - [ ] resolves exactly the selected `CommandDescriptor::serviceId()` through `ContainerInterface`
+    - [ ] never enumerates container services or resolves unrelated tagged commands
+    - [ ] command construction happens inside the Kernel UoW callback
+    - [ ] passes the command-facing `InputInterface` and invocation-local `OutputInterface` unchanged
+    - [ ] rejects a resolved service that does not implement `CommandInterface`
+    - [ ] rejects a different command class returned under the selected descriptor's service id, even when it implements `CommandInterface` and returns the expected command name
+    - [ ] rejects a subclass or decorator returned under a tagged command class service id
+    - [ ] accepts the exact command class registered under its own FQCN
+    - [ ] rejects a resolved command whose `name()` differs from the selected descriptor
+    - [ ] unrelated command constructors are never invoked
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
+    - [ ] accepts the canonical exact six-key metadata schema
+    - [ ] validates the canonical `group` token pattern
+    - [ ] rejects empty, uppercase, whitespace-containing, and control-character-containing groups
+    - [ ] requires a non-empty safe summary and boolean hidden flag
+    - [ ] validates argument descriptors with exact `name|summary|required|variadic` keys
+    - [ ] rejects duplicate argument names, required arguments after optional arguments, and non-final variadic arguments
+    - [ ] validates option descriptors with exact `name|summary|value|repeatable` keys
+    - [ ] rejects duplicate option names and invalid `none|required|optional` value declarations
+    - [ ] permits `repeatable = true` only with `value = required`
+    - [ ] rejects reserved CLI-global option names `format|color`
+    - [ ] permits owner-domain option names such as `mode|preset`
+    - [ ] rejects non-json-like metadata and invalid static safe-text shapes
+    - [ ] does not introduce CLI-local sensitive-value, path, or endpoint classification
+    - [ ] leaves priority-key, unknown-key, name-regex, and class-constant mismatch cases to their dedicated tests
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
+    - [ ] identical canonical TagRegistry input produces identical descriptor order and values
+    - [ ] catalog order matches `TagRegistry::all(ReservedTags::CLI_COMMAND)` exactly
+    - [ ] catalog performs no secondary sorting or deduplication
+    - [ ] repeated registration of the same service id follows Foundation first-wins semantics
+    - [ ] applies validated `CommandOverrides` exactly once without changing descriptor order
+    - [ ] overrides affect only the catalog-view `summary|hidden|group` fields
+    - [ ] repeated `descriptors()` and `require()` calls do not resolve command services or mutate catalog state
+
+  - [ ] `packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
+    - [ ] uses the configured `cli.output.table.max_width` rather than detected terminal width
+    - [ ] rendered table lines respect the configured visible-width limit
+    - [ ] narrow valid widths do not cause uncontrolled expansion
+    - [ ] width calculation ignores formatter-owned ANSI decoration
+    - [ ] color-disabled rendering is ANSI-free and deterministic
+    - [ ] identical normalized records and width settings produce identical output
+    - [ ] output contains no trailing CR or LF before `ConsoleOutputWriter` processing
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
+    - [ ] tracer failure does not change a successfully returned command exit code
+    - [ ] meter failure does not change a successfully returned command exit code
+    - [ ] logger failure does not change a successfully returned command exit code
+    - [ ] observability failures do not suppress command execution or cause a second command execution
+    - [ ] when the command throws, the original command Throwable remains the primary failure
+    - [ ] observability failures do not replace or expose the primary Throwable
+    - [ ] Kernel-owned UoW cleanup and reset behavior remains authoritative
+    - [ ] tracer start failure does not prevent the selected command from executing once
+    - [ ] span attribute-update failure does not prevent the span-end attempt
+    - [ ] span-end failure does not change the command result or primary Throwable
+    - [ ] the real Foundation `Stopwatch` produces a non-negative integer duration during successful command execution
+    - [ ] Stopwatch start and stop calls remain protected by CLI-owned Throwable isolation and an integer `0` fallback
+    - [ ] Stopwatch failure isolation MUST NOT require mocking, subclassing, or replacing the final Foundation `Stopwatch`
+    - [ ] the failure-handling structure MAY be verified through source-level contract assertions without introducing a new Stopwatch abstraction
+    - [ ] metric counter failure does not prevent the independent duration-observation attempt
+    - [ ] optional context read failures omit correlation identifiers without affecting execution
+    - [ ] no observability failure causes a nested UoW or retry
+
+  - [ ] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
+    - [ ] repeated bare flags fail
+    - [ ] mixed bare and valued occurrences of one option fail
+    - [ ] repeated valued occurrences preserve insertion order
+    - [ ] end-of-options marker prevents subsequent tokens from being parsed as options
+    - [ ] literal `--format=json` and `--color=always` after `--` remain positional arguments
+    - [ ] those positional tokens do not populate `ParsedCliInvocation::formatOverride` or `colorOverride`
+    - [ ] recognized global options before `--` remain absent from command-facing input
+
+  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferAggregateLimitsTest.php`
+    - [ ] exactly `1024` records are accepted when the aggregate byte budget permits
+    - [ ] record `1025` is rejected before insertion
+    - [ ] the exact aggregate byte boundary is accepted
+    - [ ] aggregate byte boundary plus one is rejected
+    - [ ] rejected records are never partially retained
+    - [ ] failure messages contain no record values or payload fragments
+
   - [ ] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
     - [ ] maps `KernelOpsFailedException` only through its stable public code/reason contract
     - [ ] mapped `ErrorDescriptor` contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
@@ -5470,17 +6004,14 @@ Legacy tests and fixtures:
     - [ ] renderer consumes only `ErrorDescriptor`, never a raw Throwable
     - [ ] rendered output contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
-  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/ColorResolverDisablesAutoWhenStderrIsRedirectedTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
+  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsControlCharactersInMapKeysTest.php`
+    - [ ] map keys containing CR, LF, TAB, DEL, or other forbidden control characters fail before finalization
+    - [ ] map keys containing CRLF or CR are rejected without line-ending normalization
+    - [ ] valid non-ASCII UTF-8 map keys preserve their original bytes and canonical Foundation ordering
+    - [ ] valid multiline and tab-containing string values remain supported
+    - [ ] Unicode C1 control characters are rejected without rejecting valid UTF-8 continuation bytes
+    - [ ] malformed UTF-8 fails before record insertion
+    - [ ] no rejected map key or payload value appears in failure diagnostics
 
   - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonClassServiceIdTest.php`
     - [ ] a non-class service id hard-fails before descriptor construction
@@ -5510,9 +6041,11 @@ Legacy tests and fixtures:
     - [ ] formatter receives `SensitiveDataRedactorInterface`
     - [ ] formatter does not instantiate or resolve a concrete redactor
     - [ ] no CLI-local classifier, policy, hasher, or pattern registry is constructed
-    - [ ] normalized records are passed through the shared port exactly once
-    - [ ] raw sensitive fixture values do not reach rendered output
-    - [ ] redacted maps are recursively re-sorted before concrete formatting
+    - [ ] owner-supplied values are passed through the shared redaction boundary without redacting CLI record envelope keys
+    - [ ] redaction uses the fixed `cli.output` scope and `Placeholder` mode
+    - [ ] raw sensitive fixture values selected for redaction do not reach rendered output
+    - [ ] redacted maps retain canonical ordering provided by the shared redaction runtime
+    - [ ] text and error-message records retain their required string shape after redaction
 
   - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityMetadataKeyTest.php`
     - [ ] `priority` key hard-fails deterministically
@@ -5527,12 +6060,16 @@ Legacy tests and fixtures:
     - [ ] catalog can build descriptors from tag metadata without resolving command services
 
   - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
-    - [ ] duplicate command names hard-fail deterministically
+    - [ ] two distinct tagged service ids declaring the same command name hard-fail deterministically
+    - [ ] repeated registration of the same service id follows the canonical TagRegistry first-wins policy
 
   - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
+    - [ ] external `doctor` hard-fails
     - [ ] external `help` hard-fails
     - [ ] external `list` hard-fails
-    - [ ] built-in `help` and `list` are allowed only for platform/cli built-in service ids
+    - [ ] built-in `doctor`, `help`, and `list` are allowed only for platform/cli built-in service ids
+    - [ ] reserved-name validation uses the canonical immutable built-in service-id map
+    - [ ] no tagged command service is instantiated during collision detection
 
   - [ ] `packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
     - [ ] descriptor name and command `name()` mismatch hard-fails with `InvalidCommandTagMetaException`
@@ -5552,21 +6089,43 @@ Legacy tests and fixtures:
   - [ ] `packages/platform/cli/tests/Unit/ColorResolverTest.php`
     - [ ] explicit color overrides configured default
     - [ ] auto requires both interactive output and ANSI support
+    - [ ] interactive stdout with `ansiSupported = false`, including redirected stderr capabilities, disables auto color
+    - [ ] non-interactive stdout disables auto color regardless of ANSI support
     - [ ] never disables color
     - [ ] always enables color for text formats
     - [ ] JSON always disables color
 
   - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
-    - [ ] emits one span
-    - [ ] emits total and duration metrics
-    - [ ] labels only `operation|outcome`
+    - [ ] performs exactly one `cli.command` span-start attempt
+    - [ ] starts the span before entering KernelRuntime UoW
+    - [ ] ends a successfully started span after KernelRuntime UoW completion
+    - [ ] span attributes contain exactly `operation|format|outcome|exit_code` on successful final update
+    - [ ] emits exactly one `cli.command_total` counter increment
+    - [ ] emits exactly one `cli.command_duration_ms` observation
+    - [ ] metric labels contain exactly `operation|outcome`
+    - [ ] metric duration is a non-negative integer measured through Foundation Stopwatch
     - [ ] output format and exit code are not metric labels
+    - [ ] returned exit code `0` produces outcome `success`
+    - [ ] valid non-zero returned exit codes produce outcome `failure` without remapping
     - [ ] thrown command failure records `exit_code = 1`
+    - [ ] attempts one safe command completion/failure log
+    - [ ] log fields contain only `operation|outcome|exit_code` and optional safe `correlation_id|uow_id`
+    - [ ] optional context identifiers are captured inside the UoW callback before reset
+    - [ ] no command arguments, option values, output records, paths, endpoints, or payloads enter telemetry
+    - [ ] does not duplicate `kernel.uow` or `kernel.operation` telemetry
 
 - Contract:
-  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotReferenceArtifactRuntimeOrGenerationInternalsContractTest.php`
   - [ ] `packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
-  - [ ] `packages/platform/cli/tests/Contract/JsonOutputNeverContainsAnsiContractTest.php`
+    - [ ] `CliModule` exposes the canonical module identity, package identity, Composer package, runtime kind, and config root
+    - [ ] `MODULE_ID = platform.cli`
+    - [ ] `PACKAGE_ID = platform/cli`
+    - [ ] `COMPOSER_PACKAGE = coretsia/platform-cli`
+    - [ ] `KIND = runtime`
+    - [ ] `CONFIG_ROOT = cli`
+    - [ ] instance metadata methods agree with their declared constants
+    - [ ] instance `providers()` returns exactly `CliServiceProvider::class`
+    - [ ] no Phase-0 static-only provider API remains
+    - [ ] module metadata access performs no config reads, command discovery, service resolution, or application boot
 
   - [ ] `packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
     - [ ] `CliErrorHandler` implements `ErrorHandlerInterface`
@@ -5595,19 +6154,11 @@ Legacy tests and fixtures:
     - [ ] assert exact six-key metadata
     - [ ] preserve `cli.command` tag assertions
 
-  - [ ] `packages/platform/cli/tests/Contract/LegacyPhase0CliFilesAreRemovedContractTest.php`
-    - [ ] asserts every file listed under `Deletes` is absent
-    - [ ] asserts no production reference to:
-      - [ ] `cli.commands` registry list
-      - [ ] `new $fqcn`
-      - [ ] command reflection
-      - [ ] zero-argument command policy
-      - [ ] `CliOutput`
-      - [ ] `TrackedOutput`
-      - [ ] `ErrorCodes`
-      - [ ] `RedactionEngine`
-      - [ ] `RedactionPolicy`
-      - [ ] Phase 0
+  - [ ] `packages/platform/cli/tests/Contract/CliReusesFoundationJsonLikePrimitivesContractTest.php`
+    - [ ] CLI introduces no independent JSON-like structural normalizer
+    - [ ] CLI introduces no independent recursive map sorter
+    - [ ] JSON output uses the canonical Foundation StableJsonEncoder
+    - [ ] CLI-owned control-byte and presentation validation remain separate
 
   - [ ] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
     - [ ] correct direct dependencies
@@ -5636,9 +6187,20 @@ Legacy tests and fixtures:
       - [ ] `ArtifactCompiler`
       - [ ] `FingerprintCalculator`
       - [ ] `CacheVerifier`
+      - [ ] `ArtifactGenerationLocator`
+      - [ ] `ArtifactGenerationPublisher`
+      - [ ] `ArtifactGenerationValidator`
+      - [ ] `ArtifactPathResolver`
+      - [ ] `PhpArtifactReader`
+      - [ ] `ArtifactRuntimeBooter`
+      - [ ] `ArtifactRuntimeInput`
+    - [ ] CLI command, catalog, runner, formatter, and renderer implementations do not inspect Kernel `current` or generation manifests
+    - [ ] CLI does not construct Kernel generation directories or artifact paths
+    - [ ] CLI does not directly include or read generated Kernel `config.php` or `container.php`
     - [ ] allows `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` throughout platform/cli Kernel-operation adapters
     - [ ] allows `KernelOpsHostInput` and `KernelOpsHostBooter` only in `src/Bootstrap/CliHostBootstrap.php`
     - [ ] rejects every other `Coretsia\Kernel\Ops\*` reference
+    - [ ] does not forbid Kernel-owned artifact access behind `KernelOpsInterface`
 
   - [ ] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
     - [ ] `CliServiceProvider` implements both provider interfaces
@@ -5691,37 +6253,217 @@ Legacy tests and fixtures:
 
 - Integration:
   - [ ] `packages/platform/cli/tests/Integration/CoretsiaWrappersAreCwdIndependentTest.php`
+    - [ ] repo-root `coretsia` works when invoked outside the repository working directory
+    - [ ] `tools/bin/coretsia` works when invoked outside the repository working directory
+    - [ ] both wrappers resolve the canonical Composer autoload and application root
+    - [ ] equivalent invocations produce the same exit code and normalized output
+    - [ ] neither wrapper depends on the caller's current working directory
+    - [ ] no recursive application-root discovery is introduced
+
   - [ ] `packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
+    - [ ] missing Composer autoload produces exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable`
+    - [ ] unreadable Composer autoload produces the same fixed diagnostic
+    - [ ] conflicting pre-autoload selection inputs produce the same fixed diagnostic
+    - [ ] missing Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
+    - [ ] unreadable Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
+    - [ ] Skeleton wrapper failure occurs before attempting to require the missing or unreadable Composer binary
+    - [ ] failure writes only to stderr with exactly one trailing LF and exits with code `1`
+    - [ ] stdout remains empty
+    - [ ] no application classes are required to render the pre-autoload failure
+    - [ ] no PHP warning, fatal-error output, absolute path, raw launcher input, Throwable detail, or stack trace is emitted
+
   - [ ] `packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/DoctorDoesNotEnterKernelUowTest.php`
+    - [ ] successful normal command execution invokes `KernelRuntimeInterface::runUnitOfWork()` exactly once
+    - [ ] the selected command executes inside that UoW callback
+    - [ ] command failure does not cause another UoW invocation
+    - [ ] command resolution and exit-code validation occur inside the same UoW
+    - [ ] no nested CLI-owned UoW or manual reset orchestration is introduced
+    - [ ] canonical UoW type and attributes remain covered by `CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
+
   - [ ] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/CliGlobalColorOptionIsNotPassedToPackageCommandTest.php`
+    - [ ] exact `coretsia doctor` uses the ultra-early runner
+    - [ ] the same `DoctorCommand` implementation is used by the normal catalog
+    - [ ] output uses fixed `plain` format with color disabled
+    - [ ] output contains only allowlisted doctor record types and scalar values
+    - [ ] output is written through `ConsoleOutputWriter`
+    - [ ] no Kernel container, configuration, observability, context, or shared redaction service is required
+    - [ ] injected environment secret sentinels are never emitted
+    - [ ] no raw environment value, absolute path, command line, loaded-extension list, phpinfo output, or Throwable detail is emitted
+    - [ ] unsupported doctor arguments and options fail through the fixed safe pipeline
+
   - [ ] `packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
+    - [ ] `--format=json --color=always` produces valid JSON without ANSI sequences
+    - [ ] JSON output remains ANSI-free for successful and failed command outcomes
+    - [ ] effective color is disabled before JSON rendering
+    - [ ] `AnsiDecorator` cannot decorate the JSON document
+    - [ ] JSON rendering contains no terminal-dependent formatting
+    - [ ] stdout contains the canonical schema envelope and stderr remains empty
+    - [ ] final output contains exactly one writer-owned trailing LF
+
   - [ ] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
+    - [ ] configured `adaptive` format resolves to the configured non-interactive format
+    - [ ] the baseline non-interactive default resolves to `plain`
+    - [ ] stdout interactivity comes only from the injected `TerminalCapabilities`
+    - [ ] no CI environment variable or terminal-width inference changes the format
+    - [ ] an explicit valid `--format` overrides adaptive selection
+    - [ ] command-facing input does not receive the resolved format as an owner option
+
   - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandExitCodeIsPreservedTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
+    - [ ] external command exit code `0` is preserved
+    - [ ] external command non-zero exit codes, including `2`, `3`, and `255`, are preserved without Kernel-specific remapping
+    - [ ] a valid non-zero return is not converted into an uncaught exception
+    - [ ] returned exit codes outside `0..255` fail through `CliCommandFailedException`
+    - [ ] CLI-global parsing and uncaught command exceptions retain their own failure boundary
+
   - [ ] `packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileDoesNotReadCurrentOrArtifactsTest.php`
+    - [ ] `config:compile` renders the published generation id returned by `KernelOpsInterface`
+    - [ ] renders the explicit app target and Kernel-provided effective preset
+    - [ ] renders exactly the four Kernel-provided artifact identities and basenames
+    - [ ] preserves the deterministic order of the Kernel-provided artifact list
+    - [ ] does not synthesize generation paths or `generations/current/<basename>` values
+    - [ ] does not receive or render raw config, Composer metadata, or artifact payloads
+    - [ ] CLI performs no post-compile artifact verification or runtime boot
+
   - [ ] `packages/platform/cli/tests/Integration/ConfigHashRendersGenerationIdTest.php`
+    - [ ] `config:hash` renders the safe expected `generation_id` returned by Kernel
+    - [ ] renders the explicit app target and Kernel-provided effective preset
+    - [ ] does not present the expected generation id as a published or current generation
+    - [ ] does not render synthetic artifact locations
+    - [ ] does not publish artifacts or inspect `current`
+    - [ ] no CLI-local fingerprint calculation is invoked
+
   - [ ] `packages/platform/cli/tests/Integration/CacheVerifyRendersFourGenerationArtifactsTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyDirtyReturnsExitCodeTwoTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyInvalidReturnsExitCodeThreeTest.php`
+    - [ ] `cache:verify` renders exactly four Kernel-provided artifact verification entries
+    - [ ] preserves the Kernel-provided artifact identities, basenames, statuses, and safe reasons
+    - [ ] renders expected and nullable current generation ids without synthesizing paths
+    - [ ] renders Kernel-provided byte counts when available
+    - [ ] state `clean` produces exit code `0`
+    - [ ] state `dirty` produces exit code `2`
+    - [ ] state `invalid` produces exit code `3`
+    - [ ] all three states use the same Kernel OpsResult presentation path
+    - [ ] CLI does not independently read artifact files or reinterpret verification states
+
   - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
+    - [ ] an option absent from the selected descriptor throws `CliInputInvalidException`
+    - [ ] rejection occurs before the selected command service is resolved
+    - [ ] the selected command constructor and `run()` are not invoked
+    - [ ] no owner-package domain validation is invoked for structurally invalid input
+    - [ ] unknown option values are not echoed in diagnostics
+    - [ ] invalid input returns exit code `1`
+
   - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorPreservesRepeatableOptionOrderTest.php`
+    - [ ] an owner-declared repeatable required-value option accepts multiple `--name=value` occurrences
+    - [ ] parsed values reach the owner-package command as an ordered `list<string>`
+    - [ ] descriptor validation preserves the original occurrence order
+    - [ ] the command receives each value exactly once
+    - [ ] repeated non-repeatable options are rejected before command service resolution
+    - [ ] no last-value-wins behavior is introduced
+
   - [ ] `packages/platform/cli/tests/Integration/GlobalFormatOptionIsNotPassedToPackageCommandTest.php`
+    - [ ] CLI-global `--format` is consumed before owner-package input construction
+    - [ ] CLI-global `--color` is consumed before owner-package input construction
+    - [ ] neither global option appears in `InputInterface::tokens()` or normalized command options
+    - [ ] owner-package arguments and declared domain options remain unchanged
+    - [ ] explicit global format and color selections affect presentation only
+    - [ ] external command execution does not modify Kernel Bootstrap preset selection
+
   - [ ] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/DoctorDoesNotLeakSecretsTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/CliRejectsCliModeKeysInConfigDeterministicallyTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/CliRejectsLegacyCommandRegistryDeterministicallyTest.php`
+    - [ ] exact `coretsia doctor` does not invoke `KernelOpsHostBooter`
+    - [ ] does not construct a source operations container or command catalog
+    - [ ] does not invoke `KernelRuntimeInterface::runUnitOfWork()`
+    - [ ] does not resolve Kernel Ops, module discovery, or generated runtime artifacts
+    - [ ] does not require UoW hooks or reset orchestration
+    - [ ] other normal CLI commands continue through the canonical Kernel operations host
+
   - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
+    - [ ] packaged `coretsia list` reaches normal source-host catalog dispatch
+    - [ ] a Composer-generated `vendor/bin/coretsia` PHP proxy in a consumer application reaches the packaged CLI implementation
+    - [ ] the shipped Skeleton project-root `coretsia` delegates through that Composer binary proxy
+    - [ ] `php coretsia list` and `php vendor/bin/coretsia list` produce identical normalized output and exit codes
+    - [ ] both invocations resolve the same consumer application root rather than the monorepo or installed package directory
+    - [ ] both invocations preserve equivalent command-facing arguments and global options
+    - [ ] the Skeleton wrapper preserves Composer proxy variables used for autoload and application-root resolution
+    - [ ] the Skeleton wrapper works when invoked through an absolute path from another current working directory
+    - [ ] Composer binary invocation remains supported independently of the optional project-root convenience wrapper
+    - [ ] no second catalog, command parser, configuration pipeline, or Kernel operations host is constructed
+    - [ ] renders built-in command descriptors in deterministic groups
+    - [ ] preserves the canonical TagRegistry descriptor order within each group
+    - [ ] does not require grouped presentation order to equal one flat TagRegistry order across different groups
+    - [ ] grouping MUST NOT mutate, re-sort, or re-dedupe the underlying CommandCatalog
+    - [ ] respects catalog-view hidden-command metadata
+    - [ ] does not instantiate unrelated command services
+    - [ ] exits with code `0` on successful listing
+    - [ ] does not require compiled application runtime artifacts
+    - [ ] an explicit Console-target module exclusion of `platform.cli` prevents normal CLI command execution
+    - [ ] `CliHostBootstrap` verifies the existing Kernel-owned `ModulePlan` before resolving `CliApplication`
+    - [ ] Foundation concrete-class autowiring MUST NOT bypass the excluded CLI module
+    - [ ] excluded CLI fails with `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
+    - [ ] no command catalog is constructed and no command service is resolved after the exclusion is detected
+    - [ ] no CLI UoW is entered
+    - [ ] no second ModulePlan, provider-registration path, or fallback CLI container is created
+
   - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
+    - [ ] packaged `coretsia help` renders general command help from catalog descriptors
+    - [ ] `coretsia help <command>` renders the selected descriptor's arguments and options
+    - [ ] unknown command help requests produce the canonical safe input failure
+    - [ ] help does not instantiate the described command service
+    - [ ] help output follows the selected global format and color policy
+    - [ ] successful help exits with code `0`
+
   - [ ] `packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
+    - [ ] an enabled external package contributing reserved command name `help` causes deterministic catalog rejection
+    - [ ] collision is detected from tag metadata without constructing the external command
+    - [ ] external services cannot replace the built-in reserved command identity
+    - [ ] catalog construction failure follows the fixed host-bootstrap error boundary
+    - [ ] no conflicting service id, class name, or command metadata is exposed
+    - [ ] the existing dedicated unit test covers the complete `doctor|help|list` reserved-name set
+
+  - [ ] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
+    - [ ] obtains the canonical Console ModulePlan from the Kernel source operations host
+    - [ ] normal command dispatch succeeds only when `platform.cli` is enabled
+    - [ ] explicit Console exclusion of `platform.cli` fails before `CliApplication` resolution
+    - [ ] concrete-class autowiring cannot bypass the module-selection requirement
+    - [ ] exclusion failure produces `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
+    - [ ] no second module resolver, ModulePlan, or fallback CLI container is constructed
+
+  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
+    - [ ] a missing `--target` is rejected by `KernelOpsRequestResolver`
+    - [ ] an empty `--target=` is rejected during structural validation
+    - [ ] neither invalid invocation calls `KernelOpsInterface`
+    - [ ] no CLI-owned Kernel target or preset inference is introduced
+
+  - [ ] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
+    - [ ] verify the packaged skeleton baseline and canonical `micro` selection
+    - [ ] verify source-host boot with CLI, Kernel, and Redaction available
+    - [ ] verify that normal command discovery does not require generated runtime artifacts
+    - [ ] verify that no automatic DependencySync or second module planner executes
 
   - [ ] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
     - [ ] the composed source host resolves exactly one `SensitiveDataRedactorInterface`
     - [ ] `OutputFormatter` receives the contracts port
     - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
+
+  - [ ] `packages/platform/cli/tests/Integration/CliRequiresExplicitConsoleModuleSelectionTest.php`
+    - [ ] installing `platform.cli` without selecting it for Console does not implicitly enable its provider
+    - [ ] explicitly selecting `platform.cli` resolves `platform.redaction` through canonical Kernel ModulePlan dependencies
+    - [ ] missing installed redaction dependency fails during module resolution
+    - [ ] no CLI-owned provider fallback or second ModulePlan is constructed
+
+  - [ ] `packages/platform/cli/tests/Integration/CliJsonPayloadEnvelopeIsNotRedactedTest.php`
+    - [ ] a safe JSON record retains its data under the CLI-owned `payload` field
+    - [ ] sensitive structural keys inside the owner-supplied JSON value are still redacted
+    - [ ] the CLI record envelope is reconstructed without passing its `payload` field to the shared classifier
+    - [ ] original record order and canonical payload ordering are preserved
+
+  - [ ] `packages/platform/cli/tests/Integration/CliSensitiveTextRetainsStringRecordShapeTest.php`
+    - [ ] a classified sensitive text value is not emitted unchanged
+    - [ ] a structured redaction summary cannot violate the required text record shape
+    - [ ] safe placeholder rendering does not disclose hash or length metadata
+
+  - [ ] `packages/platform/cli/tests/Integration/JsonFormatterAndConsoleWriterOwnOneFinalNewlineTest.php`
+    - [ ] canonical encoder framing does not produce duplicate final LF bytes
+    - [ ] non-empty JSON output ends with exactly one writer-owned LF
+    - [ ] JSON output contains no ANSI escape sequences
 
   - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRejectUndeclaredModeAndPresetOptionsTest.php`
     - [ ] Kernel commands do not declare `mode` or `preset`
@@ -5729,7 +6471,13 @@ Legacy tests and fixtures:
 
   - [ ] `packages/platform/cli/tests/Integration/CliUsesMergedValidatedConfigurationTest.php`
     - [ ] skeleton override changes effective CLI output policy
-    - [ ] invalid CLI config fails in the existing ConfigKernel validation pipeline
+    - [ ] invalid Console-host CLI config fails in the existing ConfigKernel validation pipeline before command dispatch
+    - [ ] unknown `cli.mode.*` keys are rejected through canonical ConfigValidator rules
+    - [ ] legacy FQCN registry-list `cli.commands` is rejected rather than interpreted as command discovery configuration
+    - [ ] canonical `cli.commands.overrides` map remains valid
+    - [ ] rejected configuration never reaches `CommandCatalog` or command service resolution
+    - [ ] host validation failure produces the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than a synthetic Kernel OpsResult
+    - [ ] invalid configuration values and filesystem paths are not disclosed
     - [ ] CliServiceFactory does not re-run validation
 
   - [ ] `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
@@ -5737,10 +6485,18 @@ Legacy tests and fixtures:
     - [ ] preserve source/definition metadata parity for the final six-key schema
 
   - [ ] `packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
-    - [ ] changed format default affects `FormatResolver`
-    - [ ] changed adaptive mapping affects adaptive resolution
-    - [ ] changed color default affects `ColorResolver`
-    - [ ] changed table width affects `TableFormatter`
+    - [ ] `cli.output.format_default` changes the effective format when no explicit global `--format` option is supplied
+    - [ ] `cli.output.adaptive.interactive` changes the effective format only when adaptive format is selected and stdout is interactive
+    - [ ] `cli.output.adaptive.non_interactive` changes the effective format only when adaptive format is selected and stdout is non-interactive
+    - [ ] explicit `--format` takes precedence over the configured format default
+    - [ ] non-adaptive effective formats do not depend on adaptive interactive/non-interactive mappings
+    - [ ] `cli.output.color_default` changes the effective color decision when no explicit global `--color` option is supplied
+    - [ ] explicit `--color` takes precedence over the configured color default
+    - [ ] effective JSON format disables ANSI regardless of the configured color default
+    - [ ] `cli.output.table.max_width` changes the rendered table's deterministic visible-width limit
+    - [ ] table width does not affect plain or JSON output
+    - [ ] all five output settings originate from the merged and validated `cli` subtree
+    - [ ] no resolver or formatter reads configuration directly or invents missing defaults
 
   - [ ] `packages/platform/cli/tests/Integration/CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
     - [ ] UoW type is `cli`
@@ -5748,6 +6504,13 @@ Legacy tests and fixtures:
     - [ ] effective format is passed as `output_format`
     - [ ] effective format is not added to ContextStore
     - [ ] platform/cli performs no direct context writes
+    - [ ] `runUnitOfWork()` receives exactly the `operation|output_format` attribute map
+    - [ ] UoW type is supplied through `UnitOfWorkType::CLI`
+    - [ ] command resolution, class/name verification, execution, and exit-code validation occur inside the UoW callback
+    - [ ] raw argv, positional arguments, option values, and output records are absent from UoW attributes
+    - [ ] KernelRuntime remains the sole owner of the three base ContextStore writes
+    - [ ] no new ContextStore key is introduced for output format
+    - [ ] KernelRuntime reset remains authoritative after successful and failed execution
 
   - [ ] `packages/platform/cli/tests/Integration/CliRejectsInvalidCommandOverridesDeterministicallyTest.php`
     - [ ] ConfigValidator rejects a non-map `cli.commands.overrides`
@@ -5755,6 +6518,9 @@ Legacy tests and fixtures:
     - [ ] CommandOverrides rejects invalid override value types
     - [ ] CommandOverrides rejects unknown fields
     - [ ] CommandOverrides rejects unknown command names
+    - [ ] invalid dynamic overrides detected during CommandCatalog construction fail `CliApplication` resolution
+    - [ ] construction-time failures use the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than attempting to invoke `CliErrorHandler` before `CliApplication::run()`
+    - [ ] no invalid override name, value, command metadata, or Throwable detail appears in the host-bootstrap diagnostic
 
   - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
     - [ ] command is contributed by an enabled non-CLI package
@@ -5822,7 +6588,7 @@ Legacy tests and fixtures:
 
   - [ ] `packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
     - [ ] enables `platform.worker` in a composed test fixture/app
-    - [ ] asserts `worker:start`, `worker:stop`, and `worker:status` appear in the command catalog
+    - [ ] asserts `worker:start`, `worker:stop`, `worker:status`, and `worker:health` appear in the command catalog
     - [ ] asserts discovery happens via `cli.command`
     - [ ] MUST NOT require `platform/cli` compile-time dependency on `platform/worker`
 
@@ -5831,6 +6597,11 @@ Legacy tests and fixtures:
     - [ ] uses a safe fake worker manager or fake command handler
     - [ ] MUST NOT start real worker processes
     - [ ] MUST NOT fork, call `proc_open`, or open sockets
+    - [ ] preserves the foreground blocking and WorkerSupervisor lifecycle semantics of `worker:start`
+    - [ ] explicitly acknowledges that immediate readiness rendering from the previous output implementation is not preserved by the buffered-output contract
+    - [ ] readiness records remain invocation-local and are rendered only after `WorkerSupervisor::run()` returns, normally at shutdown
+    - [ ] a fake supervisor emitting readiness before return MUST NOT cause premature stdout or stderr writes
+    - [ ] no unredacted direct-stream or secondary output channel is introduced
 
 ### DoD (MUST)
 
@@ -5868,7 +6639,10 @@ Legacy tests and fixtures:
 - [ ] after autoload, `ConsoleOutputWriter` is the only production output sink; the fixed pre-autoload failure is the sole exception
 - [ ] effective format is a UoW attribute, not a ContextStore key
 - [ ] all new metric and span names are registered in observability SSoT
-- [ ] every Throwable after successful `CliApplication` resolution is handled by `CliApplication`
+- [ ] `CliApplication` owns Throwable handling for normal-path parsing, global-option resolution, catalog selection, descriptor validation, command resolution, execution, formatting, and redaction
+- [ ] construction-time catalog and dependency failures remain owned by `CliHostBootstrap`
+- [ ] unexpected Throwables escaping `CliApplication`, including final output-sink failures, remain guarded by the packaged entrypoint's fixed uncaught-Throwable boundary
+- [ ] no second error handler, recursive rendering attempt, or fallback CLI execution path is introduced
 - [ ] pre-application host failures are handled by `CliHostBootstrap`
 - [ ] pre-autoload failures are handled by the fixed binary fallback
 - [ ] `CommandRunner` owns execution lifecycle but not error rendering
@@ -5882,10 +6656,20 @@ Legacy tests and fixtures:
 - [ ] `KernelOpsRequestResolver` is a source-host-only input adapter and has no `CommandDescriptor` dependency
 - [ ] `CommandOutputBuffer` is invocation-local and absent from container definitions
 - [ ] `platform/cli` does not bind the global `ErrorHandlerInterface` service id
-- [ ] redacted output maps are canonically re-sorted before formatting
+- [ ] redacted output maps retain canonical ordering from the shared redaction runtime without CLI-local recursive sorting
 - [ ] the source host resolves exactly one `SensitiveDataRedactorInterface` implementation
 - [ ] command failures clear and reuse the same invocation-local `CommandOutputBuffer`
 - [ ] every `cli.command` service id is the exact command class FQCN
+- [ ] all four canonical presets select `platform.cli` by default and preserve their existing Core and Worker policies
+- [ ] `platform.redaction` is enabled through the canonical `platform.cli` module dependency closure, without duplicate preset roots
+- [ ] `coretsia/framework` directly requires the baseline Kernel and CLI packages
+- [ ] `coretsia/platform-cli` declares the corresponding Composer and runtime module dependencies for Redaction
+- [ ] `composer create-project coretsia/skeleton` installs the baseline Composer graph without custom repository declarations or implicit dependency synchronization
+- [ ] the default `micro` preset resolves the intended Console ModulePlan from the installed baseline
+- [ ] additional mode-required packages remain subject to explicit DependencySync
+- [ ] canonical Kernel preset and consumer documentation examples match the new module sets
+- [ ] existing Kernel boot, preset schema, package planning, and consumer installation tests remain valid
+- [ ] the released baseline is independently installable from published Composer packages
 
 ---
 

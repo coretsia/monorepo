@@ -18,10 +18,6 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Provider;
 
-use Coretsia\Platform\Cli\Application;
-use Coretsia\Platform\Cli\Input\CliInput;
-use Coretsia\Platform\Cli\Output\CliOutput;
-
 /**
  * Stateless factory/wiring helper for CLI services.
  *
@@ -33,39 +29,4 @@ use Coretsia\Platform\Cli\Output\CliOutput;
  */
 final class CliServiceFactory
 {
-    private function __construct()
-    {
-        // static-only
-    }
-
-    public static function application(string $applicationRoot): Application
-    {
-        return new Application($applicationRoot);
-    }
-
-    public static function input(?array $argv = null): CliInput
-    {
-        return CliInput::fromArgv($argv);
-    }
-
-    /**
-     * Build output using the merged `cli` subtree.
-     *
-     * Policy:
-     * - cli.output.redaction.enabled defaults to true
-     *
-     * @param array<string, mixed> $cliSubtree
-     * @param \Closure(string): void|null $stdoutWriter
-     * @param \Closure(string): void|null $stderrWriter
-     */
-    public static function outputFromCliSubtree(
-        array     $cliSubtree,
-        ?\Closure $stdoutWriter = null,
-        ?\Closure $stderrWriter = null,
-    ): CliOutput {
-        $enabled = $cliSubtree['output']['redaction']['enabled'] ?? true;
-        $redactionEnabled = \is_bool($enabled) ? $enabled : true;
-
-        return new CliOutput($redactionEnabled, $stdoutWriter, $stderrWriter);
-    }
 }

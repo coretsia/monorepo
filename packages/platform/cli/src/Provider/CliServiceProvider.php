@@ -28,20 +28,4 @@ namespace Coretsia\Platform\Cli\Provider;
  */
 final class CliServiceProvider
 {
-    public function id(): string
-    {
-        return 'platform.cli';
-    }
-
-    /**
-     * Optional wiring map.
-     *
-     * Intentionally empty until package wiring requires explicit factories.
-     *
-     * @return array<string, callable>
-     */
-    public static function factories(): array
-    {
-        return [];
-    }
 }

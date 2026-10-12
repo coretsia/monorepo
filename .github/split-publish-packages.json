@@ -23,6 +23,9 @@
       "package_id": "devtools/internal-toolkit"
     },
     {
+      "package_id": "platform/cli"
+    },
+    {
       "package_id": "platform/redaction"
     },
     {

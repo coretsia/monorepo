@@ -492,10 +492,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/framework",
-                "reference": "016d03e1d628bf9c71e8376d6a840e5650a868c6"
+                "reference": "ca54980e2c31c6d8b7ff5239439a8747b5287076"
             },
             "require": {
                 "coretsia/core-kernel": "^0.8.0",
+                "coretsia/platform-cli": "^0.8.0",
                 "php": "^8.4"
             },
             "type": "metapackage",
@@ -536,11 +537,16 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "06ec41e34ba15ddcc140f81709fac7b7b0f25b14"
+                "reference": "02e6bfaa09dacdc2fe7ce430403cf7fbc26c4565"
             },
             "require": {
                 "coretsia/core-contracts": "^0.8.0",
-                "php": "^8.4"
+                "coretsia/core-foundation": "^0.8.0",
+                "coretsia/core-kernel": "^0.8.0",
+                "coretsia/platform-redaction": "^0.8.0",
+                "php": "^8.4",
+                "psr/container": "^2.0",
+                "psr/log": "^3.0"
             },
             "type": "library",
             "extra": {
@@ -551,7 +557,10 @@
                     "providers": [
                         "Coretsia\\Platform\\Cli\\Provider\\CliServiceProvider"
                     ],
-                    "requires": [],
+                    "requires": [
+                        "core.kernel",
+                        "platform.redaction"
+                    ],
                     "conflicts": [],
                     "defaultsConfigPath": "config/cli.php"
                 }
@@ -576,7 +585,7 @@
                     "role": "Creator and Lead Developer"
                 }
             ],
-            "description": "Coretsia CLI runtime with a config-based command registry and deterministic safe output",
+            "description": "Coretsia tag-first CLI runtime with Kernel operations and deterministic safe output",
             "homepage": "https://coretsia.dev/",
             "keywords": [
                 "cli",

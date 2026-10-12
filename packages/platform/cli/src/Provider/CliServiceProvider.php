@@ -18,14 +18,35 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Provider;
 
+use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\ServiceProviderInterface;
+
 /**
- * Minimal placeholder service provider for `platform/cli`.
+ * CLI declarative service provider.
  *
- * This provider is a lightweight package wiring surface.
- * No mutable state is allowed here (no caches/buffers).
+ * Source registration delegates to the canonical Foundation definition
+ * pipeline. CLI service definitions and command tags are contributed by
+ * the complete provider implementation.
  *
  * @internal
  */
-final class CliServiceProvider
+final class CliServiceProvider implements
+    ServiceProviderInterface,
+    ContainerDefinitionProviderInterface
 {
+    public function register(ContainerBuilder $builder): void
+    {
+        $builder->assertDefinitionProviderRegistrationAllowed();
+        $builder->registerDefinitionProvider($this);
+    }
+
+    public function define(
+        ContainerDefinitionBuilder $definitions,
+        ContainerDefinitionContext $context,
+    ): void {
+        // CLI definitions are introduced by the complete provider implementation.
+    }
 }

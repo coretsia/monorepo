@@ -61,45 +61,75 @@ final class ConfigValidatorRejectsInvalidCliCommandsTest extends TestCase
      */
     public static function invalidCommandsProvider(): iterable
     {
-        yield 'commands-must-be-list' => [
+        yield 'commands-must-be-map' => [
             'config:list',
             'commands',
             'type',
-            'list',
-            'string',
-        ];
-
-        yield 'command-must-be-non-empty' => [
-            [
-                '',
-            ],
-            'commands[0]',
-            'type',
-            'non-empty-string-no-ws',
-            'string',
-        ];
-
-        yield 'command-must-not-contain-whitespace' => [
-            [
-                'config list',
-            ],
-            'commands[0]',
-            'type',
-            'non-empty-string-no-ws',
-            'string',
-        ];
-
-        yield 'command-item-must-be-string' => [
-            [
-                [
-                    'name' => 'config:list',
-                ],
-            ],
-            'commands[0]',
-            'type',
-            'non-empty-string-no-ws',
             'map',
+            'string',
         ];
+
+        yield 'registry-list-is-forbidden' => [
+            ['config:list'],
+            'commands',
+            'type',
+            'map',
+            'list',
+        ];
+
+        yield 'overrides-is-required' => [
+            [],
+            'commands.overrides',
+            'required',
+            'present',
+            'null',
+        ];
+
+        yield 'unknown-static-command-key' => [
+            [
+                'overrides' => [],
+                'registry' => 'config:list',
+            ],
+            'commands.registry',
+            'unknown-key',
+            'declared-key',
+            'string',
+        ];
+
+        yield 'overrides-must-be-map' => [
+            [
+                'overrides' => 'config:list',
+            ],
+            'commands.overrides',
+            'type',
+            'map',
+            'string',
+        ];
+
+        yield 'overrides-must-not-be-list' => [
+            [
+                'overrides' => ['config:list'],
+            ],
+            'commands.overrides',
+            'type',
+            'map',
+            'list',
+        ];
+    }
+
+    public function testCommandOverrideEntriesAreNotValidatedByStructuralRules(): void
+    {
+        $config = [
+            'cli' => self::cliConfig(),
+        ];
+
+        $config['cli']['commands']['overrides'] = [
+            'custom:command' => ['summary' => 'Example'],
+        ];
+
+        $result = new ConfigValidator()->validate($config, [self::cliRuleset()]);
+
+        self::assertTrue($result->isSuccess());
     }
 
     private static function cliRuleset(): ConfigRuleset

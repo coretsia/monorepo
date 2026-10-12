@@ -25,6 +25,7 @@ return [
         'core.kernel',
     ],
     'modules' => [
+        'platform.cli',
     ],
     'featureBundles' => [
         'observability' => 'minimal',

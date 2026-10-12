@@ -25,25 +25,25 @@ use Psr\Container\ContainerInterface;
 
 final class BootExpressPresetTest extends TestCase
 {
-    public function testExpressPresetBootsWithCurrentlyImplementedModuleSubset(): void
+    public function testExpressPresetBootsWithCanonicalModuleClosure(): void
     {
         $result = AppBuilder::bootExpress($this);
         try {
             $plan = $result->modulePlan();
             self::assertSame('web', $plan->app());
             self::assertSame(
-                ['core.foundation', 'core.kernel'],
+                ['core.foundation', 'core.kernel', 'platform.cli', 'platform.redaction'],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),
                     $plan->enabled(),
-                )
+                ),
             );
             self::assertSame(
-                ['core.foundation', 'core.kernel'],
+                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.cli'],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),
                     $plan->topologicalOrder(),
-                )
+                ),
             );
             self::assertNotContains('platform.http', $plan->toArray()['enabled']);
             foreach (['module-manifest.php', 'config.php', 'container.php', 'generation-manifest.php'] as $name) {

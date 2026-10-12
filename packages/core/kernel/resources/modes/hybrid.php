@@ -25,6 +25,7 @@ return [
         'core.kernel',
     ],
     'modules' => [
+        'platform.cli',
         'platform.worker',
     ],
     'featureBundles' => [

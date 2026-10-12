@@ -39,7 +39,7 @@ This document owns:
 
 - the canonical direct compile-time dependency policy between materialized Coretsia layered packages;
 - the machine-readable package dependency matrix consumed by repository architecture tooling;
-- consistency requirements between the dependency matrix, internal production Composer requirements, and static architecture analysis.
+- consistency requirements between the dependency matrix, runtime-only Composer installation edges, and static architecture analysis.
 
 This document applies only to layered packages at:
 
@@ -71,8 +71,9 @@ Dependencies of special public distributions remain owned by their distribution 
 - materialized layered package — a layered package whose canonical package directory and `composer.json` exist in the repository.
 - package_id — the layered package identity `<layer>/<slug>`.
 - compile-time dependency — a dependency that permits source code in one layered package to reference code owned by another layered package.
-- direct dependency edge — an explicitly allowed package-to-package edge declared by the canonical matrix in this document.
+- direct source dependency edge — an explicitly allowed package-to-package PHP source edge declared by the canonical matrix in this document.
 - internal production Composer edge — a `composer.json` `require` entry from one materialized Coretsia layered package to another materialized Coretsia layered package.
+- runtime-only Composer edge — an internal production Composer edge backed by a direct `extra.coretsia.requires` runtime-module dependency, without PHP source permission.
 - transitive dependency — a package reachable only through one or more intermediate direct dependency edges.
 
 For an edge:
@@ -84,10 +85,11 @@ A → B
 the meaning is:
 
 ```text
-package A MAY directly depend on package B
+package A MAY directly reference package B in PHP source
 ```
 
-The absence of an edge means that the direct dependency is forbidden.
+The absence of a matrix edge forbids the direct PHP source dependency.
+Runtime-only Composer installation edges are governed separately by section 2.2.
 
 ---
 
@@ -112,24 +114,55 @@ A → C
 
 is NOT implicitly allowed.
 
-A direct dependency from `A` to `C` requires an explicit `C` entry in `A`'s `depends_on` cell.
+A direct PHP source dependency from `A` to `C` requires an explicit `C` entry in `A`'s `depends_on` cell.
 
-Transitive closure MUST NOT be interpreted as permission for undeclared direct package dependencies.
+Transitive closure MUST NOT be interpreted as permission for undeclared direct source dependencies.
 
-### 2.2. One policy for Composer and source dependencies
+### 2.2. Source dependencies and runtime-only Composer installation edges
 
-The same canonical matrix governs:
+The canonical matrix governs direct PHP source-level dependencies between layered packages.
 
-- internal production Composer dependencies between layered packages;
-- static source-level dependencies between layered package code.
+Every internal production Composer edge MUST either:
 
-Every internal production Composer edge MUST be explicitly allowed by the source package's `depends_on` entry.
+- be allowed by the source package's `depends_on` entry; or
+- connect two runtime packages whose `extra.coretsia` metadata declares the target `moduleId` in the source package's direct `requires` list.
 
-Static architecture analysis MUST NOT allow a source-level package dependency that is absent from the canonical matrix.
+Every direct `extra.coretsia.requires` dependency on another materialized runtime module MUST have a matching direct production Composer `require` on the package that owns that module.
 
-An allowed matrix edge does not require the source package to use that dependency. The matrix defines the permitted direct architecture boundary, not a requirement that every permitted edge be exercised.
+A transitive Composer requirement MUST NOT substitute for this declaration.
 
-Edges MUST NOT be added speculatively merely to make future dependencies easier to introduce.
+Runtime-only Composer edges MUST follow these source-to-target layer directions:
+
+- `core` → `core`;
+- `platform` → `core`, `platform`;
+- `integrations` → `core`, `platform`, `integrations`;
+- `enterprise` → `core`, `platform`, `integrations`, `enterprise`.
+
+Direct PHP source permissions MUST follow the same layer directions.
+
+Tooling-only `devtools/*` packages MAY declare direct source permissions targeting only `core/*`, `platform/*`, `integrations/*`, or `devtools/*`.
+
+`devtools` and `presets` MUST NOT introduce runtime-only Composer edges.
+
+Layered packages outside `devtools/*` MUST NOT declare direct PHP source permissions or production Composer requirements targeting `devtools/*`.
+
+`devtools/*` packages MUST NOT declare `extra.coretsia.kind = runtime` or contribute runtime modules.
+
+Tooling-only dependencies MUST remain outside application runtime composition.
+
+The combined internal production Composer dependency graph MUST be acyclic.
+
+A runtime-only Composer edge permits package installation and runtime module composition only.
+
+It MUST NOT authorize imports of implementation classes or any other PHP source dependency.
+
+Static architecture analysis MUST use only the canonical matrix and MUST NOT add runtime-only Composer edges to the generated Deptrac ruleset.
+
+An allowed matrix edge does not require the source package to use that dependency.
+
+The matrix defines permitted direct PHP source dependencies, not a requirement that every permitted edge be exercised.
+
+Source edges MUST NOT be added speculatively merely to make future dependencies easier to introduce.
 
 ### 2.3. Composer scope
 
@@ -224,7 +257,7 @@ Each listed dependency:
 - MUST identify another matrix row;
 - MUST NOT equal the source `package_id`;
 - MUST be unique within the cell;
-- represents one allowed direct dependency edge.
+- represents one allowed direct PHP source dependency edge.
 
 ### 3.4. `notes` cell
 
@@ -264,7 +297,7 @@ The canonical empty dependency marker is:
 | core/foundation           | core/contracts                               |       |
 | core/kernel               | core/contracts, core/foundation              |       |
 | devtools/internal-toolkit | —                                            |       |
-| platform/cli              | core/contracts                               |       |
+| platform/cli              | core/contracts, core/foundation, core/kernel |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
@@ -319,16 +352,18 @@ C → A
 
 ### 5.5. Composer consistency
 
-For every materialized layered package:
+Every internal production Composer edge between materialized layered packages MUST either:
 
-- each internal Coretsia dependency declared in production `composer.json` `require`;
-- whose target is another materialized layered package;
+- correspond to an allowed direct source edge in the canonical matrix; or
+- satisfy the runtime-only installation policy in section 2.2.
 
-MUST correspond to an allowed direct edge in this matrix.
+Runtime-only Composer edges MUST NOT widen the source dependency matrix or generated Deptrac ruleset.
 
-A Composer requirement MUST NOT silently create a new architectural dependency.
+The combined internal production Composer dependency graph MUST remain acyclic.
 
-If a new internal production Composer dependency is architecturally required, the canonical matrix MUST be changed deliberately as part of the same architectural change.
+A new source-level permission requires an intentional change to the canonical matrix.
+
+A new runtime-only installation edge requires matching Composer and runtime-module declarations.
 
 ### 5.6. Static dependency consistency
 
@@ -350,7 +385,7 @@ Layer-level dependency descriptions in `docs/architecture/STRUCTURE.md` are arch
 
 They MUST remain consistent with this document, but they MUST NOT be used to infer additional package-level edges.
 
-For exact package-to-package dependency permission, this matrix is authoritative.
+For exact PHP source-level package-to-package dependency permission, this matrix is authoritative. Runtime-only Composer installation edges are governed by section 2.2.
 
 ---
 
@@ -380,11 +415,18 @@ Architecture tooling MUST fail when any of the following occurs:
 - a materialized layered package has no canonical matrix row;
 - a matrix dependency references a missing row;
 - the matrix contains a dependency cycle;
-- an internal production Composer edge is not allowed by the matrix;
+- a matrix dependency violates the permitted source-level layer direction;
+- an internal production Composer edge is neither allowed by the matrix nor eligible as a runtime-only edge under section 2.2;
+- a runtime-only Composer edge violates the permitted layer direction;
+- the internal production Composer dependency graph contains a cycle;
 - generated Deptrac configuration is inconsistent with the canonical matrix;
 - generated architecture artifacts are stale relative to their canonical inputs.
 
 Tooling MUST NOT silently widen the dependency graph to make an otherwise forbidden dependency pass.
+
+Deptrac `exclude_files` MUST contain only the canonical tests, fixtures, and vendor exclusion patterns.
+
+Arbitrary regex exemptions MUST NOT remove layered production sources from static architecture analysis.
 
 ### 6.3. Package index and installation catalog independence
 
@@ -435,17 +477,17 @@ Runtime code MUST NOT consume this document, the tooling package index, Deptrac 
 
 ## 7) Changing package dependencies (MUST)
 
-A change that introduces or removes an allowed direct layered-package dependency MUST review all affected architecture surfaces together.
+A change that introduces or removes a direct source permission or a runtime-only Composer dependency MUST review all affected architecture surfaces together.
 
 When applicable, the change MUST update:
 
-1. this canonical dependency matrix;
-2. the source package `composer.json`;
+1. this canonical dependency matrix for source-level permissions;
+2. the source package `composer.json`, including runtime module metadata when applicable;
 3. package source code;
 4. architecture-generated outputs through the canonical generator;
 5. architecture tests or fixtures affected by the dependency boundary.
 
-The matrix MUST be edited intentionally.
+The matrix MUST be edited intentionally when source-level permissions change.
 
 Generated architecture files MUST NOT be manually edited as a substitute for changing this SSoT.
 

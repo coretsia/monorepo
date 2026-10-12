@@ -3590,9 +3590,12 @@ The only files outside `packages/platform/cli/` that this epic may create or mod
 - `coretsia`
 - `tools/bin/coretsia`
 - `composer.lock`
+- `.github/split-publish-packages.json`
 - `packages/core/kernel/resources/packaging/installation-catalog.php`
 - `tools/testing/package-index.php`
 - `tools/testing/deptrac.yaml`
+- `tools/tests/Integration/DependencySyncConsumerProjectTest.php`
+- `tools/tests/Integration/DependencySyncFreshProcessVerificationTest.php`
 - `packages/core/kernel/resources/modes/micro.php`
 - `packages/core/kernel/resources/modes/express.php`
 - `packages/core/kernel/resources/modes/hybrid.php`
@@ -4528,22 +4531,23 @@ Output (deterministic + redacted):
 
 Output schema:
 - [ ] `packages/platform/cli/resources/schema/cli_output@1.json`
-  - [ ] JSON Schema for rendered CLI payloads (no floats; no secrets; deterministic shape)
+  - [x] JSON Schema Draft 2020-12 for the CLI output envelope and `text|json|error` record shapes
+  - [ ] production output pipeline enforces float rejection, sensitive-data redaction, and deterministic JSON serialization
   - [ ] Used by `JsonOutputSchemaContractTest.php` as the single source of truth
-  - [ ] exact top-level shape:
-    - [ ] `schema = coretsia.cli-output@1`
-    - [ ] `meta`
-    - [ ] `data`
-  - [ ] `meta` exact keys:
-    - [ ] `command`
-    - [ ] `outcome`
-    - [ ] `exit_code`
-  - [ ] `outcome` is derived from exit code:
-    - [ ] `0` → `success`
-    - [ ] non-zero → `failure`
-  - [ ] `data.records` contains the normalized ordered output records
-  - [ ] unknown keys are rejected
-  - [ ] JSON maps use deterministic key order
+  - [x] exact top-level shape:
+    - [x] `schema = coretsia.cli-output@1`
+    - [x] `meta`
+    - [x] `data`
+  - [x] `meta` exact keys:
+    - [x] `command`
+    - [x] `outcome`
+    - [x] `exit_code`
+  - [x] schema requires `outcome` to be consistent with `meta.exit_code`:
+    - [x] `0` → `success`
+    - [x] non-zero → `failure`
+  - [x] `data.records` is an ordered array of structurally validated output records
+  - [x] unknown envelope and record-shape keys are rejected; JSON payload maps remain extensible
+  - [ ] production JSON maps use canonical Foundation `StableJsonEncoder` key ordering
 
 Catalog:
 - [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
@@ -5076,35 +5080,41 @@ Errors:
 
 #### Modifies
 
-- [ ] `packages/core/kernel/resources/modes/micro.php`
-  - [ ] preserve `required = [core.foundation, core.kernel]`
-  - [ ] set `modules = [platform.cli]`
-  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+- [x] `.github/split-publish-packages.json`
+  - [x] add `platform/cli` to the canonical split-publish allowlist
+  - [x] preserve `platform/redaction` as a separately publishable runtime dependency
+  - [x] preserve all existing allowlisted packages and package-id ordering
+  - [x] `composer package-publish-safety:gate` MUST pass
 
-- [ ] `packages/core/kernel/resources/modes/express.php`
-  - [ ] preserve `required = [core.foundation, core.kernel]`
-  - [ ] set `modules = [platform.cli]`
-  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+- [x] `packages/core/kernel/resources/modes/micro.php`
+  - [x] preserve `required = [core.foundation, core.kernel]`
+  - [x] set `modules = [platform.cli]`
+  - [x] `platform.redaction` is enabled through the declared `platform.cli` module dependency
 
-- [ ] `packages/core/kernel/resources/modes/hybrid.php`
-  - [ ] preserve `required = [core.foundation, core.kernel]`
-  - [ ] set `modules = [platform.cli, platform.worker]`
-  - [ ] preserve the existing Worker module selection
-  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+- [x] `packages/core/kernel/resources/modes/express.php`
+  - [x] preserve `required = [core.foundation, core.kernel]`
+  - [x] set `modules = [platform.cli]`
+  - [x] `platform.redaction` is enabled through the declared `platform.cli` module dependency
 
-- [ ] `packages/core/kernel/resources/modes/enterprise.php`
-  - [ ] preserve `required = [core.foundation, core.kernel]`
-  - [ ] set `modules = [platform.cli, platform.worker]`
-  - [ ] preserve the existing Worker module selection
-  - [ ] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+- [x] `packages/core/kernel/resources/modes/hybrid.php`
+  - [x] preserve `required = [core.foundation, core.kernel]`
+  - [x] set `modules = [platform.cli, platform.worker]`
+  - [x] preserve the existing Worker module selection
+  - [x] `platform.redaction` is enabled through the declared `platform.cli` module dependency
 
-- [ ] `packages/framework/composer.json`
-  - [ ] preserve `coretsia/core-kernel` as the explicit baseline Kernel dependency
-  - [ ] add `coretsia/platform-cli` as a direct baseline dependency
-  - [ ] use the canonical release-line `publicConstraint` for both dependencies
-  - [ ] do not duplicate `coretsia/platform-redaction` as a direct framework dependency; it is required transitively by `coretsia/platform-cli`
-  - [ ] preserve Composer type `metapackage`
-  - [ ] do not introduce runtime code, configuration, autoload definitions, or installation scripts
+- [x] `packages/core/kernel/resources/modes/enterprise.php`
+  - [x] preserve `required = [core.foundation, core.kernel]`
+  - [x] set `modules = [platform.cli, platform.worker]`
+  - [x] preserve the existing Worker module selection
+  - [x] `platform.redaction` is enabled through the declared `platform.cli` module dependency
+
+- [x] `packages/framework/composer.json`
+  - [x] preserve `coretsia/core-kernel` as the explicit baseline Kernel dependency
+  - [x] add `coretsia/platform-cli` as a direct baseline dependency
+  - [x] use the canonical release-line `publicConstraint` for both dependencies
+  - [x] do not duplicate `coretsia/platform-redaction` as a direct framework dependency; it is required transitively by `coretsia/platform-cli`
+  - [x] preserve Composer type `metapackage`
+  - [x] do not introduce runtime code, configuration, autoload definitions, or installation scripts
 
 - [ ] `packages/framework/README.md`
   - [ ] document the baseline Composer dependency graph
@@ -5150,29 +5160,29 @@ Errors:
   - [ ] is independent of current working directory
   - [ ] performs no command parsing or rendering
 
-- [ ] `packages/core/contracts/src/Cli/Input/InputInterface.php`
-  - [ ] method signatures remain unchanged
-  - [ ] document that `tokens()` exposes command-facing tokens only
-  - [ ] global `format|color` options MUST NOT reach owner-package commands
+- [x] `packages/core/contracts/src/Cli/Input/InputInterface.php`
+  - [x] method signatures remain unchanged
+  - [x] document that `tokens()` exposes command-facing tokens only
+  - [x] global `format|color` options MUST NOT reach owner-package commands
 
-- [ ] `packages/platform/cli/src/Module/CliModule.php` — complete rewrite
-  - [ ] follows the canonical module metadata shape
-  - [ ] constants:
-    - [ ] `MODULE_ID = 'platform.cli'`
-    - [ ] `PACKAGE_ID = 'platform/cli'`
-    - [ ] `COMPOSER_PACKAGE = 'coretsia/platform-cli'`
-    - [ ] canonical `KIND`
-    - [ ] `CONFIG_ROOT = 'cli'`
-  - [ ] instance methods:
-    - [ ] `id()`
-    - [ ] `packageId()`
-    - [ ] `composerPackage()`
-    - [ ] `kind()`
-    - [ ] `configRoot()`
-    - [ ] `providers()`
-  - [ ] `providers()` returns `CliServiceProvider::class`
-  - [ ] no static-only Phase-0 module API remains
-  - [ ] no config reads, command discovery, boot logic, or output logic
+- [x] `packages/platform/cli/src/Module/CliModule.php` — complete rewrite
+  - [x] follows the canonical module metadata shape
+  - [x] constants:
+    - [x] `MODULE_ID = 'platform.cli'`
+    - [x] `PACKAGE_ID = 'platform/cli'`
+    - [x] `COMPOSER_PACKAGE = 'coretsia/platform-cli'`
+    - [x] canonical `KIND`
+    - [x] `CONFIG_ROOT = 'cli'`
+  - [x] instance methods:
+    - [x] `id()`
+    - [x] `packageId()`
+    - [x] `composerPackage()`
+    - [x] `kind()`
+    - [x] `configRoot()`
+    - [x] `providers()`
+  - [x] `providers()` returns `CliServiceProvider::class`
+  - [x] no static-only Phase-0 module API remains
+  - [x] no config reads, command discovery, boot logic, or output logic
 
 - [ ] `packages/platform/cli/src/Provider/CliServiceFactory.php`
   - [ ] stateless construction/wiring helper
@@ -5288,50 +5298,50 @@ Errors:
   - [ ] retain `ReservedTags::CLI_COMMAND`
   - [ ] retain no compile-time dependency on `platform/cli`
 
-- [ ] `packages/core/contracts/src/Cli/Command/CommandInterface.php`
-  - [ ] preserve existing methods:
-    - [ ] `name(): string`
-    - [ ] `run(InputInterface $input, OutputInterface $output): int`
-  - [ ] tagged command classes MUST expose:
-    - [ ] `public const string NAME`
-    - [ ] `public const string SUMMARY`
-    - [ ] `public const string GROUP`
-    - [ ] `public const bool HIDDEN`
-    - [ ] `public const array ARGUMENTS`
-    - [ ] `public const array OPTIONS`
-  - [ ] remove any documentation requirement for `MODE`
-  - [ ] `name()` MUST return `self::NAME`
-  - [ ] portable process exit code range is `0..255`
-  - [ ] contract remains independent of `platform/cli`
+- [x] `packages/core/contracts/src/Cli/Command/CommandInterface.php`
+  - [x] preserve existing methods:
+    - [x] `name(): string`
+    - [x] `run(InputInterface $input, OutputInterface $output): int`
+  - [x] tagged command classes MUST expose:
+    - [x] `public const string NAME`
+    - [x] `public const string SUMMARY`
+    - [x] `public const string GROUP`
+    - [x] `public const bool HIDDEN`
+    - [x] `public const array ARGUMENTS`
+    - [x] `public const array OPTIONS`
+  - [x] remove any documentation requirement for `MODE`
+  - [x] `name()` MUST return `self::NAME`
+  - [x] portable process exit code range is `0..255`
+  - [x] contract remains independent of `platform/cli`
 
 - [ ] `packages/platform/cli/composer.json` — complete rewrite of Phase-0 metadata
-  - [ ] remove description claims:
-    - [ ] `config-based command registry`
-    - [ ] `kernel-free in Phase 0`
-  - [ ] require direct production dependencies used by source:
-    - [ ] `php: ^8.4`
-    - [ ] `coretsia/core-contracts`: current release-line `publicConstraint`
-    - [ ] `coretsia/core-foundation`: current release-line `publicConstraint`
-    - [ ] `coretsia/core-kernel`: current release-line `publicConstraint`
-    - [ ] `coretsia/platform-redaction`: current release-line `publicConstraint`
-    - [ ] `psr/container: ^2.0`
-    - [ ] `psr/log: ^3.0`
-  - [ ] internal Coretsia constraints MUST follow the canonical `tools/release/release-line.json` `publicConstraint` and MUST NOT use an independently pinned historical minor version
+  - [x] remove description claims:
+    - [x] `config-based command registry`
+    - [x] `kernel-free in Phase 0`
+  - [x] declare direct production Composer requirements for PHP source dependencies and runtime-only module installation:
+    - [x] `php: ^8.4`
+    - [x] `coretsia/core-contracts`: current release-line `publicConstraint`
+    - [x] `coretsia/core-foundation`: current release-line `publicConstraint`
+    - [x] `coretsia/core-kernel`: current release-line `publicConstraint`
+    - [x] `coretsia/platform-redaction`: current release-line `publicConstraint` (runtime-only installation dependency; no PHP source permission)
+    - [x] `psr/container: ^2.0`
+    - [x] `psr/log: ^3.0`
+  - [x] internal Coretsia constraints MUST follow the canonical `tools/release/release-line.json` `publicConstraint` and MUST NOT use an independently pinned historical minor version
   - [ ] declare `"bin": ["bin/coretsia"]`
-  - [ ] preserve PSR-4 package namespace
-  - [ ] preserve:
-    - [ ] `moduleId`
-    - [ ] `moduleClass`
-    - [ ] `providers`
-    - [ ] `defaultsConfigPath`
-  - [ ] set `extra.coretsia.requires` exactly to:
-    - [ ] `core.kernel`
-    - [ ] `platform.redaction`
-  - [ ] MUST NOT require:
-    - [ ] `platform/worker`
-    - [ ] migration/database packages
-    - [ ] integrations solely for command discovery
-  - [ ] require `coretsia/platform-redaction` at the Composer level to guarantee installation of the declared runtime module dependency
+  - [x] preserve PSR-4 package namespace
+  - [x] preserve:
+    - [x] `moduleId`
+    - [x] `moduleClass`
+    - [x] `providers`
+    - [x] `defaultsConfigPath`
+  - [x] set `extra.coretsia.requires` exactly to:
+    - [x] `core.kernel`
+    - [x] `platform.redaction`
+  - [x] MUST NOT require:
+    - [x] `platform/worker`
+    - [x] migration/database packages
+    - [x] integrations solely for command discovery
+  - [x] require `coretsia/platform-redaction` at the Composer level to guarantee installation of the declared runtime module dependency
   - [ ] production source MUST consume only `SensitiveDataRedactorInterface` and MUST NOT import or instantiate `DefaultSensitiveDataRedactor`
   - [ ] Composer package installation MUST NOT implicitly register or enable runtime modules
 
@@ -5440,88 +5450,88 @@ Errors:
   - [ ] source-host wiring contains no config reads during provider registration
   - [ ] all config reads remain in `CliServiceFactory`
 
-- [ ] `packages/platform/cli/config/cli.php`
-  - [ ] returns the `cli` subtree only
-  - [ ] MUST NOT repeat the root as `['cli' => ...]`
-  - [ ] contains only deterministic scalar/map/list defaults
-  - [ ] contains no closures, objects, resources, floats, env reads, terminal detection, or runtime values
-  - [ ] canonical dot keys:
-    - [ ] `cli.commands.overrides` = []
-      - [ ] this node permits dynamic map keys structurally
-      - [ ] `additionalKeys = true` applies only at this node
-      - [ ] every dynamic key and value is validated later by `CommandOverrides`
-    - [ ] `cli.output.format_default` = "adaptive"
-    - [ ] `cli.output.adaptive.interactive` = "table"
-    - [ ] `cli.output.adaptive.non_interactive` = "plain"
-    - [ ] `cli.output.color_default` = "auto"
-    - [ ] `cli.output.table.max_width` = 120
-  - [ ] MUST NOT contain:
-    - [ ] `cli.enabled`
-    - [ ] `cli.commands` as a registry list
-    - [ ] `cli.mode.*`
-    - [ ] `cli.uow.*`
-    - [ ] `cli.redaction.*`
-    - [ ] `cli.output.redaction.*`
-    - [ ] `cli.observability.*`
-    - [ ] `cli.output.colors.*`
-    - [ ] `cli.output.palette.*`
+- [x] `packages/platform/cli/config/cli.php`
+  - [x] returns the `cli` subtree only
+  - [x] MUST NOT repeat the root as `['cli' => ...]`
+  - [x] contains only deterministic scalar/map/list defaults
+  - [x] contains no closures, objects, resources, floats, env reads, terminal detection, or runtime values
+  - [x] canonical dot keys:
+    - [x] `cli.commands.overrides` = []
+      - [x] this node permits dynamic map keys structurally
+      - [x] `additionalKeys = true` applies only at this node
+      - [x] dynamic key and value validation is outside config defaults and belongs to `CommandOverrides`
+    - [x] `cli.output.format_default` = "adaptive"
+    - [x] `cli.output.adaptive.interactive` = "table"
+    - [x] `cli.output.adaptive.non_interactive` = "plain"
+    - [x] `cli.output.color_default` = "auto"
+    - [x] `cli.output.table.max_width` = 120
+  - [x] MUST NOT contain:
+    - [x] `cli.enabled`
+    - [x] `cli.commands` as a registry list
+    - [x] `cli.mode.*`
+    - [x] `cli.uow.*`
+    - [x] `cli.redaction.*`
+    - [x] `cli.output.redaction.*`
+    - [x] `cli.observability.*`
+    - [x] `cli.output.colors.*`
+    - [x] `cli.output.palette.*`
 
-- [ ] `packages/platform/cli/config/rules.php`
-  - [ ] returns a plain declarative ruleset array
-  - [ ] validates the `cli` subtree with `additionalKeys = false`
-  - [ ] `cli.commands`
-    - [ ] required map
-    - [ ] `additionalKeys = false`
-    - [ ] exact key: `overrides`
-  - [ ] `cli.commands.overrides`
-    - [ ] required map
-    - [ ] `additionalKeys = true`
-    - [ ] `ConfigValidator` validates only that the value is a map
-    - [ ] dynamic map keys and map values are validated by `CommandOverrides`
-    - [ ] rules MUST NOT pretend to validate arbitrary command-name keys through undeclared static `keys`
-  - [ ] `cli.output`
-    - [ ] required map
-    - [ ] `additionalKeys = false`
-    - [ ] exact keys:
-      - [ ] `format_default`
-      - [ ] `adaptive`
-      - [ ] `color_default`
-      - [ ] `table`
-  - [ ] `cli.output.format_default`
-    - [ ] required string
-    - [ ] `allowedValues = adaptive|json|table|plain`
-  - [ ] `cli.output.adaptive`
-    - [ ] required map
-    - [ ] `additionalKeys = false`
-    - [ ] exact keys: `interactive|non_interactive`
-  - [ ] `cli.output.adaptive.interactive`
-    - [ ] required string
-    - [ ] `allowedValues = json|table|plain`
-  - [ ] `cli.output.adaptive.non_interactive`
-    - [ ] required string
-    - [ ] `allowedValues = json|table|plain`
-  - [ ] `cli.output.color_default`
-    - [ ] required string
-    - [ ] `allowedValues = auto|always|never`
-  - [ ] `cli.output.table`
-    - [ ] required map
-    - [ ] `additionalKeys = false`
-    - [ ] exact key: `max_width`
-  - [ ] `cli.output.table.max_width`
-    - [ ] required int
-    - [ ] `min = 40`
-    - [ ] `max = 240`
-  - [ ] schema rejects:
-    - [ ] registry-list `cli.commands`
-    - [ ] `cli.enabled`
-    - [ ] `cli.mode.*`
-    - [ ] `cli.uow.*`
-    - [ ] `cli.redaction.*`
-    - [ ] `cli.output.redaction.*`
-    - [ ] `cli.observability.*`
-    - [ ] color palettes or arbitrary ANSI values
-    - [ ] unknown static keys at every schema-owned level
-    - [ ] dynamic keys under `cli.commands.overrides` are the only structural exception
+- [x] `packages/platform/cli/config/rules.php`
+  - [x] returns a plain declarative ruleset array
+  - [x] validates the `cli` subtree with `additionalKeys = false`
+  - [x] `cli.commands`
+    - [x] required map
+    - [x] `additionalKeys = false`
+    - [x] exact key: `overrides`
+  - [x] `cli.commands.overrides`
+    - [x] required map
+    - [x] `additionalKeys = true`
+    - [x] `ConfigValidator` validates only that the value is a map
+    - [x] declarative rules leave dynamic map-key and value validation to `CommandOverrides`
+    - [x] rules MUST NOT pretend to validate arbitrary command-name keys through undeclared static `keys`
+  - [x] `cli.output`
+    - [x] required map
+    - [x] `additionalKeys = false`
+    - [x] exact keys:
+      - [x] `format_default`
+      - [x] `adaptive`
+      - [x] `color_default`
+      - [x] `table`
+  - [x] `cli.output.format_default`
+    - [x] required string
+    - [x] `allowedValues = adaptive|json|table|plain`
+  - [x] `cli.output.adaptive`
+    - [x] required map
+    - [x] `additionalKeys = false`
+    - [x] exact keys: `interactive|non_interactive`
+  - [x] `cli.output.adaptive.interactive`
+    - [x] required string
+    - [x] `allowedValues = json|table|plain`
+  - [x] `cli.output.adaptive.non_interactive`
+    - [x] required string
+    - [x] `allowedValues = json|table|plain`
+  - [x] `cli.output.color_default`
+    - [x] required string
+    - [x] `allowedValues = auto|always|never`
+  - [x] `cli.output.table`
+    - [x] required map
+    - [x] `additionalKeys = false`
+    - [x] exact key: `max_width`
+  - [x] `cli.output.table.max_width`
+    - [x] required int
+    - [x] `min = 40`
+    - [x] `max = 240`
+  - [x] schema rejects:
+    - [x] registry-list `cli.commands`
+    - [x] `cli.enabled`
+    - [x] `cli.mode.*`
+    - [x] `cli.uow.*`
+    - [x] `cli.redaction.*`
+    - [x] `cli.output.redaction.*`
+    - [x] `cli.observability.*`
+    - [x] color palettes or arbitrary ANSI values
+    - [x] unknown static keys at every schema-owned level
+    - [x] dynamic keys under `cli.commands.overrides` are the only structural exception
 
 - [ ] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — complete rewrite
   - [ ] replace the Phase-0 static `CliModule::providers()` call with instance-based module metadata verification
@@ -5695,13 +5705,18 @@ Errors:
   - [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 
 - [ ] `docs/architecture/DEPENDENCIES.md`
-  - [ ] add `platform/cli` to the canonical direct dependency matrix
-  - [ ] exact direct Composer dependency row:
-    - [ ] `platform/cli` → `core/contracts, core/foundation, core/kernel, platform/redaction`
-  - [ ] preserve the distinction between the Composer installation dependency on `platform/redaction` and the contracts-only PHP source dependency on `SensitiveDataRedactorInterface`
-  - [ ] `platform/cli` production source MUST NOT import concrete `Coretsia\Platform\Redaction\*` implementation classes
-  - [ ] preserve canonical `strcmp` package-row ordering
-  - [ ] keep the matrix aligned with package Composer dependencies and generated deptrac policy
+  - [x] update the existing `platform/cli` row in the canonical direct PHP source dependency matrix
+  - [x] exact `platform/cli` `depends_on` value:
+    - [x] `core/contracts, core/foundation, core/kernel`
+  - [x] `platform/redaction` MUST NOT be added to the `platform/cli` source dependency row
+  - [x] preserve the distinction between direct PHP source permissions and runtime-only Composer installation dependencies
+  - [x] `coretsia/platform-redaction` remains a direct production Composer requirement of `coretsia/platform-cli`, backed by the declared `platform.redaction` runtime module dependency
+  - [x] runtime-only Composer installation edges MUST NOT grant PHP source-level dependency permissions
+  - [ ] `platform/cli` production source MUST consume redaction only through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` and MUST NOT import concrete `Coretsia\Platform\Redaction\*` implementation classes
+  - [x] preserve canonical `strcmp` package-row ordering
+  - [x] generated Deptrac ruleset for `platform.cli` MUST allow only `core.contracts`, `core.foundation`, and `core.kernel`
+  - [x] generated Deptrac ruleset MUST NOT allow `platform.redaction` as a PHP source dependency of `platform.cli`
+  - [x] preserve validation through the existing `composer arch` pipeline without introducing a new gate, allowlist, or dependency SSoT
 
 ### Cross-cutting (MUST)
 
@@ -6161,9 +6176,12 @@ Errors:
     - [ ] CLI-owned control-byte and presentation validation remain separate
 
   - [ ] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
-    - [ ] correct direct dependencies
-    - [ ] bin declared
-    - [ ] no command-owner package dependency solely for discovery
+    - [ ] direct production Composer requirements include `coretsia/core-contracts`, `coretsia/core-foundation`, `coretsia/core-kernel`, and `coretsia/platform-redaction`
+    - [ ] all internal Coretsia Composer requirements use the canonical release-line `publicConstraint`
+    - [ ] `coretsia/platform-redaction` is required for runtime module installation, not direct PHP source access
+    - [ ] `extra.coretsia.requires` contains exactly `core.kernel` and `platform.redaction`
+    - [ ] `bin/coretsia` is declared as the packaged Composer binary
+    - [ ] no command-owner package dependency is introduced solely for discovery
 
   - [ ] `packages/platform/cli/tests/Contract/CliHasSingleProductionOutputSinkContractTest.php`
     - [ ] after Composer autoload succeeds, only `ConsoleOutputWriter.php` writes stdout/stderr

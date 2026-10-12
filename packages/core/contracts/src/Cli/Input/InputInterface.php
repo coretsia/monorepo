@@ -27,8 +27,14 @@ namespace Coretsia\Contracts\Cli\Input;
  * Contract invariants:
  *
  * - command implementations MUST NOT be required to parse raw argv tokens directly;
- * - raw tokens remain available only for diagnostics, forwarding, or advanced
- *   command use cases;
+ * - command-facing tokens remain available only for diagnostics, forwarding,
+ *   or advanced command use cases;
+ * - tokens() MUST NOT expose the CLI launcher token;
+ * - recognized CLI-global `format` and `color` options MUST NOT reach
+ *   owner-package commands through tokens(), arguments(), options(), or
+ *   normalized option lookup;
+ * - tokens following the `--` end-of-options marker remain positional arguments,
+ *   even when their literal values resemble CLI-global options;
  * - parser implementation classes MUST NOT be exposed through this contract;
  * - parsed command name, positional arguments, and normalized options MUST be
  *   stable for the same invocation;
@@ -40,11 +46,14 @@ namespace Coretsia\Contracts\Cli\Input;
 interface InputInterface
 {
     /**
-     * Returns raw CLI tokens for the current invocation.
+     * Returns command-facing CLI tokens for the current invocation.
      *
-     * These tokens are implementation-provided and MUST be stable for the same
-     * invocation. Package commands SHOULD use parsed accessors for normal
-     * command input instead of parsing these tokens directly.
+     * These tokens MUST exclude the launcher token and recognized CLI-global
+     * format and color options. Literal tokens following the `--` end-of-options
+     * marker remain available as positional arguments.
+     *
+     * Tokens MUST be stable for the same invocation. Package commands SHOULD
+     * use parsed accessors instead of parsing these tokens directly.
      *
      * @return list<string>
      */

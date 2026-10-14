@@ -492,7 +492,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/framework",
-                "reference": "ca54980e2c31c6d8b7ff5239439a8747b5287076"
+                "reference": "887aa9a38412100c193ea4791d461f02bb402ddc"
             },
             "require": {
                 "coretsia/core-kernel": "^0.8.0",
@@ -510,9 +510,10 @@
                     "role": "Creator and Lead Developer"
                 }
             ],
-            "description": "Coretsia framework runtime dependency distribution",
+            "description": "Coretsia framework metapackage: baseline Kernel and CLI runtime installation dependencies.",
             "homepage": "https://coretsia.dev/",
             "keywords": [
+                "cli",
                 "coretsia",
                 "ddd",
                 "framework",
@@ -537,7 +538,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "02e6bfaa09dacdc2fe7ce430403cf7fbc26c4565"
+                "reference": "02767c9a252dd2847b516234ca73be7f99a0b995"
             },
             "require": {
                 "coretsia/core-contracts": "^0.8.0",
@@ -585,14 +586,16 @@
                     "role": "Creator and Lead Developer"
                 }
             ],
-            "description": "Coretsia tag-first CLI runtime with Kernel operations and deterministic safe output",
+            "description": "Coretsia CLI runtime package: tag-first command discovery, Kernel operations, and deterministic safe output.",
             "homepage": "https://coretsia.dev/",
             "keywords": [
                 "cli",
+                "command-discovery",
                 "commands",
                 "coretsia",
                 "deterministic",
                 "framework",
+                "kernel-operations",
                 "php",
                 "redaction",
                 "runtime"
@@ -1854,16 +1857,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.38",
+            "version": "12.5.39",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "1e87ad87fe57665a7f6e99a6e467329c11e851cc"
+                "reference": "4e8cbead3741cc57f16d142f4c5dc73c2747820a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/1e87ad87fe57665a7f6e99a6e467329c11e851cc",
-                "reference": "1e87ad87fe57665a7f6e99a6e467329c11e851cc",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/4e8cbead3741cc57f16d142f4c5dc73c2747820a",
+                "reference": "4e8cbead3741cc57f16d142f4c5dc73c2747820a",
                 "shasum": ""
             },
             "require": {
@@ -1932,7 +1935,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.38"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.39"
             },
             "funding": [
                 {
@@ -1940,7 +1943,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-10-05T05:49:30+00:00"
+            "time": "2026-10-12T15:27:27+00:00"
         },
         {
             "name": "psr/clock",

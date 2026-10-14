@@ -4014,77 +4014,82 @@ Legacy tests and fixtures:
   - [ ] MUST NOT perform command parsing, configuration loading, Kernel boot, catalog construction, formatting, or rendering
   - [ ] MUST NOT depend on the current working directory
 
+Redaction:
+- [ ] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
+- [ ] CLI MUST NOT define package-local redaction engine/policy classes.
+- [ ] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
+
 - [ ] `packages/platform/cli/src/Output/CliOutputPolicy.php`
-  - [ ] immutable readonly value object
+  - [x] immutable readonly value object
   - [ ] created only from validated config
-  - [ ] contains:
-    - [ ] `formatDefault: string`
-    - [ ] `interactiveFormat: string`
-    - [ ] `nonInteractiveFormat: string`
-    - [ ] `colorDefault: string`
-    - [ ] `tableMaxWidth: int`
-  - [ ] validates canonical tokens defensively
-  - [ ] contains no config repository
-  - [ ] contains no streams
-  - [ ] contains no terminal detection
-  - [ ] contains no runtime global-option overrides
-  - [ ] contains no redaction toggle
-  - [ ] contains no mutable state
+  - [x] contains:
+    - [x] `formatDefault: string`
+    - [x] `interactiveFormat: string`
+    - [x] `nonInteractiveFormat: string`
+    - [x] `colorDefault: string`
+    - [x] `tableMaxWidth: int`
+  - [x] validates canonical tokens defensively
+  - [x] contains no config repository
+  - [x] contains no streams
+  - [x] contains no terminal detection
+  - [x] contains no runtime global-option overrides
+  - [x] contains no redaction toggle
+  - [x] contains no mutable state
 
 - [ ] `packages/platform/cli/src/Output/TerminalCapabilities.php`
-  - [ ] immutable readonly runtime-input value
-  - [ ] contains:
-    - [ ] `interactive: bool`
-    - [ ] `ansiSupported: bool`
+  - [x] immutable readonly runtime-input value
+  - [x] contains:
+    - [x] `interactive: bool`
+    - [x] `ansiSupported: bool`
   - [ ] created once for one CLI invocation
   - [ ] terminal probing occurs only at the packaged entrypoint/bootstrap boundary
-  - [ ] formatters and commands MUST NOT call `stream_isatty()` directly
-  - [ ] formatters and commands MUST NOT perform Windows terminal probing directly
-  - [ ] tests can inject deterministic capabilities
-  - [ ] contains no config and no output policy
-  - [ ] `interactive` means stdout is interactive
-  - [ ] `ansiSupported` is true only when ANSI is safe for both stdout and stderr
+  - [x] formatters and commands MUST NOT call `stream_isatty()` directly
+  - [x] formatters and commands MUST NOT perform Windows terminal probing directly
+  - [x] tests can inject deterministic capabilities
+  - [x] contains no config and no output policy
+  - [x] `interactive` means stdout is interactive
+  - [x] `ansiSupported` is true only when ANSI is safe for both stdout and stderr
 
 - [ ] `packages/platform/cli/src/Output/TerminalCapabilitiesDetector.php`
   - [ ] is the only platform/cli service allowed to probe terminal capabilities
   - [ ] receives explicit stdout and stderr stream resources from the entrypoint
-  - [ ] stdout determines adaptive-format interactivity
-  - [ ] ANSI support requires both output streams to accept ANSI safely
-  - [ ] detects:
-    - [ ] interactive output
-    - [ ] ANSI support
-  - [ ] returns immutable `TerminalCapabilities`
-  - [ ] MUST NOT read CLI config
-  - [ ] MUST NOT read command options
-  - [ ] MUST NOT read CI environment variables
-  - [ ] MUST NOT retain streams
+  - [x] stdout determines adaptive-format interactivity
+  - [x] ANSI support requires both output streams to accept ANSI safely
+  - [x] detects:
+    - [x] interactive output
+    - [x] ANSI support
+  - [x] returns immutable `TerminalCapabilities`
+  - [x] MUST NOT read CLI config
+  - [x] MUST NOT read command options
+  - [x] MUST NOT read CI environment variables
+  - [x] MUST NOT retain streams
   - [ ] tests can replace it with deterministic capabilities
 
-- [ ] `packages/platform/cli/src/Bootstrap/CliEntrypointPaths.php`
-  - [ ] immutable readonly value object
-  - [ ] contains:
-    - [ ] normalized Composer autoload path
-    - [ ] normalized application skeleton root
-  - [ ] performs no filesystem traversal or resolution
-  - [ ] exposes no public diagnostic rendering
+- [x] `packages/platform/cli/src/Bootstrap/CliEntrypointPaths.php`
+  - [x] immutable readonly value object
+  - [x] contains:
+    - [x] normalized Composer autoload path
+    - [x] normalized application skeleton root
+  - [x] performs no filesystem traversal or resolution
+  - [x] exposes no public diagnostic rendering
 
 - [ ] `packages/platform/cli/src/Bootstrap/CliEntrypointPathsResolver.php`
-  - [ ] pure entrypoint-layout resolver
-  - [ ] unresolved or conflicting post-autoload layout throws `CliBootstrapException`
-  - [ ] canonical API:
-    - [ ] `public function resolve(string $launcherFile, string $autoloadPath, ?string $composerBinDir, ?string $explicitApplicationRoot): CliEntrypointPaths`
-  - [ ] receives an already-selected readable autoload path
-  - [ ] validates and normalizes that path
+  - [x] pure entrypoint-layout resolver
+  - [x] unresolved or conflicting post-autoload layout throws `CliBootstrapException`
+  - [x] canonical API:
+    - [x] `public function resolve(string $launcherFile, string $autoloadPath, ?string $composerBinDir, ?string $explicitApplicationRoot): CliEntrypointPaths`
+  - [x] receives an already-selected readable autoload path
+  - [x] validates and normalizes that path
   - [ ] explicit skeleton root is used by canonical monorepo wrappers
-  - [ ] otherwise the skeleton root is derived only from the canonical Composer binary layout
-  - [ ] exactly one application-root source may be active
-  - [ ] supports:
-    - [ ] Composer binary proxy variables
-    - [ ] monorepo canonical wrapper layout
-  - [ ] independent of current working directory
-  - [ ] MUST NOT recursively scan arbitrary parent directories
-  - [ ] MUST NOT read application config
-  - [ ] unresolved layout throws a deterministic path-safe CLI bootstrap exception
+  - [x] otherwise the skeleton root is derived only from the canonical Composer binary layout
+  - [x] exactly one application-root source may be active
+  - [x] supports:
+    - [x] Composer binary proxy variables
+    - [x] monorepo canonical wrapper layout
+  - [x] independent of current working directory
+  - [x] MUST NOT recursively scan arbitrary parent directories
+  - [x] MUST NOT read application config
+  - [x] unresolved layout throws a deterministic path-safe CLI bootstrap exception
 
 - [ ] `packages/platform/cli/src/Bootstrap/UltraEarlyDoctorRunner.php`
   - [ ] used only when the exact command token is `doctor`
@@ -4179,6 +4184,13 @@ Entrypoint + application:
   - [ ] MUST NOT depend on the deleted `ErrorCodes` registry
 
 - [ ] `packages/platform/cli/src/Application/CliApplication.php`
+
+Необхідно під час реалізації CliApplication:
+1. Вибрати CommandDescriptor.
+2. Виконати структурну валідацію.
+3. Сформувати новий immutable ArgvInput, нормалізувавши лише descriptor-declared repeatable required-value options до list<string>.
+4. Передати нормалізований input до CommandRunner.
+
   - [ ] owns the normal post-bootstrap command flow:
     - [ ] create one invocation-local `CommandOutputBuffer`
     - [ ] parse into `ParsedCliInvocation`
@@ -4238,84 +4250,84 @@ Entrypoint + application:
     - [ ] do not retry formatting or redaction
 
 Input:
-- [ ] `packages/platform/cli/src/Input/ParsedCliInvocation.php`
-  - [ ] immutable readonly value
-  - [ ] contains:
-    - [ ] `ArgvInput commandInput`
-    - [ ] nullable `formatOverride: string`
-    - [ ] nullable `colorOverride: string`
-  - [ ] contains no streams, config repository, catalog, descriptor, or command service
+- [x] `packages/platform/cli/src/Input/ParsedCliInvocation.php`
+  - [x] immutable readonly value
+  - [x] contains:
+    - [x] `ArgvInput commandInput`
+    - [x] nullable `formatOverride: string`
+    - [x] nullable `colorOverride: string`
+  - [x] contains no streams, config repository, catalog, descriptor, or command service
 
-- [ ] `packages/platform/cli/src/Input/ArgvInput.php`
-  - [ ] Concrete `InputInterface` implementation; deterministic parse rules (no locale-dependent behavior).
-  - [ ] MUST implement expanded `InputInterface`
-  - [ ] MUST expose:
-    - [ ] raw tokens
-    - [ ] command name
-    - [ ] positional arguments
-    - [ ] normalized options
-    - [ ] option lookup by name
-    - [ ] boolean flags
-  - [ ] `tokens()` contains only command-facing tokens
-  - [ ] launcher token and CLI-global options are absent
-  - [ ] MUST NOT expose parser internals
-  - [ ] MUST NOT require commands to depend on `platform/cli` concrete classes
+- [x] `packages/platform/cli/src/Input/ArgvInput.php`
+  - [x] Concrete `InputInterface` implementation; deterministic parse rules (no locale-dependent behavior).
+  - [x] MUST implement expanded `InputInterface`
+  - [x] MUST expose:
+    - [x] raw tokens
+    - [x] command name
+    - [x] positional arguments
+    - [x] normalized options
+    - [x] option lookup by name
+    - [x] boolean flags
+  - [x] `tokens()` contains only command-facing tokens
+  - [x] launcher token and CLI-global options are absent
+  - [x] MUST NOT expose parser internals
+  - [x] MUST NOT require commands to depend on `platform/cli` concrete classes
 
-- [ ] `packages/platform/cli/src/Input/ArgvInputParser.php`
-  - [ ] canonical API:
-    - [ ] `public function parse(array $argv): ParsedCliInvocation`
-  - [ ] structural parsing failures throw `CliInputInvalidException`
-  - [ ] removes launcher token before command parsing
-  - [ ] CLI-global `format|color` options are recognized only before the `--` end-of-options marker
-  - [ ] removes only recognized CLI-global `format|color` options from command-facing tokens and options
-  - [ ] preserves recognized global option values only in `ParsedCliInvocation`
-  - [ ] tokens following `--` are positional arguments, even when their literal text is `--format=...` or `--color=...`
-  - [ ] positional tokens following `--` MUST NOT be interpreted as CLI-global or command-owner options
-  - [ ] Minimal parser (no external libs): `<command> [--key=val] [--flag] [args...]`; stable precedence rules.
-  - [ ] repeated bare flags hard-fail
-  - [ ] mixing bare `--name` and valued `--name=value` forms of the same option hard-fails deterministically
-  - [ ] repeated valued `--name=value` forms preserve `list<string>` order
-  - [ ] the parser MUST NOT silently replace a previously parsed boolean value with a scalar or list, or vice versa
-  - [ ] MUST parse deterministic syntax:
-    - [ ] `<command>`
-    - [ ] positional arguments
-    - [ ] `--key=value`
-    - [ ] `--flag`
-    - [ ] repeated `--key=value` into `list<string>`
-  - [ ] MUST reject malformed option names deterministically
-  - [ ] MUST normalize option names deterministically
-  - [ ] MUST NOT use locale-dependent parsing
-  - [ ] MUST NOT read environment variables
-  - [ ] MUST NOT perform filesystem scanning
-  - [ ] preserve repeated options as ordered lists; never silently apply last-value-wins
-  - [ ] support `--` as the deterministic end-of-options marker
-  - [ ] parse syntax only; descriptor-specific validation belongs to `CommandInputValidator`
-  - [ ] separates CLI-global options from command-facing options:
-    - [ ] `--format=<adaptive|json|table|plain>`
-    - [ ] `--color=<auto|always|never>`
-  - [ ] preserves both global tokens for their resolvers
-  - [ ] command-facing `InputInterface::options()` MUST NOT expose recognized CLI-global `format|color` options
-  - [ ] command-facing `InputInterface::tokens()` and `arguments()` MAY contain literal `--format=...` or `--color=...` tokens when supplied after `--`
-  - [ ] repeated global options hard-fail
-  - [ ] empty global option values hard-fail
+- [x] `packages/platform/cli/src/Input/ArgvInputParser.php`
+  - [x] canonical API:
+    - [x] `public function parse(array $argv): ParsedCliInvocation`
+  - [x] structural parsing failures throw `CliInputInvalidException`
+  - [x] removes launcher token before command parsing
+  - [x] CLI-global `format|color` options are recognized only before the `--` end-of-options marker
+  - [x] removes only recognized CLI-global `format|color` options from command-facing tokens and options
+  - [x] preserves recognized global option values only in `ParsedCliInvocation`
+  - [x] tokens following `--` are positional arguments, even when their literal text is `--format=...` or `--color=...`
+  - [x] positional tokens following `--` MUST NOT be interpreted as CLI-global or command-owner options
+  - [x] Minimal parser (no external libs): `<command> [--key=val] [--flag] [args...]`; stable precedence rules.
+  - [x] repeated bare flags hard-fail
+  - [x] mixing bare `--name` and valued `--name=value` forms of the same option hard-fails deterministically
+  - [x] repeated valued `--name=value` forms preserve `list<string>` order
+  - [x] the parser MUST NOT silently replace a previously parsed boolean value with a scalar or list, or vice versa
+  - [x] MUST parse deterministic syntax:
+    - [x] `<command>`
+    - [x] positional arguments
+    - [x] `--key=value`
+    - [x] `--flag`
+    - [x] repeated `--key=value` into `list<string>`
+  - [x] MUST reject malformed option names deterministically
+  - [x] MUST normalize option names deterministically
+  - [x] MUST NOT use locale-dependent parsing
+  - [x] MUST NOT read environment variables
+  - [x] MUST NOT perform filesystem scanning
+  - [x] preserve repeated options as ordered lists; never silently apply last-value-wins
+  - [x] support `--` as the deterministic end-of-options marker
+  - [x] parse syntax only; descriptor-specific validation belongs to `CommandInputValidator`
+  - [x] separates CLI-global options from command-facing options:
+    - [x] `--format=<adaptive|json|table|plain>`
+    - [x] `--color=<auto|always|never>`
+  - [x] preserves both global tokens for their resolvers
+  - [x] command-facing `InputInterface::options()` MUST NOT expose recognized CLI-global `format|color` options
+  - [x] command-facing `InputInterface::tokens()` and `arguments()` MAY contain literal `--format=...` or `--color=...` tokens when supplied after `--`
+  - [x] repeated global options hard-fail
+  - [x] empty global option values hard-fail
 
 - [ ] `packages/platform/cli/src/Input/CommandInputValidator.php`
-  - [ ] `public function validate(CommandDescriptor $descriptor, ArgvInput $input): void`
-  - [ ] receives selected `CommandDescriptor` and parsed `ArgvInput`
+  - [x] `public function validate(CommandDescriptor $descriptor, ArgvInput $input): void`
+  - [x] receives selected `CommandDescriptor` and parsed `ArgvInput`
   - [ ] validates arguments and options before resolving the command service
-  - [ ] structural descriptor/input mismatches throw `CliInputInvalidException`
-  - [ ] rejects unknown options
-  - [ ] rejects missing required option values
-  - [ ] rejects repeated non-repeatable options
-  - [ ] rejects unsupported positional arguments
-  - [ ] validates required/optional/variadic argument counts
-  - [ ] performs structural validation only
-  - [ ] validates only structure declared by the selected command descriptor
-  - [ ] MUST NOT validate Kernel or owner-package domain semantics
-  - [ ] MUST NOT instantiate the command service
-  - [ ] `value = none` accepts only a bare boolean flag
-  - [ ] `value = required` accepts only `--name=value`
-  - [ ] `value = optional` accepts a bare flag or one scalar value
+  - [x] structural descriptor/input mismatches throw `CliInputInvalidException`
+  - [x] rejects unknown options
+  - [x] rejects missing required option values
+  - [x] rejects repeated non-repeatable options
+  - [x] rejects unsupported positional arguments
+  - [x] validates required/optional/variadic argument counts
+  - [x] performs structural validation only
+  - [x] validates only structure declared by the selected command descriptor
+  - [x] MUST NOT validate Kernel or owner-package domain semantics
+  - [x] MUST NOT instantiate the command service
+  - [x] `value = none` accepts only a bare boolean flag
+  - [x] `value = required` accepts only `--name=value`
+  - [x] `value = optional` accepts a bare flag or one scalar value
   - [ ] repeatable required-value options must arrive as `list<string>`
 
 Output:
@@ -4551,149 +4563,149 @@ Output schema:
 
 Catalog:
 - [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
-  - [ ] is one frozen immutable catalog built from final tag-registry input and validated command overrides
-  - [ ] contains no mutable cache and requires no reset
-  - [ ] MUST consume only `ReservedTags::CLI_COMMAND`
-  - [ ] MUST build descriptors from tag metadata
-  - [ ] MUST preserve TagRegistry order
-  - [ ] MUST NOT re-sort discovery output
-  - [ ] MUST NOT silently de-dupe discovery output
-  - [ ] duplicate command names across distinct tagged service ids MUST hard-fail with `InvalidCommandTagMetaException`
-  - [ ] reserved external command name collisions MUST hard-fail:
-    - [ ] `doctor`
-    - [ ] `help`
-    - [ ] `list`
+  - [x] is one frozen immutable catalog built from final tag-registry input and validated command overrides
+  - [x] contains no mutable cache and requires no reset
+  - [x] MUST consume only `ReservedTags::CLI_COMMAND`
+  - [x] MUST build descriptors from tag metadata
+  - [x] MUST preserve TagRegistry order
+  - [x] MUST NOT re-sort discovery output
+  - [x] MUST NOT silently de-dupe discovery output
+  - [x] duplicate command names across distinct tagged service ids MUST hard-fail with `InvalidCommandTagMetaException`
+  - [x] reserved external command name collisions MUST hard-fail:
+    - [x] `doctor`
+    - [x] `help`
+    - [x] `list`
   - [ ] reserved names MUST be allowed only for built-in service ids registered by `platform/cli`
-  - [ ] MUST NOT instantiate command services while building descriptors
-  - [ ] MUST NOT depend on `platform/worker`
-  - [ ] MUST NOT use filesystem scanning
-  - [ ] MUST NOT read `cli.commands` registry list
-  - [ ] rejects every tagged command whose actual tag priority is not `0`
-  - [ ] constructor receives:
-    - [ ] `TagRegistry`
-    - [ ] `CommandTagSchema`
-    - [ ] `CommandOverrides`
-    - [ ] validated `cli.commands.overrides` map
-    - [ ] immutable reserved built-in service-id map
-  - [ ] consumes exactly `TagRegistry::all(ReservedTags::CLI_COMMAND)`
-  - [ ] validates actual priority and metadata for every tagged service
-  - [ ] builds the complete base descriptor map
-  - [ ] applies `CommandOverrides` exactly once after base validation
-  - [ ] canonical API:
-    - [ ] `public function descriptors(): array`
-    - [ ] `public function require(string $name): CommandDescriptor`
-  - [ ] `require()` performs no command service resolution
+  - [x] MUST NOT instantiate command services while building descriptors
+  - [x] MUST NOT depend on `platform/worker`
+  - [x] MUST NOT use filesystem scanning
+  - [x] MUST NOT read `cli.commands` registry list
+  - [x] rejects every tagged command whose actual tag priority is not `0`
+  - [x] constructor receives:
+    - [x] `TagRegistry`
+    - [x] `CommandTagSchema`
+    - [x] `CommandOverrides`
+    - [x] validated `cli.commands.overrides` map
+    - [x] immutable reserved built-in service-id map
+  - [x] consumes exactly `TagRegistry::all(ReservedTags::CLI_COMMAND)`
+  - [x] validates actual priority and metadata for every tagged service
+  - [x] builds the complete base descriptor map
+  - [x] applies `CommandOverrides` exactly once after base validation
+  - [x] canonical API:
+    - [x] `public function descriptors(): array`
+    - [x] `public function require(string $name): CommandDescriptor`
+  - [x] `require()` performs no command service resolution
 
-- [ ] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
-  - [ ] validates `TaggedService::id()` as the exact command class FQCN
-  - [ ] validates `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS` against the canonicalized tag metadata without resolving the command service
-  - [ ] validates exact required metadata keys:
-    - [ ] `name`
-    - [ ] `summary`
-    - [ ] `group`
-    - [ ] `hidden`
-    - [ ] `arguments`
-    - [ ] `options`
-  - [ ] validates canonical command-name regex
-  - [ ] `group` MUST be a non-empty string matching `\A[a-z][a-z0-9-]*\z`
-  - [ ] `summary` MUST be non-empty static safe text satisfying canonical Foundation tag-metadata constraints
-  - [ ] `hidden` MUST be bool
-  - [ ] rejects `priority` and unknown keys
-  - [ ] validates ordered argument descriptors:
-    - [ ] exact keys `name|summary|required|variadic`
-    - [ ] unique names
-    - [ ] required before optional
-    - [ ] variadic only last
-  - [ ] `arguments` and `options` MUST be lists, not maps
-  - [ ] argument descriptor:
-    - [ ] `name` matches `\A[a-z][a-z0-9-]*\z`
-    - [ ] `summary` is non-empty safe text
-    - [ ] `required` is bool
-    - [ ] `variadic` is bool
-  - [ ] option descriptor:
-    - [ ] `name` matches `\A[a-z][a-z0-9-]*\z`
-    - [ ] `summary` is non-empty safe text
-    - [ ] `value` is `none|required|optional`
-    - [ ] `repeatable` is bool
-  - [ ] `repeatable = true` is allowed only with `value = required`
-  - [ ] metadata contains no default runtime values
-  - [ ] validates ordered option descriptors:
-    - [ ] exact keys `name|summary|value|repeatable`
-    - [ ] `value = none|required|optional`
-    - [ ] unique names
-    - [ ] repeated non-repeatable option is invalid
-    - [ ] `format|color` are the baseline reserved global option names
-    - [ ] `help`, `mode`, `preset`, and other names remain available to owner packages unless introduced as global options by a separate CLI contract
-  - [ ] rejects closures, objects, resources, floats, non-json-like metadata, and violations of the canonical static metadata shape and safe-text constraints
-  - [ ] command owners MUST NOT contribute runtime filesystem path values, runtime endpoints, env values, secrets, tokens, or runtime payloads through static command metadata
-  - [ ] structural metadata validation MUST NOT be treated as sensitive-data classification or authorization to disclose owner-supplied values
-  - [ ] MUST NOT introduce a CLI-local sensitive-key classifier, sensitive-value classifier, path classifier, endpoint classifier, or pattern registry
-  - [ ] does not reject an argument or option merely because its name or summary describes a path
-  - [ ] throws `InvalidCommandTagMetaException`
+- [x] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
+  - [x] validates `TaggedService::id()` as the exact command class FQCN
+  - [x] validates `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS` against the canonicalized tag metadata without resolving the command service
+  - [x] validates exact required metadata keys:
+    - [x] `name`
+    - [x] `summary`
+    - [x] `group`
+    - [x] `hidden`
+    - [x] `arguments`
+    - [x] `options`
+  - [x] validates canonical command-name regex
+  - [x] `group` MUST be a non-empty string matching `\A[a-z][a-z0-9-]*\z`
+  - [x] `summary` MUST be non-empty static safe text satisfying canonical Foundation tag-metadata constraints
+  - [x] `hidden` MUST be bool
+  - [x] rejects `priority` and unknown keys
+  - [x] validates ordered argument descriptors:
+    - [x] exact keys `name|summary|required|variadic`
+    - [x] unique names
+    - [x] required before optional
+    - [x] variadic only last
+  - [x] `arguments` and `options` MUST be lists, not maps
+  - [x] argument descriptor:
+    - [x] `name` matches `\A[a-z][a-z0-9-]*\z`
+    - [x] `summary` is non-empty safe text
+    - [x] `required` is bool
+    - [x] `variadic` is bool
+  - [x] option descriptor:
+    - [x] `name` matches `\A[a-z][a-z0-9-]*\z`
+    - [x] `summary` is non-empty safe text
+    - [x] `value` is `none|required|optional`
+    - [x] `repeatable` is bool
+  - [x] `repeatable = true` is allowed only with `value = required`
+  - [x] metadata contains no default runtime values
+  - [x] validates ordered option descriptors:
+    - [x] exact keys `name|summary|value|repeatable`
+    - [x] `value = none|required|optional`
+    - [x] unique names
+    - [x] repeated non-repeatable option is invalid
+    - [x] `format|color` are the baseline reserved global option names
+    - [x] `help`, `mode`, `preset`, and other names remain available to owner packages unless introduced as global options by a separate CLI contract
+  - [x] rejects closures, objects, resources, floats, non-json-like metadata, and violations of the canonical static metadata shape and safe-text constraints
+  - [x] command owners MUST NOT contribute runtime filesystem path values, runtime endpoints, env values, secrets, tokens, or runtime payloads through static command metadata
+  - [x] structural metadata validation MUST NOT be treated as sensitive-data classification or authorization to disclose owner-supplied values
+  - [x] MUST NOT introduce a CLI-local sensitive-key classifier, sensitive-value classifier, path classifier, endpoint classifier, or pattern registry
+  - [x] does not reject an argument or option merely because its name or summary describes a path
+  - [x] throws `InvalidCommandTagMetaException`
 
-- [ ] `packages/platform/cli/src/Catalog/CommandOverrides.php`
-  - [ ] stateless overlay applier
-  - [ ] constructor has no catalog or config state
-  - [ ] invalid override structure or value type throws `CliConfigInvalidException`
-  - [ ] canonical API:
-    - [ ] `public function apply(array $baseDescriptors, array $overrides): array`
-  - [ ] returns one immutable overridden descriptor map
-  - [ ] validates every dynamic override key against canonical command-name regex
-  - [ ] rejects an override for an unknown command
-  - [ ] validates each override as a map
-  - [ ] allows exactly `summary|hidden|group`
-  - [ ] `summary` must be a non-empty safe string
-  - [ ] `hidden` must be bool
-  - [ ] `group` must match the same `\A[a-z][a-z0-9-]*\z` token schema as base command metadata
-  - [ ] group overrides MUST NOT introduce a separate group namespace, naming policy, or normalization algorithm
-  - [ ] unknown fields hard-fail deterministically
-  - [ ] cannot change:
-    - [ ] command name
-    - [ ] service id
-    - [ ] arguments
-    - [ ] options
-    - [ ] base tag metadata
-  - [ ] cannot introduce commands or aliases
-  - [ ] produces an immutable catalog view
+- [x] `packages/platform/cli/src/Catalog/CommandOverrides.php`
+  - [x] stateless overlay applier
+  - [x] constructor has no catalog or config state
+  - [x] invalid override structure or value type throws `CliConfigInvalidException`
+  - [x] canonical API:
+    - [x] `public function apply(array $baseDescriptors, array $overrides): array`
+  - [x] returns one immutable overridden descriptor map
+  - [x] validates every dynamic override key against canonical command-name regex
+  - [x] rejects an override for an unknown command
+  - [x] validates each override as a map
+  - [x] allows exactly `summary|hidden|group`
+  - [x] `summary` must be a non-empty safe string
+  - [x] `hidden` must be bool
+  - [x] `group` must match the same `\A[a-z][a-z0-9-]*\z` token schema as base command metadata
+  - [x] group overrides MUST NOT introduce a separate group namespace, naming policy, or normalization algorithm
+  - [x] unknown fields hard-fail deterministically
+  - [x] cannot change:
+    - [x] command name
+    - [x] service id
+    - [x] arguments
+    - [x] options
+    - [x] base tag metadata
+  - [x] cannot introduce commands or aliases
+  - [x] produces an immutable catalog view
 
-- [ ] `packages/platform/cli/src/Catalog/CommandDescriptor.php` — canonical immutable command descriptor
-  - [ ] Stateless immutable DTO (readonly). No derived caches; safe to share.
-  - [ ] MUST be internal CLI catalog DTO built from tag metadata
-  - [ ] MUST NOT be imported by external packages
-  - [ ] MUST include:
-    - [ ] service id
-    - [ ] name
-    - [ ] summary
-    - [ ] group
-    - [ ] hidden
-    - [ ] arguments
-    - [ ] options
-  - [ ] MUST be immutable / readonly
-  - [ ] MUST NOT contain command object instance
-  - [ ] MUST NOT contain closures
-  - [ ] MUST NOT contain unvalidated configuration values, secrets, runtime filesystem paths, endpoints, or runtime payloads
-  - [ ] MAY contain the validated catalog-view `summary|hidden|group` values produced by `CommandOverrides`
-  - [ ] MUST NOT retain the raw `cli.commands.overrides` configuration map
-  - [ ] MUST NOT expose the original override payload or bypass the canonical override-field validation
+- [x] `packages/platform/cli/src/Catalog/CommandDescriptor.php` — canonical immutable command descriptor
+  - [x] Stateless immutable DTO (readonly). No derived caches; safe to share.
+  - [x] MUST be internal CLI catalog DTO built from tag metadata
+  - [x] MUST NOT be imported by external packages
+  - [x] MUST include:
+    - [x] service id
+    - [x] name
+    - [x] summary
+    - [x] group
+    - [x] hidden
+    - [x] arguments
+    - [x] options
+  - [x] MUST be immutable / readonly
+  - [x] MUST NOT contain command object instance
+  - [x] MUST NOT contain closures
+  - [x] MUST NOT contain unvalidated configuration values, secrets, runtime filesystem paths, endpoints, or runtime payloads
+  - [x] MAY contain the validated catalog-view `summary|hidden|group` values produced by `CommandOverrides`
+  - [x] MUST NOT retain the raw `cli.commands.overrides` configuration map
+  - [x] MUST NOT expose the original override payload or bypass the canonical override-field validation
 
 Kernel operation request resolver:
 - [ ] `packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
-  - [ ] `public function resolve(InputInterface $input): KernelOpsRequest`
-  - [ ] invalid scalar target shape throws `CliInputInvalidException`
+  - [x] `public function resolve(InputInterface $input): KernelOpsRequest`
+  - [x] invalid scalar target shape throws `CliInputInvalidException`
   - [ ] is used only by built-in Kernel operation commands
   - [ ] consumes only the already structurally validated `InputInterface`
-  - [ ] requires the `target` option to be present exactly once as a non-empty scalar value
-  - [ ] validates only non-empty safe token shape
+  - [x] requires the `target` option to be present exactly once as a non-empty scalar value
+  - [x] validates only non-empty safe token shape
   - [ ] rejects an absent `--target` inside command dispatch before invoking `KernelOpsInterface`
-  - [ ] the descriptor's `value = required` requires a value when the option is supplied; it does not independently require option presence
-  - [ ] MUST NOT introduce a second required-option-presence validator or extend the generic option metadata schema solely for Kernel targets
-  - [ ] constructs `KernelOpsRequest(appTarget)`
+  - [x] the descriptor's `value = required` requires a value when the option is supplied; it does not independently require option presence
+  - [x] MUST NOT introduce a second required-option-presence validator or extend the generic option metadata schema solely for Kernel targets
+  - [x] constructs `KernelOpsRequest(appTarget)`
   - [ ] relies on `CommandInputValidator` and the selected descriptor to reject undeclared, missing-value, or repeated options before command service resolution
-  - [ ] does not import or receive `CommandDescriptor`
-  - [ ] does not import Kernel `AppTarget`
-  - [ ] does not load Bootstrap configuration or mode presets
-  - [ ] does not inspect artifacts or `current`
-  - [ ] semantic target validation belongs to Kernel Ops
+  - [x] does not import or receive `CommandDescriptor`
+  - [x] does not import Kernel `AppTarget`
+  - [x] does not load Bootstrap configuration or mode presets
+  - [x] does not inspect artifacts or `current`
+  - [x] semantic target validation belongs to Kernel Ops
 
 Runner + diagnostics:
 - [ ] `packages/platform/cli/src/Runner/CommandRunner.php`
@@ -4830,10 +4842,51 @@ Runner + diagnostics:
     - [ ] arbitrary descriptor extensions
   - [ ] MUST NOT include or render Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
-Redaction:
-- [ ] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
-- [ ] CLI MUST NOT define package-local redaction engine/policy classes.
-- [ ] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
+Errors:
+- [x] `packages/platform/cli/src/Exception/CliInputInvalidException.php`
+  - [x] code `CORETSIA_CLI_INPUT_INVALID`
+  - [x] code-first deterministic public message
+  - [x] exposes only stable safe reason tokens
+  - [x] used by `ArgvInputParser`, `CommandInputValidator`, catalog selection, and `KernelOpsRequestResolver`
+  - [x] MUST NOT contain argv values, option values, paths, or previous Throwable messages
+
+- [ ] `packages/platform/cli/src/Exception/CliBootstrapException.php`
+  - [x] code `CORETSIA_CLI_BOOTSTRAP_FAILED`
+  - [x] code-first deterministic public message
+  - [x] exposes only stable safe reason tokens
+  - [ ] used after Composer autoload by `CliEntrypointPathsResolver`
+  - [x] MUST NOT contain launcher paths, autoload paths, skeleton paths, or previous Throwable messages
+
+- [x] `packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php`
+  - [x] code `CORETSIA_CLI_INVALID_COMMAND_META`
+  - [x] Stateless schema/registry violation exception
+  - [x] error details limited to names/serviceIds (no secrets/paths)
+
+- [x] `packages/platform/cli/src/Exception/RedactionViolationException.php`
+  - [x] Stateless redaction policy violation exception
+  - [x] exposes only code `CORETSIA_CLI_REDACTION_VIOLATION`
+  - [x] exposes fixed reason `output-redaction-failed`
+  - [x] contains no raw value, hash, length, path, or previous Throwable message
+
+- [x] `packages/platform/cli/src/Exception/CliOutputFormatException.php`
+  - [x] code `CORETSIA_CLI_OUTPUT_FORMAT_FAILED`
+  - [x] fixed reason `output-format-failed`
+  - [x] contains no rendered bytes, raw records, paths, or previous message
+
+- [x] `packages/platform/cli/src/Exception/CliCommandFailedException.php`
+  - [x] code `CORETSIA_CLI_COMMAND_FAILED`
+  - [x] code-first deterministic public message
+  - [x] exposes fixed safe reason token
+  - [x] previous throwable message is never included
+  - [x] no dependency on deleted `CliException` or `ErrorCodes`
+
+- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
+  - [x] code `CORETSIA_CLI_CONFIG_INVALID`
+  - [x] code-first deterministic public message
+  - [x] exposes only stable safe reason tokens
+  - [ ] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
+  - [x] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
+  - [x] no dependency on deleted `CliException` or `ErrorCodes`
 
 Built-in commands:
 - [ ] `packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
@@ -4986,59 +5039,6 @@ Built-in commands:
     - [ ] `summary = Application target: web, api, console, or worker.`
   - [ ] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
-  - [ ] MUST capture:
-    - [ ] tag-first discovery via `cli.command`
-    - [ ] reserved built-in command names (`doctor`, `help`, `list`)
-    - [ ] kernel ops consumption only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
-    - [ ] deterministic output + redaction policy
-
-Errors:
-- [ ] `packages/platform/cli/src/Exception/CliInputInvalidException.php`
-  - [ ] code `CORETSIA_CLI_INPUT_INVALID`
-  - [ ] code-first deterministic public message
-  - [ ] exposes only stable safe reason tokens
-  - [ ] used by `ArgvInputParser`, `CommandInputValidator`, catalog selection, and `KernelOpsRequestResolver`
-  - [ ] MUST NOT contain argv values, option values, paths, or previous Throwable messages
-
-- [ ] `packages/platform/cli/src/Exception/CliBootstrapException.php`
-  - [ ] code `CORETSIA_CLI_BOOTSTRAP_FAILED`
-  - [ ] code-first deterministic public message
-  - [ ] exposes only stable safe reason tokens
-  - [ ] used after Composer autoload by `CliEntrypointPathsResolver`
-  - [ ] MUST NOT contain launcher paths, autoload paths, skeleton paths, or previous Throwable messages
-
-- [ ] `packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php`
-  - [ ] code `CORETSIA_CLI_INVALID_COMMAND_META`
-  - [ ] Stateless schema/registry violation exception
-  - [ ] error details limited to names/serviceIds (no secrets/paths)
-
-- [ ] `packages/platform/cli/src/Exception/RedactionViolationException.php`
-  - [ ] Stateless redaction policy violation exception
-  - [ ] exposes only code `CORETSIA_CLI_REDACTION_VIOLATION`
-  - [ ] exposes fixed reason `output-redaction-failed`
-  - [ ] contains no raw value, hash, length, path, or previous Throwable message
-
-- [ ] `packages/platform/cli/src/Exception/CliOutputFormatException.php`
-  - [ ] code `CORETSIA_CLI_OUTPUT_FORMAT_FAILED`
-  - [ ] fixed reason `output-format-failed`
-  - [ ] contains no rendered bytes, raw records, paths, or previous message
-
-- [ ] `packages/platform/cli/src/Exception/CliCommandFailedException.php`
-  - [ ] code `CORETSIA_CLI_COMMAND_FAILED`
-  - [ ] code-first deterministic public message
-  - [ ] exposes fixed safe reason token
-  - [ ] previous throwable message is never included
-  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
-
-- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
-  - [ ] code `CORETSIA_CLI_CONFIG_INVALID`
-  - [ ] code-first deterministic public message
-  - [ ] exposes only stable safe reason tokens
-  - [ ] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
-  - [ ] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
-  - [ ] no dependency on deleted `CliException` or `ErrorCodes`
-
 - [ ] `packages/platform/cli/src/Command/HelpCommand.php`
   - [ ] existing Phase-0 implementation is replaced completely
   - [ ] receives `CommandCatalog`
@@ -5077,6 +5077,14 @@ Errors:
   - [ ] `ARGUMENTS = []`
   - [ ] `OPTIONS = []`
   - [ ] `SUMMARY = 'List available commands.'`
+
+Docs:
+- [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
+  - [ ] MUST capture:
+    - [ ] tag-first discovery via `cli.command`
+    - [ ] reserved built-in command names (`doctor`, `help`, `list`)
+    - [ ] kernel ops consumption only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+    - [ ] deterministic output + redaction policy
 
 #### Modifies
 

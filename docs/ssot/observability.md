@@ -182,6 +182,8 @@ The method/type mapping is canonical:
 |------------------------------------------|-------------------|---------|-------------------------------|
 | http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome` |
 | http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
+| cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`        |
+| cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`        |
 | foundation.reset_total                   | `core/foundation` | counter | `outcome`                     |
 | foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                     |
 | kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`        |
@@ -474,6 +476,108 @@ Container compile logs MAY include only safe compile summary data:
 - outcome.
 
 Artifact/fingerprint/container-compile/cache logs MUST NOT include secrets, raw payloads, raw config values, raw config dumps, raw env values, dotenv values, source file contents, closure dumps, source snippets, full fingerprints, absolute paths, temp paths, OS error messages, PHP warning text, stack traces, throwable messages, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
+
+### CLI command observability policy
+
+CLI command execution observability is owned by `platform/cli` through `CommandRunner`.
+
+The canonical span is:
+
+```text
+cli.command
+```
+
+The canonical metrics are:
+
+```text
+cli.command_total
+cli.command_duration_ms
+```
+
+These metric families MUST use exactly the following labels:
+
+```text
+operation
+outcome
+```
+
+`operation` MUST be the canonical command name from the selected `CommandDescriptor`.
+
+Allowed `outcome` values are exactly:
+
+```text
+success
+failure
+```
+
+A returned process exit code `0` maps to `success`. A non-zero return or thrown exception maps to `failure`. A thrown exception uses exit code `1` in the CLI span and safe completion/failure log.
+
+CLI command outcomes MUST NOT reinterpret the Kernel-owned UoW lifecycle outcome.
+
+The following keys MUST NOT be emitted as labels for either CLI command metric:
+
+```text
+format
+exit_code
+app_target
+preset
+correlation_id
+uow_id
+```
+
+The `cli.command` span MUST start before the Kernel CLI UnitOfWork and cover its complete lifecycle, including after-hooks and reset.
+
+Initial span attributes MUST contain only:
+
+```text
+operation
+format
+```
+
+The final span attribute update MUST contain only:
+
+```text
+operation
+format
+outcome
+exit_code
+```
+
+`format` MAY be a bounded span attribute with only `json`, `table`, or `plain` values.
+
+`exit_code` MAY be a bounded integer span attribute representing the selected command's process exit code (`0` through `255`), or `1` for a thrown failure.
+
+Neither `format` nor `exit_code` is a metric label. `app_target`, `preset`, `correlation_id`, and `uow_id` MUST NOT be added as CLI command span attributes.
+
+CLI command duration MUST be measured in non-negative integer milliseconds through Foundation `Stopwatch`. Timing failure uses `0`.
+
+`CommandRunner` MUST attempt exactly one counter increment and one duration observation per selected normal command execution.
+
+A successfully started command span MUST be ended exactly once, even when its final attribute update fails.
+
+Tracer, span, meter, logger, stopwatch, and optional context-read failures MUST NOT change command behavior, exit codes, or primary exception precedence.
+
+CLI command completion/failure logs MUST contain only:
+
+- `operation`
+- `outcome`
+- `exit_code`
+
+Logs MAY additionally contain previously captured, validated safe `correlation_id` and `uow_id` values. These identifiers MUST NOT become metric labels or CLI command span attributes.
+
+CLI command spans, metrics, and logs MUST NOT contain:
+
+- raw argv, arguments, or option values;
+- command output records;
+- filesystem paths or endpoints;
+- raw config or environment values;
+- request or runtime payloads;
+- headers, cookies, or tokens;
+- Throwable messages, previous Throwable messages, or stack traces.
+
+`CommandRunner` owns the CLI command execution observability boundary independently of Kernel-owned `kernel.uow` and `kernel.operation` telemetry.
+
+CLI transport services, formatters, writers, and built-in commands MUST NOT duplicate Kernel-owned observability or emit additional command lifecycle metrics.
 
 ### Worker observability policy
 
@@ -769,6 +873,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 ### Canonical Spans
 
 - `http.request`
+- `cli.command`
 - `foundation.reset`
 - `kernel.uow`
 - `kernel.modules_resolve`

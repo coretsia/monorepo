@@ -4332,214 +4332,214 @@ Input:
 
 Output:
 - [ ] `packages/platform/cli/src/Output/CommandOutputBuffer.php`
-  - [ ] implements `OutputInterface`
+  - [x] implements `OutputInterface`
   - [ ] created as a new local instance for one `CliApplication::run()` invocation
-  - [ ] preserves `text()`, `json()`, and `error()` records in call order
-  - [ ] MUST NOT write stdout/stderr
+  - [x] preserves `text()`, `json()`, and `error()` records in call order
+  - [x] MUST NOT write stdout/stderr
   - [ ] MUST NOT be a shared container service
-  - [ ] local per-invocation state does not require `kernel.stateful`
-  - [ ] `finalize(): CommandOutputBatch`
-  - [ ] `discard(): void`
-  - [ ] `discard()` clears every buffered record and leaves the buffer writable
-  - [ ] `discard()` MUST NOT be called after finalization
+  - [x] local per-invocation state does not require `kernel.stateful`
+  - [x] `finalize(): CommandOutputBatch`
+  - [x] `discard(): void`
+  - [x] `discard()` clears every buffered record and leaves the buffer writable
+  - [x] `discard()` MUST NOT be called after finalization
   - [ ] `discard()` is used only by the `CliApplication` error boundary
-  - [ ] buffer cannot be written after finalization
-  - [ ] enforces fixed per-invocation limits:
-    - [ ] maximum buffered records: `1024`
-    - [ ] maximum total buffered record bytes: `1048576`
-  - [ ] counts each normalized record using the byte length of its canonical Foundation `StableJsonEncoder::encodeStable()` representation
-  - [ ] performs aggregate accounting incrementally when a record is added
-  - [ ] rejects the next record before insertion when either limit would be exceeded
-  - [ ] a buffer-limit violation fails closed with one stable CLI-owned safe reason and MUST NOT emit partial buffered output
-  - [ ] MUST NOT introduce a separate JSON serializer or recursive structural resource-budget walker
-  - [ ] every `text|json|error` call normalizes immediately
-  - [ ] normalizes `CRLF|CR` to `LF` in text, error-message, and JSON-like string values only
-  - [ ] `error()` messages MUST remain non-empty single-line strings after normalization
-  - [ ] a normalized LF in an error message MUST be rejected before record insertion, not silently removed or replaced
-  - [ ] permitted LF characters in `text()` and JSON-like string values remain unaffected
-  - [ ] map keys are never rewritten or line-ending-normalized by CLI
-  - [ ] rejects NUL and ESC characters
-  - [ ] normalized string values reject C0/C1 control characters and DEL except normalized LF and TAB
-  - [ ] map keys reject all C0/C1 control characters and DEL, including CR, LF, and TAB, before shared redaction
-  - [ ] control-character validation MUST distinguish Unicode code points from raw UTF-8 continuation bytes
-  - [ ] valid UTF-8 text and map keys, including non-ASCII characters, MUST NOT be rejected merely because their encoded bytes contain values in `0x80..0x9F`
-  - [ ] malformed UTF-8 fails closed before record insertion through the required Foundation `StableJsonEncoder::encodeStable()` accounting path
-  - [ ] validates incoming JSON-like values through Foundation `JsonLikeNormalizer` using explicit bounded limits
-  - [ ] applies CLI-owned line-ending normalization and presentation-specific control-character rejection to string values without introducing map-key rewriting
-  - [ ] reuses Foundation `JsonLikeNormalizer` after CLI string transformation for final resource validation and deterministic recursive map ordering
-  - [ ] MUST NOT implement a second JSON-like structural validator, resource-budget walker, recursive map sorter, or map-key collision resolver
-  - [ ] owner-package output cannot inject raw ANSI sequences
+  - [x] buffer cannot be written after finalization
+  - [x] enforces fixed per-invocation limits:
+    - [x] maximum buffered records: `1024`
+    - [x] maximum total buffered record bytes: `1048576`
+  - [x] counts each normalized record using the byte length of its canonical Foundation `StableJsonEncoder::encodeStable()` representation
+  - [x] performs aggregate accounting incrementally when a record is added
+  - [x] rejects the next record before insertion when either limit would be exceeded
+  - [x] a buffer-limit violation fails closed with one stable CLI-owned safe reason and MUST NOT emit partial buffered output
+  - [x] MUST NOT introduce a separate JSON serializer or recursive structural resource-budget walker
+  - [x] every `text|json|error` call normalizes immediately
+  - [x] normalizes `CRLF|CR` to `LF` in text, error-message, and JSON-like string values only
+  - [x] `error()` messages MUST remain non-empty single-line strings after normalization
+  - [x] a normalized LF in an error message MUST be rejected before record insertion, not silently removed or replaced
+  - [x] permitted LF characters in `text()` and JSON-like string values remain unaffected
+  - [x] map keys are never rewritten or line-ending-normalized by CLI
+  - [x] rejects NUL and ESC characters
+  - [x] normalized string values reject C0/C1 control characters and DEL except normalized LF and TAB
+  - [x] map keys reject all C0/C1 control characters and DEL, including CR, LF, and TAB, before shared redaction
+  - [x] control-character validation MUST distinguish Unicode code points from raw UTF-8 continuation bytes
+  - [x] valid UTF-8 text and map keys, including non-ASCII characters, MUST NOT be rejected merely because their encoded bytes contain values in `0x80..0x9F`
+  - [x] malformed UTF-8 fails closed before record insertion through the required Foundation `StableJsonEncoder::encodeStable()` accounting path
+  - [x] validates incoming JSON-like values through Foundation `JsonLikeNormalizer` using explicit bounded limits
+  - [x] applies CLI-owned line-ending normalization and presentation-specific control-character rejection to string values without introducing map-key rewriting
+  - [x] reuses Foundation `JsonLikeNormalizer` after CLI string transformation for final resource validation and deterministic recursive map ordering
+  - [x] MUST NOT implement a second JSON-like structural validator, resource-budget walker, recursive map sorter, or map-key collision resolver
+  - [x] owner-package output cannot inject raw ANSI sequences
 
-- [ ] `packages/platform/cli/src/Output/CommandOutputBatch.php`
-  - [ ] immutable finalized ordered record list
-  - [ ] exact record shapes:
-    - [ ] text:
-      - [ ] `type = text`
-      - [ ] `text: string`
-    - [ ] json:
-      - [ ] `type = json`
-      - [ ] `payload: json-like array`
-    - [ ] error:
-      - [ ] `type = error`
-      - [ ] `code: non-empty safe token`
-      - [ ] `message: non-empty safe single-line string`
-  - [ ] contains only values normalized through the canonical Foundation json-like boundary
-  - [ ] relies on Foundation for rejection of floats, objects, resources, closures, Throwables, and invalid map keys
-  - [ ] preserves the canonical Foundation map ordering and original list and record order
-  - [ ] contains no streams or formatter state
+- [x] `packages/platform/cli/src/Output/CommandOutputBatch.php`
+  - [x] immutable finalized ordered record list
+  - [x] exact record shapes:
+    - [x] text:
+      - [x] `type = text`
+      - [x] `text: string`
+    - [x] json:
+      - [x] `type = json`
+      - [x] `payload: json-like array`
+    - [x] error:
+      - [x] `type = error`
+      - [x] `code: non-empty safe token`
+      - [x] `message: non-empty safe single-line string`
+  - [x] contains only values normalized through the canonical Foundation json-like boundary
+  - [x] relies on Foundation for rejection of floats, objects, resources, closures, Throwables, and invalid map keys
+  - [x] preserves the canonical Foundation map ordering and original list and record order
+  - [x] contains no streams or formatter state
 
 - [ ] `packages/platform/cli/src/Output/FormattedOutput.php`
-  - [ ] stdout and stderr payloads MUST NOT end with CR or LF
-  - [ ] final-newline ownership belongs exclusively to `ConsoleOutputWriter`
-  - [ ] immutable readonly value
-  - [ ] contains:
-    - [ ] `stdoutBytes: string`
-    - [ ] `stderrBytes: string`
-  - [ ] contains no streams
+  - [x] stdout and stderr payloads MUST NOT end with CR or LF
+  - [x] final-newline ownership belongs exclusively to `ConsoleOutputWriter`
+  - [x] immutable readonly value
+  - [x] contains:
+    - [x] `stdoutBytes: string`
+    - [x] `stderrBytes: string`
+  - [x] contains no streams
   - [ ] contains no ANSI when effective color is disabled
-  - [ ] stores stdout and stderr bytes without trailing CR or LF
+  - [x] stores stdout and stderr bytes without trailing CR or LF
 
 - [ ] `packages/platform/cli/src/Output/ConsoleOutputWriter.php`
   - [ ] invocation-local final output sink
-  - [ ] constructor receives explicit stdout and stderr stream resources
-  - [ ] canonical API:
-    - [ ] `public function write(FormattedOutput $output): void`
-  - [ ] writes only already-formatted bytes
-  - [ ] owns deterministic final-newline policy
-  - [ ] writes exactly one final newline for each non-empty stream payload
-  - [ ] retains no previous output
+  - [x] constructor receives explicit stdout and stderr stream resources
+  - [x] canonical API:
+    - [x] `public function write(FormattedOutput $output): void`
+  - [x] writes only already-formatted bytes
+  - [x] owns deterministic final-newline policy
+  - [x] writes exactly one final newline for each non-empty stream payload
+  - [x] retains no previous output
   - [ ] commands MUST NOT receive this service
 
-- [ ] `packages/platform/cli/src/Output/FormatResolver.php`
-  - [ ] `public function resolve(?string $explicitFormat, TerminalCapabilities $capabilities): string`
-  - [ ] consumes:
-    - [ ] nullable explicit global format token
-    - [ ] `CliOutputPolicy`
-    - [ ] `TerminalCapabilities`
-  - [ ] precedence:
-    - [ ] explicit `--format`
-    - [ ] `cli.output.format_default`
-  - [ ] when effective token is not `adaptive`, returns it unchanged
-  - [ ] when effective token is `adaptive`:
-    - [ ] interactive terminal → configured interactive format
-    - [ ] non-interactive terminal → configured non-interactive format
-  - [ ] allowed effective values: `json|table|plain`
-  - [ ] returns no `adaptive` token after resolution
-  - [ ] MUST NOT inspect CI environment variables
-  - [ ] MUST NOT inspect command-owner options
-  - [ ] MUST NOT read config directly
-  - [ ] deterministic for the same policy, global token, and terminal capabilities
+- [x] `packages/platform/cli/src/Output/FormatResolver.php`
+  - [x] `public function resolve(?string $explicitFormat, TerminalCapabilities $capabilities): string`
+  - [x] consumes:
+    - [x] nullable explicit global format token
+    - [x] `CliOutputPolicy`
+    - [x] `TerminalCapabilities`
+  - [x] precedence:
+    - [x] explicit `--format`
+    - [x] `cli.output.format_default`
+  - [x] when effective token is not `adaptive`, returns it unchanged
+  - [x] when effective token is `adaptive`:
+    - [x] interactive terminal → configured interactive format
+    - [x] non-interactive terminal → configured non-interactive format
+  - [x] allowed effective values: `json|table|plain`
+  - [x] returns no `adaptive` token after resolution
+  - [x] MUST NOT inspect CI environment variables
+  - [x] MUST NOT inspect command-owner options
+  - [x] MUST NOT read config directly
+  - [x] deterministic for the same policy, global token, and terminal capabilities
 
-- [ ] `packages/platform/cli/src/Output/ColorResolver.php`
-  - [ ] `public function resolve(?string $explicitColor, TerminalCapabilities $capabilities, string $effectiveFormat): bool`
-  - [ ] consumes:
-    - [ ] nullable explicit global color token
-    - [ ] `CliOutputPolicy`
-    - [ ] `TerminalCapabilities`
-    - [ ] effective output format
-  - [ ] precedence:
-    - [ ] explicit `--color`
-    - [ ] `cli.output.color_default`
-  - [ ] resolves:
-    - [ ] `always` → enabled
-    - [ ] `never` → disabled
-    - [ ] `auto` → enabled only when output is interactive and ANSI is supported
-  - [ ] JSON format always forces color disabled
-  - [ ] MUST NOT read config directly
-  - [ ] MUST NOT inspect command-owner options
-  - [ ] MUST NOT expose terminal details to commands
-  - [ ] returns one boolean effective color decision
+- [x] `packages/platform/cli/src/Output/ColorResolver.php`
+  - [x] `public function resolve(?string $explicitColor, TerminalCapabilities $capabilities, string $effectiveFormat): bool`
+  - [x] consumes:
+    - [x] nullable explicit global color token
+    - [x] `CliOutputPolicy`
+    - [x] `TerminalCapabilities`
+    - [x] effective output format
+  - [x] precedence:
+    - [x] explicit `--color`
+    - [x] `cli.output.color_default`
+  - [x] resolves:
+    - [x] `always` → enabled
+    - [x] `never` → disabled
+    - [x] `auto` → enabled only when output is interactive and ANSI is supported
+  - [x] JSON format always forces color disabled
+  - [x] MUST NOT read config directly
+  - [x] MUST NOT inspect command-owner options
+  - [x] MUST NOT expose terminal details to commands
+  - [x] returns one boolean effective color decision
 
 - [ ] `packages/platform/cli/src/Output/Ansi/AnsiDecorator.php`
-  - [ ] owns the fixed semantic ANSI mapping
-  - [ ] semantic roles:
-    - [ ] heading
-    - [ ] success
-    - [ ] warning
-    - [ ] error
-    - [ ] muted
-  - [ ] applies ANSI only when effective color is enabled
-  - [ ] MUST NOT decorate JSON
-  - [ ] MUST NOT inspect config
-  - [ ] MUST NOT expose raw ANSI codes to commands
-  - [ ] MUST NOT allow user-defined escape sequences
+  - [x] owns the fixed semantic ANSI mapping
+  - [x] semantic roles:
+    - [x] heading
+    - [x] success
+    - [x] warning
+    - [x] error
+    - [x] muted
+  - [x] applies ANSI only when effective color is enabled
+  - [x] MUST NOT decorate JSON
+  - [x] MUST NOT inspect config
+  - [x] MUST NOT expose raw ANSI codes to commands
+  - [x] MUST NOT allow user-defined escape sequences
   - [ ] MUST NOT add ANSI to redirected output in `auto` mode
-  - [ ] output with color disabled is byte-stable and escape-free
+  - [x] output with color disabled is byte-stable and escape-free
 
 Output (deterministic + redacted):
-- [ ] `packages/platform/cli/src/Output/OutputFormatter.php`
-  - [ ] MUST be a stateless one-call transformer
-  - [ ] MUST NOT implement `begin|add|flush` accumulation
-  - [ ] MUST NOT be tagged `kernel.stateful` or `kernel.reset`
-  - [ ] MUST consume `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` for sensitive output summaries.
-  - [ ] `packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
-  - [ ] `packages/platform/cli/src/Redaction/*` MUST NOT exist in this package.
-  - [ ] receives effective format and effective color as explicit invocation inputs
-  - [ ] MUST NOT read CLI config
-  - [ ] MUST NOT read ContextStore
-  - [ ] redaction is always applied as defense in depth
-  - [ ] constructs one immutable `RedactionContext` with scope `cli.output` and mode `RedactionMode::Placeholder`
-  - [ ] extracts owner-supplied text values, JSON payload values, and error messages from normalized records before shared redaction
-  - [ ] MUST NOT pass the CLI record envelope or its structural `payload` field into `redactJsonLike()`
-  - [ ] passes the extracted values through the shared `SensitiveDataRedactorInterface` without introducing CLI-local classification or hashing
-  - [ ] reconstructs the original CLI record envelopes after redaction, preserving record order and canonical record types
-  - [ ] converts a structured redaction summary replacing a text or error-message string into one fixed safe placeholder string
-  - [ ] MUST NOT restore the original value when redaction changes its type or shape
-  - [ ] MUST NOT redact an already-encoded JSON document
-  - [ ] relies on the shared redactor for deterministic recursive json-like normalization and map ordering
-  - [ ] validates only the CLI-owned record envelope and presentation-specific string constraints after redaction
-  - [ ] preserves list and record order after redaction
-  - [ ] redaction MUST NOT introduce invalid map keys, floats, objects, resources, or control bytes
-  - [ ] redaction cannot be disabled by config or command option
-  - [ ] formatter/redactor failures map to deterministic safe CLI failure
-  - [ ] redactor failure is wrapped as `RedactionViolationException`
-  - [ ] concrete formatter failure is wrapped as `CliOutputFormatException`
-  - [ ] neither wrapper copies the previous Throwable message
-  - [ ] `RedactionViolationException` contains only:
-    - [ ] code `CORETSIA_CLI_REDACTION_VIOLATION`
-    - [ ] reason `output-redaction-failed`
-  - [ ] `CliOutputFormatException` contains only:
-    - [ ] code `CORETSIA_CLI_OUTPUT_FORMAT_FAILED`
-    - [ ] reason `output-format-failed`
-  - [ ] neither exception copies the previous Throwable message
-  - [ ] canonical API:
-    - [ ] `public function format(CommandOutputBatch $batch, ?string $commandName, int $exitCode, string $format, bool $color): FormattedOutput`
-  - [ ] command name is null for failures that occur before descriptor selection
-  - [ ] delegates to exactly one concrete formatter
-  - [ ] JSON output:
-    - [ ] writes one document to stdout
-    - [ ] leaves stderr empty
-  - [ ] plain/table output:
-    - [ ] text and json-derived records go to stdout
-    - [ ] error records go to stderr
+- [x] `packages/platform/cli/src/Output/OutputFormatter.php`
+  - [x] MUST be a stateless one-call transformer
+  - [x] MUST NOT implement `begin|add|flush` accumulation
+  - [x] MUST NOT be tagged `kernel.stateful` or `kernel.reset`
+  - [x] MUST consume `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` for sensitive output summaries.
+  - [x] `packages/platform/cli/src/Output/Redaction/*` MUST NOT exist in this package.
+  - [x] `packages/platform/cli/src/Redaction/*` MUST NOT exist in this package.
+  - [x] receives effective format and effective color as explicit invocation inputs
+  - [x] MUST NOT read CLI config
+  - [x] MUST NOT read ContextStore
+  - [x] redaction is always applied as defense in depth
+  - [x] constructs one immutable `RedactionContext` with scope `cli.output` and mode `RedactionMode::Placeholder`
+  - [x] extracts owner-supplied text values, JSON payload values, and error messages from normalized records before shared redaction
+  - [x] MUST NOT pass the CLI record envelope or its structural `payload` field into `redactJsonLike()`
+  - [x] passes the extracted values through the shared `SensitiveDataRedactorInterface` without introducing CLI-local classification or hashing
+  - [x] reconstructs the original CLI record envelopes after redaction, preserving record order and canonical record types
+  - [x] converts a structured redaction summary replacing a text or error-message string into one fixed safe placeholder string
+  - [x] MUST NOT restore the original value when redaction changes its type or shape
+  - [x] MUST NOT redact an already-encoded JSON document
+  - [x] relies on the shared redactor for deterministic recursive json-like normalization and map ordering
+  - [x] validates only the CLI-owned record envelope and presentation-specific string constraints after redaction
+  - [x] preserves list and record order after redaction
+  - [x] redaction MUST NOT introduce invalid map keys, floats, objects, resources, or control bytes
+  - [x] redaction cannot be disabled by config or command option
+  - [x] formatter/redactor failures map to deterministic safe CLI failure
+  - [x] redactor failure is wrapped as `RedactionViolationException`
+  - [x] concrete formatter failure is wrapped as `CliOutputFormatException`
+  - [x] neither wrapper copies the previous Throwable message
+  - [x] `RedactionViolationException` contains only:
+    - [x] code `CORETSIA_CLI_REDACTION_VIOLATION`
+    - [x] reason `output-redaction-failed`
+  - [x] `CliOutputFormatException` contains only:
+    - [x] code `CORETSIA_CLI_OUTPUT_FORMAT_FAILED`
+    - [x] reason `output-format-failed`
+  - [x] neither exception copies the previous Throwable message
+  - [x] canonical API:
+    - [x] `public function format(CommandOutputBatch $batch, ?string $commandName, int $exitCode, string $format, bool $color): FormattedOutput`
+  - [x] command name is null for failures that occur before descriptor selection
+  - [x] delegates to exactly one concrete formatter
+  - [x] JSON output:
+    - [x] writes one document to stdout
+    - [x] leaves stderr empty
+  - [x] plain/table output:
+    - [x] text and json-derived records go to stdout
+    - [x] error records go to stderr
 
-- [ ] `packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
-  - [ ] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
-  - [ ] MUST reuse Foundation `StableJsonEncoder::encodeStableMap()` for the complete root JSON object
-  - [ ] MUST remove exactly the encoder-owned final LF before constructing `FormattedOutput`
-  - [ ] MUST NOT introduce a separate JSON encoder, recursive key sorter, or serialization policy
-  - [ ] `ConsoleOutputWriter` remains the sole owner of the final output newline
-  - [ ] MUST NOT emit ANSI escape sequences
-  - [ ] MUST NOT emit terminal-width-dependent output
-  - [ ] MUST ignore effective color even when global color is `always`
-  - [ ] `meta.command` is `string|null`
-  - [ ] null is used only when descriptor selection did not complete
-  - [ ] produces stream payloads without trailing CR or LF
+- [x] `packages/platform/cli/src/Output/Formatter/JsonFormatter.php` — stable schema `schema, meta, data`
+  - [x] Stateless formatter: produces deterministic JSON (stable key order, stable schema envelope, no runtime caches).
+  - [x] MUST reuse Foundation `StableJsonEncoder::encodeStableMap()` for the complete root JSON object
+  - [x] MUST remove exactly the encoder-owned final LF before constructing `FormattedOutput`
+  - [x] MUST NOT introduce a separate JSON encoder, recursive key sorter, or serialization policy
+  - [x] `ConsoleOutputWriter` remains the sole owner of the final output newline
+  - [x] MUST NOT emit ANSI escape sequences
+  - [x] MUST NOT emit terminal-width-dependent output
+  - [x] MUST ignore effective color even when global color is `always`
+  - [x] `meta.command` is `string|null`
+  - [x] null is used only when descriptor selection did not complete
+  - [x] produces stream payloads without trailing CR or LF
 
-- [ ] `packages/platform/cli/src/Output/Formatter/TableFormatter.php` — safe table output
-  - [ ] Stateless table renderer: no cross-run width/column memory; compute from current payload only.
-  - [ ] constructor receives configured `maxWidth`
-  - [ ] honors `cli.output.table.max_width`
-  - [ ] width handling is deterministic and does not query terminal width
-  - [ ] MAY use `AnsiDecorator` only when color is enabled
-  - [ ] visible-width calculation MUST ignore ANSI escape bytes
-  - [ ] produces stream payloads without trailing CR or LF
+- [x] `packages/platform/cli/src/Output/Formatter/TableFormatter.php` — safe table output
+  - [x] Stateless table renderer: no cross-run width/column memory; compute from current payload only.
+  - [x] constructor receives configured `maxWidth`
+  - [x] honors `cli.output.table.max_width`
+  - [x] width handling is deterministic and does not query terminal width
+  - [x] MAY use `AnsiDecorator` only when color is enabled
+  - [x] visible-width calculation MUST ignore ANSI escape bytes
+  - [x] produces stream payloads without trailing CR or LF
 
-- [ ] `packages/platform/cli/src/Output/Formatter/PlainFormatter.php` — safe plain output
-  - [ ] Stateless plain renderer; no hidden global formatting state.
-  - [ ] MAY use `AnsiDecorator` only when color is enabled
-  - [ ] color-disabled output is byte-stable
-  - [ ] produces stream payloads without trailing CR or LF
+- [x] `packages/platform/cli/src/Output/Formatter/PlainFormatter.php` — safe plain output
+  - [x] Stateless plain renderer; no hidden global formatting state.
+  - [x] MAY use `AnsiDecorator` only when color is enabled
+  - [x] color-disabled output is byte-stable
+  - [x] produces stream payloads without trailing CR or LF
 
 Output schema:
 - [ ] `packages/platform/cli/resources/schema/cli_output@1.json`
@@ -4708,139 +4708,139 @@ Kernel operation request resolver:
   - [x] semantic target validation belongs to Kernel Ops
 
 Runner + diagnostics:
-- [ ] `packages/platform/cli/src/Runner/CommandRunner.php`
-  - [ ] `public function run(CommandDescriptor $descriptor, InputInterface $input, OutputInterface $output, string $outputFormat): int`
-  - [ ] service resolution and exit-code validation occur inside the UoW callback
-  - [ ] invalid exit code throws before `KernelRuntimeInterface::runUnitOfWork()` returns
-  - [ ] resolves the selected command through `ContainerInterface`
-  - [ ] executes `CommandInterface::run()` through `KernelRuntimeInterface`
-  - [ ] on Throwable:
-    - [ ] records only safe failure observability
-    - [ ] allows `KernelRuntimeInterface` to complete after/reset lifecycle
-    - [ ] rethrows the original Throwable
-  - [ ] MUST NOT depend on `ErrorHandlerInterface`
-  - [ ] MUST NOT depend on `ExceptionRenderer`
-  - [ ] MUST NOT render command failures
-  - [ ] MUST resolve command service only after catalog selects a descriptor
-  - [ ] resolved service MUST implement `CommandInterface`
-  - [ ] the resolved object's actual class MUST equal `CommandDescriptor::serviceId()` exactly
-  - [ ] a container binding returning a different command class, subclass, proxy, or decorator under the tagged service id MUST fail closed
-  - [ ] resolved command `name()` MUST equal descriptor name
-  - [ ] class-identity or command-name mismatch MUST throw `InvalidCommandTagMetaException`
-  - [ ] MUST NOT introduce a second service registry, command-owner lookup, or provider-origin resolver
-  - [ ] MUST pass parsed `InputInterface` to command
-  - [ ] MUST pass `OutputInterface` to command
-  - [ ] MUST NOT let commands parse raw argv through platform-specific classes
-  - [ ] MUST execute runtime commands inside kernel UoW wrapper
-  - [ ] MUST NOT instantiate all commands for `list` / `help`
-  - [ ] preserves the integer exit code returned by an owner-package command
-  - [ ] validates that the returned exit code is within `0..255`
-  - [ ] invalid return codes fail through `CliCommandFailedException`
-  - [ ] MUST NOT remap a valid owner-package exit code
-  - [ ] built-in Kernel operation commands perform their `OpsResult` mapping inside their own command implementation
-  - [ ] constructor receives:
-    - [ ] `KernelRuntimeInterface`
-    - [ ] `ContextAccessorInterface`
-    - [ ] `TracerPortInterface`
-    - [ ] `MeterPortInterface`
-    - [ ] `LoggerInterface`
-    - [ ] `Psr\Container\ContainerInterface`
-    - [ ] Foundation `Stopwatch`
-  - [ ] resolves only `CommandDescriptor::serviceId()` through `ContainerInterface`
-  - [ ] resolution happens only after:
-    - [ ] catalog selection
-    - [ ] global-option separation
-    - [ ] descriptor-driven input validation
-  - [ ] runner resolves only the selected `ListCommand` or `HelpCommand`
-  - [ ] those commands render descriptors without resolving any other command service
-  - [ ] MUST NOT enumerate container services
-  - [ ] MUST NOT resolve all tagged command services eagerly
-  - [ ] executes one selected command through one canonical UoW:
-    - [ ] UoW type: `cli`
-    - [ ] safe operation id: selected descriptor command name
-    - [ ] safe UoW attribute: effective output format
-  - [ ] MUST NOT:
-    - [ ] write ContextStore directly
-    - [ ] create correlation id
-    - [ ] create UoW id
-    - [ ] invoke hooks directly
-    - [ ] invoke reset orchestration directly
-    - [ ] enumerate reset tags
-    - [ ] pass raw argv/options/arguments into UoW attributes
-  - [ ] context reads for optional command-log correlation occur only inside the UoW callback, after KernelRuntime has written base context keys and before KernelRuntime resets ContextStore
-  - [ ] reads only through `ContextAccessorInterface::has()` and `get()`:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-  - [ ] includes only non-empty safe identifier strings in the optional `correlation_id|uow_id` log fields
-  - [ ] missing, invalid, or unreadable context identifiers are omitted without changing command execution or its exit code
-  - [ ] MUST NOT read `ContextKeys::UOW_TYPE` merely to revalidate the already-selected `UnitOfWorkType::CLI`
-  - [ ] MUST NOT attempt to retrieve command UoW identifiers from ContextStore after `runUnitOfWork()` returns or throws
-  - [ ] MUST NOT copy the complete context, UoW attributes, or hook payloads into logs, spans, metrics, or diagnostics
-  - [ ] calls:
-    - [ ] `KernelRuntimeInterface::runUnitOfWork(UnitOfWorkType::CLI, ...)`
-    - [ ] attributes contain exactly `operation|output_format`
-  - [ ] MUST NOT write UoW attributes into ContextStore directly
-  - [ ] owns the `cli.command` execution-observability boundary independently of Kernel-owned `kernel.uow` and `kernel.operation` telemetry
-  - [ ] attempts exactly one `TracerPortInterface::startSpan('cli.command', ...)` per selected normal command execution
-  - [ ] starts the command span before entering `KernelRuntimeInterface::runUnitOfWork()`
-  - [ ] the command span covers the complete Kernel UoW invocation, including its after-hook and reset lifecycle
-  - [ ] initial span attributes contain only:
-    - [ ] `operation` = selected descriptor command name
-    - [ ] `format` = effective `json|table|plain`
-  - [ ] after UoW completion or failure, attempts one final span attribute update containing:
-    - [ ] `operation`
-    - [ ] `format`
-    - [ ] `outcome` = `success|failure`
-    - [ ] `exit_code` = returned process exit code or `1` for a thrown failure
-  - [ ] attempts `SpanInterface::end()` exactly once for a successfully started span, even when attribute updates fail
-  - [ ] a failed span start MUST NOT prevent Kernel UoW execution or trigger another span-start attempt
-  - [ ] MUST NOT use `TracerPortInterface::inSpan()` in a way that can suppress or repeat command execution when tracing fails
-  - [ ] uses Foundation `Stopwatch::start()` and `stop()` to measure the complete command UoW duration
-  - [ ] stopwatch failures are isolated and use a non-negative integer duration fallback of `0`
-  - [ ] attempts exactly one `MeterPortInterface::increment('cli.command_total', 1, $labels)` per normal command execution
-  - [ ] attempts exactly one `MeterPortInterface::observe('cli.command_duration_ms', $durationMs, $labels)` per normal command execution
-  - [ ] metric labels contain exactly `operation|outcome`
-  - [ ] counter and duration observation failures are isolated independently
-  - [ ] attempts one safe command completion/failure log through `LoggerInterface`
-  - [ ] command log fields contain only `operation|outcome|exit_code`, with optional previously captured safe `correlation_id|uow_id`
-  - [ ] every tracer, span, meter, logger, stopwatch, and optional context-read failure is isolated from the primary command result or Throwable
-  - [ ] command observability MUST NOT resolve or invoke `KernelOpsFacade`, Kernel observability internals, UoW hooks, or reset orchestration directly
+- [x] `packages/platform/cli/src/Runner/CommandRunner.php`
+  - [x] `public function run(CommandDescriptor $descriptor, InputInterface $input, OutputInterface $output, string $outputFormat): int`
+  - [x] service resolution and exit-code validation occur inside the UoW callback
+  - [x] invalid exit code throws before `KernelRuntimeInterface::runUnitOfWork()` returns
+  - [x] resolves the selected command through `ContainerInterface`
+  - [x] executes `CommandInterface::run()` through `KernelRuntimeInterface`
+  - [x] on Throwable:
+    - [x] records only safe failure observability
+    - [x] allows `KernelRuntimeInterface` to complete after/reset lifecycle
+    - [x] rethrows the original Throwable
+  - [x] MUST NOT depend on `ErrorHandlerInterface`
+  - [x] MUST NOT depend on `ExceptionRenderer`
+  - [x] MUST NOT render command failures
+  - [x] MUST resolve command service only after catalog selects a descriptor
+  - [x] resolved service MUST implement `CommandInterface`
+  - [x] the resolved object's actual class MUST equal `CommandDescriptor::serviceId()` exactly
+  - [x] a container binding returning a different command class, subclass, proxy, or decorator under the tagged service id MUST fail closed
+  - [x] resolved command `name()` MUST equal descriptor name
+  - [x] class-identity or command-name mismatch MUST throw `InvalidCommandTagMetaException`
+  - [x] MUST NOT introduce a second service registry, command-owner lookup, or provider-origin resolver
+  - [x] MUST pass parsed `InputInterface` to command
+  - [x] MUST pass `OutputInterface` to command
+  - [x] MUST NOT let commands parse raw argv through platform-specific classes
+  - [x] MUST execute runtime commands inside kernel UoW wrapper
+  - [x] MUST NOT instantiate all commands for `list` / `help`
+  - [x] preserves the integer exit code returned by an owner-package command
+  - [x] validates that the returned exit code is within `0..255`
+  - [x] invalid return codes fail through `CliCommandFailedException`
+  - [x] MUST NOT remap a valid owner-package exit code
+  - [x] built-in Kernel operation commands perform their `OpsResult` mapping inside their own command implementation
+  - [x] constructor receives:
+    - [x] `KernelRuntimeInterface`
+    - [x] `ContextAccessorInterface`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] `LoggerInterface`
+    - [x] `Psr\Container\ContainerInterface`
+    - [x] Foundation `Stopwatch`
+  - [x] resolves only `CommandDescriptor::serviceId()` through `ContainerInterface`
+  - [x] resolution happens only after:
+    - [x] catalog selection
+    - [x] global-option separation
+    - [x] descriptor-driven input validation
+  - [x] runner resolves only the selected `ListCommand` or `HelpCommand`
+  - [x] those commands render descriptors without resolving any other command service
+  - [x] MUST NOT enumerate container services
+  - [x] MUST NOT resolve all tagged command services eagerly
+  - [x] executes one selected command through one canonical UoW:
+    - [x] UoW type: `cli`
+    - [x] safe operation id: selected descriptor command name
+    - [x] safe UoW attribute: effective output format
+  - [x] MUST NOT:
+    - [x] write ContextStore directly
+    - [x] create correlation id
+    - [x] create UoW id
+    - [x] invoke hooks directly
+    - [x] invoke reset orchestration directly
+    - [x] enumerate reset tags
+    - [x] pass raw argv/options/arguments into UoW attributes
+  - [x] context reads for optional command-log correlation occur only inside the UoW callback, after KernelRuntime has written base context keys and before KernelRuntime resets ContextStore
+  - [x] reads only through `ContextAccessorInterface::has()` and `get()`:
+    - [x] `ContextKeys::CORRELATION_ID`
+    - [x] `ContextKeys::UOW_ID`
+  - [x] includes only non-empty safe identifier strings in the optional `correlation_id|uow_id` log fields
+  - [x] missing, invalid, or unreadable context identifiers are omitted without changing command execution or its exit code
+  - [x] MUST NOT read `ContextKeys::UOW_TYPE` merely to revalidate the already-selected `UnitOfWorkType::CLI`
+  - [x] MUST NOT attempt to retrieve command UoW identifiers from ContextStore after `runUnitOfWork()` returns or throws
+  - [x] MUST NOT copy the complete context, UoW attributes, or hook payloads into logs, spans, metrics, or diagnostics
+  - [x] calls:
+    - [x] `KernelRuntimeInterface::runUnitOfWork(UnitOfWorkType::CLI, ...)`
+    - [x] attributes contain exactly `operation|output_format`
+  - [x] MUST NOT write UoW attributes into ContextStore directly
+  - [x] owns the `cli.command` execution-observability boundary independently of Kernel-owned `kernel.uow` and `kernel.operation` telemetry
+  - [x] attempts exactly one `TracerPortInterface::startSpan('cli.command', ...)` per selected normal command execution
+  - [x] starts the command span before entering `KernelRuntimeInterface::runUnitOfWork()`
+  - [x] the command span covers the complete Kernel UoW invocation, including its after-hook and reset lifecycle
+  - [x] initial span attributes contain only:
+    - [x] `operation` = selected descriptor command name
+    - [x] `format` = effective `json|table|plain`
+  - [x] after UoW completion or failure, attempts one final span attribute update containing:
+    - [x] `operation`
+    - [x] `format`
+    - [x] `outcome` = `success|failure`
+    - [x] `exit_code` = returned process exit code or `1` for a thrown failure
+  - [x] attempts `SpanInterface::end()` exactly once for a successfully started span, even when attribute updates fail
+  - [x] a failed span start MUST NOT prevent Kernel UoW execution or trigger another span-start attempt
+  - [x] MUST NOT use `TracerPortInterface::inSpan()` in a way that can suppress or repeat command execution when tracing fails
+  - [x] uses Foundation `Stopwatch::start()` and `stop()` to measure the complete command UoW duration
+  - [x] stopwatch failures are isolated and use a non-negative integer duration fallback of `0`
+  - [x] attempts exactly one `MeterPortInterface::increment('cli.command_total', 1, $labels)` per normal command execution
+  - [x] attempts exactly one `MeterPortInterface::observe('cli.command_duration_ms', $durationMs, $labels)` per normal command execution
+  - [x] metric labels contain exactly `operation|outcome`
+  - [x] counter and duration observation failures are isolated independently
+  - [x] attempts one safe command completion/failure log through `LoggerInterface`
+  - [x] command log fields contain only `operation|outcome|exit_code`, with optional previously captured safe `correlation_id|uow_id`
+  - [x] every tracer, span, meter, logger, stopwatch, and optional context-read failure is isolated from the primary command result or Throwable
+  - [x] command observability MUST NOT resolve or invoke `KernelOpsFacade`, Kernel observability internals, UoW hooks, or reset orchestration directly
 
-- [ ] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
-  - [ ] implements `ErrorHandlerInterface`
-  - [ ] canonical API:
-    - [ ] `public function handle(Throwable $throwable, ?ErrorHandlingContext $context = null): ErrorDescriptor`
-  - [ ] uses only safe `operation|correlationId` context fields when present
-  - [ ] returned descriptor extensions are empty in the baseline
-  - [ ] converts known CLI and Kernel port exceptions into format-neutral `ErrorDescriptor`
-  - [ ] known mappings use only stable public codes and fixed safe messages
-  - [ ] known mappings include:
-    - [ ] `CliInputInvalidException`
-    - [ ] `CliConfigInvalidException`
-    - [ ] `InvalidCommandTagMetaException`
-    - [ ] `CliCommandFailedException`
-    - [ ] `KernelOpsFailedException`
-  - [ ] unknown Throwable maps to:
-    - [ ] code `CORETSIA_CLI_INTERNAL_ERROR`
-    - [ ] fixed safe message
-    - [ ] no raw extensions
-  - [ ] MUST NOT copy:
-    - [ ] Throwable message or class
-    - [ ] Throwable file or line
-    - [ ] stack trace
-    - [ ] previous Throwable
-    - [ ] filesystem path
-    - [ ] argv or option values
-  - [ ] performs no rendering, logging, redaction, or stream writes
+- [x] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
+  - [x] implements `ErrorHandlerInterface`
+  - [x] canonical API:
+    - [x] `public function handle(Throwable $throwable, ?ErrorHandlingContext $context = null): ErrorDescriptor`
+  - [x] uses only safe `operation|correlationId` context fields when present
+  - [x] returned descriptor extensions are empty in the baseline
+  - [x] converts known CLI and Kernel port exceptions into format-neutral `ErrorDescriptor`
+  - [x] known mappings use only stable public codes and fixed safe messages
+  - [x] known mappings include:
+    - [x] `CliInputInvalidException`
+    - [x] `CliConfigInvalidException`
+    - [x] `InvalidCommandTagMetaException`
+    - [x] `CliCommandFailedException`
+    - [x] `KernelOpsFailedException`
+  - [x] unknown Throwable maps to:
+    - [x] code `CORETSIA_CLI_INTERNAL_ERROR`
+    - [x] fixed safe message
+    - [x] no raw extensions
+  - [x] MUST NOT copy:
+    - [x] Throwable message or class
+    - [x] Throwable file or line
+    - [x] stack trace
+    - [x] previous Throwable
+    - [x] filesystem path
+    - [x] argv or option values
+  - [x] performs no rendering, logging, redaction, or stream writes
 
-- [ ] `packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
-  - [ ] consumes `ErrorDescriptor`, not raw Throwable
-  - [ ] calls `OutputInterface::error($descriptor->code(), $descriptor->message())`
-  - [ ] baseline CLI output does not render:
-    - [ ] HTTP status
-    - [ ] severity internals
-    - [ ] arbitrary descriptor extensions
-  - [ ] MUST NOT include or render Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
+- [x] `packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
+  - [x] consumes `ErrorDescriptor`, not raw Throwable
+  - [x] calls `OutputInterface::error($descriptor->code(), $descriptor->message())`
+  - [x] baseline CLI output does not render:
+    - [x] HTTP status
+    - [x] severity internals
+    - [x] arbitrary descriptor extensions
+  - [x] MUST NOT include or render Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
 Errors:
 - [x] `packages/platform/cli/src/Exception/CliInputInvalidException.php`
@@ -4889,194 +4889,194 @@ Errors:
   - [x] no dependency on deleted `CliException` or `ErrorCodes`
 
 Built-in commands:
-- [ ] `packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
-  - [ ] Stateless orchestrator; any per-run diagnostics collection MUST be local (if extracted into a service collector → that collector becomes resettable).
-  - [ ] public constructor requires no services
-  - [ ] performs only fixed allowlisted environment-capability checks
-  - [ ] MUST NOT read application config, dotenv values, modules, Composer installed metadata, or generated artifacts
-  - [ ] `NAME = doctor`
-  - [ ] `GROUP = core`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS = []`
-  - [ ] `SUMMARY = 'Check CLI bootstrap and runtime prerequisites.'`
+- [x] `packages/platform/cli/src/Command/DoctorCommand.php` — ultra-early checks (no kernel boot)
+  - [x] Stateless orchestrator; any per-run diagnostics collection MUST be local (if extracted into a service collector → that collector becomes resettable).
+  - [x] public constructor requires no services
+  - [x] performs only fixed allowlisted environment-capability checks
+  - [x] MUST NOT read application config, dotenv values, modules, Composer installed metadata, or generated artifacts
+  - [x] `NAME = doctor`
+  - [x] `GROUP = core`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS = []`
+  - [x] `SUMMARY = 'Check CLI bootstrap and runtime prerequisites.'`
 
-- [ ] `packages/platform/cli/src/Command/DebugModulesCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] delegates exactly one `debugModules()` operation
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] MUST NOT resolve `ModulePlan`, read Composer metadata, or construct `ModuleResolution` directly
-  - [ ] MUST NOT receive or render provider class names.
-  - [ ] `KernelOpsInterface` and `OpsResult` MUST NOT expose provider instances, provider class lists, or raw Composer provider metadata.
-  - [ ] stateless; no memoization of manifest, module plan, or provider plan across runs
-  - [ ] `NAME = debug:modules`
-  - [ ] `GROUP = debug`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] `SUMMARY = 'Show the resolved module plan for the configured target preset.'`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/DebugModulesCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] delegates exactly one `debugModules()` operation
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] MUST NOT resolve `ModulePlan`, read Composer metadata, or construct `ModuleResolution` directly
+  - [x] MUST NOT receive or render provider class names.
+  - [x] `KernelOpsInterface` and `OpsResult` MUST NOT expose provider instances, provider class lists, or raw Composer provider metadata.
+  - [x] stateless; no memoization of manifest, module plan, or provider plan across runs
+  - [x] `NAME = debug:modules`
+  - [x] `GROUP = debug`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] `SUMMARY = 'Show the resolved module plan for the configured target preset.'`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/ConfigValidateCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] consumes only the returned safe `OpsResult`
-  - [ ] MUST NOT resolve ConfigKernel or module services directly
-  - [ ] stateless; no cached validation result
-  - [ ] `NAME = config:validate`
-  - [ ] `GROUP = config`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] `SUMMARY = 'Validate configuration for the configured target preset.'`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/ConfigValidateCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] consumes only the returned safe `OpsResult`
+  - [x] MUST NOT resolve ConfigKernel or module services directly
+  - [x] stateless; no cached validation result
+  - [x] `NAME = config:validate`
+  - [x] `GROUP = config`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] `SUMMARY = 'Validate configuration for the configured target preset.'`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/ConfigDebugCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] consumes only safe explain metadata returned in `OpsResult`
-  - [ ] MUST NOT receive raw config or env values
-  - [ ] MUST NOT run ConfigKernel or redaction over raw Kernel values locally
-  - [ ] stateless; no cached explain traces
-  - [ ] `NAME = config:debug`
-  - [ ] `GROUP = config`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] `SUMMARY = 'Show safe configuration resolution diagnostics for the configured target preset.'`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/ConfigDebugCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] consumes only safe explain metadata returned in `OpsResult`
+  - [x] MUST NOT receive raw config or env values
+  - [x] MUST NOT run ConfigKernel or redaction over raw Kernel values locally
+  - [x] stateless; no cached explain traces
+  - [x] `NAME = config:debug`
+  - [x] `GROUP = config`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] `SUMMARY = 'Show safe configuration resolution diagnostics for the configured target preset.'`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/ConfigCompileCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
-  - [ ] MUST NOT read Composer metadata
-  - [ ] MUST NOT resolve or construct `ContainerProviderPlan`
-  - [ ] MUST NOT collect container definitions
-  - [ ] MUST NOT invoke `ArtifactCompiler` directly
-  - [ ] stateless; no CLI-owned module, provider, artifact, or cache state
-  - [ ] constructs exactly one `KernelOpsRequest`
-  - [ ] makes exactly one `compileConfig()` call
-  - [ ] renders:
-    - [ ] app target
-    - [ ] effective preset only when non-null
-    - [ ] published generation id
-    - [ ] four canonical artifact identities and basenames
-  - [ ] MUST NOT render synthetic `generations/current/<basename>` paths
-  - [ ] MUST NOT read `current` after the Kernel call
-  - [ ] MUST NOT verify or boot the published runtime locally
-  - [ ] `ConfigCompileCommand::SUMMARY` = 'Compile and atomically publish one runtime artifact generation.'
-  - [ ] `NAME = config:compile`
-  - [ ] `GROUP = config`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/ConfigCompileCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
+  - [x] MUST NOT read Composer metadata
+  - [x] MUST NOT resolve or construct `ContainerProviderPlan`
+  - [x] MUST NOT collect container definitions
+  - [x] MUST NOT invoke `ArtifactCompiler` directly
+  - [x] stateless; no CLI-owned module, provider, artifact, or cache state
+  - [x] constructs exactly one `KernelOpsRequest`
+  - [x] makes exactly one `compileConfig()` call
+  - [x] renders:
+    - [x] app target
+    - [x] effective preset only when non-null
+    - [x] published generation id
+    - [x] four canonical artifact identities and basenames
+  - [x] MUST NOT render synthetic `generations/current/<basename>` paths
+  - [x] MUST NOT read `current` after the Kernel call
+  - [x] MUST NOT verify or boot the published runtime locally
+  - [x] `ConfigCompileCommand::SUMMARY` = 'Compile and atomically publish one runtime artifact generation.'
+  - [x] `NAME = config:compile`
+  - [x] `GROUP = config`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/ConfigHashCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] MUST NOT resolve modules or calculate fingerprints locally
-  - [ ] MUST NOT invoke `FingerprintCalculator` directly
-  - [ ] renders only the safe expected generation-id result returned by Kernel
-  - [ ] stateless; no manifest, module-plan, provider-plan, or fingerprint cache
-  - [ ] renders the returned value as `generation_id`
-  - [ ] help/summary MUST state that the command calculates the expected generation ID
-  - [ ] MUST state that it does not write artifacts and does not inspect `current`
-  - [ ] `ConfigHashCommand::SUMMARY` = 'Calculate the expected graph-bound artifact generation ID for the configured target preset.'
-  - [ ] `NAME = config:hash`
-  - [ ] `GROUP = config`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/ConfigHashCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] MUST NOT resolve modules or calculate fingerprints locally
+  - [x] MUST NOT invoke `FingerprintCalculator` directly
+  - [x] renders only the safe expected generation-id result returned by Kernel
+  - [x] stateless; no manifest, module-plan, provider-plan, or fingerprint cache
+  - [x] renders the returned value as `generation_id`
+  - [x] help/summary MUST state that the command calculates the expected generation ID
+  - [x] MUST state that it does not write artifacts and does not inspect `current`
+  - [x] `ConfigHashCommand::SUMMARY` = 'Calculate the expected graph-bound artifact generation ID for the configured target preset.'
+  - [x] `NAME = config:hash`
+  - [x] `GROUP = config`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/CacheVerifyCommand.php`
-  - [ ] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
-  - [ ] passes exactly one explicit app target through `KernelOpsRequest`
-  - [ ] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
-  - [ ] MUST NOT read Composer metadata
-  - [ ] MUST NOT construct or resolve `ContainerProviderPlan`
-  - [ ] MUST NOT invoke `CacheVerifier` directly
-  - [ ] renders Kernel-provided generation verification state:
-    - [ ] `clean`
-    - [ ] `dirty`
-    - [ ] `invalid`
-  - [ ] renders expected and nullable current generation ids
-  - [ ] renders all four artifact statuses and safe reasons
-  - [ ] renders byte counts when provided
-  - [ ] MUST NOT receive or render filesystem paths from lower-level CacheVerifier results
-  - [ ] stateless; no local manifest, module plan, provider plan, cache state, or last verification outcome
-  - [ ] `CacheVerifyCommand::SUMMARY` = 'Verify the current artifact generation against expected inputs.'
-  - [ ] `NAME = cache:verify`
-  - [ ] `GROUP = cache`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS` contains exactly one descriptor:
-    - [ ] `name = target`
-    - [ ] `value = required`
-    - [ ] `repeatable = false`
-    - [ ] `summary = Application target: web, api, console, or worker.`
-  - [ ] a handled error with null preset MUST NOT render a synthetic preset value
+- [x] `packages/platform/cli/src/Command/CacheVerifyCommand.php`
+  - [x] constructs exactly one `KernelOpsRequest` and performs exactly one matching call directly through `KernelOpsInterface`
+  - [x] passes exactly one explicit app target through `KernelOpsRequest`
+  - [x] MUST NOT call `ModulePlanResolver::resolve()` or `ModulePlanResolver::resolveResolution()`
+  - [x] MUST NOT read Composer metadata
+  - [x] MUST NOT construct or resolve `ContainerProviderPlan`
+  - [x] MUST NOT invoke `CacheVerifier` directly
+  - [x] renders Kernel-provided generation verification state:
+    - [x] `clean`
+    - [x] `dirty`
+    - [x] `invalid`
+  - [x] renders expected and nullable current generation ids
+  - [x] renders all four artifact statuses and safe reasons
+  - [x] renders byte counts when provided
+  - [x] MUST NOT receive or render filesystem paths from lower-level CacheVerifier results
+  - [x] stateless; no local manifest, module plan, provider plan, cache state, or last verification outcome
+  - [x] `CacheVerifyCommand::SUMMARY` = 'Verify the current artifact generation against expected inputs.'
+  - [x] `NAME = cache:verify`
+  - [x] `GROUP = cache`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS` contains exactly one descriptor:
+    - [x] `name = target`
+    - [x] `value = required`
+    - [x] `repeatable = false`
+    - [x] `summary = Application target: web, api, console, or worker.`
+  - [x] a handled error with null preset MUST NOT render a synthetic preset value
 
-- [ ] `packages/platform/cli/src/Command/HelpCommand.php`
-  - [ ] existing Phase-0 implementation is replaced completely
-  - [ ] receives `CommandCatalog`
-  - [ ] renders general help from descriptors without resolving command services
-  - [ ] renders command-specific arguments and options from metadata
-  - [ ] unknown command fails deterministically
-  - [ ] exposes canonical command constants
-  - [ ] does not receive `list<string>` command names
-  - [ ] contains no generic “help unavailable” Phase-0 fallback
-  - [ ] does not reference Phase 0
-  - [ ] `NAME = help`
-  - [ ] `GROUP = core`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS` contains exactly:
-    - [ ] `name = command`
-    - [ ] `summary = Command name.`
-    - [ ] `required = false`
-    - [ ] `variadic = false`
-  - [ ] `OPTIONS = []`
-  - [ ] `SUMMARY = 'Show general or command-specific help.'`
+- [x] `packages/platform/cli/src/Command/HelpCommand.php`
+  - [x] existing Phase-0 implementation is replaced completely
+  - [x] receives `CommandCatalog`
+  - [x] renders general help from descriptors without resolving command services
+  - [x] renders command-specific arguments and options from metadata
+  - [x] unknown command fails deterministically
+  - [x] exposes canonical command constants
+  - [x] does not receive `list<string>` command names
+  - [x] contains no generic “help unavailable” Phase-0 fallback
+  - [x] does not reference Phase 0
+  - [x] `NAME = help`
+  - [x] `GROUP = core`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS` contains exactly:
+    - [x] `name = command`
+    - [x] `summary = Command name.`
+    - [x] `required = false`
+    - [x] `variadic = false`
+  - [x] `OPTIONS = []`
+  - [x] `SUMMARY = 'Show general or command-specific help.'`
 
-- [ ] `packages/platform/cli/src/Command/ListCommand.php`
-  - [ ] existing Phase-0 implementation is replaced completely
-  - [ ] receives `CommandCatalog`
-  - [ ] renders descriptors without resolving command services
-  - [ ] excludes hidden commands
-  - [ ] groups deterministically while preserving canonical descriptor order within each group
-  - [ ] uses command metadata summaries
-  - [ ] exposes canonical command constants
-  - [ ] does not receive `list<string>` command names
-  - [ ] does not synthesize built-ins locally
-  - [ ] does not reference Phase 0
-  - [ ] `NAME = list`
-  - [ ] `GROUP = core`
-  - [ ] `HIDDEN = false`
-  - [ ] `ARGUMENTS = []`
-  - [ ] `OPTIONS = []`
-  - [ ] `SUMMARY = 'List available commands.'`
+- [x] `packages/platform/cli/src/Command/ListCommand.php`
+  - [x] existing Phase-0 implementation is replaced completely
+  - [x] receives `CommandCatalog`
+  - [x] renders descriptors without resolving command services
+  - [x] excludes hidden commands
+  - [x] groups deterministically while preserving canonical descriptor order within each group
+  - [x] uses command metadata summaries
+  - [x] exposes canonical command constants
+  - [x] does not receive `list<string>` command names
+  - [x] does not synthesize built-ins locally
+  - [x] does not reference Phase 0
+  - [x] `NAME = list`
+  - [x] `GROUP = core`
+  - [x] `HIDDEN = false`
+  - [x] `ARGUMENTS = []`
+  - [x] `OPTIONS = []`
+  - [x] `SUMMARY = 'List available commands.'`
 
 Docs:
 - [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
@@ -5271,40 +5271,40 @@ Docs:
   - [ ] MUST NOT resolve command services during construction
   - [ ] MUST NOT write stdout/stderr
 
-- [ ] `packages/platform/worker/src/Console/WorkerStartCommand.php`
-  - [ ] remove `public const string MODE`
-  - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
-  - [ ] no dependency on `platform/cli`
+- [x] `packages/platform/worker/src/Console/WorkerStartCommand.php`
+  - [x] remove `public const string MODE`
+  - [x] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+  - [x] no dependency on `platform/cli`
 
-- [ ] `packages/platform/worker/src/Console/WorkerStopCommand.php`
-  - [ ] remove `public const string MODE`
-  - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
-  - [ ] no dependency on `platform/cli`
+- [x] `packages/platform/worker/src/Console/WorkerStopCommand.php`
+  - [x] remove `public const string MODE`
+  - [x] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+  - [x] no dependency on `platform/cli`
 
-- [ ] `packages/platform/worker/src/Console/WorkerStatusCommand.php`
-  - [ ] remove `public const string MODE`
-  - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
-  - [ ] no dependency on `platform/cli`
+- [x] `packages/platform/worker/src/Console/WorkerStatusCommand.php`
+  - [x] remove `public const string MODE`
+  - [x] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+  - [x] no dependency on `platform/cli`
 
-- [ ] `packages/platform/worker/src/Console/WorkerHealthCommand.php`
-  - [ ] remove `public const string MODE`
-  - [ ] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
-  - [ ] no dependency on `platform/cli`
+- [x] `packages/platform/worker/src/Console/WorkerHealthCommand.php`
+  - [x] remove `public const string MODE`
+  - [x] preserve `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+  - [x] no dependency on `platform/cli`
 
-- [ ] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
-  - [ ] remove the `mode` argument from `commandMeta(...)`
-  - [ ] remove the `mode` return-shape field
-  - [ ] remove `'mode' => $mode`
-  - [ ] stop passing `Worker*Command::MODE`
-  - [ ] emitted command metadata contains exactly:
-    - [ ] `name`
-    - [ ] `summary`
-    - [ ] `group`
-    - [ ] `hidden`
-    - [ ] `arguments`
-    - [ ] `options`
-  - [ ] retain `ReservedTags::CLI_COMMAND`
-  - [ ] retain no compile-time dependency on `platform/cli`
+- [x] `packages/platform/worker/src/Provider/WorkerServiceProvider.php`
+  - [x] remove the `mode` argument from `commandMeta(...)`
+  - [x] remove the `mode` return-shape field
+  - [x] remove `'mode' => $mode`
+  - [x] stop passing `Worker*Command::MODE`
+  - [x] emitted command metadata contains exactly:
+    - [x] `name`
+    - [x] `summary`
+    - [x] `group`
+    - [x] `hidden`
+    - [x] `arguments`
+    - [x] `options`
+  - [x] retain `ReservedTags::CLI_COMMAND`
+  - [x] retain no compile-time dependency on `platform/cli`
 
 - [x] `packages/core/contracts/src/Cli/Command/CommandInterface.php`
   - [x] preserve existing methods:
@@ -5633,17 +5633,17 @@ Docs:
   - [ ] `cli.command` registrations use actual tag priority `0`
   - [ ] non-zero priority is invalid independently of metadata contents
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] register span `cli.command`
-  - [ ] register counter `cli.command_total`
-  - [ ] register observation `cli.command_duration_ms`
-  - [ ] owner is `platform/cli`
-  - [ ] labels are exactly `operation|outcome`
-  - [ ] `operation` is the canonical command name from the selected descriptor
-  - [ ] allowed outcomes are `success|failure`
-  - [ ] `format|exit_code|app_target|preset|correlation_id|uow_id` are forbidden metric labels
-  - [ ] `format|exit_code` may be bounded span attributes
-  - [ ] raw arguments, options, output records, paths, endpoints, config, and payloads are forbidden
+- [x] `docs/ssot/observability.md`
+  - [x] register span `cli.command`
+  - [x] register counter `cli.command_total`
+  - [x] register observation `cli.command_duration_ms`
+  - [x] owner is `platform/cli`
+  - [x] labels are exactly `operation|outcome`
+  - [x] `operation` is the canonical command name from the selected descriptor
+  - [x] allowed outcomes are `success|failure`
+  - [x] `format|exit_code|app_target|preset|correlation_id|uow_id` are forbidden metric labels
+  - [x] `format|exit_code` may be bounded span attributes
+  - [x] raw arguments, options, output records, paths, endpoints, config, and payloads are forbidden
 
 - [ ] `docs/ssot/modes.md`
   - [ ] document `platform.cli` as a default selectable module in all four canonical presets

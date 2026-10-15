@@ -82,6 +82,30 @@ final readonly class TableFormatter
             return $this->grid(['Value'], [['[]']], $color);
         }
 
+        if (\count($payload) === 1 && !\array_is_list($payload)) {
+            $nested = \reset($payload);
+
+            if (\is_array($nested) && $nested !== []) {
+                if (\array_is_list($nested)) {
+                    return $this->table($nested, $color);
+                }
+
+                $sections = [];
+                foreach ($nested as $group => $items) {
+                    if (!\is_string($group) || !\is_array($items) || !\array_is_list($items)) {
+                        $sections = [];
+                        break;
+                    }
+
+                    $sections[] = self::cell($group) . "\n" . $this->table($items, $color);
+                }
+
+                if ($sections !== []) {
+                    return \implode("\n\n", $sections);
+                }
+            }
+        }
+
         if (\array_is_list($payload)) {
             $columns = null;
             foreach ($payload as $item) {
@@ -116,11 +140,21 @@ final readonly class TableFormatter
         }
 
         $rows = [];
+        $sections = [];
         foreach ($payload as $key => $value) {
+            if (\is_array($value) && $value !== [] && \array_is_list($value)) {
+                $sections[] = self::cell((string) $key) . "\n" . $this->table($value, $color);
+                continue;
+            }
+
             $rows[] = [self::cell((string) $key), self::cell($value)];
         }
 
-        return $this->grid(['Key', 'Value'], $rows, $color);
+        if ($rows !== []) {
+            \array_unshift($sections, $this->grid(['Key', 'Value'], $rows, $color));
+        }
+
+        return \implode("\n\n", $sections);
     }
 
     private static function cell(mixed $value): string
@@ -148,12 +182,33 @@ final readonly class TableFormatter
             throw CliOutputFormatException::failed();
         }
 
-        $base = \intdiv($available, $count);
-        $remainder = $available % $count;
-
+        $desired = [];
         foreach ($headings as $index => $heading) {
-            $widths[$index] = $base + ($index < $remainder ? 1 : 0);
+            $desired[$index] = self::visibleWidth($heading);
+            foreach ($rows as $cells) {
+                $desired[$index] = \max(
+                    $desired[$index],
+                    self::visibleWidth($cells[$index] ?? ''),
+                );
+            }
         }
+
+        $minimum = \min(8, \intdiv($available, $count));
+        $widths = \array_fill(0, $count, $minimum);
+        $remaining = $available - ($minimum * $count);
+
+        do {
+            $changed = false;
+            foreach ($widths as $index => $width) {
+                if ($remaining === 0 || $width >= $desired[$index]) {
+                    continue;
+                }
+
+                ++$widths[$index];
+                --$remaining;
+                $changed = true;
+            }
+        } while ($changed && $remaining > 0);
 
         $rule = '+' . \implode(
             '+',
@@ -163,52 +218,80 @@ final readonly class TableFormatter
             ),
         ) . '+';
 
-        $lines = [$rule, $this->row($headings, $widths, $color, true), $rule];
+        $lines = [$rule, ...$this->row($headings, $widths, $color, true), $rule];
         foreach ($rows as $cells) {
-            $lines[] = $this->row($cells, $widths, $color, false);
+            foreach ($this->row($cells, $widths, $color, false) as $line) {
+                $lines[] = $line;
+            }
         }
         $lines[] = $rule;
 
         return \implode("\n", $lines);
     }
 
-    /** @param list<string> $cells @param list<int> $widths */
-    private function row(array $cells, array $widths, bool $color, bool $heading): string
+    /** @param list<string> $cells @param list<int> $widths @return list<string> */
+    private function row(array $cells, array $widths, bool $color, bool $heading): array
     {
-        $pieces = [];
+        $wrapped = [];
+        $height = 1;
+
         foreach ($widths as $index => $width) {
-            $content = self::truncate($cells[$index] ?? '', $width);
-            $padding = \str_repeat(' ', $width - self::visibleWidth($content));
-            $plain = $content . $padding;
-            $pieces[] = $heading
-                ? $this->ansi->decorate($plain, 'heading', $color, 'table')
-                : $plain;
+            $wrapped[$index] = self::wrap($cells[$index] ?? '', $width);
+            $height = \max($height, \count($wrapped[$index]));
         }
 
-        return '| ' . \implode(' | ', $pieces) . ' |';
+        $lines = [];
+        for ($line = 0; $line < $height; ++$line) {
+            $pieces = [];
+            foreach ($widths as $index => $width) {
+                $content = $wrapped[$index][$line] ?? '';
+                $padding = \str_repeat(' ', $width - self::visibleWidth($content));
+                $plain = $content . $padding;
+                $pieces[] = $heading
+                    ? $this->ansi->decorate($plain, 'heading', $color, 'table')
+                    : $plain;
+            }
+
+            $lines[] = '| ' . \implode(' | ', $pieces) . ' |';
+        }
+
+        return $lines;
     }
 
-    private static function truncate(string $value, int $maxWidth): string
+    /** @return list<string> */
+    private static function wrap(string $value, int $maxWidth): array
     {
         if (self::visibleWidth($value) <= $maxWidth) {
-            return $value;
+            return [$value];
         }
 
-        $remaining = $maxWidth - 1;
-        $out = '';
         if (\preg_match_all('/\X/u', $value, $matches) === false) {
             throw CliOutputFormatException::failed();
         }
+
+        $lines = [];
+        $content = '';
+        $width = 0;
+
         foreach ($matches[0] as $character) {
-            $width = self::visibleWidth($character);
-            if ($width > $remaining) {
-                break;
+            $characterWidth = self::visibleWidth($character);
+            if ($characterWidth > $maxWidth) {
+                throw CliOutputFormatException::failed();
             }
-            $out .= $character;
-            $remaining -= $width;
+
+            if ($content !== '' && $width + $characterWidth > $maxWidth) {
+                $lines[] = $content;
+                $content = '';
+                $width = 0;
+            }
+
+            $content .= $character;
+            $width += $characterWidth;
         }
 
-        return $out . '…';
+        $lines[] = $content;
+
+        return $lines;
     }
 
     private static function visibleWidth(string $value): int

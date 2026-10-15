@@ -188,7 +188,6 @@ final class RepoTextNormalizationScanner
             'packages/**/NOTICE text eol=lf',
 
             'coretsia text eol=lf',
-            'tools/bin/coretsia text eol=lf',
             'packages/**/bin/* text eol=lf',
 
             '*.php   text eol=lf diff=php',

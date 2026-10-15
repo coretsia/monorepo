@@ -110,7 +110,7 @@ final class CommandInputValidator
                     break;
 
                 case 'required':
-                    if (\is_string($value)) {
+                    if (\is_string($value) && !$rule['repeatable']) {
                         if ($value === '') {
                             throw CliInputInvalidException::withReason(CliInputInvalidException::REASON_OPTION_INVALID);
                         }

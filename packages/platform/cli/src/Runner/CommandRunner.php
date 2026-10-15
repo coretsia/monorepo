@@ -44,6 +44,12 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class CommandRunner
 {
+    private const string METRIC_COMMAND_TOTAL = 'cli.command_total';
+    private const string METRIC_COMMAND_DURATION_MS = 'cli.command_duration_ms';
+
+    private const string OUTCOME_SUCCESS = 'success';
+    private const string OUTCOME_FAILURE = 'failure';
+
     public function __construct(
         private KernelRuntimeInterface $runtime,
         private ContextAccessorInterface $context,
@@ -72,7 +78,7 @@ final readonly class CommandRunner
         $start = null;
         $durationMs = 0;
         $exitCode = 1;
-        $outcome = 'failure';
+        $outcome = self::OUTCOME_FAILURE;
         $identifiers = [];
 
         try {
@@ -119,7 +125,7 @@ final readonly class CommandRunner
             }
 
             $exitCode = $result;
-            $outcome = $exitCode === 0 ? 'success' : 'failure';
+            $outcome = $exitCode === 0 ? self::OUTCOME_SUCCESS : self::OUTCOME_FAILURE;
 
             return $exitCode;
         } finally {
@@ -152,21 +158,21 @@ final readonly class CommandRunner
 
             $labels = ['operation' => $operation, 'outcome' => $outcome];
             try {
-                $this->meter->increment('cli.command_total', 1, $labels);
+                $this->meter->increment(self::METRIC_COMMAND_TOTAL, 1, $labels);
             } catch (\Throwable) {
                 // Counters are best-effort.
             }
 
             try {
-                $this->meter->observe('cli.command_duration_ms', $durationMs, $labels);
+                $this->meter->observe(self::METRIC_COMMAND_DURATION_MS, $durationMs, $labels);
             } catch (\Throwable) {
                 // Duration observation is independently best-effort.
             }
 
             try {
                 $this->logger->log(
-                    $outcome === 'success' ? 'info' : 'error',
-                    $outcome === 'success' ? 'CLI command completed.' : 'CLI command failed.',
+                    $outcome === self::OUTCOME_SUCCESS ? 'info' : 'error',
+                    'cli.command',
                     [
                         'operation' => $operation,
                         'outcome' => $outcome,

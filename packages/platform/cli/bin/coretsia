@@ -1,0 +1,80 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Coretsia Framework (Monorepo)
+ *
+ * Project: Coretsia Framework (Monorepo)
+ * Authors: Vladyslav Mudrichenko and contributors
+ * Copyright (c) 2026 Vladyslav Mudrichenko
+ *
+ * SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * For contributors list, see git history.
+ * See LICENSE and NOTICE in the project root for full license information.
+ */
+
+\error_reporting(\E_ALL);
+\ini_set('display_errors', '0');
+
+// Before Composer autoload, only canonical proxy or wrapper sources may be used.
+$proxyAutoload = isset($_composer_autoload_path) && \is_string($_composer_autoload_path)
+    ? $_composer_autoload_path
+    : null;
+$proxyBinDir = isset($_composer_bin_dir) && \is_string($_composer_bin_dir)
+    ? $_composer_bin_dir
+    : null;
+$wrapperRoot = isset($GLOBALS['coretsia_application_root']) && \is_string($GLOBALS['coretsia_application_root'])
+    ? $GLOBALS['coretsia_application_root']
+    : null;
+
+if ($wrapperRoot !== null && ($proxyAutoload !== null || $proxyBinDir !== null)) {
+    $autoload = null;
+} elseif ($wrapperRoot !== null) {
+    $autoload = $wrapperRoot . '/vendor/autoload.php';
+} elseif ($proxyAutoload !== null && $proxyBinDir !== null) {
+    $autoload = $proxyAutoload;
+} else {
+    $autoload = null;
+}
+
+if (
+    !\is_string($autoload)
+    || !\is_file($autoload)
+    || !\is_readable($autoload)
+) {
+    @\fwrite(\STDERR, "CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable\n");
+    exit(1);
+}
+
+try {
+    require_once $autoload;
+} catch (\Throwable) {
+    @\fwrite(\STDERR, "CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable\n");
+    exit(1);
+}
+
+try {
+    $entrypoint = @require __DIR__ . '/../src/Bootstrap/Entrypoint/cli.php';
+    if (!\is_callable($entrypoint)) {
+        throw new \UnexpectedValueException('cli-entrypoint-invalid');
+    }
+
+    $exitCode = $entrypoint(
+        launcherFile: __FILE__,
+        autoloadPath: $autoload,
+        composerBinDir: $proxyBinDir,
+        explicitApplicationRoot: $wrapperRoot,
+        argv: $argv ?? [],
+        stdout: \STDOUT,
+        stderr: \STDERR,
+    );
+} catch (\Throwable) {
+    // An unavailable composition root has no post-autoload diagnostic sink.
+    exit(1);
+}
+
+exit(\is_int($exitCode) && $exitCode >= 0 && $exitCode <= 255 ? $exitCode : 1);

@@ -27,6 +27,9 @@
     "issues": "https://github.com/coretsia/monorepo/issues",
     "source": "https://github.com/coretsia/monorepo"
   },
+  "bin": [
+    "bin/coretsia"
+  ],
   "require": {
     "php": "^8.4",
     "coretsia/core-contracts": "^0.8.0",

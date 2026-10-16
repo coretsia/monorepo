@@ -3818,83 +3818,83 @@ The normal CLI path:
 
 ### Command discovery (tag-first, deterministic) (MUST)
 
-- [ ] the only container-backed discovery mechanism for normal commands is DI tag `cli.command`
-- [ ] the exact ultra-early `doctor` invocation is an entrypoint-owned exception and does not perform discovery
-- [ ] once the normal operations host exists, `doctor` MUST appear as a tagged descriptor for `list` and `help`
-- [ ] CLI MUST NOT read any `cli.commands` registry list.
-- [ ] Consumer MUST NOT re-sort or re-dedupe TagRegistry output.
+- [x] the only container-backed discovery mechanism for normal commands is DI tag `cli.command`
+- [x] the exact ultra-early `doctor` invocation is an entrypoint-owned exception and does not perform discovery
+- [x] once the normal operations host exists, `doctor` MUST appear as a tagged descriptor for `list` and `help`
+- [x] CLI MUST NOT read any `cli.commands` registry list.
+- [x] Consumer MUST NOT re-sort or re-dedupe TagRegistry output.
 
-- [ ] External package commands:
-  - [ ] CLI catalog MUST discover commands contributed by other enabled packages through `cli.command`.
-  - [ ] CLI MUST NOT special-case `platform/worker`.
-  - [ ] CLI MUST NOT depend on `platform/worker` at compile time.
-  - [ ] Worker command discovery, when tested, MUST happen through the same generic `cli.command` mechanism as all other package commands.
+- [x] External package commands:
+  - [x] CLI catalog MUST discover commands contributed by other enabled packages through `cli.command`.
+  - [x] CLI MUST NOT special-case `platform/worker`.
+  - [x] CLI MUST NOT depend on `platform/worker` at compile time.
+  - [x] Worker command discovery, when tested, MUST happen through the same generic `cli.command` mechanism as all other package commands.
 
 ### Command identity ownership (MUST)
 
-- [ ] command name MUST be declared by the command class
-- [ ] every tagged command class MUST expose:
-  - [ ] `public const string NAME`
-  - [ ] `public const string SUMMARY`
-  - [ ] `public const string GROUP`
-  - [ ] `public const bool HIDDEN`
-  - [ ] `public const array ARGUMENTS`
-  - [ ] `public const array OPTIONS`
-- [ ] `CommandInterface::name()` MUST return the same value as tag metadata `name`
-- [ ] command provider MUST reference command class constants when tagging commands
-- [ ] command provider MUST NOT invent command names as unrelated string literals
-- [ ] command name MUST match:
-  - [ ] `\A[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*\z`
-- [ ] every `cli.command` service id MUST be the exact command class FQCN
-- [ ] the service-id class MUST exist and implement `Coretsia\Contracts\Cli\Command\CommandInterface`
-- [ ] `CommandCatalog` MUST read command constants through the service-id class without resolving or instantiating the service
+- [x] command name MUST be declared by the command class
+- [x] every tagged command class MUST expose:
+  - [x] `public const string NAME`
+  - [x] `public const string SUMMARY`
+  - [x] `public const string GROUP`
+  - [x] `public const bool HIDDEN`
+  - [x] `public const array ARGUMENTS`
+  - [x] `public const array OPTIONS`
+- [x] `CommandInterface::name()` MUST return the same value as tag metadata `name`
+- [x] command provider MUST reference command class constants when tagging commands
+- [x] command provider MUST NOT invent command names as unrelated string literals
+- [x] command name MUST match:
+  - [x] `\A[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*\z`
+- [x] every `cli.command` service id MUST be the exact command class FQCN
+- [x] the service-id class MUST exist and implement `Coretsia\Contracts\Cli\Command\CommandInterface`
+- [x] `CommandCatalog` MUST read command constants through the service-id class without resolving or instantiating the service
 
 ### `cli.command` tag metadata schema (MUST)
 
-- [ ] exact required keys:
-  - [ ] `name`
-  - [ ] `summary`
-  - [ ] `group`
-  - [ ] `hidden`
-  - [ ] `arguments`
-  - [ ] `options`
-- [ ] unknown metadata keys MUST hard-fail deterministically
-- [ ] metadata key `priority` MUST be forbidden
-- [ ] canonicalized base tag metadata MUST equal the command class constants before `CommandOverrides` is applied
-- [ ] `CommandOverrides` MAY modify only the catalog-view fields `summary|hidden|group`; it MUST NOT mutate command identity, arguments, options, service id, or original tag metadata
-- [ ] metadata MUST NOT contain closures, objects, resources, floats, raw config values, runtime filesystem path values, runtime endpoints, env values, secrets, tokens, or runtime payloads
-- [ ] argument and option names or summaries MAY describe owner-domain path inputs; runtime path values and path defaults MUST NOT be stored in tag metadata
+- [x] exact required keys:
+  - [x] `name`
+  - [x] `summary`
+  - [x] `group`
+  - [x] `hidden`
+  - [x] `arguments`
+  - [x] `options`
+- [x] unknown metadata keys MUST hard-fail deterministically
+- [x] metadata key `priority` MUST be forbidden
+- [x] canonicalized base tag metadata MUST equal the command class constants before `CommandOverrides` is applied
+- [x] `CommandOverrides` MAY modify only the catalog-view fields `summary|hidden|group`; it MUST NOT mutate command identity, arguments, options, service id, or original tag metadata
+- [x] metadata MUST NOT contain closures, objects, resources, floats, raw config values, runtime filesystem path values, runtime endpoints, env values, secrets, tokens, or runtime payloads
+- [x] argument and option names or summaries MAY describe owner-domain path inputs; runtime path values and path defaults MUST NOT be stored in tag metadata
 
 ### Command priority policy (MUST)
 
-- [ ] command tags MUST NOT define `priority`
-- [ ] command routing MUST NOT use priority
-- [ ] duplicate command names across distinct tagged service ids MUST hard-fail deterministically
-- [ ] repeated registrations of the same `(tag, serviceId)` follow the existing Foundation TagRegistry first-wins policy and are not observable as separate catalog entries
-- [ ] reserved command names MUST hard-fail for external commands:
-  - [ ] `doctor`
-  - [ ] `help`
-  - [ ] `list`
-- [ ] reserved names are allowed only for the built-in command service ids registered by `platform/cli`
-- [ ] the reserved `doctor` identity MUST match the command used by the ultra-early entrypoint
-- [ ] CLI consumer MUST preserve TagRegistry order
-- [ ] CLI consumer MUST NOT re-sort TagRegistry output
-- [ ] CLI consumer MUST NOT silently de-dupe TagRegistry output
-- [ ] every `cli.command` TaggedService returned by `TagRegistry::all()` MUST have actual priority `0`
-- [ ] a non-zero `TaggedService::priority()` in canonical discovery output hard-fails before descriptor construction
-- [ ] CLI MUST NOT normalize, ignore, or overwrite a non-zero priority
-- [ ] registrations already discarded by TagRegistry first-wins MUST NOT be reconstructed or revalidated by CLI
+- [x] command tags MUST NOT define `priority`
+- [x] command routing MUST NOT use priority
+- [x] duplicate command names across distinct tagged service ids MUST hard-fail deterministically
+- [x] repeated registrations of the same `(tag, serviceId)` follow the existing Foundation TagRegistry first-wins policy and are not observable as separate catalog entries
+- [x] reserved command names MUST hard-fail for external commands:
+  - [x] `doctor`
+  - [x] `help`
+  - [x] `list`
+- [x] reserved names are allowed only for the built-in command service ids registered by `platform/cli`
+- [x] the reserved `doctor` identity MUST match the command used by the ultra-early entrypoint
+- [x] CLI consumer MUST preserve TagRegistry order
+- [x] CLI consumer MUST NOT re-sort TagRegistry output
+- [x] CLI consumer MUST NOT silently de-dupe TagRegistry output
+- [x] every `cli.command` TaggedService returned by `TagRegistry::all()` MUST have actual priority `0`
+- [x] a non-zero `TaggedService::priority()` in canonical discovery output hard-fails before descriptor construction
+- [x] CLI MUST NOT normalize, ignore, or overwrite a non-zero priority
+- [x] registrations already discarded by TagRegistry first-wins MUST NOT be reconstructed or revalidated by CLI
 
 ### Lazy command discovery (MUST)
 
-- [ ] `CommandCatalog` MUST build descriptors from `cli.command` tag metadata
-- [ ] `CommandCatalog` MUST NOT instantiate command services while building the catalog
-- [ ] `list` MUST be renderable from descriptors without instantiating all command services
-- [ ] `help` MUST be renderable from descriptors without instantiating all command services
-- [ ] command service MUST be resolved only when the selected command is dispatched
-- [ ] on dispatch, resolved service MUST implement `Coretsia\Contracts\Cli\Command\CommandInterface`
-- [ ] on dispatch, resolved command `name()` MUST match descriptor/tag metadata `name`
-- [ ] mismatch MUST hard-fail with `InvalidCommandTagMetaException`
+- [x] `CommandCatalog` MUST build descriptors from `cli.command` tag metadata
+- [x] `CommandCatalog` MUST NOT instantiate command services while building the catalog
+- [x] `list` MUST be renderable from descriptors without instantiating all command services
+- [x] `help` MUST be renderable from descriptors without instantiating all command services
+- [x] command service MUST be resolved only when the selected command is dispatched
+- [x] on dispatch, resolved service MUST implement `Coretsia\Contracts\Cli\Command\CommandInterface`
+- [x] on dispatch, resolved command `name()` MUST match descriptor/tag metadata `name`
+- [x] mismatch MUST hard-fail with `InvalidCommandTagMetaException`
 
 ### Kernel operation command exit codes (MUST)
 
@@ -4020,13 +4020,13 @@ Legacy tests and fixtures:
   - [x] MUST NOT depend on the current working directory
 
 Redaction:
-- [ ] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
-- [ ] CLI MUST NOT define package-local redaction engine/policy classes.
-- [ ] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
+- [x] CLI output MUST use `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`.
+- [x] CLI MUST NOT define package-local redaction engine/policy classes.
+- [x] CLI MAY define CLI-domain output formatting rules, but baseline sensitive data classification and redacted output generation belong to `platform/redaction`.
 
-- [ ] `packages/platform/cli/src/Output/CliOutputPolicy.php`
+- [x] `packages/platform/cli/src/Output/CliOutputPolicy.php`
   - [x] immutable readonly value object
-  - [ ] created only from validated config
+  - [x] created only from validated config
   - [x] contains:
     - [x] `formatDefault: string`
     - [x] `interactiveFormat: string`
@@ -4463,7 +4463,7 @@ Output:
   - [x] MUST NOT expose terminal details to commands
   - [x] returns one boolean effective color decision
 
-- [ ] `packages/platform/cli/src/Output/Ansi/AnsiDecorator.php`
+- [x] `packages/platform/cli/src/Output/Ansi/AnsiDecorator.php`
   - [x] owns the fixed semantic ANSI mapping
   - [x] semantic roles:
     - [x] heading
@@ -4476,7 +4476,7 @@ Output:
   - [x] MUST NOT inspect config
   - [x] MUST NOT expose raw ANSI codes to commands
   - [x] MUST NOT allow user-defined escape sequences
-  - [ ] MUST NOT add ANSI to redirected output in `auto` mode
+  - [x] MUST NOT add ANSI to redirected output in `auto` mode
   - [x] output with color disabled is byte-stable and escape-free
 
 Output (deterministic + redacted):
@@ -4557,7 +4557,7 @@ Output (deterministic + redacted):
 Output schema:
 - [ ] `packages/platform/cli/resources/schema/cli_output@1.json`
   - [x] JSON Schema Draft 2020-12 for the CLI output envelope and `text|json|error` record shapes
-  - [ ] production output pipeline enforces float rejection, sensitive-data redaction, and deterministic JSON serialization
+  - [x] production output pipeline enforces float rejection, sensitive-data redaction, and deterministic JSON serialization
   - [ ] Used by `JsonOutputSchemaContractTest.php` as the single source of truth
   - [x] exact top-level shape:
     - [x] `schema = coretsia.cli-output@1`
@@ -4572,10 +4572,10 @@ Output schema:
     - [x] non-zero → `failure`
   - [x] `data.records` is an ordered array of structurally validated output records
   - [x] unknown envelope and record-shape keys are rejected; JSON payload maps remain extensible
-  - [ ] production JSON maps use canonical Foundation `StableJsonEncoder` key ordering
+  - [x] production JSON maps use canonical Foundation `StableJsonEncoder` key ordering
 
 Catalog:
-- [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
+- [x] `packages/platform/cli/src/Catalog/CommandCatalog.php` — builds deterministic catalog from `cli.command` tags
   - [x] is one frozen immutable catalog built from final tag-registry input and validated command overrides
   - [x] contains no mutable cache and requires no reset
   - [x] MUST consume only `ReservedTags::CLI_COMMAND`
@@ -4588,7 +4588,7 @@ Catalog:
     - [x] `doctor`
     - [x] `help`
     - [x] `list`
-  - [ ] reserved names MUST be allowed only for built-in service ids registered by `platform/cli`
+  - [x] reserved names MUST be allowed only for built-in service ids registered by `platform/cli`
   - [x] MUST NOT instantiate command services while building descriptors
   - [x] MUST NOT depend on `platform/worker`
   - [x] MUST NOT use filesystem scanning
@@ -4702,18 +4702,18 @@ Catalog:
   - [x] MUST NOT expose the original override payload or bypass the canonical override-field validation
 
 Kernel operation request resolver:
-- [ ] `packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
+- [x] `packages/platform/cli/src/Kernel/KernelOpsRequestResolver.php`
   - [x] `public function resolve(InputInterface $input): KernelOpsRequest`
   - [x] invalid scalar target shape throws `CliInputInvalidException`
-  - [ ] is used only by built-in Kernel operation commands
-  - [ ] consumes only the already structurally validated `InputInterface`
+  - [x] is used only by built-in Kernel operation commands
+  - [x] consumes only the already structurally validated `InputInterface`
   - [x] requires the `target` option to be present exactly once as a non-empty scalar value
   - [x] validates only non-empty safe token shape
-  - [ ] rejects an absent `--target` inside command dispatch before invoking `KernelOpsInterface`
+  - [x] rejects an absent `--target` inside command dispatch before invoking `KernelOpsInterface`
   - [x] the descriptor's `value = required` requires a value when the option is supplied; it does not independently require option presence
   - [x] MUST NOT introduce a second required-option-presence validator or extend the generic option metadata schema solely for Kernel targets
   - [x] constructs `KernelOpsRequest(appTarget)`
-  - [ ] relies on `CommandInputValidator` and the selected descriptor to reject undeclared, missing-value, or repeated options before command service resolution
+  - [x] relies on `CommandInputValidator` and the selected descriptor to reject undeclared, missing-value, or repeated options before command service resolution
   - [x] does not import or receive `CommandDescriptor`
   - [x] does not import Kernel `AppTarget`
   - [x] does not load Bootstrap configuration or mode presets
@@ -4863,11 +4863,11 @@ Errors:
   - [x] used by `ArgvInputParser`, `CommandInputValidator`, catalog selection, and `KernelOpsRequestResolver`
   - [x] MUST NOT contain argv values, option values, paths, or previous Throwable messages
 
-- [ ] `packages/platform/cli/src/Exception/CliBootstrapException.php`
+- [x] `packages/platform/cli/src/Exception/CliBootstrapException.php`
   - [x] code `CORETSIA_CLI_BOOTSTRAP_FAILED`
   - [x] code-first deterministic public message
   - [x] exposes only stable safe reason tokens
-  - [ ] used after Composer autoload by `CliEntrypointPathsResolver`
+  - [x] used after Composer autoload by `CliEntrypointPathsResolver`
   - [x] MUST NOT contain launcher paths, autoload paths, skeleton paths, or previous Throwable messages
 
 - [x] `packages/platform/cli/src/Exception/InvalidCommandTagMetaException.php`
@@ -4893,11 +4893,11 @@ Errors:
   - [x] previous throwable message is never included
   - [x] no dependency on deleted `CliException` or `ErrorCodes`
 
-- [ ] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
+- [x] `packages/platform/cli/src/Exception/CliConfigInvalidException.php`
   - [x] code `CORETSIA_CLI_CONFIG_INVALID`
   - [x] code-first deterministic public message
   - [x] exposes only stable safe reason tokens
-  - [ ] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
+  - [x] used by `CliOutputPolicy`, `CliServiceFactory`, and `CommandOverrides`
   - [x] MUST NOT include raw config values, dynamic override values, paths, or previous Throwable messages
   - [x] no dependency on deleted `CliException` or `ErrorCodes`
 
@@ -5548,75 +5548,75 @@ Docs:
     - [x] unknown static keys at every schema-owned level
     - [x] dynamic keys under `cli.commands.overrides` are the only structural exception
 
-- [ ] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — complete rewrite
-  - [ ] replace the Phase-0 static `CliModule::providers()` call with instance-based module metadata verification
-  - [ ] remove assertions for deleted `CliServiceProvider::id()` and `CliServiceProvider::factories()` APIs
-  - [ ] verify `CliServiceProvider` implements `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
-  - [ ] verify `CliModule::providers()` returns the canonical `CliServiceProvider::class` through the module instance
-  - [ ] preserve output-free loading assertions for `config/cli.php` and `config/rules.php`
-  - [ ] replace legacy `cli.commands` list assertions with the canonical `cli.commands.overrides` map shape
-  - [ ] replace legacy `cli.output.format` assertions with `cli.output.format_default` and the `adaptive|json|table|plain` allowed-value set
-  - [ ] verify the canonical adaptive, color, and table-width config nodes
-  - [ ] remove all Phase-0 `MODE`, static-provider, command-registry, and configurable-redaction assumptions
+- [x] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — complete rewrite
+  - [x] replace the Phase-0 static `CliModule::providers()` call with instance-based module metadata verification
+  - [x] remove assertions for deleted `CliServiceProvider::id()` and `CliServiceProvider::factories()` APIs
+  - [x] verify `CliServiceProvider` implements `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+  - [x] verify `CliModule::providers()` returns the canonical `CliServiceProvider::class` through the module instance
+  - [x] preserve output-free loading assertions for `config/cli.php` and `config/rules.php`
+  - [x] replace legacy `cli.commands` list assertions with the canonical `cli.commands.overrides` map shape
+  - [x] replace legacy `cli.output.format` assertions with `cli.output.format_default` and the `adaptive|json|table|plain` allowed-value set
+  - [x] verify the canonical adaptive, color, and table-width config nodes
+  - [x] remove all Phase-0 `MODE`, static-provider, command-registry, and configurable-redaction assumptions
 
-- [ ] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
-  - [ ] scans every production command under `src/Command`
-  - [ ] rejects:
-    - [ ] `echo`
-    - [ ] `print`
-    - [ ] `printf`
-    - [ ] `var_dump`
-    - [ ] `print_r`
-    - [ ] `error_log`
-    - [ ] direct `STDOUT|STDERR`
-    - [ ] `php://stdout|php://stderr|php://output`
-  - [ ] excludes tests and fixtures
-  - [ ] does not forbid writes inside the explicit `ConsoleOutputWriter`
+- [x] `packages/platform/cli/tests/Contract/CommandsDoNotWriteToStdoutTest.php` — complete rewrite
+  - [x] scans every production command under `src/Command`
+  - [x] rejects:
+    - [x] `echo`
+    - [x] `print`
+    - [x] `printf`
+    - [x] `var_dump`
+    - [x] `print_r`
+    - [x] `error_log`
+    - [x] direct `STDOUT|STDERR`
+    - [x] `php://stdout|php://stderr|php://output`
+  - [x] excludes tests and fixtures
+  - [x] does not forbid writes inside the explicit `ConsoleOutputWriter`
 
-- [ ] `packages/core/kernel/tests/Support/AppBuilder.php`
-  - [ ] extend the existing test manifest and provider fixtures with the CLI-to-Redaction dependency closure
-  - [ ] reuse the canonical Kernel module resolver without introducing an alternate test-only module planner
+- [x] `packages/core/kernel/tests/Support/AppBuilder.php`
+  - [x] extend the existing test manifest and provider fixtures with the CLI-to-Redaction dependency closure
+  - [x] reuse the canonical Kernel module resolver without introducing an alternate test-only module planner
 
-- [ ] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
-  - [ ] update the expected enabled module set for the canonical `micro` preset
-  - [ ] verify CLI and Redaction dependency closure without weakening compiled-artifact validation
+- [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] update the expected enabled module set for the canonical `micro` preset
+  - [x] verify CLI and Redaction dependency closure without weakening compiled-artifact validation
 
-- [ ] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
-  - [ ] update the expected enabled module set for the canonical `express` preset
-  - [ ] preserve deterministic ModulePlan and artifact assertions
+- [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] update the expected enabled module set for the canonical `express` preset
+  - [x] preserve deterministic ModulePlan and artifact assertions
 
-- [ ] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
-  - [ ] update canonical preset module expectations
-  - [ ] preserve required/modules disjointness and schema validation
-  - [ ] verify Worker remains selected only by the intended canonical presets
+- [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [x] update canonical preset module expectations
+  - [x] preserve required/modules disjointness and schema validation
+  - [x] verify Worker remains selected only by the intended canonical presets
 
-- [ ] `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
-  - [ ] update assertions affected by the canonical preset closure
-  - [ ] preserve independent per-target ModulePlan and project-wide Composer union semantics
+- [x] `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
+  - [x] update assertions affected by the canonical preset closure
+  - [x] preserve independent per-target ModulePlan and project-wide Composer union semantics
 
-- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
-  - [ ] replace legacy `cli.commands` list validation cases with the canonical `cli.commands.overrides` map shape
-  - [ ] verify rejection of invalid static `commands|overrides` node types
-  - [ ] preserve exact structural violation-path, reason, expected-type, and actual-type assertions
-  - [ ] leave dynamic command-name and override-value validation to `CommandOverrides`
+- [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliCommandsTest.php`
+  - [x] replace legacy `cli.commands` list validation cases with the canonical `cli.commands.overrides` map shape
+  - [x] verify rejection of invalid static `commands|overrides` node types
+  - [x] preserve exact structural violation-path, reason, expected-type, and actual-type assertions
+  - [x] leave dynamic command-name and override-value validation to `CommandOverrides`
 
-- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
-  - [ ] replace legacy `cli.output.format` assertions with `cli.output.format_default`
-  - [ ] preserve wrong-type and unsupported-value validation coverage
-  - [ ] verify the canonical `adaptive|json|table|plain` allowed-value set
+- [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorRejectsInvalidCliOutputFormatTest.php`
+  - [x] replace legacy `cli.output.format` assertions with `cli.output.format_default`
+  - [x] preserve wrong-type and unsupported-value validation coverage
+  - [x] verify the canonical `adaptive|json|table|plain` allowed-value set
 
-- [ ] `packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
-  - [ ] replace legacy command-list, `output.format`, and `output.redaction.enabled` fixtures with invalid values under the new CLI config schema
-  - [ ] update exact expected violation paths and deterministic ordering
-  - [ ] preserve assertions that rejected config values, secrets, and filesystem paths never appear in diagnostics
+- [x] `packages/core/kernel/tests/Unit/Config/ConfigValidatorDiagnosticsAreSafeAndDeterministicTest.php`
+  - [x] replace legacy command-list, `output.format`, and `output.redaction.enabled` fixtures with invalid values under the new CLI config schema
+  - [x] update exact expected violation paths and deterministic ordering
+  - [x] preserve assertions that rejected config values, secrets, and filesystem paths never appear in diagnostics
 
-- [ ] `packages/platform/worker/tests/Integration/WorkerCompileArtifactBootE2ETest.php`
-  - [ ] remove `mode` from the expected `commandMetadata()` return shape
-  - [ ] remove `$commandClass::MODE` access from the metadata fixture
-  - [ ] preserve exact six-key `cli.command` metadata parity across source and compiled artifact boot
-  - [ ] preserve the existing Worker-only custom preset, artifact compilation, verification, and runtime boot assertions
-  - [ ] MUST NOT add `platform.cli` or `platform.redaction` as mandatory roots to the Worker-only test preset
-  - [ ] MUST NOT weaken the canonical artifact and deterministic tag-order assertions
+- [x] `packages/platform/worker/tests/Integration/WorkerCompileArtifactBootE2ETest.php`
+  - [x] remove `mode` from the expected `commandMetadata()` return shape
+  - [x] remove `$commandClass::MODE` access from the metadata fixture
+  - [x] preserve exact six-key `cli.command` metadata parity across source and compiled artifact boot
+  - [x] preserve the existing Worker-only custom preset, artifact compilation, verification, and runtime boot assertions
+  - [x] MUST NOT add `platform.cli` or `platform.redaction` as mandatory roots to the Worker-only test preset
+  - [x] MUST NOT weaken the canonical artifact and deterministic tag-order assertions
 
 - [ ] `docs/ssot/tags.md`
   - [ ] define that every `cli.command` service id is the exact command class FQCN
@@ -5737,132 +5737,132 @@ Docs:
 
 #### Context & UoW
 
-- [ ] Normal command UoW:
-  - [ ] every normal command executes through exactly one `KernelRuntimeInterface` UoW
-  - [ ] canonical UoW type is `cli`
-  - [ ] UoW begins after descriptor validation and before lazy command resolution
-  - [ ] command resolution, command-name verification, execution, and exit-code validation occur inside the same UoW callback
-  - [ ] one command invocation MUST NOT create nested CLI UoWs
-  - [ ] `doctor` is the only pre-host and pre-UoW command path
-- [ ] Safe UoW attributes supplied by `CommandRunner`:
-  - [ ] canonical command operation id
-  - [ ] effective CLI output format
-  - [ ] no raw argv
-  - [ ] no positional argument values
-  - [ ] no option values
-  - [ ] no output records
-  - [ ] no filesystem paths
-  - [ ] no endpoints
-  - [ ] no payloads or secrets
-- [ ] Context writes:
-  - [ ] platform/cli performs no direct `ContextStore` writes
-  - [ ] `CommandRunner` passes safe UoW inputs to `KernelRuntimeInterface`
-  - [ ] KernelRuntime owns base ContextStore writes:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-    - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] `cli_output_format` is not introduced as a ContextStore key
-  - [ ] `CommandRunner` passes the following safe UoW attributes:
-    - [ ] `operation` = canonical command name
-    - [ ] `output_format` = resolved `json|table|plain`
-  - [ ] UoW attributes remain lifecycle/hook payload data and MUST NOT be written into ContextStore by platform/cli
-- [ ] Context reads:
-  - [ ] platform/cli reads runtime context only through `ContextAccessorInterface`
-  - [ ] `CommandRunner` consumes the following Kernel-owned values only for optional safe log correlation:
-    - [ ] `ContextKeys::CORRELATION_ID`
-    - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE` is written and owned by KernelRuntime; `CommandRunner` does not need to read it because the UoW type is explicitly supplied as `UnitOfWorkType::CLI`
-  - [ ] optional identifiers MUST be captured inside the UoW callback before the canonical KernelRuntime reset
-  - [ ] missing, invalid, or unavailable identifiers MUST be omitted from CLI logs
-  - [ ] failures of optional context reads MUST NOT alter command execution, UoW cleanup, exit codes, or primary exception precedence
-  - [ ] `output_format` is supplied explicitly to `CommandRunner` and passed as a UoW attribute; it is not read from ContextAccessorInterface
-  - [ ] CLI MUST NOT create or write additional ContextStore keys
-  - [ ] commands and formatters MUST NOT require these values to produce their domain result
-- [ ] Reset discipline:
-  - [ ] reset is triggered only by the canonical KernelRuntime lifecycle
-  - [ ] platform/cli MUST NOT enumerate `kernel.reset`
-  - [ ] platform/cli MUST NOT call `ResetOrchestrator` directly
-  - [ ] platform/cli introduces no shared mutable service in the baseline
-  - [ ] `CommandOutputBuffer` is invocation-local and is not a container singleton
-  - [ ] immutable catalog, descriptor, and output-policy objects do not require reset
-  - [ ] any future shared mutable service must implement `ResetInterface` and satisfy canonical stateful-service policy
+- [x] Normal command UoW:
+  - [x] every normal command executes through exactly one `KernelRuntimeInterface` UoW
+  - [x] canonical UoW type is `cli`
+  - [x] UoW begins after descriptor validation and before lazy command resolution
+  - [x] command resolution, command-name verification, execution, and exit-code validation occur inside the same UoW callback
+  - [x] one command invocation MUST NOT create nested CLI UoWs
+  - [x] `doctor` is the only pre-host and pre-UoW command path
+- [x] Safe UoW attributes supplied by `CommandRunner`:
+  - [x] canonical command operation id
+  - [x] effective CLI output format
+  - [x] no raw argv
+  - [x] no positional argument values
+  - [x] no option values
+  - [x] no output records
+  - [x] no filesystem paths
+  - [x] no endpoints
+  - [x] no payloads or secrets
+- [x] Context writes:
+  - [x] platform/cli performs no direct `ContextStore` writes
+  - [x] `CommandRunner` passes safe UoW inputs to `KernelRuntimeInterface`
+  - [x] KernelRuntime owns base ContextStore writes:
+    - [x] `ContextKeys::CORRELATION_ID`
+    - [x] `ContextKeys::UOW_ID`
+    - [x] `ContextKeys::UOW_TYPE`
+  - [x] `cli_output_format` is not introduced as a ContextStore key
+  - [x] `CommandRunner` passes the following safe UoW attributes:
+    - [x] `operation` = canonical command name
+    - [x] `output_format` = resolved `json|table|plain`
+  - [x] UoW attributes remain lifecycle/hook payload data and MUST NOT be written into ContextStore by platform/cli
+- [x] Context reads:
+  - [x] platform/cli reads runtime context only through `ContextAccessorInterface`
+  - [x] `CommandRunner` consumes the following Kernel-owned values only for optional safe log correlation:
+    - [x] `ContextKeys::CORRELATION_ID`
+    - [x] `ContextKeys::UOW_ID`
+  - [x] `ContextKeys::UOW_TYPE` is written and owned by KernelRuntime; `CommandRunner` does not need to read it because the UoW type is explicitly supplied as `UnitOfWorkType::CLI`
+  - [x] optional identifiers MUST be captured inside the UoW callback before the canonical KernelRuntime reset
+  - [x] missing, invalid, or unavailable identifiers MUST be omitted from CLI logs
+  - [x] failures of optional context reads MUST NOT alter command execution, UoW cleanup, exit codes, or primary exception precedence
+  - [x] `output_format` is supplied explicitly to `CommandRunner` and passed as a UoW attribute; it is not read from ContextAccessorInterface
+  - [x] CLI MUST NOT create or write additional ContextStore keys
+  - [x] commands and formatters MUST NOT require these values to produce their domain result
+- [x] Reset discipline:
+  - [x] reset is triggered only by the canonical KernelRuntime lifecycle
+  - [x] platform/cli MUST NOT enumerate `kernel.reset`
+  - [x] platform/cli MUST NOT call `ResetOrchestrator` directly
+  - [x] platform/cli introduces no shared mutable service in the baseline
+  - [x] `CommandOutputBuffer` is invocation-local and is not a container singleton
+  - [x] immutable catalog, descriptor, and output-policy objects do not require reset
+  - [x] any future shared mutable service must implement `ResetInterface` and satisfy canonical stateful-service policy
 
 #### Observability (policy-compliant)
 
-- [ ] Ownership:
-  - [ ] `CommandRunner` owns CLI command execution observability
-  - [ ] `KernelOpsFacade` owns Kernel operation observability
-  - [ ] built-in Kernel operation commands and CLI transport services MUST NOT emit duplicate Kernel-operation spans or metrics
-  - [ ] formatters and writers MUST NOT emit command lifecycle metrics
-- [ ] Command span:
-  - [ ] name: `cli.command`
-  - [ ] exactly one span-start attempt per selected normal command execution
-  - [ ] the span begins before the Kernel UoW call and finishes after its complete lifecycle
-  - [ ] a successfully started span MUST be ended exactly once
-  - [ ] failed tracing MUST NOT prevent command execution, alter exit codes, or trigger command retries
-  - [ ] safe attributes:
-    - [ ] `operation`
-    - [ ] `outcome`
-    - [ ] `format`
-    - [ ] `exit_code`
-  - [ ] `operation` is the canonical command name
-  - [ ] `exit_code` is a span attribute only
-  - [ ] no arguments, options, paths, endpoints, payloads, or config values
-- [ ] Command metrics:
-  - [ ] `cli.command_total`
-    - [ ] labels: `operation|outcome`
-  - [ ] `cli.command_duration_ms`
-    - [ ] labels: `operation|outcome`
-  - [ ] duration measured through Foundation `Stopwatch`
-  - [ ] metric values use integer milliseconds
-  - [ ] `format|exit_code|app_target|preset|correlation_id|uow_id` are forbidden metric labels
-- [ ] Canonical outcomes:
-  - [ ] thrown exception uses canonical process exit code `1` for span and log attributes
-  - [ ] exit code `0` → `success`
-  - [ ] non-zero returned exit code → `failure`
-  - [ ] thrown exception → `failure`
-  - [ ] CLI command outcomes are based on the returned process exit code or thrown Throwable, not on Kernel UoW lifecycle outcome
-  - [ ] a valid non-zero command return is a CLI command `failure` even when KernelRuntime records successful completion of the UoW callback
-  - [ ] CLI MUST NOT override Kernel-owned UoW outcomes or emit corrective `kernel.uow` telemetry
-- [ ] Logs:
-  - [ ] one safe command completion/failure summary
-  - [ ] safe fields:
-    - [ ] `operation`
-    - [ ] `outcome`
-    - [ ] `exit_code`
-  - [ ] MAY include `correlation_id|uow_id`
-  - [ ] MUST NOT include raw argv, arguments, option values, command output, paths, endpoints, payloads, env/config values, tokens, exception stack traces, or previous throwable messages
-- [ ] Failure isolation:
-  - [ ] tracer start, attribute-update, and span-end failures MUST NOT alter command exit code
-  - [ ] meter counter and duration-observation failures MUST NOT alter command exit code
-  - [ ] logger failure MUST NOT alter command exit code
-  - [ ] Foundation Stopwatch start/stop failures MUST NOT alter command exit code
-  - [ ] optional ContextAccessorInterface read failures MUST NOT alter command exit code
-  - [ ] an unavailable duration uses integer `0`
-  - [ ] observability failures MUST NOT prevent or repeat command execution
-  - [ ] observability failures MUST NOT replace the primary command exception
-  - [ ] observability failures MUST NOT change Kernel-owned after-hook, reset, or failure-precedence semantics
-  - [ ] failed observability attempts MUST NOT trigger recursive reporting through the same failing port
-- [ ] Doctor:
-  - [ ] ultra-early doctor does not require tracer, meter, logger, context, or UoW services
-  - [ ] doctor emits no normal `cli.command` runtime span
-  - [ ] doctor diagnostics are safe by construction through a fixed allowlist
-  - [ ] ultra-early doctor MUST NOT invoke `SensitiveDataRedactorInterface`
+- [x] Ownership:
+  - [x] `CommandRunner` owns CLI command execution observability
+  - [x] `KernelOpsFacade` owns Kernel operation observability
+  - [x] built-in Kernel operation commands and CLI transport services MUST NOT emit duplicate Kernel-operation spans or metrics
+  - [x] formatters and writers MUST NOT emit command lifecycle metrics
+- [x] Command span:
+  - [x] name: `cli.command`
+  - [x] exactly one span-start attempt per selected normal command execution
+  - [x] the span begins before the Kernel UoW call and finishes after its complete lifecycle
+  - [x] a successfully started span MUST be ended exactly once
+  - [x] failed tracing MUST NOT prevent command execution, alter exit codes, or trigger command retries
+  - [x] safe attributes:
+    - [x] `operation`
+    - [x] `outcome`
+    - [x] `format`
+    - [x] `exit_code`
+  - [x] `operation` is the canonical command name
+  - [x] `exit_code` is a span attribute only
+  - [x] no arguments, options, paths, endpoints, payloads, or config values
+- [x] Command metrics:
+  - [x] `cli.command_total`
+    - [x] labels: `operation|outcome`
+  - [x] `cli.command_duration_ms`
+    - [x] labels: `operation|outcome`
+  - [x] duration measured through Foundation `Stopwatch`
+  - [x] metric values use integer milliseconds
+  - [x] `format|exit_code|app_target|preset|correlation_id|uow_id` are forbidden metric labels
+- [x] Canonical outcomes:
+  - [x] thrown exception uses canonical process exit code `1` for span and log attributes
+  - [x] exit code `0` → `success`
+  - [x] non-zero returned exit code → `failure`
+  - [x] thrown exception → `failure`
+  - [x] CLI command outcomes are based on the returned process exit code or thrown Throwable, not on Kernel UoW lifecycle outcome
+  - [x] a valid non-zero command return is a CLI command `failure` even when KernelRuntime records successful completion of the UoW callback
+  - [x] CLI MUST NOT override Kernel-owned UoW outcomes or emit corrective `kernel.uow` telemetry
+- [x] Logs:
+  - [x] one safe command completion/failure summary
+  - [x] safe fields:
+    - [x] `operation`
+    - [x] `outcome`
+    - [x] `exit_code`
+  - [x] MAY include `correlation_id|uow_id`
+  - [x] MUST NOT include raw argv, arguments, option values, command output, paths, endpoints, payloads, env/config values, tokens, exception stack traces, or previous throwable messages
+- [x] Failure isolation:
+  - [x] tracer start, attribute-update, and span-end failures MUST NOT alter command exit code
+  - [x] meter counter and duration-observation failures MUST NOT alter command exit code
+  - [x] logger failure MUST NOT alter command exit code
+  - [x] Foundation Stopwatch start/stop failures MUST NOT alter command exit code
+  - [x] optional ContextAccessorInterface read failures MUST NOT alter command exit code
+  - [x] an unavailable duration uses integer `0`
+  - [x] observability failures MUST NOT prevent or repeat command execution
+  - [x] observability failures MUST NOT replace the primary command exception
+  - [x] observability failures MUST NOT change Kernel-owned after-hook, reset, or failure-precedence semantics
+  - [x] failed observability attempts MUST NOT trigger recursive reporting through the same failing port
+- [x] Doctor:
+  - [x] ultra-early doctor does not require tracer, meter, logger, context, or UoW services
+  - [x] doctor emits no normal `cli.command` runtime span
+  - [x] doctor diagnostics are safe by construction through a fixed allowlist
+  - [x] ultra-early doctor MUST NOT invoke `SensitiveDataRedactorInterface`
 
 ### Security / Redaction (MUST)
 
 - [ ] Redaction is mandatory:
-  - [ ] every normal command output passes through mandatory defense-in-depth redaction
-  - [ ] ultra-early doctor is the sole exception and is safe by construction
-  - [ ] no config key disables it
-  - [ ] no global option disables it
-  - [ ] no owner-package command can bypass final CLI defense-in-depth redaction
-  - [ ] `OutputFormatter` always receives `SensitiveDataRedactorInterface`
+  - [x] every normal command output passes through mandatory defense-in-depth redaction
+  - [x] ultra-early doctor is the sole exception and is safe by construction
+  - [x] no config key disables it
+  - [x] no global option disables it
+  - [x] no owner-package command can bypass final CLI defense-in-depth redaction
+  - [x] `OutputFormatter` always receives `SensitiveDataRedactorInterface`
   - [ ] owner-package commands MUST produce safe-by-construction output before CLI redaction
   - [ ] known-sensitive values MUST be omitted, safely derived, or explicitly classified by their owning producer
   - [ ] a shared redaction classifier non-match MUST NOT be treated as authorization to emit raw values
   - [ ] successful redaction MUST NOT widen CLI-owned output schemas or authorize arbitrary diagnostic metadata
-  - [ ] non-placeholder hash and length disclosure modes are not enabled by the baseline CLI output boundary
+  - [x] non-placeholder hash and length disclosure modes are not enabled by the baseline CLI output boundary
 - [ ] CLI MUST NOT leak:
   - [ ] dotenv or env values
   - [ ] raw config values
@@ -5873,16 +5873,16 @@ Docs:
   - [ ] payloads
   - [ ] filesystem paths unless explicitly owner-approved output contract permits a safe relative path
   - [ ] exception stack traces by default
-- [ ] Allowed diagnostics:
-  - [ ] stable reason tokens
-  - [ ] bounded operation ids
-  - [ ] integer counts and lengths
-  - [ ] owner-approved safe hash derivations only where non-reconstruction requirements are satisfied
-  - [ ] correlation and UoW ids where policy permits
-- [ ] Color safety:
-  - [ ] config cannot contain arbitrary ANSI escape sequences
-  - [ ] JSON output is always ANSI-free
-  - [ ] owner-package output values MUST NOT be interpreted as ANSI control sequences
+- [x] Allowed diagnostics:
+  - [x] stable reason tokens
+  - [x] bounded operation ids
+  - [x] integer counts and lengths
+  - [x] owner-approved safe hash derivations only where non-reconstruction requirements are satisfied
+  - [x] correlation and UoW ids where policy permits
+- [x] Color safety:
+  - [x] config cannot contain arbitrary ANSI escape sequences
+  - [x] JSON output is always ANSI-free
+  - [x] owner-package output values MUST NOT be interpreted as ANSI control sequences
 
 ### Tests (MUST)
 
@@ -5911,243 +5911,243 @@ Docs:
     - [x] contributes external name `help` for deterministic collision testing
 
 - Unit:
-  - [ ] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
-    - [ ] contains exactly one parsed `ArgvInput` and nullable global `formatOverride|colorOverride`
-    - [ ] preserves command-facing arguments and options without reconstructing raw argv
-    - [ ] global `format|color` tokens are absent from the contained command input
-    - [ ] is immutable and retains no streams, catalog, config repository, descriptor, or command service
+  - [x] `packages/platform/cli/tests/Unit/ParsedCliInvocationTest.php`
+    - [x] contains exactly one parsed `ArgvInput` and nullable global `formatOverride|colorOverride`
+    - [x] preserves command-facing arguments and options without reconstructing raw argv
+    - [x] global `format|color` tokens are absent from the contained command input
+    - [x] is immutable and retains no streams, catalog, config repository, descriptor, or command service
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
-    - [ ] actual non-zero `TaggedService::priority()` hard-fails with `InvalidCommandTagMetaException`
-    - [ ] both positive and negative non-zero priorities are rejected
-    - [ ] a forbidden metadata `priority` key is not required to trigger rejection
-    - [ ] priority `0` remains valid
-    - [ ] the catalog neither overwrites priority nor re-sorts TagRegistry output
-    - [ ] no command service is instantiated during validation
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonZeroTagPriorityTest.php`
+    - [x] actual non-zero `TaggedService::priority()` hard-fails with `InvalidCommandTagMetaException`
+    - [x] both positive and negative non-zero priorities are rejected
+    - [x] a forbidden metadata `priority` key is not required to trigger rejection
+    - [x] priority `0` remains valid
+    - [x] the catalog neither overwrites priority nor re-sorts TagRegistry output
+    - [x] no command service is instantiated during validation
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
-    - [ ] NUL, ESC, ANSI sequences, forbidden C0/C1 characters, and DEL in string values fail before record insertion
-    - [ ] CRLF and CR in permitted string values normalize to LF
-    - [ ] LF and TAB remain permitted in text and JSON-like string values
-    - [ ] error messages remain safe single-line strings
-    - [ ] valid non-ASCII UTF-8 values are not rejected because of UTF-8 continuation bytes
-    - [ ] malformed UTF-8 fails closed
-    - [ ] rejected values do not produce partial output or disclose offending content
+  - [x] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsAnsiAndControlBytesTest.php`
+    - [x] NUL, ESC, ANSI sequences, forbidden C0/C1 characters, and DEL in string values fail before record insertion
+    - [x] CRLF and CR in permitted string values normalize to LF
+    - [x] LF and TAB remain permitted in text and JSON-like string values
+    - [x] error messages remain safe single-line strings
+    - [x] valid non-ASCII UTF-8 values are not rejected because of UTF-8 continuation bytes
+    - [x] malformed UTF-8 fails closed
+    - [x] rejected values do not produce partial output or disclose offending content
 
-  - [ ] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
-    - [ ] resolves the application root from a valid canonical Composer binary layout
-    - [ ] resolves the application root from an explicit canonical monorepo wrapper input
-    - [ ] validates and normalizes the already-selected readable Composer autoload path
-    - [ ] conflicting application-root sources fail with `CliBootstrapException`
-    - [ ] unsupported or unresolved launcher layouts fail deterministically
-    - [ ] results do not depend on the current working directory
-    - [ ] performs no recursive parent-directory scanning or application-config loading
-    - [ ] failure diagnostics disclose no absolute paths or raw launcher values
+  - [x] `packages/platform/cli/tests/Unit/CliEntrypointPathsResolverTest.php`
+    - [x] resolves the application root from a valid canonical Composer binary layout
+    - [x] resolves the application root from an explicit canonical monorepo wrapper input
+    - [x] validates and normalizes the already-selected readable Composer autoload path
+    - [x] conflicting application-root sources fail with `CliBootstrapException`
+    - [x] unsupported or unresolved launcher layouts fail deterministically
+    - [x] results do not depend on the current working directory
+    - [x] performs no recursive parent-directory scanning or application-config loading
+    - [x] failure diagnostics disclose no absolute paths or raw launcher values
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
-    - [ ] resolves exactly the selected `CommandDescriptor::serviceId()` through `ContainerInterface`
-    - [ ] never enumerates container services or resolves unrelated tagged commands
-    - [ ] command construction happens inside the Kernel UoW callback
-    - [ ] passes the command-facing `InputInterface` and invocation-local `OutputInterface` unchanged
-    - [ ] rejects a resolved service that does not implement `CommandInterface`
-    - [ ] rejects a different command class returned under the selected descriptor's service id, even when it implements `CommandInterface` and returns the expected command name
-    - [ ] rejects a subclass or decorator returned under a tagged command class service id
-    - [ ] accepts the exact command class registered under its own FQCN
-    - [ ] rejects a resolved command whose `name()` differs from the selected descriptor
-    - [ ] unrelated command constructors are never invoked
+  - [x] `packages/platform/cli/tests/Unit/CommandRunnerResolvesOnlySelectedServiceTest.php`
+    - [x] resolves exactly the selected `CommandDescriptor::serviceId()` through `ContainerInterface`
+    - [x] never enumerates container services or resolves unrelated tagged commands
+    - [x] command construction happens inside the Kernel UoW callback
+    - [x] passes the command-facing `InputInterface` and invocation-local `OutputInterface` unchanged
+    - [x] rejects a resolved service that does not implement `CommandInterface`
+    - [x] rejects a different command class returned under the selected descriptor's service id, even when it implements `CommandInterface` and returns the expected command name
+    - [x] rejects a subclass or decorator returned under a tagged command class service id
+    - [x] accepts the exact command class registered under its own FQCN
+    - [x] rejects a resolved command whose `name()` differs from the selected descriptor
+    - [x] unrelated command constructors are never invoked
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
-    - [ ] accepts the canonical exact six-key metadata schema
-    - [ ] validates the canonical `group` token pattern
-    - [ ] rejects empty, uppercase, whitespace-containing, and control-character-containing groups
-    - [ ] requires a non-empty safe summary and boolean hidden flag
-    - [ ] validates argument descriptors with exact `name|summary|required|variadic` keys
-    - [ ] rejects duplicate argument names, required arguments after optional arguments, and non-final variadic arguments
-    - [ ] validates option descriptors with exact `name|summary|value|repeatable` keys
-    - [ ] rejects duplicate option names and invalid `none|required|optional` value declarations
-    - [ ] permits `repeatable = true` only with `value = required`
-    - [ ] rejects reserved CLI-global option names `format|color`
-    - [ ] permits owner-domain option names such as `mode|preset`
-    - [ ] rejects non-json-like metadata and invalid static safe-text shapes
-    - [ ] does not introduce CLI-local sensitive-value, path, or endpoint classification
-    - [ ] leaves priority-key, unknown-key, name-regex, and class-constant mismatch cases to their dedicated tests
+  - [x] `packages/platform/cli/tests/Unit/CommandTagSchemaTest.php`
+    - [x] accepts the canonical exact six-key metadata schema
+    - [x] validates the canonical `group` token pattern
+    - [x] rejects empty, uppercase, whitespace-containing, and control-character-containing groups
+    - [x] requires a non-empty safe summary and boolean hidden flag
+    - [x] validates argument descriptors with exact `name|summary|required|variadic` keys
+    - [x] rejects duplicate argument names, required arguments after optional arguments, and non-final variadic arguments
+    - [x] validates option descriptors with exact `name|summary|value|repeatable` keys
+    - [x] rejects duplicate option names and invalid `none|required|optional` value declarations
+    - [x] permits `repeatable = true` only with `value = required`
+    - [x] rejects reserved CLI-global option names `format|color`
+    - [x] permits owner-domain option names such as `mode|preset`
+    - [x] rejects non-json-like metadata and invalid static safe-text shapes
+    - [x] does not introduce CLI-local sensitive-value, path, or endpoint classification
+    - [x] leaves priority-key, unknown-key, name-regex, and class-constant mismatch cases to their dedicated tests
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
-    - [ ] identical canonical TagRegistry input produces identical descriptor order and values
-    - [ ] catalog order matches `TagRegistry::all(ReservedTags::CLI_COMMAND)` exactly
-    - [ ] catalog performs no secondary sorting or deduplication
-    - [ ] repeated registration of the same service id follows Foundation first-wins semantics
-    - [ ] applies validated `CommandOverrides` exactly once without changing descriptor order
-    - [ ] overrides affect only the catalog-view `summary|hidden|group` fields
-    - [ ] repeated `descriptors()` and `require()` calls do not resolve command services or mutate catalog state
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogDeterminismTest.php`
+    - [x] identical canonical TagRegistry input produces identical descriptor order and values
+    - [x] catalog order matches `TagRegistry::all(ReservedTags::CLI_COMMAND)` exactly
+    - [x] catalog performs no secondary sorting or deduplication
+    - [x] repeated registration of the same service id follows Foundation first-wins semantics
+    - [x] applies validated `CommandOverrides` exactly once without changing descriptor order
+    - [x] overrides affect only the catalog-view `summary|hidden|group` fields
+    - [x] repeated `descriptors()` and `require()` calls do not resolve command services or mutate catalog state
 
-  - [ ] `packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
-    - [ ] uses the configured `cli.output.table.max_width` rather than detected terminal width
-    - [ ] rendered table lines respect the configured visible-width limit
-    - [ ] every physical output line, including headings, separators, wrapped rows, and group labels, stays within the configured `max_width`
-    - [ ] nested `commands` lists render as readable command rows rather than one serialized JSON value
-    - [ ] nested `groups` maps render as separate readable group sections without losing command entries
-    - [ ] long command names and summaries wrap across physical table rows without truncation, ellipsis insertion, character loss, or reordering
-    - [ ] wrapped cell content can be reconstructed exactly from its physical row fragments
-    - [ ] narrow valid widths do not cause uncontrolled expansion
-    - [ ] width calculation ignores formatter-owned ANSI decoration
-    - [ ] color-disabled rendering is ANSI-free and deterministic
-    - [ ] identical normalized records and width settings produce identical output
-    - [ ] output contains no trailing CR or LF before `ConsoleOutputWriter` processing
+  - [x] `packages/platform/cli/tests/Unit/TableFormatterHonorsConfiguredMaxWidthTest.php`
+    - [x] uses the configured `cli.output.table.max_width` rather than detected terminal width
+    - [x] rendered table lines respect the configured visible-width limit
+    - [x] every physical output line, including headings, separators, wrapped rows, and group labels, stays within the configured `max_width`
+    - [x] nested `commands` lists render as readable command rows rather than one serialized JSON value
+    - [x] nested `groups` maps render as separate readable group sections without losing command entries
+    - [x] long command names and summaries wrap across physical table rows without truncation, ellipsis insertion, character loss, or reordering
+    - [x] wrapped cell content can be reconstructed exactly from its physical row fragments
+    - [x] narrow valid widths do not cause uncontrolled expansion
+    - [x] width calculation ignores formatter-owned ANSI decoration
+    - [x] color-disabled rendering is ANSI-free and deterministic
+    - [x] identical normalized records and width settings produce identical output
+    - [x] output contains no trailing CR or LF before `ConsoleOutputWriter` processing
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
-    - [ ] tracer failure does not change a successfully returned command exit code
-    - [ ] meter failure does not change a successfully returned command exit code
-    - [ ] logger failure does not change a successfully returned command exit code
-    - [ ] observability failures do not suppress command execution or cause a second command execution
-    - [ ] when the command throws, the original command Throwable remains the primary failure
-    - [ ] observability failures do not replace or expose the primary Throwable
-    - [ ] Kernel-owned UoW cleanup and reset behavior remains authoritative
-    - [ ] tracer start failure does not prevent the selected command from executing once
-    - [ ] span attribute-update failure does not prevent the span-end attempt
-    - [ ] span-end failure does not change the command result or primary Throwable
-    - [ ] the real Foundation `Stopwatch` produces a non-negative integer duration during successful command execution
-    - [ ] Stopwatch start and stop calls remain protected by CLI-owned Throwable isolation and an integer `0` fallback
-    - [ ] Stopwatch failure isolation MUST NOT require mocking, subclassing, or replacing the final Foundation `Stopwatch`
-    - [ ] the failure-handling structure MAY be verified through source-level contract assertions without introducing a new Stopwatch abstraction
-    - [ ] metric counter failure does not prevent the independent duration-observation attempt
-    - [ ] optional context read failures omit correlation identifiers without affecting execution
-    - [ ] no observability failure causes a nested UoW or retry
+  - [x] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityFailureIsolationTest.php`
+    - [x] tracer failure does not change a successfully returned command exit code
+    - [x] meter failure does not change a successfully returned command exit code
+    - [x] logger failure does not change a successfully returned command exit code
+    - [x] observability failures do not suppress command execution or cause a second command execution
+    - [x] when the command throws, the original command Throwable remains the primary failure
+    - [x] observability failures do not replace or expose the primary Throwable
+    - [x] Kernel-owned UoW cleanup and reset behavior remains authoritative
+    - [x] tracer start failure does not prevent the selected command from executing once
+    - [x] span attribute-update failure does not prevent the span-end attempt
+    - [x] span-end failure does not change the command result or primary Throwable
+    - [x] the real Foundation `Stopwatch` produces a non-negative integer duration during successful command execution
+    - [x] Stopwatch start and stop calls remain protected by CLI-owned Throwable isolation and an integer `0` fallback
+    - [x] Stopwatch failure isolation MUST NOT require mocking, subclassing, or replacing the final Foundation `Stopwatch`
+    - [x] the failure-handling structure MAY be verified through source-level contract assertions without introducing a new Stopwatch abstraction
+    - [x] metric counter failure does not prevent the independent duration-observation attempt
+    - [x] optional context read failures omit correlation identifiers without affecting execution
+    - [x] no observability failure causes a nested UoW or retry
 
-  - [ ] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
-    - [ ] repeated bare flags fail
-    - [ ] mixed bare and valued occurrences of one option fail
-    - [ ] repeated valued occurrences preserve insertion order
-    - [ ] end-of-options marker prevents subsequent tokens from being parsed as options
-    - [ ] literal `--format=json` and `--color=always` after `--` remain positional arguments
-    - [ ] those positional tokens do not populate `ParsedCliInvocation::formatOverride` or `colorOverride`
-    - [ ] recognized global options before `--` remain absent from command-facing input
+  - [x] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
+    - [x] repeated bare flags fail
+    - [x] mixed bare and valued occurrences of one option fail
+    - [x] repeated valued occurrences preserve insertion order
+    - [x] end-of-options marker prevents subsequent tokens from being parsed as options
+    - [x] literal `--format=json` and `--color=always` after `--` remain positional arguments
+    - [x] those positional tokens do not populate `ParsedCliInvocation::formatOverride` or `colorOverride`
+    - [x] recognized global options before `--` remain absent from command-facing input
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferAggregateLimitsTest.php`
-    - [ ] exactly `1024` records are accepted when the aggregate byte budget permits
-    - [ ] record `1025` is rejected before insertion
-    - [ ] the exact aggregate byte boundary is accepted
-    - [ ] aggregate byte boundary plus one is rejected
-    - [ ] rejected records are never partially retained
-    - [ ] failure messages contain no record values or payload fragments
+  - [x] `packages/platform/cli/tests/Unit/CommandOutputBufferAggregateLimitsTest.php`
+    - [x] exactly `1024` records are accepted when the aggregate byte budget permits
+    - [x] record `1025` is rejected before insertion
+    - [x] the exact aggregate byte boundary is accepted
+    - [x] aggregate byte boundary plus one is rejected
+    - [x] rejected records are never partially retained
+    - [x] failure messages contain no record values or payload fragments
 
-  - [ ] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
-    - [ ] maps `KernelOpsFailedException` only through its stable public code/reason contract
-    - [ ] mapped `ErrorDescriptor` contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
+  - [x] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
+    - [x] maps `KernelOpsFailedException` only through its stable public code/reason contract
+    - [x] mapped `ErrorDescriptor` contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
-  - [ ] `packages/platform/cli/tests/Unit/ExceptionRendererDoesNotExposeThrowableMetadataTest.php`
-    - [ ] renderer consumes only `ErrorDescriptor`, never a raw Throwable
-    - [ ] rendered output contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
+  - [x] `packages/platform/cli/tests/Unit/ExceptionRendererDoesNotExposeThrowableMetadataTest.php`
+    - [x] renderer consumes only `ErrorDescriptor`, never a raw Throwable
+    - [x] rendered output contains no Throwable message, class, file, line, stack trace, previous Throwable, or filesystem path metadata
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsControlCharactersInMapKeysTest.php`
-    - [ ] map keys containing CR, LF, TAB, DEL, or other forbidden control characters fail before finalization
-    - [ ] map keys containing CRLF or CR are rejected without line-ending normalization
-    - [ ] valid non-ASCII UTF-8 map keys preserve their original bytes and canonical Foundation ordering
-    - [ ] valid multiline and tab-containing string values remain supported
-    - [ ] Unicode C1 control characters are rejected without rejecting valid UTF-8 continuation bytes
-    - [ ] malformed UTF-8 fails before record insertion
-    - [ ] no rejected map key or payload value appears in failure diagnostics
+  - [x] `packages/platform/cli/tests/Unit/CommandOutputBufferRejectsControlCharactersInMapKeysTest.php`
+    - [x] map keys containing CR, LF, TAB, DEL, or other forbidden control characters fail before finalization
+    - [x] map keys containing CRLF or CR are rejected without line-ending normalization
+    - [x] valid non-ASCII UTF-8 map keys preserve their original bytes and canonical Foundation ordering
+    - [x] valid multiline and tab-containing string values remain supported
+    - [x] Unicode C1 control characters are rejected without rejecting valid UTF-8 continuation bytes
+    - [x] malformed UTF-8 fails before record insertion
+    - [x] no rejected map key or payload value appears in failure diagnostics
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonClassServiceIdTest.php`
-    - [ ] a non-class service id hard-fails before descriptor construction
-    - [ ] no command service is resolved
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogRejectsNonClassServiceIdTest.php`
+    - [x] a non-class service id hard-fails before descriptor construction
+    - [x] no command service is resolved
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsMetadataConstantMismatchTest.php`
-    - [ ] tag metadata differing from command constants hard-fails
-    - [ ] command constants are read without service construction
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogRejectsMetadataConstantMismatchTest.php`
+    - [x] tag metadata differing from command constants hard-fails
+    - [x] command constants are read without service construction
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandOutputBufferDiscardTest.php`
-    - [ ] clears all pre-error records
-    - [ ] remains writable before finalization
-    - [ ] rejects discard after finalization
+  - [x] `packages/platform/cli/tests/Unit/CommandOutputBufferDiscardTest.php`
+    - [x] clears all pre-error records
+    - [x] remains writable before finalization
+    - [x] rejects discard after finalization
 
-  - [ ] `packages/platform/cli/tests/Unit/KernelOpsRequestResolverTest.php`
-    - [ ] consumes only the already validated `InputInterface`
-    - [ ] accepts exactly one non-empty scalar `target`
-    - [ ] has no `CommandDescriptor` dependency
-    - [ ] does not validate canonical Kernel target values
+  - [x] `packages/platform/cli/tests/Unit/KernelOpsRequestResolverTest.php`
+    - [x] consumes only the already validated `InputInterface`
+    - [x] accepts exactly one non-empty scalar `target`
+    - [x] has no `CommandDescriptor` dependency
+    - [x] does not validate canonical Kernel target values
 
-  - [ ] `packages/platform/cli/tests/Unit/CliServiceFactoryReadsValidatedCliRootTest.php`
-    - [ ] every config-dependent factory method reads only the complete `cli` root
-    - [ ] each config-dependent factory method calls `ConfigRepositoryInterface::get('cli')` exactly once
-    - [ ] no factory method reads an individual `cli.*` path
+  - [x] `packages/platform/cli/tests/Unit/CliServiceFactoryReadsValidatedCliRootTest.php`
+    - [x] every config-dependent factory method reads only the complete `cli` root
+    - [x] each config-dependent factory method calls `ConfigRepositoryInterface::get('cli')` exactly once
+    - [x] no factory method reads an individual `cli.*` path
 
-  - [ ] `packages/platform/cli/tests/Unit/OutputFormatterUsesSensitiveDataRedactorTest.php`
-    - [ ] formatter receives `SensitiveDataRedactorInterface`
-    - [ ] formatter does not instantiate or resolve a concrete redactor
-    - [ ] no CLI-local classifier, policy, hasher, or pattern registry is constructed
-    - [ ] owner-supplied values are passed through the shared redaction boundary without redacting CLI record envelope keys
-    - [ ] redaction uses the fixed `cli.output` scope and `Placeholder` mode
-    - [ ] raw sensitive fixture values selected for redaction do not reach rendered output
-    - [ ] redacted maps retain canonical ordering provided by the shared redaction runtime
-    - [ ] text and error-message records retain their required string shape after redaction
+  - [x] `packages/platform/cli/tests/Unit/OutputFormatterUsesSensitiveDataRedactorTest.php`
+    - [x] formatter receives `SensitiveDataRedactorInterface`
+    - [x] formatter does not instantiate or resolve a concrete redactor
+    - [x] no CLI-local classifier, policy, hasher, or pattern registry is constructed
+    - [x] owner-supplied values are passed through the shared redaction boundary without redacting CLI record envelope keys
+    - [x] redaction uses the fixed `cli.output` scope and `Placeholder` mode
+    - [x] raw sensitive fixture values selected for redaction do not reach rendered output
+    - [x] redacted maps retain canonical ordering provided by the shared redaction runtime
+    - [x] text and error-message records retain their required string shape after redaction
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityMetadataKeyTest.php`
-    - [ ] `priority` key hard-fails deterministically
+  - [x] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsPriorityMetadataKeyTest.php`
+    - [x] `priority` key hard-fails deterministically
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsUnknownKeysTest.php`
-    - [ ] unknown metadata keys hard-fail deterministically
+  - [x] `packages/platform/cli/tests/Unit/CommandTagSchemaRejectsUnknownKeysTest.php`
+    - [x] unknown metadata keys hard-fail deterministically
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandTagSchemaValidatesNameRegexTest.php`
-    - [ ] invalid command names hard-fail deterministically
+  - [x] `packages/platform/cli/tests/Unit/CommandTagSchemaValidatesNameRegexTest.php`
+    - [x] invalid command names hard-fail deterministically
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogDoesNotInstantiateCommandsForListTest.php`
-    - [ ] catalog can build descriptors from tag metadata without resolving command services
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogDoesNotInstantiateCommandsForListTest.php`
+    - [x] catalog can build descriptors from tag metadata without resolving command services
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
-    - [ ] two distinct tagged service ids declaring the same command name hard-fail deterministically
-    - [ ] repeated registration of the same service id follows the canonical TagRegistry first-wins policy
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogRejectsDuplicateNamesTest.php`
+    - [x] two distinct tagged service ids declaring the same command name hard-fail deterministically
+    - [x] repeated registration of the same service id follows the canonical TagRegistry first-wins policy
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
-    - [ ] external `doctor` hard-fails
-    - [ ] external `help` hard-fails
-    - [ ] external `list` hard-fails
-    - [ ] built-in `doctor`, `help`, and `list` are allowed only for platform/cli built-in service ids
-    - [ ] reserved-name validation uses the canonical immutable built-in service-id map
-    - [ ] no tagged command service is instantiated during collision detection
+  - [x] `packages/platform/cli/tests/Unit/CommandCatalogRejectsReservedExternalNamesTest.php`
+    - [x] external `doctor` hard-fails
+    - [x] external `help` hard-fails
+    - [x] external `list` hard-fails
+    - [x] built-in `doctor`, `help`, and `list` are allowed only for platform/cli built-in service ids
+    - [x] reserved-name validation uses the canonical immutable built-in service-id map
+    - [x] no tagged command service is instantiated during collision detection
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
-    - [ ] descriptor name and command `name()` mismatch hard-fails with `InvalidCommandTagMetaException`
+  - [x] `packages/platform/cli/tests/Unit/CommandRunnerValidatesCommandNameMatchesDescriptorTest.php`
+    - [x] descriptor name and command `name()` mismatch hard-fails with `InvalidCommandTagMetaException`
 
-  - [ ] `packages/platform/cli/tests/Unit/CliOutputPolicyTest.php`
-    - [ ] accepts complete default config
-    - [ ] rejects unsupported format token
-    - [ ] rejects unsupported color token
-    - [ ] rejects invalid table width
+  - [x] `packages/platform/cli/tests/Unit/CliOutputPolicyTest.php`
+    - [x] accepts complete default config
+    - [x] rejects unsupported format token
+    - [x] rejects unsupported color token
+    - [x] rejects invalid table width
 
-  - [ ] `packages/platform/cli/tests/Unit/FormatResolverTest.php`
-    - [ ] explicit format overrides configured default
-    - [ ] adaptive interactive resolves to configured interactive format
-    - [ ] adaptive non-interactive resolves to configured non-interactive format
-    - [ ] performs no CI env detection
+  - [x] `packages/platform/cli/tests/Unit/FormatResolverTest.php`
+    - [x] explicit format overrides configured default
+    - [x] adaptive interactive resolves to configured interactive format
+    - [x] adaptive non-interactive resolves to configured non-interactive format
+    - [x] performs no CI env detection
 
-  - [ ] `packages/platform/cli/tests/Unit/ColorResolverTest.php`
-    - [ ] explicit color overrides configured default
-    - [ ] auto requires both interactive output and ANSI support
-    - [ ] interactive stdout with `ansiSupported = false`, including redirected stderr capabilities, disables auto color
-    - [ ] non-interactive stdout disables auto color regardless of ANSI support
-    - [ ] never disables color
-    - [ ] always enables color for text formats
-    - [ ] JSON always disables color
+  - [x] `packages/platform/cli/tests/Unit/ColorResolverTest.php`
+    - [x] explicit color overrides configured default
+    - [x] auto requires both interactive output and ANSI support
+    - [x] interactive stdout with `ansiSupported = false`, including redirected stderr capabilities, disables auto color
+    - [x] non-interactive stdout disables auto color regardless of ANSI support
+    - [x] never disables color
+    - [x] always enables color for text formats
+    - [x] JSON always disables color
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
-    - [ ] performs exactly one `cli.command` span-start attempt
-    - [ ] starts the span before entering KernelRuntime UoW
-    - [ ] ends a successfully started span after KernelRuntime UoW completion
-    - [ ] span attributes contain exactly `operation|format|outcome|exit_code` on successful final update
-    - [ ] emits exactly one `cli.command_total` counter increment
-    - [ ] emits exactly one `cli.command_duration_ms` observation
-    - [ ] metric labels contain exactly `operation|outcome`
-    - [ ] metric duration is a non-negative integer measured through Foundation Stopwatch
-    - [ ] output format and exit code are not metric labels
-    - [ ] returned exit code `0` produces outcome `success`
-    - [ ] valid non-zero returned exit codes produce outcome `failure` without remapping
-    - [ ] thrown command failure records `exit_code = 1`
-    - [ ] attempts one safe command completion/failure log
-    - [ ] log fields contain only `operation|outcome|exit_code` and optional safe `correlation_id|uow_id`
-    - [ ] optional context identifiers are captured inside the UoW callback before reset
-    - [ ] no command arguments, option values, output records, paths, endpoints, or payloads enter telemetry
-    - [ ] does not duplicate `kernel.uow` or `kernel.operation` telemetry
+  - [x] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
+    - [x] performs exactly one `cli.command` span-start attempt
+    - [x] starts the span before entering KernelRuntime UoW
+    - [x] ends a successfully started span after KernelRuntime UoW completion
+    - [x] span attributes contain exactly `operation|format|outcome|exit_code` on successful final update
+    - [x] emits exactly one `cli.command_total` counter increment
+    - [x] emits exactly one `cli.command_duration_ms` observation
+    - [x] metric labels contain exactly `operation|outcome`
+    - [x] metric duration is a non-negative integer measured through Foundation Stopwatch
+    - [x] output format and exit code are not metric labels
+    - [x] returned exit code `0` produces outcome `success`
+    - [x] valid non-zero returned exit codes produce outcome `failure` without remapping
+    - [x] thrown command failure records `exit_code = 1`
+    - [x] attempts one safe command completion/failure log
+    - [x] log fields contain only `operation|outcome|exit_code` and optional safe `correlation_id|uow_id`
+    - [x] optional context identifiers are captured inside the UoW callback before reset
+    - [x] no command arguments, option values, output records, paths, endpoints, or payloads enter telemetry
+    - [x] does not duplicate `kernel.uow` or `kernel.operation` telemetry
 
 - Contract:
   - [ ] `packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
@@ -6654,68 +6654,68 @@ Docs:
 
 ### DoD (MUST)
 
-- [ ] normal commands are discovered only through `cli.command`
-- [ ] Kernel operation commands require explicit `--target`
-- [ ] built-in Kernel operation commands reject undeclared `--mode` and `--preset`
-- [ ] effective preset comes only from Kernel `OpsResult`
-- [ ] each Kernel command makes exactly one `KernelOpsInterface` call
-- [ ] platform/cli infrastructure and built-in Kernel commands never read Kernel artifacts or `current`
-- [ ] output is deterministic and redacted
-- [ ] external package commands remain lazy and package-agnostic
-- [ ] a new enabled package can contribute and dispatch a command without any platform/cli production-source change
-- [ ] external commands may declare owner-specific arguments and options without entering KernelOpsInterface
-- [ ] `doctor` is the only pre-host command path
-- [ ] config defaults and rules are exact and synchronized
-- [ ] only CliServiceFactory reads `cli.*` configuration
-- [ ] normal command execution uses exactly one Kernel UoW
-- [ ] platform/cli performs no direct ContextStore writes or reset orchestration
-- [ ] command observability is emitted through injected ports
-- [ ] observability failures do not affect command exit semantics
-- [ ] redaction cannot be disabled
-- [ ] `OutputFormatter` consumes only `SensitiveDataRedactorInterface`.
-- [ ] `platform/cli` defines no package-local redaction engine, policy, classifier, hasher, or pattern registry.
-- [ ] `packages/platform/cli/src/Redaction/` is absent.
-- [ ] `packages/platform/cli/src/Output/Redaction/` is absent.
-- [ ] adaptive format depends only on explicit terminal capabilities
-- [ ] color policy is `auto|always|never`
-- [ ] JSON output is always ANSI-free
-- [ ] configurable ANSI palettes are not introduced
-- [ ] every legacy Phase-0 production file listed under `Deletes` is absent
-- [ ] every retained legacy path listed as a complete rewrite contains no Phase-0 behavior
-- [ ] no compatibility fallback reads `cli.commands` as an FQCN list
-- [ ] no command is instantiated through reflection or `new $fqcn`
-- [ ] Worker command metadata matches the final six-key schema
-- [ ] after autoload, `ConsoleOutputWriter` is the only production output sink; the fixed pre-autoload failure is the sole exception
-- [ ] effective format is a UoW attribute, not a ContextStore key
-- [ ] all new metric and span names are registered in observability SSoT
-- [ ] `CliApplication` owns Throwable handling for normal-path parsing, global-option resolution, catalog selection, descriptor validation, command resolution, execution, formatting, and redaction
-- [ ] construction-time catalog and dependency failures remain owned by `CliHostBootstrap`
-- [ ] unexpected Throwables escaping `CliApplication`, including final output-sink failures, remain guarded by the packaged entrypoint's fixed uncaught-Throwable boundary
-- [ ] no second error handler, recursive rendering attempt, or fallback CLI execution path is introduced
-- [ ] pre-application host failures are handled by `CliHostBootstrap`
-- [ ] pre-autoload failures are handled by the fixed binary fallback
-- [ ] `CommandRunner` owns execution lifecycle but not error rendering
-- [ ] formatter/redactor failure uses one non-recursive fixed fallback
-- [ ] command output records and final stdout/stderr bytes have explicit immutable shapes
-- [ ] built-in command metadata is complete and exact
+- [x] normal commands are discovered only through `cli.command`
+- [x] Kernel operation commands require explicit `--target`
+- [x] built-in Kernel operation commands reject undeclared `--mode` and `--preset`
+- [x] effective preset comes only from Kernel `OpsResult`
+- [x] each Kernel command makes exactly one `KernelOpsInterface` call
+- [x] platform/cli infrastructure and built-in Kernel commands never read Kernel artifacts or `current`
+- [x] output is deterministic and redacted
+- [x] external package commands remain lazy and package-agnostic
+- [x] a new enabled package can contribute and dispatch a command without any platform/cli production-source change
+- [x] external commands may declare owner-specific arguments and options without entering KernelOpsInterface
+- [x] `doctor` is the only pre-host command path
+- [x] config defaults and rules are exact and synchronized
+- [x] only CliServiceFactory reads `cli.*` configuration
+- [x] normal command execution uses exactly one Kernel UoW
+- [x] platform/cli performs no direct ContextStore writes or reset orchestration
+- [x] command observability is emitted through injected ports
+- [x] observability failures do not affect command exit semantics
+- [x] redaction cannot be disabled
+- [x] `OutputFormatter` consumes only `SensitiveDataRedactorInterface`.
+- [x] `platform/cli` defines no package-local redaction engine, policy, classifier, hasher, or pattern registry.
+- [x] `packages/platform/cli/src/Redaction/` is absent.
+- [x] `packages/platform/cli/src/Output/Redaction/` is absent.
+- [x] adaptive format depends only on explicit terminal capabilities
+- [x] color policy is `auto|always|never`
+- [x] JSON output is always ANSI-free
+- [x] configurable ANSI palettes are not introduced
+- [x] every legacy Phase-0 production file listed under `Deletes` is absent
+- [x] every retained legacy path listed as a complete rewrite contains no Phase-0 behavior
+- [x] no compatibility fallback reads `cli.commands` as an FQCN list
+- [x] no command is instantiated through reflection or `new $fqcn`
+- [x] Worker command metadata matches the final six-key schema
+- [x] after autoload, `ConsoleOutputWriter` is the only production output sink; the fixed pre-autoload failure is the sole exception
+- [x] effective format is a UoW attribute, not a ContextStore key
+- [x] all new metric and span names are registered in observability SSoT
+- [x] `CliApplication` owns Throwable handling for normal-path parsing, global-option resolution, catalog selection, descriptor validation, command resolution, execution, formatting, and redaction
+- [x] construction-time catalog and dependency failures remain owned by `CliHostBootstrap`
+- [x] unexpected Throwables escaping `CliApplication`, including final output-sink failures, remain guarded by the packaged entrypoint's fixed uncaught-Throwable boundary
+- [x] no second error handler, recursive rendering attempt, or fallback CLI execution path is introduced
+- [x] pre-application host failures are handled by `CliHostBootstrap`
+- [x] pre-autoload failures are handled by the fixed binary fallback
+- [x] `CommandRunner` owns execution lifecycle but not error rendering
+- [x] formatter/redactor failure uses one non-recursive fixed fallback
+- [x] command output records and final stdout/stderr bytes have explicit immutable shapes
+- [x] built-in command metadata is complete and exact
 - [ ] generic external-package command tests use explicit fixture files
 - [ ] Worker compatibility tests use the composed Worker package fixture/application
 - [ ] Worker production code and Worker tests use the same six-key command metadata schema
-- [ ] built-in Kernel operation commands invoke `KernelOpsInterface` directly without a CLI-owned forwarding façade
-- [ ] `KernelOpsRequestResolver` is a source-host-only input adapter and has no `CommandDescriptor` dependency
-- [ ] `CommandOutputBuffer` is invocation-local and absent from container definitions
-- [ ] `platform/cli` does not bind the global `ErrorHandlerInterface` service id
-- [ ] redacted output maps retain canonical ordering from the shared redaction runtime without CLI-local recursive sorting
-- [ ] the source host resolves exactly one `SensitiveDataRedactorInterface` implementation
-- [ ] command failures clear and reuse the same invocation-local `CommandOutputBuffer`
-- [ ] every `cli.command` service id is the exact command class FQCN
-- [ ] all four canonical presets select `platform.cli` by default and preserve their existing Core and Worker policies
-- [ ] `platform.redaction` is enabled through the canonical `platform.cli` module dependency closure, without duplicate preset roots
-- [ ] `coretsia/framework` directly requires the baseline Kernel and CLI packages
-- [ ] `coretsia/platform-cli` declares the corresponding Composer and runtime module dependencies for Redaction
+- [x] built-in Kernel operation commands invoke `KernelOpsInterface` directly without a CLI-owned forwarding façade
+- [x] `KernelOpsRequestResolver` is a source-host-only input adapter and has no `CommandDescriptor` dependency
+- [x] `CommandOutputBuffer` is invocation-local and absent from container definitions
+- [x] `platform/cli` does not bind the global `ErrorHandlerInterface` service id
+- [x] redacted output maps retain canonical ordering from the shared redaction runtime without CLI-local recursive sorting
+- [x] the source host resolves exactly one `SensitiveDataRedactorInterface` implementation
+- [x] command failures clear and reuse the same invocation-local `CommandOutputBuffer`
+- [x] every `cli.command` service id is the exact command class FQCN
+- [x] all four canonical presets select `platform.cli` by default and preserve their existing Core and Worker policies
+- [x] `platform.redaction` is enabled through the canonical `platform.cli` module dependency closure, without duplicate preset roots
+- [x] `coretsia/framework` directly requires the baseline Kernel and CLI packages
+- [x] `coretsia/platform-cli` declares the corresponding Composer and runtime module dependencies for Redaction
 - [ ] `composer create-project coretsia/skeleton` installs the baseline Composer graph without custom repository declarations or implicit dependency synchronization
 - [ ] the default `micro` preset resolves the intended Console ModulePlan from the installed baseline
-- [ ] additional mode-required packages remain subject to explicit DependencySync
+- [x] additional mode-required packages remain subject to explicit DependencySync
 - [ ] canonical Kernel preset and consumer documentation examples match the new module sets
 - [ ] existing Kernel boot, preset schema, package planning, and consumer installation tests remain valid
 - [ ] the released baseline is independently installable from published Composer packages

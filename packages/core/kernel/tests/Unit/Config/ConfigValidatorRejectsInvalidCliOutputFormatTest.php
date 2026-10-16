@@ -68,6 +68,25 @@ final class ConfigValidatorRejectsInvalidCliOutputFormatTest extends TestCase
         self::assertSame('int', $violation->actualType());
     }
 
+    public function testAcceptsEveryCanonicalOutputFormat(): void
+    {
+        $ruleset = self::cliRuleset();
+        self::assertSame(
+            ['adaptive', 'json', 'table', 'plain'],
+            $ruleset->rules()['keys']['output']['keys']['format_default']['allowedValues'],
+        );
+
+        foreach (['adaptive', 'json', 'table', 'plain'] as $format) {
+            $config = ['cli' => self::cliConfig()];
+            $config['cli']['output']['format_default'] = $format;
+
+            $result = new ConfigValidator()->validate($config, [$ruleset]);
+
+            self::assertTrue($result->isSuccess(), 'Expected valid CLI format: ' . $format);
+            self::assertSame([], $result->violations());
+        }
+    }
+
     private static function cliRuleset(): ConfigRuleset
     {
         $rules = require self::cliRulesPath();

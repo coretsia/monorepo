@@ -43,6 +43,13 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                     : ['platform.cli'],
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
             );
+            $required = \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required());
+            $modules = \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules());
+            self::assertSame([], \array_values(\array_intersect($required, $modules)));
+            self::assertSame(
+                \in_array($name, ['hybrid', 'enterprise'], true),
+                \in_array('platform.worker', $modules, true),
+            );
             self::assertSame(
                 ['schemaVersion', 'name', 'description', 'required', 'modules', 'featureBundles', 'metadata'],
                 \array_keys($preset->toArray()),

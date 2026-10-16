@@ -18,12 +18,94 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Contract;
 
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Platform\Cli\Module\CliModule;
+use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 final class CrossCuttingNoopDoesNotThrowTest extends TestCase
 {
-    public function testNoopDoesNotThrow(): void
+    public function testModuleMetadataAndDeclarativeProviderContract(): void
     {
-        self::assertTrue(true);
+        $module = new CliModule();
+
+        self::assertSame('platform.cli', $module->id());
+        self::assertSame('platform/cli', $module->packageId());
+        self::assertSame('coretsia/platform-cli', $module->composerPackage());
+        self::assertSame('runtime', $module->kind());
+        self::assertSame('cli', $module->configRoot());
+        self::assertSame([CliServiceProvider::class], $module->providers());
+        self::assertInstanceOf(ServiceProviderInterface::class, new CliServiceProvider());
+        self::assertInstanceOf(ContainerDefinitionProviderInterface::class, new CliServiceProvider());
+    }
+
+    public function testCanonicalConfigAndRulesLoadWithoutOutput(): void
+    {
+        $packageRoot = \dirname(__DIR__, 2);
+
+        \ob_start();
+        try {
+            $config = require $packageRoot . '/config/cli.php';
+            $rules = require $packageRoot . '/config/rules.php';
+        } finally {
+            $output = \ob_get_clean();
+        }
+
+        self::assertSame('', $output);
+        self::assertIsArray($config);
+        self::assertIsArray($rules);
+        self::assertSame(['commands', 'output'], \array_keys($config));
+        self::assertSame(['overrides' => []], $config['commands']);
+        self::assertSame(
+            ['format_default', 'adaptive', 'color_default', 'table'],
+            \array_keys($config['output']),
+        );
+        self::assertSame('adaptive', $config['output']['format_default']);
+        self::assertSame(
+            ['interactive' => 'table', 'non_interactive' => 'plain'],
+            $config['output']['adaptive'],
+        );
+        self::assertSame('auto', $config['output']['color_default']);
+        self::assertSame(['max_width' => 120], $config['output']['table']);
+
+        self::assertSame(1, $rules['schemaVersion']);
+        self::assertSame('cli', $rules['configRoot']);
+        self::assertFalse($rules['additionalKeys']);
+        self::assertSame(['commands', 'output'], \array_keys($rules['keys']));
+
+        $commandsRules = $rules['keys']['commands'];
+        self::assertTrue($commandsRules['required']);
+        self::assertSame('map', $commandsRules['type']);
+        self::assertFalse($commandsRules['additionalKeys']);
+        self::assertSame(['overrides'], \array_keys($commandsRules['keys']));
+        self::assertSame('map', $commandsRules['keys']['overrides']['type']);
+        self::assertTrue($commandsRules['keys']['overrides']['required']);
+        self::assertTrue($commandsRules['keys']['overrides']['additionalKeys']);
+
+        $outputRules = $rules['keys']['output'];
+        self::assertSame(
+            ['format_default', 'adaptive', 'color_default', 'table'],
+            \array_keys($outputRules['keys']),
+        );
+        self::assertSame(
+            ['adaptive', 'json', 'table', 'plain'],
+            $outputRules['keys']['format_default']['allowedValues'],
+        );
+        self::assertSame(
+            ['json', 'table', 'plain'],
+            $outputRules['keys']['adaptive']['keys']['interactive']['allowedValues'],
+        );
+        self::assertSame(
+            ['json', 'table', 'plain'],
+            $outputRules['keys']['adaptive']['keys']['non_interactive']['allowedValues'],
+        );
+        self::assertSame(
+            ['auto', 'always', 'never'],
+            $outputRules['keys']['color_default']['allowedValues'],
+        );
+        self::assertSame('int', $outputRules['keys']['table']['keys']['max_width']['type']);
+        self::assertSame(40, $outputRules['keys']['table']['keys']['max_width']['min']);
+        self::assertSame(240, $outputRules['keys']['table']['keys']['max_width']['max']);
     }
 }

@@ -31,7 +31,7 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
         $config = [
             'cli' => self::cliConfig(),
         ];
-        $config['cli']['commands'] = 'bad command with token SECRET_TOKEN';
+        $config['cli']['commands']['overrides'] = 'bad command with token SECRET_TOKEN';
         $config['cli']['output']['format_default'] = 'mysql://user:pass@example.test/database';
         $config['cli']['output']['color_default'] = false;
         $config['cli']['/var/www/secret'] = true;
@@ -56,7 +56,7 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
                 [
                     'actualType' => 'string',
                     'expected' => 'map',
-                    'path' => 'commands',
+                    'path' => 'commands.overrides',
                     'reason' => 'type',
                     'root' => 'cli',
                     'schemaVersion' => 1,
@@ -99,7 +99,7 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
         $config = [
             'cli' => self::cliConfig(),
         ];
-        $config['cli']['commands'] = [''];
+        $config['cli']['commands']['overrides'] = [''];
         $config['cli']['output']['format_default'] = 'xml';
         $config['cli']['output']['table']['max_width'] = 39;
 
@@ -108,7 +108,7 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
         self::assertTrue($result->isFailure());
         self::assertSame(
             [
-                'commands',
+                'commands.overrides',
                 'output.format_default',
                 'output.table.max_width',
             ],

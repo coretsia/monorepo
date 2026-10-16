@@ -48,17 +48,16 @@ final readonly class TableFormatter
             foreach ($batch->records() as $record) {
                 switch ($record['type']) {
                     case 'text':
-                        $stdout[] = $record['text'];
+                        $stdout[] = $this->wrapRecordLines($record['text'], $color, false);
                         break;
                     case 'json':
                         $stdout[] = $this->table($record['payload'], $color);
                         break;
                     case 'error':
-                        $stderr[] = $this->ansi->decorate(
+                        $stderr[] = $this->wrapRecordLines(
                             $record['code'] . ': ' . $record['message'],
-                            'error',
                             $color,
-                            'table',
+                            true,
                         );
                         break;
                     default:
@@ -73,6 +72,21 @@ final readonly class TableFormatter
         } catch (\Throwable) {
             throw CliOutputFormatException::failed();
         }
+    }
+
+    private function wrapRecordLines(string $value, bool $color, bool $error): string
+    {
+        $lines = [];
+
+        foreach (\explode("\n", $value) as $line) {
+            foreach (self::wrap(self::cell($line), $this->maxWidth) as $fragment) {
+                $lines[] = $error
+                    ? $this->ansi->decorate($fragment, 'error', $color, 'table')
+                    : $fragment;
+            }
+        }
+
+        return \implode("\n", $lines);
     }
 
     /** @param array<int|string, mixed> $payload */
@@ -97,7 +111,10 @@ final readonly class TableFormatter
                         break;
                     }
 
-                    $sections[] = self::cell($group) . "\n" . $this->table($items, $color);
+                    $sections[] = \implode("\n", self::wrap(self::cell($group), $this->maxWidth)) . "\n" . $this->table(
+                        $items,
+                        $color,
+                    );
                 }
 
                 if ($sections !== []) {
@@ -143,7 +160,10 @@ final readonly class TableFormatter
         $sections = [];
         foreach ($payload as $key => $value) {
             if (\is_array($value) && $value !== [] && \array_is_list($value)) {
-                $sections[] = self::cell((string) $key) . "\n" . $this->table($value, $color);
+                $sections[] = \implode(
+                    "\n",
+                    self::wrap(self::cell((string) $key), $this->maxWidth),
+                ) . "\n" . $this->table($value, $color);
                 continue;
             }
 

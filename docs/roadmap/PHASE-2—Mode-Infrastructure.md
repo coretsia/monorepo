@@ -6150,34 +6150,34 @@ Docs:
     - [x] does not duplicate `kernel.uow` or `kernel.operation` telemetry
 
 - Contract:
-  - [ ] `packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
-    - [ ] `CliModule` exposes the canonical module identity, package identity, Composer package, runtime kind, and config root
-    - [ ] `MODULE_ID = platform.cli`
-    - [ ] `PACKAGE_ID = platform/cli`
-    - [ ] `COMPOSER_PACKAGE = coretsia/platform-cli`
-    - [ ] `KIND = runtime`
-    - [ ] `CONFIG_ROOT = cli`
-    - [ ] instance metadata methods agree with their declared constants
-    - [ ] instance `providers()` returns exactly `CliServiceProvider::class`
-    - [ ] no Phase-0 static-only provider API remains
-    - [ ] module metadata access performs no config reads, command discovery, service resolution, or application boot
+  - [x] `packages/platform/cli/tests/Contract/CliModuleMetadataContractTest.php`
+    - [x] `CliModule` exposes the canonical module identity, package identity, Composer package, runtime kind, and config root
+    - [x] `MODULE_ID = platform.cli`
+    - [x] `PACKAGE_ID = platform/cli`
+    - [x] `COMPOSER_PACKAGE = coretsia/platform-cli`
+    - [x] `KIND = runtime`
+    - [x] `CONFIG_ROOT = cli`
+    - [x] instance metadata methods agree with their declared constants
+    - [x] instance `providers()` returns exactly `CliServiceProvider::class`
+    - [x] no Phase-0 static-only provider API remains
+    - [x] module metadata access performs no config reads, command discovery, service resolution, or application boot
 
-  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
-    - [ ] `CliErrorHandler` implements `ErrorHandlerInterface`
-    - [ ] `CliApplication` receives `CliErrorHandler` under its concrete service id
-    - [ ] `CliServiceProvider` does not alias `ErrorHandlerInterface`
+  - [x] `packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
+    - [x] `CliErrorHandler` implements `ErrorHandlerInterface`
+    - [x] `CliApplication` receives `CliErrorHandler` under its concrete service id
+    - [x] `CliServiceProvider` does not alias `ErrorHandlerInterface`
 
-  - [ ] `packages/platform/cli/tests/Contract/CliCommandOutputBufferIsInvocationLocalContractTest.php`
-    - [ ] `CommandOutputBuffer` is absent from source-host service registration
-    - [ ] `CommandOutputBuffer` is absent from canonical runtime definitions
-    - [ ] `CliApplication` creates exactly one buffer per invocation
-    - [ ] no buffer state is retained between `CliApplication::run()` calls
-    - [ ] the same invocation-local buffer is cleared and reused for error rendering
+  - [x] `packages/platform/cli/tests/Contract/CliCommandOutputBufferIsInvocationLocalContractTest.php`
+    - [x] `CommandOutputBuffer` is absent from source-host service registration
+    - [x] `CommandOutputBuffer` is absent from canonical runtime definitions
+    - [x] `CliApplication` creates exactly one buffer per invocation
+    - [x] no buffer state is retained between `CliApplication::run()` calls
+    - [x] the same invocation-local buffer is cleared and reused for error rendering
 
-  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotImplementConfigPipelineContractTest.php`
-    - [ ] no direct package config-file reads
-    - [ ] no CLI-local loader, merger, validator, directive processor, or repository
-    - [ ] only `ConfigRepositoryInterface` is consumed
+  - [x] `packages/platform/cli/tests/Contract/CliDoesNotImplementConfigPipelineContractTest.php`
+    - [x] no direct package config-file reads
+    - [x] no CLI-local loader, merger, validator, directive processor, or repository
+    - [x] only `ConfigRepositoryInterface` is consumed
 
   - [ ] `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
     - [ ] remove all `MODE` assertions
@@ -6189,105 +6189,105 @@ Docs:
     - [ ] assert exact six-key metadata
     - [ ] preserve `cli.command` tag assertions
 
-  - [ ] `packages/platform/cli/tests/Contract/CliReusesFoundationJsonLikePrimitivesContractTest.php`
-    - [ ] CLI introduces no independent JSON-like structural normalizer
-    - [ ] CLI introduces no independent recursive map sorter
-    - [ ] JSON output uses the canonical Foundation StableJsonEncoder
-    - [ ] CLI-owned control-byte and presentation validation remain separate
+  - [x] `packages/platform/cli/tests/Contract/CliReusesFoundationJsonLikePrimitivesContractTest.php`
+    - [x] CLI introduces no independent JSON-like structural normalizer
+    - [x] CLI introduces no independent recursive map sorter
+    - [x] JSON output uses the canonical Foundation StableJsonEncoder
+    - [x] CLI-owned control-byte and presentation validation remain separate
 
-  - [ ] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
-    - [ ] direct production Composer requirements include `coretsia/core-contracts`, `coretsia/core-foundation`, `coretsia/core-kernel`, and `coretsia/platform-redaction`
-    - [ ] all internal Coretsia Composer requirements use the canonical release-line `publicConstraint`
-    - [ ] `coretsia/platform-redaction` is required for runtime module installation, not direct PHP source access
-    - [ ] `extra.coretsia.requires` contains exactly `core.kernel` and `platform.redaction`
-    - [ ] `bin/coretsia` is declared as the packaged Composer binary
-    - [ ] no command-owner package dependency is introduced solely for discovery
+  - [x] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
+    - [x] direct production Composer requirements include `coretsia/core-contracts`, `coretsia/core-foundation`, `coretsia/core-kernel`, and `coretsia/platform-redaction`
+    - [x] all internal Coretsia Composer requirements use the canonical release-line `publicConstraint`
+    - [x] `coretsia/platform-redaction` is required for runtime module installation, not direct PHP source access
+    - [x] `extra.coretsia.requires` contains exactly `core.kernel` and `platform.redaction`
+    - [x] `bin/coretsia` is declared as the packaged Composer binary
+    - [x] no command-owner package dependency is introduced solely for discovery
 
-  - [ ] `packages/platform/cli/tests/Contract/CliHasSingleProductionOutputSinkContractTest.php`
-    - [ ] after Composer autoload succeeds, only `ConsoleOutputWriter.php` writes stdout/stderr
-    - [ ] binary may construct and pass stdout/stderr streams
-    - [ ] binary may write directly to stderr only for the fixed pre-autoload failure
-    - [ ] `TerminalCapabilitiesDetector` may inspect streams but never writes them
-    - [ ] no other production class references output sinks
+  - [x] `packages/platform/cli/tests/Contract/CliHasSingleProductionOutputSinkContractTest.php`
+    - [x] after Composer autoload succeeds, only `ConsoleOutputWriter.php` writes stdout/stderr
+    - [x] binary may construct and pass stdout/stderr streams
+    - [x] binary may write directly to stderr only for the fixed pre-autoload failure
+    - [x] `TerminalCapabilitiesDetector` may inspect streams but never writes them
+    - [x] no other production class references output sinks
 
-  - [ ] `packages/platform/cli/tests/Contract/JsonOutputSchemaContractTest.php`
-    - [ ] MUST load schema from `packages/platform/cli/resources/schema/cli_output@1.json` (no inline schema duplication)
+  - [x] `packages/platform/cli/tests/Contract/JsonOutputSchemaContractTest.php`
+    - [x] MUST load schema from `packages/platform/cli/resources/schema/cli_output@1.json` (no inline schema duplication)
 
-  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotReferenceKernelCompileInternalsContractTest.php`
-    - [ ] scans `packages/platform/cli/src`
-    - [ ] rejects imports and FQCN references to:
-      - [ ] `ModulePlanResolver`
-      - [ ] `ModuleResolution`
-      - [ ] `ContainerProviderPlan`
-      - [ ] `ContainerProviderPlanResolver`
-      - [ ] `ManifestReaderInterface`
-      - [ ] `ComposerManifestReader`
-      - [ ] `ArtifactCompiler`
-      - [ ] `FingerprintCalculator`
-      - [ ] `CacheVerifier`
-      - [ ] `ArtifactGenerationLocator`
-      - [ ] `ArtifactGenerationPublisher`
-      - [ ] `ArtifactGenerationValidator`
-      - [ ] `ArtifactPathResolver`
-      - [ ] `PhpArtifactReader`
-      - [ ] `ArtifactRuntimeBooter`
-      - [ ] `ArtifactRuntimeInput`
-    - [ ] CLI command, catalog, runner, formatter, and renderer implementations do not inspect Kernel `current` or generation manifests
-    - [ ] CLI does not construct Kernel generation directories or artifact paths
-    - [ ] CLI does not directly include or read generated Kernel `config.php` or `container.php`
-    - [ ] allows `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` throughout platform/cli Kernel-operation adapters
-    - [ ] allows `KernelOpsHostInput` and `KernelOpsHostBooter` only in `src/Bootstrap/CliHostBootstrap.php`
-    - [ ] rejects every other `Coretsia\Kernel\Ops\*` reference
-    - [ ] does not forbid Kernel-owned artifact access behind `KernelOpsInterface`
+  - [x] `packages/platform/cli/tests/Contract/CliDoesNotReferenceKernelCompileInternalsContractTest.php`
+    - [x] scans `packages/platform/cli/src`
+    - [x] rejects imports and FQCN references to:
+      - [x] `ModulePlanResolver`
+      - [x] `ModuleResolution`
+      - [x] `ContainerProviderPlan`
+      - [x] `ContainerProviderPlanResolver`
+      - [x] `ManifestReaderInterface`
+      - [x] `ComposerManifestReader`
+      - [x] `ArtifactCompiler`
+      - [x] `FingerprintCalculator`
+      - [x] `CacheVerifier`
+      - [x] `ArtifactGenerationLocator`
+      - [x] `ArtifactGenerationPublisher`
+      - [x] `ArtifactGenerationValidator`
+      - [x] `ArtifactPathResolver`
+      - [x] `PhpArtifactReader`
+      - [x] `ArtifactRuntimeBooter`
+      - [x] `ArtifactRuntimeInput`
+    - [x] CLI command, catalog, runner, formatter, and renderer implementations do not inspect Kernel `current` or generation manifests
+    - [x] CLI does not construct Kernel generation directories or artifact paths
+    - [x] CLI does not directly include or read generated Kernel `config.php` or `container.php`
+    - [x] allows `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` throughout platform/cli Kernel-operation adapters
+    - [x] allows `KernelOpsHostInput` and `KernelOpsHostBooter` only in `src/Bootstrap/CliHostBootstrap.php`
+    - [x] rejects every other `Coretsia\Kernel\Ops\*` reference
+    - [x] does not forbid Kernel-owned artifact access behind `KernelOpsInterface`
 
-  - [ ] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
-    - [ ] `CliServiceProvider` implements both provider interfaces
-    - [ ] source container contains `KernelOpsRequestResolver`
-    - [ ] source container contains all six Kernel operation commands
-    - [ ] each Kernel operation command receives `KernelOpsInterface` through constructor injection
-    - [ ] no command imports or resolves `Coretsia\Kernel\Ops\KernelOpsFacade`
-    - [ ] source container contains their `cli.command` tags
-    - [ ] `define()` contains generic CLI infrastructure
-    - [ ] `define()` contains `CliErrorHandler` and `ExceptionRenderer`
-    - [ ] `define()` contains no `KernelOpsInterface` and no Kernel operation command services or tags
-    - [ ] canonical runtime definitions contain no Kernel operation command services or tags
-    - [ ] canonical runtime definitions contain no `KernelOpsRequestResolver`
-    - [ ] canonical runtime definitions contain no `KernelOpsHostInput` or `KernelOpsHostBooter`
+  - [x] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
+    - [x] `CliServiceProvider` implements both provider interfaces
+    - [x] source container contains `KernelOpsRequestResolver`
+    - [x] source container contains all six Kernel operation commands
+    - [x] each Kernel operation command receives `KernelOpsInterface` through constructor injection
+    - [x] no command imports or resolves `Coretsia\Kernel\Ops\KernelOpsFacade`
+    - [x] source container contains their `cli.command` tags
+    - [x] `define()` contains generic CLI infrastructure
+    - [x] `define()` contains `CliErrorHandler` and `ExceptionRenderer`
+    - [x] `define()` contains no `KernelOpsInterface` and no Kernel operation command services or tags
+    - [x] canonical runtime definitions contain no Kernel operation command services or tags
+    - [x] canonical runtime definitions contain no `KernelOpsRequestResolver`
+    - [x] canonical runtime definitions contain no `KernelOpsHostInput` or `KernelOpsHostBooter`
 
-  - [ ] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeContractTest.php`
-    - [ ] config returns subtree only
-    - [ ] no root repetition
-    - [ ] exact default keys
-    - [ ] no closures, objects, resources, floats, or env reads
+  - [x] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeContractTest.php`
+    - [x] config returns subtree only
+    - [x] no root repetition
+    - [x] exact default keys
+    - [x] no closures, objects, resources, floats, or env reads
 
-  - [ ] `packages/platform/cli/tests/Contract/CliConfigRulesCoverAllDefaultsContractTest.php`
-    - [ ] every default key has a rule
-    - [ ] no rule-owned key is missing from defaults
-    - [ ] unknown keys are rejected
+  - [x] `packages/platform/cli/tests/Contract/CliConfigRulesCoverAllDefaultsContractTest.php`
+    - [x] every default key has a rule
+    - [x] no rule-owned key is missing from defaults
+    - [x] unknown keys are rejected
 
-  - [ ] `packages/platform/cli/tests/Contract/CliRedactionCannotBeDisabledContractTest.php`
-    - [ ] no redaction enable/disable config key
-    - [ ] no redaction bypass option
-    - [ ] OutputFormatter requires `SensitiveDataRedactorInterface`
+  - [x] `packages/platform/cli/tests/Contract/CliRedactionCannotBeDisabledContractTest.php`
+    - [x] no redaction enable/disable config key
+    - [x] no redaction bypass option
+    - [x] OutputFormatter requires `SensitiveDataRedactorInterface`
 
-  - [ ] `packages/platform/cli/tests/Contract/CliHasNoPackageLocalRedactionImplementationContractTest.php`
-    - [ ] `packages/platform/cli/src/Redaction/` does not exist
-    - [ ] `packages/platform/cli/src/Output/Redaction/` does not exist
-    - [ ] `RedactionEngine.php` is absent
-    - [ ] `RedactionPolicy.php` is absent
-    - [ ] production source defines no CLI-local:
-      - [ ] sensitive-key classifier
-      - [ ] sensitive-value classifier
-      - [ ] redaction policy
-      - [ ] redaction hasher
-      - [ ] pattern registry
-    - [ ] `OutputFormatter` depends only on `SensitiveDataRedactorInterface`
-    - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
+  - [x] `packages/platform/cli/tests/Contract/CliHasNoPackageLocalRedactionImplementationContractTest.php`
+    - [x] `packages/platform/cli/src/Redaction/` does not exist
+    - [x] `packages/platform/cli/src/Output/Redaction/` does not exist
+    - [x] `RedactionEngine.php` is absent
+    - [x] `RedactionPolicy.php` is absent
+    - [x] production source defines no CLI-local:
+      - [x] sensitive-key classifier
+      - [x] sensitive-value classifier
+      - [x] redaction policy
+      - [x] redaction hasher
+      - [x] pattern registry
+    - [x] `OutputFormatter` depends only on `SensitiveDataRedactorInterface`
+    - [x] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
 
-  - [ ] `packages/platform/cli/tests/Contract/CliDoesNotWriteContextOrResetDirectlyContractTest.php`
-    - [ ] no direct ContextStore writes
-    - [ ] no ResetOrchestrator dependency
-    - [ ] no reset tag enumeration
+  - [x] `packages/platform/cli/tests/Contract/CliDoesNotWriteContextOrResetDirectlyContractTest.php`
+    - [x] no direct ContextStore writes
+    - [x] no ResetOrchestrator dependency
+    - [x] no reset tag enumeration
 
 - Integration:
   - [ ] `packages/platform/cli/tests/Integration/CoretsiaRepositoryWrapperIsCwdIndependentTest.php`
@@ -6298,17 +6298,17 @@ Docs:
     - [ ] no Skeleton source-directory root is substituted for the repository application root
     - [ ] no recursive application-root discovery is introduced
 
-  - [ ] `packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
-    - [ ] missing Composer autoload produces exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable`
-    - [ ] unreadable Composer autoload produces the same fixed diagnostic
-    - [ ] conflicting pre-autoload selection inputs produce the same fixed diagnostic
-    - [ ] missing Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
-    - [ ] unreadable Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
-    - [ ] Skeleton wrapper failure occurs before attempting to require the missing or unreadable Composer binary
-    - [ ] failure writes only to stderr with exactly one trailing LF and exits with code `1`
-    - [ ] stdout remains empty
-    - [ ] no application classes are required to render the pre-autoload failure
-    - [ ] no PHP warning, fatal-error output, absolute path, raw launcher input, Throwable detail, or stack trace is emitted
+  - [x] `packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
+    - [x] missing Composer autoload produces exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable`
+    - [x] unreadable Composer autoload produces the same fixed diagnostic
+    - [x] conflicting pre-autoload selection inputs produce the same fixed diagnostic
+    - [x] missing Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
+    - [x] unreadable Skeleton `vendor/bin/coretsia` produces the same fixed diagnostic
+    - [x] Skeleton wrapper failure occurs before attempting to require the missing or unreadable Composer binary
+    - [x] failure writes only to stderr with exactly one trailing LF and exits with code `1`
+    - [x] stdout remains empty
+    - [x] no application classes are required to render the pre-autoload failure
+    - [x] no PHP warning, fatal-error output, absolute path, raw launcher input, Throwable detail, or stack trace is emitted
 
   - [ ] `packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
     - [ ] successful normal command execution invokes `KernelRuntimeInterface::runUnitOfWork()` exactly once
@@ -6318,16 +6318,16 @@ Docs:
     - [ ] no nested CLI-owned UoW or manual reset orchestration is introduced
     - [ ] canonical UoW type and attributes remain covered by `CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
 
-  - [ ] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
-    - [ ] exact `coretsia doctor` uses the ultra-early runner
-    - [ ] the same `DoctorCommand` implementation is used by the normal catalog
-    - [ ] output uses fixed `plain` format with color disabled
-    - [ ] output contains only allowlisted doctor record types and scalar values
-    - [ ] output is written through `ConsoleOutputWriter`
-    - [ ] no Kernel container, configuration, observability, context, or shared redaction service is required
-    - [ ] injected environment secret sentinels are never emitted
-    - [ ] no raw environment value, absolute path, command line, loaded-extension list, phpinfo output, or Throwable detail is emitted
-    - [ ] unsupported doctor arguments and options fail through the fixed safe pipeline
+  - [x] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
+    - [x] exact `coretsia doctor` uses the ultra-early runner
+    - [x] the same `DoctorCommand` implementation is used by the normal catalog
+    - [x] output uses fixed `plain` format with color disabled
+    - [x] output contains only allowlisted doctor record types and scalar values
+    - [x] output is written through `ConsoleOutputWriter`
+    - [x] no Kernel container, configuration, observability, context, or shared redaction service is required
+    - [x] injected environment secret sentinels are never emitted
+    - [x] no raw environment value, absolute path, command line, loaded-extension list, phpinfo output, or Throwable detail is emitted
+    - [x] unsupported doctor arguments and options fail through the fixed safe pipeline
 
   - [ ] `packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
     - [ ] `--format=json --color=always` produces valid JSON without ANSI sequences
@@ -6405,59 +6405,59 @@ Docs:
     - [ ] explicit global format and color selections affect presentation only
     - [ ] external command execution does not modify Kernel Bootstrap preset selection
 
-  - [ ] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
-    - [ ] exact `coretsia doctor` does not invoke `KernelOpsHostBooter`
-    - [ ] does not construct a source operations container or command catalog
-    - [ ] does not invoke `KernelRuntimeInterface::runUnitOfWork()`
-    - [ ] does not resolve Kernel Ops, module discovery, or generated runtime artifacts
-    - [ ] does not require UoW hooks or reset orchestration
-    - [ ] other normal CLI commands continue through the canonical Kernel operations host
+  - [x] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
+    - [x] exact `coretsia doctor` does not invoke `KernelOpsHostBooter`
+    - [x] does not construct a source operations container or command catalog
+    - [x] does not invoke `KernelRuntimeInterface::runUnitOfWork()`
+    - [x] does not resolve Kernel Ops, module discovery, or generated runtime artifacts
+    - [x] does not require UoW hooks or reset orchestration
+    - [x] other normal CLI commands continue through the canonical Kernel operations host
 
-  - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
-    - [ ] packaged `coretsia list` reaches normal source-host catalog dispatch
-    - [ ] a Composer-generated `vendor/bin/coretsia` PHP proxy in a consumer application reaches the packaged CLI implementation
-    - [ ] the shipped Skeleton project-root `coretsia` delegates through that Composer binary proxy
-    - [ ] `php coretsia list` and `php vendor/bin/coretsia list` produce identical normalized output and exit codes
-    - [ ] both invocations resolve the same consumer application root rather than the monorepo or installed package directory
-    - [ ] both invocations preserve equivalent command-facing arguments and global options
-    - [ ] the Skeleton wrapper preserves Composer proxy variables used for autoload and application-root resolution
-    - [ ] the Skeleton wrapper works when invoked through an absolute path from another current working directory
-    - [ ] Composer binary invocation remains supported independently of the optional project-root convenience wrapper
-    - [ ] no second catalog, command parser, configuration pipeline, or Kernel operations host is constructed
-    - [ ] renders built-in command descriptors in deterministic groups
-    - [ ] preserves the canonical TagRegistry descriptor order within each group
-    - [ ] does not require grouped presentation order to equal one flat TagRegistry order across different groups
-    - [ ] grouping MUST NOT mutate, re-sort, or re-dedupe the underlying CommandCatalog
-    - [ ] respects catalog-view hidden-command metadata
-    - [ ] explicit `--format=table` renders every visible built-in and enabled external command as a readable entry in its descriptor-defined group
-    - [ ] table output contains every visible command name and complete catalog-view summary exactly once, without rendering hidden commands
-    - [ ] long command summaries remain recoverable in full after wrapping, without truncation or ellipsis insertion
-    - [ ] every physical table output line respects the configured `cli.output.table.max_width`, including wrapped rows and group headings
-    - [ ] table presentation preserves canonical descriptor order within each group and does not alter the underlying catalog or JSON output
-    - [ ] does not instantiate unrelated command services
-    - [ ] exits with code `0` on successful listing
-    - [ ] does not require compiled application runtime artifacts
-    - [ ] an explicit Console-target module exclusion of `platform.cli` prevents normal CLI command execution
-    - [ ] `CliHostBootstrap` verifies the existing Kernel-owned `ModulePlan` before resolving `CliApplication`
-    - [ ] Foundation concrete-class autowiring MUST NOT bypass the excluded CLI module
-    - [ ] excluded CLI fails with `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
-    - [ ] no command catalog is constructed and no command service is resolved after the exclusion is detected
-    - [ ] no CLI UoW is entered
-    - [ ] no second ModulePlan, provider-registration path, or fallback CLI container is created
+  - [x] `packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
+    - [x] packaged `coretsia list` reaches normal source-host catalog dispatch
+    - [x] a Composer-generated `vendor/bin/coretsia` PHP proxy in a consumer application reaches the packaged CLI implementation
+    - [x] the shipped Skeleton project-root `coretsia` delegates through that Composer binary proxy
+    - [x] `php coretsia list` and `php vendor/bin/coretsia list` produce identical normalized output and exit codes
+    - [x] both invocations resolve the same consumer application root rather than the monorepo or installed package directory
+    - [x] both invocations preserve equivalent command-facing arguments and global options
+    - [x] the Skeleton wrapper preserves Composer proxy variables used for autoload and application-root resolution
+    - [x] the Skeleton wrapper works when invoked through an absolute path from another current working directory
+    - [x] Composer binary invocation remains supported independently of the optional project-root convenience wrapper
+    - [x] no second catalog, command parser, configuration pipeline, or Kernel operations host is constructed
+    - [x] renders built-in command descriptors in deterministic groups
+    - [x] preserves the canonical TagRegistry descriptor order within each group
+    - [x] does not require grouped presentation order to equal one flat TagRegistry order across different groups
+    - [x] grouping MUST NOT mutate, re-sort, or re-dedupe the underlying CommandCatalog
+    - [x] respects catalog-view hidden-command metadata
+    - [x] explicit `--format=table` renders every visible built-in and enabled external command as a readable entry in its descriptor-defined group
+    - [x] table output contains every visible command name and complete catalog-view summary exactly once, without rendering hidden commands
+    - [x] long command summaries remain recoverable in full after wrapping, without truncation or ellipsis insertion
+    - [x] every physical table output line respects the configured `cli.output.table.max_width`, including wrapped rows and group headings
+    - [x] table presentation preserves canonical descriptor order within each group and does not alter the underlying catalog or JSON output
+    - [x] does not instantiate unrelated command services
+    - [x] exits with code `0` on successful listing
+    - [x] does not require compiled application runtime artifacts
+    - [x] an explicit Console-target module exclusion of `platform.cli` prevents normal CLI command execution
+    - [x] `CliHostBootstrap` verifies the existing Kernel-owned `ModulePlan` before resolving `CliApplication`
+    - [x] Foundation concrete-class autowiring MUST NOT bypass the excluded CLI module
+    - [x] excluded CLI fails with `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
+    - [x] no command catalog is constructed and no command service is resolved after the exclusion is detected
+    - [x] no CLI UoW is entered
+    - [x] no second ModulePlan, provider-registration path, or fallback CLI container is created
 
-  - [ ] `packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
-    - [ ] packaged `coretsia help` renders general command help from catalog descriptors
-    - [ ] `coretsia help <command>` renders the selected descriptor's arguments and options
-    - [ ] unknown command help requests produce the canonical safe input failure
-    - [ ] help does not instantiate the described command service
-    - [ ] help output follows the selected global format and color policy
-    - [ ] explicit `--format=table` renders every visible command descriptor in general help as a readable row containing its group, name, and complete summary
-    - [ ] general help excludes hidden commands and preserves canonical TagRegistry descriptor order
-    - [ ] long command summaries remain recoverable in full after wrapping, without truncation or ellipsis insertion
-    - [ ] every physical general-help table output line respects the configured `cli.output.table.max_width`
-    - [ ] command-specific help in table format renders declared arguments and options as readable rows rather than truncated serialized JSON values
-    - [ ] table presentation does not alter descriptor metadata, command discovery, or structured JSON output
-    - [ ] successful help exits with code `0`
+  - [x] `packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
+    - [x] packaged `coretsia help` renders general command help from catalog descriptors
+    - [x] `coretsia help <command>` renders the selected descriptor's arguments and options
+    - [x] unknown command help requests produce the canonical safe input failure
+    - [x] help does not instantiate the described command service
+    - [x] help output follows the selected global format and color policy
+    - [x] explicit `--format=table` renders every visible command descriptor in general help as a readable row containing its group, name, and complete summary
+    - [x] general help excludes hidden commands and preserves canonical TagRegistry descriptor order
+    - [x] long command summaries remain recoverable in full after wrapping, without truncation or ellipsis insertion
+    - [x] every physical general-help table output line respects the configured `cli.output.table.max_width`
+    - [x] command-specific help in table format renders declared arguments and options as readable rows rather than truncated serialized JSON values
+    - [x] table presentation does not alter descriptor metadata, command discovery, or structured JSON output
+    - [x] successful help exits with code `0`
 
   - [ ] `packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
     - [ ] an enabled external package contributing reserved command name `help` causes deterministic catalog rejection
@@ -6467,13 +6467,13 @@ Docs:
     - [ ] no conflicting service id, class name, or command metadata is exposed
     - [ ] the existing dedicated unit test covers the complete `doctor|help|list` reserved-name set
 
-  - [ ] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
-    - [ ] obtains the canonical Console ModulePlan from the Kernel source operations host
-    - [ ] normal command dispatch succeeds only when `platform.cli` is enabled
-    - [ ] explicit Console exclusion of `platform.cli` fails before `CliApplication` resolution
-    - [ ] concrete-class autowiring cannot bypass the module-selection requirement
-    - [ ] exclusion failure produces `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
-    - [ ] no second module resolver, ModulePlan, or fallback CLI container is constructed
+  - [x] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
+    - [x] obtains the canonical Console ModulePlan from the Kernel source operations host
+    - [x] normal command dispatch succeeds only when `platform.cli` is enabled
+    - [x] explicit Console exclusion of `platform.cli` fails before `CliApplication` resolution
+    - [x] concrete-class autowiring cannot bypass the module-selection requirement
+    - [x] exclusion failure produces `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
+    - [x] no second module resolver, ModulePlan, or fallback CLI container is constructed
 
   - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
     - [ ] a missing `--target` is rejected by `KernelOpsRequestResolver`
@@ -6481,22 +6481,22 @@ Docs:
     - [ ] neither invalid invocation calls `KernelOpsInterface`
     - [ ] no CLI-owned Kernel target or preset inference is introduced
 
-  - [ ] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
-    - [ ] verify the packaged skeleton baseline and canonical `micro` selection
-    - [ ] verify source-host boot with CLI, Kernel, and Redaction available
-    - [ ] verify that normal command discovery does not require generated runtime artifacts
-    - [ ] verify that no automatic DependencySync or second module planner executes
+  - [x] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
+    - [x] verify the packaged skeleton baseline and canonical `micro` selection
+    - [x] verify source-host boot with CLI, Kernel, and Redaction available
+    - [x] verify that normal command discovery does not require generated runtime artifacts
+    - [x] verify that no automatic DependencySync or second module planner executes
 
   - [ ] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
     - [ ] the composed source host resolves exactly one `SensitiveDataRedactorInterface`
     - [ ] `OutputFormatter` receives the contracts port
     - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
 
-  - [ ] `packages/platform/cli/tests/Integration/CliRequiresExplicitConsoleModuleSelectionTest.php`
-    - [ ] installing `platform.cli` without selecting it for Console does not implicitly enable its provider
-    - [ ] explicitly selecting `platform.cli` resolves `platform.redaction` through canonical Kernel ModulePlan dependencies
-    - [ ] missing installed redaction dependency fails during module resolution
-    - [ ] no CLI-owned provider fallback or second ModulePlan is constructed
+  - [x] `packages/platform/cli/tests/Integration/CliRequiresExplicitConsoleModuleSelectionTest.php`
+    - [x] installing `platform.cli` without selecting it for Console does not implicitly enable its provider
+    - [x] explicitly selecting `platform.cli` resolves `platform.redaction` through canonical Kernel ModulePlan dependencies
+    - [x] missing installed redaction dependency fails during module resolution
+    - [x] no CLI-owned provider fallback or second ModulePlan is constructed
 
   - [ ] `packages/platform/cli/tests/Integration/CliJsonPayloadEnvelopeIsNotRedactedTest.php`
     - [ ] a safe JSON record retains its data under the CLI-owned `payload` field

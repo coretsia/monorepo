@@ -4555,10 +4555,10 @@ Output (deterministic + redacted):
   - [x] produces stream payloads without trailing CR or LF
 
 Output schema:
-- [ ] `packages/platform/cli/resources/schema/cli_output@1.json`
+- [x] `packages/platform/cli/resources/schema/cli_output@1.json`
   - [x] JSON Schema Draft 2020-12 for the CLI output envelope and `text|json|error` record shapes
   - [x] production output pipeline enforces float rejection, sensitive-data redaction, and deterministic JSON serialization
-  - [ ] Used by `JsonOutputSchemaContractTest.php` as the single source of truth
+  - [x] Used by `JsonOutputSchemaContractTest.php` as the single source of truth
   - [x] exact top-level shape:
     - [x] `schema = coretsia.cli-output@1`
     - [x] `meta`
@@ -5719,7 +5719,7 @@ Docs:
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 
-- [ ] `docs/architecture/DEPENDENCIES.md`
+- [x] `docs/architecture/DEPENDENCIES.md`
   - [x] update the existing `platform/cli` row in the canonical direct PHP source dependency matrix
   - [x] exact `platform/cli` `depends_on` value:
     - [x] `core/contracts, core/foundation, core/kernel`
@@ -5727,7 +5727,7 @@ Docs:
   - [x] preserve the distinction between direct PHP source permissions and runtime-only Composer installation dependencies
   - [x] `coretsia/platform-redaction` remains a direct production Composer requirement of `coretsia/platform-cli`, backed by the declared `platform.redaction` runtime module dependency
   - [x] runtime-only Composer installation edges MUST NOT grant PHP source-level dependency permissions
-  - [ ] `platform/cli` production source MUST consume redaction only through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` and MUST NOT import concrete `Coretsia\Platform\Redaction\*` implementation classes
+  - [x] `platform/cli` production source MUST consume redaction only through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` and MUST NOT import concrete `Coretsia\Platform\Redaction\*` implementation classes
   - [x] preserve canonical `strcmp` package-row ordering
   - [x] generated Deptrac ruleset for `platform.cli` MUST allow only `core.contracts`, `core.foundation`, and `core.kernel`
   - [x] generated Deptrac ruleset MUST NOT allow `platform.redaction` as a PHP source dependency of `platform.cli`
@@ -6310,13 +6310,13 @@ Docs:
     - [x] no application classes are required to render the pre-autoload failure
     - [x] no PHP warning, fatal-error output, absolute path, raw launcher input, Throwable detail, or stack trace is emitted
 
-  - [ ] `packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
-    - [ ] successful normal command execution invokes `KernelRuntimeInterface::runUnitOfWork()` exactly once
-    - [ ] the selected command executes inside that UoW callback
-    - [ ] command failure does not cause another UoW invocation
-    - [ ] command resolution and exit-code validation occur inside the same UoW
-    - [ ] no nested CLI-owned UoW or manual reset orchestration is introduced
-    - [ ] canonical UoW type and attributes remain covered by `CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
+  - [x] `packages/platform/cli/tests/Integration/NormalCommandExecutesExactlyOneKernelUowTest.php`
+    - [x] successful normal command execution invokes `KernelRuntimeInterface::runUnitOfWork()` exactly once
+    - [x] the selected command executes inside that UoW callback
+    - [x] command failure does not cause another UoW invocation
+    - [x] command resolution and exit-code validation occur inside the same UoW
+    - [x] no nested CLI-owned UoW or manual reset orchestration is introduced
+    - [x] canonical UoW type and attributes remain covered by `CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
 
   - [x] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
     - [x] exact `coretsia doctor` uses the ultra-early runner
@@ -6329,29 +6329,29 @@ Docs:
     - [x] no raw environment value, absolute path, command line, loaded-extension list, phpinfo output, or Throwable detail is emitted
     - [x] unsupported doctor arguments and options fail through the fixed safe pipeline
 
-  - [ ] `packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
-    - [ ] `--format=json --color=always` produces valid JSON without ANSI sequences
-    - [ ] JSON output remains ANSI-free for successful and failed command outcomes
-    - [ ] effective color is disabled before JSON rendering
-    - [ ] `AnsiDecorator` cannot decorate the JSON document
-    - [ ] JSON rendering contains no terminal-dependent formatting
-    - [ ] stdout contains the canonical schema envelope and stderr remains empty
-    - [ ] final output contains exactly one writer-owned trailing LF
+  - [x] `packages/platform/cli/tests/Integration/JsonFormatSuppressesAnsiWhenColorAlwaysTest.php`
+    - [x] `--format=json --color=always` produces valid JSON without ANSI sequences
+    - [x] JSON output remains ANSI-free for successful and failed command outcomes
+    - [x] effective color is disabled before JSON rendering
+    - [x] `AnsiDecorator` cannot decorate the JSON document
+    - [x] JSON rendering contains no terminal-dependent formatting
+    - [x] stdout contains the canonical schema envelope and stderr remains empty
+    - [x] final output contains exactly one writer-owned trailing LF
 
-  - [ ] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
-    - [ ] configured `adaptive` format resolves to the configured non-interactive format
-    - [ ] the baseline non-interactive default resolves to `plain`
-    - [ ] stdout interactivity comes only from the injected `TerminalCapabilities`
-    - [ ] no CI environment variable or terminal-width inference changes the format
-    - [ ] an explicit valid `--format` overrides adaptive selection
-    - [ ] command-facing input does not receive the resolved format as an owner option
+  - [x] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
+    - [x] configured `adaptive` format resolves to the configured non-interactive format
+    - [x] the baseline non-interactive default resolves to `plain`
+    - [x] stdout interactivity comes only from the injected `TerminalCapabilities`
+    - [x] no CI environment variable or terminal-width inference changes the format
+    - [x] an explicit valid `--format` overrides adaptive selection
+    - [x] command-facing input does not receive the resolved format as an owner option
 
-  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandExitCodeIsPreservedTest.php`
-    - [ ] external command exit code `0` is preserved
-    - [ ] external command non-zero exit codes, including `2`, `3`, and `255`, are preserved without Kernel-specific remapping
-    - [ ] a valid non-zero return is not converted into an uncaught exception
-    - [ ] returned exit codes outside `0..255` fail through `CliCommandFailedException`
-    - [ ] CLI-global parsing and uncaught command exceptions retain their own failure boundary
+  - [x] `packages/platform/cli/tests/Integration/ExternalPackageCommandExitCodeIsPreservedTest.php`
+    - [x] external command exit code `0` is preserved
+    - [x] external command non-zero exit codes, including `2`, `3`, and `255`, are preserved without Kernel-specific remapping
+    - [x] a valid non-zero return is not converted into an uncaught exception
+    - [x] returned exit codes outside `0..255` fail through `CliCommandFailedException`
+    - [x] CLI-global parsing and uncaught command exceptions retain their own failure boundary
 
   - [ ] `packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
     - [ ] `config:compile` renders the published generation id returned by `KernelOpsInterface`
@@ -6381,29 +6381,29 @@ Docs:
     - [ ] all three states use the same Kernel OpsResult presentation path
     - [ ] CLI does not independently read artifact files or reinterpret verification states
 
-  - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
-    - [ ] an option absent from the selected descriptor throws `CliInputInvalidException`
-    - [ ] rejection occurs before the selected command service is resolved
-    - [ ] the selected command constructor and `run()` are not invoked
-    - [ ] no owner-package domain validation is invoked for structurally invalid input
-    - [ ] unknown option values are not echoed in diagnostics
-    - [ ] invalid input returns exit code `1`
+  - [x] `packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
+    - [x] an option absent from the selected descriptor throws `CliInputInvalidException`
+    - [x] rejection occurs before the selected command service is resolved
+    - [x] the selected command constructor and `run()` are not invoked
+    - [x] no owner-package domain validation is invoked for structurally invalid input
+    - [x] unknown option values are not echoed in diagnostics
+    - [x] invalid input returns exit code `1`
 
-  - [ ] `packages/platform/cli/tests/Integration/CommandInputValidatorPreservesRepeatableOptionOrderTest.php`
-    - [ ] an owner-declared repeatable required-value option accepts multiple `--name=value` occurrences
-    - [ ] parsed values reach the owner-package command as an ordered `list<string>`
-    - [ ] descriptor validation preserves the original occurrence order
-    - [ ] the command receives each value exactly once
-    - [ ] repeated non-repeatable options are rejected before command service resolution
-    - [ ] no last-value-wins behavior is introduced
+  - [x] `packages/platform/cli/tests/Integration/CommandInputValidatorPreservesRepeatableOptionOrderTest.php`
+    - [x] an owner-declared repeatable required-value option accepts multiple `--name=value` occurrences
+    - [x] parsed values reach the owner-package command as an ordered `list<string>`
+    - [x] descriptor validation preserves the original occurrence order
+    - [x] the command receives each value exactly once
+    - [x] repeated non-repeatable options are rejected before command service resolution
+    - [x] no last-value-wins behavior is introduced
 
-  - [ ] `packages/platform/cli/tests/Integration/GlobalFormatOptionIsNotPassedToPackageCommandTest.php`
-    - [ ] CLI-global `--format` is consumed before owner-package input construction
-    - [ ] CLI-global `--color` is consumed before owner-package input construction
-    - [ ] neither global option appears in `InputInterface::tokens()` or normalized command options
-    - [ ] owner-package arguments and declared domain options remain unchanged
-    - [ ] explicit global format and color selections affect presentation only
-    - [ ] external command execution does not modify Kernel Bootstrap preset selection
+  - [x] `packages/platform/cli/tests/Integration/GlobalFormatOptionIsNotPassedToPackageCommandTest.php`
+    - [x] CLI-global `--format` is consumed before owner-package input construction
+    - [x] CLI-global `--color` is consumed before owner-package input construction
+    - [x] neither global option appears in `InputInterface::tokens()` or normalized command options
+    - [x] owner-package arguments and declared domain options remain unchanged
+    - [x] explicit global format and color selections affect presentation only
+    - [x] external command execution does not modify Kernel Bootstrap preset selection
 
   - [x] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
     - [x] exact `coretsia doctor` does not invoke `KernelOpsHostBooter`
@@ -6459,13 +6459,13 @@ Docs:
     - [x] table presentation does not alter descriptor metadata, command discovery, or structured JSON output
     - [x] successful help exits with code `0`
 
-  - [ ] `packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
-    - [ ] an enabled external package contributing reserved command name `help` causes deterministic catalog rejection
-    - [ ] collision is detected from tag metadata without constructing the external command
-    - [ ] external services cannot replace the built-in reserved command identity
-    - [ ] catalog construction failure follows the fixed host-bootstrap error boundary
-    - [ ] no conflicting service id, class name, or command metadata is exposed
-    - [ ] the existing dedicated unit test covers the complete `doctor|help|list` reserved-name set
+  - [x] `packages/platform/cli/tests/Integration/ReservedCommandNamesCollisionRejectedTest.php`
+    - [x] an enabled external package contributing reserved command name `help` causes deterministic catalog rejection
+    - [x] collision is detected from tag metadata without constructing the external command
+    - [x] external services cannot replace the built-in reserved command identity
+    - [x] catalog construction failure follows the fixed host-bootstrap error boundary
+    - [x] no conflicting service id, class name, or command metadata is exposed
+    - [x] the existing dedicated unit test covers the complete `doctor|help|list` reserved-name set
 
   - [x] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
     - [x] obtains the canonical Console ModulePlan from the Kernel source operations host
@@ -6475,11 +6475,11 @@ Docs:
     - [x] exclusion failure produces `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and exit code `1`
     - [x] no second module resolver, ModulePlan, or fallback CLI container is constructed
 
-  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
-    - [ ] a missing `--target` is rejected by `KernelOpsRequestResolver`
-    - [ ] an empty `--target=` is rejected during structural validation
-    - [ ] neither invalid invocation calls `KernelOpsInterface`
-    - [ ] no CLI-owned Kernel target or preset inference is introduced
+  - [x] `packages/platform/cli/tests/Integration/KernelCommandsRequireExplicitTargetTest.php`
+    - [x] a missing `--target` is rejected by `KernelOpsRequestResolver`
+    - [x] an empty `--target=` is rejected during structural validation
+    - [x] neither invalid invocation calls `KernelOpsInterface`
+    - [x] no CLI-owned Kernel target or preset inference is introduced
 
   - [x] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
     - [x] verify the packaged skeleton baseline and canonical `micro` selection
@@ -6487,10 +6487,10 @@ Docs:
     - [x] verify that normal command discovery does not require generated runtime artifacts
     - [x] verify that no automatic DependencySync or second module planner executes
 
-  - [ ] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
-    - [ ] the composed source host resolves exactly one `SensitiveDataRedactorInterface`
-    - [ ] `OutputFormatter` receives the contracts port
-    - [ ] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
+  - [x] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
+    - [x] the composed source host resolves exactly one `SensitiveDataRedactorInterface`
+    - [x] `OutputFormatter` receives the contracts port
+    - [x] no platform/cli class imports or instantiates `DefaultSensitiveDataRedactor`
 
   - [x] `packages/platform/cli/tests/Integration/CliRequiresExplicitConsoleModuleSelectionTest.php`
     - [x] installing `platform.cli` without selecting it for Console does not implicitly enable its provider
@@ -6498,78 +6498,78 @@ Docs:
     - [x] missing installed redaction dependency fails during module resolution
     - [x] no CLI-owned provider fallback or second ModulePlan is constructed
 
-  - [ ] `packages/platform/cli/tests/Integration/CliJsonPayloadEnvelopeIsNotRedactedTest.php`
-    - [ ] a safe JSON record retains its data under the CLI-owned `payload` field
-    - [ ] sensitive structural keys inside the owner-supplied JSON value are still redacted
-    - [ ] the CLI record envelope is reconstructed without passing its `payload` field to the shared classifier
-    - [ ] original record order and canonical payload ordering are preserved
+  - [x] `packages/platform/cli/tests/Integration/CliJsonPayloadEnvelopeIsNotRedactedTest.php`
+    - [x] a safe JSON record retains its data under the CLI-owned `payload` field
+    - [x] sensitive structural keys inside the owner-supplied JSON value are still redacted
+    - [x] the CLI record envelope is reconstructed without passing its `payload` field to the shared classifier
+    - [x] original record order and canonical payload ordering are preserved
 
-  - [ ] `packages/platform/cli/tests/Integration/CliSensitiveTextRetainsStringRecordShapeTest.php`
-    - [ ] a classified sensitive text value is not emitted unchanged
-    - [ ] a structured redaction summary cannot violate the required text record shape
-    - [ ] safe placeholder rendering does not disclose hash or length metadata
+  - [x] `packages/platform/cli/tests/Integration/CliSensitiveTextRetainsStringRecordShapeTest.php`
+    - [x] a classified sensitive text value is not emitted unchanged
+    - [x] a structured redaction summary cannot violate the required text record shape
+    - [x] safe placeholder rendering does not disclose hash or length metadata
 
-  - [ ] `packages/platform/cli/tests/Integration/JsonFormatterAndConsoleWriterOwnOneFinalNewlineTest.php`
-    - [ ] canonical encoder framing does not produce duplicate final LF bytes
-    - [ ] non-empty JSON output ends with exactly one writer-owned LF
-    - [ ] JSON output contains no ANSI escape sequences
+  - [x] `packages/platform/cli/tests/Integration/JsonFormatterAndConsoleWriterOwnOneFinalNewlineTest.php`
+    - [x] canonical encoder framing does not produce duplicate final LF bytes
+    - [x] non-empty JSON output ends with exactly one writer-owned LF
+    - [x] JSON output contains no ANSI escape sequences
 
-  - [ ] `packages/platform/cli/tests/Integration/KernelCommandsRejectUndeclaredModeAndPresetOptionsTest.php`
-    - [ ] Kernel commands do not declare `mode` or `preset`
-    - [ ] both options fail before command service resolution
+  - [x] `packages/platform/cli/tests/Integration/KernelCommandsRejectUndeclaredModeAndPresetOptionsTest.php`
+    - [x] Kernel commands do not declare `mode` or `preset`
+    - [x] both options fail before command service resolution
 
-  - [ ] `packages/platform/cli/tests/Integration/CliUsesMergedValidatedConfigurationTest.php`
-    - [ ] skeleton override changes effective CLI output policy
-    - [ ] invalid Console-host CLI config fails in the existing ConfigKernel validation pipeline before command dispatch
-    - [ ] unknown `cli.mode.*` keys are rejected through canonical ConfigValidator rules
-    - [ ] legacy FQCN registry-list `cli.commands` is rejected rather than interpreted as command discovery configuration
-    - [ ] canonical `cli.commands.overrides` map remains valid
-    - [ ] rejected configuration never reaches `CommandCatalog` or command service resolution
-    - [ ] host validation failure produces the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than a synthetic Kernel OpsResult
-    - [ ] invalid configuration values and filesystem paths are not disclosed
-    - [ ] CliServiceFactory does not re-run validation
+  - [x] `packages/platform/cli/tests/Integration/CliUsesMergedValidatedConfigurationTest.php`
+    - [x] skeleton override changes effective CLI output policy
+    - [x] invalid Console-host CLI config fails in the existing ConfigKernel validation pipeline before command dispatch
+    - [x] unknown `cli.mode.*` keys are rejected through canonical ConfigValidator rules
+    - [x] legacy FQCN registry-list `cli.commands` is rejected rather than interpreted as command discovery configuration
+    - [x] canonical `cli.commands.overrides` map remains valid
+    - [x] rejected configuration never reaches `CommandCatalog` or command service resolution
+    - [x] host validation failure produces the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than a synthetic Kernel OpsResult
+    - [x] invalid configuration values and filesystem paths are not disclosed
+    - [x] CliServiceFactory does not re-run validation
 
   - [ ] `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
     - [ ] remove `MODE` arguments and `mode` expected fields
     - [ ] preserve source/definition metadata parity for the final six-key schema
 
-  - [ ] `packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
-    - [ ] `cli.output.format_default` changes the effective format when no explicit global `--format` option is supplied
-    - [ ] `cli.output.adaptive.interactive` changes the effective format only when adaptive format is selected and stdout is interactive
-    - [ ] `cli.output.adaptive.non_interactive` changes the effective format only when adaptive format is selected and stdout is non-interactive
-    - [ ] explicit `--format` takes precedence over the configured format default
-    - [ ] non-adaptive effective formats do not depend on adaptive interactive/non-interactive mappings
-    - [ ] `cli.output.color_default` changes the effective color decision when no explicit global `--color` option is supplied
-    - [ ] explicit `--color` takes precedence over the configured color default
-    - [ ] effective JSON format disables ANSI regardless of the configured color default
-    - [ ] `cli.output.table.max_width` changes the rendered table's deterministic visible-width limit
-    - [ ] table width does not affect plain or JSON output
-    - [ ] all five output settings originate from the merged and validated `cli` subtree
-    - [ ] no resolver or formatter reads configuration directly or invents missing defaults
+  - [x] `packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
+    - [x] `cli.output.format_default` changes the effective format when no explicit global `--format` option is supplied
+    - [x] `cli.output.adaptive.interactive` changes the effective format only when adaptive format is selected and stdout is interactive
+    - [x] `cli.output.adaptive.non_interactive` changes the effective format only when adaptive format is selected and stdout is non-interactive
+    - [x] explicit `--format` takes precedence over the configured format default
+    - [x] non-adaptive effective formats do not depend on adaptive interactive/non-interactive mappings
+    - [x] `cli.output.color_default` changes the effective color decision when no explicit global `--color` option is supplied
+    - [x] explicit `--color` takes precedence over the configured color default
+    - [x] effective JSON format disables ANSI regardless of the configured color default
+    - [x] `cli.output.table.max_width` changes the rendered table's deterministic visible-width limit
+    - [x] table width does not affect plain or JSON output
+    - [x] all five output settings originate from the merged and validated `cli` subtree
+    - [x] no resolver or formatter reads configuration directly or invents missing defaults
 
-  - [ ] `packages/platform/cli/tests/Integration/CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
-    - [ ] UoW type is `cli`
-    - [ ] canonical command name is passed as `operation`
-    - [ ] effective format is passed as `output_format`
-    - [ ] effective format is not added to ContextStore
-    - [ ] platform/cli performs no direct context writes
-    - [ ] `runUnitOfWork()` receives exactly the `operation|output_format` attribute map
-    - [ ] UoW type is supplied through `UnitOfWorkType::CLI`
-    - [ ] command resolution, class/name verification, execution, and exit-code validation occur inside the UoW callback
-    - [ ] raw argv, positional arguments, option values, and output records are absent from UoW attributes
-    - [ ] KernelRuntime remains the sole owner of the three base ContextStore writes
-    - [ ] no new ContextStore key is introduced for output format
-    - [ ] KernelRuntime reset remains authoritative after successful and failed execution
+  - [x] `packages/platform/cli/tests/Integration/CliCommandUowAttributesAreOwnedByCommandRunnerTest.php`
+    - [x] UoW type is `cli`
+    - [x] canonical command name is passed as `operation`
+    - [x] effective format is passed as `output_format`
+    - [x] effective format is not added to ContextStore
+    - [x] platform/cli performs no direct context writes
+    - [x] `runUnitOfWork()` receives exactly the `operation|output_format` attribute map
+    - [x] UoW type is supplied through `UnitOfWorkType::CLI`
+    - [x] command resolution, class/name verification, execution, and exit-code validation occur inside the UoW callback
+    - [x] raw argv, positional arguments, option values, and output records are absent from UoW attributes
+    - [x] KernelRuntime remains the sole owner of the three base ContextStore writes
+    - [x] no new ContextStore key is introduced for output format
+    - [x] KernelRuntime reset remains authoritative after successful and failed execution
 
-  - [ ] `packages/platform/cli/tests/Integration/CliRejectsInvalidCommandOverridesDeterministicallyTest.php`
-    - [ ] ConfigValidator rejects a non-map `cli.commands.overrides`
-    - [ ] CommandOverrides rejects invalid dynamic command-name keys
-    - [ ] CommandOverrides rejects invalid override value types
-    - [ ] CommandOverrides rejects unknown fields
-    - [ ] CommandOverrides rejects unknown command names
-    - [ ] invalid dynamic overrides detected during CommandCatalog construction fail `CliApplication` resolution
-    - [ ] construction-time failures use the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than attempting to invoke `CliErrorHandler` before `CliApplication::run()`
-    - [ ] no invalid override name, value, command metadata, or Throwable detail appears in the host-bootstrap diagnostic
+  - [x] `packages/platform/cli/tests/Integration/CliRejectsInvalidCommandOverridesDeterministicallyTest.php`
+    - [x] ConfigValidator rejects a non-map `cli.commands.overrides`
+    - [x] CommandOverrides rejects invalid dynamic command-name keys
+    - [x] CommandOverrides rejects invalid override value types
+    - [x] CommandOverrides rejects unknown fields
+    - [x] CommandOverrides rejects unknown command names
+    - [x] invalid dynamic overrides detected during CommandCatalog construction fail `CliApplication` resolution
+    - [x] construction-time failures use the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than attempting to invoke `CliErrorHandler` before `CliApplication::run()`
+    - [x] no invalid override name, value, command metadata, or Throwable detail appears in the host-bootstrap diagnostic
 
   - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
     - [ ] command is contributed by an enabled non-CLI package

@@ -53,6 +53,8 @@ return array(
       ),
       'requires' =>
       array(
+        0 => 'core.kernel',
+        1 => 'platform.redaction',
       ),
     ),
     'platform.redaction' =>

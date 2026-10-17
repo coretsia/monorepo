@@ -21,81 +21,48 @@ namespace Coretsia\Platform\Cli\Command;
 use Coretsia\Contracts\Cli\Command\CommandInterface;
 use Coretsia\Contracts\Cli\Input\InputInterface;
 use Coretsia\Contracts\Cli\Output\OutputInterface;
+use Coretsia\Platform\Cli\Catalog\CommandCatalog;
 
 /**
- * Built-in list command.
- *
- * Deterministic behavior:
- * - prints the list of available commands (built-ins + injected registry commands)
- * - ignores extra tokens; parsing semantics are an Application concern
+ * Lists visible catalog descriptors while preserving canonical command order.
  *
  * @internal
  */
-final class ListCommand implements CommandInterface
+final readonly class ListCommand implements CommandInterface
 {
-    /** @var list<string> */
-    private array $extraCommands;
+    public const string NAME = 'list';
+    public const string SUMMARY = 'List available commands.';
+    public const string GROUP = 'core';
+    public const bool HIDDEN = false;
+    public const array ARGUMENTS = [];
+    public const array OPTIONS = [];
 
-    /**
-     * @param list<string> $extraCommands Command names (already known by Application).
-     *                                   Built-ins `help` and `list` are always included implicitly.
-     */
-    public function __construct(array $extraCommands = [])
+    public function __construct(private CommandCatalog $catalog)
     {
-        $this->extraCommands = self::normalizeCommandNames($extraCommands);
     }
 
     public function name(): string
     {
-        return 'list';
+        return self::NAME;
     }
 
     public function run(InputInterface $input, OutputInterface $output): int
     {
-        // Input tokens are intentionally ignored.
-        $output->text('Available commands:');
+        $groups = [];
 
-        foreach ($this->availableCommands() as $name) {
-            $output->text('  ' . $name);
+        foreach ($this->catalog->descriptors() as $descriptor) {
+            if ($descriptor->hidden()) {
+                continue;
+            }
+
+            $groups[$descriptor->group()][] = [
+                'name' => $descriptor->name(),
+                'summary' => $descriptor->summary(),
+            ];
         }
+
+        $output->json(['groups' => $groups]);
 
         return 0;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function availableCommands(): array
-    {
-        return \array_merge(['help', 'list'], $this->extraCommands);
-    }
-
-    /**
-     * @param list<string> $names
-     * @return list<string> append-unique, preserving first occurrence order, excluding built-ins
-     */
-    private static function normalizeCommandNames(array $names): array
-    {
-        $out = [];
-        $seen = [];
-
-        foreach ($names as $name) {
-            if (!\is_string($name) || $name === '') {
-                continue;
-            }
-
-            if ($name === 'help' || $name === 'list') {
-                continue;
-            }
-
-            if (isset($seen[$name])) {
-                continue;
-            }
-
-            $seen[$name] = true;
-            $out[] = $name;
-        }
-
-        return $out;
     }
 }

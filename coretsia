@@ -17,8 +17,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-// Thin wrapper (single-choice): delegate to the canonical repository launcher.
-$exitCode = require __DIR__ . '/tools/bin/coretsia';
+// Canonical repository wrapper for the packaged CLI executable.
+$repositoryRoot = __DIR__;
+$GLOBALS['coretsia_application_root'] = $repositoryRoot;
 
-// Safety net: if the launcher unexpectedly returns (it SHOULD call exit()), propagate the exit code.
-exit((int)$exitCode);
+$exitCode = require $repositoryRoot . '/packages/platform/cli/bin/coretsia';
+
+exit(\is_int($exitCode) && $exitCode >= 0 && $exitCode <= 255 ? $exitCode : 1);

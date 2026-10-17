@@ -140,10 +140,305 @@ MD,
         );
     }
 
+    public function testRuntimeOnlyComposerEdgeDoesNotWidenSourceRuleset(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+        $result = $this->runDeptracGenerateCheck($repoRoot, true);
+
+        self::assertSame(0, $result['exitCode'], $result['stderr']);
+        self::assertSame('', $result['stderr']);
+
+        $config = file_get_contents($repoRoot . '/tools/testing/deptrac.yaml');
+        self::assertIsString($config);
+        self::assertStringContainsString("'platform.source': [ ]", $config);
+        self::assertStringNotContainsString("      - 'platform.target'", $config);
+    }
+
+    public function testRuntimeModuleRequirementWithoutComposerDependencyFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+
+        $this->writeRuntimePackage(
+            $repoRoot,
+            'platform',
+            'source',
+            [],
+            ['platform.target'],
+        );
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString(
+            'CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT',
+            $result['stderr'],
+        );
+        self::assertStringContainsString(
+            'source:platform/source target:platform/target reason:runtime-module-composer-require-missing',
+            $result['stderr'],
+        );
+    }
+
+    public function testRuntimeOnlyComposerEdgeWithoutModuleRequirementFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+        $this->writeRuntimePackage($repoRoot, 'platform', 'source', ['coretsia/platform-target' => '^0.8.0'], []);
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT', $result['stderr']);
+        self::assertStringContainsString('source:platform/source target:platform/target', $result['stderr']);
+    }
+
+    public function testRuntimeOnlyComposerEdgeWithWrongModuleRequirementFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+        $this->writeRuntimePackage(
+            $repoRoot,
+            'platform',
+            'source',
+            ['coretsia/platform-target' => '^0.8.0'],
+            ['platform.other'],
+        );
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT', $result['stderr']);
+    }
+
+    public function testRuntimeOnlyComposerEdgeToNonRuntimePackageFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+        $this->writeRuntimePackage($repoRoot, 'platform', 'target', [], [], false);
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT', $result['stderr']);
+    }
+
+    public function testRuntimeOnlyComposerEdgeInForbiddenLayerDirectionFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot('core', 'platform');
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_COMPOSER_EDGE_NOT_IN_SSOT', $result['stderr']);
+        self::assertStringContainsString('source:core/source target:platform/target', $result['stderr']);
+    }
+
+    public function testRuntimeOnlyComposerEdgeToDevtoolsFails(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot('enterprise', 'devtools');
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString(
+            'source:enterprise/source target:devtools/target reason:devtools-composer-dependency-forbidden',
+            $result['stderr'],
+        );
+    }
+
+    public function testNonDevtoolsSourcePermissionIsForbidden(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot('enterprise', 'devtools');
+        $policyPath = $repoRoot . '/docs/architecture/DEPENDENCIES.md';
+        $policy = file_get_contents($policyPath);
+        self::assertIsString($policy);
+
+        $this->writeFile(
+            $policyPath,
+            str_replace('| enterprise/source | — | |', '| enterprise/source | devtools/target | |', $policy),
+        );
+        $this->writeRuntimePackage($repoRoot, 'enterprise', 'source', [], []);
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString(
+            'source:enterprise/source target:devtools/target reason:devtools-source-dependency-forbidden',
+            $result['stderr'],
+        );
+    }
+
+    public function testNonDevtoolsComposerDependencyIsForbiddenEvenWhenSourceMatrixAllowsIt(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot('enterprise', 'devtools');
+        $policyPath = $repoRoot . '/docs/architecture/DEPENDENCIES.md';
+        $policy = file_get_contents($policyPath);
+        self::assertIsString($policy);
+
+        $this->writeFile(
+            $policyPath,
+            str_replace('| enterprise/source | — | |', '| enterprise/source | devtools/target | |', $policy),
+        );
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString(
+            'source:enterprise/source target:devtools/target reason:devtools-composer-dependency-forbidden',
+            $result['stderr'],
+        );
+    }
+
+    public function testSourceMatrixCannotOverrideLayerDirection(): void
+    {
+        foreach (
+            [
+                ['core', 'platform'],
+                ['platform', 'integrations'],
+                ['integrations', 'enterprise'],
+                ['devtools', 'enterprise'],
+            ] as [$sourceLayer, $targetLayer]
+        ) {
+            $repoRoot = $this->createRuntimeOnlyRepoRoot($sourceLayer, $targetLayer);
+            $policyPath = $repoRoot . '/docs/architecture/DEPENDENCIES.md';
+            $policy = file_get_contents($policyPath);
+            self::assertIsString($policy);
+
+            $originalRow = '| ' . $sourceLayer . '/source | — | |';
+            $updatedRow = '| ' . $sourceLayer . '/source | ' . $targetLayer . '/target | |';
+            self::assertStringContainsString($originalRow, $policy);
+
+            $this->writeFile($policyPath, str_replace($originalRow, $updatedRow, $policy));
+            $this->writeRuntimePackage(
+                $repoRoot,
+                $sourceLayer,
+                'source',
+                ['coretsia/' . $targetLayer . '-target' => '^0.8.0'],
+                [],
+            );
+
+            $result = $this->runDeptracGenerateCheck($repoRoot);
+
+            self::assertSame(1, $result['exitCode']);
+            self::assertStringContainsString(
+                'source:' . $sourceLayer . '/source target:' . $targetLayer . '/target reason:source-layer-dependency-forbidden',
+                $result['stderr'],
+            );
+        }
+    }
+
+    public function testDevtoolsPackageCannotContributeRuntimeModule(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot('devtools', 'platform');
+        $this->writeRuntimePackage($repoRoot, 'devtools', 'source', [], []);
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString(
+            'source:devtools/source reason:devtools-runtime-module-forbidden',
+            $result['stderr'],
+        );
+    }
+
+    public function testRuntimeOnlyComposerEdgesCannotFormComposerCycle(): void
+    {
+        $repoRoot = $this->createRuntimeOnlyRepoRoot();
+        $this->writeRuntimePackage(
+            $repoRoot,
+            'platform',
+            'target',
+            ['coretsia/platform-source' => '^0.8.0'],
+            ['platform.source'],
+        );
+
+        $result = $this->runDeptracGenerateCheck($repoRoot);
+
+        self::assertSame(1, $result['exitCode']);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_CYCLE_DETECTED', $result['stderr']);
+        self::assertStringContainsString('package dependency cycle', $result['stderr']);
+    }
+
+    private function createRuntimeOnlyRepoRoot(
+        string $sourceLayer = 'platform',
+        string $targetLayer = 'platform',
+    ): string {
+        $repoRoot = $this->createSyntheticRepoRoot();
+        $this->writeComposerJson(
+            $repoRoot . '/composer.json',
+            [
+                'name' => 'coretsia/synthetic-root',
+                'type' => 'project',
+                'require' => ['php' => '^8.4'],
+            ],
+        );
+
+        $packageIds = [$sourceLayer . '/source', $targetLayer . '/target'];
+        sort($packageIds, SORT_STRING);
+
+        $table = "# Synthetic dependency table\n\n"
+            . "## 4) Canonical direct dependency matrix (MUST)\n\n"
+            . "| package_id | depends_on | notes |\n"
+            . "|------------|------------|-------|\n";
+
+        foreach ($packageIds as $packageId) {
+            $table .= '| ' . $packageId . " | — | |\n";
+        }
+
+        $this->writeFile($repoRoot . '/docs/architecture/DEPENDENCIES.md', $table);
+        $this->makeDir($repoRoot . '/tools/testing');
+        $this->writeRuntimePackage(
+            $repoRoot,
+            $sourceLayer,
+            'source',
+            ['coretsia/' . $targetLayer . '-target' => '^0.8.0'],
+            [$targetLayer . '.target'],
+        );
+        $this->writeRuntimePackage($repoRoot, $targetLayer, 'target', [], []);
+
+        return $repoRoot;
+    }
+
+    /**
+     * @param array<string, string> $composerRequires
+     * @param list<string> $moduleRequires
+     */
+    private function writeRuntimePackage(
+        string $repoRoot,
+        string $layer,
+        string $slug,
+        array $composerRequires,
+        array $moduleRequires,
+        bool $runtime = true,
+    ): void {
+        $packagePath = $repoRoot . '/packages/' . $layer . '/' . $slug;
+        $this->makeDir($packagePath . '/src');
+
+        $composer = [
+            'name' => 'coretsia/' . $layer . '-' . $slug,
+            'type' => 'library',
+            'license' => 'Apache-2.0',
+            'require' => ['php' => '^8.4', ...$composerRequires],
+            'autoload' => [
+                'psr-4' => [
+                    'Coretsia\\Synthetic\\' . ucfirst($slug) . '\\' => 'src/',
+                ],
+            ],
+        ];
+
+        if ($runtime) {
+            $composer['extra'] = [
+                'coretsia' => [
+                    'kind' => 'runtime',
+                    'moduleId' => $layer . '.' . $slug,
+                    'requires' => $moduleRequires,
+                ],
+            ];
+        }
+
+        $this->writeComposerJson($packagePath . '/composer.json', $composer);
+    }
+
     /**
      * @return array{exitCode:int, stdout:string, stderr:string}
      */
-    private function runDeptracGenerateCheck(string $repoRoot): array
+    private function runDeptracGenerateCheck(string $repoRoot, bool $apply = false): array
     {
         $script = RepositoryContext::discoverFrom(__DIR__)
             ->resolveExistingFile('tools/build/deptrac_generate.php');
@@ -154,7 +449,7 @@ MD,
             [
                 PHP_BINARY,
                 $script,
-                '--check',
+                $apply ? '--apply' : '--check',
                 '--repo-root',
                 $repoRoot,
             ],

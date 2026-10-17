@@ -18,51 +18,49 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Exception;
 
-use Coretsia\Platform\Cli\Error\ErrorCodes;
-
 /**
- * Command-level failure (execution returned non-zero or explicitly signaled failure).
+ * Deterministic failure at the CLI command execution boundary.
  *
- * Policy:
- * - This exception is domain-level (handled by Application boundary).
- * - reason() MUST be a short fixed token; MUST NOT contain paths/secrets.
+ * CommandRunner uses this exception when a command returns an exit code
+ * outside the portable 0..255 range. Command-owned exit codes within that
+ * range are preserved without remapping.
+ *
+ * The public message is fixed and contains only:
+ *
+ *     CORETSIA_CLI_COMMAND_FAILED: cli-command-failed
+ *
+ * No raw value, hash, byte length, command payload, path, rendered output,
+ * environment detail, or previous throwable is retained or rendered.
+ *
+ * @internal
  */
-final class CliCommandFailedException extends CliException
+final class CliCommandFailedException extends \RuntimeException
 {
+    public const string ERROR_CODE = 'CORETSIA_CLI_COMMAND_FAILED';
     public const string REASON_COMMAND_FAILED = 'cli-command-failed';
 
-    /** @var list<string> */
-    private const array ALLOWED_REASONS = [
-        self::REASON_COMMAND_FAILED,
-    ];
-
-    private readonly int $exitCode;
-
-    public function __construct(
-        string      $reason = self::REASON_COMMAND_FAILED,
-        int         $exitCode = 1,
-        ?\Throwable $previous = null
-    ) {
-        $this->exitCode = $exitCode;
-
-        parent::__construct(
-            ErrorCodes::CORETSIA_CLI_COMMAND_FAILED,
-            self::normalizeReason($reason, self::ALLOWED_REASONS),
-            $previous,
-        );
+    private function __construct()
+    {
+        parent::__construct(self::ERROR_CODE . ': ' . self::REASON_COMMAND_FAILED);
     }
 
-    /**
-     * Internal: desired exit code for the failed command. The Application
-     * CliExceptionInterface boundary may still render the failure with exit code 1.
-     */
-    public function exitCode(): int
+    public static function failed(): self
     {
-        return $this->exitCode;
+        return new self();
     }
 
-    public static function commandFailed(int $exitCode = 1, ?\Throwable $previous = null): self
+    public static function invalidExitCode(): self
     {
-        return new self(self::REASON_COMMAND_FAILED, $exitCode, $previous);
+        return new self();
+    }
+
+    public function errorCode(): string
+    {
+        return self::ERROR_CODE;
+    }
+
+    public function reason(): string
+    {
+        return self::REASON_COMMAND_FAILED;
     }
 }

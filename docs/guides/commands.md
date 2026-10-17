@@ -1145,76 +1145,6 @@ Usage (repo root):
 
 ---
 
-### Coretsia CLI help
-
-Id: `cli.help` \
-Entrypoint: `php coretsia help` \
-Category: CLI / built-in \
-Outputs:
-- none (prints deterministic help text to console)
-
-Determinism:
-
-| Mode / flags                  | Determinism   | Notes                                                            |
-|-------------------------------|---------------|------------------------------------------------------------------|
-| `php coretsia`                | deterministic | No-command dispatch; prints the same general help                |
-| `php coretsia help`           | deterministic | General usage + available commands list                          |
-| `php coretsia help <command>` | deterministic | Built-in help for `help`/`list`; generic help for known commands |
-
-Notes:
-- Purpose: provide kernel-free deterministic help for the Coretsia CLI runtime.
-- No-command policy:
-  - `php coretsia` dispatches directly to the built-in general help path and exits successfully.
-- Known-subject policy:
-  - `help help` and `help list` print built-in detailed help.
-  - `help <known-command>` prints deterministic generic help when detailed built-in help is not available.
-  - `help <unknown-command>` fails deterministically:
-    - emits `OutputInterface::error(CORETSIA_CLI_COMMAND_INVALID, unknown-command)`
-    - exits non-zero.
-- Entrypoint topology:
-  - repo-root `coretsia` is the canonical user-facing CLI entrypoint and is a thin wrapper;
-  - the wrapper delegates to the canonical repository launcher `tools/bin/coretsia`;
-  - direct `php tools/bin/coretsia help …` is an implementation-level entrypoint and MUST remain behavior-equivalent to the root wrapper.
-
-Usage (repo root):
-- `php coretsia`
-- `php coretsia help`
-- `php coretsia help help`
-- `php coretsia help list`
-- `php coretsia help <command>`
-
----
-
-### Coretsia CLI list
-
-Id: `cli.list` \
-Entrypoint: `php coretsia list` \
-Category: CLI / built-in \
-Outputs:
-- none (prints deterministic list of available commands)
-
-Determinism:
-
-| Mode / flags        | Determinism   | Notes                                         |
-|---------------------|---------------|-----------------------------------------------|
-| `php coretsia list` | deterministic | Prints built-ins + injected registry commands |
-
-Notes:
-- Prints a deterministic catalog:
-  - built-ins: `help`, `list`
-  - plus configured/injected registry commands (as resolved by `Application`).
-- Extra tokens are ignored; the command remains tolerant because argument parsing is an `Application` concern.
-- Output MUST be produced via `OutputInterface` only (no direct stdout/stderr in command code).
-- Entrypoint topology:
-  - repo-root `php coretsia list` is the canonical user-facing entrypoint;
-  - root `coretsia` is a thin shim delegating to `tools/bin/coretsia`;
-  - `php tools/bin/coretsia list` is the canonical repository launcher implementation and MUST remain behavior-equivalent.
-
-Usage (repo root):
-- `php coretsia list`
-
----
-
 ### Site icons builder
 
 Id: `tool.build_icons` \
@@ -2716,3 +2646,571 @@ Notes:
 
 Usage (repo root):
 - `composer phpstan`
+
+---
+
+### Coretsia CLI list
+
+Id: `cli.list` \
+Entrypoint: `php coretsia list` \
+Category: CLI / built-in \
+Outputs:
+- none (emits a deterministic grouped command catalog through `OutputInterface`; final console rendering is owned by the CLI output pipeline)
+
+Determinism:
+
+| Mode / flags                | Determinism   | Notes                                                                                    |
+|-----------------------------|---------------|------------------------------------------------------------------------------------------|
+| `php coretsia list`         | deterministic | Renders visible built-in and enabled-package command descriptors in deterministic groups |
+| `php coretsia list <extra>` | deterministic | Rejects unsupported positional arguments through descriptor-driven validation            |
+
+Notes:
+- Prints a deterministic tag-backed command catalog:
+  - built-ins: `doctor`, `help`, `list`, and the six Kernel operation commands;
+  - plus commands contributed by other enabled packages through the canonical `cli.command` DI tag.
+- Discovery policy:
+  - `CommandCatalog` is the single source of command descriptors.
+  - Commands are discovered through Foundation `TagRegistry`.
+  - `ListCommand` MUST NOT read a config-based command registry or synthesize built-in command names locally.
+  - Catalog construction and listing MUST NOT instantiate unrelated command services.
+- Presentation policy:
+  - Hidden commands are excluded.
+  - Commands are grouped by descriptor group metadata.
+  - Canonical descriptor order is preserved within each group.
+  - Grouping MUST NOT mutate, re-sort, or re-dedupe the underlying `CommandCatalog`.
+  - Command summaries originate from validated descriptor metadata.
+  - The canonical output pipeline handles JSON, table, or plain formatting and shared redaction.
+- Input policy:
+  - `ARGUMENTS = []` and `OPTIONS = []`.
+  - Additional positional arguments and undeclared command options fail through `CommandInputValidator`.
+  - CLI-global `--format` and `--color` options remain separate from command-facing input.
+- Runtime policy:
+  - `list` follows normal CLI dispatch through `CliHostBootstrap` and one Kernel UnitOfWork.
+  - The source operations host MUST complete successfully before command dispatch.
+  - Generated application runtime artifacts are not required.
+  - Successful listing exits with code `0`.
+- Output MUST be produced via `OutputInterface` only (no direct stdout/stderr in command code).
+- Entrypoint topology:
+  - repo-root `php coretsia list` is the canonical monorepo invocation;
+  - root `coretsia` delegates directly to `packages/platform/cli/bin/coretsia`;
+  - the packaged CLI uses `src/Bootstrap/Entrypoint/cli.php` for post-autoload orchestration;
+  - an installed Skeleton delegates through the Composer-generated `vendor/bin/coretsia` proxy;
+  - no `tools/bin/coretsia` launcher is required or supported.
+
+Usage (repo root):
+- `php coretsia list`
+
+---
+
+### Coretsia CLI help
+
+Id: `cli.help` \
+Entrypoint: `php coretsia help` \
+Category: CLI / built-in \
+Outputs:
+- none (emits deterministic descriptor-driven help records through `OutputInterface`; final console rendering is owned by the CLI output pipeline)
+
+Determinism:
+
+| Mode / flags                  | Determinism   | Notes                                                                        |
+|-------------------------------|---------------|------------------------------------------------------------------------------|
+| `php coretsia`                | deterministic | Missing command fails with `CORETSIA_CLI_INPUT_INVALID: cli-command-missing` |
+| `php coretsia help`           | deterministic | Renders visible command descriptors from the tag-backed catalog              |
+| `php coretsia help <command>` | deterministic | Renders the selected command descriptor, including arguments and options     |
+
+Notes:
+- Purpose: provide deterministic descriptor-driven help through the canonical CLI source operations host.
+- Bootstrap policy:
+  - `help` follows normal CLI dispatch through `CliHostBootstrap`, `CommandCatalog`, and one Kernel UnitOfWork.
+  - `help` MUST NOT bypass the Kernel operations host.
+  - `doctor` remains the only ultra-early command allowed to bypass normal catalog dispatch.
+- No-command policy:
+  - `php coretsia` does not implicitly dispatch to `help`.
+  - Missing command input fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-missing`, and exit code `1`.
+- General help policy:
+  - `help` renders visible descriptors in canonical TagRegistry order.
+  - Command names, groups, and summaries originate from validated `cli.command` metadata.
+  - Hidden commands are excluded from general help.
+  - Command services MUST NOT be instantiated solely to render general help.
+- Known-subject policy:
+  - `help help` and `help list` render their canonical built-in command descriptors.
+  - `help <known-command>` renders the selected descriptor's name, group, summary, arguments, and options.
+  - Command-specific help MUST NOT resolve or instantiate the described command service.
+  - `help <unknown-command>` fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-unknown`, and exit code `1`.
+  - More than one positional command argument fails descriptor-driven structural validation.
+- Output policy:
+  - `HelpCommand` emits structured records only through `OutputInterface`.
+  - Final JSON, table, or plain rendering follows the effective CLI-global format and color policy.
+  - The canonical output pipeline applies shared redaction before rendering.
+  - No direct stdout/stderr writes are permitted in command code.
+- Entrypoint topology:
+  - repo-root `coretsia` is the single canonical monorepo user-facing wrapper;
+  - the wrapper delegates directly to `packages/platform/cli/bin/coretsia`;
+  - the packaged CLI delegates post-autoload orchestration to `src/Bootstrap/Entrypoint/cli.php`;
+  - the Composer-installed Skeleton wrapper delegates only through `vendor/bin/coretsia`;
+  - `tools/bin/coretsia` is removed and MUST NOT be required for CLI execution.
+
+Usage (repo root):
+- `php coretsia help`
+- `php coretsia help help`
+- `php coretsia help list`
+- `php coretsia help <command>`
+
+---
+
+### Coretsia CLI doctor
+
+Id: `cli.doctor` \
+Entrypoint: `php coretsia doctor` \
+Category: CLI / built-in / bootstrap diagnostics \
+Outputs:
+- none (emits fixed, safe runtime capability checks through the ultra-early doctor output pipeline)
+
+Determinism:
+
+| Mode / flags                    | Determinism   | Notes                                                                                     |
+|---------------------------------|---------------|-------------------------------------------------------------------------------------------|
+| `php coretsia doctor`           | deterministic | Produces a fixed capability schema with results determined by the current PHP environment |
+| Additional arguments or options | deterministic | Rejects non-canonical doctor invocations through the fixed doctor diagnostic pipeline     |
+
+Notes:
+- Purpose: check minimal PHP and CLI runtime prerequisites without booting the Kernel operations host.
+- `doctor` is the only built-in command allowed to bypass normal tag-backed dispatch.
+- The ultra-early path:
+  - starts after Composer autoload;
+  - does not resolve the application root through the normal entrypoint resolver;
+  - does not construct `CommandCatalog`, Kernel UnitOfWork, or the source operations container;
+  - requires no generated runtime artifacts.
+- Checks:
+  - PHP version is at least 8.4;
+  - PHP SAPI is `cli`;
+  - JSON extension is available;
+  - PCRE extension is available.
+- Emits fixed boolean fields:
+  - `cli_sapi`;
+  - `json_available`;
+  - `pcre_available`;
+  - `php_supported`;
+  - `ready`.
+- Exit-code policy:
+  - `0`: all capability checks pass;
+  - `1`: at least one capability check fails or the invocation is invalid.
+- Ultra-early doctor output is fixed `plain` format with color disabled.
+- The output MUST NOT reveal absolute paths, raw environment values, loaded-extension inventories, command lines, or stack traces.
+- The same `DoctorCommand` identity is also registered in the normal tag-backed catalog for `help` and `list`.
+
+Usage (repo root):
+- `php coretsia doctor`
+
+---
+
+### Coretsia CLI cache verify
+
+Id: `cli.cache_verify` \
+Entrypoint: `php coretsia cache:verify --target=<target>` \
+Category: CLI / Kernel operations / cache verification \
+Outputs:
+- none (read-only verification; emits a safe Kernel-owned artifact verification result through `OutputInterface`)
+- Does not create, compile, repair, or publish artifact generations
+
+Determinism:
+
+| Mode / flags        | Determinism   | Notes                                                                                                 |
+|---------------------|---------------|-------------------------------------------------------------------------------------------------------|
+| `--target=<target>` | deterministic | Verifies the current generation against expected inputs; result depends on the current artifact state |
+| `--format=json`     | deterministic | Renders the structured verification result through the canonical JSON output pipeline                 |
+
+Notes:
+- Purpose: verify whether the current runtime artifact generation matches the expected configuration and dependency graph.
+- Requires `--target=web|api|console|worker`; the CLI MUST NOT infer the target.
+- Delegates exclusively to `KernelOpsInterface::verifyCache()` through `KernelOpsRequestResolver`.
+- Kernel owns expected generation calculation, current-generation resolution, artifact verification, and state classification.
+- Returns a structured result containing:
+  - `app_target`, `operation`, `outcome`, and the effective `preset` when available;
+  - `data.state`: `clean`, `dirty`, or `invalid`;
+  - `data.expected_generation_id` and nullable `data.current_generation_id`;
+  - `data.artifacts`: four artifact verification summaries with names, basenames, statuses, bounded reasons, and byte counts.
+- Exit-code policy:
+  - `0`: generation is `clean`;
+  - `2`: generation is `dirty`;
+  - `3`: generation is `invalid`;
+  - `1`: invalid input, handled Kernel failure, or uncaught execution failure.
+- `dirty` and `invalid` are verification states, not successful cache states, even when the Kernel operation itself completes.
+- CLI MUST NOT inspect `current`, generation manifests, or artifact files directly.
+- Verification MUST NOT trigger compilation or publication.
+- Normal CLI execution requires successful Console source-host bootstrap before dispatch.
+
+Usage (repo root):
+- `php coretsia cache:verify --target=console`
+- `php coretsia cache:verify --target=web`
+- `php coretsia cache:verify --target=api --format=json`
+
+---
+
+### Coretsia CLI config compile
+
+Id: `cli.config_compile` \
+Entrypoint: `php coretsia config:compile --target=<target>` \
+Category: CLI / Kernel operations / artifact generation \
+Outputs:
+- Creates or reuses an immutable runtime artifact generation under the configured target-specific Kernel artifact root
+- Atomically publishes the generation through the Kernel-owned generation mechanism
+- Generation contains:
+  - `module-manifest.php`
+  - `config.php`
+  - `container.php`
+  - `generation-manifest.php`
+- Updates the canonical current-generation reference when publication requires it
+- Emits a safe generation summary through `OutputInterface`
+
+Determinism:
+
+| Mode / flags        | Determinism                | Notes                                                                                                               |
+|---------------------|----------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `--target=<target>` | deterministic but mutating | Generation identity and artifact content are derived from canonical inputs; publishing may update runtime artifacts |
+| `--format=json`     | deterministic but mutating | Uses the same compilation operation with structured JSON rendering                                                  |
+
+Notes:
+- Purpose: compile and atomically publish one runtime artifact generation for the selected application target.
+- Requires `--target=web|api|console|worker`.
+- Delegates exclusively to `KernelOpsInterface::compileConfig()`.
+- Kernel owns Bootstrap configuration, ModulePlan resolution, configuration compilation, runtime container graph compilation, fingerprint calculation, artifact generation, and atomic publication.
+- The returned result includes:
+  - `app_target`, `operation`, `outcome`, and effective `preset` when available;
+  - `data.generation_id`;
+  - `data.artifacts`: four entries containing canonical artifact identities and basenames.
+- The generated artifact identities are `module-manifest@1`, `config@1`, `container@1`, and `artifact-generation@1`.
+- The CLI MUST NOT compile artifacts itself, construct generation paths, or write generated PHP files.
+- A failed compilation MUST NOT be represented as successful publication.
+- Exit-code policy:
+  - `0`: successful compilation and publication;
+  - `1`: invalid input, handled Kernel failure, or uncaught execution failure.
+- This is a mutating operation and MUST NOT be treated as a read-only CI gate.
+- CLI source-host bootstrap remains separate from the generated application runtime.
+
+Usage (repo root):
+- `php coretsia config:compile --target=console`
+- `php coretsia config:compile --target=web`
+- `php coretsia config:compile --target=api --format=json`
+
+---
+
+### Coretsia CLI config debug
+
+Id: `cli.config_debug` \
+Entrypoint: `php coretsia config:debug --target=<target>` \
+Category: CLI / Kernel operations / configuration diagnostics \
+Outputs:
+- none (emits safe configuration-resolution diagnostics through `OutputInterface`)
+- Does not publish runtime artifacts or expose raw configuration values
+
+Determinism:
+
+| Mode / flags        | Determinism   | Notes                                                                              |
+|---------------------|---------------|------------------------------------------------------------------------------------|
+| `--target=<target>` | deterministic | Produces Kernel-owned configuration explanation data for the same effective inputs |
+| `--format=json`     | deterministic | Renders the safe explanation as structured JSON                                    |
+
+Notes:
+- Purpose: inspect configuration resolution for the selected application's effective preset.
+- Requires `--target=web|api|console|worker`.
+- Delegates exclusively to `KernelOpsInterface::debugConfig()`.
+- Kernel performs canonical Bootstrap, module resolution, configuration compilation, validation, and explanation.
+- Successful output contains `data.explain` together with the safe operation result envelope.
+- The effective preset is selected by Kernel Bootstrap configuration, not by a CLI-owned `--mode` or `--preset` option.
+- The command MUST NOT reveal raw configuration dumps, environment values, secrets, source contents, or internal filesystem paths.
+- CLI MUST NOT create a separate config-discovery, merge, validation, or explain pipeline.
+- Exit-code policy:
+  - `0`: configuration explanation completed successfully;
+  - `1`: invalid input, invalid configuration, handled Kernel failure, or uncaught execution failure.
+- Invalid Console source-host configuration fails before the requested target operation is dispatched.
+
+Usage (repo root):
+- `php coretsia config:debug --target=console`
+- `php coretsia config:debug --target=web`
+- `php coretsia config:debug --target=api --format=json`
+
+---
+
+### Coretsia CLI config hash
+
+Id: `cli.config_hash` \
+Entrypoint: `php coretsia config:hash --target=<target>` \
+Category: CLI / Kernel operations / generation fingerprint \
+Outputs:
+- none (emits the expected artifact generation ID through `OutputInterface`)
+- Does not create, publish, or activate runtime artifact generations
+
+Determinism:
+
+| Mode / flags        | Determinism   | Notes                                                             |
+|---------------------|---------------|-------------------------------------------------------------------|
+| `--target=<target>` | deterministic | Calculates the same generation ID for equivalent canonical inputs |
+| `--format=json`     | deterministic | Renders the calculated generation ID in the canonical JSON result |
+
+Notes:
+- Purpose: calculate the expected graph-bound runtime artifact generation ID without publishing artifacts.
+- Requires `--target=web|api|console|worker`.
+- Delegates exclusively to `KernelOpsInterface::hashConfig()`.
+- Kernel performs source configuration compilation and validation, runtime container graph construction, canonical fingerprint-input construction, and fingerprint calculation.
+- Successful output contains:
+  - `app_target`, `operation`, `outcome`, and effective `preset` when available;
+  - `data.generation_id`.
+- The generation ID identifies expected inputs; it is not proof that the generation has been published or that the current cache is clean.
+- The command MUST NOT inspect `current` or directly read generated artifact payloads.
+- The command MUST NOT write configuration or container artifacts.
+- Exit-code policy:
+  - `0`: generation ID calculated successfully;
+  - `1`: invalid input, invalid configuration, handled Kernel failure, or uncaught execution failure.
+- For cache-state validation, use `cache:verify` rather than inferring state from the hash alone.
+
+Usage (repo root):
+- `php coretsia config:hash --target=console`
+- `php coretsia config:hash --target=web`
+- `php coretsia config:hash --target=worker --format=json`
+
+---
+
+### Coretsia CLI config validate
+
+Id: `cli.config_validate` \
+Entrypoint: `php coretsia config:validate --target=<target>` \
+Category: CLI / Kernel operations / configuration validation \
+Outputs:
+- none (emits a safe configuration-validation summary through `OutputInterface`)
+- Does not publish runtime artifact generations
+
+Determinism:
+
+| Mode / flags        | Determinism   | Notes                                                                      |
+|---------------------|---------------|----------------------------------------------------------------------------|
+| `--target=<target>` | deterministic | Validates canonical source configuration against the same effective inputs |
+| `--format=json`     | deterministic | Renders validation status and safe counts in structured JSON               |
+
+Notes:
+- Purpose: validate configuration for the selected application target and effective Kernel preset.
+- Requires `--target=web|api|console|worker`.
+- Delegates exclusively to `KernelOpsInterface::validateConfig()`.
+- Kernel owns configuration loading, merging, module selection, schema validation, and validation-result construction.
+- The validation summary contains:
+  - `data.valid`: boolean validation status;
+  - `data.counts.validated_root_count`;
+  - `data.counts.unvalidated_root_count`;
+  - `data.counts.violation_count`.
+- The output includes the safe operation envelope and effective preset when available.
+- Exit-code policy:
+  - `0`: Kernel returned a successful result with `data.valid = true`;
+  - `1`: invalid configuration, `data.valid = false`, handled Kernel failure, invalid input, or uncaught execution failure.
+- Normal CLI execution first boots and validates the Console source operations host.
+- If Console source-host boot fails, the command exits with `CORETSIA_CLI_HOST_BOOT_FAILED`, reason `host-boot-failed`, and code `1` before `KernelOpsInterface::validateConfig()` is invoked.
+- Therefore, validation of another target MUST NOT bypass the Console-host validation gate.
+- The command MUST NOT reveal raw config values or introduce a separate validation pipeline.
+
+Usage (repo root):
+- `php coretsia config:validate --target=console`
+- `php coretsia config:validate --target=web`
+- `php coretsia config:validate --target=api --format=json`
+
+---
+
+### Coretsia CLI debug modules
+
+Id: `cli.debug_modules` \
+Entrypoint: `php coretsia debug:modules --target=<target>` \
+Category: CLI / Kernel operations / module diagnostics \
+Outputs:
+- none (emits the resolved Kernel ModulePlan summary through `OutputInterface`)
+- Does not install, remove, enable, or disable modules
+
+Determinism:
+
+| Mode / flags        | Determinism   | Notes                                                                                     |
+|---------------------|---------------|-------------------------------------------------------------------------------------------|
+| `--target=<target>` | deterministic | Reports the canonical resolved ModulePlan for equivalent package and configuration inputs |
+| `--format=json`     | deterministic | Renders the ModulePlan summary through the JSON output pipeline                           |
+
+Notes:
+- Purpose: inspect module selection and dependency ordering for the selected application target.
+- Requires `--target=web|api|console|worker`.
+- Delegates exclusively to `KernelOpsInterface::debugModules()`.
+- Kernel resolves Bootstrap configuration and the canonical ModulePlan using installed package metadata and configured module selection.
+- Successful output contains:
+  - `data.enabled`: enabled module IDs;
+  - `data.excluded`: excluded module IDs;
+  - `data.topological_order`: canonical module dependency ordering;
+  - the safe operation result envelope and effective preset when available.
+- `--target` selects the target being inspected; it does not change the Console target used to bootstrap the CLI host.
+- Composer package installation MUST NOT automatically imply module enablement.
+- The command MUST NOT construct a second ModulePlan, discover providers itself, or modify module selection.
+- Exit-code policy:
+  - `0`: ModulePlan resolved successfully;
+  - `1`: invalid input, module resolution failure, or uncaught execution failure.
+- This command is read-only and suitable for deterministic architecture diagnostics with fixed inputs.
+
+Usage (repo root):
+- `php coretsia debug:modules --target=console`
+- `php coretsia debug:modules --target=worker`
+- `php coretsia debug:modules --target=web --format=json`
+
+---
+
+### Coretsia CLI worker health
+
+Id: `cli.worker_health` \
+Entrypoint: `php coretsia worker:health` \
+Category: CLI / Worker / health check \
+Outputs:
+- none (emits a safe live worker-pool health summary through `OutputInterface`)
+- Does not start, stop, or reconfigure the worker pool
+
+Determinism:
+
+| Mode / flags                 | Determinism      | Notes                                                                         |
+|------------------------------|------------------|-------------------------------------------------------------------------------|
+| `php coretsia worker:health` | NONDETERMINISTIC | Depends on live supervisor state, readiness, and control-channel availability |
+| `--format=json`              | NONDETERMINISTIC | Stable output schema; values reflect current runtime state                    |
+
+Notes:
+- Purpose: determine whether the active worker pool is running and every configured worker slot is ready.
+- The command is contributed by the enabled `platform.worker` package through the canonical `cli.command` DI tag.
+- `platform.worker` MUST be enabled in the Console ModulePlan for this command to appear in the CLI catalog.
+- Accepts no positional arguments or command-specific options.
+- Delegates health checks through `WorkerControlClientInterface::health()`.
+- The client uses the active supervisor's canonical control channel; diagnostic state snapshots are not liveness authority.
+- Successful communication emits:
+  - `status`: `healthy` or `unhealthy`;
+  - `pool_status`, `pid`, `worker_count`, `ready_worker_count`;
+  - `healthy` and a bounded `reason`;
+  - `driver`, `control_transport`, and `endpoint_hash`.
+- Exit-code policy:
+  - `0`: the active worker pool is healthy;
+  - `1`: the pool is unhealthy, unavailable, or health retrieval fails.
+- The command MUST NOT expose raw control endpoints, credentials, socket paths, runtime configuration, or environment values.
+- Results are runtime-dependent and MUST NOT be used as deterministic rerun-no-diff CI assertions.
+
+Usage (repo root):
+- `php coretsia worker:health`
+- `php coretsia worker:health --format=json`
+
+---
+
+### Coretsia CLI worker start
+
+Id: `cli.worker_start` \
+Entrypoint: `php coretsia worker:start` \
+Category: CLI / Worker / runtime lifecycle \
+Outputs:
+- Starts and supervises the configured worker pool
+- May create and update Worker-owned runtime state, control-channel, lock, and lifecycle artifacts
+- Emits safe worker-pool state summaries through `OutputInterface` when returned by the foreground supervisor
+
+Determinism:
+
+| Mode / flags                | Determinism      | Notes                                                                                                          |
+|-----------------------------|------------------|----------------------------------------------------------------------------------------------------------------|
+| `php coretsia worker:start` | NONDETERMINISTIC | Starts a foreground supervisor; process lifecycle depends on readiness, signals, tasks, and runtime conditions |
+| `--format=json`             | NONDETERMINISTIC | Uses the same runtime lifecycle with structured output formatting                                              |
+
+Notes:
+- Purpose: start the configured worker pool through the canonical Worker supervisor.
+- The command is contributed by the enabled `platform.worker` module through `cli.command`.
+- Accepts no positional arguments or command-specific options.
+- Resolves `WorkerPoolSpec` from validated Worker configuration.
+- Validates runtime-driver compatibility and entrypoint preconditions before resolving the foreground supervisor.
+- The supervisor is resolved lazily after precondition checks.
+- Supervisor owns process creation, readiness, signal handling, runtime artifacts, control channels, child lifecycle, and cleanup.
+- The command itself MUST NOT fork, open sockets, launch subprocesses, or write Worker runtime files.
+- A startup state summary contains:
+  - `status`, `pid`, `worker_count`, `ready_worker_count`;
+  - `driver`, `control_transport`, and `endpoint_hash`.
+- The supervisor runs in the foreground; this is not a detached background-start command.
+- CLI command output is buffered for the invocation and finalized through the normal output pipeline after the supervisor returns.
+- Exit-code policy:
+  - `0`: supervisor returns successful lifecycle completion;
+  - non-zero: supervisor lifecycle failure or another execution failure.
+- Kernel runtime-driver failures preserve Kernel-owned diagnostics; Worker entrypoint and lifecycle failures preserve Worker-owned diagnostics.
+- The command MUST NOT expose raw endpoints, credentials, environment values, process command lines, or Throwable messages.
+- This is a mutating runtime command and MUST NOT run in deterministic CI rails or rerun-no-diff workflows.
+
+Usage (repo root):
+- `php coretsia worker:start`
+- `php coretsia worker:start --format=json`
+
+---
+
+### Coretsia CLI worker status
+
+Id: `cli.worker_status` \
+Entrypoint: `php coretsia worker:status` \
+Category: CLI / Worker / runtime diagnostics \
+Outputs:
+- none (emits a safe active supervisor status summary through `OutputInterface`)
+- Does not modify the active worker pool
+
+Determinism:
+
+| Mode / flags                 | Determinism      | Notes                                                               |
+|------------------------------|------------------|---------------------------------------------------------------------|
+| `php coretsia worker:status` | NONDETERMINISTIC | Reports live supervisor state, which may change between invocations |
+| `--format=json`              | NONDETERMINISTIC | Uses deterministic JSON structure with runtime-dependent values     |
+
+Notes:
+- Purpose: inspect the current state of the active worker pool.
+- The command is available only when `platform.worker` contributes its tagged services to the Console CLI host.
+- Accepts no positional arguments or command-specific options.
+- Delegates status retrieval exclusively to `WorkerControlClientInterface::status()`.
+- Uses canonical lock and private locator discovery followed by communication with the live supervisor.
+- Diagnostic state snapshots MUST NOT replace supervisor liveness verification.
+- Successful output includes:
+  - `status`, `pid`;
+  - `worker_count`, `ready_worker_count`;
+  - `driver`, `control_transport`, `endpoint_hash`.
+- Exit-code policy:
+  - `0`: live supervisor status retrieved successfully;
+  - `1`: invalid invocation, unavailable supervisor, control failure, or unexpected execution failure.
+- The command MUST NOT read raw Worker state files or expose private locator details.
+- Results depend on live process state and MUST NOT be treated as deterministic CI output.
+
+Usage (repo root):
+- `php coretsia worker:status`
+- `php coretsia worker:status --format=json`
+
+---
+
+### Coretsia CLI worker stop
+
+Id: `cli.worker_stop` \
+Entrypoint: `php coretsia worker:stop` \
+Category: CLI / Worker / runtime lifecycle \
+Outputs:
+- Requests controlled shutdown of the active worker pool
+- May cause Worker-owned process termination and cleanup of runtime lifecycle artifacts
+- Emits a safe terminal stopped-state summary through `OutputInterface` after successful shutdown
+
+Determinism:
+
+| Mode / flags               | Determinism      | Notes                                                                                     |
+|----------------------------|------------------|-------------------------------------------------------------------------------------------|
+| `php coretsia worker:stop` | NONDETERMINISTIC | Mutates active runtime state; completion depends on supervisor communication and shutdown |
+| `--format=json`            | NONDETERMINISTIC | Returns the same lifecycle result through structured JSON rendering                       |
+
+Notes:
+- Purpose: stop the currently active worker pool through its live supervisor control channel.
+- The command is discovered from the enabled `platform.worker` provider using `cli.command`.
+- Accepts no positional arguments or command-specific options.
+- Delegates to `WorkerControlClientInterface::stop()`.
+- The control client verifies the canonical supervisor lock, discovers the private control locator, sends a stop request, and waits for the terminal `stopped` response.
+- The command does not resolve a new `WorkerPoolSpec` or use current Worker configuration to locate the active supervisor.
+- On successful completion, returns:
+  - `status = stopped`;
+  - `pid`, `worker_count`, `ready_worker_count = 0`;
+  - `driver`, `control_transport`, and `endpoint_hash`.
+- Exit-code policy:
+  - `0`: the supervisor acknowledged completed shutdown;
+  - `1`: invalid invocation, unavailable supervisor, shutdown failure, or unexpected execution failure.
+- The command MUST NOT write stop-flag files, manipulate control sockets directly, or expose raw runtime paths and endpoints.
+- Shutdown behavior is runtime-dependent and MUST NOT be part of deterministic rerun-no-diff CI workflows.
+
+Usage (repo root):
+- `php coretsia worker:stop`
+- `php coretsia worker:stop --format=json`

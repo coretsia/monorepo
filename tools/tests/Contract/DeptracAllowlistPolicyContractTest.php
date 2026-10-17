@@ -51,6 +51,24 @@ final class DeptracAllowlistPolicyContractTest extends ToolContractTestCase
         self::assertStringNotContainsString($sandbox, $output, 'Failure output must not leak sandbox absolute paths.');
     }
 
+    public function testPackageRootAllowlistPatternIsRejected(): void
+    {
+        $sandbox = $this->createDeptracSandboxFromDependencyGraphFixture('Deptrac/dependency_graph_ok.php');
+        $allowlist = $sandbox . '/tools/testing/deptrac.allowlist.yaml';
+
+        $this->writeBytesExact($allowlist, "exclude_files:\n  - '#(^|/)packages(/|$)#'\n");
+
+        [$code, $output] = $this->runDeptracGenerate($sandbox, [
+            '--allowlist',
+            $allowlist,
+            '--apply',
+        ]);
+
+        self::assertNotSame(0, $code);
+        self::assertStringContainsString('CORETSIA_DEPTRAC_ALLOWLIST_INVALID', $output);
+        self::assertStringNotContainsString($sandbox, $output);
+    }
+
     public function testTestsOnlyAllowlistFixtureIsAccepted(): void
     {
         $sandbox = $this->createDeptracSandboxFromDependencyGraphFixture('Deptrac/dependency_graph_ok.php');

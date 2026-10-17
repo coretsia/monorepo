@@ -30,7 +30,7 @@ final class ConfigValidatorRejectsInvalidCliOutputFormatTest extends TestCase
             'cli' => self::cliConfig(),
         ];
 
-        $config['cli']['output']['format'] = 'xml';
+        $config['cli']['output']['format_default'] = 'xml';
 
         $result = new ConfigValidator()->validate($config, [self::cliRuleset()]);
 
@@ -40,7 +40,7 @@ final class ConfigValidatorRejectsInvalidCliOutputFormatTest extends TestCase
         $violation = $result->violations()[0];
 
         self::assertSame('cli', $violation->root());
-        self::assertSame('output.format', $violation->path());
+        self::assertSame('output.format_default', $violation->path());
         self::assertSame('allowed-values', $violation->reason());
         self::assertSame('allowedValues', $violation->expected());
         self::assertSame('string', $violation->actualType());
@@ -52,7 +52,7 @@ final class ConfigValidatorRejectsInvalidCliOutputFormatTest extends TestCase
             'cli' => self::cliConfig(),
         ];
 
-        $config['cli']['output']['format'] = 1;
+        $config['cli']['output']['format_default'] = 1;
 
         $result = new ConfigValidator()->validate($config, [self::cliRuleset()]);
 
@@ -62,10 +62,29 @@ final class ConfigValidatorRejectsInvalidCliOutputFormatTest extends TestCase
         $violation = $result->violations()[0];
 
         self::assertSame('cli', $violation->root());
-        self::assertSame('output.format', $violation->path());
+        self::assertSame('output.format_default', $violation->path());
         self::assertSame('type', $violation->reason());
         self::assertSame('string', $violation->expected());
         self::assertSame('int', $violation->actualType());
+    }
+
+    public function testAcceptsEveryCanonicalOutputFormat(): void
+    {
+        $ruleset = self::cliRuleset();
+        self::assertSame(
+            ['adaptive', 'json', 'table', 'plain'],
+            $ruleset->rules()['keys']['output']['keys']['format_default']['allowedValues'],
+        );
+
+        foreach (['adaptive', 'json', 'table', 'plain'] as $format) {
+            $config = ['cli' => self::cliConfig()];
+            $config['cli']['output']['format_default'] = $format;
+
+            $result = new ConfigValidator()->validate($config, [$ruleset]);
+
+            self::assertTrue($result->isSuccess(), 'Expected valid CLI format: ' . $format);
+            self::assertSame([], $result->violations());
+        }
     }
 
     private static function cliRuleset(): ConfigRuleset

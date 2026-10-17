@@ -39,7 +39,6 @@ final class WorkerCommandMetadataConstantsTest extends TestCase
             self::assertSame($name, $class::NAME);
             self::assertSame('worker', $class::GROUP);
             self::assertFalse($class::HIDDEN);
-            self::assertSame('none', $class::MODE);
             self::assertSame([], $class::ARGUMENTS);
             self::assertSame([], $class::OPTIONS);
         }

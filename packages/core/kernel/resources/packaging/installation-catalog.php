@@ -53,6 +53,8 @@ return array(
       ),
       'requires' =>
       array(
+        0 => 'core.kernel',
+        1 => 'platform.redaction',
       ),
     ),
     'platform.redaction' =>
@@ -78,7 +80,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.8.0',
-  'releaseLine' => '0.8',
+  'publicConstraint' => '^0.9.0',
+  'releaseLine' => '0.9',
   'schemaVersion' => 1,
 );

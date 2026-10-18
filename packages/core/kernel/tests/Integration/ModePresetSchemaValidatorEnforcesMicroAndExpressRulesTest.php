@@ -38,8 +38,17 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required()),
             );
             self::assertSame(
-                \in_array($name, ['hybrid', 'enterprise'], true) ? ['platform.worker'] : [],
+                \in_array($name, ['hybrid', 'enterprise'], true)
+                    ? ['platform.cli', 'platform.worker']
+                    : ['platform.cli'],
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
+            );
+            $required = \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required());
+            $modules = \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules());
+            self::assertSame([], \array_values(\array_intersect($required, $modules)));
+            self::assertSame(
+                \in_array($name, ['hybrid', 'enterprise'], true),
+                \in_array('platform.worker', $modules, true),
             );
             self::assertSame(
                 ['schemaVersion', 'name', 'description', 'required', 'modules', 'featureBundles', 'metadata'],
@@ -62,8 +71,8 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
             require \dirname(__DIR__, 2) . '/resources/modes/express.php',
         );
         self::assertSame($micro->toArray()['required'], $express->toArray()['required']);
-        self::assertSame([], $micro->toArray()['modules']);
-        self::assertSame([], $express->toArray()['modules']);
+        self::assertSame(['platform.cli'], $micro->toArray()['modules']);
+        self::assertSame($micro->toArray()['modules'], $express->toArray()['modules']);
         self::assertNotContains('platform.http', $express->toArray()['required']);
     }
 }

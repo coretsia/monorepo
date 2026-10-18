@@ -75,7 +75,6 @@ packages/**/NOTICE text eol=lf
 # Scripts (force LF)
 # -----------------------------------------------------------------------------
 coretsia text eol=lf
-tools/bin/coretsia text eol=lf
 .githooks/** text eol=lf
 packages/**/bin/* text eol=lf
 *.sh    text eol=lf

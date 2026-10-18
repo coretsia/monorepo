@@ -1,14 +1,16 @@
 {
   "name": "coretsia/platform-cli",
   "type": "library",
-  "description": "Coretsia CLI runtime with a config-based command registry and deterministic safe output",
+  "description": "Coretsia CLI runtime package: tag-first command discovery, Kernel operations, and deterministic safe output.",
   "keywords": [
     "coretsia",
     "php",
     "framework",
     "cli",
-    "commands",
     "runtime",
+    "commands",
+    "command-discovery",
+    "kernel-operations",
     "deterministic",
     "redaction"
   ],
@@ -25,9 +27,17 @@
     "issues": "https://github.com/coretsia/monorepo/issues",
     "source": "https://github.com/coretsia/monorepo"
   },
+  "bin": [
+    "bin/coretsia"
+  ],
   "require": {
     "php": "^8.4",
-    "coretsia/core-contracts": "^0.8.0"
+    "coretsia/core-contracts": "^0.9.0",
+    "coretsia/core-foundation": "^0.9.0",
+    "coretsia/core-kernel": "^0.9.0",
+    "coretsia/platform-redaction": "^0.9.0",
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
   },
   "autoload": {
     "psr-4": {
@@ -53,7 +63,10 @@
       "providers": [
         "Coretsia\\Platform\\Cli\\Provider\\CliServiceProvider"
       ],
-      "requires": [],
+      "requires": [
+        "core.kernel",
+        "platform.redaction"
+      ],
       "conflicts": [],
       "defaultsConfigPath": "config/cli.php"
     }

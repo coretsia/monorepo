@@ -18,45 +18,61 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Exception;
 
-use Coretsia\Platform\Cli\Error\ErrorCodes;
-
 /**
- * Domain error: CLI configuration is invalid.
+ * Deterministic CLI presentation configuration failure.
+ *
+ * Used by CliOutputPolicy, CliServiceFactory, and CommandOverrides for
+ * invalid CLI-owned policy and catalog-view override configuration.
+ *
+ * The public message contains only the package error code and a stable
+ * allowlisted reason token. Raw input, configuration, service metadata,
+ * filesystem paths, rendered payloads, secrets, and previous throwable
+ * messages MUST NOT be included.
+ *
+ * @internal
  */
-final class CliConfigInvalidException extends CliException
+final class CliConfigInvalidException extends \RuntimeException
 {
-    public const string REASON_CLI_SUBTREE_INVALID = 'cli-subtree-invalid';
+    public const string ERROR_CODE = 'CORETSIA_CLI_CONFIG_INVALID';
+
+    public const string REASON_INVALID = 'cli-config-invalid';
+    public const string REASON_OUTPUT_POLICY_INVALID = 'cli-output-policy-invalid';
+    public const string REASON_SERVICE_CONFIG_INVALID = 'cli-service-config-invalid';
+    public const string REASON_COMMAND_OVERRIDES_INVALID = 'cli-command-overrides-invalid';
 
     /**
-     * Layout/boot failure.
-     *
-     * Current standalone root resolution is derived from the launcher path and
-     * MUST NOT probe alternative repository locations.
+     * @var array<string, true>
      */
-    public const string REASON_LAYOUT_INVALID = 'cli-layout-invalid';
-
-    /** @var list<string> */
-    private const array ALLOWED_REASONS = [
-        self::REASON_CLI_SUBTREE_INVALID,
-        self::REASON_LAYOUT_INVALID,
+    private const array REASONS = [
+        self::REASON_INVALID => true,
+        self::REASON_OUTPUT_POLICY_INVALID => true,
+        self::REASON_SERVICE_CONFIG_INVALID => true,
+        self::REASON_COMMAND_OVERRIDES_INVALID => true,
     ];
 
-    public function __construct(string $reason, ?\Throwable $previous = null)
-    {
-        parent::__construct(
-            ErrorCodes::CORETSIA_CLI_CONFIG_INVALID,
-            self::normalizeReason($reason, self::ALLOWED_REASONS),
-            $previous,
-        );
+    private function __construct(
+        private readonly string $reason,
+    ) {
+        if (!isset(self::REASONS[$reason])) {
+            throw new \InvalidArgumentException('cli-config-reason-invalid');
+        }
+
+        parent::__construct(self::ERROR_CODE . ': ' . $this->reason);
     }
 
-    public static function cliSubtreeInvalid(?\Throwable $previous = null): self
-    {
-        return new self(self::REASON_CLI_SUBTREE_INVALID, $previous);
+    public static function withReason(
+        string $reason = self::REASON_INVALID,
+    ): self {
+        return new self($reason);
     }
 
-    public static function layoutInvalid(?\Throwable $previous = null): self
+    public function errorCode(): string
     {
-        return new self(self::REASON_LAYOUT_INVALID, $previous);
+        return self::ERROR_CODE;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

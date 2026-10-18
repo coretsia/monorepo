@@ -30,7 +30,9 @@ This document governs contracts introduced by epic `1.70.0` under:
 packages/core/contracts/src/Module/
 ```
 
-Mode policy defines runtime intent. Physical package synchronization is a separate explicit consumer operation governed by `docs/ssot/application-dependency-sync.md`; selecting or configuring a preset does not itself install, update, or remove Composer packages.
+Mode policy defines runtime intent.
+
+Physical package synchronization is a separate explicit consumer operation governed by `docs/ssot/application-dependency-sync.md`; selecting or configuring a preset does not itself install, update, or remove Composer packages.
 
 ## Normative language
 
@@ -95,7 +97,9 @@ It emphasizes:
 
 The Coretsia-owned `express` preset is the conventional HTTP/web application mode.
 
-The canonical PHP resources declare only the currently implemented runtime-module subset of the intended mode policy in `docs/architecture/STRUCTURE.md`. `platform.http` joins every applicable resource when its runtime descriptor is implemented; an unimplemented future module is not a selected root.
+The canonical PHP resources declare only the currently implemented runtime-module subset of the intended mode policy in `docs/architecture/STRUCTURE.md`.
+
+`platform.http` joins every applicable resource when its runtime descriptor is implemented; an unimplemented future module is not a selected root.
 
 ### `hybrid`
 
@@ -123,7 +127,9 @@ It emphasizes:
 
 ## Preset policy and schema
 
-`ModePreset` is a policy source; it is not `ModuleSelection` or `ModulePlan`. The canonical mode schema version is **1**. Each PHP preset payload has exactly these top-level keys:
+`ModePreset` is a policy source; it is not `ModuleSelection` or `ModulePlan`.
+
+The canonical mode schema version is **1**. Each PHP preset payload has exactly these top-level keys:
 
 ```text
 schemaVersion
@@ -142,13 +148,75 @@ metadata
 - Both module-id collections are lists, have unique ids within each raw input, and have an empty intersection. Duplicate ids, non-canonical input spelling, path-like metadata, malformed schema, or unexpected top-level keys fail deterministically through `ModePresetInvalidException`.
 - The Kernel constructor independently rejects associative/duplicate/overlapping module-id collections before canonicalizing their order by byte-order `strcmp`.
 
-Preset names are non-empty lowercase ASCII tokens of at most 64 bytes, beginning with `[a-z]` and containing only `[a-z0-9-]`. Descriptions are `null` or non-empty safe strings of at most 512 bytes, without control characters or path-like content. `featureBundles` and `metadata` maps have maximum nesting depth 16, maximum 256 keys per map and maximum 1024-byte strings, with safe path-free keys/values. Values are restricted to `null`, `bool`, `int`, `string`, lists or maps of those values; floats, objects, closures and resources are forbidden. String map keys are recursively sorted by byte-order `strcmp`, while list order is preserved.
+Preset names are non-empty lowercase ASCII tokens of at most 64 bytes, beginning with `[a-z]` and containing only `[a-z0-9-]`.
 
-`ModePresetInterface` exposes exactly `schemaVersion(): int`, `name(): string`, `description(): ?string`, `required(): list<ModuleId>`, `modules(): list<ModuleId>`, `featureBundles(): array<string,mixed>`, `metadata(): array<string,mixed>`, and `toArray(): array<string,mixed>`. Its canonical name constants are `MICRO`, `EXPRESS`, `HYBRID`, and `ENTERPRISE`. Its exported shape uses exactly the seven keys shown above and exports module ids as strings, not PHP objects. Source payloads may not contain secrets, absolute paths, closures, resources, or runtime services.
+Descriptions are `null` or non-empty safe strings of at most 512 bytes, without control characters or path-like content.
+
+`featureBundles` and `metadata` maps have maximum nesting depth 16, maximum 256 keys per map and maximum 1024-byte strings, with safe path-free keys/values.
+
+Values are restricted to `null`, `bool`, `int`, `string`, lists or maps of those values; floats, objects, closures and resources are forbidden.
+
+String map keys are recursively sorted by byte-order `strcmp`, while list order is preserved.
+
+`ModePresetInterface` exposes exactly `schemaVersion(): int`, `name(): string`, `description(): ?string`, `required(): list<ModuleId>`, `modules(): list<ModuleId>`, `featureBundles(): array<string,mixed>`, `metadata(): array<string,mixed>`, and `toArray(): array<string,mixed>`.
+
+Its canonical name constants are `MICRO`, `EXPRESS`, `HYBRID`, and `ENTERPRISE`.
+
+Its exported shape uses exactly the seven keys shown above and exports module ids as strings, not PHP objects.
+
+Source payloads may not contain secrets, absolute paths, closures, resources, or runtime services.
+
+## Canonical preset runtime module policy
+
+The Kernel-owned canonical preset resources under `packages/core/kernel/resources/modes/` define these runtime selection roots:
+
+| Preset       | `required` (non-excludable)      | `modules` (selectable)            |
+|--------------|----------------------------------|-----------------------------------|
+| `micro`      | `core.foundation`, `core.kernel` | `platform.cli`                    |
+| `express`    | `core.foundation`, `core.kernel` | `platform.cli`                    |
+| `hybrid`     | `core.foundation`, `core.kernel` | `platform.cli`, `platform.worker` |
+| `enterprise` | `core.foundation`, `core.kernel` | `platform.cli`, `platform.worker` |
+
+All four canonical presets select `platform.cli` by default through `modules`, not `required`.
+
+An explicit per-target exclusion MAY remove this selectable root.
+
+`platform.worker` is selectable by default only for `hybrid` and `enterprise`; neither module becomes non-excludable merely because a preset selects it.
+
+`platform.cli` declares runtime module dependencies on `core.kernel` and `platform.redaction`; `platform.redaction` requires `core.foundation`.
+
+The Kernel resolves this transitive dependency closure from module metadata.
+
+`platform.redaction` is not a direct `required` or `modules` entry of any canonical preset, so the canonical preset resources rely on the module graph to supply it.
+
+Provided the corresponding modules are physically installed and no per-target overrides apply, the effective enabled `ModulePlan` sets are:
+
+| Preset       | Effective enabled modules                                                                 |
+|--------------|-------------------------------------------------------------------------------------------|
+| `micro`      | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`                    |
+| `express`    | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`                    |
+| `hybrid`     | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`, `platform.worker` |
+| `enterprise` | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`, `platform.worker` |
+
+These are byte-order-sorted enabled sets, not a replacement for the Kernel-owned deterministic dependency traversal or topological order.
+
+Module availability and exclusions are validated per selected application target; physically installed packages never enable their modules by themselves.
+
+Canonical presets are runtime selection policies, not Composer package distributions, independently versioned preset packages, or implicit installation instructions.
+
+`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel` and `coretsia/platform-cli`; Composer installs `coretsia/platform-redaction` transitively through CLI.
+
+Any additional physical packages required for a selected target remain subject to explicit DependencySync `plan` / `review` / `apply` operations.
+
+Neither preset loading nor application boot performs implicit Composer reconciliation.
 
 ## Contract format neutrality
 
-`ModePresetInterface` and `ModePresetLoaderInterface` describe value and loading contracts, not a storage format. The Kernel's current canonical and custom sources are PHP files under their separately owned roots; contracts do not expose those paths, parsing mechanisms, implementation sources, or namespace-selection enum as public method parameters. The Kernel alone owns concrete source validation and loading.
+`ModePresetInterface` and `ModePresetLoaderInterface` describe value and loading contracts, not a storage format.
+
+The Kernel's current canonical and custom sources are PHP files under their separately owned roots; contracts do not expose those paths, parsing mechanisms, implementation sources, or namespace-selection enum as public method parameters.
+
+The Kernel alone owns concrete source validation and loading.
 
 ## Canonical and custom namespace ownership
 
@@ -160,9 +228,19 @@ Preset names are non-empty lowercase ASCII tokens of at most 64 bytes, beginning
 - Namespace ownership is determined by name, not candidate existence. A missing custom file never falls back to the Kernel directory; a canonical name never loads an application file.
 - Both configured source directories must remain within their resolved owning root, and existing individual files must remain within their bound directory. Directory escapes and dangling/external file links fail with safe `ModePresetInvalidException`. A valid missing custom directory still permits a declared fingerprint candidate.
 
-A `ModePresetLoaderInterface` instance is bound to exactly one owner-defined source and keeps its existing four public methods: `listNames()`, `has(string $name)`, `load(string $name)`, `tryLoad(string $name)`. Methods never search the other namespace; `load()` throws `ModePresetNotFoundException` only for a genuinely absent in-namespace entry, and `tryLoad()` returns `null` only for a genuinely absent entry. Existing boundary-invalid or unreadable entries fail safely instead of being treated as missing. `listNames()` is unique and `strcmp`-sorted.
+A `ModePresetLoaderInterface` instance is bound to exactly one owner-defined source and keeps its existing four public methods: `listNames()`, `has(string $name)`, `load(string $name)`, `tryLoad(string $name)`.
 
-`ModePresetLoaderFactory::sourceCandidateFor()` emits one deterministic fingerprint candidate for the selected namespace, independently of file existence and without executing preset PHP. Its fields are `path`, `filesystemPath`, `sourceId`, `precedence`; the canonical candidate has source id `core/kernel:<defaults_path>/<name>.php` and precedence `10`, while a custom candidate has source id `application:<overrides_path>/<name>.php` and precedence `20`. Precedence is source identity metadata, not fallback order. An invalid existing namespace-owned entry fails before fingerprint reading.
+Methods never search the other namespace; `load()` throws `ModePresetNotFoundException` only for a genuinely absent in-namespace entry, and `tryLoad()` returns `null` only for a genuinely absent entry.
+
+Existing boundary-invalid or unreadable entries fail safely instead of being treated as missing.
+
+`listNames()` is unique and `strcmp`-sorted.
+
+`ModePresetLoaderFactory::sourceCandidateFor()` emits one deterministic fingerprint candidate for the selected namespace, independently of file existence and without executing preset PHP.
+
+Its fields are `path`, `filesystemPath`, `sourceId`, `precedence`; the canonical candidate has source id `core/kernel:<defaults_path>/<name>.php` and precedence `10`, while a custom candidate has source id `application:<overrides_path>/<name>.php` and precedence `20`.
+
+Precedence is source identity metadata, not fallback order. An invalid existing namespace-owned entry fails before fingerprint reading.
 
 ## Per-target effective preset
 
@@ -179,15 +257,37 @@ BootstrapInput::preset()
 
 The global `preset` is a fallback for each explicitly selected target. It does not add other targets to the installation set.
 
-DependencySync MAY intentionally provide an installation-only fixed preset for one selected target through the existing explicit `BootstrapInput::preset()` seam. This does not create a third persistent preset source, does not introduce Composer configuration as a preset source, and does not mutate `config/app.php`.
+DependencySync MAY intentionally provide an installation-only fixed preset for one selected target through the existing explicit `BootstrapInput::preset()` seam.
+
+This does not create a third persistent preset source, does not introduce Composer configuration as a preset source, and does not mutate `config/app.php`.
 
 ## Effective runtime selection
 
-For the selected app target, `BootstrapConfig::moduleOverrides()` holds immutable `ResolvedModuleOverrides` (`include`/`exclude` lists of canonical `ModuleId` objects); missing input is the empty value. The Phase A bootstrap loader validates all raw per-target shapes, preserves source duplicates, and the resolver rejects malformed/non-canonical ids, duplicates and include/exclude overlap using safe `BootstrapException::REASON_OVERRIDES_INVALID`.
+For the selected app target, `BootstrapConfig::moduleOverrides()` holds immutable `ResolvedModuleOverrides` (`include`/`exclude` lists of canonical `ModuleId` objects); missing input is the empty value.
 
-`ModuleSelectionFactory` takes the loaded `ModePreset` plus resolved overrides. It rejects `required ∩ exclude`, and computes `roots = ((required ∪ modules ∪ include) − exclude)` and `excluded = exclude`. Output sets are immutable unique strcmp-sorted lists with no intersection. It does not consult an installed manifest or traverse the dependency graph. The `ModuleSelection` is compile-host-only, consumed by Phase B, and is neither a runtime seed nor part of the public contracts API.
+The Phase A bootstrap loader validates all raw per-target shapes, preserves source duplicates, and the resolver rejects malformed/non-canonical ids, duplicates and include/exclude overlap using safe `BootstrapException::REASON_OVERRIDES_INVALID`.
 
-An `exclude` entry is target-local runtime policy. It MUST NOT be interpreted as a project-wide Composer package removal request.
+`ModuleSelectionFactory` takes the loaded `ModePreset` plus resolved overrides.
+
+It rejects `required ∩ exclude`, and computes `roots = ((required ∪ modules ∪ include) − exclude)` and `excluded = exclude`.
+
+Output sets are immutable unique strcmp-sorted lists with no intersection.
+
+It does not consult an installed manifest or traverse the dependency graph.
+
+The `ModuleSelection` is compile-host-only, consumed by Phase B, and is neither a runtime seed nor part of the public contracts API.
+
+For canonical presets, excluding the selectable `platform.cli` root removes it from that target's selection.
+
+Excluding `core.foundation` or `core.kernel` is invalid because both are in `required`.
+
+Excluding `platform.redaction` while `platform.cli` remains selected fails during required-dependency graph resolution rather than silently disabling a transitive dependency.
+
+The Console source operations host also fails closed if its resolved `ModulePlan` does not enable `platform.cli`.
+
+An `exclude` entry is target-local runtime policy.
+
+It MUST NOT be interpreted as a project-wide Composer package removal request.
 
 `ModePreset != ModuleSelection != ModulePlan`.
 
@@ -210,7 +310,9 @@ ModulePlan
     = resolved enabled runtime graph for one target
 ```
 
-DependencySync consumes one `ModuleSelection` per explicitly selected target, resolves each selection through the versioned installation catalog, retains target-local closures, and forms one project-wide physical package union. Composer resolves one project `composer.lock` / `vendor` graph only after explicit apply authorization.
+DependencySync consumes one `ModuleSelection` per explicitly selected target, resolves each selection through the versioned installation catalog, retains target-local closures, and forms one project-wide physical package union.
+
+Composer resolves one project `composer.lock` / `vendor` graph only after explicit apply authorization.
 
 After Composer, each selected target is independently verified against the installed `ModuleManifest`; a package installed because another target needs it does not become enabled automatically in this target's `ModulePlan`.
 
@@ -233,30 +335,63 @@ return [
 ];
 ```
 
-and an explicit installation set containing `web` and `worker`:
+and an explicit installation set containing `web` and `worker` (with the selected module graph physically installed):
 
 ```text
-web    -> micro      -> core.foundation, core.kernel
-worker -> enterprise -> core.foundation, core.kernel, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
+
+project-wide physical module union:
+core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
 ```
 
-The global `micro` preset is the fallback for `web`; the explicit per-target `enterprise` preset applies to `worker`. The project-wide physical union includes `platform.worker`, but `ModulePlan(web)` does not enable it.
+The global `micro` preset is the fallback for `web`; the explicit per-target `enterprise` preset applies to `worker`.
+
+Both target-local module closures include `platform.redaction` as a transitive dependency of `platform.cli`.
+
+The physical union includes `platform.worker`, but `ModulePlan(web)` does not enable it.
+
+The project-wide Composer graph may therefore contain packages that are not enabled for a particular target.
 
 The `worker` preset key alone does not select `worker`, and target-local exclusion does not mean project-global package removal.
 
+Adding or reconciling packages for the physical union requires explicit DependencySync authorization; resolving either runtime `ModulePlan` never performs package synchronization.
+
 ## Determinism and security
 
-Preset names are safe lowercase ASCII tokens and are compared byte-for-byte. Schema validation rejects unsafe strings, invalid list shapes and disallowed JSON-like values. Source discovery never executes PHP during candidate inspection, never searches the other namespace and never leaks filesystem paths, raw source payloads, credentials or previous exception messages. Logical preset loading and set normalization use byte-order `strcmp`, not filesystem traversal order, locale, or Composer declaration order.
+Preset names are safe lowercase ASCII tokens and are compared byte-for-byte.
 
-Preset source PHP is executed only by the selected namespace-bound loader. For supported source behavior, `FilesystemModePresetLoader` owns a temporary discard buffer while the source is required. Synchronous ordinary PHP output routed through that buffer is discarded incrementally and MUST NOT reach caller-owned buffers or change preset validity, `load()` / `tryLoad()` results, validator reason selection, or the existing module-resolution error taxonomy. Payload validation begins only after source execution and supported output-buffer cleanup complete.
+Schema validation rejects unsafe strings, invalid list shapes and disallowed JSON-like values.
 
-Supported preset source semantics MUST NOT depend on loader-internal output-buffer state, terminate or abort the current PHP process outside normal Throwable control flow, or rely on deferred output. Direct `STDOUT` / `STDERR` writes, output-buffer or error-handler manipulation, process termination or abort, and deferred output are outside the ordinary-output containment guarantee.
+Source discovery never executes PHP during candidate inspection, never searches the other namespace and never leaks filesystem paths, raw source payloads, credentials or previous exception messages.
+
+Logical preset loading and set normalization use byte-order `strcmp`, not filesystem traversal order, locale, or Composer declaration order.
+
+Preset source PHP is executed only by the selected namespace-bound loader.
+
+For supported source behavior, `FilesystemModePresetLoader` owns a temporary discard buffer while the source is required.
+
+Synchronous ordinary PHP output routed through that buffer is discarded incrementally and MUST NOT reach caller-owned buffers or change preset validity, `load()` / `tryLoad()` results, validator reason selection, or the existing module-resolution error taxonomy.
+
+Payload validation begins only after source execution and supported output-buffer cleanup complete.
+
+Supported preset source semantics MUST NOT depend on loader-internal output-buffer state, terminate or abort the current PHP process outside normal Throwable control flow, or rely on deferred output.
+
+Direct `STDOUT` / `STDERR` writes, output-buffer or error-handler manipulation, process termination or abort, and deferred output are outside the ordinary-output containment guarantee.
 
 ## Security and redaction
 
-Mode presets MUST NOT contain secrets. Preset PHP is trusted Kernel/application executable code, not sandboxed input. Arbitrary filesystem, network, process, or global-state side effects remain possible; ordinary-output containment neither authorizes nor prevents those side effects.
+Mode presets MUST NOT contain secrets.
 
-Buffered source output and callback-handled PHP diagnostic text MUST NOT be copied into deterministic mode-preset diagnostics. When an independent source-execution or payload-validation failure occurs, the existing `ModePresetInvalidException` error-code, reason and context semantics remain unchanged. Source-execution Throwables continue to translate to the generic invalid-source failure without exposing raw Throwable messages or adding previous-Throwable chaining.
+Preset PHP is trusted Kernel/application executable code, not sandboxed input.
+
+Arbitrary filesystem, network, process, or global-state side effects remain possible; ordinary-output containment neither authorizes nor prevents those side effects.
+
+Buffered source output and callback-handled PHP diagnostic text MUST NOT be copied into deterministic mode-preset diagnostics.
+
+When an independent source-execution or payload-validation failure occurs, the existing `ModePresetInvalidException` error-code, reason and context semantics remain unchanged.
+
+Source-execution Throwables continue to translate to the generic invalid-source failure without exposing raw Throwable messages or adding previous-Throwable chaining.
 
 Mode preset diagnostics and exported metadata MUST NOT expose:
 

@@ -45,6 +45,16 @@ final class DeptracGenerateTool
         '#(^|/)vendor(/|$)#',
     ];
 
+    /**
+     * @var array<string, list<string>>
+     */
+    private const array RUNTIME_INSTALLATION_LAYER_TARGETS = [
+        'core' => ['core'],
+        'platform' => ['core', 'platform'],
+        'integrations' => ['core', 'platform', 'integrations'],
+        'enterprise' => ['core', 'platform', 'integrations', 'enterprise'],
+    ];
+
     public static function main(array $argv): int
     {
         $repository = self::resolveRepository($argv);
@@ -83,6 +93,7 @@ final class DeptracGenerateTool
         );
 
         self::assertComposerEdgesMatchSsot(
+            $repository,
             $packageIndexContext['packages'],
             $ssotRuleset,
             $packageIndexContext['composerNameToPackageId'],
@@ -651,19 +662,55 @@ final class DeptracGenerateTool
      * @param list<array{
      *     id:string,
      *     packageId:string,
+     *     layer:string,
      *     composerName:string,
+     *     path:string,
      *     requireNames:list<string>
      * }> $packageIndex
      * @param array<string, list<string>> $ssotRuleset
      * @param array<string, string> $composerNameToPackageId
      */
     private static function assertComposerEdgesMatchSsot(
+        RepositoryContext $repository,
         array $packageIndex,
         array $ssotRuleset,
         array $composerNameToPackageId,
     ): void {
         /** @var list<string> $diagnostics */
         $diagnostics = [];
+
+        /** @var array<string, array{layer:string,path:string}> $packagesByComposerName */
+        $packagesByComposerName = [];
+
+        /** @var array<string, list<string>> $composerRuleset */
+        $composerRuleset = [];
+
+        foreach ($packageIndex as $package) {
+            $packagesByComposerName[$package['composerName']] = $package;
+            $composerRuleset[$package['packageId']] = [];
+
+            $allowedSourceLayers = $package['layer'] === 'devtools'
+                ? ['core', 'platform', 'integrations', 'devtools']
+                : (self::RUNTIME_INSTALLATION_LAYER_TARGETS[$package['layer']] ?? []);
+
+            foreach ($ssotRuleset[$package['packageId']] ?? [] as $allowedPackageId) {
+                if ($package['layer'] !== 'devtools' && str_starts_with($allowedPackageId, 'devtools/')) {
+                    $diagnostics[] = 'source:' . $package['packageId']
+                        . ' target:' . $allowedPackageId
+                        . ' reason:devtools-source-dependency-forbidden';
+
+                    continue;
+                }
+
+                $targetLayer = explode('/', $allowedPackageId, 2)[0];
+
+                if (!in_array($targetLayer, $allowedSourceLayers, true)) {
+                    $diagnostics[] = 'source:' . $package['packageId']
+                        . ' target:' . $allowedPackageId
+                        . ' reason:source-layer-dependency-forbidden';
+                }
+            }
+        }
 
         foreach ($packageIndex as $package) {
             $sourcePackageId = $package['packageId'];
@@ -684,8 +731,27 @@ final class DeptracGenerateTool
                 }
 
                 $targetPackageId = $composerNameToPackageId[$composerName];
+                $composerRuleset[$sourcePackageId][] = $targetPackageId;
 
-                if (!isset($allowedSet[$targetPackageId])) {
+                if (
+                    $package['layer'] !== 'devtools'
+                    && $packagesByComposerName[$composerName]['layer'] === 'devtools'
+                ) {
+                    $diagnostics[] = 'source:' . $sourcePackageId
+                        . ' target:' . $targetPackageId
+                        . ' reason:devtools-composer-dependency-forbidden';
+
+                    continue;
+                }
+
+                if (
+                    !isset($allowedSet[$targetPackageId])
+                    && !self::isRuntimeModuleComposerDependency(
+                        $repository,
+                        $package,
+                        $packagesByComposerName[$composerName],
+                    )
+                ) {
                     $diagnostics[] = 'source:' . $sourcePackageId
                         . ' target:' . $targetPackageId
                         . ' reason:composer-edge-not-in-ssot';
@@ -693,10 +759,67 @@ final class DeptracGenerateTool
             }
         }
 
+        /** @var array<string, string> $composerNameByModuleId */
+        $composerNameByModuleId = [];
+
+        /** @var array<string, list<string>> $moduleRequiresByPackageId */
+        $moduleRequiresByPackageId = [];
+
+        foreach ($packageIndex as $package) {
+            $composer = ComposerJson::readObject(
+                $repository->resolveExistingFile($package['path'] . '/composer.json'),
+            );
+            $metadata = $composer['extra']['coretsia'] ?? null;
+
+            if ($package['layer'] === 'devtools' && is_array($metadata) && ($metadata['kind'] ?? null) === 'runtime') {
+                $diagnostics[] = 'source:' . $package['packageId']
+                    . ' reason:devtools-runtime-module-forbidden';
+
+                continue;
+            }
+
+            if (!is_array($metadata) || ($metadata['kind'] ?? null) !== 'runtime') {
+                continue;
+            }
+
+            $moduleId = $metadata['moduleId'] ?? null;
+
+            if (is_string($moduleId) && $moduleId !== '') {
+                $composerNameByModuleId[$moduleId] = $package['composerName'];
+            }
+
+            $requires = $metadata['requires'] ?? null;
+
+            if (is_array($requires) && array_is_list($requires)) {
+                $moduleRequiresByPackageId[$package['packageId']] = array_values(
+                    array_filter($requires, 'is_string'),
+                );
+            }
+        }
+
+        foreach ($packageIndex as $package) {
+            foreach ($moduleRequiresByPackageId[$package['packageId']] ?? [] as $moduleId) {
+                $targetComposerName = $composerNameByModuleId[$moduleId] ?? null;
+
+                if (
+                    $targetComposerName === null
+                    || in_array($targetComposerName, $package['requireNames'], true)
+                ) {
+                    continue;
+                }
+
+                $diagnostics[] = 'source:' . $package['packageId']
+                    . ' target:' . $composerNameToPackageId[$targetComposerName]
+                    . ' reason:runtime-module-composer-require-missing';
+            }
+        }
+
         $diagnostics = array_values(array_unique($diagnostics));
         sort($diagnostics, SORT_STRING);
 
         if ($diagnostics === []) {
+            self::assertNoPackageCycles($composerRuleset);
+
             return;
         }
 
@@ -706,6 +829,54 @@ final class DeptracGenerateTool
             . "\n"
             . implode("\n", $diagnostics),
         );
+    }
+
+    /**
+     * Runtime-only Composer edges do not authorize PHP source dependencies.
+     *
+     * @param array{layer:string,path:string} $source
+     * @param array{layer:string,path:string} $target
+     */
+    private static function isRuntimeModuleComposerDependency(
+        RepositoryContext $repository,
+        array $source,
+        array $target,
+    ): bool {
+        $allowedLayers = self::RUNTIME_INSTALLATION_LAYER_TARGETS[$source['layer']] ?? [];
+
+        if (!in_array($target['layer'], $allowedLayers, true)) {
+            return false;
+        }
+
+        $sourceComposer = ComposerJson::readObject(
+            $repository->resolveExistingFile($source['path'] . '/composer.json'),
+        );
+        $targetComposer = ComposerJson::readObject(
+            $repository->resolveExistingFile($target['path'] . '/composer.json'),
+        );
+
+        $sourceCoretsia = $sourceComposer['extra']['coretsia'] ?? null;
+        $targetCoretsia = $targetComposer['extra']['coretsia'] ?? null;
+
+        if (!is_array($sourceCoretsia) || !is_array($targetCoretsia)) {
+            return false;
+        }
+
+        if (
+            ($sourceCoretsia['kind'] ?? null) !== 'runtime'
+            || ($targetCoretsia['kind'] ?? null) !== 'runtime'
+        ) {
+            return false;
+        }
+
+        $requires = $sourceCoretsia['requires'] ?? null;
+        $targetModuleId = $targetCoretsia['moduleId'] ?? null;
+
+        return is_array($requires)
+            && array_is_list($requires)
+            && is_string($targetModuleId)
+            && $targetModuleId !== ''
+            && in_array($targetModuleId, $requires, true);
     }
 
     /**
@@ -922,7 +1093,7 @@ final class DeptracGenerateTool
         $out = '';
         $out .= self::licenseHeaderYaml();
         $out .= "# Deptrac allowlist policy.\n";
-        $out .= "# This file may only exclude tests, fixtures, vendors, or tooling-only files.\n";
+        $out .= "# Only canonical tests, fixtures, and vendor patterns are permitted.\n";
         $out .= "# It MUST NOT exclude packages/**/src/**.\n\n";
         $out .= "exclude_files:\n";
 
@@ -1027,17 +1198,9 @@ final class DeptracGenerateTool
     private static function assertAllowlistPolicy(array $excludeFiles): void
     {
         foreach ($excludeFiles as $pattern) {
-            $normalized = strtolower(str_replace('\\', '/', $pattern));
-
-            if (str_contains($normalized, 'packages') && str_contains($normalized, '/src')) {
+            if (!in_array($pattern, self::DEFAULT_EXCLUDE_FILES, true)) {
                 throw new RuntimeException(
-                    ErrorCodes::CORETSIA_DEPTRAC_ALLOWLIST_INVALID . ': exclude_files must not cover packages/**/src/**',
-                );
-            }
-
-            if (str_contains($normalized, '(^|/)src') || str_contains($normalized, '/src(/|$)')) {
-                throw new RuntimeException(
-                    ErrorCodes::CORETSIA_DEPTRAC_ALLOWLIST_INVALID . ': exclude_files must not cover src/**',
+                    ErrorCodes::CORETSIA_DEPTRAC_ALLOWLIST_INVALID . ': exclude_files must use canonical tests, fixtures, or vendor patterns',
                 );
             }
         }
@@ -1102,7 +1265,7 @@ final class DeptracGenerateTool
             throw new RuntimeException(
                 ErrorCodes::CORETSIA_DEPTRAC_CYCLE_DETECTED . ': ' . $kind . ' dependency cycle: ' . implode(
                     ' -> ',
-                    $cycle
+                    $cycle,
                 ),
             );
         }
@@ -1230,7 +1393,7 @@ final class DeptracGenerateTool
         }
 
         $lines[] = '<text x="' . $headingX . '" y="' . $edgesHeadingY . '">Allowed edges (' . count(
-            $edges
+            $edges,
         ) . ')</text>';
 
         $y = $edgesHeadingY + $afterEdgesHeadingGap;

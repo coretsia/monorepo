@@ -98,12 +98,12 @@ final class ProjectPackagePlannerTest extends TestCase
                 ],
                 $plan->effectivePresetsByTarget(),
             );
-            self::assertSame(
-                [
-                    'coretsia/core-foundation',
-                    'coretsia/core-kernel',
-                ],
-                \array_keys($plan->desiredRootRequirements()),
+            self::assertContains('core.kernel', $plan->unionModuleIds());
+            self::assertContains('platform.cli', $plan->unionModuleIds());
+            self::assertContains('platform.redaction', $plan->unionModuleIds());
+            self::assertArrayNotHasKey(
+                'coretsia/platform-worker',
+                $plan->desiredRootRequirements(),
             );
             self::assertNotContains(
                 'platform.worker',

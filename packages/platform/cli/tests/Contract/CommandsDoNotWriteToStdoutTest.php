@@ -22,219 +22,75 @@ use PHPUnit\Framework\TestCase;
 
 final class CommandsDoNotWriteToStdoutTest extends TestCase
 {
-    public function testCommandsDoNotUseDirectStdoutStderrSinks(): void
+    public function testEveryProductionCommandAvoidsDirectOutput(): void
     {
-        $packageRoot = \dirname(__DIR__, 2);
-        $commandsDir = $packageRoot . '/src/Command';
+        $commandRoot = \dirname(__DIR__, 2) . '/src/Command';
+        self::assertDirectoryExists($commandRoot);
 
-        self::assertDirectoryExists($commandsDir, 'src/Command directory MUST exist.');
-
-        $files = $this->collectPhpFiles($commandsDir);
-        self::assertNotEmpty($files, 'src/Command/**/*.php MUST exist.');
-
-        foreach ($files as $file) {
-            $code = (string)\file_get_contents($file);
-
-            // Token-based scan:
-            // - MUST ignore comments
-            // - MUST ignore strings for keyword detection, except controlled checks (php://stdout/stderr/output)
-            $tokens = \token_get_all($code, \defined('TOKEN_PARSE') ? \TOKEN_PARSE : 0);
-
-            $this->scanTokens($file, $tokens);
-        }
-
-        self::addToAssertionCount(1);
-    }
-
-    /**
-     * @param list<mixed> $tokens
-     */
-    private function scanTokens(string $file, array $tokens): void
-    {
-        $count = \count($tokens);
-
-        for ($i = 0; $i < $count; $i++) {
-            $t = $tokens[$i];
-
-            if (!\is_array($t)) {
-                continue;
-            }
-
-            $id = $t[0];
-            $text = $t[1];
-            $line = (int)($t[2] ?? 0);
-
-            // Ignore comments.
-            if ($id === \T_COMMENT || $id === \T_DOC_COMMENT) {
-                continue;
-            }
-
-            // Direct language constructs.
-            if ($id === \T_ECHO) {
-                $this->failToken($file, $line, 'echo is forbidden in commands (must use OutputInterface).');
-            }
-            if ($id === \T_PRINT) {
-                $this->failToken($file, $line, 'print is forbidden in commands (must use OutputInterface).');
-            }
-
-            if ($id !== \T_STRING) {
-                continue;
-            }
-
-            $name = \strtolower($text);
-
-            // Function calls: var_dump, print_r, printf, vprintf, fprintf, error_log
-            if (\in_array($name, ['var_dump', 'print_r', 'printf', 'vprintf', 'fprintf', 'error_log'], true)) {
-                if ($this->nextNonWhitespaceTokenIs($tokens, $i, '(')) {
-                    $this->failToken($file, $line, $name . '() is forbidden in commands.');
-                }
-            }
-
-            // fwrite/fputs with STDOUT|STDERR (including \STDOUT, \STDERR).
-            if (\in_array($name, ['fwrite', 'fputs'], true)) {
-                $open = $this->nextNonWhitespaceIndex($tokens, $i);
-                if ($open !== null && $this->tokenText($tokens[$open]) === '(') {
-                    $argIdx = $this->nextNonWhitespaceIndex($tokens, $open);
-                    if ($argIdx !== null) {
-                        $const = $this->readPossibleFqConstant($tokens, $argIdx);
-                        if ($const === 'STDOUT' || $const === 'STDERR') {
-                            $this->failToken(
-                                $file,
-                                $line,
-                                $name . '(' . $const . ', ...) is forbidden in commands.'
-                            );
-                        }
-                    }
-                }
-            }
-
-            // php://stdout|stderr|output sinks via file_put_contents/fopen/popen (controlled string literal check).
-            if (\in_array($name, ['file_put_contents', 'fopen', 'popen'], true)) {
-                $open = $this->nextNonWhitespaceIndex($tokens, $i);
-                if ($open !== null && $this->tokenText($tokens[$open]) === '(') {
-                    $argIdx = $this->nextNonWhitespaceIndex($tokens, $open);
-                    if ($argIdx !== null && \is_array($tokens[$argIdx]) && $tokens[$argIdx][0] === \T_CONSTANT_ENCAPSED_STRING) {
-                        $lit = \strtolower((string)$tokens[$argIdx][1]);
-                        if (
-                            \str_contains($lit, 'php://stdout') ||
-                            \str_contains($lit, 'php://stderr') ||
-                            \str_contains($lit, 'php://output')
-                        ) {
-                            $this->failToken(
-                                $file,
-                                $line,
-                                $name . '("php://stdout|stderr|output", ...) is forbidden in commands.'
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Read a possible fully-qualified constant like \STDOUT.
-     *
-     * @param list<mixed> $tokens
-     */
-    private function readPossibleFqConstant(array $tokens, int $idx): string
-    {
-        $t = $tokens[$idx];
-
-        // \STDOUT => T_NS_SEPARATOR "\" then T_STRING "STDOUT"
-        if (\is_array($t) && $t[0] === \T_NS_SEPARATOR) {
-            $next = $this->nextNonWhitespaceIndex($tokens, $idx);
-            if ($next !== null) {
-                return $this->readPossibleFqConstant($tokens, $next);
-            }
-
-            return '';
-        }
-
-        $raw = $this->tokenText($t);
-        $raw = \ltrim($raw, '\\');
-
-        return $raw;
-    }
-
-    private function failToken(string $file, int $line, string $message): void
-    {
-        self::fail($message . ' File: ' . $file . ' Line: ' . (string)$line);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function collectPhpFiles(string $dir): array
-    {
-        $out = [];
-
-        $it = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS)
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($commandRoot, \FilesystemIterator::SKIP_DOTS),
         );
+        $scanned = 0;
+        $violations = [];
 
-        foreach ($it as $item) {
-            if (!$item instanceof \SplFileInfo) {
+        foreach ($iterator as $file) {
+            if (!$file instanceof \SplFileInfo || !$file->isFile() || $file->getExtension() !== 'php') {
                 continue;
             }
 
-            if (!$item->isFile()) {
-                continue;
-            }
+            ++$scanned;
+            $source = \file_get_contents($file->getPathname());
+            self::assertIsString($source);
+            $tokens = \token_get_all($source);
 
-            if (\strtolower((string)$item->getExtension()) !== 'php') {
-                continue;
-            }
+            foreach ($tokens as $index => $token) {
+                if (!\is_array($token)) {
+                    continue;
+                }
 
-            $out[] = $item->getPathname();
+                [$type, $value, $line] = $token;
+                $reason = null;
+
+                if (\in_array($type, [\T_ECHO, \T_PRINT, \T_OPEN_TAG_WITH_ECHO], true)) {
+                    $reason = 'direct-output-expression';
+                } elseif (
+                    \in_array($type, [\T_STRING, \T_NAME_FULLY_QUALIFIED, \T_NAME_QUALIFIED], true)
+                ) {
+                    $segments = \explode('\\', $value);
+                    $name = \strtolower($segments[\count($segments) - 1]);
+
+                    if (\in_array($name, ['stdout', 'stderr'], true)) {
+                        $reason = 'direct-stream-constant';
+                    } elseif (\in_array($name, ['printf', 'var_dump', 'print_r', 'error_log'], true)) {
+                        for ($next = $index + 1; isset($tokens[$next]); ++$next) {
+                            $candidate = $tokens[$next];
+                            if (
+                                \is_array($candidate)
+                                && \in_array($candidate[0], [\T_WHITESPACE, \T_COMMENT, \T_DOC_COMMENT], true)
+                            ) {
+                                continue;
+                            }
+
+                            if ($candidate === '(') {
+                                $reason = 'direct-output-function';
+                            }
+                            break;
+                        }
+                    }
+                } elseif (
+                    \in_array($type, [\T_CONSTANT_ENCAPSED_STRING, \T_ENCAPSED_AND_WHITESPACE], true)
+                    && \preg_match('~php://(?:stdout|stderr|output)\b~i', $value) === 1
+                ) {
+                    $reason = 'direct-output-stream';
+                }
+
+                if ($reason !== null) {
+                    $violations[] = $file->getFilename() . ':' . $line . ':' . $reason;
+                }
+            }
         }
 
-        \sort($out);
-
-        return $out;
-    }
-
-    /**
-     * Find next non-whitespace/non-comment token index after $i.
-     *
-     * @param list<mixed> $tokens
-     */
-    private function nextNonWhitespaceIndex(array $tokens, int $i): ?int
-    {
-        $count = \count($tokens);
-
-        for ($j = $i + 1; $j < $count; $j++) {
-            $t = $tokens[$j];
-
-            if (\is_array($t) && $t[0] === \T_WHITESPACE) {
-                continue;
-            }
-
-            if (\is_array($t) && ($t[0] === \T_COMMENT || $t[0] === \T_DOC_COMMENT)) {
-                continue;
-            }
-
-            return $j;
-        }
-
-        return null;
-    }
-
-    /**
-     * @param list<mixed> $tokens
-     */
-    private function nextNonWhitespaceTokenIs(array $tokens, int $i, string $expected): bool
-    {
-        $j = $this->nextNonWhitespaceIndex($tokens, $i);
-        if ($j === null) {
-            return false;
-        }
-
-        return $this->tokenText($tokens[$j]) === $expected;
-    }
-
-    private function tokenText(mixed $token): string
-    {
-        return \is_array($token) ? (string)$token[1] : (string)$token;
+        self::assertGreaterThan(0, $scanned);
+        self::assertSame([], $violations);
     }
 }

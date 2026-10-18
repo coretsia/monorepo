@@ -47,6 +47,41 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.9.0
+
+### Added
+
+- Added the packaged `coretsia` CLI executable and Composer-installed Skeleton project-root wrapper, providing canonical command invocation from both monorepo and consumer applications.
+- Added deterministic command discovery through the Foundation `cli.command` DI tag, with typed command metadata, descriptor-driven input validation, lazy service resolution, and support for commands contributed by enabled external packages.
+- Added CLI commands for Kernel-owned configuration validation, debugging, compilation, and hashing, module diagnostics, and cache verification through `KernelOpsInterface` with explicit application-target selection.
+- Added an ultra-early `doctor` command for bounded runtime prerequisite diagnostics without requiring Kernel operations-host boot or generated runtime artifacts.
+- Added configurable adaptive, JSON, table, and plain output presentation, CLI-global format and color overrides, deterministic output buffering, and fixed semantic ANSI color rendering.
+- Added CLI command tracing, execution metrics, and safe completion logging with bounded attributes and failure-isolated observability.
+- Expanded contract, unit, integration, and consumer-project test coverage for command discovery, external package commands, Kernel operations, CLI entrypoints, input validation, output determinism, redaction, and runtime module selection.
+
+### Changed
+
+- Replaced configuration-based command registration and direct command construction with container-backed command descriptors and owner-package service providers.
+- Integrated normal CLI execution with the canonical Kernel Console source operations host, validated configuration, target-local `ModulePlan`, and exactly one Kernel CLI UnitOfWork per dispatched command.
+- Updated `coretsia/framework` to require `coretsia/platform-cli` alongside `coretsia/core-kernel`, with `coretsia/platform-redaction` installed through the CLI Composer dependency closure.
+- Updated canonical `micro`, `express`, `hybrid`, and `enterprise` presets to select `platform.cli` through Kernel module policy. Runtime module activation remains separate from Composer installation.
+- Updated CLI configuration to use `cli.commands.overrides` for catalog presentation and `cli.output.*` for validated format, color, and table-rendering policies.
+- Updated Worker commands to use the shared six-field `cli.command` metadata contract without command-specific discovery or dispatch paths.
+
+### Removed
+
+- Removed the legacy `cli.commands` FQCN registry, direct zero-argument command construction, and standalone CLI configuration-loading and dispatch paths.
+- Removed the obsolete `tools/bin/coretsia` repository launcher in favor of delegation to the packaged CLI executable.
+- Removed package-local CLI redaction implementation and configuration-based redaction enablement.
+- Removed legacy CLI output formatting, command input, exception hierarchy, and global error-code registry implementations superseded by the new runtime boundaries.
+
+### Security
+
+- Enforced mandatory shared sensitive-data redaction for normal CLI output through the contracts-level redaction port, without a configuration or command-line disable switch.
+- Added bounded, normalized command output with deterministic JSON-like value handling, ANSI-free JSON rendering, and single-final-newline output ownership.
+- Enforced fail-closed command metadata, input, bootstrap, redaction, and rendering validation with stable, path-safe error diagnostics.
+- Preserved safe-by-construction Kernel operation results and isolated CLI telemetry from raw arguments, configuration values, runtime paths, credentials, payloads, and exception internals.
+
 ## v0.8.0
 
 ### Added

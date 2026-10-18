@@ -47,6 +47,8 @@ use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Tests\Integration\ArtifactPipelineTestSupport;
+use Coretsia\Platform\Cli\Provider\CliServiceProvider;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
@@ -61,6 +63,7 @@ final class AppBuilder
     private const string MODULE_CORE_KERNEL = 'core.kernel';
     private const string MODULE_PLATFORM_CLI = 'platform.cli';
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
+    private const string MODULE_PLATFORM_REDACTION = 'platform.redaction';
 
     private function __construct()
     {
@@ -273,6 +276,8 @@ final class AppBuilder
             installPathResolver: new ComposerPackageInstallPathResolver([
                 'coretsia/core-foundation' => self::foundationPackageRoot(),
                 'coretsia/core-kernel' => self::packageRoot(),
+                'coretsia/platform-cli' => self::cliPackageRoot(),
+                'coretsia/platform-redaction' => self::redactionPackageRoot(),
             ]),
             modePresetLoaderFactory: $modePresetLoaderFactory,
             presetNamespaceResolver: new PresetNamespaceResolver(),
@@ -393,6 +398,7 @@ final class AppBuilder
                 self::MODULE_CORE_FOUNDATION,
                 self::MODULE_CORE_KERNEL,
                 self::MODULE_PLATFORM_CLI,
+                self::MODULE_PLATFORM_REDACTION,
             ],
         );
     }
@@ -439,7 +445,8 @@ final class AppBuilder
         return match ($moduleId) {
             self::MODULE_CORE_FOUNDATION => 'config/foundation.php',
             self::MODULE_CORE_KERNEL => 'config/kernel.php',
-            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_CLI => 'config/cli.php',
+            self::MODULE_PLATFORM_REDACTION,
             self::MODULE_PLATFORM_HTTP => null,
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
@@ -451,6 +458,7 @@ final class AppBuilder
             self::MODULE_CORE_FOUNDATION => 'coretsia/core-foundation',
             self::MODULE_CORE_KERNEL => 'coretsia/core-kernel',
             self::MODULE_PLATFORM_CLI => 'coretsia/platform-cli',
+            self::MODULE_PLATFORM_REDACTION => 'coretsia/platform-redaction',
             self::MODULE_PLATFORM_HTTP => 'coretsia/platform-http',
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
@@ -468,7 +476,12 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => [
                 KernelServiceProvider::class,
             ],
-            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_CLI => [
+                CliServiceProvider::class,
+            ],
+            self::MODULE_PLATFORM_REDACTION => [
+                RedactionServiceProvider::class,
+            ],
             self::MODULE_PLATFORM_HTTP => [],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
@@ -484,7 +497,13 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => [
                 self::MODULE_CORE_FOUNDATION,
             ],
-            self::MODULE_PLATFORM_CLI,
+            self::MODULE_PLATFORM_CLI => [
+                self::MODULE_CORE_KERNEL,
+                self::MODULE_PLATFORM_REDACTION,
+            ],
+            self::MODULE_PLATFORM_REDACTION => [
+                self::MODULE_CORE_FOUNDATION,
+            ],
             self::MODULE_PLATFORM_HTTP => [
                 self::MODULE_CORE_KERNEL,
             ],
@@ -545,6 +564,16 @@ final class AppBuilder
     private static function packageRoot(): string
     {
         return \dirname(__DIR__, 2);
+    }
+
+    private static function cliPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/cli';
+    }
+
+    private static function redactionPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/redaction';
     }
 }
 

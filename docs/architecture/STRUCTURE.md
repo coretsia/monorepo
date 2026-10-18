@@ -73,7 +73,7 @@
 - Core: the minimum everything stands on (contracts/foundation/kernel).
 - Platform: the framework’s “built-in” capabilities (http/db/queue/security/…).
 - Integrations: everything that pulls concrete drivers/vendors (redis/prometheus/s3/otlp/smtp/…).
-- DevTools: DX tools (debugbar/scaffolding/admin/api-docs profiling).
+- DevTools: development and repository tooling (scaffolding/generators/validation/profiling tools), not application runtime modules.
 - Enterprise: “strict stack” policies/packages (audit/compliance/tenancy/sso/…).
 - Presets: composer convenience packages (they pull dependencies), and do not replace runtime modes.
 
@@ -421,7 +421,7 @@ Conceptual layer-direction matrix:
 | Platform     |   ✅ |      ✅* |             ❌ |             ❌ |         ❌ |
 | Integrations |   ✅ |       ✅ |             ✅ |             ❌ |         ❌ |
 | DevTools     |   ✅ |       ✅ | ✅ (sometimes) |             ✅ |         ❌ |
-| Enterprise   |   ✅ |       ✅ |             ✅ | ✅ (sometimes) |         ✅ |
+| Enterprise   |   ✅ |       ✅ |             ✅ |             ❌ |         ✅ |
 
 - Platform→Platform is allowed only when dependency-safe (kernel must not pull http/db etc.)
 - Platform never pulls DevTools/Enterprise
@@ -582,7 +582,7 @@ Adds over `hybrid`:
 - outbox / inbox
 - optional event-sourcing
 - enterprise tenancy / audit / compliance / SSO
-- devtools productized extensions
+- tooling-only devtools extensions outside the enterprise runtime dependency graph
 - realtime / protocol extensions
 - advanced runtime adapters
 - ETL / preload / performance middleware family

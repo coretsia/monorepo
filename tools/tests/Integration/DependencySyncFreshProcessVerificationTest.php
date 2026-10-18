@@ -643,6 +643,16 @@ PHP,
                     $repoRoot . '/packages/framework',
                     $releaseVersion,
                 ],
+                [
+                    'coretsia/platform-cli',
+                    $repoRoot . '/packages/platform/cli',
+                    $releaseVersion,
+                ],
+                [
+                    'coretsia/platform-redaction',
+                    $repoRoot . '/packages/platform/redaction',
+                    $releaseVersion,
+                ],
             ] as [$name, $source, $version]
         ) {
             $repositories[] = self::copyPackageRepository(

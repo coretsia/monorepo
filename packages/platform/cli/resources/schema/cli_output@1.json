@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coretsia CLI Output v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "meta",
+    "data"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "coretsia.cli-output@1"
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "command",
+        "outcome",
+        "exit_code"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)*$",
+          "not": {
+            "type": "string",
+            "pattern": "[\\r\\n\\u2028\\u2029]"
+          }
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "failure"
+          ]
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "if": {
+        "properties": {
+          "exit_code": {
+            "const": 0
+          }
+        },
+        "required": [
+          "exit_code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "success"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "outcome": {
+            "const": "failure"
+          }
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "records"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "type",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "text"
+                  },
+                  "text": {
+                    "$ref": "#/$defs/safeString"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type",
+                  "payload"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "json"
+                  },
+                  "payload": {
+                    "$ref": "#/$defs/jsonContainer"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type",
+                  "code",
+                  "message"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "error"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+                    "not": {
+                      "type": "string",
+                      "pattern": "[\\r\\n\\u2028\\u2029]"
+                    }
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0000-\\u0008\\u000A-\\u001F\\u007F-\\u009F]*$",
+                    "not": {
+                      "pattern": "[\\r\\n]"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "safeString": {
+      "type": "string",
+      "pattern": "^[^\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F]*$"
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "$ref": "#/$defs/safeString"
+        },
+        {
+          "$ref": "#/$defs/jsonContainer"
+        }
+      ]
+    },
+    "jsonContainer": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -40,14 +40,25 @@ Per-package independent versions MUST NOT be used.
 
 `coretsia/framework` is intentionally dependency-only.
 
-The current baseline dependency set is:
+The current baseline Composer requirements declared directly by `coretsia/framework` are:
 
 ```text
 PHP ^8.4
-coretsia/core-kernel
+coretsia/core-kernel ^0.8.0
+coretsia/platform-cli ^0.8.0
 ```
 
-`coretsia/core-kernel` owns its own dependency closure, including lower-level Coretsia runtime packages required by Kernel.
+The baseline Coretsia dependency graph is:
+
+```text
+coretsia/framework
+    -> coretsia/core-kernel
+    -> coretsia/platform-cli
+        -> coretsia/core-kernel
+        -> coretsia/platform-redaction
+```
+
+`coretsia/platform-redaction` is a transitive Composer dependency of `coretsia/platform-cli`, not a direct requirement of the framework metapackage. Kernel and CLI each own their lower-level dependency closures, including Coretsia Contracts and Foundation.
 
 `coretsia/framework` SHOULD depend directly only on packages that are intentionally part of the public framework baseline.
 
@@ -74,11 +85,11 @@ The canonical consumer operation is:
 composer require coretsia/framework
 ```
 
-This operation installs the baseline Coretsia runtime dependency graph into the consuming application's own Composer environment.
+This operation installs the baseline Coretsia Composer dependency graph into the consuming application's own Composer environment. The consuming project remains the application root and owns its Composer state, configuration, application code, and runtime data.
 
-The consuming project remains the application root and owns its Composer state, configuration, application code, and runtime data.
+Physical Composer installation and Kernel runtime module selection are separate. `coretsia/framework` is not a runtime module, `ModePreset`, `ModuleSelection`, or `ModulePlan`, and it does not perform module selection. For each explicitly selected application target, Kernel resolves the effective preset and target-local module overrides into a `ModuleSelection`, then resolves the installed module dependency closure into that target's `ModulePlan`. Canonical presets (`micro`, `express`, `hybrid`, `enterprise`) are runtime selection policies, not Composer distributions. The default `micro` preset selects `platform.cli` as a selectable module; its resolved dependency closure includes `platform.redaction`. Physically installed CLI and Redaction packages do not automatically enable their runtime modules.
 
-`coretsia/framework` only contributes the baseline dependency graph. Additional mode-required Coretsia roots are planned and reconciled by explicit Kernel DependencySync in the consumer project; the framework metapackage does not inspect application mode policy or mutate the project manifest.
+`coretsia/framework` only contributes the baseline dependency graph. Additional mode-required Coretsia packages are planned, reviewed, and reconciled through explicit Kernel DependencySync `plan` / `review` / `apply` operations for selected targets. The framework metapackage does not inspect application mode policy, modify the consumer's Composer manifest, or trigger dependency synchronization during application boot.
 
 ## Metapackage boundary
 

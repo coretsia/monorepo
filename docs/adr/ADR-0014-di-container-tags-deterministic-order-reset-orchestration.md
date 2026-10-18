@@ -831,15 +831,7 @@ The non-canonical `http.middleware.user*` names are forbidden by the tag registr
 
 ## CLI discovery decision
 
-The current `platform/cli` built-in runtime is kernel-free and uses only the config registry:
-
-```text
-cli.commands
-```
-
-The current CLI baseline does not use tag-based CLI command discovery.
-
-A Kernel-backed CLI mode may use tag-based discovery through:
+`platform/cli` owns the tag-first command catalog and consumes canonical Foundation `TagRegistry` discovery output from:
 
 ```text
 cli.command
@@ -851,11 +843,21 @@ The canonical code-level identifier for this Coretsia-reserved DI tag is:
 Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND
 ```
 
-This tag may be used only when that mode runs over Kernel/container infrastructure.
+Enabled command-owner packages contribute command services and tags through their own selected providers.
 
-`core/foundation` provides the tag registry and deterministic ordering mechanism.
+The CLI retains Foundation tag order and first-wins deduplication, validates the exact six-key metadata schema, and resolves a command service only when that command is dispatched.
 
-It does not own the `cli.command` tag.
+The reserved names `doctor`, `help`, and `list` belong only to their built-in service identities.
+
+`core/foundation` owns the tag registry and deterministic ordering mechanism.
+
+It does not own the `cli.command` tag or the CLI command catalog.
+
+The canonical CLI discovery and dispatch decision is defined in:
+
+```text
+docs/adr/ADR-0034-cli-tag-first-command-catalog.md
+```
 
 ## Reset orchestration decision
 

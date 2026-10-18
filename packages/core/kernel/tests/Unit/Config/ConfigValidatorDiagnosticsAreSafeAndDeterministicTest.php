@@ -29,19 +29,12 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
         $ruleset = self::cliRuleset();
 
         $config = [
-            'cli' => [
-                'commands' => [
-                    'bad command with token SECRET_TOKEN',
-                ],
-                'output' => [
-                    'format' => 'mysql://user:pass@example.test/database',
-                    'redaction' => [
-                        'enabled' => 'yes',
-                    ],
-                ],
-                '/var/www/secret' => true,
-            ],
+            'cli' => self::cliConfig(),
         ];
+        $config['cli']['commands']['overrides'] = 'bad command with token SECRET_TOKEN';
+        $config['cli']['output']['format_default'] = 'mysql://user:pass@example.test/database';
+        $config['cli']['output']['color_default'] = false;
+        $config['cli']['/var/www/secret'] = true;
 
         $first = new ConfigValidator()->validate($config, [$ruleset]);
         $second = new ConfigValidator()->validate($config, [$ruleset]);
@@ -62,8 +55,16 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
                 ],
                 [
                     'actualType' => 'string',
-                    'expected' => 'non-empty-string-no-ws',
-                    'path' => 'commands[0]',
+                    'expected' => 'map',
+                    'path' => 'commands.overrides',
+                    'reason' => 'type',
+                    'root' => 'cli',
+                    'schemaVersion' => 1,
+                ],
+                [
+                    'actualType' => 'bool',
+                    'expected' => 'string',
+                    'path' => 'output.color_default',
                     'reason' => 'type',
                     'root' => 'cli',
                     'schemaVersion' => 1,
@@ -71,16 +72,8 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
                 [
                     'actualType' => 'string',
                     'expected' => 'allowedValues',
-                    'path' => 'output.format',
+                    'path' => 'output.format_default',
                     'reason' => 'allowed-values',
-                    'root' => 'cli',
-                    'schemaVersion' => 1,
-                ],
-                [
-                    'actualType' => 'string',
-                    'expected' => 'bool',
-                    'path' => 'output.redaction.enabled',
-                    'reason' => 'type',
                     'root' => 'cli',
                     'schemaVersion' => 1,
                 ],
@@ -104,33 +97,38 @@ final class ConfigValidatorDiagnosticsAreSafeAndDeterministicTest extends TestCa
         $ruleset = self::cliRuleset();
 
         $config = [
-            'cli' => [
-                'output' => [
-                    'redaction' => [
-                        'enabled' => 'yes',
-                    ],
-                    'format' => 'xml',
-                ],
-                'commands' => [
-                    '',
-                ],
-            ],
+            'cli' => self::cliConfig(),
         ];
+        $config['cli']['commands']['overrides'] = [''];
+        $config['cli']['output']['format_default'] = 'xml';
+        $config['cli']['output']['table']['max_width'] = 39;
 
         $result = new ConfigValidator()->validate($config, [$ruleset]);
 
         self::assertTrue($result->isFailure());
         self::assertSame(
             [
-                'commands[0]',
-                'output.format',
-                'output.redaction.enabled',
+                'commands.overrides',
+                'output.format_default',
+                'output.table.max_width',
             ],
             \array_map(
                 static fn ($violation): string => $violation->path(),
                 $result->violations(),
             ),
         );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function cliConfig(): array
+    {
+        $config = require __DIR__ . '/../../../../../platform/cli/config/cli.php';
+
+        self::assertIsArray($config);
+
+        return $config;
     }
 
     private static function cliRuleset(): ConfigRuleset

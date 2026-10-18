@@ -1,13 +1,14 @@
 {
   "name": "coretsia/framework",
   "type": "metapackage",
-  "description": "Coretsia framework runtime dependency distribution",
+  "description": "Coretsia framework metapackage: baseline Kernel and CLI runtime installation dependencies.",
   "keywords": [
     "coretsia",
     "php",
     "framework",
     "runtime",
     "kernel",
+    "cli",
     "modular",
     "psr",
     "ddd"
@@ -27,6 +28,7 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-kernel": "^0.8.0"
+    "coretsia/core-kernel": "^0.9.0",
+    "coretsia/platform-cli": "^0.9.0"
   }
 }

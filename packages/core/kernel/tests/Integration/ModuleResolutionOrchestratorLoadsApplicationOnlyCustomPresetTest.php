@@ -58,6 +58,7 @@ final class ModuleResolutionOrchestratorLoadsApplicationOnlyCustomPresetTest ext
                     'core.foundation',
                     'core.kernel',
                     'platform.cli',
+                    'platform.redaction',
                 ],
                 self::moduleIdValues($modulePlan->enabled()),
             );
@@ -66,6 +67,7 @@ final class ModuleResolutionOrchestratorLoadsApplicationOnlyCustomPresetTest ext
                 [
                     'core.foundation',
                     'core.kernel',
+                    'platform.redaction',
                     'platform.cli',
                 ],
                 self::moduleIdValues($modulePlan->topologicalOrder()),
@@ -76,6 +78,7 @@ final class ModuleResolutionOrchestratorLoadsApplicationOnlyCustomPresetTest ext
                     'core.foundation',
                     'core.kernel',
                     'platform.cli',
+                    'platform.redaction',
                 ],
                 \array_keys($modulePlan->modules()),
             );

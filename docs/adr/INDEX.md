@@ -68,6 +68,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0031: Atomic Artifact Generations](./ADR-0031-atomic-artifact-generations.md) — owner: core/kernel — adrVersion: 1 — scope: artifacts,atomic,generations,kernel,publication,storage
 - [ADR-0032: Process-Exec Descriptor Safety](./ADR-0032-process-exec-descriptor-safety.md) — owner: repo — adrVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
 - [ADR-0033: Application Dependency Synchronization from Explicit Installation Intent](./ADR-0033-application-dependency-sync-installation-intent.md) — owner: core/kernel — adrVersion: 1 — scope: composer,dependency-sync,installation-intent,kernel,modules,verification
+- [ADR-0034: CLI Tag-First Command Catalog and Kernel Operations Consumption](./ADR-0034-cli-tag-first-command-catalog.md) — owner: platform/cli — adrVersion: 1 — scope: catalog,cli,commands,discovery,kernel-ops,output,redaction,tags
 
 ## Cross-references
 

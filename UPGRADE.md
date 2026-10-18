@@ -103,6 +103,216 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.8.0 to v0.9.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- The CLI runtime, command registration, configuration schema, bootstrap entrypoints, and runtime module dependencies have changed.
+- Applications and packages using the previous standalone CLI runtime must migrate to the canonical Kernel-integrated command runtime.
+
+#### CLI installation and module selection
+
+The `coretsia/framework` metapackage now directly requires:
+
+```text
+coretsia/core-kernel
+coretsia/platform-cli
+```
+
+`coretsia/platform-cli` directly requires `coretsia/platform-redaction`, so the Redaction package is installed through the CLI Composer dependency closure.
+
+Canonical Kernel presets select `platform.cli` as a runtime module. The default `micro` preset includes CLI selection without requiring an application-owned preset override.
+
+Review custom presets and target-specific module overrides:
+
+- `platform.cli` must be enabled in the resolved Console `ModulePlan` for normal CLI execution.
+- Explicitly excluding `platform.cli` from the Console target causes normal CLI host boot to fail closed.
+- Selecting `platform.cli` resolves its declared `core.kernel` and `platform.redaction` module requirements through Kernel.
+- Installing a Composer package does not automatically enable its runtime module.
+- Additional mode-required packages remain managed through explicit Kernel DependencySync `plan`, `review`, and `apply` operations.
+
+Do not add preset-specific Composer metapackages or perform dependency synchronization during runtime boot.
+
+#### CLI entrypoints
+
+The canonical public executable name is:
+
+```text
+coretsia
+```
+
+From the monorepo root:
+
+```bash
+php coretsia list
+php coretsia doctor
+php coretsia config:validate --target=web
+```
+
+From a Composer-installed Coretsia Skeleton project root:
+
+```bash
+php coretsia list
+php coretsia doctor
+php coretsia config:validate --target=web
+```
+
+Direct Composer binary invocation is also supported:
+
+```bash
+php vendor/bin/coretsia list
+```
+
+On supported Unix environments, the Composer binary may be invoked directly:
+
+```bash
+vendor/bin/coretsia list
+```
+
+The repository-root wrapper, Skeleton project-root wrapper, and Composer binary proxy all delegate to the same packaged CLI implementation.
+
+The previous `tools/bin/coretsia` repository launcher has been removed. Replace direct references to that path with the canonical repository-root `php coretsia` invocation.
+
+The Skeleton wrapper performs delegation only. It does not parse commands, load application configuration, boot Kernel, or construct a command catalog.
+
+#### Command registration and execution
+
+The previous `cli.commands` list of command class names is no longer supported.
+
+Commands must be registered as container services through their enabled owner-package providers and contributed using the Foundation `cli.command` tag.
+
+Each tagged command must:
+
+- implement `Coretsia\Contracts\Cli\Command\CommandInterface`;
+- use its exact command-class FQCN as the service id;
+- declare typed public constants `NAME`, `SUMMARY`, `GROUP`, `HIDDEN`, `ARGUMENTS`, and `OPTIONS`;
+- provide tag metadata with exactly `name`, `summary`, `group`, `hidden`, `arguments`, and `options`;
+- use actual tag priority `0`, without a `priority` metadata field;
+- return a portable integer exit code in `0..255` from `run()`.
+
+The names `doctor`, `help`, and `list` are reserved for built-in commands.
+
+Do not instantiate command classes directly as part of command discovery. The CLI catalog reads validated metadata without constructing services and resolves only the selected command during dispatch.
+
+Owner packages remain responsible for constructor dependencies, argument and option declarations, domain validation, and command behavior. External package commands consume contracts-level CLI input and output interfaces without depending on concrete `platform/cli` implementation classes.
+
+Worker commands use this same generic registration and dispatch mechanism. They are available only when their contributing provider is enabled in the Console operations-host module plan.
+
+#### CLI configuration
+
+The `cli` configuration root now uses the following defaults:
+
+```php
+return [
+    'commands' => [
+        'overrides' => [],
+    ],
+    'output' => [
+        'format_default' => 'adaptive',
+        'adaptive' => [
+            'interactive' => 'table',
+            'non_interactive' => 'plain',
+        ],
+        'color_default' => 'auto',
+        'table' => [
+            'max_width' => 120,
+        ],
+    ],
+];
+```
+
+Remove previous configuration entries:
+
+```text
+cli.commands (FQCN list)
+cli.output.format
+cli.output.redaction.enabled
+```
+
+Use `cli.commands.overrides` only for existing command catalog presentation fields:
+
+```text
+summary
+hidden
+group
+```
+
+Command identity, service id, argument descriptors, and option descriptors are not configurable through these overrides.
+
+Use `cli.output.format_default` with `adaptive`, `json`, `table`, or `plain`.
+
+The `adaptive` policy selects the configured interactive or non-interactive format from detected stdout capabilities.
+
+Use `cli.output.color_default` with `auto`, `always`, or `never`. JSON output always remains ANSI-free.
+
+CLI-global `--format` and `--color` options override their respective configured defaults and are not passed to owner-package commands.
+
+Redaction, Kernel UnitOfWork, reset, and observability do not expose CLI configuration enable/disable switches.
+
+Configuration loading, merging, and validation remain Kernel-owned. Do not recreate a CLI-local config loader.
+
+#### Kernel operations and command lifecycle
+
+The following built-in commands require an explicit application target:
+
+```text
+debug:modules --target=<target>
+config:validate --target=<target>
+config:debug --target=<target>
+config:compile --target=<target>
+config:hash --target=<target>
+cache:verify --target=<target>
+```
+
+Supported targets are `web`, `api`, `console`, and `worker`.
+
+Do not use `--mode` or `--preset` to override Kernel operation preset selection. Kernel resolves the effective preset from target-specific configuration, global preset configuration, and the configured default.
+
+Built-in operations consume `KernelOpsInterface` and render safe Kernel-owned results. They do not read generated artifact internals directly.
+
+Normal CLI execution boots the canonical Console source operations host. Console-host configuration validation occurs before command dispatch and before a requested Kernel operation can run. A Console-host bootstrap failure cannot be bypassed by `config:validate` for another target.
+
+Every dispatched normal command runs inside exactly one Kernel CLI UnitOfWork. Kernel owns context writes, hooks, and reset orchestration.
+
+The exact `coretsia doctor` invocation is the ultra-early exception and does not require the Kernel operations host or a UnitOfWork.
+
+#### Output, errors, and security
+
+Commands must emit user-facing output through `OutputInterface` rather than writing directly to stdout or stderr.
+
+CLI output is buffered per invocation, normalized, redacted through the shared `SensitiveDataRedactorInterface`, formatted once, and emitted through the canonical console writer.
+
+The output formats are:
+
+```text
+adaptive
+json
+table
+plain
+```
+
+JSON output uses the stable `coretsia.cli-output@1` envelope. Consumers parsing previous CLI text or JSON output should update their parsers to the new deterministic output contract.
+
+Built-in Kernel operation exit codes are:
+
+```text
+0  successful operation
+1  invalid input, invalid configuration, or handled operation failure
+2  cache:verify dirty
+3  cache:verify invalid
+```
+
+External package commands retain responsibility for their domain-specific valid exit codes.
+
+CLI bootstrap, command input, metadata, rendering, and uncaught execution failures use stable error codes and safe reason tokens. Do not depend on previous exception classes, raw Throwable messages, stack traces, or filesystem paths in CLI diagnostics.
+
+Shared redaction is mandatory for normal CLI output. Remove any application or tooling assumptions that redaction can be disabled through `cli.output.redaction.enabled`.
+
+Kernel operation results remain safe by construction. Shared redaction is defense in depth and does not authorize disclosure of raw configuration, environment values, credentials, artifacts, or sensitive runtime data.
+
+CLI observability failures must not change command execution, exit codes, or Kernel UnitOfWork failure precedence.
+
 ### From v0.7.0 to v0.8.0
 
 #### Compatibility

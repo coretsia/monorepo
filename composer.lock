@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bcb2f39694dc257add879ebfb8b93689",
+    "content-hash": "b50e306a530489d89c7212c0198c0792",
     "packages": [],
     "packages-dev": [
         {
@@ -151,11 +151,11 @@
         },
         {
             "name": "coretsia/core-contracts",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/contracts",
-                "reference": "c6d9f95a31ee33ff66a2faa497ec9f6fad253e48"
+                "reference": "f4025637ebae5489c703a3e5a67671fce30f309e"
             },
             "require": {
                 "php": "^8.4"
@@ -212,11 +212,11 @@
         },
         {
             "name": "coretsia/core-dto-attribute",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "8d4030a9228f0b0dfde7e8b27936a55548424500"
+                "reference": "dfc4e0844ef47c635e1e8b66a3972cf854c88105"
             },
             "require": {
                 "php": "^8.4"
@@ -273,14 +273,14 @@
         },
         {
             "name": "coretsia/core-foundation",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "39c2569d29aa2e3f4bf0ab54b42aff9992f6ab57"
+                "reference": "3f415955ecb573e22f096c02795b49730d205cec"
             },
             "require": {
-                "coretsia/core-contracts": "^0.8.0",
+                "coretsia/core-contracts": "^0.9.0",
                 "php": "^8.4",
                 "psr/clock": "^1.0",
                 "psr/container": "^2.0",
@@ -348,16 +348,16 @@
         },
         {
             "name": "coretsia/core-kernel",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/kernel",
-                "reference": "0fb4fcc7197db305148c7d70e33e35596d80986b"
+                "reference": "5bbd4ba708df8fc54e942d16634edd2394b59098"
             },
             "require": {
                 "composer-runtime-api": "^2.2",
-                "coretsia/core-contracts": "^0.8.0",
-                "coretsia/core-foundation": "^0.8.0",
+                "coretsia/core-contracts": "^0.9.0",
+                "coretsia/core-foundation": "^0.9.0",
                 "ext-ctype": "*",
                 "php": "^8.4",
                 "psr/container": "^2.0",
@@ -427,11 +427,11 @@
         },
         {
             "name": "coretsia/devtools-internal-toolkit",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "9a44e6ee076c2d853a72ac8e7632b7fe651750d1"
+                "reference": "9433fc9a8f77fb946683c601204ac45967c16bbf"
             },
             "require": {
                 "ext-json": "*",
@@ -488,15 +488,15 @@
         },
         {
             "name": "coretsia/framework",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/framework",
-                "reference": "887aa9a38412100c193ea4791d461f02bb402ddc"
+                "reference": "6ff174c9e83493deabc448d17830611e66012c41"
             },
             "require": {
-                "coretsia/core-kernel": "^0.8.0",
-                "coretsia/platform-cli": "^0.8.0",
+                "coretsia/core-kernel": "^0.9.0",
+                "coretsia/platform-cli": "^0.9.0",
                 "php": "^8.4"
             },
             "type": "metapackage",
@@ -534,17 +534,17 @@
         },
         {
             "name": "coretsia/platform-cli",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "4377797e1fe3ada1bdd05617c552835a452c0497"
+                "reference": "fb1a2ab12e8c6ee0d37bd131491b286362415863"
             },
             "require": {
-                "coretsia/core-contracts": "^0.8.0",
-                "coretsia/core-foundation": "^0.8.0",
-                "coretsia/core-kernel": "^0.8.0",
-                "coretsia/platform-redaction": "^0.8.0",
+                "coretsia/core-contracts": "^0.9.0",
+                "coretsia/core-foundation": "^0.9.0",
+                "coretsia/core-kernel": "^0.9.0",
+                "coretsia/platform-redaction": "^0.9.0",
                 "php": "^8.4",
                 "psr/container": "^2.0",
                 "psr/log": "^3.0"
@@ -614,15 +614,15 @@
         },
         {
             "name": "coretsia/platform-redaction",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/redaction",
-                "reference": "359be3ff6874c678f9b428de3bbb3a8841cf40d4"
+                "reference": "d73ba4522a34fec855041b809b1e83f4af67216e"
             },
             "require": {
-                "coretsia/core-contracts": "^0.8.0",
-                "coretsia/core-foundation": "^0.8.0",
+                "coretsia/core-contracts": "^0.9.0",
+                "coretsia/core-foundation": "^0.9.0",
                 "php": "^8.4"
             },
             "type": "library",
@@ -685,16 +685,16 @@
         },
         {
             "name": "coretsia/platform-worker",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/worker",
-                "reference": "ca41d80e7bb077b6043054da0c19033e4b269b6e"
+                "reference": "0c5db32a8ce9790f1ac351e77fa0b6b9e5e58793"
             },
             "require": {
-                "coretsia/core-contracts": "^0.8.0",
-                "coretsia/core-foundation": "^0.8.0",
-                "coretsia/core-kernel": "^0.8.0",
+                "coretsia/core-contracts": "^0.9.0",
+                "coretsia/core-foundation": "^0.9.0",
+                "coretsia/core-kernel": "^0.9.0",
                 "ext-ctype": "*",
                 "php": "^8.4",
                 "psr/container": "^2.0",
@@ -767,14 +767,14 @@
         },
         {
             "name": "coretsia/skeleton",
-            "version": "0.8.x-dev",
+            "version": "0.9.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/applications/skeleton",
-                "reference": "b3d1a22fa47d6ef78de7a8c61ea657851231c977"
+                "reference": "64a8f771e6fb3017e53ce5e9eecc3d3657ca280e"
             },
             "require": {
-                "coretsia/framework": "^0.8.0",
+                "coretsia/framework": "^0.9.0",
                 "php": "^8.4"
             },
             "type": "project",

@@ -6353,33 +6353,33 @@ Docs:
     - [x] returned exit codes outside `0..255` fail through `CliCommandFailedException`
     - [x] CLI-global parsing and uncaught command exceptions retain their own failure boundary
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
-    - [ ] `config:compile` renders the published generation id returned by `KernelOpsInterface`
-    - [ ] renders the explicit app target and Kernel-provided effective preset
-    - [ ] renders exactly the four Kernel-provided artifact identities and basenames
-    - [ ] preserves the deterministic order of the Kernel-provided artifact list
-    - [ ] does not synthesize generation paths or `generations/current/<basename>` values
-    - [ ] does not receive or render raw config, Composer metadata, or artifact payloads
-    - [ ] CLI performs no post-compile artifact verification or runtime boot
+  - [x] `packages/platform/cli/tests/Integration/ConfigCompileRendersGenerationAwareOpsResultTest.php`
+    - [x] `config:compile` renders the published generation id returned by `KernelOpsInterface`
+    - [x] renders the explicit app target and Kernel-provided effective preset
+    - [x] renders exactly the four Kernel-provided artifact identities and basenames
+    - [x] preserves the deterministic order of the Kernel-provided artifact list
+    - [x] does not synthesize generation paths or `generations/current/<basename>` values
+    - [x] does not receive or render raw config, Composer metadata, or artifact payloads
+    - [x] CLI performs no post-compile artifact verification or runtime boot
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigHashRendersGenerationIdTest.php`
-    - [ ] `config:hash` renders the safe expected `generation_id` returned by Kernel
-    - [ ] renders the explicit app target and Kernel-provided effective preset
-    - [ ] does not present the expected generation id as a published or current generation
-    - [ ] does not render synthetic artifact locations
-    - [ ] does not publish artifacts or inspect `current`
-    - [ ] no CLI-local fingerprint calculation is invoked
+  - [x] `packages/platform/cli/tests/Integration/ConfigHashRendersGenerationIdTest.php`
+    - [x] `config:hash` renders the safe expected `generation_id` returned by Kernel
+    - [x] renders the explicit app target and Kernel-provided effective preset
+    - [x] does not present the expected generation id as a published or current generation
+    - [x] does not render synthetic artifact locations
+    - [x] does not publish artifacts or inspect `current`
+    - [x] no CLI-local fingerprint calculation is invoked
 
-  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyRendersFourGenerationArtifactsTest.php`
-    - [ ] `cache:verify` renders exactly four Kernel-provided artifact verification entries
-    - [ ] preserves the Kernel-provided artifact identities, basenames, statuses, and safe reasons
-    - [ ] renders expected and nullable current generation ids without synthesizing paths
-    - [ ] renders Kernel-provided byte counts when available
-    - [ ] state `clean` produces exit code `0`
-    - [ ] state `dirty` produces exit code `2`
-    - [ ] state `invalid` produces exit code `3`
-    - [ ] all three states use the same Kernel OpsResult presentation path
-    - [ ] CLI does not independently read artifact files or reinterpret verification states
+  - [x] `packages/platform/cli/tests/Integration/CacheVerifyRendersFourGenerationArtifactsTest.php`
+    - [x] `cache:verify` renders exactly four Kernel-provided artifact verification entries
+    - [x] preserves the Kernel-provided artifact identities, basenames, statuses, and safe reasons
+    - [x] renders expected and nullable current generation ids without synthesizing paths
+    - [x] renders Kernel-provided byte counts when available
+    - [x] state `clean` produces exit code `0`
+    - [x] state `dirty` produces exit code `2`
+    - [x] state `invalid` produces exit code `3`
+    - [x] all three states use the same Kernel OpsResult presentation path
+    - [x] CLI does not independently read artifact files or reinterpret verification states
 
   - [x] `packages/platform/cli/tests/Integration/CommandInputValidatorRejectsUnknownOptionBeforeResolutionTest.php`
     - [x] an option absent from the selected descriptor throws `CliInputInvalidException`
@@ -6571,86 +6571,86 @@ Docs:
     - [x] construction-time failures use the fixed `CORETSIA_CLI_HOST_BOOT_FAILED` diagnostic rather than attempting to invoke `CliErrorHandler` before `CliApplication::run()`
     - [x] no invalid override name, value, command metadata, or Throwable detail appears in the host-bootstrap diagnostic
 
-  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
-    - [ ] command is contributed by an enabled non-CLI package
-    - [ ] command resolves an owner-package service
-    - [ ] platform/cli imports no owner-package class
-    - [ ] command is discovered, validated, resolved, and dispatched through generic infrastructure
+  - [x] `packages/platform/cli/tests/Integration/ExternalPackageCommandWithOwnerServiceDispatchTest.php`
+    - [x] command is contributed by an enabled non-CLI package
+    - [x] command resolves an owner-package service
+    - [x] platform/cli imports no owner-package class
+    - [x] command is discovered, validated, resolved, and dispatched through generic infrastructure
 
-  - [ ] `packages/platform/cli/tests/Integration/ExternalPackageCommandMayDeclareDomainModeOptionTest.php`
-    - [ ] external command declares `mode` in its own `OPTIONS`
-    - [ ] descriptor validation accepts it
-    - [ ] value reaches the external command unchanged
-    - [ ] it does not affect Kernel preset selection
+  - [x] `packages/platform/cli/tests/Integration/ExternalPackageCommandMayDeclareDomainModeOptionTest.php`
+    - [x] external command declares `mode` in its own `OPTIONS`
+    - [x] descriptor validation accepts it
+    - [x] value reaches the external command unchanged
+    - [x] it does not affect Kernel preset selection
 
-  - [ ] `packages/platform/cli/tests/Integration/ExternalTaggedCommandIsLazyDiscoveredTest.php`
-    - [ ] external tagged command appears in catalog
-    - [ ] command constructor is not called during catalog/list/help descriptor build
-    - [ ] command constructor is called only on dispatch
+  - [x] `packages/platform/cli/tests/Integration/ExternalTaggedCommandIsLazyDiscoveredTest.php`
+    - [x] external tagged command appears in catalog
+    - [x] command constructor is not called during catalog/list/help descriptor build
+    - [x] command constructor is called only on dispatch
 
-  - [ ] `packages/platform/cli/tests/Integration/WorkerCommandMetadataCompatibilityTest.php`
-    - [ ] when `platform.worker` is enabled, worker command tag metadata passes `CommandTagSchema`
-    - [ ] worker command service ids are discovered through generic `cli.command`
-    - [ ] `platform/cli` production source still does not import `Coretsia\Platform\Worker\*`
-    - [ ] worker command metadata uses empty `ARGUMENTS` and `OPTIONS`
-    - [ ] undeclared options are rejected before Worker command resolution
-    - [ ] `--target` is rejected because Worker commands do not declare it
-    - [ ] CLI-global `--format` is consumed before Worker command input is constructed
-    - [ ] worker command metadata contains no `mode` key
-    - [ ] worker command classes contain no `MODE` constant
-    - [ ] CLI-global `--color` is consumed before Worker command input is constructed
+  - [x] `packages/platform/cli/tests/Integration/WorkerCommandMetadataCompatibilityTest.php`
+    - [x] when `platform.worker` is enabled, worker command tag metadata passes `CommandTagSchema`
+    - [x] worker command service ids are discovered through generic `cli.command`
+    - [x] `platform/cli` production source still does not import `Coretsia\Platform\Worker\*`
+    - [x] worker command metadata uses empty `ARGUMENTS` and `OPTIONS`
+    - [x] undeclared options are rejected before Worker command resolution
+    - [x] `--target` is rejected because Worker commands do not declare it
+    - [x] CLI-global `--format` is consumed before Worker command input is constructed
+    - [x] worker command metadata contains no `mode` key
+    - [x] worker command classes contain no `MODE` constant
+    - [x] CLI-global `--color` is consumed before Worker command input is constructed
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php`
-    - [ ] asserts exactly one `KernelOpsInterface` compile call
-    - [ ] asserts exactly one explicit app target is passed
-    - [ ] asserts the command does not resolve any Kernel compile-time service
-    - [ ] asserts no Composer metadata reader is touched by CLI
-    - [ ] asserts no artifact compiler is resolved by CLI
+  - [x] `packages/platform/cli/tests/Integration/ConfigCompileDelegatesToKernelOpsPortTest.php`
+    - [x] asserts exactly one `KernelOpsInterface` compile call
+    - [x] asserts exactly one explicit app target is passed
+    - [x] asserts the command does not resolve any Kernel compile-time service
+    - [x] asserts no Composer metadata reader is touched by CLI
+    - [x] asserts no artifact compiler is resolved by CLI
 
-  - [ ] `packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php`
-    - [ ] asserts exactly one `KernelOpsInterface` verify call
-    - [ ] asserts exactly one explicit app target is passed
-    - [ ] asserts the command does not resolve any Kernel compile-time service
-    - [ ] asserts no Composer metadata reader is touched by CLI
-    - [ ] asserts no cache verifier is resolved by CLI
+  - [x] `packages/platform/cli/tests/Integration/CacheVerifyDelegatesToKernelOpsPortTest.php`
+    - [x] asserts exactly one `KernelOpsInterface` verify call
+    - [x] asserts exactly one explicit app target is passed
+    - [x] asserts the command does not resolve any Kernel compile-time service
+    - [x] asserts no Composer metadata reader is touched by CLI
+    - [x] asserts no cache verifier is resolved by CLI
 
-  - [ ] `packages/platform/cli/tests/Integration/DebugModulesDelegatesToKernelOpsPortTest.php`
-    - [ ] exactly one `debugModules()` call
-    - [ ] no module-resolution service is resolved by CLI
+  - [x] `packages/platform/cli/tests/Integration/DebugModulesDelegatesToKernelOpsPortTest.php`
+    - [x] exactly one `debugModules()` call
+    - [x] no module-resolution service is resolved by CLI
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigValidateDelegatesToKernelOpsPortTest.php`
-    - [ ] exactly one `validateConfig()` call
-    - [ ] no ConfigKernel or module-resolution service is resolved by CLI
+  - [x] `packages/platform/cli/tests/Integration/ConfigValidateDelegatesToKernelOpsPortTest.php`
+    - [x] exactly one `validateConfig()` call
+    - [x] no ConfigKernel or module-resolution service is resolved by CLI
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigDebugDelegatesToKernelOpsPortTest.php`
-    - [ ] exactly one `debugConfig()` call
-    - [ ] only safe `OpsResult` data reaches output
+  - [x] `packages/platform/cli/tests/Integration/ConfigDebugDelegatesToKernelOpsPortTest.php`
+    - [x] exactly one `debugConfig()` call
+    - [x] only safe `OpsResult` data reaches output
 
-  - [ ] `packages/platform/cli/tests/Integration/ConfigHashDelegatesToKernelOpsPortTest.php`
-    - [ ] exactly one `hashConfig()` call
-    - [ ] no fingerprint or module-resolution service is resolved by CLI
+  - [x] `packages/platform/cli/tests/Integration/ConfigHashDelegatesToKernelOpsPortTest.php`
+    - [x] exactly one `hashConfig()` call
+    - [x] no fingerprint or module-resolution service is resolved by CLI
 
-  - [ ] `packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
-    - [ ] proves commands from an enabled non-CLI package are discovered through `cli.command`
-    - [ ] MUST NOT rely on filesystem scanning
-    - [ ] MUST NOT use a `cli.commands` registry list
+  - [x] `packages/platform/cli/tests/Integration/ExternalTaggedCommandDiscoveryTest.php`
+    - [x] proves commands from an enabled non-CLI package are discovered through `cli.command`
+    - [x] MUST NOT rely on filesystem scanning
+    - [x] MUST NOT use a `cli.commands` registry list
 
-  - [ ] `packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
-    - [ ] enables `platform.worker` in a composed test fixture/app
-    - [ ] asserts `worker:start`, `worker:stop`, `worker:status`, and `worker:health` appear in the command catalog
-    - [ ] asserts discovery happens via `cli.command`
-    - [ ] MUST NOT require `platform/cli` compile-time dependency on `platform/worker`
+  - [x] `packages/platform/cli/tests/Integration/WorkerCommandsAreDiscoverableWhenWorkerPackageEnabledTest.php`
+    - [x] enables `platform.worker` in a composed test fixture/app
+    - [x] asserts `worker:start`, `worker:stop`, `worker:status`, and `worker:health` appear in the command catalog
+    - [x] asserts discovery happens via `cli.command`
+    - [x] MUST NOT require `platform/cli` compile-time dependency on `platform/worker`
 
-  - [ ] `packages/platform/cli/tests/Integration/WorkerStartDispatchesThroughCommandCatalogTest.php`
-    - [ ] dispatches `worker:start` through `CliApplication` / `CommandCatalog`
-    - [ ] uses a safe fake worker manager or fake command handler
-    - [ ] MUST NOT start real worker processes
-    - [ ] MUST NOT fork, call `proc_open`, or open sockets
-    - [ ] preserves the foreground blocking and WorkerSupervisor lifecycle semantics of `worker:start`
-    - [ ] explicitly acknowledges that immediate readiness rendering from the previous output implementation is not preserved by the buffered-output contract
-    - [ ] readiness records remain invocation-local and are rendered only after `WorkerSupervisor::run()` returns, normally at shutdown
-    - [ ] a fake supervisor emitting readiness before return MUST NOT cause premature stdout or stderr writes
-    - [ ] no unredacted direct-stream or secondary output channel is introduced
+  - [x] `packages/platform/cli/tests/Integration/WorkerStartDispatchesThroughCommandCatalogTest.php`
+    - [x] dispatches `worker:start` through `CliApplication` / `CommandCatalog`
+    - [x] uses a safe fake worker manager or fake command handler
+    - [x] MUST NOT start real worker processes
+    - [x] MUST NOT fork, call `proc_open`, or open sockets
+    - [x] preserves the foreground blocking and WorkerSupervisor lifecycle semantics of `worker:start`
+    - [x] explicitly acknowledges that immediate readiness rendering from the previous output implementation is not preserved by the buffered-output contract
+    - [x] readiness records remain invocation-local and are rendered only after `WorkerSupervisor::run()` returns, normally at shutdown
+    - [x] a fake supervisor emitting readiness before return MUST NOT cause premature stdout or stderr writes
+    - [x] no unredacted direct-stream or secondary output channel is introduced
 
 ### DoD (MUST)
 

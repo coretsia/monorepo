@@ -35,7 +35,22 @@ PHP ^8.4
 coretsia/framework
 ```
 
-`coretsia/framework` installs the baseline Coretsia runtime dependencies and remains a project-owned root requirement.
+`coretsia/framework` is the only project-owned Coretsia baseline root requirement. It is a Composer metapackage that requires Kernel and CLI. CLI requires Redaction, so baseline Composer installation also installs Redaction transitively:
+
+```text
+coretsia/skeleton
+    -> coretsia/framework
+        -> coretsia/core-kernel
+        -> coretsia/platform-cli
+            -> coretsia/core-kernel
+            -> coretsia/platform-redaction
+```
+
+Composer also installs the remaining transitive dependencies, including Coretsia Contracts and Foundation. No separate CLI or Redaction root requirement is needed in the Skeleton project.
+
+The default Kernel preset is `micro` (`kernel.boot.default_preset`). It selects `core.foundation` and `core.kernel` as required runtime modules and `platform.cli` as a selectable module. The CLI module requires `core.kernel` and `platform.redaction`; Redaction is therefore part of the effective default Console `ModulePlan` through the Kernel dependency graph, not an additional preset root.
+
+Composer installation establishes the physical package graph; it does not enable runtime modules. The Kernel independently resolves a target-local `ModulePlan` from the effective preset and module overrides. The normal CLI host requires an enabled `platform.cli` in its Console plan and fails closed when it is excluded.
 
 Additional mode-required Coretsia packages are materialized only through explicit application dependency synchronization. DependencySync may manage only the Coretsia root requirements recorded in its ownership marker; application-owned roots remain unchanged.
 
@@ -43,9 +58,28 @@ The project `composer.json` defines the application's runtime and application-sp
 
 Composer records the resolved dependency graph in `composer.lock` and installs dependencies under `vendor/`.
 
+## Command-line interface
+
+After baseline Composer installation, run the canonical CLI from the Skeleton project root:
+
+```bash
+php coretsia list
+php coretsia help
+php coretsia doctor
+php coretsia config:validate --target=web
+```
+
+The project-root `coretsia` file is a thin wrapper that delegates to the Composer-installed `vendor/bin/coretsia` binary. Running `php vendor/bin/coretsia <command>` from the same project root invokes the same packaged CLI implementation directly. No additional CLI package installation, shell alias, or CLI configuration step is required after the baseline Composer installation.
+
+The Skeleton project-root wrapper is distinct from the monorepo-root `coretsia` wrapper. The Skeleton wrapper delegates only through its installed Composer binary and retains consumer project-root resolution; the monorepo wrapper uses a fixed repository-relative path to `packages/platform/cli/bin/coretsia`. Neither wrapper implements an additional CLI runtime.
+
+If `vendor/bin/coretsia` is missing or unreadable, the Skeleton wrapper writes exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` followed by one LF to stderr and exits with code `1`, without exposing paths, PHP warnings, or exception traces.
+
+Normal CLI commands bootstrap the Kernel-owned Console operations host using the resolved Console `ModulePlan`. Built-in Kernel operations such as `config:validate` require an explicit `--target=web|api|console|worker`; the requested operation target does not change the CLI host's Console target. The `doctor` command is the ultra-early diagnostic path and does not require Kernel host boot or generated artifacts.
+
 ## Application dependency synchronization
 
-Dependency synchronization is an explicit consumer operation. It is never triggered by application/runtime boot.
+Dependency synchronization is an explicit consumer operation. It is never triggered by `composer create-project`, preset selection, CLI invocation, or application/runtime boot.
 
 Canonical workflow:
 
@@ -109,18 +143,18 @@ var/locks/dependency-sync.lock
 
 A stable repeated synchronization starts from a fresh PHP process and is a no-op when manifest, lock, vendor state, and all selected target plans already match.
 
-Canonical current multi-target example:
+Canonical multi-target example with explicitly selected `web` and `worker` targets, the default `micro` preset for `web`, and a target-qualified `enterprise` preset for `worker`:
 
 ```text
 explicit targets: web, worker
-web    -> micro      -> core.foundation, core.kernel
-worker -> enterprise -> core.foundation, core.kernel, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
 
-physical project union:
-core.foundation, core.kernel, platform.worker
+project-wide physical module union:
+core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
 ```
 
-`platform.worker` remains disabled in `ModulePlan(web)` even though it is physically installed for `worker`.
+Both target-local closures include `platform.redaction` through the `platform.cli` runtime dependency. The project-wide union determines physical Composer installation intent, not global runtime enablement: `platform.worker` remains disabled in `ModulePlan(web)` even though it is installed for `worker`. Only explicitly selected targets participate in dependency planning, and adding mode-required packages still requires an explicit DependencySync `apply`.
 
 See `docs/ssot/application-dependency-sync.md` in the Coretsia monorepo for the normative ownership, execution, verification, and recovery contract.
 
@@ -133,6 +167,7 @@ The initial project structure is:
 ├── bin/
 │   └── dependency-sync.php
 ├── composer.json
+├── coretsia
 ├── .env.example
 ├── .gitignore
 ├── README.md

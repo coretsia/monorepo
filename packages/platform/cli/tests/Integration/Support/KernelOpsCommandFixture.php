@@ -18,13 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Integration\Support;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
-use Coretsia\Foundation\Observability\Metrics\NoopMeter;
-use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
-use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Platform\Cli\Application\CliApplication;
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
 use Coretsia\Platform\Cli\Catalog\CommandOverrides;
 use Coretsia\Platform\Cli\Catalog\CommandTagSchema;
@@ -34,28 +29,13 @@ use Coretsia\Platform\Cli\Command\ConfigDebugCommand;
 use Coretsia\Platform\Cli\Command\ConfigHashCommand;
 use Coretsia\Platform\Cli\Command\ConfigValidateCommand;
 use Coretsia\Platform\Cli\Command\DebugModulesCommand;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
-use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
-use Coretsia\Platform\Cli\Input\ArgvInputParser;
-use Coretsia\Platform\Cli\Input\CommandInputValidator;
 use Coretsia\Platform\Cli\Kernel\KernelOpsRequestResolver;
-use Coretsia\Platform\Cli\Output\Ansi\AnsiDecorator;
-use Coretsia\Platform\Cli\Output\CliOutputPolicy;
-use Coretsia\Platform\Cli\Output\ColorResolver;
-use Coretsia\Platform\Cli\Output\ConsoleOutputWriter;
-use Coretsia\Platform\Cli\Output\FormatResolver;
-use Coretsia\Platform\Cli\Output\Formatter\JsonFormatter;
-use Coretsia\Platform\Cli\Output\Formatter\PlainFormatter;
-use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
-use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
-use Coretsia\Platform\Cli\Runner\CommandRunner;
 use Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor;
 use Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier;
 use Coretsia\Platform\Redaction\Redaction\SensitiveValueClassifier;
 use Coretsia\Platform\Redaction\Redaction\StableRedactionHasher;
 use Psr\Container\ContainerInterface;
-use Psr\Log\NullLogger;
 
 /** Exercises the real normal-path pipeline with a strict test-only Ops port. */
 final class KernelOpsCommandFixture
@@ -72,7 +52,7 @@ final class KernelOpsCommandFixture
     public readonly RecordingKernelOpsPort $ops;
     public readonly BoundaryScenarioRuntime $runtime;
     public readonly RecordingKernelOpsCommandContainer $container;
-    private readonly CliApplication $application;
+    private readonly CliApplicationFixtureHarness $application;
 
     public function __construct()
     {
@@ -90,75 +70,28 @@ final class KernelOpsCommandFixture
                 'options' => $command::OPTIONS,
             ]);
         }
-        $policy = new CliOutputPolicy('adaptive', 'table', 'plain', 'auto', 120);
-        $ansi = new AnsiDecorator();
         $redactor = new DefaultSensitiveDataRedactor(
             new SensitiveKeyClassifier(),
             new SensitiveValueClassifier(),
             new StableRedactionHasher(),
         );
-        $this->application = new CliApplication(
-            new ArgvInputParser(),
-            new CommandCatalog($registry, new CommandTagSchema(), new CommandOverrides(), [], []),
-            new CommandInputValidator(),
-            new FormatResolver($policy),
-            new ColorResolver($policy),
-            new CommandRunner(
-                $this->runtime,
-                new class() implements ContextAccessorInterface {
-                    public function has(string $key): bool
-                    {
-                        return false;
-                    }
 
-                    public function get(string $key): mixed
-                    {
-                        return null;
-                    }
-                },
-                new NoopTracer(),
-                new NoopMeter(),
-                new NullLogger(),
-                $this->container,
-                new Stopwatch(),
-            ),
-            new CliErrorHandler(),
-            new ExceptionRenderer(),
-            new OutputFormatter(
-                $redactor,
-                new JsonFormatter(),
-                new TableFormatter($policy->tableMaxWidth(), $ansi),
-                new PlainFormatter($ansi),
-            ),
+        $this->application = new CliApplicationFixtureHarness(
+            new CommandCatalog($registry, new CommandTagSchema(), new CommandOverrides(), [], []),
+            $this->runtime,
+            $this->container,
+            $redactor,
         );
     }
 
     /** @return array{exit:int,stdout:string,stderr:string} */
     public function run(string $command, string $target = 'api'): array
     {
-        $stdout = \fopen('php://temp', 'w+');
-        $stderr = \fopen('php://temp', 'w+');
-        if (!\is_resource($stdout) || !\is_resource($stderr)) {
-            throw new \RuntimeException('ops-fixture-stream-unavailable');
-        }
-
-        try {
-            $exit = $this->application->run(
-                ['coretsia', $command, '--target=' . $target, '--format=json', '--color=always'],
-                new TerminalCapabilities(true, true),
-                new ConsoleOutputWriter($stdout, $stderr),
-            );
-            \rewind($stdout);
-            \rewind($stderr);
-            return [
-                'exit' => $exit,
-                'stdout' => (string) \stream_get_contents($stdout),
-                'stderr' => (string) \stream_get_contents($stderr),
-            ];
-        } finally {
-            \fclose($stdout);
-            \fclose($stderr);
-        }
+        return $this->application->run(
+            [$command, '--target=' . $target, '--format=json', '--color=always'],
+            new TerminalCapabilities(true, true),
+            streamFailure: 'ops-fixture-stream-unavailable',
+        );
     }
 
     /** @param array{exit:int,stdout:string,stderr:string} $result @return array<string,mixed> */

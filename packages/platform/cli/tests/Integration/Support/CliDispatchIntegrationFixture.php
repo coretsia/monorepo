@@ -18,36 +18,17 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Integration\Support;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Security\RedactedValue;
 use Coretsia\Contracts\Security\RedactionContext;
 use Coretsia\Contracts\Security\RedactionKind;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
-use Coretsia\Foundation\Observability\Metrics\NoopMeter;
-use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
-use Coretsia\Foundation\Time\Stopwatch;
-use Coretsia\Platform\Cli\Application\CliApplication;
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
 use Coretsia\Platform\Cli\Catalog\CommandOverrides;
 use Coretsia\Platform\Cli\Catalog\CommandTagSchema;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
-use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
-use Coretsia\Platform\Cli\Input\ArgvInputParser;
-use Coretsia\Platform\Cli\Input\CommandInputValidator;
-use Coretsia\Platform\Cli\Output\Ansi\AnsiDecorator;
 use Coretsia\Platform\Cli\Output\CliOutputPolicy;
-use Coretsia\Platform\Cli\Output\ColorResolver;
-use Coretsia\Platform\Cli\Output\ConsoleOutputWriter;
-use Coretsia\Platform\Cli\Output\FormatResolver;
-use Coretsia\Platform\Cli\Output\Formatter\JsonFormatter;
-use Coretsia\Platform\Cli\Output\Formatter\PlainFormatter;
-use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
-use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
-use Coretsia\Platform\Cli\Runner\CommandRunner;
-use Psr\Log\NullLogger;
 
 /**
  * Full normal-path CLI dispatch using real parser, validator, catalog, UoW
@@ -58,7 +39,7 @@ final class CliDispatchIntegrationFixture
     public readonly RecordingOwnerContainer $container;
     public readonly RecordingCliRuntime $runtime;
 
-    private CliApplication $application;
+    private readonly CliApplicationFixtureHarness $application;
 
     public function __construct(?CliOutputPolicy $policy = null)
     {
@@ -81,55 +62,27 @@ final class CliDispatchIntegrationFixture
         $catalog = new CommandCatalog($registry, new CommandTagSchema(), new CommandOverrides(), [], []);
         $this->container = new RecordingOwnerContainer();
         $this->runtime = new RecordingCliRuntime();
-        $runner = new CommandRunner(
-            $this->runtime,
-            new class() implements ContextAccessorInterface {
-                public function has(string $key): bool
-                {
-                    return false;
-                }
+        $redactor = new class() implements SensitiveDataRedactorInterface {
+            public function redactValue(
+                string $value,
+                RedactionKind $kind,
+                RedactionContext $context,
+            ): RedactedValue {
+                throw new \LogicException('Direct redaction is not used by this fixture.');
+            }
 
-                public function get(string $key): mixed
-                {
-                    return null;
-                }
-            },
-            new NoopTracer(),
-            new NoopMeter(),
-            new NullLogger(),
-            $this->container,
-            new Stopwatch(),
-        );
-        $ansi = new AnsiDecorator();
-        $formatter = new OutputFormatter(
-            new class() implements SensitiveDataRedactorInterface {
-                public function redactValue(
-                    string $value,
-                    RedactionKind $kind,
-                    RedactionContext $context,
-                ): RedactedValue {
-                    throw new \LogicException('Direct redaction is not used by this fixture.');
-                }
+            public function redactJsonLike(mixed $value, RedactionContext $context): mixed
+            {
+                return $value;
+            }
+        };
 
-                public function redactJsonLike(mixed $value, RedactionContext $context): mixed
-                {
-                    return $value;
-                }
-            },
-            new JsonFormatter(),
-            new TableFormatter($policy->tableMaxWidth(), $ansi),
-            new PlainFormatter($ansi),
-        );
-        $this->application = new CliApplication(
-            new ArgvInputParser(),
+        $this->application = new CliApplicationFixtureHarness(
             $catalog,
-            new CommandInputValidator(),
-            new FormatResolver($policy),
-            new ColorResolver($policy),
-            $runner,
-            new CliErrorHandler(),
-            new ExceptionRenderer(),
-            $formatter,
+            $this->runtime,
+            $this->container,
+            $redactor,
+            $policy,
         );
     }
 
@@ -139,27 +92,6 @@ final class CliDispatchIntegrationFixture
      */
     public function run(array $tokens, ?TerminalCapabilities $capabilities = null): array
     {
-        $stdout = \fopen('php://temp', 'w+');
-        $stderr = \fopen('php://temp', 'w+');
-        if (!\is_resource($stdout) || !\is_resource($stderr)) {
-            throw new \RuntimeException('cli-fixture-stream-unavailable');
-        }
-        try {
-            $exit = $this->application->run(
-                ['coretsia', ...$tokens],
-                $capabilities ?? new TerminalCapabilities(false, false),
-                new ConsoleOutputWriter($stdout, $stderr),
-            );
-            \rewind($stdout);
-            \rewind($stderr);
-            return [
-                'exit' => $exit,
-                'stdout' => (string) \stream_get_contents($stdout),
-                'stderr' => (string) \stream_get_contents($stderr),
-            ];
-        } finally {
-            \fclose($stdout);
-            \fclose($stderr);
-        }
+        return $this->application->run($tokens, $capabilities);
     }
 }

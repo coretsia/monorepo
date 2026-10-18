@@ -4055,7 +4055,7 @@ Redaction:
   - [x] `interactive` means stdout is interactive
   - [x] `ansiSupported` is true only when ANSI is safe for both stdout and stderr
 
-- [ ] `packages/platform/cli/src/Output/TerminalCapabilitiesDetector.php`
+- [x] `packages/platform/cli/src/Output/TerminalCapabilitiesDetector.php`
   - [x] is the only platform/cli service allowed to probe terminal capabilities
   - [x] receives explicit stdout and stderr stream resources from the entrypoint
   - [x] stdout determines adaptive-format interactivity
@@ -4068,7 +4068,7 @@ Redaction:
   - [x] MUST NOT read command options
   - [x] MUST NOT read CI environment variables
   - [x] MUST NOT retain streams
-  - [ ] tests can replace it with deterministic capabilities
+  - [x] tests can replace it with deterministic capabilities
 
 - [x] `packages/platform/cli/src/Bootstrap/CliEntrypointPaths.php`
   - [x] immutable readonly value object
@@ -4401,7 +4401,7 @@ Output:
   - [x] preserves the canonical Foundation map ordering and original list and record order
   - [x] contains no streams or formatter state
 
-- [ ] `packages/platform/cli/src/Output/FormattedOutput.php`
+- [x] `packages/platform/cli/src/Output/FormattedOutput.php`
   - [x] stdout and stderr payloads MUST NOT end with CR or LF
   - [x] final-newline ownership belongs exclusively to `ConsoleOutputWriter`
   - [x] immutable readonly value
@@ -4409,7 +4409,7 @@ Output:
     - [x] `stdoutBytes: string`
     - [x] `stderrBytes: string`
   - [x] contains no streams
-  - [ ] contains no ANSI when effective color is disabled
+  - [x] contains no ANSI when effective color is disabled
   - [x] stores stdout and stderr bytes without trailing CR or LF
 
 - [x] `packages/platform/cli/src/Output/ConsoleOutputWriter.php`
@@ -5092,12 +5092,12 @@ Built-in commands:
   - [x] `SUMMARY = 'List available commands.'`
 
 Docs:
-- [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
-  - [ ] MUST capture:
-    - [ ] tag-first discovery via `cli.command`
-    - [ ] reserved built-in command names (`doctor`, `help`, `list`)
-    - [ ] kernel ops consumption only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
-    - [ ] deterministic output + redaction policy
+- [x] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
+  - [x] MUST capture:
+    - [x] tag-first discovery via `cli.command`
+    - [x] reserved built-in command names (`doctor`, `help`, `list`)
+    - [x] kernel ops consumption only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`
+    - [x] deterministic output + redaction policy
 
 #### Modifies
 
@@ -5137,33 +5137,33 @@ Docs:
   - [x] preserve Composer type `metapackage`
   - [x] do not introduce runtime code, configuration, autoload definitions, or installation scripts
 
-- [ ] `packages/framework/README.md`
-  - [ ] document the baseline Composer dependency graph
-  - [ ] document `coretsia/core-kernel` and `coretsia/platform-cli` as explicit framework requirements
-  - [ ] document `coretsia/platform-redaction` as a transitive dependency of CLI
-  - [ ] distinguish physical Composer installation from Kernel runtime module selection
-  - [ ] preserve explicit DependencySync ownership of additional mode-required packages
-  - [ ] do not describe the framework metapackage as a runtime module or module-selection mechanism
+- [x] `packages/framework/README.md`
+  - [x] document the baseline Composer dependency graph
+  - [x] document `coretsia/core-kernel` and `coretsia/platform-cli` as explicit framework requirements
+  - [x] document `coretsia/platform-redaction` as a transitive dependency of CLI
+  - [x] distinguish physical Composer installation from Kernel runtime module selection
+  - [x] preserve explicit DependencySync ownership of additional mode-required packages
+  - [x] do not describe the framework metapackage as a runtime module or module-selection mechanism
 
-- [ ] `packages/applications/skeleton/README.md`
-  - [ ] document the updated framework baseline containing Kernel and CLI
-  - [ ] document the canonical Skeleton CLI invocation:
-    - [ ] `php coretsia list`
-    - [ ] `php coretsia help`
-    - [ ] `php coretsia doctor`
-    - [ ] `php coretsia config:validate --target=web`
-    - [ ] explain that the project-root `coretsia` is a thin wrapper around the installed Composer binary
-    - [ ] document `php vendor/bin/coretsia <command>` as the direct equivalent invocation
-    - [ ] distinguish the Skeleton project-root wrapper from the monorepo-root wrapper
-    - [ ] document the fixed safe bootstrap failure when the Composer binary is unavailable
-    - [ ] do not require an additional CLI installation, alias, or configuration step after baseline Composer installation
-  - [ ] document Redaction as the transitive CLI runtime dependency
-  - [ ] preserve `coretsia/framework` as the only project-owned Coretsia baseline root
-  - [ ] document `micro` as the default canonical preset
-  - [ ] distinguish baseline package installation from Console ModulePlan selection
-  - [ ] preserve explicit dependency synchronization for additional selected targets and modules
-  - [ ] update canonical multi-target examples to include the CLI and Redaction module dependency closure
-  - [ ] do not introduce automatic DependencySync execution during create-project or runtime boot
+- [x] `packages/applications/skeleton/README.md`
+  - [x] document the updated framework baseline containing Kernel and CLI
+  - [x] document the canonical Skeleton CLI invocation:
+    - [x] `php coretsia list`
+    - [x] `php coretsia help`
+    - [x] `php coretsia doctor`
+    - [x] `php coretsia config:validate --target=web`
+    - [x] explain that the project-root `coretsia` is a thin wrapper around the installed Composer binary
+    - [x] document `php vendor/bin/coretsia <command>` as the direct equivalent invocation
+    - [x] distinguish the Skeleton project-root wrapper from the monorepo-root wrapper
+    - [x] document the fixed safe bootstrap failure when the Composer binary is unavailable
+    - [x] do not require an additional CLI installation, alias, or configuration step after baseline Composer installation
+  - [x] document Redaction as the transitive CLI runtime dependency
+  - [x] preserve `coretsia/framework` as the only project-owned Coretsia baseline root
+  - [x] document `micro` as the default canonical preset
+  - [x] distinguish baseline package installation from Console ModulePlan selection
+  - [x] preserve explicit dependency synchronization for additional selected targets and modules
+  - [x] update canonical multi-target examples to include the CLI and Redaction module dependency closure
+  - [x] do not introduce automatic DependencySync execution during create-project or runtime boot
 
 - [x] `coretsia` — complete rewrite
   - [x] repository-root wrapper
@@ -5610,6 +5610,20 @@ Docs:
   - [x] update exact expected violation paths and deterministic ordering
   - [x] preserve assertions that rejected config values, secrets, and filesystem paths never appear in diagnostics
 
+  - [x] `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
+    - [x] remove all `MODE` assertions
+    - [x] assert exactly `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
+    - [x] assert arrays and scalar metadata types
+
+  - [x] `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
+    - [x] remove `mode` from expected metadata shape
+    - [x] assert exact six-key metadata
+    - [x] preserve `cli.command` tag assertions
+
+  - [x] `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
+    - [x] remove `MODE` arguments and `mode` expected fields
+    - [x] preserve source/definition metadata parity for the final six-key schema
+
 - [x] `packages/platform/worker/tests/Integration/WorkerCompileArtifactBootE2ETest.php`
   - [x] remove `mode` from the expected `commandMetadata()` return shape
   - [x] remove `$commandClass::MODE` access from the metadata fixture
@@ -5618,27 +5632,27 @@ Docs:
   - [x] MUST NOT add `platform.cli` or `platform.redaction` as mandatory roots to the Worker-only test preset
   - [x] MUST NOT weaken the canonical artifact and deterministic tag-order assertions
 
-- [ ] `docs/ssot/tags.md`
-  - [ ] define that every `cli.command` service id is the exact command class FQCN
-  - [ ] define lazy command-constant validation without service resolution
-  - [ ] preserve owner `platform/cli` for `cli.command`
-  - [ ] define exact metadata keys:
-    - [ ] `name`
-    - [ ] `summary`
-    - [ ] `group`
-    - [ ] `hidden`
-    - [ ] `arguments`
-    - [ ] `options`
-  - [ ] forbid:
-    - [ ] `priority`
-    - [ ] `mode`
-    - [ ] unknown metadata keys
-  - [ ] define deterministic TagRegistry order
-  - [ ] define duplicate command-name failure across distinct service ids, while preserving TagRegistry first-wins behavior for repeated registrations of the same service id
-  - [ ] define reserved external names `doctor|help|list`
-  - [ ] document that command-owner packages depend only on contracts-level CLI ports
-  - [ ] `cli.command` registrations use actual tag priority `0`
-  - [ ] non-zero priority is invalid independently of metadata contents
+- [x] `docs/ssot/tags.md`
+  - [x] define that every `cli.command` service id is the exact command class FQCN
+  - [x] define lazy command-constant validation without service resolution
+  - [x] preserve owner `platform/cli` for `cli.command`
+  - [x] define exact metadata keys:
+    - [x] `name`
+    - [x] `summary`
+    - [x] `group`
+    - [x] `hidden`
+    - [x] `arguments`
+    - [x] `options`
+  - [x] forbid:
+    - [x] `priority`
+    - [x] `mode`
+    - [x] unknown metadata keys
+  - [x] define deterministic TagRegistry order
+  - [x] define duplicate command-name failure across distinct service ids, while preserving TagRegistry first-wins behavior for repeated registrations of the same service id
+  - [x] define reserved external names `doctor|help|list`
+  - [x] document that command-owner packages depend only on contracts-level CLI ports
+  - [x] `cli.command` registrations use actual tag priority `0`
+  - [x] non-zero priority is invalid independently of metadata contents
 
 - [x] `docs/ssot/observability.md`
   - [x] register span `cli.command`
@@ -5652,72 +5666,72 @@ Docs:
   - [x] `format|exit_code` may be bounded span attributes
   - [x] raw arguments, options, output records, paths, endpoints, config, and payloads are forbidden
 
-- [ ] `docs/ssot/modes.md`
-  - [ ] document `platform.cli` as a default selectable module in all four canonical presets
-  - [ ] document `platform.redaction` as a transitive runtime module dependency of CLI
-  - [ ] preserve `required` versus `modules` exclusion semantics
-  - [ ] preserve per-target module selection and deterministic dependency closure
-  - [ ] clarify that canonical presets are runtime policies, not Composer package distributions
-  - [ ] update examples of the effective canonical module sets
+- [x] `docs/ssot/modes.md`
+  - [x] document `platform.cli` as a default selectable module in all four canonical presets
+  - [x] document `platform.redaction` as a transitive runtime module dependency of CLI
+  - [x] preserve `required` versus `modules` exclusion semantics
+  - [x] preserve per-target module selection and deterministic dependency closure
+  - [x] clarify that canonical presets are runtime policies, not Composer package distributions
+  - [x] update examples of the effective canonical module sets
 
-- [ ] `docs/ssot/application-dependency-sync.md`
-  - [ ] document the updated Kernel and CLI baseline distribution
-  - [ ] update the Composer baseline dependency graph and transitive Redaction installation
-  - [ ] update canonical `micro` and multi-target ModulePlan examples
-  - [ ] preserve explicit target selection, Composer root ownership, and plan/review/apply semantics
-  - [ ] preserve the separation between physically installed packages and enabled runtime modules
-  - [ ] do not introduce implicit dependency synchronization during application boot
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] document the updated Kernel and CLI baseline distribution
+  - [x] update the Composer baseline dependency graph and transitive Redaction installation
+  - [x] update canonical `micro` and multi-target ModulePlan examples
+  - [x] preserve explicit target selection, Composer root ownership, and plan/review/apply semantics
+  - [x] preserve the separation between physically installed packages and enabled runtime modules
+  - [x] do not introduce implicit dependency synchronization during application boot
 
-- [ ] `packages/platform/cli/README.md` MUST include:
-  - [ ] existing README is replaced completely
-  - [ ] remove historical descriptions:
-    - [ ] Phase 0
-    - [ ] kernel-free CLI
-    - [ ] config-based command registry
-    - [ ] FQCN command lists
-    - [ ] zero-argument command constructors
-    - [ ] package-local redaction
-    - [ ] monorepo-only launcher layout
-  - [ ] Errors and exit codes
-  - [ ] Canonical CLI invocation:
-    - [ ] `coretsia` is the single canonical executable name
-    - [ ] document `php coretsia <command>` for the monorepo root
-    - [ ] document `php coretsia <command>` for Composer-installed Coretsia Skeleton projects
-    - [ ] document `php vendor/bin/coretsia <command>` as the direct Composer binary invocation
-    - [ ] document `vendor/bin/coretsia <command>` where the Composer binary is directly executable
-    - [ ] distinguish the monorepo-root wrapper, Skeleton project-root wrapper, Composer binary proxy, and packaged CLI implementation
-    - [ ] explain that the Skeleton wrapper forwards without performing application boot or command parsing
-    - [ ] do not introduce or document framework-owned `c|cli` executable aliases
-    - [ ] all supported invocations use the same packaged CLI implementation
-  - [ ] Security and redaction
-  - [ ] Kernel target and configured-preset behavior
-  - [ ] Determinism
-  - [ ] Providing commands from another package
-  - [ ] Owner-package arguments, options, services, and domain validation
-  - [ ] Configuration:
-    - [ ] exact default shape
-    - [ ] config consumers
-    - [ ] global-option precedence
-    - [ ] adaptive format behavior
-    - [ ] color behavior
-    - [ ] no configurable redaction/UoW/observability toggles
-  - [ ] Context and UoW:
-    - [ ] one UoW per normal command
-    - [ ] doctor exception
-    - [ ] context read/write ownership
-    - [ ] reset ownership
-  - [ ] Observability:
-    - [ ] span and metric names
-    - [ ] allowed labels and attributes
-    - [ ] failure isolation
-  - [ ] Colors:
-    - [ ] `auto|always|never`
-    - [ ] JSON is ANSI-free
-    - [ ] fixed internal semantic palette
-    - [ ] no arbitrary configured ANSI codes
+- [x] `packages/platform/cli/README.md` MUST include:
+  - [x] existing README is replaced completely
+  - [x] remove historical descriptions:
+    - [x] Phase 0
+    - [x] kernel-free CLI
+    - [x] config-based command registry
+    - [x] FQCN command lists
+    - [x] zero-argument command constructors
+    - [x] package-local redaction
+    - [x] monorepo-only launcher layout
+  - [x] Errors and exit codes
+  - [x] Canonical CLI invocation:
+    - [x] `coretsia` is the single canonical executable name
+    - [x] document `php coretsia <command>` for the monorepo root
+    - [x] document `php coretsia <command>` for Composer-installed Coretsia Skeleton projects
+    - [x] document `php vendor/bin/coretsia <command>` as the direct Composer binary invocation
+    - [x] document `vendor/bin/coretsia <command>` where the Composer binary is directly executable
+    - [x] distinguish the monorepo-root wrapper, Skeleton project-root wrapper, Composer binary proxy, and packaged CLI implementation
+    - [x] explain that the Skeleton wrapper forwards without performing application boot or command parsing
+    - [x] do not introduce or document framework-owned `c|cli` executable aliases
+    - [x] all supported invocations use the same packaged CLI implementation
+  - [x] Security and redaction
+  - [x] Kernel target and configured-preset behavior
+  - [x] Determinism
+  - [x] Providing commands from another package
+  - [x] Owner-package arguments, options, services, and domain validation
+  - [x] Configuration:
+    - [x] exact default shape
+    - [x] config consumers
+    - [x] global-option precedence
+    - [x] adaptive format behavior
+    - [x] color behavior
+    - [x] no configurable redaction/UoW/observability toggles
+  - [x] Context and UoW:
+    - [x] one UoW per normal command
+    - [x] doctor exception
+    - [x] context read/write ownership
+    - [x] reset ownership
+  - [x] Observability:
+    - [x] span and metric names
+    - [x] allowed labels and attributes
+    - [x] failure isolation
+  - [x] Colors:
+    - [x] `auto|always|never`
+    - [x] JSON is ANSI-free
+    - [x] fixed internal semantic palette
+    - [x] no arbitrary configured ANSI codes
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 
 - [x] `docs/architecture/DEPENDENCIES.md`
   - [x] update the existing `platform/cli` row in the canonical direct PHP source dependency matrix
@@ -5851,28 +5865,28 @@ Docs:
 
 ### Security / Redaction (MUST)
 
-- [ ] Redaction is mandatory:
+- [x] Redaction is mandatory:
   - [x] every normal command output passes through mandatory defense-in-depth redaction
   - [x] ultra-early doctor is the sole exception and is safe by construction
   - [x] no config key disables it
   - [x] no global option disables it
   - [x] no owner-package command can bypass final CLI defense-in-depth redaction
   - [x] `OutputFormatter` always receives `SensitiveDataRedactorInterface`
-  - [ ] owner-package commands MUST produce safe-by-construction output before CLI redaction
-  - [ ] known-sensitive values MUST be omitted, safely derived, or explicitly classified by their owning producer
-  - [ ] a shared redaction classifier non-match MUST NOT be treated as authorization to emit raw values
-  - [ ] successful redaction MUST NOT widen CLI-owned output schemas or authorize arbitrary diagnostic metadata
+  - [x] owner-package commands MUST produce safe-by-construction output before CLI redaction
+  - [x] known-sensitive values MUST be omitted, safely derived, or explicitly classified by their owning producer
+  - [x] a shared redaction classifier non-match MUST NOT be treated as authorization to emit raw values
+  - [x] successful redaction MUST NOT widen CLI-owned output schemas or authorize arbitrary diagnostic metadata
   - [x] non-placeholder hash and length disclosure modes are not enabled by the baseline CLI output boundary
-- [ ] CLI MUST NOT leak:
-  - [ ] dotenv or env values
-  - [ ] raw config values
-  - [ ] tokens
-  - [ ] authorization headers
-  - [ ] cookies or session ids
-  - [ ] raw SQL
-  - [ ] payloads
-  - [ ] filesystem paths unless explicitly owner-approved output contract permits a safe relative path
-  - [ ] exception stack traces by default
+- [x] CLI MUST NOT leak:
+  - [x] dotenv or env values
+  - [x] raw config values
+  - [x] tokens
+  - [x] authorization headers
+  - [x] cookies or session ids
+  - [x] raw SQL
+  - [x] payloads
+  - [x] filesystem paths unless explicitly owner-approved output contract permits a safe relative path
+  - [x] exception stack traces by default
 - [x] Allowed diagnostics:
   - [x] stable reason tokens
   - [x] bounded operation ids
@@ -6179,16 +6193,6 @@ Docs:
     - [x] no CLI-local loader, merger, validator, directive processor, or repository
     - [x] only `ConfigRepositoryInterface` is consumed
 
-  - [ ] `packages/platform/worker/tests/Contract/WorkerCommandMetadataConstantsTest.php`
-    - [ ] remove all `MODE` assertions
-    - [ ] assert exactly `NAME|SUMMARY|GROUP|HIDDEN|ARGUMENTS|OPTIONS`
-    - [ ] assert arrays and scalar metadata types
-
-  - [ ] `packages/platform/worker/tests/Contract/WorkerServiceProviderCliCommandTaggingTest.php`
-    - [ ] remove `mode` from expected metadata shape
-    - [ ] assert exact six-key metadata
-    - [ ] preserve `cli.command` tag assertions
-
   - [x] `packages/platform/cli/tests/Contract/CliReusesFoundationJsonLikePrimitivesContractTest.php`
     - [x] CLI introduces no independent JSON-like structural normalizer
     - [x] CLI introduces no independent recursive map sorter
@@ -6290,13 +6294,13 @@ Docs:
     - [x] no reset tag enumeration
 
 - Integration:
-  - [ ] `packages/platform/cli/tests/Integration/CoretsiaRepositoryWrapperIsCwdIndependentTest.php`
-    - [ ] repo-root `coretsia` works when invoked outside the repository working directory
-    - [ ] the wrapper derives its application root exclusively from its own repository-relative location
-    - [ ] the packaged CLI selects the repository-root `vendor/autoload.php`
-    - [ ] equivalent invocations from different working directories produce the same exit code and normalized output
-    - [ ] no Skeleton source-directory root is substituted for the repository application root
-    - [ ] no recursive application-root discovery is introduced
+  - [x] `packages/platform/cli/tests/Integration/CoretsiaRepositoryWrapperIsCwdIndependentTest.php`
+    - [x] repo-root `coretsia` works when invoked outside the repository working directory
+    - [x] the wrapper derives its application root exclusively from its own repository-relative location
+    - [x] the packaged CLI selects the repository-root `vendor/autoload.php`
+    - [x] equivalent invocations from different working directories produce the same exit code and normalized output
+    - [x] no Skeleton source-directory root is substituted for the repository application root
+    - [x] no recursive application-root discovery is introduced
 
   - [x] `packages/platform/cli/tests/Integration/PreAutoloadFailureIsFixedAndPathSafeTest.php`
     - [x] missing Composer autoload produces exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable`
@@ -6529,10 +6533,6 @@ Docs:
     - [x] invalid configuration values and filesystem paths are not disclosed
     - [x] CliServiceFactory does not re-run validation
 
-  - [ ] `packages/platform/worker/tests/Integration/WorkerProviderSourceDefinitionsParityTest.php`
-    - [ ] remove `MODE` arguments and `mode` expected fields
-    - [ ] preserve source/definition metadata parity for the final six-key schema
-
   - [x] `packages/platform/cli/tests/Integration/CliConfigChangesAffectOutputPolicyTest.php`
     - [x] `cli.output.format_default` changes the effective format when no explicit global `--format` option is supplied
     - [x] `cli.output.adaptive.interactive` changes the effective format only when adaptive format is selected and stdout is interactive
@@ -6698,9 +6698,9 @@ Docs:
 - [x] formatter/redactor failure uses one non-recursive fixed fallback
 - [x] command output records and final stdout/stderr bytes have explicit immutable shapes
 - [x] built-in command metadata is complete and exact
-- [ ] generic external-package command tests use explicit fixture files
-- [ ] Worker compatibility tests use the composed Worker package fixture/application
-- [ ] Worker production code and Worker tests use the same six-key command metadata schema
+- [x] generic external-package command tests use explicit fixture files
+- [x] Worker compatibility tests use the composed Worker package fixture/application
+- [x] Worker production code and Worker tests use the same six-key command metadata schema
 - [x] built-in Kernel operation commands invoke `KernelOpsInterface` directly without a CLI-owned forwarding façade
 - [x] `KernelOpsRequestResolver` is a source-host-only input adapter and has no `CommandDescriptor` dependency
 - [x] `CommandOutputBuffer` is invocation-local and absent from container definitions
@@ -6713,12 +6713,12 @@ Docs:
 - [x] `platform.redaction` is enabled through the canonical `platform.cli` module dependency closure, without duplicate preset roots
 - [x] `coretsia/framework` directly requires the baseline Kernel and CLI packages
 - [x] `coretsia/platform-cli` declares the corresponding Composer and runtime module dependencies for Redaction
-- [ ] `composer create-project coretsia/skeleton` installs the baseline Composer graph without custom repository declarations or implicit dependency synchronization
-- [ ] the default `micro` preset resolves the intended Console ModulePlan from the installed baseline
+- [x] `composer create-project coretsia/skeleton` installs the baseline Composer graph without custom repository declarations or implicit dependency synchronization
+- [x] the default `micro` preset resolves the intended Console ModulePlan from the installed baseline
 - [x] additional mode-required packages remain subject to explicit DependencySync
-- [ ] canonical Kernel preset and consumer documentation examples match the new module sets
-- [ ] existing Kernel boot, preset schema, package planning, and consumer installation tests remain valid
-- [ ] the released baseline is independently installable from published Composer packages
+- [x] canonical Kernel preset and consumer documentation examples match the new module sets
+- [x] existing Kernel boot, preset schema, package planning, and consumer installation tests remain valid
+- [x] the released baseline is independently installable from published Composer packages
 
 ---
 

@@ -116,6 +116,35 @@ Stability enum is single-choice:
 | `kernel.stateful`             | `core/foundation` | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                                   |
 | `worker.task_source`          | `platform/worker` | Worker task-source discovery.               | `experimental` | Exact-one selection; metadata per `worker-task-sources.md`. |
 
+## `cli.command` Contract (MUST)
+
+`cli.command` is owned by `platform/cli`; `Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND` supplies only its canonical identifier.
+
+Enabled command-owner packages MAY contribute command services through this tag without a platform/cli dependency on the contributing package.
+
+- Every `cli.command` service id MUST be the exact, case-sensitive command-class FQCN. The class MUST exist, be concrete, implement `Coretsia\Contracts\Cli\Command\CommandInterface`, and be registered under that same class FQCN as its service id. Aliases and unrelated service ids are invalid.
+- Each command class MUST expose typed public constants `string NAME`, `string SUMMARY`, `string GROUP`, `bool HIDDEN`, `array ARGUMENTS`, and `array OPTIONS`. The owning provider MUST derive tag metadata from those constants; command identity MUST NOT be separately invented in the provider.
+- The tag metadata map MUST contain exactly the following six keys:
+
+```text
+name
+summary
+group
+hidden
+arguments
+options
+```
+
+- `name`, `summary`, and `group` are strings; `hidden` is a boolean; `arguments` and `options` are ordered lists of descriptor maps. Argument descriptors use exactly `name|summary|required|variadic`; option descriptors use exactly `name|summary|value|repeatable`. All entries MUST satisfy the owner-defined schema in `CommandTagSchema`.
+- Top-level tag metadata keys `priority` and `mode`, and every other unknown metadata key, are forbidden. `mode` as an owner-defined command option inside `options` is distinct from a top-level tag metadata key and MUST NOT affect Kernel preset selection.
+- Before any command service is resolved or instantiated, the catalog MUST validate the class FQCN, `CommandInterface` implementation, exact metadata schema, public typed command constants, and canonical equality of tag metadata with class constants. Class reflection/autoloading for validation does not authorize service resolution. Catalog-view overrides MAY change only `summary`, `group`, or `hidden` after base validation; they MUST NOT change command identity or original metadata.
+- `CommandInterface::name()` MUST match the descriptor's `name` when the selected command service is lazily resolved for dispatch. The normal catalog MUST NOT instantiate services for discovery, `list`, or `help`.
+- `TagRegistry::all(ReservedTags::CLI_COMMAND)` defines the canonical deterministic order: actual tag priority descending, then service id ascending under byte-order `strcmp`. The CLI consumer MUST preserve this output without re-sorting or re-deduplicating it.
+- All `cli.command` registrations MUST use actual `TaggedService::priority() === 0`. A non-zero actual priority MUST fail before descriptor construction, independently of metadata contents, and MUST NOT be normalized, ignored, or overwritten. The actual priority field is separate from the forbidden `priority` metadata key.
+- `TagRegistry` uses first-wins semantics for repeated registrations of the same `(tag, serviceId)`; later registrations are discarded and MUST NOT be reconstructed or revalidated by the CLI consumer. Two distinct service ids declaring the same command `name` MUST fail deterministically, not silently override one another.
+- `doctor`, `help`, and `list` are reserved command names. Only the exact built-in command service ids registered by `platform/cli` MAY use them; external packages MUST NOT claim these names. The normal catalog includes the same `doctor` identity used by the ultra-early doctor path.
+- Command-owner packages MUST consume CLI command, input, and output functionality only through `Coretsia\Contracts\Cli\Command\CommandInterface`, `Coretsia\Contracts\Cli\Input\InputInterface`, and `Coretsia\Contracts\Cli\Output\OutputInterface`. They MUST NOT depend on concrete `platform/cli` implementations for command contribution or execution.
+
 ## Forbidden Non-canonical Tags (MUST)
 
 The following non-canonical tags are forbidden and MUST NOT be introduced anywhere:

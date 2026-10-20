@@ -48,6 +48,8 @@ use Coretsia\Platform\Cli\Command\DebugModulesCommand;
 use Coretsia\Platform\Cli\Command\DoctorCommand;
 use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
 use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
@@ -62,6 +64,11 @@ use Coretsia\Platform\Cli\Output\Formatter\PlainFormatter;
 use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
+use Coretsia\Platform\Cli\Workflow\WorkflowCatalog;
+use Coretsia\Platform\Cli\Workflow\WorkflowRunner;
+use Coretsia\Platform\Cli\Workflow\WorkflowSchema;
+use Coretsia\Platform\Cli\Workflow\WorkflowStepInputFactory;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -125,6 +132,19 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             self::ref(CommandTagSchema::class),
             self::ref(CommandOverrides::class),
         ]);
+        $this->factory($definitions, WorkflowSchema::class, 'workflowSchema');
+        $this->factory($definitions, WorkflowCatalog::class, 'workflowCatalog', [
+            self::ref(ConfigRepositoryInterface::class),
+            self::ref(WorkflowSchema::class),
+            self::ref(CommandCatalog::class),
+        ]);
+        $this->factory($definitions, WorkflowStepInputFactory::class, 'workflowStepInputFactory');
+        $this->factory($definitions, WorkflowRunner::class, 'workflowRunner', [
+            self::ref(CommandCatalog::class),
+            self::ref(CommandInputValidator::class),
+            self::ref(CommandRunner::class),
+            self::ref(WorkflowStepInputFactory::class),
+        ]);
         $this->factory($definitions, CliOutputPolicy::class, 'cliOutputPolicy', [
             self::ref(ConfigRepositoryInterface::class),
         ]);
@@ -158,6 +178,7 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             self::ref(ContainerInterface::class),
             self::ref(Stopwatch::class),
         ]);
+        $this->factory($definitions, SmartSuggestor::class, 'smartSuggestor');
         $this->factory($definitions, CliErrorHandler::class, 'cliErrorHandler');
         $this->factory($definitions, ExceptionRenderer::class, 'exceptionRenderer');
         $this->factory($definitions, CliApplication::class, 'cliApplication', [
@@ -170,6 +191,7 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             self::ref(CliErrorHandler::class),
             self::ref(ExceptionRenderer::class),
             self::ref(OutputFormatter::class),
+            self::ref(SmartSuggestor::class),
         ]);
 
         $this->factory($definitions, DoctorCommand::class, 'doctorCommand');
@@ -179,8 +201,23 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
         $this->factory($definitions, ListCommand::class, 'listCommand', [
             self::ref(CommandCatalog::class),
         ]);
+        $this->factory($definitions, WorkflowListCommand::class, 'workflowListCommand', [
+            self::ref(WorkflowCatalog::class),
+        ]);
+        $this->factory($definitions, WorkflowRunCommand::class, 'workflowRunCommand', [
+            self::ref(WorkflowCatalog::class),
+            self::ref(WorkflowRunner::class),
+        ]);
 
-        foreach ([DoctorCommand::class, HelpCommand::class, ListCommand::class] as $commandClass) {
+        foreach (
+            [
+                DoctorCommand::class,
+                HelpCommand::class,
+                ListCommand::class,
+                WorkflowListCommand::class,
+                WorkflowRunCommand::class,
+            ] as $commandClass
+        ) {
             $definitions->tag(
                 ReservedTags::CLI_COMMAND,
                 $commandClass,
@@ -227,7 +264,7 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
     }
 
     /**
-     * @param class-string<CacheVerifyCommand|ConfigCompileCommand|ConfigDebugCommand|ConfigHashCommand|ConfigValidateCommand|DebugModulesCommand|DoctorCommand|HelpCommand|ListCommand> $class
+     * @param class-string<CacheVerifyCommand|ConfigCompileCommand|ConfigDebugCommand|ConfigHashCommand|ConfigValidateCommand|DebugModulesCommand|DoctorCommand|HelpCommand|ListCommand|WorkflowListCommand|WorkflowRunCommand> $class
      * @return array{name: string, summary: string, group: string, hidden: bool, arguments: list<array<string, mixed>>, options: list<array<string, mixed>>}
      */
     private static function commandMeta(string $class): array

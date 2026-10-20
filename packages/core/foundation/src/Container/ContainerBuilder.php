@@ -349,10 +349,21 @@ final class ContainerBuilder
     }
 
     /**
-     * Registers or replaces a factory definition.
+     * Registers or replaces an imperative source-runtime factory definition.
+     *
+     * This API is a runtime registration mechanism, not a canonical declarative
+     * production service-definition API.
+     *
+     * Canonical production runtime-graph services MUST be declared through
+     * ContainerDefinitionProviderInterface and its closure-free definition model.
+     * Runtime factories remain permitted for internal definition application,
+     * compiled-container hydration, compile-host wiring, and source-only services.
      *
      * The callable is wrapped into a Closure so runtime resolution never treats
      * callable strings as factories by accident.
+     *
+     * Runtime factory Closures MUST NOT enter canonical definition sets,
+     * descriptor streams, compiled graphs, or generated artifacts.
      *
      * @param callable(Container): mixed $factory
      */

@@ -256,6 +256,8 @@ The package provides a PSR-11-compatible container implementation.
 
 Foundation also owns the canonical declarative runtime-container definition model.
 
+Coretsia requires closure-free canonical container definitions, compiled dependency graphs, and generated container artifacts. Runtime factory closures are permitted as execution mechanisms for internal definition application, compiled-container hydration, compile-host wiring, and source-only services. These closures MUST NOT enter canonical definition sets, descriptor streams, compiled graphs, or generated artifacts. Services belonging to the canonical production runtime graph MUST be declared through declarative definition providers rather than independently maintained imperative registration graphs. `ContainerBuilder::factory()` remains a supported runtime registration mechanism, not an alternative source of canonical production dependency declarations.
+
 The core types are:
 
 ```text

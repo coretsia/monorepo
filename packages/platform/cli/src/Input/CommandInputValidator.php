@@ -32,6 +32,33 @@ use Coretsia\Platform\Cli\Exception\CliInputInvalidException;
  */
 final class CommandInputValidator
 {
+    public function normalizeAndValidate(CommandDescriptor $descriptor, ArgvInput $input): ArgvInput
+    {
+        $options = $input->options();
+
+        foreach ($descriptor->options() as $definition) {
+            if ($definition['repeatable'] !== true || $definition['value'] !== 'required') {
+                continue;
+            }
+
+            $name = $definition['name'];
+            if (\is_string($options[$name] ?? null)) {
+                $options[$name] = [$options[$name]];
+            }
+        }
+
+        $normalized = new ArgvInput(
+            tokens: $input->tokens(),
+            commandName: $input->commandName(),
+            arguments: $input->arguments(),
+            options: $options,
+        );
+
+        $this->validate($descriptor, $normalized);
+
+        return $normalized;
+    }
+
     public function validate(CommandDescriptor $descriptor, ArgvInput $input): void
     {
         $this->validateArguments($descriptor->arguments(), $input->arguments());

@@ -55,6 +55,15 @@ return [
         'overrides' => [],
     ],
     /*
+     * Configured CLI workflow definitions.
+     *
+     * Dynamic workflow-name keys and deep values are validated by
+     * WorkflowSchema after structural config validation.
+     */
+    'workflows' => [
+        'definitions' => [],
+    ],
+    /*
      * Default CLI output presentation policy.
      *
      * These values do not select the runtime module, probe the terminal, or
@@ -88,7 +97,7 @@ return [
              *
              * Allowed: json, table, plain.
              */
-            'non_interactive' => 'plain',
+            'non_interactive' => 'table',
         ],
 
         /*

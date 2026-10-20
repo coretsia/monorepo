@@ -26,6 +26,29 @@ use PHPUnit\Framework\TestCase;
 
 final class FormatResolverTest extends TestCase
 {
+    public function testPackagedAdaptiveDefaultsSelectTableForBothTerminalModes(): void
+    {
+        $defaults = require \dirname(__DIR__, 2) . '/config/cli.php';
+        $output = $defaults['output'];
+        $policy = new CliOutputPolicy(
+            $output['format_default'],
+            $output['adaptive']['interactive'],
+            $output['adaptive']['non_interactive'],
+            $output['color_default'],
+            $output['table']['max_width'],
+        );
+        $resolver = new FormatResolver($policy);
+        foreach ([true, false] as $interactive) {
+            foreach ([true, false] as $ansi) {
+                $capabilities = new TerminalCapabilities($interactive, $ansi);
+                self::assertSame('table', $resolver->resolve(null, $capabilities));
+                self::assertSame('table', $resolver->resolve('adaptive', $capabilities));
+                self::assertSame('json', $resolver->resolve('json', $capabilities));
+                self::assertSame('plain', $resolver->resolve('plain', $capabilities));
+            }
+        }
+    }
+
     public function testExplicitFormatOverridesDefaultAndAdaptiveSelectsByProvidedCapabilities(): void
     {
         $resolver = new FormatResolver(

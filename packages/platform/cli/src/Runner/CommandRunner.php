@@ -94,31 +94,48 @@ final readonly class CommandRunner
         }
 
         try {
-            $result = $this->runtime->runUnitOfWork(
-                UnitOfWorkType::CLI,
-                function () use ($descriptor, $input, $output, &$identifiers): int {
-                    $identifiers = $this->safeContextIdentifiers();
-                    $command = $this->container->get($descriptor->serviceId());
+            if ($descriptor->executionKind() === 'composite') {
+                $command = $this->container->get($descriptor->serviceId());
 
-                    if (
-                        !$command instanceof CommandInterface
-                        || \get_class($command) !== $descriptor->serviceId()
-                        || $command->name() !== $descriptor->name()
-                    ) {
-                        throw InvalidCommandTagMetaException::withReason(
-                            InvalidCommandTagMetaException::REASON_IDENTITY_MISMATCH,
-                        );
-                    }
+                if (
+                    !$command instanceof CompositeCommandInterface
+                    || $command instanceof CommandInterface
+                    || \get_class($command) !== $descriptor->serviceId()
+                    || $command->name() !== $descriptor->name()
+                ) {
+                    throw InvalidCommandTagMetaException::withReason(
+                        InvalidCommandTagMetaException::REASON_IDENTITY_MISMATCH,
+                    );
+                }
 
-                    $code = $command->run($input, $output);
-                    if ($code < 0 || $code > 255) {
-                        throw CliCommandFailedException::invalidExitCode();
-                    }
+                $result = $command->run($input, $output, $outputFormat);
+            } else {
+                $result = $this->runtime->runUnitOfWork(
+                    UnitOfWorkType::CLI,
+                    function () use ($descriptor, $input, $output, &$identifiers): int {
+                        $identifiers = $this->safeContextIdentifiers();
+                        $command = $this->container->get($descriptor->serviceId());
 
-                    return $code;
-                },
-                $attributes,
-            );
+                        if (
+                            !$command instanceof CommandInterface
+                            || \get_class($command) !== $descriptor->serviceId()
+                            || $command->name() !== $descriptor->name()
+                        ) {
+                            throw InvalidCommandTagMetaException::withReason(
+                                InvalidCommandTagMetaException::REASON_IDENTITY_MISMATCH,
+                            );
+                        }
+
+                        $code = $command->run($input, $output);
+                        if ($code < 0 || $code > 255) {
+                            throw CliCommandFailedException::invalidExitCode();
+                        }
+
+                        return $code;
+                    },
+                    $attributes,
+                );
+            }
 
             if (!\is_int($result) || $result < 0 || $result > 255) {
                 throw CliCommandFailedException::invalidExitCode();

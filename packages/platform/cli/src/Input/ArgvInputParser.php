@@ -135,17 +135,14 @@ final class ArgvInputParser
                     continue;
                 }
 
-                $previous = $options[$name];
-
-                if (!\is_string($value) || (!\is_string($previous) && !\is_array($previous))) {
+                if (!\is_string($value) || (!\is_string($options[$name]) && !\is_array($options[$name]))) {
                     throw CliInputInvalidException::withReason(CliInputInvalidException::REASON_OPTION_REPEATED);
                 }
 
-                if (\is_string($previous)) {
-                    $options[$name] = [$previous, $value];
+                if (\is_string($options[$name])) {
+                    $options[$name] = [$options[$name], $value];
                 } else {
-                    $previous[] = $value;
-                    $options[$name] = $previous;
+                    $options[$name][] = $value;
                 }
 
                 continue;

@@ -55,7 +55,8 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('', $output);
         self::assertIsArray($config);
         self::assertIsArray($rules);
-        self::assertSame(['commands', 'output'], \array_keys($config));
+        self::assertSame(['commands', 'workflows', 'output'], \array_keys($config));
+        self::assertSame(['definitions' => []], $config['workflows']);
         self::assertSame(['overrides' => []], $config['commands']);
         self::assertSame(
             ['format_default', 'adaptive', 'color_default', 'table'],
@@ -63,7 +64,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         );
         self::assertSame('adaptive', $config['output']['format_default']);
         self::assertSame(
-            ['interactive' => 'table', 'non_interactive' => 'plain'],
+            ['interactive' => 'table', 'non_interactive' => 'table'],
             $config['output']['adaptive'],
         );
         self::assertSame('auto', $config['output']['color_default']);
@@ -72,7 +73,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame(1, $rules['schemaVersion']);
         self::assertSame('cli', $rules['configRoot']);
         self::assertFalse($rules['additionalKeys']);
-        self::assertSame(['commands', 'output'], \array_keys($rules['keys']));
+        self::assertSame(['commands', 'workflows', 'output'], \array_keys($rules['keys']));
 
         $commandsRules = $rules['keys']['commands'];
         self::assertTrue($commandsRules['required']);
@@ -82,6 +83,15 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
         self::assertSame('map', $commandsRules['keys']['overrides']['type']);
         self::assertTrue($commandsRules['keys']['overrides']['required']);
         self::assertTrue($commandsRules['keys']['overrides']['additionalKeys']);
+
+        $workflowRules = $rules['keys']['workflows'];
+        self::assertTrue($workflowRules['required']);
+        self::assertSame('map', $workflowRules['type']);
+        self::assertFalse($workflowRules['additionalKeys']);
+        self::assertSame(['definitions'], \array_keys($workflowRules['keys']));
+        self::assertSame('map', $workflowRules['keys']['definitions']['type']);
+        self::assertTrue($workflowRules['keys']['definitions']['required']);
+        self::assertTrue($workflowRules['keys']['definitions']['additionalKeys']);
 
         $outputRules = $rules['keys']['output'];
         self::assertSame(

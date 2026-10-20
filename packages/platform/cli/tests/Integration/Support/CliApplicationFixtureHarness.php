@@ -41,6 +41,7 @@ use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
 
@@ -92,6 +93,7 @@ final class CliApplicationFixtureHarness
                 new TableFormatter($policy->tableMaxWidth(), $ansi),
                 new PlainFormatter($ansi),
             ),
+            new SmartSuggestor(),
         );
     }
 

@@ -22,7 +22,9 @@ use Coretsia\Contracts\Cli\Command\CommandInterface;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TaggedService;
+use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
 use Coretsia\Platform\Cli\Exception\InvalidCommandTagMetaException;
+use Coretsia\Platform\Cli\Runner\CompositeCommandInterface;
 
 /**
  * Validates the exact CLI command tag schema and static class-constant parity.
@@ -37,6 +39,13 @@ final class CommandTagSchema
 {
     private const string CLASS_PATTERN = '/\A[A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)+\z/';
     private const string TOKEN_PATTERN = '/\A[a-z][a-z0-9-]*\z/';
+
+    /**
+     * @var array<class-string, true>
+     */
+    private const array COMPOSITE_SERVICE_IDS = [
+        WorkflowRunCommand::class => true,
+    ];
 
     /**
      * @var list<string>
@@ -90,6 +99,11 @@ final class CommandTagSchema
         return CommandDescriptor::fromValidatedMetadata($tagged->id(), $tagged->meta());
     }
 
+    public static function isCompositeServiceId(string $serviceId): bool
+    {
+        return isset(self::COMPOSITE_SERVICE_IDS[$serviceId]);
+    }
+
     /**
      * Returns canonical static metadata after full tag and class validation.
      *
@@ -118,10 +132,19 @@ final class CommandTagSchema
             throw self::invalid(InvalidCommandTagMetaException::REASON_SERVICE_INVALID);
         }
 
+        $composite = self::isCompositeServiceId($id);
+
         if (
             $reflection->getName() !== $id
             || $reflection->isAbstract()
-            || !$reflection->implementsInterface(CommandInterface::class)
+            || ($composite && (
+                !$reflection->implementsInterface(CompositeCommandInterface::class)
+                    || $reflection->implementsInterface(CommandInterface::class)
+            ))
+            || (!$composite && (
+                !$reflection->implementsInterface(CommandInterface::class)
+                    || $reflection->implementsInterface(CompositeCommandInterface::class)
+            ))
         ) {
             throw self::invalid(InvalidCommandTagMetaException::REASON_SERVICE_INVALID);
         }

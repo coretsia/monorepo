@@ -26,6 +26,8 @@ use Coretsia\Platform\Cli\Exception\CliCommandFailedException;
 use Coretsia\Platform\Cli\Exception\CliConfigInvalidException;
 use Coretsia\Platform\Cli\Exception\CliInputInvalidException;
 use Coretsia\Platform\Cli\Exception\InvalidCommandTagMetaException;
+use Coretsia\Platform\Cli\Exception\WorkflowDefinitionInvalidException;
+use Coretsia\Platform\Cli\Exception\WorkflowNotFoundException;
 use Throwable;
 
 /**
@@ -43,6 +45,8 @@ final class CliErrorHandler implements ErrorHandlerInterface
             $throwable instanceof CliConfigInvalidException,
             $throwable instanceof InvalidCommandTagMetaException,
             $throwable instanceof CliCommandFailedException,
+            $throwable instanceof WorkflowDefinitionInvalidException,
+            $throwable instanceof WorkflowNotFoundException,
             $throwable instanceof KernelOpsFailedException => new ErrorDescriptor(
                 $throwable->errorCode(),
                 $throwable->reason(),

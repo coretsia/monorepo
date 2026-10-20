@@ -58,6 +58,7 @@ final readonly class CommandDescriptor
         private bool $hidden,
         private array $arguments,
         private array $options,
+        private string $executionKind,
     ) {
     }
 
@@ -93,6 +94,7 @@ final readonly class CommandDescriptor
             hidden: $metadata['hidden'],
             arguments: $metadata['arguments'],
             options: $metadata['options'],
+            executionKind: CommandTagSchema::isCompositeServiceId($serviceId) ? 'composite' : 'normal',
         );
     }
 
@@ -117,7 +119,14 @@ final readonly class CommandDescriptor
             hidden: $hidden,
             arguments: $this->arguments,
             options: $this->options,
+            executionKind: $this->executionKind,
         );
+    }
+
+    /** @return 'normal'|'composite' */
+    public function executionKind(): string
+    {
+        return $this->executionKind;
     }
 
     public function serviceId(): string

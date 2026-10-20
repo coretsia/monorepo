@@ -33,21 +33,28 @@ final class CliConfigRulesCoverAllDefaultsContractTest extends TestCase
         self::assertExactKeys($defaults, $rules['keys']);
         self::assertTrue($rules['keys']['commands']['keys']['overrides']['additionalKeys']);
         self::assertSame('map', $rules['keys']['commands']['keys']['overrides']['type']);
+        self::assertSame(['definitions'], \array_keys($rules['keys']['workflows']['keys']));
+        self::assertSame('map', $rules['keys']['workflows']['type']);
+        self::assertTrue($rules['keys']['workflows']['required']);
+        self::assertFalse($rules['keys']['workflows']['additionalKeys']);
+        self::assertSame('map', $rules['keys']['workflows']['keys']['definitions']['type']);
+        self::assertTrue($rules['keys']['workflows']['keys']['definitions']['required']);
+        self::assertTrue($rules['keys']['workflows']['keys']['definitions']['additionalKeys']);
         self::assertSame(
             ['adaptive', 'json', 'table', 'plain'],
-            $rules['keys']['output']['keys']['format_default']['allowedValues']
+            $rules['keys']['output']['keys']['format_default']['allowedValues'],
         );
         self::assertSame(
             ['json', 'table', 'plain'],
-            $rules['keys']['output']['keys']['adaptive']['keys']['interactive']['allowedValues']
+            $rules['keys']['output']['keys']['adaptive']['keys']['interactive']['allowedValues'],
         );
         self::assertSame(
             ['json', 'table', 'plain'],
-            $rules['keys']['output']['keys']['adaptive']['keys']['non_interactive']['allowedValues']
+            $rules['keys']['output']['keys']['adaptive']['keys']['non_interactive']['allowedValues'],
         );
         self::assertSame(
             ['auto', 'always', 'never'],
-            $rules['keys']['output']['keys']['color_default']['allowedValues']
+            $rules['keys']['output']['keys']['color_default']['allowedValues'],
         );
         self::assertSame(40, $rules['keys']['output']['keys']['table']['keys']['max_width']['min']);
         self::assertSame(240, $rules['keys']['output']['keys']['table']['keys']['max_width']['max']);
@@ -64,6 +71,7 @@ final class CliConfigRulesCoverAllDefaultsContractTest extends TestCase
             [
                 [],
                 ['commands'],
+                ['workflows'],
                 ['output'],
                 ['output', 'adaptive'],
                 ['output', 'table'],
@@ -84,6 +92,33 @@ final class CliConfigRulesCoverAllDefaultsContractTest extends TestCase
         }
         $defaults['commands']['overrides']['owner:command'] = ['summary' => 'Catalog view'];
         self::assertTrue(new ConfigValidator()->validate(['cli' => $defaults], [$ruleset])->isSuccess());
+
+        $defaults['workflows']['definitions']['verify'] = [
+            'unexpected' => 'PRIVATE_WORKFLOW_PAYLOAD',
+        ];
+        // ConfigValidator checks the dynamic map boundary, not WorkflowSchema deep structure.
+        $dynamic = new ConfigValidator()->validate(['cli' => $defaults], [$ruleset]);
+        self::assertTrue($dynamic->isSuccess());
+        self::assertSame([], $dynamic->violations());
+
+        foreach ([[], ['definitions' => [], 'unexpected' => 'PRIVATE_PAYLOAD']] as $invalidWorkflows) {
+            $modified = $defaults;
+            $modified['workflows'] = $invalidWorkflows;
+            $result = new ConfigValidator()->validate(['cli' => $modified], [$ruleset]);
+            self::assertTrue($result->isFailure());
+            self::assertNotEmpty($result->violations());
+            foreach ($result->violations() as $violation) {
+                self::assertStringNotContainsString('PRIVATE_PAYLOAD', $violation->reason());
+            }
+        }
+
+        $modified = $defaults;
+        $modified['workflows']['definitions'] = 'PRIVATE_PAYLOAD';
+        $result = new ConfigValidator()->validate(['cli' => $modified], [$ruleset]);
+        self::assertTrue($result->isFailure());
+        foreach ($result->violations() as $violation) {
+            self::assertStringNotContainsString('PRIVATE_PAYLOAD', $violation->reason());
+        }
     }
 
     /** @param array<string, mixed> $defaults @param array<string, mixed> $rules */

@@ -33,6 +33,8 @@ use Coretsia\Platform\Cli\Catalog\CommandTagSchema;
 use Coretsia\Platform\Cli\Command\DoctorCommand;
 use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
 use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Exception\CliConfigInvalidException;
@@ -47,6 +49,11 @@ use Coretsia\Platform\Cli\Output\Formatter\PlainFormatter;
 use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
+use Coretsia\Platform\Cli\Workflow\WorkflowCatalog;
+use Coretsia\Platform\Cli\Workflow\WorkflowRunner;
+use Coretsia\Platform\Cli\Workflow\WorkflowSchema;
+use Coretsia\Platform\Cli\Workflow\WorkflowStepInputFactory;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -100,6 +107,37 @@ final class CliServiceFactory
                 ListCommand::NAME => ListCommand::class,
             ],
         );
+    }
+
+    public static function workflowSchema(): WorkflowSchema
+    {
+        return new WorkflowSchema();
+    }
+
+    public static function workflowCatalog(
+        ConfigRepositoryInterface $config,
+        WorkflowSchema $schema,
+        CommandCatalog $commands,
+    ): WorkflowCatalog {
+        $root = self::cliConfigRoot($config);
+        $workflows = self::map($root['workflows'] ?? null);
+        $definitions = self::map($workflows['definitions'] ?? null);
+
+        return new WorkflowCatalog($schema->normalize($definitions), $commands);
+    }
+
+    public static function workflowStepInputFactory(): WorkflowStepInputFactory
+    {
+        return new WorkflowStepInputFactory();
+    }
+
+    public static function workflowRunner(
+        CommandCatalog $commands,
+        CommandInputValidator $validator,
+        CommandRunner $runner,
+        WorkflowStepInputFactory $inputs,
+    ): WorkflowRunner {
+        return new WorkflowRunner($commands, $validator, $runner, $inputs);
     }
 
     public static function cliOutputPolicy(ConfigRepositoryInterface $config): CliOutputPolicy
@@ -193,6 +231,11 @@ final class CliServiceFactory
         );
     }
 
+    public static function smartSuggestor(): SmartSuggestor
+    {
+        return new SmartSuggestor();
+    }
+
     public static function cliErrorHandler(): CliErrorHandler
     {
         return new CliErrorHandler();
@@ -213,6 +256,7 @@ final class CliServiceFactory
         CliErrorHandler $errors,
         ExceptionRenderer $exceptions,
         OutputFormatter $output,
+        SmartSuggestor $suggestions,
     ): CliApplication {
         return new CliApplication(
             $parser,
@@ -224,6 +268,7 @@ final class CliServiceFactory
             $errors,
             $exceptions,
             $output,
+            $suggestions,
         );
     }
 
@@ -240,6 +285,18 @@ final class CliServiceFactory
     public static function listCommand(CommandCatalog $catalog): ListCommand
     {
         return new ListCommand($catalog);
+    }
+
+    public static function workflowListCommand(WorkflowCatalog $catalog): WorkflowListCommand
+    {
+        return new WorkflowListCommand($catalog);
+    }
+
+    public static function workflowRunCommand(
+        WorkflowCatalog $catalog,
+        WorkflowRunner $runner,
+    ): WorkflowRunCommand {
+        return new WorkflowRunCommand($catalog, $runner);
     }
 
     /** @return array<string, mixed> */

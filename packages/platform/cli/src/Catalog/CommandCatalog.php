@@ -118,6 +118,11 @@ final readonly class CommandCatalog
         return $this->descriptors;
     }
 
+    public function find(string $name): ?CommandDescriptor
+    {
+        return $this->descriptors[$name] ?? null;
+    }
+
     public function require(string $name): CommandDescriptor
     {
         return $this->descriptors[$name] ?? throw CliInputInvalidException::withReason(

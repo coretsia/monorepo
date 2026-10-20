@@ -28,9 +28,9 @@ use Coretsia\Platform\Cli\Tests\Integration\Support\CliDispatchIntegrationFixtur
 use Coretsia\Platform\Cli\Tests\Integration\Support\CliIntegrationTestCase;
 use Coretsia\Platform\Cli\Tests\Integration\Support\RecordingOwnerCommand;
 
-final class NonInteractiveAdaptiveOutputUsesPlainFormatTest extends CliIntegrationTestCase
+final class NonInteractiveAdaptiveOutputUsesTableFormatTest extends CliIntegrationTestCase
 {
-    public function testBaselineNoninteractiveAdaptiveUsesPlainAndNeverPassesResolvedFormatToOwner(): void
+    public function testBaselineNoninteractiveAdaptiveUsesTableAndPreservesExplicitJson(): void
     {
         $root = self::consumer();
         try {
@@ -38,17 +38,23 @@ final class NonInteractiveAdaptiveOutputUsesPlainFormatTest extends CliIntegrati
             $config = $host->get(ConfigRepositoryInterface::class);
             $policy = $host->get(CliOutputPolicy::class);
             self::assertSame('adaptive', $config->get('cli')['output']['format_default']);
-            self::assertSame('plain', $config->get('cli')['output']['adaptive']['non_interactive']);
+            self::assertSame('table', $config->get('cli')['output']['adaptive']['non_interactive']);
             self::assertSame(
-                'plain',
+                'table',
                 new FormatResolver($policy)->resolve(null, new TerminalCapabilities(false, false)),
             );
-            $plain = self::execute($root . '/vendor/bin/coretsia', ['list']);
-            self::assertSame(0, $plain['exit'], $plain['stderr']);
-            self::assertStringNotContainsString('coretsia.cli-output@1', $plain['stdout']);
-            self::assertStringNotContainsString("\x1B", $plain['stdout']);
+            $table = self::execute($root . '/vendor/bin/coretsia', ['list']);
+            self::assertSame(0, $table['exit'], $table['stderr']);
+            self::assertSame('', $table['stderr']);
+            self::assertStringContainsString('+---', $table['stdout']);
+            self::assertStringContainsString('| ', $table['stdout']);
+            self::assertStringNotContainsString('coretsia.cli-output@1', $table['stdout']);
+            self::assertStringNotContainsString("\x1B", $table['stdout']);
+            self::assertSame($table, self::execute($root . '/vendor/bin/coretsia', ['list']));
             $json = self::execute($root . '/vendor/bin/coretsia', ['list', '--format=json']);
             self::assertSame(0, $json['exit'], $json['stderr']);
+            self::assertSame('', $json['stderr']);
+            self::assertStringNotContainsString("\x1B", $json['stdout']);
             self::jsonRecord(\rtrim($json['stdout'], "\n"));
         } finally {
             self::removeTree($root);

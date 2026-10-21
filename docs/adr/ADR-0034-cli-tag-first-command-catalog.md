@@ -28,18 +28,28 @@ Normal command dispatch requires a deterministic catalog that can render `list` 
 
 Command output is another trust boundary. Every command producer owns the safety of the values it emits; a shared redactor provides defense in depth, not permission to disclose arbitrary source data. The CLI must render bounded, normalized output deterministically across supported formats and must never expose raw bootstrap or execution diagnostics.
 
-The canonical flow is:
+The canonical source-host dispatch flow is:
 
 ```text
 coretsia
     -> Console source operations host
     -> Foundation TagRegistry (`cli.command`)
-    -> CommandCatalog and CommandDescriptor
-    -> descriptor-driven input validation
-    -> one Kernel CLI UnitOfWork
-    -> lazy command service resolution and execution
-    -> invocation-local CommandOutputBuffer
-    -> shared redaction and deterministic formatter
+    -> CommandCatalog
+    -> CliApplication and invocation-local parent CommandOutputBuffer
+    -> parse argv, select CommandDescriptor, and validate input
+    -> CommandRunner
+       -> normal command: one Kernel CLI UnitOfWork
+          -> lazy normal command service resolution and execution
+       -> workflow:run: no outer Kernel CLI UnitOfWork
+          -> lazy composite command service resolution
+          -> validated WorkflowCatalog and sequential normal steps
+          -> for each executed step:
+             -> shared step-input validation
+             -> fresh child CommandOutputBuffer
+             -> CommandRunner and one Kernel CLI UnitOfWork
+             -> lazy normal command service resolution and execution
+          -> one aggregated parent workflow result record
+    -> one shared redaction and deterministic formatting pass
     -> ConsoleOutputWriter
 ```
 
@@ -47,7 +57,7 @@ The exact `doctor` invocation has a separate dependency-free ultra-early path. T
 
 ## Decision
 
-### Decision 1: Discover normal commands only through the canonical `cli.command` tag
+### Decision 1: Discover commands only through the canonical `cli.command` tag
 
 `platform/cli` owns the command catalog and the Coretsia-reserved discovery tag:
 
@@ -58,7 +68,7 @@ cli.command
 
 Enabled command-owner packages register their own command services and contribute their own `cli.command` tags through their selected providers. `CommandCatalog` consumes `TagRegistry::all(ReservedTags::CLI_COMMAND)` in its existing deterministic order. Foundation owns first-wins behavior for repeated `(tag, serviceId)` registrations; the CLI neither sorts nor de-duplicates the returned entries.
 
-Each tagged service id is the exact command class FQCN. That class must exist, implement `Coretsia\Contracts\Cli\Command\CommandInterface`, and provide the static metadata contract. Catalog construction reads the class metadata without resolving or instantiating the command service. `list` and `help` use descriptors alone.
+Each tagged service id is the exact command class FQCN. Every normal and external command class must exist, implement `Coretsia\Contracts\Cli\Command\CommandInterface`, and provide the static metadata contract. The sole platform-owned exception is the exact built-in `Coretsia\Platform\Cli\Command\WorkflowRunCommand` service id, which implements the internal `Coretsia\Platform\Cli\Runner\CompositeCommandInterface` instead of `CommandInterface`. No external command-owner package may implement or use this composite-command exception. Catalog construction reads class metadata without resolving or instantiating command services. `list` and `help` use descriptors alone.
 
 Each tag has actual priority `0`. A tag with non-zero priority, an invalid service id, duplicate command name, or invalid metadata fails catalog construction deterministically. Command routing does not use priority, filesystem scans, or owner-specific discovery paths.
 
@@ -133,7 +143,7 @@ The normal CLI entrypoint boots the canonical Console source operations host thr
 
 External commands are not routed through `KernelOpsInterface` by default. Their packages own execution semantics and may invoke a Kernel public port explicitly when their domain requires a Kernel-owned operation. `platform/cli` has no production compile-time dependency on an external command-owner package.
 
-### Decision 5: Resolve selected commands lazily within one Kernel UnitOfWork
+### Decision 5: Resolve normal commands lazily within one Kernel UnitOfWork
 
 Normal invocation flow is:
 
@@ -148,6 +158,10 @@ parse argv and separate global format|color
 ```
 
 The command may return an owner-selected portable exit code from `0` through `255`. The CLI preserves valid external-command exit codes. Observability uses the canonical context, tracing, metrics, and logging ports with bounded, safe fields; observability failures do not change the command outcome.
+
+The sole platform-owned exception to the normal one-UoW-per-command execution rule is the built-in `workflow:run` command, as specified in ADR-0035. It is resolved lazily through `CommandRunner` as a `CompositeCommandInterface` service and executes without an outer Kernel CLI UnitOfWork. Its validated workflow steps are dispatched sequentially through the same `CommandRunner`; every executed normal step receives exactly one independent Kernel CLI UnitOfWork. Nested workflows and composite steps are forbidden. `workflow:list`, `list`, `help`, built-in Kernel operations, and all external normal commands follow the one-UoW execution contract.
+
+The descriptor's internal `normal|composite` execution kind is derived exclusively from the validated built-in service identity. Composite capability is not tag metadata and is not a cross-package extension point. `WorkflowRunner` coordinates ordered, fail-fast step execution without duplicating command dispatch, Kernel lifecycle orchestration, or command lifecycle observability. Kernel remains the sole owner of UnitOfWork hooks, context, reset, and Kernel operations.
 
 ### Decision 6: Buffer once, redact once, and render deterministically
 
@@ -164,6 +178,10 @@ The deterministic presentation contract is:
 - `ConsoleOutputWriter`: the sole final stdout/stderr sink and owner of one trailing LF for each non-empty stream payload.
 
 CLI-global `--format` and `--color` options are separated from command-facing input. Effective output state is invocation-local; command services and formatters do not probe terminal streams.
+
+The default adaptive non-interactive presentation is `table`. The existing generic `TableFormatter` renders nested JSON-like maps and lists as readable structured sections instead of embedding serialized collections inside table cells. Completed workflow results use the same parent output buffer, mandatory shared redaction pass, formatter selection, and final writer as normal commands. No workflow-specific renderer, redactor, or output pipeline is introduced.
+
+Explicit `--format=json` preserves the canonical `coretsia.cli-output@1` envelope and stable Foundation JSON encoding without changing the existing machine-readable schema. Terminal capability detection determines adaptive format selection and ANSI safety; it does not introduce another presentation pipeline. The exact ultra-early `doctor` invocation continues to use its existing dependency-free path with fixed human-readable diagnostics.
 
 ### Decision 7: Make output safe by construction before shared redaction
 
@@ -247,3 +265,4 @@ This decision does not define command-owner domain behavior, introduce additiona
 - `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
 - `docs/adr/ADR-0033-application-dependency-sync-installation-intent.md`
+- `docs/adr/ADR-0035-cli-composite-workflows.md`

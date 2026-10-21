@@ -16,9 +16,9 @@
 
 `platform/cli` is the Kernel-integrated, tag-first command runtime and canonical command-line interface for the Coretsia Framework.
 
-It discovers commands from enabled package providers through the Foundation `cli.command` tag, dispatches a selected command within the Kernel UnitOfWork lifecycle, exposes Kernel-owned operations through the contracts-level Ops port, and renders deterministic, safe output with mandatory shared redaction.
+It discovers commands from enabled package providers through the Foundation `cli.command` tag, dispatches normal commands within the Kernel UnitOfWork lifecycle, supports deterministic configuration-defined workflows through one platform-owned composite-command exception, exposes Kernel-owned operations through the contracts-level Ops port, and renders deterministic, safe output with mandatory shared redaction.
 
-Scope: canonical CLI invocation, source operations-host bootstrap, tag-backed command catalog, descriptor-driven input validation, lazy command dispatch, built-in commands, Kernel Ops transport, invocation-local output buffering, deterministic JSON/table/plain formatting, terminal color policy, CLI execution observability, and safe failure reporting.
+Scope: canonical CLI invocation, source operations-host bootstrap, tag-backed command catalog, descriptor-driven input validation, lazy command dispatch, built-in commands, configuration-defined sequential workflows, deterministic unknown-command suggestions, Kernel Ops transport, invocation-local output buffering, deterministic JSON/table/plain formatting, readable nested tables, terminal color policy, CLI execution observability, and safe failure reporting.
 
 Out of scope: application module selection or dependency synchronization, Kernel configuration loading and compilation, Kernel artifact inspection, owner-package domain validation, owner-package command implementations, Kernel lifecycle hooks or reset orchestration, redaction engine implementation, observability exporters, and repository tooling.
 
@@ -73,8 +73,10 @@ The `coretsia/framework` baseline explicitly installs Kernel and CLI; Redaction 
 - immutable `CommandCatalog` descriptors derived from Foundation `TagRegistry` output;
 - command metadata, catalog-view overrides, and structural argument/option validation;
 - invocation-local `ArgvInput`, output buffer, and terminal capabilities;
-- lazy selected-command resolution by `CommandRunner` within exactly one Kernel CLI UnitOfWork;
-- built-in `doctor`, `list`, and `help` commands;
+- lazy selected-command resolution through `CommandRunner`, with exactly one Kernel CLI UnitOfWork per normal command;
+- deterministic configuration-defined workflows with one Kernel CLI UnitOfWork per executed step and no outer workflow UnitOfWork;
+- built-in `doctor`, `list`, `help`, `workflow:list`, and `workflow:run` commands;
+- bounded unknown-command suggestions derived from the final visible command catalog;
 - `debug:modules`, `config:validate`, `config:debug`, `config:compile`, `config:hash`, and `cache:verify` through `KernelOpsInterface`;
 - safe, deterministic JSON, table, and plain output through one final console writer;
 - CLI-owned tracing, metrics, safe completion logs, and fixed error diagnostics.
@@ -126,9 +128,9 @@ The Skeleton wrapper emits `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable`
 
 ## Boot paths and Kernel operations
 
-The exact `coretsia doctor` invocation uses `UltraEarlyDoctorRunner` and the same `DoctorCommand` class advertised in the normal catalog. It performs bounded, allowlisted diagnostics without constructing the Kernel host, catalog, generated-artifact runtime, UnitOfWork, or shared Redaction service. Its output is fixed plain text with ANSI disabled.
+The exact `coretsia doctor` invocation is the only pre-host command path. It uses `UltraEarlyDoctorRunner` and the same `DoctorCommand` class advertised in the normal catalog. It performs bounded, allowlisted diagnostics without constructing the Kernel host, catalog, generated-artifact runtime, UnitOfWork, or shared Redaction service. The existing five boolean diagnostic values (`cli_sapi`, `json_available`, `pcre_available`, `php_supported`, and `ready`) are projected into fixed human-readable capability lines displaying `OK` or `FAIL` and a final `READY` or `NOT READY` status. Output uses the existing `PlainFormatter` and `ConsoleOutputWriter`, with ANSI disabled. Additional arguments and options are rejected through the existing fixed error boundary.
 
-Every other normal invocation follows:
+Every invocation other than the exact ultra-early `doctor` path uses the normal Console source host. Normal commands enter one Kernel CLI UnitOfWork; the sole built-in composite `workflow:run` command executes without an outer UnitOfWork and delegates every normal workflow step to its own UnitOfWork. The shared bootstrap and dispatch flow is:
 
 ```text
 bin/coretsia
@@ -138,12 +140,21 @@ bin/coretsia
     -> KernelOpsHostBooter
     -> validated Console source operations container
     -> Console ModulePlan verification
-    -> CliApplication
-    -> parse and validate input
-    -> CommandCatalog descriptor
-    -> CommandRunner / Kernel CLI UnitOfWork
-    -> lazy selected-command service resolution and execution
-    -> buffered output, shared redaction, deterministic formatting
+    -> CliApplication with invocation-local parent CommandOutputBuffer
+    -> parse input and select CommandCatalog descriptor
+    -> shared command-input validation
+    -> CommandRunner
+       -> normal command: one Kernel CLI UnitOfWork
+          -> lazy normal command service resolution and execution
+       -> workflow:run: no outer Kernel CLI UnitOfWork
+          -> lazy composite command service resolution
+          -> validated WorkflowCatalog and sequential normal steps
+          -> for each executed step: shared input validation
+             -> fresh child output buffer
+             -> CommandRunner and one Kernel CLI UnitOfWork
+             -> lazy normal command service resolution and execution
+          -> one aggregated parent workflow result record
+    -> one shared redaction and deterministic formatting pass
     -> ConsoleOutputWriter
 ```
 
@@ -170,7 +181,7 @@ The Kernel owns module resolution, compilation, hashes, generation publication, 
 
 `cli.command` is the sole normal container-backed command discovery tag. Foundation `ReservedTags::CLI_COMMAND` supplies the tag identifier; `platform/cli` owns its command metadata and dispatch semantics.
 
-Each tagged service id MUST equal the exact command-class FQCN. The class must be concrete, implement `Coretsia\Contracts\Cli\Command\CommandInterface`, and declare the following typed public constants:
+Each tagged service id MUST equal the exact command-class FQCN. The class must be concrete and declare the following typed public constants. Every normal or externally contributed command MUST implement `Coretsia\Contracts\Cli\Command\CommandInterface`. The sole exception is the built-in `Coretsia\Platform\Cli\Command\WorkflowRunCommand`, which implements the internal `Coretsia\Platform\Cli\Runner\CompositeCommandInterface` instead. External command-owner packages cannot use this exception:
 
 ```text
 string NAME
@@ -180,6 +191,8 @@ bool   HIDDEN
 array  ARGUMENTS
 array  OPTIONS
 ```
+
+The internal execution kind (`normal|composite`) is derived from validated service identity and is not a seventh metadata field. The built-in composite command uses the same six-key metadata schema and validation policy as normal tagged commands.
 
 The tag metadata must have exactly these six keys, with values derived from the corresponding class constants:
 
@@ -197,6 +210,8 @@ Argument descriptors use exactly `name`, `summary`, `required`, and `variadic`; 
 `CommandTagSchema` validates exact identity, class constants, schema and constant-to-metadata equality by class reflection without resolving or instantiating command services. `CommandCatalog` retains the deterministic output of `TagRegistry::all(ReservedTags::CLI_COMMAND)`: priority descending, then service id in `strcmp` order; CLI neither re-sorts nor re-deduplicates it. TagRegistry keeps the first registration of each `(tag, serviceId)`. Distinct service ids claiming the same command name fail deterministically.
 
 The names `doctor`, `help`, and `list` are reserved for their exact built-in service identities. `list` and `help` render catalog descriptors without resolving every command service. The selected service is resolved only during dispatch; its runtime type, exact class identity, and `name()` must agree with its descriptor.
+
+Unknown syntactically valid command names may receive deterministic suggestions generated by `SmartSuggestor` from the final visible `CommandCatalog` after validated presentation overrides. Hidden commands are excluded. Suggestions use bounded lowercase ASCII Levenshtein comparison, are ordered by distance and final catalog order for ties, and contain at most three visible command names. The accepted maximum distance is `2` for unknown tokens of `1..8` bytes and `3` for `9..128` bytes. Invalid or out-of-bounds tokens produce no suggestions. Suggestions do not resolve command services or search workflows, filesystem paths, options, or service ids. The original unknown-command error code and reason remain unchanged, and any suggestion record uses the existing final formatter and redactor.
 
 ## Providing commands from another package
 
@@ -248,11 +263,14 @@ return [
     'commands' => [
         'overrides' => [],
     ],
+    'workflows' => [
+        'definitions' => [],
+    ],
     'output' => [
         'format_default' => 'adaptive',
         'adaptive' => [
             'interactive' => 'table',
-            'non_interactive' => 'plain',
+            'non_interactive' => 'table',
         ],
         'color_default' => 'auto',
         'table' => [
@@ -262,11 +280,12 @@ return [
 ];
 ```
 
-Kernel's canonical config pipeline loads, merges, and validates the global `cli.*` subtree. `config/rules.php` defines the strict schema: unknown structural keys are rejected; only `cli.commands.overrides` permits dynamic command-name keys, subsequently validated by `CommandOverrides`. CLI does not read application PHP config files or construct a separate config merge pipeline.
+Kernel's canonical config pipeline loads, merges, and validates the global `cli.*` subtree. `config/rules.php` defines the strict schema: unknown structural keys are rejected. Dynamic map keys are permitted only under `cli.commands.overrides` and `cli.workflows.definitions`. Command overrides are subsequently validated by `CommandOverrides`; workflow definitions are deeply validated by `WorkflowSchema` when the lazy `WorkflowCatalog` is resolved. CLI does not read application PHP config files or construct a separate config merge pipeline.
 
 The configuration consumers are:
 
 - `CliServiceFactory::commandCatalog()` reads `cli.commands.overrides` and passes it to `CommandOverrides`. Each existing command may override only catalog-view `summary`, `hidden`, or `group`; command name, arguments, options, service id, and original tag metadata remain unchanged.
+- `CliServiceFactory::workflowCatalog()` reads validated `cli.workflows.definitions`, normalizes the complete definitions map through `WorkflowSchema`, and constructs the lazy `WorkflowCatalog` using the final `CommandCatalog`. It performs no filesystem scanning or command service resolution.
 - `CliServiceFactory::cliOutputPolicy()` constructs immutable `CliOutputPolicy` from `cli.output.*`; `FormatResolver` and `ColorResolver` combine it with invocation-local CLI-global options and terminal capabilities.
 - `TableFormatter` uses `cli.output.table.max_width` (integer `40..240` display columns); table width is independent of the actual terminal width.
 
@@ -274,9 +293,61 @@ Valid `cli.output.format_default` values are `adaptive|json|table|plain`. The ad
 
 The explicit CLI-global `--format=<adaptive|json|table|plain>` and `--color=<auto|always|never>` options take precedence over their respective configured defaults. They are parsed only before the `--` end-of-options marker and are removed from the command-facing input. Repeated or malformed global options fail deterministically. Tokens after `--` remain positional arguments, even if they look like global options.
 
-`adaptive` chooses `cli.output.adaptive.interactive` when stdout is interactive, otherwise `cli.output.adaptive.non_interactive`. Terminal capabilities are detected once at the normal entrypoint boundary, not by commands or formatters.
+`adaptive` chooses `cli.output.adaptive.interactive` when stdout is interactive, otherwise `cli.output.adaptive.non_interactive`. The packaged default is `table` for both interactive and non-interactive output. Machine consumers must explicitly request `--format=json`. `TerminalCapabilitiesDetector` detects terminal capabilities once at the normal entrypoint boundary to support adaptive policy selection and ANSI safety; terminal detection does not select a separate formatter implementation or introduce another output pipeline.
 
 There are no configurable switches for redaction, UnitOfWork, reset, observability, executable aliases, color palettes, or arbitrary ANSI codes. CLI configuration does not select the application target or effective Kernel preset.
+
+## Configured workflows
+
+Workflows are declared exclusively under the validated `cli.workflows.definitions` configuration subtree. The packaged default is an empty definitions map. Workflow definitions are not discovered from the current working directory, filesystem paths, globs, templates, environment variables, or command-owner packages.
+
+A consumer application may provide the following `workflows` subtree within its merged `cli` configuration:
+
+```php
+'workflows' => [
+    'definitions' => [
+        'verify' => [
+            'summary' => 'Validate and verify the web target.',
+            'steps' => [
+                [
+                    'command' => 'config:validate',
+                    'arguments' => [],
+                    'options' => [
+                        'target' => 'web',
+                    ],
+                ],
+                [
+                    'command' => 'cache:verify',
+                    'arguments' => [],
+                    'options' => [
+                        'target' => 'web',
+                    ],
+                ],
+            ],
+        ],
+    ],
+],
+```
+
+Every workflow definition has exactly `summary` and `steps`. Every step has exactly `command`, `arguments`, and `options`. Arguments are ordered string lists; command-owned options use validated strings, bare `true` flags, or ordered lists of repeated string values. Different steps may specify different explicit application targets. The shared `CommandInputValidator` remains responsible for descriptor-dependent argument, option, and repeatability validation.
+
+The built-in workflow commands are:
+
+```bash
+php coretsia workflow:list
+php coretsia workflow:run verify
+php coretsia workflow:run verify --format=json
+```
+
+`workflow:list` displays configured workflow names and summaries. `workflow:run` requires exactly one positional workflow name and declares no command-owned options. In particular, it does not accept `--mode`, `--preset`, or a top-level inherited `--target`. Kernel operation steps carry their own explicit `target` in their validated definitions. Global `--format` and `--color` retain their existing CLI-global semantics.
+
+`WorkflowCatalog` validates all configured workflow definitions and referenced command identities before executing the first step. The catalog is resolved lazily only for workflow commands; deep-invalid but structurally Kernel-loadable definitions do not block unrelated normal command discovery or dispatch.
+
+`WorkflowRunner` executes the declared normal command steps sequentially through the existing `CommandRunner`. Each dispatched step receives exactly one independent Kernel CLI UnitOfWork, its own normalized input, and a fresh child output buffer. There is no outer workflow UnitOfWork, and nested workflows or composite steps are forbidden.
+
+Execution is fail-fast. The first non-zero step exit code stops subsequent execution and is returned with the completed failing step and its records. A thrown exception or step-input validation failure produces no completed workflow result and no partial child output. Workflow execution is not transactional: side effects from previously completed steps are not rolled back.
+
+Completed workflow results are aggregated into one top-level JSON-like record, pass through the existing parent output limits, and receive one mandatory shared redaction and formatting pass. Child records are neither separately rendered nor persisted. CLI workflow replay, recording, playback, output transcript storage, and retention capabilities are not provided.
 
 ## Output and determinism
 
@@ -303,6 +374,10 @@ The output contract enforces:
 
 Formatters receive normalized, redacted records rather than raw command payloads. The JSON envelope itself is constructed from safe, fixed CLI-owned fields after record redaction. A formatting or redaction failure discards unsafe output and produces a single fixed safe fallback; it never retries rendering through a less restrictive pipeline.
 
+The generic `TableFormatter` presents nested JSON-like maps and lists as readable structured sections, including indexed lists and ordered workflow child records. Nested collections are not embedded as serialized JSON inside table cells. The formatter preserves canonical map ordering, original list ordering, and the existing deterministic width and ANSI rules. No Kernel Ops-specific or workflow-specific table renderer is introduced.
+
+Explicit `--format=json` preserves the existing `coretsia.cli-output@1` envelope and canonical JSON encoding. Improved human-readable presentation does not alter the machine-readable output schema. For completed workflows, child JSON records expose their normalized content under `data` instead of the internal structural `payload` key, allowing the existing shared redactor to inspect sensitive nested values without redacting an entire child record solely because of its envelope key.
+
 ## Colors
 
 Color policy accepts exactly `auto`, `always`, or `never`, through `cli.output.color_default` and the CLI-global `--color` override.
@@ -326,7 +401,9 @@ Only formatter-owned semantic roles can generate escape sequences. Command outpu
 
 ## Context and UnitOfWork
 
-`CommandRunner` executes each selected normal command inside exactly one `KernelRuntimeInterface::runUnitOfWork(UnitOfWorkType::CLI, ...)`. The command service is resolved and invoked inside that callback, not while constructing the catalog. `list` and `help` are normal commands under this lifecycle; the exact ultra-early `doctor` path does not enter a UnitOfWork.
+`CommandRunner` executes every selected normal command inside exactly one `KernelRuntimeInterface::runUnitOfWork(UnitOfWorkType::CLI, ...)`. The normal command service is resolved and invoked inside that callback, not while constructing the catalog. `list`, `help`, `workflow:list`, and built-in Kernel operation commands follow this normal lifecycle.
+
+The exact `coretsia doctor` invocation is the only pre-host command path and does not enter a Kernel CLI UnitOfWork. The built-in `workflow:run` command is the only source-host composite command allowed to execute without an outer Kernel CLI UnitOfWork. Every successfully dispatched workflow step executes as a normal command through `CommandRunner` and receives exactly one independent Kernel CLI UnitOfWork. Kernel remains responsible for context, hooks, after-UoW processing, reset, and nested-UoW rejection; workflow infrastructure introduces no additional lifecycle coordinator.
 
 CLI supplies only these safe UnitOfWork attributes:
 
@@ -366,11 +443,15 @@ The safe completion log message is:
 cli.command
 ```
 
-Completion logs include `operation`, `outcome`, and `exit_code`, with optional `correlation_id` and `uow_id`.
+Completion logs include `operation`, `outcome`, and `exit_code`. Normal command logs may also contain previously captured and validated safe `correlation_id` and `uow_id` values obtained inside their own Kernel CLI UnitOfWork. Top-level composite `workflow:run` logs and spans do not inherit or emit context-derived correlation or UnitOfWork identifiers.
 
 `operation` is the canonical descriptor command name, `format` is the effective `json|table|plain` presentation format, and `outcome` is `success` for exit code `0` or `failure` for a non-zero return or thrown command failure. Kernel CLI UnitOfWork attributes use `output_format`, which is distinct from the command span's `format` attribute. Span `exit_code` is not a metric label. Metric labels MUST NOT include output format, exit code, target, preset, correlation/UoW identifiers, or unbounded values.
 
-The command span begins before the Kernel UnitOfWork call and ends after its lifecycle completes. `Stopwatch` measures elapsed time with a non-negative integer `0` fallback when unavailable. Trace start, attribute update, end, metric increment/observation, logger, stopwatch, and optional context-read failures are independently best-effort: they never skip or repeat command execution, replace the primary failure, alter exit codes, or interfere with Kernel-owned hooks and reset. The ultra-early `doctor` path emits no normal command telemetry.
+For normal commands, the command span begins before the Kernel UnitOfWork call and ends after its lifecycle completes. For the built-in `workflow:run` composite, `CommandRunner` emits one top-level `cli.command` observation spanning composite execution without an outer Kernel UnitOfWork. Each executed workflow step emits its own normal `cli.command` observation covering its independent UnitOfWork lifecycle. Unexecuted steps emit no lifecycle observations.
+
+`WorkflowRunner` and `WorkflowRunCommand` do not emit duplicate command lifecycle telemetry. The existing span attributes remain `operation|format` initially and `operation|format|outcome|exit_code` finally, with `format` bounded to `json|table|plain`. The existing `cli.command_total` and `cli.command_duration_ms` metrics retain exactly `operation|outcome` labels. Workflow names, step arguments, and option values are excluded from telemetry labels and attributes.
+
+`Stopwatch` measures elapsed time with a non-negative integer `0` fallback when unavailable. Trace start, attribute update, end, metric increment/observation, logger, stopwatch, and permitted context-read failures are independently best-effort: they never skip or repeat command execution, replace the primary failure, alter exit codes, or interfere with Kernel-owned hooks and reset. The ultra-early `doctor` path emits no normal command telemetry.
 
 Raw argv, option or argument values, command output, paths, endpoints, config/env values, payloads, secrets, and exception traces are forbidden in CLI telemetry.
 
@@ -384,6 +465,8 @@ The main CLI error code families are:
 - `CORETSIA_CLI_HOST_BOOT_FAILED`: Console source host, module plan, or CLI application resolution.
 - `CORETSIA_CLI_INPUT_INVALID`: command input, arguments, options, or target validation.
 - `CORETSIA_CLI_CONFIG_INVALID`: CLI output policy or catalog-view configuration.
+- `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID`: invalid configured workflow structure or referenced command identity.
+- `CORETSIA_CLI_WORKFLOW_NOT_FOUND`: unknown or invalid requested workflow name, reported without disclosing the lookup token.
 - `CORETSIA_CLI_INVALID_COMMAND_META`: tag schema, priority, reserved name, or command identity.
 - `CORETSIA_CLI_COMMAND_FAILED`: invalid command execution result or exit-code contract.
 - `CORETSIA_CLI_INTERNAL_ERROR`: unrecognized normal-path failure.
@@ -427,7 +510,8 @@ This package does not provide:
 - a shared mutable command-output singleton or CLI-owned context/reset orchestration;
 - an independent sensitive-data classifier, redaction policy engine, or configurable redaction disable switch;
 - custom ANSI palettes, raw ANSI command output, or additional framework-owned executable aliases;
-- tracing/metrics exporters, Kernel operation telemetry duplication, or direct repository tooling dependencies.
+- tracing/metrics exporters, Kernel operation telemetry duplication, or direct repository tooling dependencies;
+- workflow replay recording, playback, persistent execution history, output transcript storage, retention, or cleanup services.
 
 ## References
 
@@ -440,3 +524,4 @@ This package does not provide:
 - [Observability SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/observability.md)
 - [Sensitive Data Redaction SSoT](https://github.com/coretsia/monorepo/tree/main/docs/ssot/sensitive-data-redaction.md)
 - [ADR-0034: CLI Tag-first Command Catalog](https://github.com/coretsia/monorepo/tree/main/docs/adr/ADR-0034-cli-tag-first-command-catalog.md)
+- [ADR-0035: CLI Composite Workflows and Deterministic Suggestions](https://github.com/coretsia/monorepo/tree/main/docs/adr/ADR-0035-cli-composite-workflows.md)

@@ -43,6 +43,7 @@ use Coretsia\Platform\Cli\Output\TerminalCapabilities;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
 use Coretsia\Platform\Cli\UX\SmartSuggestor;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /** Shared real CLI composition and isolated output streams for integration fixtures. */
@@ -56,6 +57,7 @@ final class CliApplicationFixtureHarness
         ContainerInterface $container,
         SensitiveDataRedactorInterface $redactor,
         ?CliOutputPolicy $policy = null,
+        ?LoggerInterface $logger = null,
     ) {
         $policy ??= new CliOutputPolicy('adaptive', 'table', 'plain', 'auto', 120);
         $ansi = new AnsiDecorator();
@@ -81,7 +83,7 @@ final class CliApplicationFixtureHarness
                 },
                 new NoopTracer(),
                 new NoopMeter(),
-                new NullLogger(),
+                $logger ?? new NullLogger(),
                 $container,
                 new Stopwatch(),
             ),

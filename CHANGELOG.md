@@ -47,6 +47,38 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.9.1
+
+### Added
+
+- Added deterministic configuration-defined CLI workflows through `workflow:list` and `workflow:run`, with validated workflow definitions, ordered command steps, and sequential fail-fast execution.
+- Added platform-owned composite command execution for `workflow:run`, preserving exactly one Kernel CLI UnitOfWork per executed normal workflow step without creating an outer workflow UnitOfWork.
+- Added lazy workflow catalog resolution, shared command-input validation, and structured workflow results with ordered step exit codes and output records.
+- Added deterministic unknown-command suggestions derived from the final visible command catalog, with bounded Levenshtein matching, stable ranking, and a maximum of three suggestions.
+- Expanded unit, contract, integration, and architecture test coverage for workflow configuration, discovery, execution, input validation, Kernel lifecycle, output safety, suggestions, and CLI diagnostics.
+- Added ADR-0035 and updated CLI architecture, reserved tag, observability, and package documentation to describe composite workflows and their runtime boundaries.
+
+### Changed
+
+- Updated the default adaptive CLI output policy to use human-readable tables in both interactive and non-interactive environments.
+- Enhanced the shared table formatter with readable nested maps, indexed lists, structured workflow step results, and whitespace-aware cell wrapping.
+- Improved ultra-early `doctor` output with fixed human-readable runtime diagnostics while preserving dependency-free execution, deterministic readiness evaluation, and ANSI-free presentation.
+- Consolidated repeatable-option normalization and structural input validation in the shared `CommandInputValidator` for direct and workflow-dispatched commands.
+- Extended the existing command catalog and runner to support the single platform-owned composite execution contract while preserving normal command dispatch, lazy service resolution, and Kernel-owned lifecycle orchestration.
+- Preserved the canonical `coretsia.cli-output@1` machine-readable JSON envelope and deterministic encoding under explicit `--format=json`.
+
+### Fixed
+
+- Eliminated quadratic array copying when parsing repeated valued CLI options while preserving argument order, option semantics, and deterministic validation errors.
+- Improved nested CLI result presentation without serializing structured collections into table cells or changing the underlying output records.
+
+### Security
+
+- Preserved mandatory shared sensitive-data redaction and a single final output formatting boundary for aggregated workflow results, including nested command output records.
+- Enforced bounded workflow definitions, strict command identity validation, rejection of nested composite execution, and safe deterministic workflow error diagnostics.
+- Preserved fail-closed handling of workflow execution and output failures without exposing partial command output, raw arguments, option values, service identifiers, or exception internals.
+- Maintained bounded CLI observability with one top-level composite command observation and separate observations for executed normal steps, without exposing workflow inputs or context-derived identifiers in composite telemetry.
+
 ## v0.9.0
 
 ### Added

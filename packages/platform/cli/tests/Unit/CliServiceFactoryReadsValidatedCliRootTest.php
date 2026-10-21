@@ -21,17 +21,20 @@ namespace Coretsia\Platform\Cli\Tests\Unit;
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Platform\Cli\Catalog\CommandCatalog;
 use Coretsia\Platform\Cli\Catalog\CommandOverrides;
 use Coretsia\Platform\Cli\Catalog\CommandTagSchema;
 use Coretsia\Platform\Cli\Exception\CliConfigInvalidException;
+use Coretsia\Platform\Cli\Exception\WorkflowDefinitionInvalidException;
 use Coretsia\Platform\Cli\Provider\CliServiceFactory;
+use Coretsia\Platform\Cli\Workflow\WorkflowSchema;
 use PHPUnit\Framework\TestCase;
 
 final class CliServiceFactoryReadsValidatedCliRootTest extends TestCase
 {
     public function testEachConfigDependentFactoryReadsCompleteCliRootExactlyOnce(): void
     {
-        foreach (['catalog', 'policy'] as $factory) {
+        foreach (['catalog', 'policy', 'workflow'] as $factory) {
             $config = new FactoryConfigProbe(self::root());
             if ($factory === 'catalog') {
                 $result = CliServiceFactory::commandCatalog(
@@ -41,10 +44,18 @@ final class CliServiceFactoryReadsValidatedCliRootTest extends TestCase
                     new CommandOverrides(),
                 );
                 self::assertSame([], $result->descriptors());
-            } else {
+            } elseif ($factory === 'policy') {
                 $result = CliServiceFactory::cliOutputPolicy($config);
                 self::assertSame('adaptive', $result->formatDefault());
+                self::assertSame('table', $result->nonInteractiveFormat());
                 self::assertSame(120, $result->tableMaxWidth());
+            } else {
+                $result = CliServiceFactory::workflowCatalog(
+                    $config,
+                    new WorkflowSchema(),
+                    new CommandCatalog(new TagRegistry(), new CommandTagSchema(), new CommandOverrides(), [], []),
+                );
+                self::assertSame([], $result->definitions());
             }
             self::assertSame(['cli'], $config->gets);
             self::assertSame(['cli'], $config->hasChecks);
@@ -68,14 +79,68 @@ final class CliServiceFactoryReadsValidatedCliRootTest extends TestCase
         }
     }
 
+    public function testWorkflowCatalogRejectsMissingOrInvalidWorkflowMapBoundaries(): void
+    {
+        foreach (
+            [
+                ['commands' => ['overrides' => []], 'output' => self::root()['output']],
+                \array_replace(self::root(), ['workflows' => 'PRIVATE_PAYLOAD']),
+                \array_replace(self::root(), ['workflows' => []]),
+                \array_replace(self::root(), ['workflows' => ['definitions' => 'PRIVATE_PAYLOAD']]),
+            ] as $root
+        ) {
+            $config = new FactoryConfigProbe($root);
+            try {
+                CliServiceFactory::workflowCatalog(
+                    $config,
+                    new WorkflowSchema(),
+                    new CommandCatalog(new TagRegistry(), new CommandTagSchema(), new CommandOverrides(), [], []),
+                );
+                self::fail('Missing or invalid workflow map must fail closed.');
+            } catch (CliConfigInvalidException $exception) {
+                self::assertSame(CliConfigInvalidException::REASON_SERVICE_CONFIG_INVALID, $exception->reason());
+                self::assertStringNotContainsString('PRIVATE_PAYLOAD', $exception->getMessage());
+            }
+            self::assertSame(['cli'], $config->hasChecks);
+            self::assertSame(['cli'], $config->gets);
+            self::assertSame(0, $config->allCalls);
+            self::assertSame([], $config->sources);
+        }
+    }
+
+    public function testWorkflowCatalogDeepValidationFailsClosedWithoutResolvingCommandServices(): void
+    {
+        $root = self::root();
+        $root['workflows']['definitions'] = [
+            'verify' => ['unexpected' => 'PRIVATE_WORKFLOW_VALUE'],
+        ];
+        $config = new FactoryConfigProbe($root);
+        try {
+            CliServiceFactory::workflowCatalog(
+                $config,
+                new WorkflowSchema(),
+                new CommandCatalog(new TagRegistry(), new CommandTagSchema(), new CommandOverrides(), [], []),
+            );
+            self::fail('Deep-invalid workflow definition must fail when workflow catalog is resolved.');
+        } catch (WorkflowDefinitionInvalidException $exception) {
+            self::assertSame(WorkflowDefinitionInvalidException::REASON_DEFINITION_INVALID, $exception->reason());
+            self::assertStringNotContainsString('PRIVATE_WORKFLOW_VALUE', $exception->getMessage());
+        }
+        self::assertSame(['cli'], $config->hasChecks);
+        self::assertSame(['cli'], $config->gets);
+        self::assertSame(0, $config->allCalls);
+        self::assertSame([], $config->sources);
+    }
+
     /** @return array<string, mixed> */
     private static function root(): array
     {
         return [
             'commands' => ['overrides' => []],
+            'workflows' => ['definitions' => []],
             'output' => [
                 'format_default' => 'adaptive',
-                'adaptive' => ['interactive' => 'table', 'non_interactive' => 'plain'],
+                'adaptive' => ['interactive' => 'table', 'non_interactive' => 'table'],
                 'color_default' => 'auto',
                 'table' => ['max_width' => 120],
             ],

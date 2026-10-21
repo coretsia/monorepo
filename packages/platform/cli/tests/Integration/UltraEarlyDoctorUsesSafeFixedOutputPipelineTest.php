@@ -39,14 +39,19 @@ final class UltraEarlyDoctorUsesSafeFixedOutputPipelineTest extends CliIntegrati
             ]);
             self::assertSame(0, $result['exit']);
             self::assertSame('', $result['stderr']);
-            $record = \json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR);
-            self::assertSame([
-                'cli_sapi' => true,
-                'json_available' => true,
-                'pcre_available' => true,
-                'php_supported' => true,
-                'ready' => true,
-            ], $record);
+            self::assertSame(
+                \implode("\n", [
+                    'Coretsia CLI — Runtime diagnostics',
+                    '',
+                    'PHP >= 8.4:     OK',
+                    'CLI SAPI:       OK',
+                    'JSON extension: OK',
+                    'PCRE extension: OK',
+                    '',
+                    'Status: READY',
+                ]) . "\n",
+                $result['stdout'],
+            );
             foreach (
                 [
                     $secret,
@@ -64,6 +69,40 @@ final class UltraEarlyDoctorUsesSafeFixedOutputPipelineTest extends CliIntegrati
             self::assertNoArtifacts($root);
         } finally {
             self::removeTree($root);
+        }
+    }
+
+    public function testDoctorProjectionUsesOnlyValidatedBooleanPayload(): void
+    {
+        $project = new \ReflectionMethod(UltraEarlyDoctorRunner::class, 'projectDiagnostics');
+        $payload = [
+            'cli_sapi' => false,
+            'json_available' => true,
+            'pcre_available' => false,
+            'php_supported' => true,
+            'ready' => false,
+        ];
+
+        self::assertSame(\implode("\n", [
+            'Coretsia CLI — Runtime diagnostics',
+            '',
+            'PHP >= 8.4:     OK',
+            'CLI SAPI:       FAIL',
+            'JSON extension: OK',
+            'PCRE extension: FAIL',
+            '',
+            'Status: NOT READY',
+        ]), $project->invoke(null, $payload));
+
+        $invalidType = $payload;
+        $invalidType['ready'] = 'no';
+        foreach ([$invalidType, $payload + ['extra' => true]] as $invalid) {
+            try {
+                $project->invoke(null, $invalid);
+                self::fail('Noncanonical doctor diagnostic payload must fail.');
+            } catch (\UnexpectedValueException $exception) {
+                self::assertSame('cli-doctor-record-invalid', $exception->getMessage());
+            }
         }
     }
 
@@ -97,10 +136,11 @@ final class UltraEarlyDoctorUsesSafeFixedOutputPipelineTest extends CliIntegrati
         self::assertSame(0, $code);
         self::assertSame(
             ['cli_sapi', 'json_available', 'pcre_available', 'php_supported', 'ready'],
-            \array_keys($output->finalize()->records()[0]['payload'])
+            \array_keys($output->finalize()->records()[0]['payload']),
         );
         $source = (string) \file_get_contents(new \ReflectionClass(UltraEarlyDoctorRunner::class)->getFileName());
         self::assertStringContainsString('new DoctorCommand()->run($input, $buffer)', $source);
+        self::assertStringContainsString("self::projectDiagnostics(\$record['payload'])", $source);
         self::assertStringContainsString('new PlainFormatter(new AnsiDecorator())->format($batch, false)', $source);
         self::assertStringContainsString('$writer->write(', $source);
         self::assertStringNotContainsString('KernelOpsHostBooter', $source);

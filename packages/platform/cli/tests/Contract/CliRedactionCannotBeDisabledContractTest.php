@@ -40,7 +40,7 @@ final class CliRedactionCannotBeDisabledContractTest extends TestCase
         $rules = require $root . '/config/rules.php';
         self::assertArrayNotHasKey('redaction', $defaults);
         self::assertArrayNotHasKey('redaction', $rules['keys']);
-        self::assertSame(['commands', 'output'], \array_keys($defaults));
+        self::assertSame(['commands', 'workflows', 'output'], \array_keys($defaults));
         $config = \json_encode([$defaults, $rules], JSON_THROW_ON_ERROR);
         self::assertSame(0, \preg_match('/redaction|redact|bypass|disable_redaction|skip_redaction/i', $config));
 

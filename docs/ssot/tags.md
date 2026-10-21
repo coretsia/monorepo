@@ -31,7 +31,7 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 - This registry MUST be the canonical source for reserved DI tag names.
 - Every reserved tag MUST have exactly one owner `package_id`.
 - Shared ownership is forbidden.
-- Only the owner epic may introduce or modify a reserved tag entry.
+- Only the declared semantic owner package may authorize introducing or modifying a reserved tag entry.
 - Registry rows MAY exist independently of whether the semantic owner package currently registers runtime services for that tag.
 - Every Coretsia-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
 - Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved DI tag identifiers.
@@ -122,7 +122,7 @@ Stability enum is single-choice:
 
 Enabled command-owner packages MAY contribute command services through this tag without a platform/cli dependency on the contributing package.
 
-- Every `cli.command` service id MUST be the exact, case-sensitive command-class FQCN. The class MUST exist, be concrete, implement `Coretsia\Contracts\Cli\Command\CommandInterface`, and be registered under that same class FQCN as its service id. Aliases and unrelated service ids are invalid.
+- Every `cli.command` service id MUST be the exact, case-sensitive command-class FQCN. The class MUST exist, be concrete, and be registered under that same class FQCN as its service id. All normal and external command services MUST implement `Coretsia\Contracts\Cli\Command\CommandInterface`. The sole exception is the exact built-in `Coretsia\Platform\Cli\Command\WorkflowRunCommand` service id, which MUST implement the internal `Coretsia\Platform\Cli\Runner\CompositeCommandInterface` and MUST NOT implement `CommandInterface`. This platform-owned exception is not available to external command-owner packages. Aliases and unrelated service ids are invalid.
 - Each command class MUST expose typed public constants `string NAME`, `string SUMMARY`, `string GROUP`, `bool HIDDEN`, `array ARGUMENTS`, and `array OPTIONS`. The owning provider MUST derive tag metadata from those constants; command identity MUST NOT be separately invented in the provider.
 - The tag metadata map MUST contain exactly the following six keys:
 
@@ -135,10 +135,11 @@ arguments
 options
 ```
 
+- Composite execution capability MUST NOT be encoded as an additional tag metadata field. The exact six-key metadata contract and the corresponding six typed public command constants apply equally to normal commands and the single allowlisted built-in composite command. The internal `normal|composite` execution kind is derived only from the validated service-id class, not from tag metadata, configuration, or catalog-view overrides.
 - `name`, `summary`, and `group` are strings; `hidden` is a boolean; `arguments` and `options` are ordered lists of descriptor maps. Argument descriptors use exactly `name|summary|required|variadic`; option descriptors use exactly `name|summary|value|repeatable`. All entries MUST satisfy the owner-defined schema in `CommandTagSchema`.
 - Top-level tag metadata keys `priority` and `mode`, and every other unknown metadata key, are forbidden. `mode` as an owner-defined command option inside `options` is distinct from a top-level tag metadata key and MUST NOT affect Kernel preset selection.
-- Before any command service is resolved or instantiated, the catalog MUST validate the class FQCN, `CommandInterface` implementation, exact metadata schema, public typed command constants, and canonical equality of tag metadata with class constants. Class reflection/autoloading for validation does not authorize service resolution. Catalog-view overrides MAY change only `summary`, `group`, or `hidden` after base validation; they MUST NOT change command identity or original metadata.
-- `CommandInterface::name()` MUST match the descriptor's `name` when the selected command service is lazily resolved for dispatch. The normal catalog MUST NOT instantiate services for discovery, `list`, or `help`.
+- Before any command service is resolved or instantiated, the catalog MUST validate the class FQCN, the required execution interface (`CommandInterface` for all normal and external services; `CompositeCommandInterface` only for the exact built-in `WorkflowRunCommand` service id), the exact six-key metadata schema, public typed command constants, and canonical equality of tag metadata with class constants. The built-in composite service MUST NOT implement both execution interfaces. Class reflection/autoloading for validation does not authorize service resolution. Catalog-view overrides MAY change only `summary`, `group`, or `hidden` after base validation; they MUST NOT change command identity, execution kind, or original metadata.
+- The lazily resolved command service's `name()` MUST match its descriptor's `name`, for both `CommandInterface` normal commands and the exact allowlisted `CompositeCommandInterface` command. The catalog MUST NOT instantiate command services during discovery or while rendering `list` or `help`.
 - `TagRegistry::all(ReservedTags::CLI_COMMAND)` defines the canonical deterministic order: actual tag priority descending, then service id ascending under byte-order `strcmp`. The CLI consumer MUST preserve this output without re-sorting or re-deduplicating it.
 - All `cli.command` registrations MUST use actual `TaggedService::priority() === 0`. A non-zero actual priority MUST fail before descriptor construction, independently of metadata contents, and MUST NOT be normalized, ignored, or overwritten. The actual priority field is separate from the forbidden `priority` metadata key.
 - `TagRegistry` uses first-wins semantics for repeated registrations of the same `(tag, serviceId)`; later registrations are discarded and MUST NOT be reconstructed or revalidated by the CLI consumer. Two distinct service ids declaring the same command `name` MUST fail deterministically, not silently override one another.
@@ -156,7 +157,7 @@ The following non-canonical tags are forbidden and MUST NOT be introduced anywhe
 Rationale:
 
 - Canonical HTTP middleware taxonomy is single-choice: `system/app/route`.
-- Any new epic mentioning `http.middleware.user*` MUST treat it only as forbidden non-canonical terminology.
+- Any specification or implementation mentioning `http.middleware.user*` MUST treat it only as forbidden non-canonical terminology.
 - `http.middleware.user*` names MUST NOT appear as current tag names anywhere in contracts, SSoT, defaults, or gates.
 
 ## Runtime Usage Rule (MUST)
@@ -173,19 +174,19 @@ Custom/user DI tags are outside this reserved registry unless explicitly promote
 
 ## Contributor Rule (MUST)
 
-- A non-owner epic MAY say `N/A (uses existing <tag>)`.
-- A non-owner epic MUST NOT introduce or freeze a competing meta-schema for that tag.
-- If the owner meta-schema is not cemented yet, contributor epics MUST say `meta per owner schema` or equivalent wording instead of inventing alternative keys.
+- Non-owner packages MAY use existing reserved tags only under the declared semantic owner's contract.
+- Non-owner packages MUST NOT introduce or freeze competing tag semantics or metadata schemas.
+- If the owner metadata schema has not been established, contributors MUST defer to the semantic owner rather than invent alternative keys.
 
 ## Introducing a New Tag (MUST)
 
-Introducing a new reserved tag requires both of the following in the owner epic:
+Introducing a new reserved tag requires all of the following changes, authorized by its semantic owner:
 
 1. add registry row in `docs/ssot/tags.md`
 2. add public constant in `Coretsia\Foundation\Tag\ReservedTags`
 3. document semantic owner behavior in the owner package or SSoT
 
-A new tag is not complete unless both artifacts exist.
+A new tag is not complete until all three requirements are satisfied.
 
 ## Non-tag Metadata Rule (MUST)
 

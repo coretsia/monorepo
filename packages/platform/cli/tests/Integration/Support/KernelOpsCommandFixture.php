@@ -85,16 +85,24 @@ final class KernelOpsCommandFixture
     }
 
     /** @return array{exit:int,stdout:string,stderr:string} */
-    public function run(string $command, string $target = 'api'): array
+    public function run(string $command, string $target = 'api', string $format = 'json'): array
     {
         return $this->application->run(
-            [$command, '--target=' . $target, '--format=json', '--color=always'],
+            [
+                $command,
+                '--target=' . $target,
+                '--format=' . $format,
+                '--color=' . ($format === 'table' ? 'never' : 'always'),
+            ],
             new TerminalCapabilities(true, true),
             streamFailure: 'ops-fixture-stream-unavailable',
         );
     }
 
-    /** @param array{exit:int,stdout:string,stderr:string} $result @return array<string,mixed> */
+    /**
+     * @param array{exit:int,stdout:string,stderr:string} $result
+     * @return array<string,mixed>
+     */
     public static function document(array $result): array
     {
         $decoded = \json_decode($result['stdout'], true, flags: JSON_THROW_ON_ERROR);
@@ -104,7 +112,10 @@ final class KernelOpsCommandFixture
         return $decoded;
     }
 
-    /** @param array{exit:int,stdout:string,stderr:string} $result @return array<string,mixed> */
+    /**
+     * @param array{exit:int,stdout:string,stderr:string} $result
+     * @return array<string,mixed>
+     */
     public static function payload(array $result): array
     {
         $document = self::document($result);

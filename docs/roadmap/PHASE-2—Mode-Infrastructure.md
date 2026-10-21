@@ -6342,7 +6342,7 @@ Docs:
     - [x] stdout contains the canonical schema envelope and stderr remains empty
     - [x] final output contains exactly one writer-owned trailing LF
 
-  - [x] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
+  - [x] `../../packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesTableFormatTest.php`
     - [x] configured `adaptive` format resolves to the configured non-interactive format
     - [x] the baseline non-interactive default resolves to `plain`
     - [x] stdout interactivity comes only from the injected `TerminalCapabilities`
@@ -6735,7 +6735,7 @@ composer: "coretsia/platform-cli"
 kind: runtime
 module_id: "platform.cli"
 
-goal: "Надати `coretsia workflow:run <workflow>` як детермінований config-defined composite execution поверх tag-first CommandCatalog, з окремим canonical CLI UoW для кожного step, одним фінальним redacted render і стабільними suggestions для невідомих command names."
+goal: "Надати `coretsia workflow:run <workflow>` як детермінований config-defined composite execution поверх tag-first CommandCatalog, з окремим canonical CLI UoW для кожного step, одним фінальним redacted render і стабільними suggestions для невідомих command names. Покращити human-readable CLI output через наявний output pipeline без зміни машинного JSON-контракту."
 provides:
 - "Config-defined workflows without filesystem discovery, templates, macros, environment interpolation, or reflective command construction"
 - "Every workflow step resolved through the final tag-first CommandCatalog"
@@ -6744,12 +6744,15 @@ provides:
 - "Fail-fast sequential workflow execution with ordered step results"
 - "Deterministic unknown-command suggestions derived only from the final CommandCatalog"
 - "One final output formatting and mandatory defense-in-depth redaction pass"
+- "Readable adaptive and table output for nested CLI results across supported terminal environments"
+- "Human-readable ultra-early doctor diagnostics without Kernel host boot or a second output pipeline"
+- "Preserved canonical coretsia.cli-output@1 JSON output for explicit machine-readable invocation"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-XXXX-cli-composite-workflows.md"
+adr: "docs/adr/ADR-0035-cli-composite-workflows.md"
 ssot_refs:
 - "docs/ssot/tags.md"
 - "docs/ssot/observability.md"
@@ -6767,6 +6770,8 @@ The implementation scope is single-choice:
 
 - deterministic config-defined workflows;
 - deterministic command-name suggestions;
+- human-readable CLI output improvements through the existing formatters and output policy;
+- human-readable ultra-early doctor diagnostics through the existing doctor path;
 - no CLI replay persistence capability.
 
 This epic MUST NOT introduce:
@@ -6785,7 +6790,9 @@ This epic MUST NOT introduce:
 - a workflow-specific diagnostics renderer;
 - a workflow-specific redaction service;
 - a suggestion-specific redaction service;
-- a second output or formatting pipeline.
+- a second output or formatting pipeline;
+- machine-readable command schema generation, JSON Schema export, or reflection-derived command metadata;
+- a generic CLI orchestration framework beyond the exact composite-command exception defined by this epic.
 
 Replay is excluded because the previous text did not define one coherent capability boundary for executable replay versus output playback, redaction handoff, persistence trigger, storage identity, atomic publication, read validation, retention, or consumer semantics.
 
@@ -6865,12 +6872,43 @@ Forbidden:
 
 The only files outside `packages/platform/cli/` that this epic may create or modify are:
 
-- `docs/adr/ADR-XXXX-cli-composite-workflows.md`
+- `docs/adr/ADR-0035-cli-composite-workflows.md`
 - `docs/adr/INDEX.md`
+- `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/observability.md`
 
 No command-owner package may be modified solely to make its commands workflow-compatible.
+
+### Existing runtime and presentation reuse (MUST)
+
+This epic introduces only platform-owned workflow orchestration over the existing CommandRunner and Kernel UnitOfWork lifecycle.
+
+It MUST NOT introduce an independent command dispatcher, Kernel lifecycle orchestrator, configuration-loading pipeline, command parser, output formatting pipeline, JSON serializer, redaction boundary, or terminal detector.
+
+WorkflowRunner coordinates existing command executions; it does not replace or duplicate CommandRunner, KernelRuntimeInterface, or Kernel-owned lifecycle orchestration.
+
+Ownership remains single-choice:
+
+- Kernel owns UnitOfWork lifecycle, context, hooks, reset, module planning, configuration, and artifact operations.
+- Foundation owns canonical JSON-like normalization, stable JSON encoding, and deterministic tag ordering.
+- `CommandCatalog` owns final command discovery and descriptors.
+- `CommandInputValidator` owns shared command-input normalization and structural validation.
+- `CommandRunner` owns normal and composite command execution and command lifecycle observability.
+- `WorkflowRunner` owns only ordered workflow-step orchestration.
+- `CommandOutputBuffer` and `CommandOutputBatch` own normalized invocation-local output records.
+- `OutputFormatter` owns final shared redaction and formatter selection.
+- `JsonFormatter`, `TableFormatter`, and `PlainFormatter` retain their existing presentation responsibilities.
+- `ConsoleOutputWriter` remains the sole final output sink.
+- `TerminalCapabilitiesDetector` remains the only normal-path terminal capability detector.
+
+Workflow infrastructure MUST NOT construct, invoke, or duplicate Kernel runtime internals directly.
+
+Normal-path human-readable output improvements MUST operate on already normalized and redacted output records.
+
+The ultra-early `doctor` path is the existing exception: it uses only fixed allowlisted boolean capability results, performs no shared redaction, and MUST NOT accept arbitrary diagnostic payloads.
+
+Neither path may introduce a second JSON-like validator, recursive structural normalizer, redaction policy, or serialization contract.
 
 ### Workflow ownership and execution model (MUST)
 
@@ -6910,6 +6948,24 @@ A workflow MUST NOT:
 
 Workflow execution is sequential and fail-fast.
 
+Workflow execution is not transactional across steps.
+
+WorkflowCatalog validates the complete configured workflow structure and all referenced command identities and execution kinds before the first step executes.
+
+CommandInputValidator performs descriptor-dependent argument and option validation immediately before each individual step is dispatched.
+
+A later step may therefore fail input validation after earlier steps have completed. This is part of the explicitly non-transactional, fail-fast workflow contract.
+
+No independent workflow input validator or duplicate all-step input validation pipeline may be introduced.
+
+A completed step may already have committed Kernel-owned or command-owner side effects before a later step fails or final workflow output rendering fails.
+
+`WorkflowRunner` MUST NOT implement rollback, compensation, transactional coordination, or recovery orchestration.
+
+Fail-fast execution guarantees only that no subsequent step is dispatched after the first non-zero step result or propagated Throwable.
+
+A final output normalization, redaction, or formatting failure MUST NOT be represented as rollback of previously completed steps.
+
 Canonical flow:
 
 ```text
@@ -6935,13 +6991,47 @@ workflow:run <workflow>
 
 The first non-zero valid step exit code stops the workflow.
 
-The workflow command returns that exact first non-zero exit code.
+On completed workflow execution, `WorkflowRunCommand` returns the exact first non-zero step exit code.
 
-If all steps return `0`, the workflow command returns `0`.
+If all steps return `0`, `WorkflowRunCommand` returns `0`.
+
+These guarantees apply to completed workflow execution before the final CLI output boundary.
+
+A subsequent parent output-buffer, normalization, redaction, formatting, or writer failure follows the existing `CliApplication` fail-closed behavior and MAY cause the final process exit code to be `1`.
+
+Such an output failure MUST NOT be represented as a different workflow step result, a successful workflow completion, or rollback of previously completed steps.
 
 A Throwable from a step MUST propagate unchanged through `WorkflowRunner` and enter the existing `CliApplication` error boundary.
 
 `WorkflowRunner` MUST NOT catch, wrap, downgrade, or convert unexpected command Throwables into a completed workflow result.
+
+#### CLI argv resource-bound investigation (MUST)
+
+The existing `ArgvInputParser` remains the only normal CLI argv syntax parser.
+
+CLI argv input has a distinct threat model from HTTP requests, Worker messages, and configuration sources. Existing Foundation JSON-like output bounds MUST NOT be treated as argv parsing bounds.
+
+This epic MUST perform targeted adversarial validation of:
+
+- large numbers of distinct options;
+- large numbers of repeated valued options;
+- large individual option and positional-argument values;
+- malformed command names, option names, and option sequences;
+- invalid UTF-8 in command names, option names, and option values;
+- repeated CLI-global options and mixed bare/valued occurrences;
+- deterministic error reasons and non-disclosure of rejected input.
+
+Rules:
+
+- Preserve the existing separation between syntax parsing, descriptor-driven structural validation, and command-owner domain validation.
+- Preserve raw argument and option-value bytes where the current parser permits them; invalid UTF-8 in arbitrary option values MUST NOT automatically become a new parser-level rejection policy.
+- Preserve existing safe `CliInputInvalidException` codes and reasons.
+- Record parser execution time and memory behavior for increasing input sizes in a targeted non-gating adversarial spike.
+- Correct confirmed algorithmic complexity defects within the existing parser.
+- Performance measurements MUST NOT become machine-dependent wall-clock assertions in the normal CI suite.
+- Do not introduce a generic input security framework, parser replacement, configurable argv limits, or additional parsing stages.
+- Do not introduce new global argv count or byte limits solely by copying HTTP, Worker, configuration, or output resource limits.
+- Any future numeric argv limit requires a separately justified CLI threat model and explicit compatibility analysis.
 
 ### Composite command boundary (MUST)
 
@@ -6951,7 +7041,7 @@ This epic narrows the earlier 2.30.0 exception wording.
 
 After this epic:
 
-- `doctor` remains the only pre-autoload/pre-host command path;
+- `doctor` remains the only post-autoload, pre-Kernel-host command path;
 - `workflow:run` is the only source-host command allowed to execute without one outer Kernel CLI UoW;
 - `workflow:list` remains a normal command and receives exactly one CLI UoW;
 - every other normal tagged command receives exactly one CLI UoW;
@@ -7115,9 +7205,14 @@ steps
 
 `summary`:
 
-- MUST be a non-empty trimmed single-line string;
-- MUST contain no NUL, CR, LF, ESC, or unsafe control bytes;
-- MUST be at most 256 bytes.
+- MUST be a non-empty trimmed single-line UTF-8 string;
+- MUST contain no Unicode `Cc` control characters, U+2028, or U+2029;
+- MUST be at most 256 bytes;
+- MUST reuse `JsonLikeNormalizer::normalize()` for canonical JSON-like value normalization;
+- MUST reuse `StableJsonEncoder::encodeStable()` to reject malformed UTF-8;
+- MUST perform only the workflow-specific trimmed, single-line, byte-length, and forbidden-character checks;
+- MUST NOT rely on Foundation JSON-like normalization or `CommandTagSchema::isSafeSummary()` alone to enforce the workflow-specific single-line policy;
+- MUST NOT introduce a general-purpose Unicode validator, independent JSON-like normalizer, or second JSON encoder.
 
 `steps`:
 
@@ -7156,6 +7251,10 @@ Option maps:
 - `true` represents one bare `--name` flag;
 - `string` represents one `--name=value` option;
 - `list<string>` represents repeated `--name=value` options in declared list order;
+- repeatable-value lists MUST be non-empty;
+- every repeatable value MUST be a non-empty string;
+- a scalar string for a descriptor-declared repeatable required-value option is normalized into a one-element list by the shared `CommandInputValidator`;
+- descriptor-dependent repeatability validation MUST NOT be duplicated in `WorkflowSchema` or `WorkflowStepInputFactory`;
 - `false` and `null` are forbidden in workflow definitions;
 - map keys are normalized in byte-order `strcmp` order;
 - repeatable option lists preserve declared value order;
@@ -7171,7 +7270,25 @@ Bounds are fixed and non-configurable:
 - maximum arguments per step: 32;
 - maximum options per step: 32;
 - maximum scalar argument or option string: 512 bytes;
+- maximum step command-name length: 512 bytes;
+- maximum option-name length: 512 bytes;
 - maximum repeatable values per option: 32.
+
+Aggregate workflow-definition normalization bounds are fixed and non-configurable:
+
+- maximum JSON-like container depth: 8;
+- maximum JSON-like nodes across all definitions: 131072;
+- maximum individual string or map-key length: 512 bytes;
+- maximum total string bytes across all definitions, including map keys: 8388608 bytes (8 MiB).
+
+Rules:
+
+- These aggregate limits apply to the complete `cli.workflows.definitions` map, not independently to each workflow.
+- Aggregate limits MUST be enforced even when every individual workflow, step, argument, and option satisfies its local shape and count bounds.
+- Aggregate bounds take precedence when their limits are reached before individual count bounds.
+- The existing `JsonLikeNormalizationLimits` MUST be reused without introducing an independent resource-budget implementation.
+- Resource-budget violations MUST fail closed with `WorkflowDefinitionInvalidException` and the fixed reason `workflow-definition-invalid`.
+- Resource-budget failures MUST NOT expose workflow names, command names, option names, values, or Foundation diagnostic paths.
 
 Unknown keys hard-fail deterministically.
 
@@ -7181,486 +7298,1226 @@ Workflow names are exposed in `workflow:list` using byte-order `strcmp` order.
 
 Workflow step order is preserved exactly as declared.
 
+### Human-readable CLI output (MUST)
+
+#### Adaptive format policy (MUST)
+
+The existing output policy remains the single source of truth for normal CLI formatting.
+
+The default adaptive policy changes to:
+
+```php
+'output' => [
+    'format_default' => 'adaptive',
+    'adaptive' => [
+        'interactive' => 'table',
+        'non_interactive' => 'table',
+    ],
+    'color_default' => 'auto',
+    'table' => [
+        'max_width' => 120,
+    ],
+],
+```
+
+Rules:
+
+- `adaptive` MUST resolve to the configured interactive or non-interactive format through the existing `FormatResolver`.
+- The default `non_interactive` format changes from `plain` to `table`.
+- An explicit `--format=json|table|plain|adaptive` MUST override the configured default.
+- Explicit `--format=json` MUST preserve the existing `coretsia.cli-output@1` machine-readable schema and canonical JSON encoding.
+- Explicit `--format=plain` MUST preserve the existing deterministic plain-record semantics.
+- No terminal-specific formatter or alternative CLI output entrypoint may be introduced.
+- No Git Bash, PhpStorm, PowerShell, WSL, CI, or environment-variable heuristic may override the resolved output policy.
+- Terminal capability detection continues to determine interactivity and ANSI safety, not the semantic structure of command results.
+- Non-interactive output MAY contain deterministic tables by default. Machine consumers MUST explicitly request `--format=json`.
+- Existing validated `cli.output.*` application overrides remain authoritative.
+
+The output must remain deterministic for the same normalized records, output policy, format selection, and terminal capability inputs.
+
+#### Nested table presentation (MUST)
+
+The existing `TableFormatter` MUST render nested JSON-like values as readable structured sections instead of embedding serialized maps or lists inside individual table cells.
+
+Rules:
+
+- Reuse the existing normalized, redacted `CommandOutputBatch`.
+- Preserve canonical Foundation map ordering and original list order.
+- Render scalar map entries through the existing key/value table representation.
+- Render non-empty nested maps as explicitly labeled nested sections.
+- Render scalar lists as indexed rows under their owning section.
+- Preserve the existing tabular rendering of homogeneous lists of maps when all displayed column values are scalar.
+- Homogeneous lists of maps containing nested maps or lists MUST render those nested values as structured sections rather than serialized table cells.
+- Heterogeneous lists containing maps or lists MUST render their entries as indexed structured sections in original list order.
+- Mixed `text|json|error` child records MUST remain individually readable within workflow step results.
+- No nested collection may be serialized into a compact JSON table cell.
+- Preserve grouped command-catalog rendering used by `list`.
+- Represent empty maps and lists explicitly without inventing values.
+- Do not silently omit nested values.
+- Do not flatten or rewrite original JSON-like keys in the source records.
+- Do not introduce command-specific table renderers for Kernel operation payloads.
+- Reuse existing deterministic cell escaping, visible-width calculation, ANSI decoration, and configured maximum table width.
+- Keep recursive presentation bounded by the already normalized Foundation JSON-like input shape.
+- Nested maps and lists MUST NOT fall back to compact JSON strings merely because they appear below the root level.
+- JSON output MUST remain byte-for-byte compatible with the existing canonical encoder and envelope for equivalent records.
+
+The existing table wrapping algorithm SHOULD prefer whitespace boundaries when a word fits within the available column width.
+
+If no suitable whitespace boundary exists, wrapping MUST fall back to the existing grapheme-aware width algorithm.
+
+Wrapping MUST NOT truncate, reorder, or change the content of cell values.
+
+#### Ultra-early doctor presentation (MUST)
+
+The exact `coretsia doctor` invocation remains dependency-free and uses the existing `DoctorCommand`, `UltraEarlyDoctorRunner`, `PlainFormatter`, and `ConsoleOutputWriter`.
+
+`DoctorCommand` continues to produce the same five boolean diagnostic values:
+
+```
+cli_sapi
+json_available
+pcre_available
+php_supported
+ready
+```
+
+`UltraEarlyDoctorRunner` MUST:
+
+- validate the existing exact diagnostic record shape and boolean value types;
+- project only these validated booleans into fixed human-readable text;
+- use fixed allowlisted labels and deterministic field order;
+- preserve the existing readiness calculation and exit code;
+- use the existing plain formatter and final console writer;
+- keep ANSI disabled;
+- reject additional arguments and options through the existing fixed error boundary;
+- retain the existing safe fallback diagnostic on rendering failure.
+
+Canonical successful presentation:
+
+```
+Coretsia CLI — Runtime diagnostics
+
+PHP >= 8.4:     OK
+CLI SAPI:       OK
+JSON extension: OK
+PCRE extension: OK
+
+Status: READY
+```
+
+False capability values render `FAIL`. A false `ready` value renders `Status: NOT READY`.
+
+The displayed status MUST be derived exclusively from the validated doctor result. It MUST NOT be recomputed from a second runtime probe.
+
+The ultra-early path MUST NOT resolve Kernel, a command catalog, configuration, a shared redactor, or a new diagnostics renderer.
+
+No environment values, local paths, host identifiers, extension inventories, PHP configuration dumps, arguments, or exception details may be emitted.
+
+The exact `doctor` invocation remains the existing fixed early path; this change does not introduce `--format`, `--color`, or a second doctor execution mechanism.
+
+#### Workflow output presentation (MUST)
+
+Completed workflow results MUST use the same existing output formatters as normal commands.
+
+Nested workflow results and ordered step records MUST be readable through the improved generic `TableFormatter`.
+
+No workflow-specific result presenter, diagnostic formatter, output schema, or redaction stage may be introduced.
+
+The machine-readable workflow result retains the existing `coretsia.cli-output@1` outer envelope under explicit `--format=json`.
+
+A completed workflow is still written as one top-level JSON-like output record and passes through one final shared redaction and formatting boundary.
+
+#### Canonical workflow result projection (MUST)
+
+The completed `WorkflowResult` JSON-like payload contains exactly:
+
+- `workflow: string` — the validated canonical workflow name;
+- `outcome: success|failure` — derived from the final step exit code;
+- `exit_code: int` — the completed workflow exit code in `0..255`;
+- `steps: list<map>` — ordered executed-step results.
+
+Every exported step map contains exactly:
+
+- `index: int` — zero-based index in the original workflow definition;
+- `command: string` — the canonical executed command name;
+- `exit_code: int` — the returned step exit code;
+- `records: list<map>` — the ordered projected child output records.
+
+Rules:
+
+- Step indices MUST reflect their original definition positions and MUST NOT be renumbered after fail-fast termination.
+- A completed failure result MUST include the first non-zero step.
+- Unexecuted steps MUST NOT appear in the result.
+- All exported maps use the existing Foundation canonical map ordering.
+- The child record projection follows `Nested child-record redaction compatibility (MUST)`.
+- No additional workflow result metadata, timestamps, identifiers, arguments, options, or execution context fields may be introduced.
+- The existing `coretsia.cli-output@1` outer envelope remains unchanged.
+
+#### Nested child-record redaction compatibility (MUST)
+
+The canonical `CommandOutputBatch::records()` representation remains unchanged inside `WorkflowStepResult`.
+
+When `WorkflowResult` exports child records into the parent JSON-like workflow payload, it MUST apply one fixed structural projection:
+
+- child `text` records retain the exact `text` and `type` keys;
+- child `error` records retain the exact `code`, `message`, and `type` keys;
+- child `json` records export their normalized content under `data` instead of the internal `payload` key;
+- original nested JSON content keys and values remain unchanged before final redaction;
+- child record order and original list order remain unchanged.
+
+The structural `payload` key MUST NOT be embedded in exported workflow child JSON records.
+
+The shared `SensitiveKeyClassifier` classifies `payload` as sensitive. Embedding the internal record envelope unchanged would cause the final `OutputFormatter` redaction pass to replace the entire child JSON payload with a redacted summary.
+
+The `data` key is only the workflow result's structural representation of a child JSON record. It MUST NOT bypass the shared redactor or suppress sensitive-key classification inside the original child content.
+
+The projection MUST:
+
+- operate only on already normalized canonical child records;
+- preserve every non-sensitive child output value;
+- preserve shared redaction of sensitive nested keys and values;
+- introduce no second JSON-like normalizer, serializer, redaction service, or output formatter;
+- preserve the existing `coretsia.cli-output@1` outer envelope and normal-command record representation;
+- remain bounded by the existing final parent output limits.
+
 ### Deliverables (MUST)
 
 #### Creates
 
 Workflow model:
-- [ ] `packages/platform/cli/src/Workflow/WorkflowDefinition.php`
-  - [ ] immutable readonly value
-  - [ ] contains canonical name, summary, and ordered non-empty step list
-  - [ ] no config repository, services, closures, or runtime state
+- [x] `packages/platform/cli/src/Workflow/WorkflowDefinition.php`
+  - [x] immutable readonly value
+  - [x] contains canonical name, summary, and ordered non-empty step list
+  - [x] no config repository, services, closures, or runtime state
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowStep.php`
-  - [ ] immutable readonly value
-  - [ ] contains command name, ordered arguments, and normalized option map
-  - [ ] no command object, descriptor, service id, or container
+- [x] `packages/platform/cli/src/Workflow/WorkflowStep.php`
+  - [x] immutable readonly value
+  - [x] contains command name, ordered arguments, and normalized option map
+  - [x] no command object, descriptor, service id, or container
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowSchema.php`
-  - [ ] stateless deep validator and normalizer for dynamic workflow definitions
-  - [ ] enforces the exact shapes and bounds in this epic
-  - [ ] performs no command discovery or service resolution
-  - [ ] throws only `WorkflowDefinitionInvalidException`
-  - [ ] public diagnostics contain only stable reason tokens
+- [x] `packages/platform/cli/src/Workflow/WorkflowSchema.php`
+  - [x] stateless deep validator and normalizer for dynamic workflow definitions
+  - [x] enforces the exact shapes and bounds in this epic
+  - [x] performs no command discovery or service resolution
+  - [x] reuses `Coretsia\Foundation\Serialization\JsonLikeNormalizer::normalize()` for canonical JSON-like normalization and deterministic recursive map-key ordering
+  - [x] supplies the existing `JsonLikeNormalizationLimits` with the exact workflow-definition aggregate bounds specified in this epic
+  - [x] applies one bounded normalization pass to the complete `cli.workflows.definitions` map before constructing immutable workflow values
+  - [x] performs bounded structural checks without recursively traversing arbitrary nested configuration values before the Foundation normalization boundary
+  - [x] preserves Foundation byte-order `strcmp` ordering for workflow names and nested option-map keys
+  - [x] preserves declared list order for workflow steps, arguments, and repeatable option values
+  - [x] enforces the epic's fixed workflow-specific shapes, individual bounds, and aggregate resource limits before constructing immutable workflow values
+  - [x] maps Foundation depth, node-count, individual-string-byte, and total-string-byte violations to `WorkflowDefinitionInvalidException` with reason `workflow-definition-invalid`
+  - [x] MUST NOT introduce a second recursive validator, resource-budget walker, or map sorter
+  - [x] validates summary UTF-8 through the existing Foundation stable JSON encoder
+  - [x] explicitly rejects Unicode `Cc`, `Zl`, and `Zp` characters in workflow summaries
+  - [x] preserves the workflow-specific summary policy independently of static command tag metadata validation
+  - [x] maps malformed UTF-8 and forbidden summary characters to `WorkflowDefinitionInvalidException` with reason `workflow-definition-invalid`
+  - [x] converts Foundation normalization failures into `WorkflowDefinitionInvalidException` with the fixed safe reason `workflow-definition-invalid`
+  - [x] MUST NOT expose Foundation diagnostic paths, rejected keys, or rejected values
+  - [x] MUST NOT introduce `sort`, `ksort`, `uksort`, `usort`, `array_multisort`, or an independent map-key sorting implementation
+  - [x] MUST NOT reimplement Foundation JSON-like normalization or resource-budget traversal
+  - [x] throws only `WorkflowDefinitionInvalidException`
+  - [x] public diagnostics contain only stable reason tokens
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowCatalog.php`
-  - [ ] immutable finalized workflow catalog
-  - [ ] consumes normalized definitions from `WorkflowSchema`
-  - [ ] receives the final `CommandCatalog`
-  - [ ] validates every configured step command exists
-  - [ ] validates every step command is `normal`, not `composite`
-  - [ ] an unknown configured step command throws `WorkflowDefinitionInvalidException`
-    - [ ] reason `workflow-command-unknown`
-  - [ ] a configured composite step throws `WorkflowDefinitionInvalidException`
-    - [ ] reason `workflow-command-composite`
-  - [ ] these failures expose no arguments, option values, service ids, paths, or workflow definition payload
-  - [ ] performs no command service resolution
-  - [ ] sorts workflow names by byte-order `strcmp`
-  - [ ] preserves step order
-  - [ ] canonical APIs:
-    - [ ] `public function definitions(): array`
-    - [ ] `public function require(string $name): WorkflowDefinition`
-  - [ ] `require()` validates the requested lookup token before map access:
-    - [ ] same workflow-name regex
-    - [ ] maximum 64 bytes
-    - [ ] no control bytes
-  - [ ] an invalid lookup token throws `WorkflowNotFoundException` without exposing the token
-  - [ ] an unknown but valid lookup token MAY be exposed by `WorkflowNotFoundException`
+- [x] `packages/platform/cli/src/Workflow/WorkflowCatalog.php`
+  - [x] immutable finalized workflow catalog
+  - [x] consumes normalized definitions from `WorkflowSchema`
+  - [x] receives the final `CommandCatalog`
+  - [x] is resolved lazily only when `workflow:list` or `workflow:run` is dispatched
+  - [x] MUST NOT be an eager dependency of `CommandCatalog` or normal `CliApplication` construction
+  - [x] structurally valid, Kernel-loadable workflow definitions that fail only WorkflowSchema deep validation MUST NOT prevent unrelated normal CLI commands from being discovered or dispatched
+  - [x] invalid `cli.workflows` or `cli.workflows.definitions` map boundaries remain Kernel configuration validation failures and MUST fail normal Console host boot
+  - [x] validates all configured workflow definitions and referenced command names and execution kinds before any workflow step executes
+  - [x] workflow validation failures propagate through the existing CLI error boundary without introducing a separate diagnostics path
+  - [x] validates every configured step command exists
+  - [x] validates every step command is `normal`, not `composite`
+  - [x] MUST NOT perform descriptor-dependent argument or option validation
+  - [x] descriptor-dependent input normalization and validation remain owned exclusively by `CommandInputValidator`
+  - [x] an unknown configured step command throws `WorkflowDefinitionInvalidException`
+    - [x] reason `workflow-command-unknown`
+  - [x] a configured composite step throws `WorkflowDefinitionInvalidException`
+    - [x] reason `workflow-command-composite`
+  - [x] these failures expose no arguments, option values, service ids, paths, or workflow definition payload
+  - [x] performs no command service resolution
+  - [x] preserves the canonical byte-order workflow-name ordering produced by `WorkflowSchema`
+  - [x] MUST NOT independently re-sort or re-normalize workflow definitions
+  - [x] preserves step order
+  - [x] canonical APIs:
+    - [x] `public function definitions(): array`
+    - [x] `public function require(string $name): WorkflowDefinition`
+  - [x] `require()` validates the requested lookup token before map access:
+    - [x] same workflow-name regex
+    - [x] maximum 64 bytes
+    - [x] no control bytes
+  - [x] an invalid lookup token throws `WorkflowNotFoundException` without exposing the token
+  - [x] an unknown but valid lookup token throws `WorkflowNotFoundException` without exposing the token
+  - [x] lookup failures MUST NOT include the requested workflow name in public or internal exception messages
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowStepInputFactory.php`
-  - [ ] stateless structured-input adapter
-  - [ ] creates the existing normalized CLI `InputInterface` implementation from one `WorkflowStep`
-  - [ ] MUST NOT use shell parsing or shell escaping
-  - [ ] MUST NOT read raw argv, config, env, CWD, or filesystem
-  - [ ] constructs the normalized `InputInterface` directly; it MUST NOT reparse the generated tokens
-  - [ ] constructs canonical command-facing `tokens()` only as the stable token projection of the structured step:
-    - [ ] command name first
-    - [ ] option keys in byte-order `strcmp` order
-    - [ ] `true` as `--name`
-    - [ ] `string` as `--name=value`
-    - [ ] `list<string>` as repeated `--name=value` tokens preserving list order
-    - [ ] when positional arguments exist, one `--` marker before the first argument
-    - [ ] positional arguments in declared order
-  - [ ] CLI-global `format|color` tokens are never generated
-  - [ ] the existing `CommandInputValidator` validates normalized arguments and options, not by reparsing `tokens()`
-  - [ ] performs only deterministic structured-input construction
-  - [ ] MUST NOT invoke `CommandInputValidator`
-  - [ ] MUST NOT perform descriptor, argument, option, required-value, or repeatability validation
-  - [ ] MUST NOT implement a second argument/option validation policy
+- [x] `packages/platform/cli/src/Workflow/WorkflowStepInputFactory.php`
+  - [x] stateless structured-input adapter
+  - [x] creates the existing immutable `ArgvInput` implementation from one validated `WorkflowStep`, before descriptor-dependent normalization and structural validation
+  - [x] MUST NOT use shell parsing or shell escaping
+  - [x] MUST NOT read raw argv, config, env, CWD, or filesystem
+  - [x] constructs the structured `ArgvInput` directly; the shared `CommandInputValidator::normalizeAndValidate()` performs subsequent descriptor-dependent normalization and validation without reparsing generated tokens
+  - [x] constructs the structured `ArgvInput` without duplicating descriptor-dependent repeatable-option normalization
+  - [x] preserves a single configured string value until the shared `CommandInputValidator::normalizeAndValidate()` boundary
+  - [x] preserves configured repeatable lists in their declared order
+  - [x] MUST NOT independently convert scalar values into repeatable lists based on command descriptors
+  - [x] constructs canonical command-facing `tokens()` only as the stable token projection of the structured step:
+    - [x] command name first
+    - [x] option keys in byte-order `strcmp` order
+    - [x] `true` as `--name`
+    - [x] `string` as `--name=value`
+    - [x] `list<string>` as repeated `--name=value` tokens preserving list order
+    - [x] when positional arguments exist, one `--` marker before the first argument
+    - [x] positional arguments in declared order
+  - [x] CLI-global `format|color` tokens are never generated
+  - [x] the existing `CommandInputValidator` validates normalized arguments and options, not by reparsing `tokens()`
+  - [x] performs only deterministic structured-input construction
+  - [x] MUST NOT invoke `CommandInputValidator`
+  - [x] MUST NOT perform descriptor, argument, option, required-value, or repeatability validation
+  - [x] MUST NOT implement a second argument/option validation policy
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowStepResult.php`
-  - [ ] immutable readonly value
-  - [ ] contains exactly:
-    - [ ] `index: int`
-    - [ ] `command: string`
-    - [ ] `exitCode: int`
-    - [ ] `records: list<normalized output record>`
-  - [ ] contains no arguments, options, raw tokens, command object, service id, or paths added by workflow infrastructure
+- [x] `packages/platform/cli/src/Workflow/WorkflowStepResult.php`
+  - [x] immutable readonly value
+  - [x] contains exactly:
+    - [x] `index: int`
+    - [x] `command: string`
+    - [x] `exitCode: int`
+    - [x] `records: list<normalized output record>`
+  - [x] contains no arguments, options, raw tokens, command object, service id, or paths added by workflow infrastructure
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowResult.php`
-  - [ ] immutable readonly value
-  - [ ] contains exactly:
-    - [ ] workflow name
-    - [ ] `success|failure` outcome
-    - [ ] final exit code
-    - [ ] ordered executed-step results
-  - [ ] contains no unexecuted synthetic steps
-  - [ ] exports one recursively normalized json-like map
+- [x] `packages/platform/cli/src/Workflow/WorkflowResult.php`
+  - [x] immutable readonly value
+  - [x] contains exactly:
+    - [x] workflow name
+    - [x] `success|failure` outcome
+    - [x] final exit code
+    - [x] ordered executed-step results
+  - [x] contains no unexecuted synthetic steps
+  - [x] exports one JSON-like map composed only of validated workflow metadata and safe structural projections of already normalized child output records
+  - [x] preserves canonical child records unchanged inside `WorkflowStepResult`
+  - [x] projects nested child `json` record content from the internal `payload` field into the exported `data` field
+  - [x] preserves nested child `text` and `error` record fields without structural rewriting
+  - [x] preserves original nested content keys and values until mandatory final redaction
+  - [x] delegates final JSON-like normalization and resource-limit enforcement to the existing parent `CommandOutputBuffer::json()` boundary
+  - [x] MUST NOT implement a second recursive normalizer, resource-budget walker, JSON encoder, or redaction pass
 
-- [ ] `packages/platform/cli/src/Workflow/WorkflowRunner.php`
-  - [ ] stateless and re-entrant
-  - [ ] receives:
-    - [ ] final `CommandCatalog`
-    - [ ] existing `CommandInputValidator`
-    - [ ] existing `CommandRunner`
-    - [ ] `WorkflowStepInputFactory`
-  - [ ] for every step:
-    - [ ] obtains the normal descriptor from the final `CommandCatalog`
-    - [ ] constructs structured input through `WorkflowStepInputFactory`
-    - [ ] invokes the existing `CommandInputValidator` exactly once
-    - [ ] invokes `CommandRunner` only after successful validation
-  - [ ] creates one fresh local `CommandOutputBuffer` per step
-  - [ ] MUST NOT resolve command services directly
-  - [ ] MUST NOT invoke `CommandInterface::run()` directly
-  - [ ] MUST NOT invoke `KernelRuntimeInterface` directly
-  - [ ] MUST NOT invoke hooks or reset orchestration
-  - [ ] passes the same effective top-level output format to every step `CommandRunner` call
-  - [ ] finalizes every successfully completed child output buffer exactly once
-  - [ ] never finalizes the child buffer of a throwing step
-  - [ ] preserves child record order
-  - [ ] stops on the first non-zero returned exit code
-  - [ ] MUST NOT catch Throwables for translation, wrapping, observability, or downgrade
-  - [ ] MAY catch a step Throwable only to discard the current invocation-local child buffer
-  - [ ] after discard, MUST rethrow the exact same Throwable instance
-  - [ ] if a step throws, no completed `WorkflowResult` is produced
-  - [ ] records from earlier completed steps are not rendered as partial workflow output
-  - [ ] no child output from the failed workflow invocation reaches the final formatter
-  - [ ] if a step throws:
-    - [ ] the current child buffer is not appended to a completed `WorkflowResult`
-    - [ ] the current child buffer is discarded before propagation
-    - [ ] no partial child batch is formatted or written
-    - [ ] no later step is resolved
-    - [ ] the original Throwable propagates unchanged
+- [x] `packages/platform/cli/src/Workflow/WorkflowRunner.php`
+  - [x] stateless and re-entrant
+  - [x] receives:
+    - [x] final `CommandCatalog`
+    - [x] existing `CommandInputValidator`
+    - [x] existing `CommandRunner`
+    - [x] `WorkflowStepInputFactory`
+  - [x] for every step:
+    - [x] obtains the normal descriptor from the final `CommandCatalog`
+    - [x] constructs structured input through `WorkflowStepInputFactory`
+    - [x] invokes `CommandInputValidator::normalizeAndValidate()` exactly once
+    - [x] creates one fresh invocation-local `CommandOutputBuffer` only after successful step input normalization and validation
+    - [x] passes the returned normalized `ArgvInput` and fresh child buffer to `CommandRunner`
+    - [x] invokes `CommandRunner` only after successful validation
+  - [x] a step input-validation Throwable propagates unchanged through the existing CLI error boundary
+  - [x] a validation failure produces no completed `WorkflowResult`, including when earlier steps have completed
+  - [x] records from previously completed steps MUST NOT be rendered as partial workflow output after validation failure
+  - [x] no child buffer is created or finalized for a step rejected before dispatch
+  - [x] no subsequent workflow step is resolved or dispatched after validation failure
+  - [x] MUST NOT resolve command services directly
+  - [x] MUST NOT invoke `CommandInterface::run()` directly
+  - [x] MUST NOT invoke `KernelRuntimeInterface` directly
+  - [x] MUST NOT invoke hooks or reset orchestration
+  - [x] passes the same effective top-level output format to every step `CommandRunner` call
+  - [x] finalizes every child output buffer exactly once when `CommandRunner` returns a valid exit code in `0..255`
+  - [x] includes the first non-zero step and its completed child records in the final `WorkflowResult`
+  - [x] never finalizes the child buffer of a throwing step
+  - [x] preserves child record order
+  - [x] stops on the first non-zero returned exit code
+  - [x] never creates synthetic results for unexecuted subsequent steps
+  - [x] MUST NOT catch Throwables for translation, wrapping, observability, or downgrade
+  - [x] MAY catch a step Throwable only to discard the current invocation-local child buffer
+  - [x] after discard, MUST rethrow the exact same Throwable instance
+  - [x] if a step throws, no completed `WorkflowResult` is produced
+  - [x] records from earlier completed steps are not rendered as partial workflow output
+  - [x] no child output from the failed workflow invocation reaches the final formatter
+  - [x] if a step throws:
+    - [x] the current child buffer is not appended to a completed `WorkflowResult`
+    - [x] the current child buffer is discarded before propagation
+    - [x] no partial child batch is formatted or written
+    - [x] no later step is resolved
+    - [x] the original Throwable propagates unchanged
 
 Composite execution:
-- [ ] `packages/platform/cli/src/Runner/CompositeCommandInterface.php`
-  - [ ] internal platform-only interface
-  - [ ] canonical API:
-    - [ ] `public function name(): string`
-    - [ ] `public function run(InputInterface $input, OutputInterface $output, string $outputFormat): int`
-  - [ ] `name()` MUST return the exact command `NAME` constant
-  - [ ] `run()` receives:
-    - [ ] validated `InputInterface`
-    - [ ] invocation-local `OutputInterface`
-    - [ ] effective format `json|table|plain`
-  - [ ] `run()` returns one portable process exit code in `0..255`
-  - [ ] the interface MUST NOT extend `CommandInterface`
-  - [ ] one service MUST NOT implement both `CommandInterface` and `CompositeCommandInterface`
-  - [ ] no external package extension semantics
+- [x] `packages/platform/cli/src/Runner/CompositeCommandInterface.php`
+  - [x] internal platform-only interface
+  - [x] canonical API:
+    - [x] `public function name(): string`
+    - [x] `public function run(InputInterface $input, OutputInterface $output, string $outputFormat): int`
+  - [x] `name()` MUST return the exact command `NAME` constant
+  - [x] `run()` receives:
+    - [x] validated `InputInterface`
+    - [x] invocation-local `OutputInterface`
+    - [x] effective format `json|table|plain`
+  - [x] `run()` returns one portable process exit code in `0..255`
+  - [x] the interface MUST NOT extend `CommandInterface`
+  - [x] one service MUST NOT implement both `CommandInterface` and `CompositeCommandInterface`
+  - [x] no external package extension semantics
 
 Commands:
-- [ ] `packages/platform/cli/src/Command/WorkflowListCommand.php`
-  - [ ] normal `CommandInterface` command
-  - [ ] receives only `WorkflowCatalog`
-  - [ ] renders safe workflow names and summaries
-  - [ ] does not expose step arguments or option values
-  - [ ] metadata:
-    - [ ] `NAME = 'workflow:list'`
-    - [ ] `SUMMARY = 'List configured CLI workflows.'`
-    - [ ] `GROUP = 'workflow'`
-    - [ ] `HIDDEN = false`
-    - [ ] `ARGUMENTS = []`
-    - [ ] `OPTIONS = []`
+- [x] `packages/platform/cli/src/Command/WorkflowListCommand.php`
+  - [x] normal `CommandInterface` command
+  - [x] receives only `WorkflowCatalog`
+  - [x] renders safe workflow names and summaries
+  - [x] does not expose step arguments or option values
+  - [x] metadata:
+    - [x] `NAME = 'workflow:list'`
+    - [x] `SUMMARY = 'List configured CLI workflows.'`
+    - [x] `GROUP = 'workflow'`
+    - [x] `HIDDEN = false`
+    - [x] `ARGUMENTS = []`
+    - [x] `OPTIONS = []`
 
-- [ ] `packages/platform/cli/src/Command/WorkflowRunCommand.php`
-  - [ ] implements internal `CompositeCommandInterface`
-  - [ ] does not implement `Coretsia\Contracts\Cli\Command\CommandInterface`
-  - [ ] `name()` returns `self::NAME`
-  - [ ] implements the exact `CompositeCommandInterface::run(...)` signature
-  - [ ] exposes the exact six public command metadata constants:
-    - [ ] `NAME`
-    - [ ] `SUMMARY`
-    - [ ] `GROUP`
-    - [ ] `HIDDEN`
-    - [ ] `ARGUMENTS`
-    - [ ] `OPTIONS`
-  - [ ] receives only `WorkflowCatalog` and `WorkflowRunner`
-  - [ ] requires one workflow argument
-  - [ ] writes exactly one json-like `WorkflowResult` record on completed execution
-  - [ ] returns the exact workflow final exit code
-  - [ ] metadata:
-    - [ ] `NAME = 'workflow:run'`
-    - [ ] `SUMMARY = 'Run one configured CLI workflow.'`
-    - [ ] `GROUP = 'workflow'`
-    - [ ] `HIDDEN = false`
-    - [ ] `ARGUMENTS` contains exactly:
-      - [ ] `name = workflow`
-      - [ ] `summary = Workflow name.`
-      - [ ] `required = true`
-      - [ ] `variadic = false`
-    - [ ] `OPTIONS = []`
+- [x] `packages/platform/cli/src/Command/WorkflowRunCommand.php`
+  - [x] implements internal `CompositeCommandInterface`
+  - [x] does not implement `Coretsia\Contracts\Cli\Command\CommandInterface`
+  - [x] `name()` returns `self::NAME`
+  - [x] implements the exact `CompositeCommandInterface::run(...)` signature
+  - [x] exposes the exact six public command metadata constants:
+    - [x] `NAME`
+    - [x] `SUMMARY`
+    - [x] `GROUP`
+    - [x] `HIDDEN`
+    - [x] `ARGUMENTS`
+    - [x] `OPTIONS`
+  - [x] receives only `WorkflowCatalog` and `WorkflowRunner`
+  - [x] requires one workflow argument
+  - [x] writes exactly one json-like `WorkflowResult` record on completed execution
+  - [x] returns the exact workflow final exit code
+  - [x] metadata:
+    - [x] `NAME = 'workflow:run'`
+    - [x] `SUMMARY = 'Run one configured CLI workflow.'`
+    - [x] `GROUP = 'workflow'`
+    - [x] `HIDDEN = false`
+    - [x] `ARGUMENTS` contains exactly:
+      - [x] `name = workflow`
+      - [x] `summary = Workflow name.`
+      - [x] `required = true`
+      - [x] `variadic = false`
+    - [x] `OPTIONS = []`
 
 Suggestions:
-- [ ] `packages/platform/cli/src/UX/SmartSuggestor.php`
-  - [ ] stateless
-  - [ ] consumes only final visible `CommandDescriptor` names from `CommandCatalog`
-  - [ ] excludes hidden commands
-  - [ ] performs byte-wise lowercase ASCII comparison
-  - [ ] uses `levenshtein()` only on already validated ASCII command names
-  - [ ] maximum accepted distance:
-    - [ ] command length `1..8` → `2`
-    - [ ] command length `9+` → `3`
-  - [ ] sorts candidates by:
-    - [ ] distance ascending
-    - [ ] final CommandCatalog order ascending for ties
-  - [ ] returns at most three command names
-  - [ ] performs no option, argument, workflow, filesystem, or package suggestions
-  - [ ] contains no mutable cache
+- [x] `packages/platform/cli/src/UX/SmartSuggestor.php`
+  - [x] stateless
+  - [x] consumes only final visible `CommandDescriptor` names from `CommandCatalog`
+  - [x] excludes hidden commands
+  - [x] performs byte-wise lowercase ASCII comparison
+  - [x] uses `levenshtein()` only on already validated ASCII command names
+  - [x] accepts suggestions only for syntactically valid ASCII command-name tokens
+  - [x] performs no suggestion calculation when the unknown input exceeds 128 bytes
+  - [x] excludes candidate names exceeding 128 bytes from distance calculation
+  - [x] skips candidates whose length difference exceeds the applicable distance threshold before invoking `levenshtein()`
+  - [x] performs no unbounded comparison or unbounded diagnostic rendering
+  - [x] returns an empty suggestion list when input is invalid or outside the suggestion bounds
+  - [x] maximum accepted Levenshtein distance is determined exclusively by the unknown input command token length, measured in ASCII bytes:
+    - [x] unknown input length `1..8` → `2`
+    - [x] unknown input length `9..128` → `3`
+  - [x] candidate command-name length MUST NOT change the distance threshold
+  - [x] the same threshold applies to every eligible candidate within one suggestion calculation
+  - [x] sorts candidates by:
+    - [x] distance ascending
+    - [x] final CommandCatalog order ascending for ties
+  - [x] performs deterministic bounded ranking without `usort`, `uksort`, `uasort`, `array_multisort`, or an independent recursive sorting helper
+  - [x] MAY maintain a bounded top-three candidate list through stable insertion
+  - [x] preserves final CommandCatalog order for equal-distance candidates
+  - [x] MUST NOT mutate or reorder the original CommandCatalog descriptors
+  - [x] returns at most three command names
+  - [x] performs no option, argument, workflow, filesystem, or package suggestions
+  - [x] contains no mutable cache
 
 Errors:
-- [ ] `packages/platform/cli/src/Exception/WorkflowDefinitionInvalidException.php`
-  - [ ] code `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID`
-  - [ ] code-first deterministic public message
-  - [ ] exposes only stable reason tokens
-  - [ ] contains no definition values, arguments, options, paths, or previous Throwable message
+- [x] `packages/platform/cli/src/Exception/WorkflowDefinitionInvalidException.php`
+  - [x] code `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID`
+  - [x] code-first deterministic public message
+  - [x] accepts exactly these allowlisted public reasons:
+    - [x] `workflow-definition-invalid` — invalid workflow names, schema shapes, types, keys, string safety, option values, or bounds
+    - [x] `workflow-command-unknown` — referenced command is absent from the final `CommandCatalog`
+    - [x] `workflow-command-composite` — referenced command has composite execution kind
+  - [x] `WorkflowSchema` uses only `workflow-definition-invalid` for deep definition validation failures
+  - [x] `WorkflowCatalog` uses only the two command-reference reasons for unknown or composite steps
+  - [x] invalid or non-allowlisted reason tokens are rejected without echoing their values
+  - [x] exposes no workflow names, command tokens, definition values, arguments, options, service ids, paths, or previous Throwable messages
 
-- [ ] `packages/platform/cli/src/Exception/WorkflowNotFoundException.php`
-  - [ ] code `CORETSIA_CLI_WORKFLOW_NOT_FOUND`
-  - [ ] fixed safe reason `workflow-not-found`
-  - [ ] MAY expose only the already validated workflow-name token
-  - [ ] contains no configured definition or step data
+- [x] `packages/platform/cli/src/Exception/WorkflowNotFoundException.php`
+  - [x] code `CORETSIA_CLI_WORKFLOW_NOT_FOUND`
+  - [x] fixed safe reason `workflow-not-found`
+  - [x] MUST NOT expose the requested workflow-name token, including when syntactically valid
+  - [x] public and internal exception messages contain only the fixed error code and safe reason
+  - [x] contains no configured definition or step data
 
 Docs:
-- [ ] `docs/adr/ADR-XXXX-cli-composite-workflows.md`
-  - [ ] records the owner-only composite-command exception
-  - [ ] records one UoW per workflow step and no outer workflow UoW
-  - [ ] records fail-fast sequential execution
-  - [ ] records no replay/artifact scope
-  - [ ] records no nested workflows or composite steps
+- [x] `docs/adr/ADR-0035-cli-composite-workflows.md`
+  - [x] records the owner-only composite-command exception
+  - [x] records one UoW per workflow step and no outer workflow UoW
+  - [x] records fail-fast sequential execution
+  - [x] records no replay/artifact scope
+  - [x] records no nested workflows or composite steps
 
 #### Modifies
 
-- [ ] `packages/platform/cli/src/Output/CommandOutputBuffer.php`
-  - [ ] preserve the existing `finalize()` and `discard()` APIs
-  - [ ] broaden the authorized `discard()` callers to exactly:
-    - [ ] the existing `CliApplication` top-level error boundary
-    - [ ] `WorkflowRunner` for one throwing invocation-local child step
-  - [ ] no other production caller may invoke `discard()`
-  - [ ] `discard()` remains forbidden after finalization
+- [x] `packages/platform/cli/src/Output/Formatter/TableFormatter.php`
+  - [x] render nested JSON-like maps and lists as readable structured sections
+  - [x] preserve existing homogeneous-list table rendering only when displayed column values are scalar
+  - [x] render homogeneous and heterogeneous lists containing nested collections as indexed structured sections
+  - [x] preserve existing grouped command-catalog output
+  - [x] render projected workflow child `text|json|error` records without embedding serialized collections in table cells
+  - [x] reuse existing width calculation, cell escaping, ANSI decoration, and deterministic ordering
+  - [x] prefer whitespace-aware wrapping without truncation
+  - [x] introduce no command-specific or workflow-specific renderer
 
-- [ ] `packages/platform/cli/config/cli.php`
-  - [ ] add only `cli.workflows.definitions = []`
-  - [ ] preserve all 2.30.0 output and command override defaults unchanged
+- [x] `packages/platform/cli/src/Bootstrap/UltraEarlyDoctorRunner.php`
+  - [x] preserve existing exact five-boolean doctor payload validation
+  - [x] project validated booleans into fixed human-readable diagnostic lines through one pure internal projection method
+  - [x] keep the projection method independent of runtime probes, Kernel, container services, and terminal capabilities
+  - [x] allow deterministic testing of successful and failed capability values without modifying PHP runtime globals or introducing injectable diagnostic services
+  - [x] use existing `PlainFormatter` and `ConsoleOutputWriter`
+  - [x] preserve fixed safe failure handling, ANSI suppression, and exit codes
+  - [x] introduce no Kernel bootstrap, redactor, terminal detector, or new renderer
 
-- [ ] `packages/platform/cli/config/rules.php`
-  - [ ] add exact static `workflows.definitions` boundary
-  - [ ] preserve `additionalKeys = false` at every static schema-owned level
-  - [ ] dynamic keys are allowed only under `cli.commands.overrides` and `cli.workflows.definitions`
+- [x] `packages/platform/cli/config/cli.php`
+  - [x] add `cli.workflows.definitions = []`
+  - [x] change only `cli.output.adaptive.non_interactive` from `plain` to `table`
+  - [x] preserve all other existing output and command override defaults unchanged
+  - [x] introduce no additional CLI output configuration keys
 
-- [ ] `packages/platform/cli/src/Catalog/CommandDescriptor.php`
-  - [ ] add internal derived `executionKind: normal|composite`
-  - [ ] value is not exported or configurable
+- [x] `packages/platform/cli/config/rules.php`
+  - [x] add exact static `workflows.definitions` boundary
+  - [x] preserve `additionalKeys = false` at every static schema-owned level
+  - [x] dynamic keys are allowed only under `cli.commands.overrides` and `cli.workflows.definitions`
+  - [x] update the existing rules-file documentation to describe both dynamic-key boundaries
+  - [x] preserve structural-only ConfigValidator ownership for dynamic definitions
+  - [x] keep `WorkflowSchema` as the sole owner of deep workflow definition validation
+  - [x] introduce no additional ConfigValidator callbacks or custom rule processors
 
-- [ ] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
-  - [ ] preserve the exact six metadata keys
-  - [ ] preserve external `CommandInterface` requirement
-  - [ ] allow `CompositeCommandInterface` only for exact built-in allowlisted service ids
-  - [ ] validates the allowlisted composite class constants against the same exact six-key metadata schema
-  - [ ] the composite exception changes only the execution interface requirement, not metadata validation
-  - [ ] reject external composite implementations deterministically
+- [x] `packages/platform/cli/src/Catalog/CommandDescriptor.php`
+  - [x] add internal derived `executionKind: normal|composite`
+  - [x] derive execution kind only from the validated built-in service identity
+  - [x] expose one canonical read-only accessor:
+    - [x] `public function executionKind(): string`
+    - [x] return value is exactly `normal|composite`
+  - [x] `CommandRunner`, `WorkflowCatalog`, and `WorkflowRunner` MUST consume this accessor without independently reclassifying service ids
+  - [x] preserve execution kind when `withCatalogView()` creates an immutable presentation override
+  - [x] preserve command identity, arguments, options, and service id during catalog-view overrides
+  - [x] execution kind is not tag metadata, configurable, overrideable, or included in command output
 
-- [ ] `packages/platform/cli/src/Catalog/CommandCatalog.php`
-  - [ ] add `public function find(string $name): ?CommandDescriptor`
-  - [ ] `find()` performs no service resolution
-  - [ ] preserve final catalog order
+- [x] `packages/platform/cli/src/Catalog/CommandTagSchema.php`
+  - [x] preserve the exact six metadata keys
+  - [x] preserve external `CommandInterface` requirement
+  - [x] allow `CompositeCommandInterface` only for exact built-in allowlisted service ids
+  - [x] validates the allowlisted composite class constants against the same exact six-key metadata schema
+  - [x] the composite exception changes only the execution interface requirement, not metadata validation
+  - [x] preserve the canonical `CommandDescriptor::fromValidatedMetadata()` to `CommandTagSchema::canonicalMetadata()` validation path
+  - [x] apply the same immutable built-in composite allowlist during canonical metadata revalidation
+  - [x] do not bypass class-constant validation or construct composite descriptors from unchecked metadata
+  - [x] preserve exact service-id, class identity, metadata, and command-name validation for both normal and composite descriptors
+  - [x] reject external composite implementations deterministically
 
-- [ ] `packages/platform/cli/src/Runner/CommandRunner.php`
-  - [ ] preserve the normal command path exactly
-  - [ ] add exact composite branch described in this epic
-  - [ ] remain stateless and re-entrant
-  - [ ] preserve output, exit-code, interface, name, and observability validation
-  - [ ] MUST NOT create an outer UoW for `WorkflowRunCommand`
+- [x] `packages/platform/cli/src/Catalog/CommandCatalog.php`
+  - [x] add `public function find(string $name): ?CommandDescriptor`
+  - [x] `find()` performs no service resolution
+  - [x] preserve final catalog order
 
-- [ ] `packages/platform/cli/src/Output/CommandOutputBatch.php`
-  - [ ] add a read-only ordered `records()` accessor
-  - [ ] accessor returns the already normalized immutable record list
-  - [ ] no mutable reference is exposed
+- [x] `packages/platform/cli/src/Runner/CommandRunner.php`
+  - [x] preserve the normal command path exactly
+  - [x] add exact composite branch described in this epic
+  - [x] remain stateless and re-entrant
+  - [x] preserve output, exit-code, interface, name, and observability validation
+  - [x] reuse the existing lazy selected-command resolution and identity-validation policy for normal and composite descriptors
+  - [x] the composite branch MUST verify:
+    - [x] the resolved service implements `CompositeCommandInterface` and does not implement `CommandInterface`
+    - [x] the resolved service's exact runtime class matches `CommandDescriptor::serviceId()`
+    - [x] the resolved command's `name()` matches `CommandDescriptor::name()`
+    - [x] the returned exit code is an integer in `0..255`
+  - [x] invalid composite service identity or exit codes fail through the existing CLI exception boundary
+  - [x] composite runtime validation MUST NOT introduce a second dispatcher, independent command-identity policy, or Kernel lifecycle implementation
+  - [x] MUST NOT create an outer UoW for `WorkflowRunCommand`, including when composite service validation fails
 
-- [ ] `packages/platform/cli/src/Application/CliApplication.php`
-  - [ ] unknown command selection uses `CommandCatalog::find()`
-  - [ ] writes the canonical unknown-command error record
-  - [ ] obtains suggestions only through `SmartSuggestor`
-  - [ ] when suggestions exist, appends one json-like record:
-    - [ ] `suggestions => list<string>`
-  - [ ] suggestions pass through the same final formatter and redactor
-  - [ ] no suggestion data enters logs, metrics, or UoW attributes
+- [x] `packages/platform/cli/src/Input/CommandInputValidator.php`
+  - [x] introduce one canonical normalization-and-validation entrypoint:
+    - [x] `public function normalizeAndValidate(CommandDescriptor $descriptor, ArgvInput $input): ArgvInput`
+  - [x] move the existing repeatable-required-option scalar-to-list normalization from `CliApplication::normalizeRepeatableOptions()` into this shared boundary
+  - [x] preserve the existing `validate()` API and structural validation rules
+  - [x] normalize a single scalar value of a declared repeatable required-value option into a one-element ordered list
+  - [x] preserve already normalized repeatable lists without changing their order
+  - [x] reject invalid option values and repeated non-repeatable options through the existing validation policy
+  - [x] return the normalized immutable `ArgvInput` only after successful structural validation
+  - [x] perform no owner-domain validation or command service resolution
+  - [x] introduce no second parser, validator, or normalization policy
 
-- [ ] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
-  - [ ] add known safe mappings for:
-    - [ ] `WorkflowDefinitionInvalidException`
-    - [ ] `WorkflowNotFoundException`
-  - [ ] preserve each exception’s stable public error code
-  - [ ] use fixed safe public messages
-  - [ ] MUST NOT include workflow definitions, step data, arguments, option values, service ids, paths, or previous Throwable messages
-  - [ ] returned descriptor extensions remain empty
+- [x] `packages/platform/cli/src/Input/ArgvInputParser.php`
+  - [x] eliminate quadratic array copying when accumulating repeated valued options
+  - [x] append additional repeated values directly to the existing option list without retaining a separate temporary reference to that list
+  - [x] preserve the existing first-occurrence scalar representation and subsequent ordered list representation
+  - [x] preserve original option-value order and command-facing token order
+  - [x] preserve existing repeated bare-flag, mixed bare/valued, and duplicate CLI-global option rejection
+  - [x] preserve command-name and option-name syntax validation
+  - [x] preserve existing `--` positional-argument semantics
+  - [x] preserve safe deterministic `CliInputInvalidException` codes and reasons
+  - [x] preserve raw string values without introducing implicit UTF-8 normalization or rejection
+  - [x] introduce no new parser, generic input limiter, configuration key, or command-specific validation
 
-- [ ] `packages/platform/cli/src/Provider/CliServiceFactory.php`
-  - [ ] remains the only `cli.*` config consumer
-  - [ ] reads the complete validated `cli` root through the existing helper
-  - [ ] constructs normalized workflow definitions through `WorkflowSchema`
-  - [ ] performs no command service resolution
+- [x] `packages/platform/cli/src/Application/CliApplication.php`
+  - [x] unknown command selection uses `CommandCatalog::find()`
+  - [x] replace private `normalizeRepeatableOptions()` usage with the shared `CommandInputValidator::normalizeAndValidate()` entrypoint
+  - [x] remove the redundant private repeatable-option normalization method
+  - [x] pass the returned normalized `ArgvInput` to `CommandRunner`
+  - [x] preserve one invocation-local `CommandOutputBuffer` for normal and composite dispatch
+  - [x] preserve the existing `CommandRunner::run()` dispatch boundary and its argument order
+  - [x] preserve discard-before-exception-rendering and exactly one finalization for the top-level output buffer
+  - [x] preserve existing `CliCommandOutputBufferIsInvocationLocalContractTest` source and lifecycle invariants
+  - [x] preserve existing validation-before-service-resolution ordering
+  - [x] preserves `CliInputInvalidException::ERROR_CODE` and `REASON_COMMAND_UNKNOWN` for unknown commands
+  - [x] emits the existing canonical unknown-command error record through `ExceptionRenderer`
+  - [x] obtains suggestions only through `SmartSuggestor`
+  - [x] suggestion calculation is best-effort and MUST NOT replace the original unknown-command exception
+  - [x] suggestion calculation failures MUST NOT change the canonical unknown-command error code, reason, or exit code
+  - [x] suggestion calculation failures produce no suggestion record and preserve the existing safe error-rendering path
+  - [x] suggestion failures MUST NOT expose exception messages, candidate names, or internal catalog details
+  - [x] when suggestions exist, appends one json-like record:
+    - [x] `suggestions => list<string>`
+  - [x] keeps error records on stderr in `plain|table` and inside the canonical JSON envelope in `json`
+  - [x] preserves record ordering within each output stream without promising cross-stream write ordering
+  - [x] suggestions pass through the same final formatter and redactor
+  - [x] no suggestion data enters logs, metrics, or UoW attributes
 
-- [ ] `packages/platform/cli/src/Provider/CliServiceProvider.php`
-  - [ ] registers/defines workflow services in the same source/definition split as 2.30.0
-  - [ ] tags `WorkflowListCommand` and `WorkflowRunCommand` with exact six-key metadata
-  - [ ] tag priority is actual `0`
-  - [ ] references command constants only
-  - [ ] does not conditionally register commands from config
+- [x] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
+  - [x] add known safe mappings for:
+    - [x] `WorkflowDefinitionInvalidException`
+    - [x] `WorkflowNotFoundException`
+  - [x] preserve each exception’s stable public error code
+  - [x] use fixed safe public messages
+  - [x] MUST NOT include workflow definitions, step data, arguments, option values, service ids, paths, or previous Throwable messages
+  - [x] returned descriptor extensions remain empty
 
-- [ ] `packages/platform/cli/README.md`
-  - [ ] document exact workflow config shape
-  - [ ] document fail-fast behavior
-  - [ ] document one UoW per step
-  - [ ] replace the earlier “doctor is the only pre-UoW command” wording with:
-    - [ ] `doctor` is the only pre-host command
-    - [ ] `workflow:run` is the only source-host composite command without an outer UoW
-    - [ ] every normal command and every workflow step has exactly one UoW
-  - [ ] document no nested workflows
-  - [ ] document no `--mode|--preset` workflow semantics
-  - [ ] document deterministic suggestions
-  - [ ] explicitly state replay persistence is not provided
+- [x] `packages/platform/cli/src/Provider/CliServiceFactory.php`
+  - [x] remains the only `cli.*` config consumer
+  - [x] reads the complete validated `cli` root through the existing helper
+  - [x] constructs normalized workflow definitions through `WorkflowSchema`
+  - [x] performs no command service resolution
 
-- [ ] `docs/ssot/tags.md`
-  - [ ] preserve exact six-key metadata
-  - [ ] document the single platform-owned composite service-id exception
-  - [ ] keep composite capability out of tag metadata
-  - [ ] external command services still require `CommandInterface`
+- [x] `packages/platform/cli/src/Provider/CliServiceProvider.php`
+  - [x] registers workflow infrastructure and commands through the existing declarative definition-provider mechanism
+  - [x] preserves the existing source-only registration boundary for built-in Kernel operation commands
+  - [x] defines workflow services with the existing `ContainerDefinitionBuilder` and canonical `CliServiceFactory` methods
+  - [x] avoids duplicate source/runtime service registration
+  - [x] tags `WorkflowListCommand` and `WorkflowRunCommand` with exact six-key metadata
+  - [x] tag priority is actual `0`
+  - [x] references command constants only
+  - [x] does not conditionally register commands from config
+  - [x] preserves source-container and compiled-definition parity
 
-- [ ] `docs/ssot/observability.md`
-  - [ ] retain existing `cli.command` names and labels
-  - [ ] document that `workflow:run` emits one top-level command observation without a Kernel UoW
-  - [ ] each workflow step emits its own normal `cli.command` observation inside its own UoW
-  - [ ] workflow name, step arguments, and option values are forbidden metric labels
-  - [ ] step arguments and option values are forbidden span attributes
-  - [ ] `CommandRunner` remains the sole owner of both normal and composite CLI command lifecycle observability
-  - [ ] `WorkflowRunner` MUST NOT emit duplicate step or workflow lifecycle signals
-  - [ ] `WorkflowRunCommand` MUST NOT emit lifecycle signals
-  - [ ] one user workflow invocation emits:
-    - [ ] one top-level `cli.command` observation for `workflow:run`
-    - [ ] zero or more normal `cli.command` observations, one for each executed step
-  - [ ] unexecuted steps emit no observability
+- [x] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesPlainFormatTest.php`
+  - [x] rename to `NonInteractiveAdaptiveOutputUsesTableFormatTest.php`
+  - [x] rename the test class consistently with the new filename
+  - [x] update packaged-default assertions from non-interactive `plain` to `table`
+  - [x] verify deterministic table rendering without ANSI for non-interactive output
+  - [x] preserve explicit `--format=json` and canonical JSON envelope assertions
+  - [x] preserve the separate injected-policy scenario with explicitly configured non-interactive `plain`
+  - [x] preserve proof that injected terminal capabilities, not environment heuristics, determine adaptive policy selection
 
-- [ ] `docs/adr/INDEX.md`
-  - [ ] register ADR-XXXX-cli-composite-workflows.md
+- [x] `packages/platform/cli/tests/Integration/UltraEarlyDoctorUsesSafeFixedOutputPipelineTest.php`
+  - [x] replace assertions expecting JSON-decoded doctor stdout with exact human-readable output assertions
+  - [x] preserve fixed boolean capability ownership and exit-code behavior
+  - [x] preserve pre-host execution, ANSI suppression, safe errors, and sensitive-data non-disclosure
+  - [x] preserve the identical `DoctorCommand` implementation used by the normal catalog
+  - [x] update source-level assertions only where required by the fixed text projection
+
+- [x] `packages/platform/cli/tests/Integration/DoctorBypassesKernelOperationsHostTest.php`
+  - [x] replace JSON parsing of doctor stdout with assertions against the canonical human-readable readiness status
+  - [x] preserve proof that invalid Kernel configuration cannot prevent the ultra-early doctor command from executing
+  - [x] preserve the normal CLI source-host failure assertions
+
+- [x] `packages/platform/cli/tests/Contract/CliConfigSubtreeShapeContractTest.php`
+  - [x] update the exact default config shape to include `workflows.definitions`
+  - [x] update the expected adaptive non-interactive default from `plain` to `table`
+  - [x] preserve static JSON-like configuration and no-runtime-input assertions
+
+- [x] `packages/platform/cli/tests/Contract/CliConfigRulesCoverAllDefaultsContractTest.php`
+  - [x] preserve exact correspondence between every static CLI default and its ConfigRuleset definition
+  - [x] add strict unknown-key rejection coverage for `cli.workflows`
+  - [x] verify `cli.workflows` contains only the required `definitions` key
+  - [x] verify dynamic workflow-name keys are allowed structurally under `cli.workflows.definitions`
+  - [x] verify deep workflow definition validation remains outside ConfigValidator ownership
+  - [x] preserve existing strict boundaries for `commands`, `output`, `adaptive`, and `table`
+  - [x] preserve safe violation reasons without configuration values
+
+- [x] `packages/platform/cli/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] update the exact CLI default and config-rule key assertions for the new `workflows` subtree
+  - [x] update the expected adaptive non-interactive default to `table`
+  - [x] preserve all existing module, provider, and output-policy assertions
+
+- [x] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
+  - [x] extend exact source-host command tag assertions with `WorkflowListCommand` and `WorkflowRunCommand`
+  - [x] extend canonical runtime-definition service and tag assertions with both workflow commands
+  - [x] preserve exact six-key metadata and priority-zero assertions
+  - [x] preserve source-only Kernel Ops registration and constructor-injection assertions
+  - [x] preserve the prohibition on Kernel Ops implementation services in generic compiled CLI definitions
+  - [x] verify workflow infrastructure is registered through canonical declarative definitions without duplicate bindings
+
+- [x] `packages/platform/cli/tests/Unit/FormatResolverTest.php`
+  - [x] add coverage resolving the updated packaged adaptive defaults to `table` for both interactive and non-interactive capabilities
+  - [x] preserve existing tests for explicit format overrides and application-configured adaptive mappings
+  - [x] preserve the valid explicitly configured non-interactive `plain` scenario
+  - [x] preserve no-environment-dependency assertions
+
+- [x] `packages/platform/cli/tests/Unit/CliServiceFactoryReadsValidatedCliRootTest.php`
+  - [x] update the canonical test configuration root to include `workflows.definitions = []`
+  - [x] align the packaged-default test fixture with `adaptive.non_interactive = table`
+  - [x] extend exact single-root-read coverage to every new workflow-related config-dependent factory
+  - [x] preserve the existing `has('cli')` and `get('cli')` access pattern
+  - [x] reject child-path reads, full-tree reads, and configuration source-metadata reads
+  - [x] preserve fail-closed behavior for missing or structurally invalid CLI roots
+  - [x] preserve no command service resolution during workflow catalog construction
+
+- [x] `packages/platform/cli/tests/Unit/ArgvInputParserTest.php`
+  - [x] preserve existing repeated-option, global-option, and end-of-options regression coverage
+  - [x] add adversarial fixtures with large numbers of distinct command-owned options
+  - [x] add adversarial fixtures with at least 20,000 repeated valued-option occurrences
+  - [x] verify repeated values preserve their exact count and original order
+  - [x] verify very large string values retain their exact bytes at the syntax-parsing boundary
+  - [x] verify invalid UTF-8 command and option names fail through existing safe syntax errors
+  - [x] verify invalid UTF-8 option values are not silently rewritten or rejected by an unrelated parser-level policy
+  - [x] verify complex malformed inputs produce deterministic safe exception codes and reasons
+  - [x] verify exception messages never contain rejected raw values or malformed tokens
+  - [x] verify duplicate CLI-global options and mixed bare/valued occurrences retain existing rejection semantics
+  - [x] preserve deterministic parser behavior across repeated invocations in the same process
+  - [x] cover the repeated-valued-option accumulation regression without wall-clock CI thresholds
+  - [x] introduce no new generic input validation or resource-budget testing framework
+
+- [x] `packages/platform/cli/README.md`
+  - [x] document exact workflow config shape
+  - [x] document fail-fast behavior
+  - [x] document one UoW per step
+  - [x] replace the earlier “doctor is the only pre-UoW command” wording with:
+    - [x] `doctor` is the only pre-host command
+    - [x] `workflow:run` is the only source-host composite command without an outer UoW
+    - [x] every normal command and every workflow step has exactly one UoW
+  - [x] document no nested workflows
+  - [x] document no `--mode|--preset` workflow semantics
+  - [x] document deterministic suggestions
+  - [x] document the updated adaptive non-interactive table default
+  - [x] document explicit `--format=json` for machine-readable output
+  - [x] document readable nested table rendering without changing JSON schemas
+  - [x] document fixed human-readable ultra-early doctor diagnostics
+  - [x] clarify that terminal detection controls adaptive policy selection and ANSI safety, not a separate output pipeline
+  - [x] explicitly state replay persistence is not provided
+
+- [x] `docs/ssot/tags.md`
+  - [x] preserve exact six-key metadata
+  - [x] document the single platform-owned composite service-id exception
+  - [x] keep composite capability out of tag metadata
+  - [x] external command services still require `CommandInterface`
+
+- [x] `docs/ssot/observability.md`
+  - [x] retain existing `cli.command` names and labels
+  - [x] document that `workflow:run` emits one top-level command observation without a Kernel UoW
+  - [x] each workflow step emits its own normal `cli.command` observation inside its own UoW
+  - [x] workflow name, step arguments, and option values are forbidden metric labels
+  - [x] step arguments and option values are forbidden span attributes
+  - [x] `CommandRunner` remains the sole owner of both normal and composite CLI command lifecycle observability
+  - [x] preserve the existing canonical `cli.command` span attributes for composite execution, including bounded `format`
+  - [x] preserve exact `cli.command_total` and `cli.command_duration_ms` metric labels and one observation per top-level composite invocation
+  - [x] document composite span lifetime without an outer Kernel UoW
+  - [x] prohibit context-derived correlation and UoW identifiers in top-level composite logs and spans
+  - [x] preserve best-effort telemetry and primary exception precedence
+  - [x] `WorkflowRunner` MUST NOT emit duplicate step or workflow lifecycle signals
+  - [x] `WorkflowRunCommand` MUST NOT emit lifecycle signals
+  - [x] one user workflow invocation emits:
+    - [x] one top-level `cli.command` observation for `workflow:run`
+    - [x] zero or more normal `cli.command` observations, one for each executed step
+  - [x] unexecuted steps emit no observability
+
+- [x] `docs/adr/ADR-0034-cli-tag-first-command-catalog.md`
+  - [x] document the explicit platform-owned composite-command exception to the normal one-UoW-per-command rule
+  - [x] preserve existing normal command, Kernel Ops, and output ownership
+  - [x] document reuse of the existing presentation pipeline for improved human-readable output
+  - [x] preserve the canonical machine-readable JSON contract
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register ADR-0035-cli-composite-workflows.md
 
 ### Output, redaction, context, and state (MUST)
 
-- [ ] Workflow infrastructure MUST NOT write stdout or stderr.
-- [ ] Final workflow output MUST pass through the existing mandatory `OutputFormatter` redaction boundary exactly once.
-- [ ] The existing `OutputFormatter` remains the sole workflow and suggestion rendering consumer of `SensitiveDataRedactorInterface`.
-- [ ] `WorkflowRunCommand`, `WorkflowRunner`, `WorkflowCatalog`, `WorkflowSchema`, `SmartSuggestor`, and workflow result DTOs MUST NOT:
-  - [ ] receive `SensitiveDataRedactorInterface`
-  - [ ] resolve a redactor
-  - [ ] instantiate a concrete redactor
-  - [ ] define a redaction classifier, policy, hasher, or pattern registry
-- [ ] Workflow results, suggestions, and workflow error records MUST NOT bypass the existing 2.30.0 output/redaction pipeline.
-- [ ] Child command batches MUST NOT be redacted separately.
-- [ ] This epic introduces no prompts, confirmations, previews, or separate interactive diagnostic-output path.
-- [ ] Child step batches MUST NOT be formatted separately.
-- [ ] Child step batches MUST NOT be written directly.
-- [ ] Workflow infrastructure MUST NOT persist output.
-- [ ] Workflow infrastructure MUST NOT log arguments, options, child records, paths, payloads, or workflow definition values.
-- [ ] All 2.30.0 context, UoW, reset, observability, and redaction rules remain normative except for the explicitly documented missing outer UoW around `workflow:run`.
-- [ ] The `CommandRunner` composite branch owns the top-level `workflow:run` lifecycle observation.
-- [ ] `WorkflowRunCommand` and `WorkflowRunner` MUST NOT receive:
-  - [ ] `ContextAccessorInterface`
-  - [ ] `ContextKeys`
-  - [ ] `TracerPortInterface`
-  - [ ] `MeterPortInterface`
-  - [ ] `LoggerInterface`
-  - [ ] `Stopwatch`
-- [ ] `WorkflowRunCommand` and `WorkflowRunner` MUST NOT emit command lifecycle spans, metrics, or logs.
-- [ ] Top-level `workflow:run` observability MUST NOT:
-  - [ ] synthesize a correlation id
-  - [ ] synthesize a UoW id
-  - [ ] read correlation or UoW ids left by a completed step
-  - [ ] aggregate step correlation or UoW ids
-- [ ] Each normal step retains the existing 2.30.0 context policy inside its own Kernel UoW.
-- [ ] Step correlation ids and UoW ids MUST NOT be included in `WorkflowStepResult` or `WorkflowResult`.
-- [ ] Top-level workflow observability MAY use only:
-  - [ ] operation `workflow:run`;
-  - [ ] outcome;
-  - [ ] final exit code as a bounded span/log attribute under existing policy.
-  - [ ] Top-level `workflow:run` observability uses no context-derived fields.
-- [ ] Workflow name MUST NOT be a metric label.
-- [ ] Platform CLI MUST NOT write `ContextStore` directly.
-- [ ] Every step UoW is created and completed only by the existing `CommandRunner` and `KernelRuntimeInterface` path.
-- [ ] Reset occurs after each step through the canonical Kernel UoW lifecycle.
-- [ ] No workflow object, result, child buffer, or current-step state is stored in a shared service.
-- [ ] All workflow services are immutable/stateless except invocation-local child buffers.
-- [ ] No workflow service implements `ResetInterface`.
+- [x] Workflow infrastructure MUST NOT write stdout or stderr.
+- [x] Final workflow output MUST pass through the existing mandatory `OutputFormatter` redaction boundary exactly once.
+- [x] The existing `OutputFormatter` remains the sole workflow and suggestion rendering consumer of `SensitiveDataRedactorInterface`.
+- [x] `WorkflowRunCommand`, `WorkflowRunner`, `WorkflowCatalog`, `WorkflowSchema`, `SmartSuggestor`, and workflow result DTOs MUST NOT:
+  - [x] receive `SensitiveDataRedactorInterface`
+  - [x] resolve a redactor
+  - [x] instantiate a concrete redactor
+  - [x] define a redaction classifier, policy, hasher, or pattern registry
+- [x] Workflow results, suggestions, and workflow error records MUST NOT bypass the existing 2.30.0 output/redaction pipeline.
+- [x] Child command batches MUST NOT be redacted separately.
+- [x] Workflow result aggregation MUST remain subject to the existing `CommandOutputBuffer` and Foundation JSON-like normalization limits.
+- [x] A completed workflow result that exceeds the existing parent output record or byte limits MUST fail closed through the existing CLI output error boundary.
+- [x] No partial child output may be written when parent result normalization or buffering fails.
+- [x] Workflow infrastructure MUST NOT implement a second aggregate-output resource-budget walker or JSON encoder.
+- [x] Existing per-child buffer limits remain authoritative for each executed step.
+- [x] The workflow's maximum step count MUST NOT be interpreted as permission to exceed the final parent output limits.
+- [x] This epic introduces no prompts, confirmations, previews, or separate interactive diagnostic-output path.
+- [x] Child step batches MUST NOT be formatted separately.
+- [x] Child step batches MUST NOT be written directly.
+- [x] Workflow infrastructure MUST NOT persist output.
+- [x] Workflow infrastructure MUST NOT log arguments, options, child records, paths, payloads, or workflow definition values.
+- [x] All 2.30.0 context, UoW, reset, observability, and redaction rules remain normative except for the explicitly documented missing outer UoW around `workflow:run`.
+- [x] The `CommandRunner` composite branch owns the top-level `workflow:run` lifecycle observation.
+- [x] `WorkflowRunCommand` and `WorkflowRunner` MUST NOT receive:
+  - [x] `ContextAccessorInterface`
+  - [x] `ContextKeys`
+  - [x] `TracerPortInterface`
+  - [x] `MeterPortInterface`
+  - [x] `LoggerInterface`
+  - [x] `Stopwatch`
+- [x] `WorkflowRunCommand` and `WorkflowRunner` MUST NOT emit command lifecycle spans, metrics, or logs.
+- [x] Top-level `workflow:run` observability MUST NOT:
+  - [x] synthesize a correlation id
+  - [x] synthesize a UoW id
+  - [x] read correlation or UoW ids left by a completed step
+  - [x] aggregate step correlation or UoW ids
+- [x] Each normal step retains the existing 2.30.0 context policy inside its own Kernel UoW.
+- [x] Step correlation ids and UoW ids MUST NOT be included in `WorkflowStepResult` or `WorkflowResult`.
+- [x] Top-level `workflow:run` observability reuses the existing `CommandRunner` CLI command instrumentation lifecycle.
+- [x] The composite `cli.command` span starts before workflow-step execution and ends after composite execution completes or throws.
+- [x] Initial span attributes are exactly:
+  - [x] `operation`
+  - [x] `format`
+- [x] Final span attributes are exactly:
+  - [x] `operation`
+  - [x] `format`
+  - [x] `outcome`
+  - [x] `exit_code`
+- [x] `format` remains bounded to `json|table|plain`.
+- [x] Composite execution emits exactly one top-level `cli.command_total` increment and one `cli.command_duration_ms` observation.
+- [x] Metric labels remain exactly `operation|outcome`.
+- [x] Top-level completion/failure logs contain only `operation`, `outcome`, and `exit_code`.
+- [x] Top-level composite observability MUST NOT read or emit context-derived correlation or UoW identifiers.
+- [x] Observability failures MUST NOT alter the primary command outcome or exception.
+- [x] The composite branch MUST reuse the existing instrumentation ownership and MUST NOT introduce a second telemetry implementation or Kernel UoW.
+- [x] Workflow name MUST NOT be a metric label.
+- [x] Platform CLI MUST NOT write `ContextStore` directly.
+- [x] Every step UoW is created and completed only by the existing `CommandRunner` and `KernelRuntimeInterface` path.
+- [x] Reset occurs after each step through the canonical Kernel UoW lifecycle.
+- [x] Shared `WorkflowCatalog` MAY retain immutable validated `WorkflowDefinition` and `WorkflowStep` values.
+- [x] Shared workflow services MUST NOT retain invocation-local execution state, current-step state, child buffers, mutable results, or output batches.
+- [x] `WorkflowRunner`, `WorkflowSchema`, and `WorkflowStepInputFactory` remain stateless and re-entrant.
+- [x] `WorkflowCatalog`, `WorkflowDefinition`, and `WorkflowStep` remain immutable.
+- [x] Child buffers and completed workflow results remain invocation-local.
+- [x] No workflow service implements `ResetInterface`.
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerUsesFreshChildBufferPerStepTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerPropagatesThrowableUnchangedTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsUnknownCommandTest.php`
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsCompositeStepTest.php`
+  - [x] `packages/platform/cli/tests/Unit/WorkflowRunnerUsesFreshChildBufferPerStepTest.php`
+    - [x] every executed workflow step receives a distinct invocation-local `CommandOutputBuffer`
+    - [x] child buffers are not reused across steps or workflow invocations
+    - [x] a normally returned step finalizes its own child buffer exactly once
+    - [x] records from one step never enter another step's child buffer
+    - [x] child buffers are never stored in shared workflow services
+    - [x] no child buffer writes directly to stdout or stderr
+    - [x] no child batch is formatted or redacted independently
 
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowStepInputFactoryCanonicalProjectionTest.php`
-    - [ ] option keys use `strcmp` order
-    - [ ] bare flags use `true`
-    - [ ] repeated values preserve list order
-    - [ ] `--` separates positional arguments
-    - [ ] false and null config values are rejected by `WorkflowSchema`
+  - [x] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsUnknownCommandTest.php`
+    - [x] a structurally valid workflow referencing an unknown command is rejected before any step executes
+    - [x] command lookup uses only the final `CommandCatalog`
+    - [x] an unknown referenced command throws `WorkflowDefinitionInvalidException`
+    - [x] the exact public reason is `workflow-command-unknown`
+    - [x] validation performs no command service resolution
+    - [x] rejection exposes no unknown command token, arguments, options, service ids, or definition values
+    - [x] no preceding or subsequent workflow step is dispatched
 
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerDiscardsThrowingChildBufferTest.php`
-    - [ ] the throwing child buffer is discarded
-    - [ ] the same Throwable instance is rethrown
-    - [ ] no completed workflow result is emitted
+  - [x] `packages/platform/cli/tests/Unit/WorkflowCatalogRejectsCompositeStepTest.php`
+    - [x] a workflow referencing `workflow:run` as a step is rejected before any step executes
+    - [x] composite classification uses `CommandDescriptor::executionKind()`
+    - [x] the catalog rejects every referenced descriptor classified as `composite`
+    - [x] rejection throws `WorkflowDefinitionInvalidException`
+    - [x] the exact public reason is `workflow-command-composite`
+    - [x] no composite or normal command service is resolved during validation
+    - [x] no workflow step is dispatched after rejection
 
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowSchemaTest.php`
-    - [ ] accepts the exact canonical shape
-    - [ ] rejects unknown keys, macros, templates, floats, unsafe strings, invalid option values, and all bounds violations
+  - [x] `packages/platform/cli/tests/Unit/TableFormatterNestedJsonLikePresentationTest.php`
+    - [x] nested maps render as labeled sections instead of compact JSON cells
+    - [x] scalar lists render as ordered indexed rows
+    - [x] homogeneous lists of maps preserve existing table rendering
+    - [x] homogeneous lists of maps with nested values render those values as structured sections
+    - [x] heterogeneous lists of maps retain every entry and original list order
+    - [x] mixed text, JSON, and error workflow records remain readable without embedded compact JSON
+    - [x] nested workflow step records remain readable within the configured maximum table width
+    - [x] empty collections remain visible
+    - [x] canonical map and list ordering is preserved
+    - [x] repeated rendering is byte-identical
+    - [x] configured maximum width is respected
+    - [x] no cell content is truncated or lost
 
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowCatalogDeterminismTest.php`
-    - [ ] workflow names are `strcmp` sorted
-    - [ ] step order is preserved
-    - [ ] no command service is instantiated
+  - [x] `packages/platform/cli/tests/Unit/CommandInputValidatorSharedNormalizationTest.php`
+    - [x] a single repeatable required-value option is normalized into a one-element list
+    - [x] multiple values preserve declared order
+    - [x] non-repeatable options retain existing rejection behavior
+    - [x] normal commands and workflow steps use the same normalization policy
 
-  - [ ] `packages/platform/cli/tests/Unit/WorkflowRunnerStopsOnFirstNonZeroExitCodeTest.php`
-    - [ ] exact first non-zero code is returned
-    - [ ] later steps are not resolved
+  - [x] `packages/platform/cli/tests/Unit/CommandDescriptorCompositeKindPreservesOverridesTest.php`
+    - [x] catalog-view overrides preserve derived execution kind
+    - [x] execution kind cannot be configured or exported
+    - [x] `executionKind()` returns the derived canonical `normal|composite` value
+    - [x] normal, composite, catalog, and runner paths consume one shared execution-kind classification
 
-  - [ ] `packages/platform/cli/tests/Unit/SmartSuggestorTest.php`
-    - [ ] fixed thresholds
-    - [ ] maximum three results
-    - [ ] hidden commands excluded
-    - [ ] catalog-order tie-break
+  - [x] `packages/platform/cli/tests/Unit/SmartSuggestorInputBoundsTest.php`
+    - [x] invalid or oversized input produces no suggestions
+    - [x] oversized candidates are skipped
+    - [x] length-difference pruning preserves canonical suggestion ranking
 
-  - [ ] `packages/platform/cli/tests/Unit/CommandRunnerCompositeExecutionTest.php`
-    - [ ] no outer Kernel UoW for `workflow:run`
-    - [ ] normal commands remain unchanged
+  - [x] `packages/platform/cli/tests/Unit/WorkflowStepInputFactoryCanonicalProjectionTest.php`
+    - [x] option keys use `strcmp` order
+    - [x] bare flags use `true`
+    - [x] repeated values preserve list order
+    - [x] `--` separates positional arguments
+    - [x] false and null config values are rejected by `WorkflowSchema`
+
+  - [x] `packages/platform/cli/tests/Unit/WorkflowRunnerDiscardsThrowingChildBufferTest.php`
+    - [x] a Throwable from `CommandRunner` causes the current invocation-local child buffer to be discarded
+    - [x] the throwing child buffer is never finalized
+    - [x] the exact same Throwable instance is rethrown without wrapping or replacement
+    - [x] no completed `WorkflowResult` is emitted
+    - [x] records from previously completed steps are not rendered as partial workflow output
+    - [x] no child batch reaches the final formatter or console writer
+    - [x] no subsequent workflow step is resolved or dispatched
+    - [x] `WorkflowRunner` emits no replacement error record or duplicate observability
+
+  - [x] `packages/platform/cli/tests/Unit/WorkflowSchemaTest.php`
+    - [x] accepts the exact canonical shape
+    - [x] reuses Foundation JSON-like normalization for deterministic workflow-name and option-map ordering
+    - [x] workflow names containing valid hyphens retain their original values and canonical byte-order position
+    - [x] nested map-key ordering follows Foundation semantics without independent sorting
+    - [x] workflow step, argument, and repeatable-option lists retain their original order
+    - [x] Foundation normalization failures are translated to the fixed `workflow-definition-invalid` reason
+    - [x] the complete workflow-definition map is normalized under one shared Foundation resource budget
+    - [x] aggregate node-count overflow fails even when every individual workflow and step satisfies its local bounds
+    - [x] aggregate total-string-byte overflow fails even when every individual string satisfies its own length bound
+    - [x] excessive step command-name and option-name lengths are rejected
+    - [x] excessive nested container depth is rejected before immutable workflow values are constructed
+    - [x] deeply nested malformed definitions fail closed without unbounded recursive traversal
+    - [x] aggregate budget failures use exactly `workflow-definition-invalid`
+    - [x] budget failures expose no workflow names, command tokens, option keys, values, or Foundation diagnostic paths
+    - [x] valid definitions within the aggregate limits preserve canonical workflow ordering and original step and repeatable-option ordering
+    - [x] no independent resource-budget traversal or second normalization implementation is introduced
+    - [x] Foundation diagnostic paths and rejected configuration values never appear in public workflow errors
+    - [x] no second recursive normalizer or map sorter is introduced
+    - [x] rejects unknown keys, macros, templates, floats, unsafe strings, invalid option values, and all bounds violations
+    - [x] rejects workflow summaries containing Unicode `Cc`, `Zl`, or `Zp` characters
+    - [x] explicitly rejects U+0085, U+2028, and U+2029
+    - [x] rejects malformed UTF-8 through the existing Foundation stable JSON encoder
+    - [x] enforces the exact trimmed, single-line, and 256-byte summary constraints
+    - [x] verifies that Foundation JSON-like normalization alone is not treated as a Unicode safety validator
+    - [x] verifies that static command tag metadata validation is not substituted for workflow-specific summary validation
+    - [x] introduces no general-purpose Unicode validator or second JSON normalization implementation
+    - [x] every deep-schema validation failure uses exactly `workflow-definition-invalid`
+    - [x] unknown and composite command reasons are reserved exclusively for `WorkflowCatalog`
+    - [x] non-allowlisted exception reasons are rejected
+    - [x] public exception messages contain no definition values, command tokens, arguments, options, or paths
+    - [x] repeated invalid inputs produce deterministic public error codes and reasons
+
+  - [x] `packages/platform/cli/tests/Unit/WorkflowCatalogDeterminismTest.php`
+    - [x] workflow names are `strcmp` sorted
+    - [x] step order is preserved
+    - [x] no command service is instantiated
+
+  - [x] `packages/platform/cli/tests/Unit/WorkflowRunnerStopsOnFirstNonZeroExitCodeTest.php`
+    - [x] exact first non-zero code is returned
+    - [x] the non-zero step buffer is finalized exactly once
+    - [x] the non-zero step and its records are included in the completed failure result
+    - [x] earlier completed step results remain in original order
+    - [x] later steps are not resolved
+
+  - [x] `packages/platform/cli/tests/Unit/SmartSuggestorTest.php`
+    - [x] fixed thresholds depend exclusively on unknown input token length
+    - [x] input lengths `8` and `9` use maximum distances `2` and `3` respectively
+    - [x] candidate length does not change the selected threshold
+    - [x] candidates with different lengths are evaluated against the same invocation threshold
+    - [x] maximum three results
+    - [x] hidden commands excluded
+    - [x] catalog-order tie-break
+
+  - [x] `packages/platform/cli/tests/Unit/CommandRunnerCompositeExecutionTest.php`
+    - [x] no outer Kernel UoW for `workflow:run`
+    - [x] normal commands remain unchanged
+    - [x] composite command services are resolved lazily through the existing container boundary
+    - [x] a resolved service not implementing `CompositeCommandInterface` is rejected
+    - [x] a service implementing both execution interfaces is rejected
+    - [x] a resolved service whose exact class differs from the descriptor service id is rejected
+    - [x] a resolved composite command whose `name()` differs from the descriptor name is rejected
+    - [x] composite exit codes outside `0..255` are rejected through the existing failure policy
+    - [x] composite identity and exit-code failures never start a Kernel UoW
+    - [x] composite validation failures preserve the existing command observability and exception precedence
+    - [x] composite execution uses the existing `cli.command` observability lifecycle
+    - [x] initial and final span attributes preserve the canonical operation, format, outcome, and exit-code policy
+    - [x] exactly one top-level counter increment and duration observation are attempted
+    - [x] metric labels remain exactly operation and outcome
+    - [x] top-level composite logs contain no correlation or UoW identifiers
+    - [x] telemetry failures do not mask command return codes or original Throwables
+    - [x] composite observability does not create a Kernel UoW or duplicate step observations
 
 - Contract:
-  - [ ] `packages/platform/cli/tests/Contract/WorkflowConfigShapeContractTest.php`
-  - [ ] `packages/platform/cli/tests/Contract/WorkflowCommandsUseExactTagMetadataTest.php`
-  - [ ] `packages/platform/cli/tests/Contract/OnlyWorkflowRunMayUseCompositeCommandInterfaceTest.php`
-  - [ ] `packages/platform/cli/tests/Contract/WorkflowInfrastructureDoesNotWriteToStdoutTest.php`
+  - [x] `packages/platform/cli/tests/Contract/WorkflowCommandsUseExactTagMetadataTest.php`
+    - [x] `WorkflowListCommand` and `WorkflowRunCommand` expose exactly the six canonical metadata constants
+    - [x] both commands use exact six-key `cli.command` tag metadata
+    - [x] both command tags have actual priority `0`
+    - [x] command names are exactly `workflow:list` and `workflow:run`
+    - [x] both commands belong to group `workflow` and are not hidden
+    - [x] `workflow:list` declares no arguments or command-owned options
+    - [x] `workflow:run` declares exactly one required, non-variadic `workflow` argument
+    - [x] `workflow:run` declares no command-owned options
+    - [x] metadata values match the corresponding command class constants
+    - [x] no composite execution flag or additional metadata key is introduced
+    - [x] both commands pass the canonical `CommandTagSchema` metadata validation path
 
-  - [ ] `packages/platform/cli/tests/Contract/WorkflowUxIntroducesNoRedactionBoundaryContractTest.php`
-    - [ ] workflow and suggestion classes do not depend on a concrete redactor
-    - [ ] workflow and suggestion classes do not receive `SensitiveDataRedactorInterface`
-    - [ ] no workflow-local or suggestion-local classifier, policy, hasher, or pattern registry exists
-    - [ ] no prompt, confirmation, preview, or separate diagnostics renderer is introduced
-    - [ ] the existing `OutputFormatter` remains the sole final redaction boundary
+  - [x] `packages/platform/cli/tests/Contract/OnlyWorkflowRunMayUseCompositeCommandInterfaceTest.php`
+    - [x] `WorkflowRunCommand` implements the internal `CompositeCommandInterface`
+    - [x] `WorkflowRunCommand` does not implement `CommandInterface`
+    - [x] `WorkflowListCommand` remains a normal `CommandInterface` implementation
+    - [x] the composite interface does not extend `CommandInterface`
+    - [x] no command service implements both execution interfaces
+    - [x] only the exact built-in `WorkflowRunCommand` service id is eligible for composite classification
+    - [x] externally tagged composite implementations are rejected deterministically
+    - [x] composite eligibility cannot be introduced through tag metadata or catalog overrides
+    - [x] descriptor construction and canonical metadata revalidation enforce the same composite exception
+    - [x] no cross-package composite command contract or extension point is introduced
 
-  - [ ] `packages/platform/cli/tests/Contract/WorkflowEpicIntroducesNoReplayArtifactTest.php`
-    - [ ] no replay classes, config keys, artifact registry entry, or replay SSoT exists
+  - [x] `packages/platform/cli/tests/Contract/WorkflowInfrastructureDoesNotWriteToStdoutTest.php`
+    - [x] workflow orchestration, catalogs, schemas, input adapters, result DTOs, and suggestion infrastructure contain no direct stdout or stderr writes
+    - [x] workflow commands write records only through their supplied `OutputInterface`
+    - [x] workflow infrastructure does not instantiate or invoke `ConsoleOutputWriter`
+    - [x] workflow infrastructure does not call `echo`, `print`, `printf`, `var_dump`, or equivalent direct-output mechanisms
+    - [x] workflow infrastructure does not open or write to `php://stdout`, `php://stderr`, `STDOUT`, or `STDERR`
+    - [x] child step batches are never rendered or written independently
+    - [x] final console writing remains owned exclusively by the existing top-level CLI output boundary
+    - [x] contract checks exclude the existing authorized `ConsoleOutputWriter` implementation
+
+  - [x] `packages/platform/cli/tests/Contract/WorkflowUxIntroducesNoRedactionBoundaryContractTest.php`
+    - [x] workflow and suggestion classes do not depend on a concrete redactor
+    - [x] workflow and suggestion classes do not receive `SensitiveDataRedactorInterface`
+    - [x] no workflow-local or suggestion-local classifier, policy, hasher, or pattern registry exists
+    - [x] no prompt, confirmation, preview, or separate diagnostics renderer is introduced
+    - [x] the existing `OutputFormatter` remains the sole final redaction boundary
+
+  - [x] `packages/platform/cli/tests/Contract/WorkflowEpicIntroducesNoReplayArtifactTest.php`
+    - [x] no replay classes, config keys, artifact registry entry, or replay SSoT exists
 
 - Integration:
-  - [ ] `packages/platform/cli/tests/Integration/CliErrorHandlerMapsWorkflowExceptionsSafelyTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunAggregatesOrderedStepRecordsTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunRejectsModeAndPresetOptionsTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunKernelOpsStepsUseDefinitionTargetTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/UnknownCommandSuggestionsUseFinalCatalogTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowDefinitionsRequireNoFilesystemScanningTest.php`
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunExecutesEveryStepThroughCommandRunnerTest.php`
+  - [x] `packages/platform/cli/tests/Integration/CliErrorHandlerMapsWorkflowExceptionsSafelyTest.php`
+    - [x] `WorkflowDefinitionInvalidException` maps to `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID`
+    - [x] `WorkflowNotFoundException` maps to `CORETSIA_CLI_WORKFLOW_NOT_FOUND`
+    - [x] known workflow exceptions preserve their exact stable public error codes
+    - [x] definition errors expose only allowlisted stable reason tokens
+    - [x] workflow-not-found errors expose only the fixed safe reason
+    - [x] valid and invalid unknown workflow-name tokens never appear in exception messages or final diagnostics
+    - [x] unknown workflow lookup exposes exactly the fixed `workflow-not-found` reason
+    - [x] unknown or malformed exception details do not enter public diagnostics
+    - [x] error descriptors contain no workflow definitions, step arguments, option values, service ids, or paths
+    - [x] previous Throwable messages and traces are never exposed
+    - [x] returned `ErrorDescriptor` extensions remain empty
+    - [x] workflow exceptions pass through the existing `CliApplication` and `ExceptionRenderer` error boundary
+    - [x] explicit JSON error output preserves the canonical `coretsia.cli-output@1` envelope
+    - [x] unrelated existing CLI exception mappings remain unchanged
 
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunFinalOutputIsRedactedOnceTest.php`
-    - [ ] completed workflow output invokes the shared redaction port exactly once
-    - [ ] child step batches are not redacted separately
-    - [ ] raw sensitive fixture values from child records are absent from final output
-    - [ ] no workflow-specific redactor is resolved
-    - [ ] record order remains unchanged after redaction
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunAggregatesOrderedStepRecordsTest.php`
+    - [x] a valid multi-step workflow executes steps in declared order
+    - [x] each returned step produces exactly one ordered `WorkflowStepResult`
+    - [x] every step result retains its executed command name, index, and exit code
+    - [x] each step retains its original ordered child output records
+    - [x] child `text`, `json`, and `error` records remain distinguishable
+    - [x] canonical child records remain unchanged inside `WorkflowStepResult`
+    - [x] exported child JSON records project internal `payload` content under `data`
+    - [x] completed workflow result contains exactly workflow, outcome, exit_code, and steps
+    - [x] each exported step contains exactly index, command, exit_code, and records
+    - [x] step indices are zero-based original definition indices
+    - [x] all exported map keys follow canonical Foundation ordering
+    - [x] no additional workflow metadata or execution-context fields are exported
+    - [x] completed workflow results contain only executed steps
+    - [x] all-zero step exits produce a successful workflow result
+    - [x] a non-zero step produces a completed failure result containing that step and its records
+    - [x] no synthetic results are created for unexecuted steps
+    - [x] `WorkflowRunCommand` writes exactly one top-level JSON-like result record
+    - [x] child output is not separately formatted or written
+    - [x] explicit `--format=json` preserves the existing outer output envelope and deterministic record ordering
 
-  - [ ] `packages/platform/cli/tests/Integration/WorkflowRunUsesOneKernelUowPerStepTest.php`
-    - [ ] no outer workflow UoW
-    - [ ] no nested UoW
-    - [ ] reset completes after every step
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunRejectsModeAndPresetOptionsTest.php`
+    - [x] `workflow:run` declares exactly one required positional workflow argument
+    - [x] `--mode` is rejected as an unknown command-owned option
+    - [x] `--preset` is rejected as an unknown command-owned option
+    - [x] top-level `--target` is not implicitly forwarded to workflow steps
+    - [x] invalid command-owned options fail through the existing `CommandInputValidator`
+    - [x] option validation fails before composite command service resolution
+    - [x] invalid invocation dispatches no workflow step
+    - [x] valid CLI-global `--format` and `--color` handling remains unchanged
+    - [x] rejection preserves canonical CLI input error codes and safe diagnostics
+    - [x] no new workflow bootstrap preset selection or option inheritance is introduced
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunKernelOpsStepsUseDefinitionTargetTest.php`
+    - [x] Kernel operation steps receive their `target` option exclusively from the validated workflow definition
+    - [x] different workflow steps MAY use different explicit application targets
+    - [x] each target reaches the existing command-owned `InputInterface` unchanged
+    - [x] existing `KernelOpsRequestResolver` and `KernelOpsInterface` remain responsible for Kernel operation requests
+    - [x] workflow infrastructure does not construct Kernel Ops requests or invoke Kernel Ops directly
+    - [x] workflow execution does not replace or modify Kernel Bootstrap preset selection
+    - [x] a missing or invalid required target fails through the existing command-input or owner-validation boundary
+    - [x] no command service is resolved when structural input validation fails
+    - [x] target resolution is independent of the outer workflow command arguments and options
+
+  - [x] `packages/platform/cli/tests/Integration/UnknownCommandSuggestionsUseFinalCatalogTest.php`
+    - [x] unknown command selection preserves the existing `CliInputInvalidException` error code and reason
+    - [x] suggestions are generated only after final `CommandCatalog` construction
+    - [x] suggestion candidates reflect validated catalog presentation overrides
+    - [x] hidden commands are excluded from suggestion candidates
+    - [x] unknown command tokens are never treated as workflow names, filesystem paths, or service ids
+    - [x] suggestions are ordered by distance and final catalog order for ties
+    - [x] at most three visible command names are suggested
+    - [x] invalid or out-of-bounds input produces no suggestions
+    - [x] suggestions are omitted when no eligible candidate satisfies the configured fixed thresholds
+    - [x] a non-empty suggestion list is emitted as one additional JSON-like output record
+    - [x] suggestions pass through the existing final formatter and shared redactor
+    - [x] the canonical JSON error envelope and normal stderr ownership remain unchanged
+    - [x] command services are not resolved while calculating suggestions
+    - [x] no suggestion data enters logs, metrics, or UnitOfWork attributes
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowDefinitionsRequireNoFilesystemScanningTest.php`
+    - [x] an empty validated `cli.workflows.definitions` map produces an empty workflow catalog
+    - [x] workflow definitions are discovered only from the validated CLI configuration subtree
+    - [x] a workflow-like file in the current working directory is not automatically discovered
+    - [x] workflow-like files under unrelated project directories are ignored
+    - [x] changing the working directory does not add or remove configured workflow definitions
+    - [x] no workflow definition path, directory, glob, or scanning configuration is accepted
+    - [x] valid configured workflows remain available without any workflow definition files
+    - [x] unknown workflows are not resolved through filesystem fallback
+    - [x] the test does not forbid existing Kernel configuration or application bootstrap filesystem access
+    - [x] no second workflow discovery mechanism or filesystem scanner is introduced
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunExecutesEveryStepThroughCommandRunnerTest.php`
+    - [x] every successfully dispatched workflow step follows the existing normal `CommandRunner` execution path
+    - [x] each step uses its final validated normal `CommandDescriptor`
+    - [x] each step receives the normalized `ArgvInput` from the shared `CommandInputValidator`
+    - [x] each step receives a fresh invocation-local `CommandOutputBuffer`
+    - [x] each step receives the same effective output format as the top-level workflow invocation
+    - [x] command-owner services are resolved lazily through the existing `CommandRunner` container boundary
+    - [x] existing command service identity and command-name validation remain enforced
+    - [x] existing command exit-code validation remains enforced
+    - [x] the existing Kernel CLI UnitOfWork lifecycle is used for every executed normal step
+    - [x] existing command lifecycle observability is emitted by `CommandRunner`, not `WorkflowRunner`
+    - [x] workflow infrastructure never invokes `CommandInterface::run()` directly
+    - [x] workflow infrastructure never invokes `KernelRuntimeInterface::runUnitOfWork()` directly
+    - [x] no step bypasses command discovery, input validation, lifecycle handling, or lazy service resolution
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowCatalogIsResolvedOnlyForWorkflowCommandsTest.php`
+    - [x] normal `list`, `help`, and Kernel operation commands do not instantiate `WorkflowCatalog`
+    - [x] deep-invalid but structurally valid and Kernel-loadable workflow definitions do not prevent unrelated normal commands from executing
+    - [x] structurally invalid workflow configuration map boundaries fail Console host boot through the existing Kernel validation path
+    - [x] `workflow:list` validates configured definitions when its service is resolved
+    - [x] `workflow:run` validates configured definitions before dispatching any step
+    - [x] invalid workflow definitions use the existing safe CLI error boundary
+    - [x] no command service is resolved during `CommandCatalog` construction
+
+  - [x] `packages/platform/cli/tests/Integration/CliDoctorHumanReadableOutputTest.php`
+    - [x] exact doctor invocation produces fixed human-readable diagnostics
+    - [x] isolated projection tests render false capability values as `FAIL`
+    - [x] isolated projection tests render false readiness as `NOT READY`
+    - [x] actual doctor execution preserves the exit code returned by `DoctorCommand`
+    - [x] failure-state projection tests do not require changing PHP version, SAPI, or extension availability
+    - [x] Kernel host, catalog, generated artifacts, and shared redaction are not required
+    - [x] additional arguments and options fail through the existing fixed boundary
+
+  - [x] `packages/platform/cli/tests/Integration/CliKernelOpsReadableNestedOutputTest.php`
+    - [x] config validation counts are readable without embedded JSON objects
+    - [x] module enabled, excluded, and topological-order lists remain visible
+    - [x] no Kernel artifact internals are read by CLI
+    - [x] explicit JSON output preserves the existing schema and data
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunUsesSharedRepeatableOptionNormalizationTest.php`
+    - [x] one repeatable required-value option reaches the owner command as a one-element list
+    - [x] multiple repeatable values retain their configured order
+    - [x] invalid options fail before command service resolution
+    - [x] each successfully dispatched step receives exactly one Kernel CLI UoW
+    - [x] a later step input-validation failure preserves the original CLI validation exception
+    - [x] no child buffer or Kernel CLI UoW is created for the rejected step
+    - [x] previously completed step records are not emitted as partial workflow output
+    - [x] no completed `WorkflowResult` is produced after validation failure
+    - [x] no subsequent step is resolved or dispatched
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunParentOutputBoundsFailClosedTest.php`
+    - [x] oversized aggregated workflow output fails through existing limits
+    - [x] no partial child output is written
+    - [x] no second output budget or formatting implementation is introduced
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunFinalOutputIsRedactedOnceTest.php`
+    - [x] completed workflow output invokes the shared redaction port exactly once
+    - [x] child step batches are not redacted separately
+    - [x] canonical child batches retain their original internal record shape
+    - [x] exported child JSON records use `data` instead of the sensitive structural key `payload`
+    - [x] non-sensitive child JSON values remain visible after final redaction
+    - [x] sensitive nested keys and values are redacted through the existing shared policy
+    - [x] raw sensitive fixture values from child records are absent from final output
+    - [x] no workflow-specific redactor or redaction policy is resolved
+    - [x] record order remains unchanged after redaction
+    - [x] explicit JSON output preserves the existing `coretsia.cli-output@1` outer envelope
+
+  - [x] `packages/platform/cli/tests/Integration/WorkflowRunUsesOneKernelUowPerStepTest.php`
+    - [x] no outer workflow UoW
+    - [x] every executed normal step enters exactly one Kernel CLI UoW through the existing `CommandRunner`
+    - [x] no nested UoW
+    - [x] reset completes after every step
+    - [x] consecutive steps have distinct Kernel UoW identities
+    - [x] a completed step's context values are not inherited by a subsequent step
+    - [x] repeated workflow invocations through the same `CliApplication`, `CommandRunner`, and Kernel runtime in one process remain isolated
+    - [x] a completed workflow invocation leaves no active Kernel UoW before the next invocation begins
+    - [x] a throwing step completes the canonical Kernel after-UoW and reset lifecycle before a subsequent invocation
+    - [x] a non-zero returned step exit code does not leave an active Kernel UoW
+    - [x] invocation-local command input, output buffers, and result records are not reused between workflow invocations
+    - [x] Kernel continues to reject an actual nested UnitOfWork through its existing lifecycle gate
+    - [x] no workflow-specific reset implementation, outer UoW, or additional lifecycle coordinator is introduced
 
 ### DoD (MUST)
 
-- [ ] Workflows are loaded only from validated `cli.workflows.definitions`.
-- [ ] No workflow filesystem discovery exists.
-- [ ] No templates, macros, environment interpolation, shell commands, retries, branches, or parallel execution exist.
-- [ ] Workflow names are deterministic and `strcmp` sorted.
-- [ ] Step order is preserved.
-- [ ] Every step command comes from the final tag-first `CommandCatalog`.
-- [ ] No command service is resolved during workflow catalog construction.
-- [ ] `workflow:run` has no outer Kernel UoW.
-- [ ] Every workflow step has exactly one normal Kernel CLI UoW.
-- [ ] No nested workflow/composite step is allowed.
-- [ ] The first non-zero step code stops execution and is returned unchanged.
-- [ ] Step Throwables propagate unchanged to the existing CLI error boundary.
-- [ ] Workflow child output is aggregated in order and formatted/redacted once.
-- [ ] Workflow and suggestion infrastructure introduces no second redaction or rendering model.
-- [ ] No prompt, confirmation, preview, or separate interactive diagnostics pipeline exists in this epic.
-- [ ] The shared redaction port is consumed only through the existing final `OutputFormatter`.
-- [ ] Suggestions are deterministic, bounded, catalog-backed, and exclude hidden commands.
-- [ ] No replay artifact, storage, path config, recorder, or replay SSoT is introduced.
-- [ ] All unit, contract, integration, architecture, ECS, PHPStan, and package-compliance checks pass.
+- [x] Workflows are loaded only from validated `cli.workflows.definitions`.
+- [x] No workflow filesystem discovery exists.
+- [x] No templates, macros, environment interpolation, shell commands, retries, branches, or parallel execution exist.
+- [x] Workflow names are deterministic and `strcmp` sorted.
+- [x] Step order is preserved.
+- [x] Every step command comes from the final tag-first `CommandCatalog`.
+- [x] No command service is resolved during workflow catalog construction.
+- [x] `workflow:run` has no outer Kernel UoW.
+- [x] Every workflow step has exactly one normal Kernel CLI UoW.
+- [x] No nested workflow/composite step is allowed.
+- [x] The first non-zero step code stops execution and is returned unchanged by `WorkflowRunCommand` on completed execution, subject to the existing final CLI output failure boundary.
+- [x] Step Throwables propagate unchanged to the existing CLI error boundary.
+- [x] Workflow child output is aggregated in order and formatted/redacted once.
+- [x] Workflow and suggestion infrastructure introduces no second redaction or rendering model.
+- [x] No prompt, confirmation, preview, or separate interactive diagnostics pipeline exists in this epic.
+- [x] The shared redaction port is consumed only through the existing final `OutputFormatter`.
+- [x] Suggestions are deterministic, bounded, catalog-backed, and exclude hidden commands.
+- [x] No replay artifact, storage, path config, recorder, or replay SSoT is introduced.
+- [x] Workflow steps reuse the canonical command-input normalization and validation boundary.
+- [x] Single-valued repeatable required options are accepted consistently in normal and workflow execution.
+- [x] Composite execution kind survives catalog presentation overrides.
+- [x] Workflow result aggregation remains bounded by existing parent output limits.
+- [x] Adaptive CLI output defaults to readable tables for both interactive and non-interactive terminal capabilities.
+- [x] Nested JSON-like values render as readable sections in table mode without embedded compact JSON containers.
+- [x] The exact `doctor` invocation produces fixed human-readable diagnostics without Kernel host boot.
+- [x] Explicit JSON output preserves `coretsia.cli-output@1` and canonical machine-readable behavior.
+- [x] No terminal-specific formatting heuristics or second output pipeline are introduced.
+- [x] Git Bash, PhpStorm Git Bash, WSL, and Windows PowerShell smoke tests verify the intended default output behavior.
+- [x] Immutable workflow definitions may be retained in shared catalogs, but invocation-local execution state is never shared.
+- [x] Deep-invalid but structurally valid and Kernel-loadable workflow definitions do not block unrelated normal CLI commands; structural Kernel configuration failures remain fail-closed.
+- [x] Workflow step execution is fail-fast but not transactional across completed steps.
+- [x] Workflow configuration normalization reuses existing Foundation and CLI validation primitives without forbidden sorting or recursive normalization implementations.
+- [x] Existing exact CLI config contract tests are updated for the new workflow subtree and adaptive defaults.
+- [x] Existing ultra-early doctor integration tests are updated for the human-readable diagnostic contract.
+- [x] Unknown-command suggestions preserve canonical error codes and existing stdout/stderr ownership.
+- [x] All unit, contract, integration, architecture, ECS, PHPStan, and package-compliance checks pass.
 
 ---
 

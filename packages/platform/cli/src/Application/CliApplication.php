@@ -19,10 +19,9 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Cli\Application;
 
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
-use Coretsia\Platform\Cli\Catalog\CommandDescriptor;
 use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
-use Coretsia\Platform\Cli\Input\ArgvInput;
+use Coretsia\Platform\Cli\Exception\CliInputInvalidException;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
 use Coretsia\Platform\Cli\Input\CommandInputValidator;
 use Coretsia\Platform\Cli\Output\ColorResolver;
@@ -33,6 +32,7 @@ use Coretsia\Platform\Cli\Output\FormattedOutput;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
 
 /**
  * One invocation of tag-backed normal CLI dispatch and safe output rendering.
@@ -53,6 +53,7 @@ final readonly class CliApplication
         private CliErrorHandler $errors,
         private ExceptionRenderer $exceptions,
         private OutputFormatter $output,
+        private SmartSuggestor $suggestions,
     ) {
     }
 
@@ -67,6 +68,7 @@ final readonly class CliApplication
         $color = false;
         $commandName = null;
         $exitCode = 1;
+        $suggestions = [];
 
         try {
             try {
@@ -75,15 +77,33 @@ final readonly class CliApplication
                 $color = $this->colors->resolve($parsed->colorOverride, $capabilities, $format);
 
                 $input = $parsed->commandInput;
-                $descriptor = $this->catalog->require($input->commandName());
+                $descriptor = $this->catalog->find($input->commandName());
+
+                if ($descriptor === null) {
+                    try {
+                        $suggestions = $this->suggestions->suggest($input->commandName(), $this->catalog);
+                    } catch (\Throwable) {
+                        // Suggestions are best-effort; the unknown-command error remains canonical.
+                    }
+
+                    throw CliInputInvalidException::withReason(CliInputInvalidException::REASON_COMMAND_UNKNOWN);
+                }
+
                 $commandName = $descriptor->name();
-                $normalized = self::normalizeRepeatableOptions($descriptor, $input);
-                $this->validator->validate($descriptor, $normalized);
+                $normalized = $this->validator->normalizeAndValidate($descriptor, $input);
                 $exitCode = $this->runner->run($descriptor, $normalized, $buffer, $format);
             } catch (\Throwable $exception) {
                 $exitCode = 1;
                 $buffer->discard();
                 $this->exceptions->render($this->errors->handle($exception), $buffer);
+
+                if (
+                    $exception instanceof CliInputInvalidException
+                    && $exception->reason() === CliInputInvalidException::REASON_COMMAND_UNKNOWN
+                    && $suggestions !== []
+                ) {
+                    $this->appendSuggestions($buffer, $suggestions, $exception);
+                }
             }
 
             $batch = $buffer->finalize();
@@ -102,28 +122,17 @@ final readonly class CliApplication
         }
     }
 
-    private static function normalizeRepeatableOptions(
-        CommandDescriptor $descriptor,
-        ArgvInput $input,
-    ): ArgvInput {
-        $options = $input->options();
-
-        foreach ($descriptor->options() as $definition) {
-            if ($definition['repeatable'] !== true || $definition['value'] !== 'required') {
-                continue;
-            }
-
-            $name = $definition['name'];
-            if (\is_string($options[$name] ?? null)) {
-                $options[$name] = [$options[$name]];
-            }
+    /** @param list<string> $suggestions */
+    private function appendSuggestions(
+        CommandOutputBuffer $buffer,
+        array $suggestions,
+        CliInputInvalidException $exception,
+    ): void {
+        try {
+            $buffer->json(['suggestions' => $suggestions]);
+        } catch (\Throwable) {
+            $buffer->discard();
+            $this->exceptions->render($this->errors->handle($exception), $buffer);
         }
-
-        return new ArgvInput(
-            tokens: $input->tokens(),
-            commandName: $input->commandName(),
-            arguments: $input->arguments(),
-            options: $options,
-        );
     }
 }

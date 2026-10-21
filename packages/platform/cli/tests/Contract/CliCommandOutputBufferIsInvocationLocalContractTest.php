@@ -47,6 +47,7 @@ use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
 use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
 use PHPUnit\Framework\TestCase;
 
 final class CliCommandOutputBufferIsInvocationLocalContractTest extends TestCase
@@ -142,6 +143,7 @@ final class CliCommandOutputBufferIsInvocationLocalContractTest extends TestCase
                 new TableFormatter(120, $ansi),
                 new PlainFormatter($ansi),
             ),
+            new SmartSuggestor(),
         );
 
         $outputs = [];

@@ -264,6 +264,16 @@ final class Container implements ContainerInterface
     }
 
     /**
+     * Resolves a runtime service definition.
+     *
+     * Runtime factory Closures are permitted as execution mechanisms for
+     * previously registered definitions. Their execution does not imply that
+     * canonical container definitions or compiled artifacts contain Closures.
+     *
+     * This method does not declare, compile, or modify the canonical dependency
+     * graph. Canonical definition validation and compiled-artifact restrictions
+     * remain owned by their existing boundaries.
+     *
      * @throws ContainerExceptionInterface
      * @throws \ReflectionException
      * @throws NotFoundExceptionInterface

@@ -525,7 +525,7 @@ correlation_id
 uow_id
 ```
 
-The `cli.command` span MUST start before the Kernel CLI UnitOfWork and cover its complete lifecycle, including after-hooks and reset.
+For every normal CLI command, the `cli.command` span MUST start before the Kernel CLI UnitOfWork and cover its complete lifecycle, including after-hooks and reset. For the sole built-in composite `workflow:run` command, the top-level `cli.command` span MUST start before lazy composite command service resolution and cover the complete composite execution, including all executed workflow steps, without creating an outer Kernel CLI UnitOfWork. Every executed workflow step receives its own normal `cli.command` span covering its independent Kernel CLI UnitOfWork lifecycle. A successfully started span MUST be ended exactly once, including when execution throws.
 
 Initial span attributes MUST contain only:
 
@@ -551,7 +551,7 @@ Neither `format` nor `exit_code` is a metric label. `app_target`, `preset`, `cor
 
 CLI command duration MUST be measured in non-negative integer milliseconds through Foundation `Stopwatch`. Timing failure uses `0`.
 
-`CommandRunner` MUST attempt exactly one counter increment and one duration observation per selected normal command execution.
+`CommandRunner` MUST attempt exactly one counter increment and one duration observation per selected normal or composite command execution. The top-level `workflow:run` composite invocation contributes one observation to each existing metric family, independently of how many normal workflow steps execute. Each executed workflow step contributes its own normal command observations through the same `CommandRunner` boundary.
 
 A successfully started command span MUST be ended exactly once, even when its final attribute update fails.
 
@@ -563,7 +563,7 @@ CLI command completion/failure logs MUST contain only:
 - `outcome`
 - `exit_code`
 
-Logs MAY additionally contain previously captured, validated safe `correlation_id` and `uow_id` values. These identifiers MUST NOT become metric labels or CLI command span attributes.
+Normal command logs MAY additionally contain previously captured, validated safe `correlation_id` and `uow_id` values obtained inside that command's Kernel CLI UnitOfWork. Top-level composite `workflow:run` logs MUST NOT contain `correlation_id`, `uow_id`, or any other context-derived correlation or UnitOfWork identifiers, because the composite invocation has no outer Kernel CLI UnitOfWork. These identifiers MUST NOT become metric labels or CLI command span attributes for either normal or composite commands.
 
 CLI command spans, metrics, and logs MUST NOT contain:
 
@@ -578,6 +578,20 @@ CLI command spans, metrics, and logs MUST NOT contain:
 `CommandRunner` owns the CLI command execution observability boundary independently of Kernel-owned `kernel.uow` and `kernel.operation` telemetry.
 
 CLI transport services, formatters, writers, and built-in commands MUST NOT duplicate Kernel-owned observability or emit additional command lifecycle metrics.
+
+`CommandRunner` is the sole owner of CLI command lifecycle observability for both normal commands and the single platform-owned composite command. `WorkflowRunner` MUST NOT emit duplicate step-level or workflow-level command lifecycle signals. `WorkflowRunCommand` MUST NOT emit command lifecycle signals independently.
+
+One validated, selected user invocation of `workflow:run` produces:
+
+- exactly one top-level `cli.command` lifecycle observation for the canonical `workflow:run` descriptor, without an outer Kernel CLI UnitOfWork;
+- zero or more normal `cli.command` lifecycle observations, exactly one for each workflow step actually dispatched through `CommandRunner`;
+- no command lifecycle observations for unexecuted workflow steps.
+
+The top-level composite span and every normal step span retain the existing initial `operation|format` attributes and final `operation|format|outcome|exit_code` attributes. The `format` value MUST remain bounded to `json|table|plain`. The top-level composite `operation` value is the fixed canonical command name `workflow:run`, not the configured workflow name. The existing `cli.command_total` and `cli.command_duration_ms` metrics retain exactly `operation|outcome` labels, with one increment and one duration observation attempted per selected command execution.
+
+Configured workflow names, workflow definition values, step arguments, and option values MUST NOT become metric labels, CLI command span attributes, or completion-log fields. The top-level composite span and logs MUST NOT inherit correlation or UnitOfWork identifiers from any executed step. No workflow-specific metrics, span names, or additional lifecycle labels are introduced.
+
+All composite and normal command telemetry remains independently best-effort. Tracer, span, meter, logger, stopwatch, and permitted context-read failures MUST NOT mask the primary command exception, change its exit code, skip command execution, or interfere with Kernel-owned after-UoW hooks and reset.
 
 ### Worker observability policy
 

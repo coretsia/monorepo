@@ -34,7 +34,9 @@ final class DoctorBypassesKernelOperationsHostTest extends CliIntegrationTestCas
             $doctor = self::execute($root . '/vendor/bin/coretsia', ['doctor']);
             self::assertSame(0, $doctor['exit']);
             self::assertSame('', $doctor['stderr']);
-            self::assertSame(true, \json_decode($doctor['stdout'], true, flags: JSON_THROW_ON_ERROR)['ready']);
+            self::assertStringContainsString('Coretsia CLI — Runtime diagnostics', $doctor['stdout']);
+            self::assertStringContainsString('Status: READY' . "\n", $doctor['stdout']);
+            self::assertStringNotContainsString("\x1B", $doctor['stdout']);
             self::assertStringNotContainsString('PRIVATE_KERNEL_BOOT_SENTINEL', $doctor['stdout']);
             $normal = self::execute($root . '/vendor/bin/coretsia', ['list']);
             self::assertSafeFailure($normal, 'CORETSIA_CLI_HOST_BOOT_FAILED: host-boot-failed');

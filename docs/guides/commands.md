@@ -2649,6 +2649,72 @@ Usage (repo root):
 
 ---
 
+### Coretsia CLI help
+
+Id: `cli.help` \
+Entrypoint: `php coretsia help` \
+Category: CLI / built-in \
+Outputs:
+- none (emits deterministic descriptor-driven help records through `OutputInterface`; final console rendering is owned by the CLI output pipeline)
+
+Determinism:
+
+| Mode / flags                  | Determinism   | Notes                                                                        |
+|-------------------------------|---------------|------------------------------------------------------------------------------|
+| `php coretsia`                | deterministic | Missing command fails with `CORETSIA_CLI_INPUT_INVALID: cli-command-missing` |
+| `php coretsia help`           | deterministic | Renders visible command descriptors from the tag-backed catalog              |
+| `php coretsia help <command>` | deterministic | Renders the selected command descriptor, including arguments and options     |
+
+Notes:
+- Purpose: provide deterministic descriptor-driven help through the canonical CLI source operations host.
+- Bootstrap policy:
+  - `help` follows normal CLI dispatch through `CliHostBootstrap`, `CommandCatalog`, and one Kernel UnitOfWork.
+  - `help` MUST NOT bypass the Kernel operations host.
+  - `doctor` remains the only ultra-early command allowed to bypass normal catalog dispatch.
+- No-command policy:
+  - `php coretsia` does not implicitly dispatch to `help`.
+  - Missing command input fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-missing`, and exit code `1`.
+- Unknown-command policy:
+  - An unknown top-level command fails with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-unknown`, and exit code `1`.
+  - `CliApplication` obtains best-effort command-name suggestions exclusively through `SmartSuggestor`.
+  - Suggestions are derived only from visible command names in the final `CommandCatalog`.
+  - Suggestion calculation is limited to syntactically valid ASCII command names of at most 128 bytes.
+  - At most three suggestions are returned in deterministic distance and catalog order.
+  - When available, suggestions are appended as one JSON-like record containing `suggestions: list<string>`.
+  - Suggestion failures MUST NOT change the canonical error code, reason, exit code, or safe error-rendering behavior.
+  - Suggestions pass through the existing final formatter and shared redaction boundary.
+  - Unknown subjects passed to `help` use the existing `CommandCatalog::require()` error path; they do not trigger top-level command-name suggestions.
+- General help policy:
+  - `help` renders visible descriptors in canonical TagRegistry order.
+  - Command names, groups, and summaries originate from validated `cli.command` metadata.
+  - Hidden commands are excluded from general help.
+  - Command services MUST NOT be instantiated solely to render general help.
+- Known-subject policy:
+  - `help help`, `help list`, `help workflow:list`, and `help workflow:run` render their canonical built-in command descriptors.
+  - `help <known-command>` renders the selected descriptor's name, group, summary, arguments, and options.
+  - Command-specific help MUST NOT resolve or instantiate the described command service.
+  - `help <unknown-command>` fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-unknown`, and exit code `1`.
+  - More than one positional command argument fails descriptor-driven structural validation.
+- Output policy:
+  - `HelpCommand` emits structured records only through `OutputInterface`.
+  - Final JSON, table, or plain rendering follows the effective CLI-global format and color policy.
+  - The canonical output pipeline applies shared redaction before rendering.
+  - No direct stdout/stderr writes are permitted in command code.
+- Entrypoint topology:
+  - repo-root `coretsia` is the single canonical monorepo user-facing wrapper;
+  - the wrapper delegates directly to `packages/platform/cli/bin/coretsia`;
+  - the packaged CLI delegates post-autoload orchestration to `src/Bootstrap/Entrypoint/cli.php`;
+  - the Composer-installed Skeleton wrapper delegates only through `vendor/bin/coretsia`;
+  - `tools/bin/coretsia` is removed and MUST NOT be required for CLI execution.
+
+Usage (repo root):
+- `php coretsia help`
+- `php coretsia help help`
+- `php coretsia help list`
+- `php coretsia help <command>`
+
+---
+
 ### Coretsia CLI list
 
 Id: `cli.list` \
@@ -2666,7 +2732,7 @@ Determinism:
 
 Notes:
 - Prints a deterministic tag-backed command catalog:
-  - built-ins: `doctor`, `help`, `list`, and the six Kernel operation commands;
+  - built-ins: `doctor`, `help`, `list`, `workflow:list`, `workflow:run`, and the six Kernel operation commands;
   - plus commands contributed by other enabled packages through the canonical `cli.command` DI tag.
 - Discovery policy:
   - `CommandCatalog` is the single source of command descriptors.
@@ -2702,59 +2768,164 @@ Usage (repo root):
 
 ---
 
-### Coretsia CLI help
+### Coretsia CLI workflow list
 
-Id: `cli.help` \
-Entrypoint: `php coretsia help` \
-Category: CLI / built-in \
+Id: `cli.workflow_list` \
+Entrypoint: `php coretsia workflow:list` \
+Category: CLI / workflows / discovery \
 Outputs:
-- none (emits deterministic descriptor-driven help records through `OutputInterface`; final console rendering is owned by the CLI output pipeline)
+- none (emits a deterministic list of configured workflow names and summaries through `OutputInterface`)
+- Does not execute workflow steps or modify runtime artifacts
 
 Determinism:
 
-| Mode / flags                  | Determinism   | Notes                                                                        |
-|-------------------------------|---------------|------------------------------------------------------------------------------|
-| `php coretsia`                | deterministic | Missing command fails with `CORETSIA_CLI_INPUT_INVALID: cli-command-missing` |
-| `php coretsia help`           | deterministic | Renders visible command descriptors from the tag-backed catalog              |
-| `php coretsia help <command>` | deterministic | Renders the selected command descriptor, including arguments and options     |
+| Mode / flags                 | Determinism   | Notes                                                                                 |
+|------------------------------|---------------|---------------------------------------------------------------------------------------|
+| `php coretsia workflow:list` | deterministic | Lists validated workflow definitions in canonical byte-order name order               |
+| `--format=json`              | deterministic | Renders workflow metadata through the canonical `coretsia.cli-output@1` JSON envelope |
+| `--format=table`             | deterministic | Renders workflow metadata through the shared table formatter                          |
+| `--format=plain`             | deterministic | Renders workflow metadata through the shared plain formatter                          |
 
 Notes:
-- Purpose: provide deterministic descriptor-driven help through the canonical CLI source operations host.
-- Bootstrap policy:
-  - `help` follows normal CLI dispatch through `CliHostBootstrap`, `CommandCatalog`, and one Kernel UnitOfWork.
-  - `help` MUST NOT bypass the Kernel operations host.
-  - `doctor` remains the only ultra-early command allowed to bypass normal catalog dispatch.
-- No-command policy:
-  - `php coretsia` does not implicitly dispatch to `help`.
-  - Missing command input fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-missing`, and exit code `1`.
-- General help policy:
-  - `help` renders visible descriptors in canonical TagRegistry order.
-  - Command names, groups, and summaries originate from validated `cli.command` metadata.
-  - Hidden commands are excluded from general help.
-  - Command services MUST NOT be instantiated solely to render general help.
-- Known-subject policy:
-  - `help help` and `help list` render their canonical built-in command descriptors.
-  - `help <known-command>` renders the selected descriptor's name, group, summary, arguments, and options.
-  - Command-specific help MUST NOT resolve or instantiate the described command service.
-  - `help <unknown-command>` fails deterministically with `CORETSIA_CLI_INPUT_INVALID`, reason `cli-command-unknown`, and exit code `1`.
-  - More than one positional command argument fails descriptor-driven structural validation.
-- Output policy:
-  - `HelpCommand` emits structured records only through `OutputInterface`.
-  - Final JSON, table, or plain rendering follows the effective CLI-global format and color policy.
-  - The canonical output pipeline applies shared redaction before rendering.
-  - No direct stdout/stderr writes are permitted in command code.
-- Entrypoint topology:
-  - repo-root `coretsia` is the single canonical monorepo user-facing wrapper;
-  - the wrapper delegates directly to `packages/platform/cli/bin/coretsia`;
-  - the packaged CLI delegates post-autoload orchestration to `src/Bootstrap/Entrypoint/cli.php`;
-  - the Composer-installed Skeleton wrapper delegates only through `vendor/bin/coretsia`;
-  - `tools/bin/coretsia` is removed and MUST NOT be required for CLI execution.
+- Purpose: discover configured CLI workflows without executing their steps.
+- Configuration ownership:
+  - Workflow definitions originate exclusively from the validated `cli.workflows.definitions` configuration map.
+  - `WorkflowSchema` performs canonical normalization and deep structural validation.
+  - `WorkflowCatalog` validates every referenced command against the final tag-backed `CommandCatalog`.
+  - Workflow definitions are not discovered through filesystem scanning, command reflection, or a separate command registry.
+- Discovery policy:
+  - `WorkflowCatalog` is resolved lazily when `workflow:list` is dispatched.
+  - Every configured workflow must pass definition and command-reference validation before the list is returned.
+  - Referenced commands must exist and have the `normal` execution kind.
+  - Workflow catalog construction MUST NOT resolve or instantiate referenced command services.
+  - Invalid workflow definitions fail through the existing CLI error boundary without affecting unrelated normal command discovery.
+- Presentation policy:
+  - Workflows are listed in canonical byte-order `strcmp` name order.
+  - Each entry contains exactly the validated workflow `name` and `summary`.
+  - Step definitions, arguments, option values, service IDs, and configuration payloads are not included.
+  - An empty definitions map produces an empty workflow list.
+  - Output is emitted as one JSON-like record containing the `workflows` list.
+  - Final formatting and sensitive-data redaction are owned by the existing `OutputFormatter`.
+- Input policy:
+  - `ARGUMENTS = []` and `OPTIONS = []`.
+  - Additional positional arguments and undeclared command options fail through `CommandInputValidator`.
+  - CLI-global `--format` and `--color` options remain separate from command-facing input.
+- Runtime policy:
+  - `workflow:list` is a normal tagged `CommandInterface` implementation.
+  - Execution follows `CliHostBootstrap` and requires successful Console source-operations host bootstrap.
+  - The command executes within exactly one Kernel CLI UnitOfWork.
+  - No workflow step is dispatched and no nested UnitOfWork is created.
+  - Successful listing exits with code `0`.
+  - Invalid workflow definitions, invalid command references, and other execution failures follow the existing safe CLI exception boundary with exit code `1`.
+- Output MUST be produced through `OutputInterface` only, without direct stdout or stderr writes.
 
 Usage (repo root):
-- `php coretsia help`
-- `php coretsia help help`
-- `php coretsia help list`
-- `php coretsia help <command>`
+- `php coretsia workflow:list`
+- `php coretsia workflow:list --format=table`
+- `php coretsia workflow:list --format=json`
+- `php coretsia workflow:list --format=plain`
+
+---
+
+### Coretsia CLI workflow run
+
+Id: `cli.workflow_run` \
+Entrypoint: `php coretsia workflow:run <workflow>` \
+Category: CLI / workflows / composite execution \
+Outputs:
+- Emits one completed workflow result through `OutputInterface`, containing the workflow name, outcome, exit code, and ordered executed-step results
+- May create or modify runtime artifacts or application state only through the existing commands executed as workflow steps
+- Does not introduce workflow-owned persistence, replay records, output transcripts, or additional generated artifacts
+
+Determinism:
+
+| Mode / flags                                                                          | Determinism            | Notes                                                                                            |
+|---------------------------------------------------------------------------------------|------------------------|--------------------------------------------------------------------------------------------------|
+| Workflow containing only deterministic steps with equivalent inputs and runtime state | deterministic          | Executes configured steps sequentially in declared order and returns ordered results             |
+| Workflow containing state-dependent or nondeterministic steps                         | NONDETERMINISTIC       | Step results and side effects depend on the underlying commands and runtime state                |
+| `--format=json`                                                                       | follows workflow steps | Preserves the canonical `coretsia.cli-output@1` envelope and completed workflow result structure |
+| `--format=table` or `--format=plain`                                                  | follows workflow steps | Uses the shared formatters without changing step execution semantics                             |
+
+Notes:
+- Purpose: execute one configured CLI workflow as an ordered, fail-fast sequence of existing commands.
+- Configuration ownership:
+  - The required `<workflow>` argument identifies a definition under `cli.workflows.definitions`.
+  - Each workflow contains a validated summary and a non-empty ordered step list.
+  - Every step declares its command name, positional arguments, and command-owned options.
+  - Workflow definitions MUST NOT contain executable callbacks, service IDs, command class names, shell fragments, environment interpolation, templates, loops, parallel branches, or retry policies.
+  - Nested workflows and composite commands as workflow steps are forbidden.
+- Resolution and validation policy:
+  - `WorkflowCatalog` is resolved lazily when `workflow:run` is dispatched.
+  - `WorkflowSchema` validates the complete configured workflow-definition map before constructing the finalized catalog.
+  - `WorkflowCatalog` validates every configured command reference against the final `CommandCatalog` before any workflow step executes.
+  - Every referenced step command must exist and have the `normal` execution kind.
+  - `CommandInputValidator::normalizeAndValidate()` performs descriptor-dependent input normalization and structural validation immediately before each step dispatch.
+  - Command-owner domain validation remains the responsibility of the executed command.
+  - An invalid or unknown workflow name fails with `CORETSIA_CLI_WORKFLOW_NOT_FOUND`, reason `workflow-not-found`, without exposing the requested name.
+  - Invalid workflow definitions and command references fail with `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID` and a fixed safe reason.
+- Composite execution policy:
+  - `workflow:run` is the only platform-owned composite CLI command permitted by this epic.
+  - It implements the internal `CompositeCommandInterface`, not the normal `CommandInterface`.
+  - The composite command itself MUST NOT create an enclosing Kernel CLI UnitOfWork.
+  - Each executed workflow step is dispatched through the existing `CommandRunner`.
+  - Every step receives exactly one independent Kernel CLI UnitOfWork and a fresh invocation-local `CommandOutputBuffer`.
+  - Command service resolution remains lazy and occurs through the existing normal `CommandRunner` execution boundary.
+  - `WorkflowRunner` MUST NOT invoke Kernel lifecycle orchestration, command services, hooks, or reset handling directly.
+- Execution policy:
+  - Steps execute sequentially in their configured order.
+  - A step returning exit code `0` allows execution to continue.
+  - The first non-zero step exit code stops execution immediately.
+  - The failed step and its completed output records remain part of the completed workflow result.
+  - Subsequent steps are not executed and do not appear in the result.
+  - A Throwable from a workflow step propagates through the existing CLI error boundary without producing a completed or partially rendered workflow result.
+  - Workflow execution is not transactional across steps; previously completed command side effects are not rolled back.
+  - No automatic retries, compensation, parallel execution, or continue-on-error behavior is supported.
+- Result policy:
+  - A completed workflow produces exactly one top-level JSON-like output record.
+  - The result contains:
+    - `workflow`: canonical workflow name;
+    - `outcome`: `success` or `failure`;
+    - `exit_code`: completed workflow exit code;
+    - `steps`: ordered list of executed-step results.
+  - Each step result contains:
+    - `index`: zero-based original step index;
+    - `command`: canonical executed command name;
+    - `exit_code`: step exit code;
+    - `records`: ordered child output records.
+  - Child `text` and `error` records retain their canonical fields.
+  - Child `json` records expose their normalized content under `data` rather than the internal `payload` key.
+  - Workflow infrastructure does not add command arguments, option values, service IDs, timestamps, or execution-context identifiers to the result.
+  - Final JSON-like normalization, redaction, and rendering use the existing shared CLI output pipeline.
+  - Explicit `--format=json` preserves the canonical `coretsia.cli-output@1` outer envelope.
+- Input policy:
+  - Requires exactly one positional `<workflow>` argument.
+  - `OPTIONS = []`; no command-specific options are supported.
+  - `--mode` and `--preset` are not supported.
+  - CLI-global `--format` and `--color` options remain available through the existing parser.
+  - Kernel operation steps must declare their own required `target` option inside the workflow definition.
+  - Workflow execution MUST NOT modify Kernel Bootstrap preset selection.
+- Exit-code policy:
+  - `0`: every executed step completed successfully.
+  - `1..255`: the exact exit code of the first step that returned a non-zero result.
+  - `1`: invalid input, workflow definition or lookup failure, propagated execution failure, or final CLI output failure.
+  - A final output failure may replace the completed workflow process exit code with `1` but MUST NOT be represented as a rollback or a different workflow step result.
+- Runtime policy:
+  - Execution requires successful Console source-operations host bootstrap before composite dispatch.
+  - Generated application runtime artifacts are not required merely to dispatch the workflow command.
+  - Each workflow step retains its owning command's normal runtime, authorization, validation, observability, and side-effect semantics.
+  - Workflows involving nondeterministic or mutating operations MUST NOT be assumed suitable for deterministic rerun-no-diff CI rails.
+- Output MUST be produced through `OutputInterface` only, without direct stdout, stderr, independent formatting, or additional redaction stages.
+- Example workflow policy:
+  - `verify` in the usage examples is an illustrative workflow name, not a built-in workflow.
+  - The packaged default `cli.workflows.definitions` map is empty.
+  - The `verify` workflow MUST be explicitly configured with a valid summary and non-empty ordered steps before it can be executed.
+  - Attempting to run an unconfigured workflow fails with `CORETSIA_CLI_WORKFLOW_NOT_FOUND`, reason `workflow-not-found`, and exit code `1`.
+
+Usage (repo root):
+- `php coretsia workflow:run verify`
+- `php coretsia workflow:run verify --format=table`
+- `php coretsia workflow:run verify --format=json`
+- `php coretsia workflow:run verify --format=plain`
 
 ---
 
@@ -2768,10 +2939,10 @@ Outputs:
 
 Determinism:
 
-| Mode / flags                    | Determinism   | Notes                                                                                     |
-|---------------------------------|---------------|-------------------------------------------------------------------------------------------|
-| `php coretsia doctor`           | deterministic | Produces a fixed capability schema with results determined by the current PHP environment |
-| Additional arguments or options | deterministic | Rejects non-canonical doctor invocations through the fixed doctor diagnostic pipeline     |
+| Mode / flags                    | Determinism   | Notes                                                                                      |
+|---------------------------------|---------------|--------------------------------------------------------------------------------------------|
+| `php coretsia doctor`           | deterministic | Renders fixed human-readable diagnostics derived from the current PHP runtime capabilities |
+| Additional arguments or options | deterministic | Rejects non-canonical doctor invocations through the fixed doctor diagnostic pipeline      |
 
 Notes:
 - Purpose: check minimal PHP and CLI runtime prerequisites without booting the Kernel operations host.
@@ -2786,12 +2957,23 @@ Notes:
   - PHP SAPI is `cli`;
   - JSON extension is available;
   - PCRE extension is available.
-- Emits fixed boolean fields:
+- `DoctorCommand` produces one internal JSON-like record containing exactly five boolean fields:
   - `cli_sapi`;
   - `json_available`;
   - `pcre_available`;
   - `php_supported`;
   - `ready`.
+- `UltraEarlyDoctorRunner` validates the exact record shape and boolean value types before presentation.
+- The validated boolean values are projected into fixed human-readable diagnostic lines:
+  - `Coretsia CLI — Runtime diagnostics`;
+  - `PHP >= 8.4:     OK|FAIL`;
+  - `CLI SAPI:       OK|FAIL`;
+  - `JSON extension: OK|FAIL`;
+  - `PCRE extension: OK|FAIL`;
+  - `Status: READY|NOT READY`.
+- The displayed readiness status is derived exclusively from the validated `ready` value.
+- The user-facing output is plain text, not the internal JSON-like diagnostic record.
+- The projection uses fixed allowlisted labels and deterministic field order without introducing a separate output pipeline.
 - Exit-code policy:
   - `0`: all capability checks pass;
   - `1`: at least one capability check fails or the invocation is invalid.

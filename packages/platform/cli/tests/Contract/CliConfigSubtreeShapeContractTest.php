@@ -30,11 +30,14 @@ final class CliConfigSubtreeShapeContractTest extends TestCase
             'commands' => [
                 'overrides' => [],
             ],
+            'workflows' => [
+                'definitions' => [],
+            ],
             'output' => [
                 'format_default' => 'adaptive',
                 'adaptive' => [
                     'interactive' => 'table',
-                    'non_interactive' => 'plain',
+                    'non_interactive' => 'table',
                 ],
                 'color_default' => 'auto',
                 'table' => ['max_width' => 120],

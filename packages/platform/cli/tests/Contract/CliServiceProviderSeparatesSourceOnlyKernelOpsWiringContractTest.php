@@ -35,14 +35,38 @@ use Coretsia\Platform\Cli\Command\DebugModulesCommand;
 use Coretsia\Platform\Cli\Command\DoctorCommand;
 use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowListCommand;
+use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
 use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Kernel\KernelOpsRequestResolver;
+use Coretsia\Platform\Cli\Provider\CliServiceFactory;
 use Coretsia\Platform\Cli\Provider\CliServiceProvider;
+use Coretsia\Platform\Cli\UX\SmartSuggestor;
+use Coretsia\Platform\Cli\Workflow\WorkflowCatalog;
+use Coretsia\Platform\Cli\Workflow\WorkflowRunner;
+use Coretsia\Platform\Cli\Workflow\WorkflowSchema;
+use Coretsia\Platform\Cli\Workflow\WorkflowStepInputFactory;
 use PHPUnit\Framework\TestCase;
 
 final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest extends TestCase
 {
+    private const array GENERIC_COMMANDS = [
+        DoctorCommand::class,
+        HelpCommand::class,
+        ListCommand::class,
+        WorkflowListCommand::class,
+        WorkflowRunCommand::class,
+    ];
+
+    private const array WORKFLOW_INFRASTRUCTURE = [
+        WorkflowSchema::class,
+        WorkflowCatalog::class,
+        WorkflowStepInputFactory::class,
+        WorkflowRunner::class,
+        SmartSuggestor::class,
+    ];
+
     private const array OPERATIONS = [
         CacheVerifyCommand::class,
         ConfigCompileCommand::class,
@@ -66,7 +90,16 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         self::assertTrue($container->has(ExceptionRenderer::class));
         $tags = $builder->tagRegistry()->all(ReservedTags::CLI_COMMAND);
         $ids = \array_map(static fn ($tag): string => $tag->id(), $tags);
-        $expected = [...self::OPERATIONS, DoctorCommand::class, HelpCommand::class, ListCommand::class];
+        $expected = [...self::OPERATIONS, ...self::GENERIC_COMMANDS];
+        /** @var list<class-string> $serviceIds */
+        $serviceIds = [
+            ...self::GENERIC_COMMANDS,
+            ...self::WORKFLOW_INFRASTRUCTURE,
+        ];
+
+        foreach ($serviceIds as $id) {
+            self::assertTrue($container->has($id), $id);
+        }
         \sort($ids);
         \sort($expected);
         self::assertSame($expected, $ids);
@@ -141,14 +174,45 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
                 CliApplication::class,
                 CliErrorHandler::class,
                 ExceptionRenderer::class,
-                DoctorCommand::class,
-                HelpCommand::class,
-                ListCommand::class,
+                ...self::GENERIC_COMMANDS,
+                ...self::WORKFLOW_INFRASTRUCTURE,
             ] as $id
         ) {
             self::assertContains($id, $bindingIds);
         }
-        self::assertSame([DoctorCommand::class, HelpCommand::class, ListCommand::class], $tagIds);
+        self::assertSame(self::GENERIC_COMMANDS, $tagIds);
+        foreach ($operations as $operation) {
+            if (($operation['kind'] ?? null) !== 'tag') {
+                continue;
+            }
+            self::assertSame(0, $operation['priority']);
+            $keys = \array_keys($operation['meta']);
+            \sort($keys);
+            self::assertSame(['arguments', 'group', 'hidden', 'name', 'options', 'summary'], $keys);
+        }
+        self::assertCount(\count(\array_unique($bindingIds)), $bindingIds);
+        self::assertSame([], \array_intersect(self::OPERATIONS, $bindingIds));
+        foreach (
+            [
+                WorkflowSchema::class => 'workflowSchema',
+                WorkflowCatalog::class => 'workflowCatalog',
+                WorkflowStepInputFactory::class => 'workflowStepInputFactory',
+                WorkflowRunner::class => 'workflowRunner',
+                WorkflowListCommand::class => 'workflowListCommand',
+                WorkflowRunCommand::class => 'workflowRunCommand',
+            ] as $serviceId => $method
+        ) {
+            $matches = \array_values(
+                \array_filter(
+                    $operations,
+                    static fn (array $operation): bool => ($operation['id'] ?? null) === $serviceId,
+                ),
+            );
+            self::assertCount(1, $matches);
+            self::assertSame('service.factory.class-method', $matches[0]['kind']);
+            self::assertSame(CliServiceFactory::class, $matches[0]['factoryClass']);
+            self::assertSame($method, $matches[0]['method']);
+        }
         foreach (
             [
                 KernelOpsRequestResolver::class,

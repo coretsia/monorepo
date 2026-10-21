@@ -51,7 +51,7 @@ final readonly class TableFormatter
                         $stdout[] = $this->wrapRecordLines($record['text'], $color, false);
                         break;
                     case 'json':
-                        $stdout[] = $this->table($record['payload'], $color);
+                        $stdout[] = $this->table($record['payload'], $color, true);
                         break;
                     case 'error':
                         $stderr[] = $this->wrapRecordLines(
@@ -90,20 +90,16 @@ final readonly class TableFormatter
     }
 
     /** @param array<int|string, mixed> $payload */
-    private function table(array $payload, bool $color): string
+    private function table(array $payload, bool $color, bool $catalogRoot = false): string
     {
         if ($payload === []) {
             return $this->grid(['Value'], [['[]']], $color);
         }
 
-        if (\count($payload) === 1 && !\array_is_list($payload)) {
-            $nested = \reset($payload);
+        if ($catalogRoot && \array_keys($payload) === ['groups']) {
+            $nested = $payload['groups'];
 
             if (\is_array($nested) && $nested !== []) {
-                if (\array_is_list($nested)) {
-                    return $this->table($nested, $color);
-                }
-
                 $sections = [];
                 foreach ($nested as $group => $items) {
                     if (!\is_string($group) || !\is_array($items) || !\array_is_list($items)) {
@@ -111,10 +107,7 @@ final readonly class TableFormatter
                         break;
                     }
 
-                    $sections[] = \implode("\n", self::wrap(self::cell($group), $this->maxWidth)) . "\n" . $this->table(
-                        $items,
-                        $color,
-                    );
+                    $sections[] = $this->sectionLabel($group) . "\n" . $this->table($items, $color);
                 }
 
                 if ($sections !== []) {
@@ -124,57 +117,97 @@ final readonly class TableFormatter
         }
 
         if (\array_is_list($payload)) {
-            $columns = null;
-            foreach ($payload as $item) {
-                if (!\is_array($item) || \array_is_list($item)) {
-                    $columns = null;
-                    break;
+            return $this->listTable($payload, $color);
+        }
+
+        $rows = [];
+        $sections = [];
+
+        foreach ($payload as $key => $value) {
+            if (\is_array($value) && $value !== []) {
+                if ($rows !== []) {
+                    $sections[] = $this->grid(['Key', 'Value'], $rows, $color);
+                    $rows = [];
                 }
 
-                if ($columns === null) {
-                    $columns = \array_keys($item);
-                } elseif (\array_keys($item) !== $columns) {
-                    $columns = null;
+                $sections[] = $this->sectionLabel((string) $key) . "\n" . $this->table($value, $color);
+                continue;
+            }
+
+            $rows[] = [self::cell((string) $key), \is_array($value) ? '[]' : self::cell($value)];
+        }
+
+        if ($rows !== []) {
+            $sections[] = $this->grid(['Key', 'Value'], $rows, $color);
+        }
+
+        return \implode("\n\n", $sections);
+    }
+
+    /** @param list<mixed> $values */
+    private function listTable(array $values, bool $color): string
+    {
+        $columns = null;
+        $scalarValuesOnly = true;
+        $homogeneousScalarMaps = true;
+
+        foreach ($values as $item) {
+            if (\is_array($item)) {
+                $scalarValuesOnly = false;
+            }
+
+            if (!\is_array($item) || $item === [] || \array_is_list($item)) {
+                $homogeneousScalarMaps = false;
+                continue;
+            }
+
+            foreach ($item as $value) {
+                if (\is_array($value)) {
+                    $homogeneousScalarMaps = false;
                     break;
                 }
             }
 
-            if ($columns !== null && \count($columns) <= \intdiv($this->maxWidth - 1, 4)) {
-                $rows = [];
-                foreach ($payload as $item) {
-                    $rows[] = \array_map(self::cell(...), \array_values($item));
-                }
-
-                return $this->grid(\array_map(self::cell(...), $columns), $rows, $color);
+            if ($columns === null) {
+                $columns = \array_keys($item);
+            } elseif (\array_keys($item) !== $columns) {
+                $homogeneousScalarMaps = false;
             }
+        }
 
+        if ($homogeneousScalarMaps && $columns !== null && \count($columns) <= \intdiv($this->maxWidth - 1, 4)) {
             $rows = [];
-            foreach ($payload as $index => $item) {
+            foreach ($values as $item) {
+                $rows[] = \array_map(self::cell(...), \array_values($item));
+            }
+
+            return $this->grid(\array_map(self::cell(...), $columns), $rows, $color);
+        }
+
+        if ($scalarValuesOnly) {
+            $rows = [];
+            foreach ($values as $index => $item) {
                 $rows[] = [(string) $index, self::cell($item)];
             }
 
             return $this->grid(['Index', 'Value'], $rows, $color);
         }
 
-        $rows = [];
         $sections = [];
-        foreach ($payload as $key => $value) {
-            if (\is_array($value) && $value !== [] && \array_is_list($value)) {
-                $sections[] = \implode(
-                    "\n",
-                    self::wrap(self::cell((string) $key), $this->maxWidth),
-                ) . "\n" . $this->table($value, $color);
-                continue;
-            }
-
-            $rows[] = [self::cell((string) $key), self::cell($value)];
-        }
-
-        if ($rows !== []) {
-            \array_unshift($sections, $this->grid(['Key', 'Value'], $rows, $color));
+        foreach ($values as $index => $item) {
+            $sections[] = $this->sectionLabel((string) $index) . "\n" . (
+                \is_array($item)
+                    ? $this->table($item, $color)
+                    : $this->grid(['Value'], [[self::cell($item)]], $color)
+            );
         }
 
         return \implode("\n\n", $sections);
+    }
+
+    private function sectionLabel(string $label): string
+    {
+        return \implode("\n", self::wrap(self::cell($label), $this->maxWidth));
     }
 
     private static function cell(mixed $value): string
@@ -292,21 +325,51 @@ final readonly class TableFormatter
         $lines = [];
         $content = '';
         $width = 0;
+        $lastWhitespaceBoundary = null;
 
-        foreach ($matches[0] as $character) {
+        foreach ($matches[0] as $index => $character) {
             $characterWidth = self::visibleWidth($character);
             if ($characterWidth > $maxWidth) {
                 throw CliOutputFormatException::failed();
             }
 
-            if ($content !== '' && $width + $characterWidth > $maxWidth) {
-                $lines[] = $content;
-                $content = '';
-                $width = 0;
+            while ($content !== '' && $width + $characterWidth > $maxWidth) {
+                $wrapAtWhitespace = false;
+                if ($lastWhitespaceBoundary !== null) {
+                    $wordWidth = self::visibleWidth(\substr($content, $lastWhitespaceBoundary));
+                    for ($next = $index; $next < \count($matches[0]); ++$next) {
+                        if (\preg_match('/\A\p{Zs}\z/u', $matches[0][$next]) === 1) {
+                            break;
+                        }
+
+                        $wordWidth += self::visibleWidth($matches[0][$next]);
+                        if ($wordWidth > $maxWidth) {
+                            break;
+                        }
+                    }
+
+                    $wrapAtWhitespace = $wordWidth <= $maxWidth;
+                }
+
+                if ($wrapAtWhitespace) {
+                    $lines[] = \substr($content, 0, $lastWhitespaceBoundary);
+                    $content = \substr($content, $lastWhitespaceBoundary);
+                    $width = self::visibleWidth($content);
+                } else {
+                    $lines[] = $content;
+                    $content = '';
+                    $width = 0;
+                }
+
+                $lastWhitespaceBoundary = null;
             }
 
             $content .= $character;
             $width += $characterWidth;
+
+            if (\preg_match('/\A\p{Zs}\z/u', $character) === 1) {
+                $lastWhitespaceBoundary = \strlen($content);
+            }
         }
 
         $lines[] = $content;

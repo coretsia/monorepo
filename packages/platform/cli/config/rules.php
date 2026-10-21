@@ -22,12 +22,16 @@ declare(strict_types=1);
  * These rules intentionally keep the CLI config strict:
  * - the file validates the `cli` root subtree;
  * - unknown keys are rejected at every declared map level except
- *   `cli.commands.overrides`;
+ *   `cli.commands.overrides` and `cli.workflows.definitions`;
  * - `cli.commands` is a required map containing only `overrides`, not a
  *   command registry list;
  * - `cli.commands.overrides` is a required map with dynamic keys; ConfigValidator
  *   checks only its map shape, while CommandOverrides validates command names
  *   and the permitted summary, hidden, and group values;
+ * - `cli.workflows` is a required map containing only `definitions`;
+ * - `cli.workflows.definitions` is a required map with dynamic workflow-name
+ *   keys; ConfigValidator checks only the map shape, while WorkflowSchema
+ *   owns deep workflow definition validation;
  * - `cli.output` is a required map containing only `format_default`,
  *   `adaptive`, `color_default`, and `table`;
  * - `cli.output.format_default` must be adaptive, json, table, or plain;
@@ -41,7 +45,7 @@ declare(strict_types=1);
  *
  * The defaults file must return the subtree only:
  *
- *     config/cli.php => ['commands' => ['overrides' => []], 'output' => [...]]
+ *     config/cli.php => ['commands' => [...], 'workflows' => [...], 'output' => [...]]
  *
  * It must not return:
  *
@@ -58,6 +62,18 @@ return [
             'additionalKeys' => false,
             'keys' => [
                 'overrides' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => true,
+                ],
+            ],
+        ],
+        'workflows' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'definitions' => [
                     'required' => true,
                     'type' => 'map',
                     'additionalKeys' => true,

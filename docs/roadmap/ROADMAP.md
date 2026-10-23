@@ -19,7 +19,7 @@
 - [x] PRELUDE — Repo bootstrap
 - [x] PHASE 0 — SPIKES (Prototype найризиковіших частин)
 - [x] PHASE 1 — CORE (повний core/*: contracts + foundation + kernel)
-- [ ] PHASE 2 — Mode Infrastructure & CLI
+- [x] PHASE 2 — Mode Infrastructure & CLI
 - [ ] PHASE 3 — RELEASE: micro (перший релізний режим)
 - [ ] PHASE 4 — RELEASE: express
 - [ ] PHASE 5 — RELEASE: hybrid
@@ -105,19 +105,19 @@
 ### 1.277.0 Foundation: Runtime Failure Safety Hardening (MUST) [IMPL]
 ### 1.278.0 Docs/Ops: CI Workflow Separation and Architecture Generator Evidence (SHOULD) [DOC]
 ### 1.280.0 Kernel: KernelRuntime (UoW SPI, no PSR-7) (MUST) [IMPL]
-### 1.300.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]
-### 1.310.0 Kernel: Module Plan (discovery + presets + graph + policies) (MUST) [IMPL]
-### 1.320.0 Kernel: ConfigKernel Phase B + SSoT Docs (directives + merge order + precedence) (MUST) [IMPL+DOC]
-### 1.330.0 Kernel: Artifacts (manifest + config) + fingerprint + cache:verify core (MUST) [IMPL]
-### 1.340.0 Kernel: Container compile (REAL) + `container.php` artifact (MUST) [IMPL]
-### 1.350.0 Kernel: RuntimeDriverGuard + Runtime driver matrix E2E locks (MUST) [IMPL+TOOLING]
-### 1.360.0 Long-Running Runtime: Worker Manager & Application Worker (MUST) [IMPL]
-### 1.370.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
+### 1.290.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]
+### 1.300.0 Kernel: Module Plan (discovery + presets + graph + policies) (MUST) [IMPL]
+### 1.310.0 Kernel: ConfigKernel Phase B + SSoT Docs (directives + merge order + precedence) (MUST) [IMPL+DOC]
+### 1.320.0 Kernel: Artifacts (manifest + config) + fingerprint + cache:verify core (MUST) [IMPL]
+### 1.330.0 Kernel: Container compile (REAL) + `container.php` artifact (MUST) [IMPL]
+### 1.340.0 Kernel: RuntimeDriverGuard + Runtime driver matrix E2E locks (MUST) [IMPL+TOOLING]
+### 1.350.0 Long-Running Runtime: Worker Manager & Application Worker (MUST) [IMPL]
+### 1.360.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
 
-### 1.380.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
-### 1.390.0 Atomic Transaction Gate (MUST) [TOOLING]
-### 1.400.0 Composer Audit Gate (MUST) [TOOLING]
-### 1.410.0 Secret Leakage Gate (MUST) [TOOLING]
+### 1.370.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
+### 1.380.0 Atomic Transaction Gate (MUST) [TOOLING]
+### 1.390.0 Composer Audit Gate (MUST) [TOOLING]
+### 1.400.0 Secret Leakage Gate (MUST) [TOOLING]
 
 ---
 
@@ -128,8 +128,6 @@
 ### 2.25.0 Sensitive data redaction boundary (MUST) [CONTRACTS+IMPL+DOC]
 ### 2.30.0 Platform CLI — Tag-first Command Catalog + Kernel ops consumption (MUST) [IMPL]
 ### 2.40.0 Platform CLI — Deterministic Workflows + Smart Suggestions (SHOULD) [IMPL]
-### 2.50.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL]
-### 2.60.0 CLI Performance Gate (MUST) [TOOLING]
 
 ---
 
@@ -140,7 +138,7 @@
 ### 3.10.0 Platform errors: ErrorHandler + ExceptionMapper registry (MUST) [IMPL]
 ### 3.20.0 Platform logging (PSR-3) (MUST) [IMPL]
 ### 3.30.0 Platform tracing baseline (noop-safe + W3C propagation) (MUST) [IMPL]
-### 3.31.0 Platform metrics baseline (noop-safe + label allowlist + renderer port) (MUST) [IMPL]
+### 3.35.0 Platform metrics baseline (noop-safe + label allowlist + renderer port) (MUST) [IMPL]
 ### 3.40.0 Platform problem-details (RFC7807) (MUST) [IMPL]
 ### 3.50.0 Platform HTTP runtime (pipeline + middleware + UoW + wiring model) (MUST) [IMPL]
 ### 3.55.0 HTTP long-running safety harness (MUST) [IMPL]
@@ -153,13 +151,13 @@
 ### 3.120.0 HTTP dev diagnostics endpoints (SHOULD) [IMPL]
 ### 3.130.0 Platform routing (compiled routes artifact + runtime router) (MUST) [IMPL]
 ### 3.140.0 Platform http-app (RouterMiddleware + ActionInvoker) (MUST) [IMPL]
-### 3.145.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL]
+### 3.143.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL] [REQUIRES REDESIGN]
+### 3.145.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL] [REQUIRES REDESIGN]
 ### 3.150.0 CORS middleware (inside platform/http) (MUST) [IMPL]
 ### 3.160.0 Method override + Content negotiation (umbrella) (SHOULD) [DOC]
 ### 3.170.0 Method override middleware (inside platform/http) (SHOULD) [IMPL]
 ### 3.180.0 Content negotiation middleware (inside platform/http) (SHOULD) [IMPL]
 ### 3.190.0 ProblemDetails HTML renderer + error pages (SHOULD) [IMPL]
-### 3.200.0 HTTP Performance Benchmarking Harness (MUST) [TOOLING]
 
 ---
 
@@ -187,12 +185,11 @@
 ### 4.74.0 Platform database-driver-sqlserver (MUST) [IMPL]
 ### 4.80.0 Database drivers (MySQL/MariaDB/PostgreSQL/SQL Server) (SHOULD) [DOC]
 ### 4.90.0 Migrations (driver-agnostic) (MUST) [IMPL]
-### 4.95.0 Contracts: Queue (jobs, serialization, retry) (MUST) [CONTRACTS]
 ### 4.100.0 platform/mail (MUST) [IMPL]
 ### 4.101.0 integrations/mail-smtp (MUST) [IMPL]
 ### 4.110.0 coretsia/view (MUST) [IMPL]
-### 4.120.0 Translation/i18n (SHOULD) [IMPL]
-### 4.130.0 Contracts: Auth/Session/Security/Lock (IMPL boundary ports) (MUST) [CONTRACTS]
+### 4.120.0 Translation / i18n (SHOULD) [IMPL]
+### 4.130.0 Contracts: Auth / Session / Security / Lock (IMPL boundary ports) (MUST) [CONTRACTS]
 ### 4.140.0 coretsia/session — Session layer (file storage + middleware) (MUST) [IMPL]
 ### 4.150.0 coretsia/auth — Session auth + RBAC (MUST) [IMPL]
 ### 4.160.0 coretsia/auth — Token/Bearer + optional JWT guard (SHOULD) [IMPL]
@@ -202,8 +199,6 @@
 ### 4.200.0 coretsia/hashing — Password hashing (SHOULD) [IMPL]
 ### 4.210.0 coretsia/lock — Lock factory + reference drivers (SHOULD) [IMPL]
 ### 4.220.0 coretsia/cache — PSR-16 cache + manager + reference stores (SHOULD) [IMPL]
-### 4.230.0 Core Kernel + Foundation Hot-path Optimization (MUST) [IMPL+TOOLING]
-### 4.240.0 Performance Gates for Database and Filesystem (SHOULD) [TOOLING]
 
 ---
 
@@ -216,6 +211,7 @@
 ### 5.30.0 Contracts: Events (sync + deferred, UoW-friendly) (MUST) [CONTRACTS]
 ### 5.40.0 coretsia/events — Sync dispatcher + deferred queue (MUST) [IMPL]
 ### 5.50.0 Deferred events semantics (flush policy) (SHOULD) [DOC]
+### 5.55.0 Contracts: Queue (jobs, serialization, retry) (MUST) [CONTRACTS]
 ### 5.60.0 coretsia/queue — Core (sync driver + worker runtime) (MUST) [IMPL]
 ### 5.70.0 coretsia/queue — DB driver (async reference) (SHOULD) [IMPL]
 ### 5.80.0 coretsia/queue — CLI commands queue:* (MUST) [IMPL]
@@ -223,8 +219,7 @@
 ### 5.100.0 coretsia/cqrs — Command bus + middleware pipeline (MUST) [IMPL]
 ### 5.110.0 coretsia/scheduler — Schedule registry + schedule:run (MUST) [IMPL]
 ### 5.120.0 Enterprise fixture E2E (RC MUST) (MUST) [IMPL]
-### 5.130.0 Asynchronous Performance Tuning (SHOULD) [IMPL+TOOLING]
-### 5.140.0 Test Coverage Gate (MUST) [TOOLING]
+### 5.130.0 Test Coverage Gate (MUST) [TOOLING]
 
 ---
 
@@ -237,9 +232,8 @@
 ### 6.31.0 integrations/tracing-otlp (MUST) [IMPL]
 ### 6.32.0 integrations/tracing-zipkin (MUST) [IMPL]
 ### 6.40.0 coretsia/observability (glue module, NOT a monolith) (MUST) [IMPL]
-### 6.50.0 coretsia/profiling (sampling profiler hooks) (MUST) [IMPL]
-### 6.60.0 integrations/cache-redis (MUST) [IMPL]
-### 6.61.0 integrations/cache-apcu (MUST) [IMPL]
+### 6.50.0 integrations/cache-redis (MUST) [IMPL]
+### 6.60.0 integrations/cache-apcu (MUST) [IMPL]
 ### 6.70.0 integrations/lock-redis (MUST) [IMPL]
 ### 6.71.0 integrations/session-redis (MUST) [IMPL]
 ### 6.72.0 integrations/queue-redis (MUST) [IMPL]
@@ -298,7 +292,26 @@
 ### 6.473.0 coretsia/ai-guardrails (policy engine + PII hooks + allow/deny lists) (MUST) [IMPL]
 ### 6.474.0 Contracts: AI vectorstore (vector DB ports) (MUST) [CONTRACTS]
 ### 6.475.0 coretsia/ai-vectorstore (ports wiring + adapters: pgvector + in-memory) (MUST) [IMPL]
-### 6.480.0 Advanced Caching & Preloading Strategy (SHOULD) [IMPL+TOOLING]
-### 6.490.0 Production Performance Profiling & Observability (SHOULD) [IMPL+DOC]
+
+---
+
+## Independent Performance Roadmap
+
+Performance benchmarking, regression measurement, and performance optimization are planned independently of product release completion.
+
+Performance epics may be implemented after their required production capabilities become available. Their completion is not a prerequisite for completing product phases or publishing release modes.
+
+### PERF.10.0 Benchmark Toolkit Foundation (MUST) [TOOLING]
+### PERF.20.0 CLI Performance Gate (MUST) [TOOLING]
+### PERF.30.0 HTTP Performance Benchmarking Harness (MUST) [TOOLING]
+### PERF.40.0 Core Kernel + Foundation Hot-path Optimization (MUST) [IMPL+TOOLING]
+### PERF.50.0 Performance Gates for Database and Filesystem (SHOULD) [TOOLING]
+### PERF.60.0 Asynchronous Performance Tuning (SHOULD) [IMPL+TOOLING]
+### PERF.70.0 Production Performance Profiling & Observability (SHOULD) [IMPL+DOC]
+### PERF.80.0 Advanced Caching & Preloading Strategy (SHOULD) [IMPL+TOOLING]
+
+See [PERFORMANCE-ROADMAP](PERFORMANCE-ROADMAP.md)
+
+---
 
 ## 🚀 [Додаток A: Ops (Non-SSoT, поза DAG фреймворку)](APPENDIX-A.md)

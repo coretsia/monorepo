@@ -1062,6 +1062,179 @@ N/A
 
 ---
 
+### 5.55.0 Contracts: Queue (jobs, serialization, retry) (MUST) [CONTRACTS]
+
+---
+type: package
+phase: 5
+epic_id: "5.55.0"
+owner_path: "packages/core/contracts/"
+
+package_id: "core/contracts"
+composer: "coretsia/core-contracts"
+kind: library
+
+goal: "Визначити стабільні queue contracts (job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface) із детермінізмом та без HTTP/PSR-7 залежностей."
+provides:
+- "Queue ports: job shape + driver API (reserve/ack/fail/release)"
+- "Детерміністичні правила payload (json-like; no floats; no objects) на рівні shape/serializer contract"
+- "Retry/backoff policy surface + failed jobs repository port + worker runtime surface (без реалізацій)"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: docs/adr/ADR-XXXX-queue-ports-jobs-retry.md
+ssot_refs: []
+---
+
+### Goal (MUST)
+
+- **Definition of success:** Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
+- **Acceptance scenario:** When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
+
+## Dependencies (MUST)
+
+### Preconditions (MUST)
+
+- Epic prerequisites:
+  - N/A
+- Required deliverables (exact paths):
+  - N/A
+- Required config roots/keys:
+  - N/A
+- Required tags:
+  - N/A
+- Required contracts / ports:
+  - N/A
+
+### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- none
+
+Forbidden:
+
+- `platform/*`
+- `Psr\Http\Message\*`
+- `Psr\Http\Server\*`
+
+### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - none
+- Contracts:
+  - none
+- Foundation stable APIs:
+  - none
+
+## Entry points / integration points (MUST)
+
+N/A
+
+## Deliverables (exact paths only) (MUST)
+
+### Creates
+
+- [ ] `packages/core/contracts/src/Queue/JobInterface.php` — job contract (shape/metadata; payload правила на рівні contract-очікувань)
+- [ ] `packages/core/contracts/src/Queue/JobSerializerInterface.php` — серіалізація/десеріалізація з інваріантами json-like + детермінізм
+- [ ] `packages/core/contracts/src/Queue/QueueDriverInterface.php` — low-level driver port (reserve/ack/fail/release)
+- [ ] `packages/core/contracts/src/Queue/QueueInterface.php` — high-level queue facade port (dispatch/enqueue поверх driver)
+- [ ] `packages/core/contracts/src/Queue/BackoffStrategyInterface.php` — retry/backoff policy surface (delay computation)
+- [ ] `packages/core/contracts/src/Queue/FailedJobRepositoryInterface.php` — port для зберігання/читання failed jobs
+- [ ] `packages/core/contracts/src/Queue/QueueWorkerRuntimeInterface.php` — worker runtime surface (loop/control без реалізації)
+- [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова доменна exception для queue contracts
+
+### Modifies
+
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
+
+### Package skeleton (if type=package)
+
+N/A (пакет `core/contracts` вже існує; цей епік додає лише Queue contracts)
+
+### Configuration (keys + defaults)
+
+N/A
+
+### Wiring / DI tags (when applicable)
+
+N/A
+
+### Artifacts / outputs (if applicable)
+
+N/A
+
+## Cross-cutting (only if applicable; otherwise `N/A`)
+
+### Context & UoW
+
+N/A
+
+### Observability (policy-compliant)
+
+N/A
+
+### Errors
+
+- [ ] Exceptions introduced:
+  - [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова помилка домену Queue (конкретні errorCode/мапінг — на стороні імплементаційних пакетів)
+
+### Security / Redaction (MUST)
+
+- [ ] MUST NOT leak:
+  - [ ] payload/tokens/session id у будь-якому contract shape (payload тільки json-like; логування — відповідальність імплементації)
+
+## Verification (TEST EVIDENCE) (MUST when applicable)
+
+- [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+  - asserts: payload is json-like; deterministic invariants (no floats, no objects) are enforced at shape/serializer contract level
+- [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
+  - asserts: ports are stable/consistent; driver surface supports reserve/ack/fail/release + retry/backoff surfaces are present
+- [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - asserts: contracts remain HTTP-agnostic (no PSR-7/15 deps)
+
+## Tests (MUST)
+
+- Unit:
+  - [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+- Contract:
+  - [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+- Integration:
+  - N/A
+- Gates/Arch:
+  - N/A (deptrac/forbidden enforced policy-wide)
+
+## DoD (MUST)
+
+- [ ] Deliverables complete (creates+modifies), paths exact
+- [ ] Preconditions satisfied (no forward references)
+- [ ] deps/forbidden respected (deptrac; no cycles)
+- [ ] Verification tests present where applicable
+- [ ] Ports/VO shapes stable + protected by contract tests
+- [ ] ADR exists and documents invariants (json-like payload, no PSR-7)
+- [ ] Docs updated:
+  - [ ] ADR: `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
+- [ ] Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
+- [ ] When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
+- [ ] Problem this epic solves
+  - [ ] Визначити contracts для queue: job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface
+  - [ ] Забезпечити json-like payload rule + детермінізм (no floats, no objects) на рівні shape
+  - [ ] Дати стабільний базис для sync driver та DB/Redis drivers без зміни contracts
+- [ ] Non-goals / out of scope
+  - [ ] Реалізація driver/worker/CLI (це 5.60.0, 5.70.0 та 5.80.0)
+  - [ ] Storage schema (DB tables) — це імплементаційні епіки
+  - [ ] HTTP-aware типи/PSR-7 (заборонено у contracts)
+- [ ] Cutline impact
+  - [ ] blocks Phase 5 cutline
+  - [ ] MUST be completed before 5.60.0 Queue Core
+  - [ ] does not block Phase 4 Express release
+
+---
+
 ### 5.60.0 coretsia/queue — Core (sync driver + worker runtime) (MUST) [IMPL]
 
 ---
@@ -1101,7 +1274,7 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.30.0 — contracts package exists (queue contracts assumed available in `core/contracts`)
+  - 5.55.0 — Queue contracts exist in `core/contracts` and define the canonical job, serialization, driver, retry/backoff, failed-job repository, and worker runtime ports
   - core/kernel UoW runtime exists — worker wraps each job in UoW (begin/after)
 
 - Required deliverables (exact paths):
@@ -2782,266 +2955,12 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 
 ---
 
-### 5.130.0 Asynchronous Performance Tuning (SHOULD) [IMPL+TOOLING]
+### 5.130.0 Test Coverage Gate (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 5
 epic_id: "5.130.0"
-owner_path: "tools/benchmarks/async/"
-
-goal: "Зацементувати async benchmark suite для events/queue/scheduler та прибрати найдорогіші накладні витрати на dispatch, serialization/deserialization і UoW-boundary без порушення determinism та redaction policy."
-provides:
-- "Reference async benchmarks for event dispatch, deferred flush, queue dispatch/worker, scheduler run"
-- "Pinned-runner performance baselines for asynchronous subsystems"
-- "Concrete tuning targets for payload shaping, worker loop overhead and scheduler execution path"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-
-adr: none
-ssot_refs:
-- "docs/ssot/metrics-policy.md"
-- "docs/ssot/observability-and-errors.md"
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-> Everything that MUST already exist (files/keys/tags/contracts/artifacts).
-
-- Epic prerequisites:
-  - 5.40.0 — events runtime exists
-  - 5.60.0 — queue core exists
-  - 5.80.0 — queue CLI commands exist
-  - 5.100.0 — command bus exists
-  - 5.110.0 — scheduler runtime exists
-  - 1.460.0 — base performance gate methodology exists
-  - 4.240.0 — DB/FS gate exists when async paths use SQLite-backed queue or schedule persistence
-
-- Required deliverables (exact paths):
-  - `packages/platform/events/`
-  - `packages/platform/queue/`
-  - `packages/platform/cqrs/`
-  - `packages/platform/scheduler/`
-  - `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
-
-- Required config roots/keys:
-  - `events.*`
-  - `queue.*`
-  - `scheduler.*`
-  - `app.id`
-
-- Required tags:
-  - `events.listener`
-  - `kernel.hook.after_uow`
-  - `cli.command`
-  - `scheduler.schedule`
-
-- Required contracts / ports:
-  - `Coretsia\Contracts\Events\EventDispatcherInterface`
-  - `Coretsia\Contracts\Queue\QueueInterface`
-  - `Coretsia\Contracts\Scheduler\ScheduleRunnerInterface`
-  - `Coretsia\Contracts\Bus\CommandBusInterface`
-  - `Coretsia\Contracts\Runtime\ResetInterface`
-  - `Psr\Log\LoggerInterface`
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-
-- none (tools epic driving benchmark/tuning work)
-
-Forbidden:
-
-- emitting raw event/job payloads in benchmark output
-- introducing non-reset-safe mutable caches into worker/runtime state
-- using shared-runner CI timings as release gate source of truth
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- Contracts:
-  - `Coretsia\Contracts\Events\EventDispatcherInterface`
-  - `Coretsia\Contracts\Queue\QueueInterface`
-  - `Coretsia\Contracts\Scheduler\ScheduleRunnerInterface`
-  - `Coretsia\Contracts\Bus\CommandBusInterface`
-  - `Coretsia\Contracts\Runtime\ResetInterface`
-
-### Entry points / integration points (MUST)
-
-- CLI:
-  - `composer benchmark:async`
-  - `composer benchmark:async:gate`
-
-- HTTP:
-  - N/A
-
-- Kernel hooks/tags:
-  - benchmark suite MUST cover:
-    - `events.listener`
-    - `kernel.hook.after_uow`
-    - `scheduler.schedule`
-
-- Other runtime discovery / integration tags:
-  - `cli.command` — queue/scheduler commands may be used as benchmark entrypoints
-
-- Artifacts:
-  - reads: `tools/benchmarks/async/async.baseline.json`
-  - writes: `tools/benchmarks/async/async.report.json`
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `tools/benchmarks/async/run.php` — canonical async benchmark runner
-- [ ] `tools/benchmarks/async/AsyncBenchmarkConfig.php` — scenario list + methodology
-- [ ] `tools/benchmarks/async/async.baseline.json` — pinned baseline
-- [ ] `tools/gates/async_performance_gate.php` — comparator gate
-- [ ] `tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
-- [ ] `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
-- [ ] `docs/architecture/async-performance.md` — tuning guide + benchmark interpretation
-
-#### Modifies
-
-- [ ] `packages/platform/events/src/` — reduce dispatch/deferred overhead without semantic drift
-- [ ] `packages/platform/queue/src/` — reduce serialization/worker overhead without semantic drift
-- [ ] `packages/platform/scheduler/src/` — reduce schedule enumeration/run overhead without semantic drift
-- [ ] `packages/platform/events/tests/` — behavior-lock tests for tuned paths
-- [ ] `packages/platform/queue/tests/` — behavior-lock tests for tuned paths
-- [ ] `packages/platform/scheduler/tests/` — behavior-lock tests for tuned paths
-- [ ] `framework/composer.json` — add scripts:
-  - [ ] `benchmark:async`
-  - [ ] `benchmark:async:gate`
-- [ ] `composer.json` — add mirror scripts delegating to `framework/`
-- [ ] `.github/workflows/ci.yml` — add dedicated async benchmark job
-- [ ] `tools/support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_ASYNC_PERFORMANCE_DEGRADED`
-  - [ ] `CORETSIA_ASYNC_PERFORMANCE_RUN_FAILED`
-
-#### Package skeleton (if type=package)
-
-N/A
-
-#### Configuration (keys + defaults)
-
-- [ ] Files:
-  - [ ] `tools/benchmarks/async/AsyncBenchmarkConfig.php`
-- [ ] Keys (dot):
-  - [ ] `benchmark.async.events.dispatch_sync` = true
-  - [ ] `benchmark.async.events.flush_deferred` = true
-  - [ ] `benchmark.async.queue.dispatch_sync` = true
-  - [ ] `benchmark.async.queue.worker_once` = true
-  - [ ] `benchmark.async.scheduler.run_one_due_task` = true
-  - [ ] `benchmark.async.threshold_multiplier` = 1.15
-- [ ] Rules:
-  - [ ] scenarios MUST benchmark both empty/light and representative listener/job/task counts
-  - [ ] payloads used in scenarios MUST remain json-like and redaction-safe
-
-#### Wiring / DI tags (when applicable)
-
-N/A
-
-#### Artifacts / outputs (if applicable)
-
-- [ ] Writes:
-  - [ ] `tools/benchmarks/async/async.report.json` (deterministic bytes)
-- [ ] Reads:
-  - [ ] validates report/baseline schema before compare
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
-- Context writes (safe only):
-  - N/A
-- [ ] Reset discipline:
-  - [ ] tuned runtime services with mutable state MUST implement `ResetInterface`
-  - [ ] worker loop and deferred queues MUST prove no state leak across runs/UoW
-
-#### Observability (policy-compliant)
-
-- [ ] Logs:
-  - [ ] benchmark output MUST contain only scenario ids, counts, medians, thresholds, outcome
-  - [ ] MUST NOT include raw event payloads, job payloads, or schedule arguments
-
-#### Errors
-
-- Exceptions introduced:
-  - N/A
-- [ ] Mapping:
-  - [ ] deterministic tool exit codes only
-
-#### Security / Redaction
-
-- [ ] MUST NOT leak:
-  - [ ] raw event/job payloads
-  - [ ] secrets/PII
-  - [ ] absolute paths
-- [ ] Allowed:
-  - [ ] safe scenario ids
-  - [ ] counts
-  - [ ] medians
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If `kernel.reset` used → events/queue/scheduler integration tests MUST fail if reset discipline is removed
-- [ ] If logs exist → async harness/gate tests assert no raw payload leakage
-- [ ] If redaction exists → `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
-
-#### Test harness / fixtures (when integration is needed)
-
-- [ ] Fixture app:
-  - [ ] `packages/core/kernel/tests/Fixtures/EnterpriseApp/`
-- [ ] Fake adapters:
-  - [ ] FakeTracer
-  - [ ] FakeMetrics
-  - [ ] FakeLogger
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `tools/tests/Unit/Benchmarks/AsyncBenchmarkConfigTest.php`
-- Contract:
-  - [ ] `packages/platform/queue/tests/Contract/TuningPreservesSerializationPolicyContractTest.php`
-  - [ ] `packages/platform/events/tests/Contract/TuningPreservesDeferredFlushPolicyContractTest.php`
-- Integration:
-  - [ ] `tools/tests/Integration/Benchmarks/AsyncBenchmarkHarnessTest.php`
-  - [ ] `tools/tests/Integration/Gates/AsyncPerformanceGateTest.php`
-- Gates/Arch:
-  - [ ] deptrac updated (if needed)
-
-### DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected
-- [ ] Verification tests present where applicable
-- [ ] Determinism:
-  - [ ] payload shaping remains stable
-  - [ ] UoW/reset semantics remain stable
-  - [ ] benchmark reports are stable bytes
-- [ ] Downstream proof:
-  - [ ] representative async scenarios show neutral or improved medians on pinned runner
-- [ ] Docs updated:
-  - [ ] `docs/architecture/async-performance.md`
-
----
-
-
-### 5.140.0 Test Coverage Gate (MUST) [TOOLING]
-
----
-type: tools
-phase: 5
-epic_id: "5.140.0"
 owner_path: "tools/gates/"
 
 goal: "Ensure that critical packages have sufficient test coverage by analyzing PHPUnit coverage reports and enforcing thresholds."

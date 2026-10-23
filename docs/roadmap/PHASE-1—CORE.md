@@ -7352,7 +7352,7 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - This SSoT document is the normative input for the future implementation epic `1.350.0` (`RuntimeDriverGuard`).
+  - This SSoT document is the normative input for the future implementation epic `1.340.0` (`RuntimeDriverGuard`).
   - No implementation prerequisite is required for this doc-only epic.
 
 - Required deliverables (exact paths):
@@ -7367,7 +7367,7 @@ ssot_refs:
   - `platform.worker`
 
 - Note:
-  - `worker.*` is introduced later by `1.360.0` (`platform/worker`).
+  - `worker.*` is introduced later by `1.350.0` (`platform/worker`).
   - In this doc these keys are normative future guard inputs, not a prerequisite that the `worker` root already exists at `1.260.0` time.
 
 - Non-goals (MUST):
@@ -7389,7 +7389,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - referenced by: `coretsia worker:start` (1.360.0)
+  - referenced by: `coretsia worker:start` (1.350.0)
 - HTTP:
   - referenced by runtime entrypoints `frankenphp.php|swoole.php|roadrunner.php` (20.x)
 - Kernel guard:
@@ -7474,7 +7474,7 @@ Forbidden:
   - [x] Default safety policy (single-choice):
     - [x] `kernel.runtime.*.enabled` defaults to `false`
     - [x] `worker.task_type` default MUST be safe (and MUST NOT implicitly enable an HTTP driver)
-  - [x] Missing-key policy before `1.360.0` (single-choice):
+  - [x] Missing-key policy before `1.350.0` (single-choice):
     - [x] absence of `worker.task_type` MUST NOT activate any runtime driver
     - [x] missing `worker.*` root by itself MUST NOT be treated as invalid config
   - [x] Compatibility matrix:
@@ -10222,7 +10222,7 @@ Forbidden:
 
 Build-time commands (explicit non-goal for KernelRuntime):
 - `config:compile` and `cache:verify` are build-time concerns and MUST NOT require UoW lifecycle.
-  (Their entrypoint ownership and integration are defined in 1.330.0, not here.)
+  (Their entrypoint ownership and integration are defined in 1.320.0, not here.)
 
 - Hook payload boundary (cemented):
   - before/after hooks receive normalized exported arrays derived from kernel-owned shapes.
@@ -11043,12 +11043,12 @@ Kernel повертає/кидає детерміновані винятки/р�
 
 ---
 
-### 1.300.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]
+### 1.290.0 Kernel boot: Bootstrap Phase A (env policy + minimal inputs) (MUST) [IMPL]
 
 ---
 type: package
 phase: 1
-epic_id: "1.300.0"
+epic_id: "1.290.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -11156,7 +11156,7 @@ Forbidden:
 - `presets` is a bootstrap-only per-app preset map.
 - `presets` MUST NOT participate in ConfigKernel Phase B merge.
 - `presets` MUST NOT be used as module enable/disable composition.
-- Module enable/disable composition remains owned by `1.310.0` ModulePlan from preset files + Composer metadata.
+- Module enable/disable composition remains owned by `1.300.0` ModulePlan from preset files + Composer metadata.
 - `packages/applications/skeleton/config/app.php` MUST NOT participate in ConfigKernel Phase B merge.
 - ConfigKernel Phase B owns full config file discovery, merge, directives, validation, explain, and env overlays.
 
@@ -11367,7 +11367,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] `preset` MUST be non-empty safe string.
   - [x] `debug` MUST be bool.
   - [x] `packages/applications/skeleton/config/modules.php` MUST NOT be read here.
-  - [x] module enable/disable composition is resolved only by `1.310.0` ModulePlan from preset files + Composer metadata.
+  - [x] module enable/disable composition is resolved only by `1.300.0` ModulePlan from preset files + Composer metadata.
   - [x] Values MUST NOT be logged or embedded in exception messages.
   - [x] The loader MUST NOT include/require any file except `packages/applications/skeleton/config/app.php`.
 
@@ -11418,7 +11418,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
   - [x] `staging` defaults to `strict_dotenv`.
   - [x] Non-production envs that need system env precedence MUST pass explicit `BootstrapEnvSourcePolicy::AllowSystem` through `BootstrapInput`.
   - [x] Phase A validates only preset value shape, not preset existence.
-  - [x] Preset file existence and preset schema validation are owned by `1.310.0` ModulePlan.
+  - [x] Preset file existence and preset schema validation are owned by `1.300.0` ModulePlan.
   - [x] Phase A MUST NOT read `kernel.modes.defaults_path` or `kernel.modes.overrides_path`.
   - [x] Phase A MUST NOT load `resources/modes/*.php` or `packages/applications/skeleton/config/modes/*.php`.
 
@@ -11481,7 +11481,7 @@ When explicit `BootstrapInput.preset` exists, explicit `BootstrapInput.preset` w
     - [x] `kernel.boot.default_preset`
   - [x] documents that `presets` is a bootstrap-only per-app preset map.
   - [x] documents that `presets` does not select, infer, or modify `appTarget`.
-  - [x] documents that module enable/disable composition remains owned by 1.310.0 ModulePlan.
+  - [x] documents that module enable/disable composition remains owned by 1.300.0 ModulePlan.
   - [x] documents that `BootstrapConfig` is a resolved VO only.
   - [x] documents that `BootstrapConfigResolver` owns Phase A config resolution.
   - [x] documents that `EnvRepositoryBuilder` owns env snapshot construction only.
@@ -11674,12 +11674,12 @@ Allowed diagnostics:
 
 ---
 
-### 1.310.0 Kernel: Module Plan (discovery + presets + graph + policies) (MUST) [IMPL]
+### 1.300.0 Kernel: Module Plan (discovery + presets + graph + policies) (MUST) [IMPL]
 
 ---
 type: package
 phase: 1
-epic_id: "1.310.0"
+epic_id: "1.300.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -11715,7 +11715,7 @@ ssot_refs:
 - Epic prerequisites:
   - 1.20.0 — Config roots registry exists and includes root `kernel` owned by `core/kernel`
   - 1.70.0 — module contracts exist (`ManifestReaderInterface`, `ModePresetLoaderInterface`, `ModePresetInterface`, `ModuleDescriptor`)
-  - 1.300.0 — Bootstrap Phase A визначає preset + env inputs
+  - 1.290.0 — Bootstrap Phase A визначає preset + env inputs
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
@@ -12542,12 +12542,12 @@ Allowed:
 
 ---
 
-### 1.320.0 Kernel: ConfigKernel Phase B + SSoT Docs (directives + merge order + precedence) (MUST) [IMPL+DOC]
+### 1.310.0 Kernel: ConfigKernel Phase B + SSoT Docs (directives + merge order + precedence) (MUST) [IMPL+DOC]
 
 ---
 type: package
 phase: 1
-epic_id: "1.320.0"
+epic_id: "1.310.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -12582,8 +12582,8 @@ ssot_refs:
 - Epic prerequisites:
   - 1.20.0 — Config roots registry exists and includes root `kernel` owned by `core/kernel`
   - 1.80.0 — config/env contracts exist (`ConfigRepositoryInterface`, `ConfigLoaderInterface`, `MergeStrategyInterface`, `ConfigValidatorInterface`, `ConfigSourceType`, `ConfigValueSource`, `EnvRepositoryInterface`, `EnvPolicy`)
-  - 1.310.0 — ModulePlan used to load package defaults from enabled modules
-  - 1.300.0 — immutable `EnvRepositoryInterface` snapshot and kernel-owned `BootstrapEnvSourcePolicy` source precedence are available for environment overlays.
+  - 1.300.0 — ModulePlan used to load package defaults from enabled modules
+  - 1.290.0 — immutable `EnvRepositoryInterface` snapshot and kernel-owned `BootstrapEnvSourcePolicy` source precedence are available for environment overlays.
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
@@ -13468,12 +13468,12 @@ Kernel ConfigKernel MUST використовувати ті самі code strin
 
 ---
 
-### 1.330.0 Kernel: Artifacts (manifest + config) + fingerprint + cache:verify core (MUST) [IMPL]
+### 1.320.0 Kernel: Artifacts (manifest + config) + fingerprint + cache:verify core (MUST) [IMPL]
 
 ---
 type: package
 phase: 1
-epic_id: "1.330.0"
+epic_id: "1.320.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -13508,8 +13508,8 @@ ssot_refs:
   - 1.70.0 — module contracts exist (`ManifestReaderInterface`)
   - 1.80.0 — config contracts exist (`ConfigRepositoryInterface`)
   - 1.200.0 — canonical Foundation `StableJsonEncoder` exists and is reusable by kernel artifact production
-  - 1.310.0 — ModulePlan feeds module-manifest builder
-  - 1.320.0 — ConfigKernel feeds compiled config builder
+  - 1.300.0 — ModulePlan feeds module-manifest builder
+  - 1.310.0 — ConfigKernel feeds compiled config builder
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
@@ -13561,7 +13561,7 @@ Forbidden:
   - writes:
     - `packages/applications/skeleton/var/cache/<appTarget>/module-manifest.php`
     - `packages/applications/skeleton/var/cache/<appTarget>/config.php`
-    - `packages/applications/skeleton/var/cache/<appTarget>/container.php` (stub; REAL in 1.340.0)
+    - `packages/applications/skeleton/var/cache/<appTarget>/container.php` (stub; REAL in 1.330.0)
   - reads (verify):
     - validates header + payload schema for the same files
 
@@ -13938,15 +13938,15 @@ Builders:
 
 - [x] `packages/core/kernel/src/Artifacts/Builders/StubContainerBuilder.php`
   - [x] emits `container@1` as a deterministic stub artifact in this epic;
-  - [x] payload MUST be forward-compatible with 1.340.0 compiled container work;
+  - [x] payload MUST be forward-compatible with 1.330.0 compiled container work;
   - [x] payload MUST include:
     - [x] `kind` = `"stub"`;
     - [x] `compiled` = `false`;
     - [x] `services` = [];
     - [x] `aliases` = [];
     - [x] `tags` = [];
-  - [x] 1.340.0 MAY emit `kind = "compiled"` only if it remains compatible with `container@1`;
-  - [x] if real compiled container payload shape is incompatible, 1.340.0 MUST introduce `container@2`.
+  - [x] 1.330.0 MAY emit `kind = "compiled"` only if it remains compatible with `container@1`;
+  - [x] if real compiled container payload shape is incompatible, 1.330.0 MUST introduce `container@2`.
 
 Compiler:
 - [x] `packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
@@ -14459,12 +14459,12 @@ Artifact path resolution MUST NOT invent a separate app id, scan `packages/appli
 
 ---
 
-### 1.340.0 Kernel: Container compile (REAL) + `container.php` artifact (MUST) [IMPL]
+### 1.330.0 Kernel: Container compile (REAL) + `container.php` artifact (MUST) [IMPL]
 
 ---
 type: package
 phase: 1
-epic_id: "1.340.0"
+epic_id: "1.330.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -14480,7 +14480,7 @@ provides:
 
 tags_introduced: []
 config_roots_introduced: []
-artifacts_introduced: []  # no new artifact identity; this epic defines the first REAL payload schema for existing `container@1`. `1.330.0` materialized transitional stub bytes for `container@1`. `1.340.0` replaces stub semantics with REAL compiled-container semantics. This is not a `container@2` introduction.
+artifacts_introduced: []  # no new artifact identity; this epic defines the first REAL payload schema for existing `container@1`. `1.320.0` materialized transitional stub bytes for `container@1`. `1.330.0` replaces stub semantics with REAL compiled-container semantics. This is not a `container@2` introduction.
 adr: "docs/adr/ADR-0029-kernel-container-compile-artifact.md"
 ssot_refs:
 - "docs/ssot/compiled-container.md" # compiled-container-specific payload + boot semantics
@@ -14491,7 +14491,7 @@ ssot_refs:
 
 `container@1` is the Kernel-owned artifact identity for the compiled container artifact in Phase 1.
 
-The `1.330.0` payload was a transitional deterministic stub used to materialize the artifact slot before real compiled-container semantics existed.
+The `1.320.0` payload was a transitional deterministic stub used to materialize the artifact slot before real compiled-container semantics existed.
 
 This epic defines the first REAL `container@1` payload schema in `docs/ssot/compiled-container.md`.
 
@@ -14505,7 +14505,7 @@ The REAL `container@1` payload MAY extend or replace the earlier stub payload sh
 
 Compatibility for this epic means compatibility with `container@1` identity and global artifact law.
 
-It does **not** mean preserving the earlier `1.330.0` stub payload as a supported runtime container format.
+It does **not** mean preserving the earlier `1.320.0` stub payload as a supported runtime container format.
 
 A future `container@2` is required only if a later change needs to preserve an already-stable REAL `container@1` payload contract while introducing an incompatible compiled-container payload format.
 
@@ -14518,7 +14518,7 @@ A future `container@2` is required only if a later change needs to preserve an a
   - 1.30.0 — global artifact envelope/header/schema registry exists (`docs/ssot/artifacts.md`)
   - 1.200.0 — Foundation-owned reset discovery wiring exists and must be preserved by the compiled container; runtime truth remains `foundation.reset.tag` (reserved default `kernel.reset`)
   - 1.250.0 — if enhanced reset ordering is enabled, compiled container MUST preserve Foundation-owned reset wiring without re-implementing reset ordering/meta semantics
-  - 1.330.0 — artifacts pipeline + header/schema infra + writer present
+  - 1.320.0 — artifacts pipeline + header/schema infra + writer present
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
@@ -14603,7 +14603,7 @@ Reading, parsing, and schema-validating `config@1` remain owned by Kernel artifa
 ### Phase 0 parity: deterministic artifacts discipline (container.php) (MUST)
 
 Цей епік активує REAL `container.php` artifact і MUST наслідувати ті самі “deterministic bytes” інваріанти,
-які зацементовані Phase 0 rails (0.20.0) та artifacts policy (узгоджено з 1.330.0).
+які зацементовані Phase 0 rails (0.20.0) та artifacts policy (узгоджено з 1.320.0).
 
 #### Hard boundary: no Phase 0 tooling deps in runtime (MUST)
 `core/kernel` runtime MUST NOT:
@@ -14686,7 +14686,7 @@ The exact REAL `container@1` payload field set is defined by `docs/ssot/compiled
 
 Adding `parameters` or other schema-owned top-level payload fields in this epic does **not** require `container@2`.
 
-The earlier `1.330.0` stub payload:
+The earlier `1.320.0` stub payload:
 
 ```text
 kind = stub
@@ -14806,7 +14806,7 @@ Compiler:
   - [x] MUST surface `ContainerArtifactMissingException` with code `CORETSIA_CONTAINER_ARTIFACT_MISSING` for missing artifact.
   - [x] MUST surface `ContainerArtifactInvalidException` with code `CORETSIA_CONTAINER_ARTIFACT_INVALID` for invalid, unreadable, schema-invalid, legacy-stub, or non-compiled `container@1` artifacts.
   - [x] MUST NOT silently fall back to provider-based container construction.
-  - [x] MUST NOT accept the earlier `1.330.0` stub payload as a production runtime container artifact.
+  - [x] MUST NOT accept the earlier `1.320.0` stub payload as a production runtime container artifact.
   - [x] MUST NOT run source config discovery.
   - [x] MUST NOT run module discovery.
   - [x] MUST NOT register runtime providers as a fallback.
@@ -14830,7 +14830,7 @@ Compiler:
 
 - [x] `packages/core/kernel/src/Artifacts/Builders/CompiledContainerBuilder.php` — builds REAL `container@1` artifact envelope with standard header
   - [x] MUST receive deterministic compiled container data from `ContainerCompiler`.
-  - [x] MUST reuse the canonical kernel artifact envelope introduced in 1.330.0:
+  - [x] MUST reuse the canonical kernel artifact envelope introduced in 1.320.0:
     - [x] top-level shape: `{ "_meta": <header>, "payload": <compiled-container-payload> }`.
   - [x] MUST NOT introduce a container-specific top-level artifact shape.
   - [x] MUST build the REAL `container@1` payload schema defined by `docs/ssot/compiled-container.md`.
@@ -14921,8 +14921,8 @@ Errors:
 Docs:
 - [x] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
   - [x] MUST record the decision to keep `container@1` and not introduce `container@2` in this epic.
-  - [x] MUST explain that `1.330.0` stub payload was transitional.
-  - [x] MUST explain that `1.340.0` defines the first REAL `container@1` payload schema.
+  - [x] MUST explain that `1.320.0` stub payload was transitional.
+  - [x] MUST explain that `1.330.0` defines the first REAL `container@1` payload schema.
   - [x] MUST record descriptor-based, closure-free compile input as the selected design.
   - [x] MUST record artifact-only production runtime boot as the selected boot policy.
   - [x] MUST record that provider-based container construction remains allowed only for compile-time artifact production, tests, or explicitly documented non-production paths outside this epic.
@@ -14947,7 +14947,7 @@ Docs:
     - [x] `container@1`;
     - [x] already-read/validated `config@1` payload.
   - [x] MUST define missing artifact and invalid artifact failure semantics.
-  - [x] MUST define legacy `1.330.0` stub payload as unsupported for production runtime boot.
+  - [x] MUST define legacy `1.320.0` stub payload as unsupported for production runtime boot.
   - [x] MUST cross-reference:
     - [x] `docs/ssot/artifacts.md`;
     - [x] `docs/ssot/artifacts-and-fingerprint.md`;
@@ -15107,7 +15107,7 @@ Docs:
     - [x] asserts no absolute path leak in the surfaced failure
   - [x] `packages/core/kernel/tests/Integration/ArtifactOnlyBootFailsDeterministicallyWhenContainerArtifactInvalidTest.php`
     - [x] asserts code `CORETSIA_CONTAINER_ARTIFACT_INVALID`
-    - [x] asserts legacy `1.330.0` stub payload is rejected for production runtime boot
+    - [x] asserts legacy `1.320.0` stub payload is rejected for production runtime boot
     - [x] asserts no absolute path leak in the surfaced failure
     - [x] asserts no raw payload, closure dump, source snippet, or PHP warning text leaks
   - [x] `packages/core/kernel/tests/Integration/CompiledContainerRejectsClosureDefinitionsDeterministicallyTest.php`
@@ -15136,7 +15136,7 @@ Docs:
 - [x] docs complete
 - [x] `docs/ssot/compiled-container.md` defines the first REAL `container@1` payload schema.
 - [x] `container@2` is NOT introduced by this epic.
-- [x] The earlier `1.330.0` stub payload is documented as a transitional placeholder, not as the supported runtime compiled-container format.
+- [x] The earlier `1.320.0` stub payload is documented as a transitional placeholder, not as the supported runtime compiled-container format.
 - [x] Phase 1 artifact-based runtime boot paths hard-fail without `container.php` with deterministic code:
   - [x] `CORETSIA_CONTAINER_ARTIFACT_MISSING`
 - [x] Phase 1 artifact-based runtime boot paths hard-fail on invalid or legacy-stub `container.php` with deterministic code:
@@ -15170,12 +15170,12 @@ Docs:
 
 ---
 
-### 1.350.0 Kernel: RuntimeDriverGuard + Runtime driver matrix E2E locks (MUST) [IMPL+TOOLING]
+### 1.340.0 Kernel: RuntimeDriverGuard + Runtime driver matrix E2E locks (MUST) [IMPL+TOOLING]
 
 ---
 type: package
 phase: 1
-epic_id: "1.350.0"
+epic_id: "1.340.0"
 owner_path: "packages/core/kernel/"
 
 package_id: "core/kernel"
@@ -15209,8 +15209,8 @@ ssot_refs:
 - Epic prerequisites:
   - 1.20.0 — Config roots registry exists and includes root `kernel` owned by `core/kernel`
   - 1.260.0 — runtime drivers SSoT exists (`docs/ssot/runtime-drivers.md`)
-  - 1.310.0 — `ModulePlan` is resolvable and can be provided by the caller when module checks are required
-  - 1.320.0 — merged config available via `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - 1.300.0 — `ModulePlan` is resolvable and can be provided by the caller when module checks are required
+  - 1.310.0 — merged config available via `Coretsia\Contracts\Config\ConfigRepositoryInterface`
 
 - Required existing docs:
   - `docs/ssot/runtime-drivers.md` — canonical runtime driver ids, config keys, compatibility matrix, and decision rules
@@ -15219,7 +15219,7 @@ ssot_refs:
   - `kernel` — existing config root owned by `core/kernel`
 
 - Forward-compatible optional inputs:
-  - `worker.task_type` — optional future-owned key; missing key MUST activate no worker-derived driver before 1.360.0
+  - `worker.task_type` — optional future-owned key; missing key MUST activate no worker-derived driver before 1.350.0
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — guard reads selected config values through this port only
@@ -15848,12 +15848,12 @@ Tooling:
 
 ---
 
-### 1.360.0 Long-Running Runtime: Worker Manager & Application Worker (MUST) [IMPL]
+### 1.350.0 Long-Running Runtime: Worker Manager & Application Worker (MUST) [IMPL]
 
 ---
 type: package
 phase: 1
-epic_id: "1.360.0"
+epic_id: "1.350.0"
 owner_path: "packages/platform/worker/"
 
 package_id: "platform/worker"
@@ -15891,7 +15891,7 @@ ssot_refs:
   - 1.200.0 — TagRegistry + DeterministicOrder + reset orchestration exist.
   - 1.205.0 — Foundation noop observability + logger baseline bindings exist, so worker runtime can safely resolve logger / optional observability ports before `platform/*` implementations are installed.
   - 1.280.0 — `core/kernel` provides the canonical UoW wrapper + reset execution policy via `KernelRuntime`.
-  - 1.350.0 — `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` exists and is the only allowed runtime-composition guard here.
+  - 1.340.0 — `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` exists and is the only allowed runtime-composition guard here.
 
 - Guard enforcement (MUST):
   - Before starting the pool, `WorkerStartCommand` MUST invoke `Coretsia\Kernel\Runtime\Driver\RuntimeDriverGuard` and reject conflicting runtime combinations deterministically.
@@ -17835,12 +17835,12 @@ Add config contract tests (policy rails):
 
 ---
 
-### 1.370.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
+### 1.360.0 Framework: AppBuilder + boot smoke suite (MUST) [TOOLING]
 
 ---
 type: skeleton
 phase: 1
-epic_id: "1.370.0"
+epic_id: "1.360.0"
 owner_path: "packages/core/kernel/tests/"
 
 goal: "Є 2 smoke тести: micro boot стабільно працює, express — стабільно падає з очікуваним кодом (до Phase 2)."
@@ -17863,9 +17863,9 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 1.310.0 — framework default presets exist in `resources/modes/*.php`
-  - 1.310.0 — deterministic code `CORETSIA_MODULE_REQUIRED_MISSING` exists
-  - 1.340.0 — REAL compiled container artifact + artifact-only boot policy exist
+  - 1.300.0 — framework default presets exist in `resources/modes/*.php`
+  - 1.300.0 — deterministic code `CORETSIA_MODULE_REQUIRED_MISSING` exists
+  - 1.330.0 — REAL compiled container artifact + artifact-only boot policy exist
 
 - Terminology note (MUST): config root vs config key namespaces
   - Config root for Kernel is **`kernel`** (file: `packages/core/kernel/config/kernel.php`).
@@ -17918,7 +17918,7 @@ N/A (tests/tooling)
       - [x] `module-manifest.php`
       - [x] `config.php`
       - [x] `container.php`
-    - [x] boot only through artifact-only runtime path after `1.340.0`
+    - [x] boot only through artifact-only runtime path after `1.330.0`
     - [x] MUST NOT bypass `CompiledContainerFactory`
   - [x] Express failure path MUST:
     - [x] load framework default `express` preset from `packages/core/kernel/resources/modes/express.php`
@@ -18086,12 +18086,12 @@ Assertions MUST базуватись на deterministic error codes (не на s
 
 ---
 
-### 1.380.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
+### 1.370.0 Deptrac SSoT Composer Edge Consistency Check (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 1
-epic_id: "1.380.0"
+epic_id: "1.370.0"
 owner_path: "tools/build/"
 
 goal: "Ensure internal Composer require edges cannot drift from the canonical SSoT dependency table used by deptrac generation."
@@ -18270,12 +18270,12 @@ This check closes forbidden dependency drift without introducing a second archit
 
 ---
 
-### 1.390.0 Atomic Transaction Gate (MUST) [TOOLING]
+### 1.380.0 Atomic Transaction Gate (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 1
-epic_id: "1.390.0"
+epic_id: "1.380.0"
 owner_path: "tools/gates/"
 
 goal: "Ensure that all file write operations in tools follow the atomic write pattern (temp → rename) to prevent corruption."
@@ -18441,12 +18441,12 @@ N/A
 
 ---
 
-### 1.400.0 Composer Audit Gate (MUST) [TOOLING]
+### 1.390.0 Composer Audit Gate (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 1
-epic_id: "1.400.0"
+epic_id: "1.390.0"
 owner_path: "tools/gates/"
 
 goal: "Automatically run `composer audit` on all audit-capable install roots in the monorepo (repo root, `framework/`, `skeleton/`) and fail if any vulnerabilities are found."
@@ -18613,12 +18613,12 @@ Forbidden:
 
 ---
 
-### 1.410.0 Secret Leakage Gate (MUST) [TOOLING]
+### 1.400.0 Secret Leakage Gate (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 1
-epic_id: "1.410.0"
+epic_id: "1.400.0"
 owner_path: "tools/gates/"
 
 goal: "Prevent accidental commits of secrets by scanning the repository with Gitleaks."

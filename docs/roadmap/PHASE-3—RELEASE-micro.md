@@ -806,12 +806,12 @@ N/A
 
 ---
 
-### 3.31.0 Platform metrics baseline (noop-safe + label allowlist + renderer port) (MUST) [IMPL]
+### 3.35.0 Platform metrics baseline (noop-safe + label allowlist + renderer port) (MUST) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.31.0"
+epic_id: "3.35.0"
 owner_path: "packages/platform/metrics/"
 
 package_id: "platform/metrics"
@@ -837,7 +837,7 @@ ssot_refs:
 - "docs/ssot/observability.md"
 ---
 
-- [ ] update `3.31.0 Platform metrics baseline` to clarify that redaction does not permit arbitrary metric labels; metrics remain allowlist-only.
+- [ ] update `3.35.0 Platform metrics baseline` to clarify that redaction does not permit arbitrary metric labels; metrics remain allowlist-only.
 
 ### Dependencies (MUST)
 
@@ -4352,7 +4352,1076 @@ N/A (consumes routing artifact via `RouterInterface`)
 
 ---
 
-### 3.145.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL]
+### 3.143.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL] [REQUIRES REDESIGN]
+
+---
+type: skeleton
+phase: 3
+epic_id: "3.143.0"
+owner_path: "packages/applications/skeleton/apps/"
+
+goal: "Надати стабільні target-aware HTTP front controllers для skeleton web/api та deterministic `composer serve` / `composer smoke:http` flow до появи platform/http; front-controller paths залишаються незмінними, а тимчасовий 503 fallback пізніше замінюється реальним HTTP runtime bootstrap."
+provides:
+- "Real stable HTTP entrypoints: `packages/applications/skeleton/apps/web/public/index.php` and `packages/applications/skeleton/apps/api/public/index.php`."
+- "Explicit canonical target ownership: each front controller hardcodes exactly one target, `web` or `api`."
+- "Shared non-public HTTP bootstrap seam that currently emits deterministic 503 and is replaced internally when platform/http becomes available."
+- "Target-aware dev server command using `--target=web|api`."
+- "Pure-PHP socket-based HTTP smoke checker with byte-exact body verification and no cURL dependency."
+- "Deterministic smoke orchestration: start one server, wait for readiness, execute one checker, and terminate the server."
+- "No request reflection, superglobal capture, request headers, cookies, request bodies, paths, env values, or process diagnostics in public output."
+- "Repo-root Composer entrypoints with CWD-independent script behavior."
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+adr: none
+ssot_refs:
+- "docs/architecture/PACKAGING.md"
+- "docs/ssot/modes.md"
+---
+
+> **REQUIRES REDESIGN BEFORE IMPLEMENTATION (MUST)**
+>
+> Before implementation, redesign its scope against the current architecture, where `coretsia/framework` and `coretsia/skeleton` are independent Composer packages.
+>
+> Reassess HTTP front-controller ownership, application bootstrap, consumer-facing `serve` and `smoke:http` commands, repository tooling boundaries, and integration with the real `platform/http` runtime.
+>
+> The primary execution target MUST be an installed consumer application created through `composer create-project coretsia/skeleton`, not the framework monorepo itself.
+>
+> Review this epic together with 3.145.0 to eliminate duplicated responsibilities, obsolete paths, temporary bootstrap assumptions, and unnecessary tooling.
+>
+> All existing deliverables, implementation details, prerequisites, and acceptance criteria are provisional until the redesign is completed.
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Required deliverables:
+  - `packages/applications/skeleton/apps/web/public/` exists
+  - `packages/applications/skeleton/apps/api/public/` exists
+  - repo-root `composer.json` exists
+
+- Existing packaging enforcement retained unchanged:
+  - `tools/gates/no_skeleton_http_default_gate.php`
+
+- Gate boundary:
+  - the gate forbids only repo-root `packages/applications/skeleton/config/http.php`
+  - application front controllers under `packages/applications/skeleton/apps/<http-app>/public/` are not HTTP config defaults
+  - this epic MUST NOT add an allowlist or exception to the gate
+
+- New tooling boundary:
+  - `tools/http/serve` does not exist before this epic and is created here
+  - `tools/http/smoke` does not exist before this epic and is created here
+  - `tools/http/smoke-http` does not exist before this epic and is created here
+  - source files imported from another project are implementation inputs only
+  - imported implementations MUST be adapted completely to this epic and MUST NOT define compatibility requirements
+
+- Canonical target tokens already exist:
+  - `web`
+  - `api`
+  - `console`
+  - `worker`
+
+- Scope boundary:
+  - this epic implements HTTP entrypoints only for `web|api`
+  - `console` remains owned by platform/cli
+  - `worker` remains owned by the worker runtime
+
+### Entry points / integration points (MUST)
+
+- Repo-root Composer scripts:
+  - `composer serve`
+    - delegates to `@php tools/http/serve`
+    - accepts script arguments after `--`
+    - canonical target option: `--target=web|api`
+  - `composer smoke:http`
+    - delegates to `@php tools/http/smoke http`
+    - accepts script arguments after `--`
+    - canonical target option: `--target=web|api`
+
+- Target ownership:
+  - `serve --target=web` selects `packages/applications/skeleton/apps/web/public`
+  - `serve --target=api` selects `packages/applications/skeleton/apps/api/public`
+  - `smoke http --target=<target>` starts and verifies the same target
+  - target selection changes only the selected skeleton docroot
+  - the public front controller independently declares the same canonical target
+  - no command-line value is passed into the front controller as runtime target state
+
+- Unsupported targets:
+  - `console|worker` fail deterministically for `serve`
+  - `console|worker` fail deterministically for `smoke http`
+  - no HTTP entrypoint is created for those targets by this epic
+
+### Deterministic CLI contract (MUST)
+
+The following rules apply to `tools/http/serve`, `tools/http/smoke`, and `tools/http/smoke-http`:
+
+- long options use only `--name=value` form
+- boolean flags use only `--name`
+- split forms such as `--port 8080` are rejected
+- unknown options are rejected
+- duplicate options are rejected
+- missing option values are rejected
+- empty option values are rejected
+- option names are ASCII case-sensitive
+- positional arguments are forbidden except the exact `http` command accepted by `tools/http/smoke`
+- exact command layouts are:
+  - `tools/http/serve [options]`
+  - `tools/http/smoke http [options]`
+  - `tools/http/smoke-http [options]`
+- for `tools/http/smoke`, `http` must be the first argument after the script path
+- options may appear in any order after the command token
+- options before `http` are rejected
+- additional positional arguments are rejected
+- no option value is read from env or config
+
+Host model:
+
+- accepted `--host` values are exactly:
+  - `localhost`
+  - `127.0.0.1`
+  - `0.0.0.0`
+- every other hostname or IPv4 literal is rejected
+- IPv6 host syntax is out of scope for this epic
+- whitespace, control bytes, URI syntax, ports, paths, and user-info are forbidden inside `--host`
+
+Canonical host derivation:
+
+- requested `localhost`:
+  - bind host = `127.0.0.1`
+  - connect host = `127.0.0.1`
+- requested `127.0.0.1`:
+  - bind host = `127.0.0.1`
+  - connect host = `127.0.0.1`
+- requested `0.0.0.0`:
+  - bind host = `0.0.0.0`
+  - connect host = `127.0.0.1`
+
+Usage:
+
+- `serve` binds the PHP built-in server to the canonical bind host
+- `serve` readiness probes use the canonical connect host
+- `smoke` passes the canonical bind host to `serve`
+- `smoke` readiness and cleanup probes use the canonical connect host
+- `smoke` passes the canonical connect host to `smoke-http`
+- `smoke-http` always connects through the canonical connect host
+- `smoke-http` uses the canonical connect host in the HTTP `Host` field
+- `localhost` is never passed to sockets or the PHP built-in server after canonicalization
+
+Port validation:
+
+- ASCII decimal digits only
+- range `1..65535`
+- no sign, whitespace, decimal point, exponent, or leading/trailing data
+
+Timeout validation:
+
+- ASCII decimal digits only
+- range `1..60`
+- default is exactly `5` seconds
+- applies to `tools/http/smoke` readiness and cleanup waits
+- applies to `tools/http/smoke-http` connect and response reads
+- timeout measurement uses monotonic `hrtime(true)`
+- wall-clock time, timezone, and system date do not participate
+- each bounded phase receives one total deadline
+- reading a partial chunk does not reset or extend a deadline
+- `smoke` readiness polling interval is exactly `50` milliseconds
+- `smoke` cleanup-port polling interval is exactly `50` milliseconds
+
+Process result:
+
+- successful finite commands exit with status `0`
+- deterministic command failure exits with status `1`
+- successful `serve` remains active until externally terminated
+- every explicit command failure writes exactly one JSON line to stderr:
+  - `{"schema":1,"code":"<CODE>"}\n`
+- no command writes a PHP warning, stack trace, previous exception message, usage dump, or child-process output
+
+Process execution and ephemeral IPC contract:
+
+- platform null sink is:
+  - `NUL` when `PHP_OS_FAMILY === 'Windows'`
+  - `/dev/null` on every other supported OS
+- every `proc_open` command uses an argument vector
+- no child process inherits parent terminal streams implicitly
+- stdout/stderr pipes are not used for readiness, control, or child diagnostics
+- temporary IPC paths and contents never appear in stdout, stderr, HTTP output, or exceptions
+
+`proc_open` options:
+
+- on Windows:
+  - `bypass_shell = true`
+  - `suppress_errors = true`
+- on every other supported OS:
+  - no platform-specific process option is required
+- on Windows, every `proc_open` call explicitly uses `bypass_shell = true`
+- command arrays MUST NOT rely on implicit `cmd.exe` behavior
+
+Bounded process termination:
+
+- every termination deadline uses monotonic `hrtime(true)`
+- process status is polled every `50` milliseconds
+- graceful termination phase:
+  - requests normal process termination
+  - waits for at most the selected timeout
+- hard termination phase runs only if the process remains active:
+  - on POSIX, requests signal `9`
+  - on Windows, repeats `proc_terminate` using native process termination
+  - waits for at most one additional selected-timeout interval
+- no process wait resets or extends its current deadline
+- `proc_close` is called only after the process is observed inactive
+- a process that remains active after the hard-termination deadline is a deterministic cleanup failure
+
+`smoke` ephemeral control directory:
+
+- before starting `serve`, `smoke` creates one private directory under `sys_get_temp_dir()`
+- directory basename is exactly:
+  - `coretsia-http-smoke-` followed by `bin2hex(random_bytes(16))`
+- the generated suffix is internal collision-avoidance state only and does not participate in observable output
+- directory creation uses exclusive semantics
+- directory permissions are `0700` where the platform supports Unix permission modes
+- an existing path, symlink, or failed directory creation maps to `CORETSIA_SMOKE_INTERNAL_FAILURE`
+- the directory contains only:
+  - `ready`
+  - `ready.tmp`
+  - `stop`
+  - `stop.tmp`
+- these files are ephemeral runtime IPC files, not generated artifacts
+- `smoke` owns creation and final removal of the directory
+- failure to remove owned IPC files or the directory after process startup maps to `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+- failure to remove the owned control directory before any child process was successfully started maps to `CORETSIA_SMOKE_INTERNAL_FAILURE`
+- control-directory cleanup is idempotent; repeated invocation performs no duplicate output and does not change an already selected failure unless cleanup itself fails
+
+Atomic IPC file publication:
+
+- `ready.tmp` and `stop.tmp` are created with exclusive-create semantics
+- publication sequence is exact:
+  1. confirm that both temporary and final destination paths are absent
+  2. open the temporary path as a new regular file
+  3. write all expected bytes using a complete-write loop
+  4. flush the stream
+  5. close the stream
+  6. atomically rename the temporary file to its final filename in the same directory
+- partial writes are never accepted
+- rename never replaces an existing destination
+- temporary and final paths must remain regular non-symlink paths
+- readiness publication failure maps inside `serve` to `CORETSIA_SERVE_INTERNAL_FAILURE`
+- stop publication failure inside `smoke` skips orderly stop and proceeds to bounded hard termination
+- temporary IPC bytes are never read until publication rename has completed
+
+Readiness IPC:
+
+- `serve` receives the control directory through internal option `--control-dir=<absolute-path>`
+- when no `--control-dir` is provided, direct interactive `serve` behavior remains unchanged
+- when `--control-dir` is provided:
+  - `--quiet` is required
+  - the directory must already exist
+  - the directory must not be a symlink
+  - `ready`, `ready.tmp`, `stop`, and `stop.tmp` must initially be absent
+- after built-in-server TCP readiness, `serve` publishes `ready` through the exact atomic IPC file-publication contract
+- readiness bytes are exactly:
+  - `CORETSIA_SERVE_READY target=<target> bind=<bind-host>:<port> url=http://<connect-host>:<port>\n`
+- readiness is established only when:
+  - `ready` exists
+  - `ready` is a regular file
+  - its complete contents equal the expected readiness bytes
+  - the serve wrapper is still active
+  - the post-readiness TCP probe succeeds
+- malformed, oversized, unexpected, or symlinked readiness state maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+
+Stop IPC:
+
+- cleanup publishes `stop` with exact bytes `CORETSIA_SERVE_STOP\n` through the atomic IPC file-publication contract
+- while active, `serve` polls for `stop` every `50` milliseconds
+- `serve` accepts stop only when:
+  - `stop` is a regular file
+  - its contents equal `CORETSIA_SERVE_STOP\n` byte-for-byte
+- valid stop state triggers orderly built-in-server termination and serve-wrapper exit status `0`
+- malformed or symlinked stop state maps to `CORETSIA_SERVE_INTERNAL_FAILURE`
+- EOF and stdin bytes have no serve-control semantics
+
+Child descriptors:
+
+- `serve` → PHP built-in server:
+  - stdin = platform null sink
+  - stdout = platform null sink
+  - stderr = platform null sink
+- `smoke` → `serve`:
+  - stdin = platform null sink
+  - stdout = platform null sink
+  - stderr = platform null sink
+- `smoke` → `smoke-http`:
+  - stdin = platform null sink
+  - stdout = platform null sink
+  - stderr = platform null sink
+
+Unexpected failure containment:
+
+- each CLI script has one top-level failure boundary
+- expected validation, process, socket, and response failures map to their documented codes
+- every other caught `Throwable` maps to a script-local internal failure code:
+  - `tools/http/serve` → `CORETSIA_SERVE_INTERNAL_FAILURE`
+  - `tools/http/smoke` → `CORETSIA_SMOKE_INTERNAL_FAILURE`
+  - `tools/http/smoke-http` → `CORETSIA_SMOKE_HTTP_INTERNAL_FAILURE`
+- previous Throwable objects are not retained after mapping
+- Throwable messages, classes, traces, files, and line numbers are never copied into output
+- PHP warnings produced by filesystem, process, stream, or socket operations are suppressed or converted inside the top-level failure boundary
+- any temporary error handler is restored before command termination
+
+### Skeleton HTTP packaging boundary (MUST)
+
+- HTTP-facing skeleton apps MAY ship their canonical executable front controller:
+  - `packages/applications/skeleton/apps/web/public/index.php`
+  - `packages/applications/skeleton/apps/api/public/index.php`
+
+- A front controller:
+  - is an application entrypoint
+  - is not a config root
+  - MUST NOT own module selection
+  - MUST NOT own runtime-driver selection
+  - MUST NOT embed environment-specific HTTP configuration
+
+- Default HTTP config remains forbidden:
+  - `packages/applications/skeleton/config/http.php` MUST remain absent
+  - the existing `no_skeleton_http_default_gate.php` remains unchanged
+  - no path-specific allowlist is introduced
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+
+- [ ] `skeleton/bootstrap/HttpFrontController.php`
+  - [ ] declares final class `Coretsia\Skeleton\Bootstrap\HttpFrontController`
+  - [ ] file is outside every public docroot
+  - [ ] requiring the file only declares the class
+  - [ ] requiring the file emits no output, headers, status, warnings, or side effects
+  - [ ] exact typed public constant:
+    - [ ] `public const string BOOT_NOT_READY_BODY`
+    - [ ] exact value: `{"schema":1,"code":"CORETSIA_HTTP_BOOT_NOT_READY","message":"boot not ready"}\n`
+  - [ ] public static entrypoint:
+    - [ ] `public static function run(string $target): void`
+  - [ ] accepts exactly:
+    - [ ] `web`
+    - [ ] `api`
+  - [ ] any other target throws fixed `LogicException('http-front-controller-target-invalid')`
+  - [ ] target validation occurs before any status, header, or output side effect
+  - [ ] current Phase-2 behavior:
+    - [ ] removes `X-Powered-By`
+    - [ ] sets status `503`
+    - [ ] sets `Content-Type: application/json; charset=utf-8`
+    - [ ] sets `Cache-Control: no-store`
+    - [ ] sets `Content-Length` from exact body bytes
+    - [ ] outputs `BOOT_NOT_READY_BODY` exactly once
+  - [ ] body is ASCII-only, LF-only, and ends with exactly one LF
+  - [ ] performs no JSON encoding at request time
+  - [ ] reads no superglobals
+  - [ ] reads no config or env
+  - [ ] requires no vendor autoloader or HTTP runtime
+  - [ ] performs no request reflection
+  - [ ] contains no timestamp, path, host, port, target, header, cookie, query, body, process, or exception data in output
+  - [ ] is the stable bootstrap seam whose internal fallback is replaced by platform/http in Phase 3
+
+- [ ] `packages/applications/skeleton/apps/web/public/index.php`
+  - [ ] real stable web front controller
+  - [ ] CWD-independent require of `skeleton/bootstrap/HttpFrontController.php`
+  - [ ] calls exactly:
+    - [ ] `HttpFrontController::run('web')`
+  - [ ] contains no target inference
+  - [ ] reads no superglobals
+  - [ ] contains no fallback response implementation of its own
+  - [ ] contains no executable code after the `run()` call
+
+- [ ] `packages/applications/skeleton/apps/api/public/index.php`
+  - [ ] real stable API front controller
+  - [ ] CWD-independent require of `skeleton/bootstrap/HttpFrontController.php`
+  - [ ] calls exactly:
+    - [ ] `HttpFrontController::run('api')`
+  - [ ] contains no target inference
+  - [ ] reads no superglobals
+  - [ ] contains no fallback response implementation of its own
+  - [ ] contains no executable code after the `run()` call
+
+- [ ] `tools/http/serve`
+  - [ ] new pure-PHP executable script
+  - [ ] strict argument parser
+  - [ ] CWD-independent repo-root discovery through `__DIR__`
+  - [ ] accepts exactly:
+    - [ ] `--target=<target>`
+    - [ ] `--host=<host>`
+    - [ ] `--port=<port>`
+    - [ ] `--quiet`
+    - [ ] `--control-dir=<absolute-path>` as an orchestration-only IPC option
+  - [ ] defaults:
+    - [ ] `target = web`
+    - [ ] `host = 127.0.0.1`
+    - [ ] `port = 8080`
+    - [ ] `quiet = false`
+    - [ ] `control-dir = null`
+  - [ ] `--control-dir` rules:
+    - [ ] path must be absolute
+    - [ ] path must already exist as a directory
+    - [ ] path must not be a symlink
+    - [ ] path must contain none of the reserved IPC files before startup
+    - [ ] option is valid only together with `--quiet`
+    - [ ] invalid control-directory state maps to `CORETSIA_SERVE_INVALID_ARGUMENT`
+    - [ ] rejected path is never included in failure output
+  - [ ] MUST NOT accept:
+    - [ ] `--app`
+    - [ ] `--docroot`
+    - [ ] `--router`
+    - [ ] env overrides
+    - [ ] arbitrary PHP binary
+    - [ ] arbitrary child command
+  - [ ] target mapping is exact:
+    - [ ] `web` → `packages/applications/skeleton/apps/web/public`
+    - [ ] `api` → `packages/applications/skeleton/apps/api/public`
+  - [ ] target validation occurs after syntactic argument parsing:
+    - [ ] `web|api` are accepted HTTP targets
+    - [ ] `console|worker` fail with `CORETSIA_SERVE_TARGET_NOT_HTTP`
+    - [ ] every other target fails with `CORETSIA_SERVE_TARGET_INVALID`
+  - [ ] target comparison is exact ASCII and case-sensitive
+  - [ ] router is always `<resolved-docroot>/index.php`
+  - [ ] missing docroot fails with `CORETSIA_SERVE_DOCROOT_MISSING`
+  - [ ] missing front controller fails with `CORETSIA_SERVE_FRONT_CONTROLLER_MISSING`
+  - [ ] invalid arguments fail with `CORETSIA_SERVE_INVALID_ARGUMENT`
+  - [ ] occupied port fails with `CORETSIA_SERVE_PORT_UNAVAILABLE`
+  - [ ] port availability is checked before `proc_open` through a temporary bind to the canonical bind host and selected port
+  - [ ] the temporary socket is closed before the PHP built-in server is started
+  - [ ] failure of the preflight bind maps only to `CORETSIA_SERVE_PORT_UNAVAILABLE`
+  - [ ] readiness polling connects through the canonical connect host
+  - [ ] child startup failure fails with `CORETSIA_SERVE_START_FAILED`
+  - [ ] unexpected post-readiness child exit fails with `CORETSIA_SERVE_CHILD_EXITED`
+  - [ ] every other unexpected failure fails with `CORETSIA_SERVE_INTERNAL_FAILURE`
+  - [ ] starts the PHP built-in server through `proc_open`
+  - [ ] after `proc_open`, polls both:
+    - [ ] child process status
+    - [ ] TCP reachability of the canonical connect host and selected port
+  - [ ] fixed startup timeout is exactly `5` seconds
+  - [ ] readiness polling uses a fixed sleep interval of `50` milliseconds
+  - [ ] child exit before TCP readiness maps to `CORETSIA_SERVE_START_FAILED`
+  - [ ] startup timeout maps to `CORETSIA_SERVE_START_FAILED`
+  - [ ] partial readiness diagnostics are never emitted
+  - [ ] the readiness line is emitted only after a TCP connection succeeds
+  - [ ] command is an argument vector using exactly:
+    - [ ] `PHP_BINARY`
+    - [ ] `-n`
+    - [ ] `-d`
+    - [ ] `expose_php=0`
+    - [ ] `-d`
+    - [ ] `display_errors=0`
+    - [ ] `-d`
+    - [ ] `html_errors=0`
+    - [ ] `-d`
+    - [ ] `log_errors=0`
+    - [ ] `-S`
+    - [ ] `<bind-host>:<port>`
+    - [ ] `-t`
+    - [ ] resolved target docroot
+    - [ ] resolved target `index.php`
+  - [ ] `-n` prevents ambient `php.ini`, scanned INI files, `auto_prepend_file`, and `auto_append_file` from changing the stub server
+  - [ ] built-in-server child environment is inherited only after removing every environment key whose ASCII case-insensitive name equals `PHP_CLI_SERVER_WORKERS`
+  - [ ] environment values are not used to select target, host, port, docroot, router, response, or process count
+  - [ ] the built-in server always remains a single owned child process
+  - [ ] MUST NOT use shell interpolation or a command string
+  - [ ] child working directory is the repo root
+  - [ ] child stdin/stdout/stderr use the exact platform-null descriptor contract
+  - [ ] retains the child process handle
+  - [ ] registers shutdown cleanup
+  - [ ] forwards/handles supported termination signals where available
+  - [ ] terminates and closes the child on shutdown
+  - [ ] does not create a server log
+  - [ ] does not include child output in diagnostics
+  - [ ] normal mode without `--control-dir` prints exactly these readiness bytes:
+    - [ ] `CORETSIA_SERVE_READY target=<target> bind=<bind-host>:<port> url=http://<connect-host>:<port>\n`
+  - [ ] `--quiet` suppresses readiness stdout
+  - [ ] when `--control-dir` is present, readiness is always published through the exact atomic ready-file protocol
+  - [ ] `--quiet` does not suppress ready-file publication
+  - [ ] `--quiet` suppresses only the readiness line; it does not suppress deterministic failure output
+  - [ ] after readiness, the parent remains alive while the child server is running
+  - [ ] while active, the parent polls:
+    - [ ] built-in-server child status
+    - [ ] the optional control-directory stop file
+  - [ ] when no control directory exists, stdin has no command semantics
+  - [ ] when a control directory exists, only the exact atomic stop-file protocol requests orderly shutdown
+  - [ ] valid stop state:
+    - [ ] is never written to stdout or stderr
+    - [ ] triggers termination and closure of the built-in-server child
+    - [ ] causes the serve wrapper to exit with status `0`
+    - [ ] produces no failure payload
+  - [ ] built-in-server child shutdown uses the bounded process-termination contract with timeout `5`
+  - [ ] failure to terminate the built-in-server child after the hard-termination phase:
+    - [ ] emits `CORETSIA_SERVE_INTERNAL_FAILURE`
+    - [ ] exits with status `1`
+  - [ ] unexpected child termination after readiness:
+    - [ ] emits `{"schema":1,"code":"CORETSIA_SERVE_CHILD_EXITED"}\n` to stderr
+    - [ ] exits with status `1`
+  - [ ] orderly shutdown requested through the valid atomic stop-file protocol or a supported parent termination signal exits without failure output
+  - [ ] failure output is one JSON line on stderr:
+    - [ ] `{"schema":1,"code":"<CODE>"}\n`
+  - [ ] failure output contains no host, port, path, process id, command, exception message, or child output
+
+- [ ] `tools/http/smoke`
+  - [ ] pure-PHP deterministic smoke orchestrator
+  - [ ] accepts exactly:
+    - [ ] positional command `http`
+    - [ ] `--target=<target>`
+    - [ ] `--host=<host>`
+    - [ ] `--port=<port>`
+    - [ ] `--timeout=<seconds>`
+  - [ ] defaults:
+    - [ ] `target = web`
+    - [ ] `host = 127.0.0.1`
+    - [ ] `port = 8080`
+    - [ ] `timeout = 5`
+  - [ ] target validation occurs after syntactic argument parsing:
+    - [ ] `web|api` are accepted HTTP targets
+    - [ ] `console|worker` fail with `CORETSIA_SMOKE_TARGET_NOT_HTTP`
+    - [ ] every other target fails with `CORETSIA_SMOKE_TARGET_INVALID`
+  - [ ] target comparison is exact ASCII and case-sensitive
+  - [ ] rejects `all|cli|db|config` and unknown commands deterministically
+  - [ ] creates one private ephemeral control directory before process startup
+  - [ ] immediately after successful directory creation, registers one idempotent cleanup boundary
+  - [ ] the cleanup boundary is valid before any child process exists
+  - [ ] every path after control-directory creation executes that cleanup boundary
+  - [ ] starts exactly one serve child through an argument-vector `proc_open` command:
+    - [ ] `PHP_BINARY`
+    - [ ] repo-root `tools/http/serve`
+    - [ ] `--target=<target>`
+    - [ ] `--host=<bind-host>`
+    - [ ] `--port=<port>`
+    - [ ] `--quiet`
+    - [ ] `--control-dir=<absolute-control-directory>`
+  - [ ] MUST NOT invoke the serve child through Composer
+  - [ ] serve-child stdin/stdout/stderr use the platform null sink
+  - [ ] expected readiness bytes are constructed exactly as:
+    - [ ] `CORETSIA_SERVE_READY target=<target> bind=<bind-host>:<port> url=http://<connect-host>:<port>\n`
+  - [ ] readiness polling checks:
+    - [ ] serve-wrapper process status
+    - [ ] existence and type of the `ready` file
+    - [ ] exact byte contents of the `ready` file
+  - [ ] readiness-file polling uses a fixed `50`-millisecond interval
+  - [ ] readiness-file reading has a fixed `512`-byte budget
+  - [ ] child exit before valid readiness maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+  - [ ] malformed, truncated, unexpected, oversized, or symlinked readiness state maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+  - [ ] after exact readiness-file validation, one TCP probe must succeed against the canonical connect host and selected port
+  - [ ] failure of the post-readiness TCP probe maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+  - [ ] readiness timeout maps to `CORETSIA_SMOKE_SERVER_NOT_READY`
+  - [ ] TCP reachability without the exact owned readiness file never establishes server ownership
+  - [ ] executes exactly one checker child through an argument-vector `proc_open` command:
+    - [ ] `PHP_BINARY`
+    - [ ] repo-root `tools/http/smoke-http`
+    - [ ] `--host=<connect-host>`
+    - [ ] `--port=<port>`
+    - [ ] `--timeout=<timeout>`
+  - [ ] checker stdin/stdout/stderr use the exact platform-null descriptor contract
+  - [ ] no checker output pipe is created
+  - [ ] checker exit status `0` means smoke success
+  - [ ] any non-zero checker exit status maps to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] checker `proc_open` failure maps to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] checker child has a parent-enforced total process deadline of exactly:
+    - [ ] `(2 * timeout) + 2` seconds
+  - [ ] the deadline uses monotonic `hrtime(true)`
+  - [ ] checker process status is polled every `50` milliseconds
+  - [ ] checker timeout:
+    - [ ] calls `proc_terminate`
+    - [ ] waits for at most one additional `timeout` interval
+    - [ ] maps to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] checker termination uses the bounded process-termination contract
+  - [ ] checker remaining active after hard termination still maps to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] a checker that remains active after bounded hard termination:
+    - [ ] prevents successful smoke completion
+    - [ ] does not prevent serve-wrapper cleanup from executing
+    - [ ] maps the pending smoke result to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] checker termination failure never bypasses serve-wrapper cleanup
+  - [ ] checker process handle is closed only after the checker is inactive
+  - [ ] checker timeout does not bypass serve cleanup
+  - [ ] serve-wrapper `proc_open` failure maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+  - [ ] post-readiness serve-wrapper exit before checker completion maps to `CORETSIA_SMOKE_HTTP_FAILED`
+  - [ ] retains the serve-process handle
+  - [ ] immediately after successful `proc_open`, attaches the serve-process handle to the already-registered cleanup boundary
+  - [ ] serve-wrapper `proc_open` failure removes the owned control directory before emitting `CORETSIA_SMOKE_SERVER_START_FAILED`
+  - [ ] cleanup executes for every post-spawn path:
+    - [ ] readiness success
+    - [ ] readiness timeout
+    - [ ] serve-wrapper early exit
+    - [ ] checker startup failure
+    - [ ] checker failure
+    - [ ] successful checker completion
+    - [ ] unexpected caught failure
+  - [ ] cleanup publishes `stop` with exact bytes `CORETSIA_SERVE_STOP\n` through the shared atomic IPC file-publication contract
+  - [ ] if `stop.tmp` or `stop` already exists, or atomic publication otherwise fails:
+    - [ ] orderly stop is skipped
+    - [ ] bounded process termination begins
+    - [ ] the publication failure itself is not emitted separately
+  - [ ] cleanup waits up to the selected timeout for orderly wrapper termination
+  - [ ] if the wrapper remains active, cleanup applies the bounded process-termination contract
+  - [ ] failure to make the wrapper inactive after hard termination maps to `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+  - [ ] no process output pipes exist
+  - [ ] cleanup closes every process handle only after the corresponding process is inactive
+  - [ ] cleanup captures the final serve-wrapper exit status before closing its process handle
+  - [ ] after an established readiness handshake, serve-wrapper exit status must be exactly `0`
+  - [ ] a non-zero serve-wrapper exit during cleanup maps to `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+  - [ ] cleanup removes `ready`, `ready.tmp`, `stop`, and `stop.tmp`
+  - [ ] cleanup removes the owned control directory
+  - [ ] port-release verification is performed only when the exact readiness handshake was previously completed
+  - [ ] when readiness was never established:
+    - [ ] a reachable port is treated as externally owned
+    - [ ] cleanup does not wait for that port to close
+    - [ ] cleanup does not classify that external listener as an orphan
+  - [ ] when readiness was established:
+    - [ ] cleanup polls the canonical connect host and selected port for at most the selected timeout
+    - [ ] the port must become unreachable
+  - [ ] cleanup never waits without a fixed deadline
+  - [ ] server cleanup failure occurs when any of the following is true:
+    - [ ] the serve wrapper remains active after bounded termination attempts
+    - [ ] an owned, readiness-confirmed port remains reachable
+    - [ ] after an established readiness handshake, the serve wrapper exits with a non-zero status
+    - [ ] any owned `ready`, `ready.tmp`, `stop`, or `stop.tmp` path cannot be removed
+    - [ ] the owned control directory cannot be removed
+  - [ ] server cleanup failure maps to `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+  - [ ] cleanup failure takes precedence over every pending success or failure result
+  - [ ] when cleanup succeeds, the previously selected success or failure result is preserved
+  - [ ] smoke writes its final failure payload only after cleanup has completed
+  - [ ] successful smoke completion requires:
+    - [ ] the exact readiness handshake was completed
+    - [ ] checker exited with status `0`
+    - [ ] serve wrapper is no longer active
+    - [ ] serve wrapper exited with status `0`
+    - [ ] the readiness-confirmed port is no longer reachable
+    - [ ] every owned IPC file and the control directory were removed
+  - [ ] silent on success
+  - [ ] deterministic failure codes:
+    - [ ] `CORETSIA_SMOKE_INVALID_ARGUMENT`
+    - [ ] `CORETSIA_SMOKE_TARGET_NOT_HTTP`
+    - [ ] `CORETSIA_SMOKE_TARGET_INVALID`
+    - [ ] `CORETSIA_SMOKE_SERVER_START_FAILED`
+    - [ ] `CORETSIA_SMOKE_SERVER_NOT_READY`
+    - [ ] `CORETSIA_SMOKE_HTTP_FAILED`
+    - [ ] `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+    - [ ] `CORETSIA_SMOKE_INTERNAL_FAILURE`
+  - [ ] failure output is exactly one JSON line on stderr:
+    - [ ] `{"schema":1,"code":"<CODE>"}\n`
+  - [ ] child stdout/stderr and child failure payloads are not forwarded
+  - [ ] no profiles, env overrides, cURL, database checks, CLI checks, JUnit, GitHub annotations, colors, progress output, or dynamic logs remain
+
+- [ ] `tools/http/smoke-http`
+  - [ ] pure-PHP checker only
+  - [ ] MUST NOT start, stop, or manage a server
+  - [ ] MUST NOT call `proc_open`
+  - [ ] MUST NOT use ext-curl, cURL, HTTP clients, or external executables
+  - [ ] CWD-independent repo-root discovery through `__DIR__`
+  - [ ] loads `skeleton/bootstrap/HttpFrontController.php`
+  - [ ] reads only `HttpFrontController::BOOT_NOT_READY_BODY`
+  - [ ] MUST NOT call `HttpFrontController::run()`
+  - [ ] accepts exactly:
+    - [ ] `--host=<host>`
+    - [ ] `--port=<port>`
+    - [ ] `--timeout=<seconds>`
+  - [ ] defaults:
+    - [ ] host `127.0.0.1`
+    - [ ] port `8080`
+    - [ ] timeout `5`
+  - [ ] request path is fixed to `/`
+  - [ ] `--url`, `--path`, query, fragment, user-info, scheme selection, and arbitrary endpoint selection are unsupported
+  - [ ] opens connection through `stream_socket_client`
+  - [ ] connection establishment has one total `<timeout>`-second deadline
+  - [ ] connection refusal, DNS-free connect failure, or connect timeout maps to `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+  - [ ] request write failure or incomplete request write maps to `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+  - [ ] after a successful request write, response reading has a new total `<timeout>`-second deadline
+  - [ ] response-read timeout maps to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] socket warnings and platform diagnostics are never emitted
+  - [ ] writes exact request:
+    - [ ] `GET / HTTP/1.1`
+    - [ ] deterministic `Host`
+    - [ ] `Connection: close`
+    - [ ] empty body
+  - [ ] exact request bytes terminate with `\r\n\r\n`
+  - [ ] `Host` is emitted exactly as `<connect-host>:<port>`
+  - [ ] the original requested token `localhost` or `0.0.0.0` never appears in request bytes after canonicalization
+  - [ ] no additional request headers are emitted
+  - [ ] reads response with a fixed total response budget of `65536` bytes
+  - [ ] status line plus complete header section, including terminating `\r\n\r\n`, has a separate maximum of `16384` bytes
+  - [ ] exceeding either the header-section budget or total response budget maps to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] EOF before a complete HTTP header section maps to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] the header section must end with exact `\r\n\r\n`
+  - [ ] status line grammar is exactly:
+    - [ ] `HTTP/1.1 SP <three ASCII decimal digits> [SP <reason phrase>] CRLF`
+  - [ ] reason phrase:
+    - [ ] may be empty
+    - [ ] otherwise contains only ASCII HTAB, SP, and visible bytes `0x21..0x7E`
+  - [ ] status line contains no NUL, ESC, bare CR, bare LF, or another C0 control byte
+  - [ ] malformed version, separators, status digits, or reason phrase maps to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] malformed status or header lines map to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] obsolete folded header lines are rejected
+  - [ ] each header line grammar is exactly:
+    - [ ] `<field-name>:<optional-field-value>\r\n`
+  - [ ] `field-name` is immediately followed by `:`
+  - [ ] whitespace before `:` is forbidden
+  - [ ] optional leading and trailing field-value whitespace consists only of ASCII SP or HTAB
+  - [ ] an empty field value is syntactically valid unless the specific required-header contract rejects it
+  - [ ] a header line without `:` maps to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] header names must be non-empty ASCII HTTP token values
+  - [ ] header values containing CR, LF, NUL, ESC, or another C0 control byte other than horizontal tab are rejected
+  - [ ] required singleton headers occur exactly once:
+    - [ ] `Content-Type`
+    - [ ] `Cache-Control`
+    - [ ] `Content-Length`
+  - [ ] missing or duplicate required singleton headers map to `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+  - [ ] forbidden headers occur zero times:
+    - [ ] `Set-Cookie`
+    - [ ] `Location`
+    - [ ] `X-Powered-By`
+    - [ ] `Transfer-Encoding`
+  - [ ] any forbidden-header occurrence maps to `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+  - [ ] `Content-Length`:
+    - [ ] contains ASCII decimal digits only
+    - [ ] contains no sign, whitespace, comma, decimal point, or exponent
+    - [ ] is parsed without integer overflow
+    - [ ] does not exceed `65536 - <status-and-header-section-byte-length>`
+    - [ ] the subtraction is checked before use and cannot underflow
+    - [ ] response reading never allocates a buffer based solely on the received `Content-Length`
+  - [ ] body length must equal the parsed `Content-Length`
+  - [ ] trailing bytes beyond `Content-Length` map to `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+  - [ ] parses status line and headers deterministically
+  - [ ] header names are compared ASCII case-insensitively
+  - [ ] header values are compared byte-exactly after removing only optional leading and trailing ASCII SP/HTAB
+  - [ ] internal whitespace is preserved
+  - [ ] repeated header fields are never comma-joined before validation
+  - [ ] failure validation order is exact:
+    1. connection establishment and request write
+    2. total response byte budget and header-section framing
+    3. status-line grammar and individual header-line grammar
+    4. required singleton header cardinality and forbidden-header absence
+    5. `Content-Length` syntax, overflow, and response-budget validation
+    6. body framing against the parsed `Content-Length`
+    7. expected status code
+    8. required header values
+    9. expected body bytes
+  - [ ] the first failed stage determines the only emitted failure code
+  - [ ] exact mappings:
+    - [ ] stage 1 → `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+    - [ ] stages 2, 3, 5, or 6 → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] stage 4 or 8 → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] stage 7 → `CORETSIA_SMOKE_HTTP_STATUS_MISMATCH`
+    - [ ] stage 9 → `CORETSIA_SMOKE_HTTP_BODY_MISMATCH`
+  - [ ] asserts:
+    - [ ] status exactly `503`
+    - [ ] `Content-Type` exactly `application/json; charset=utf-8`
+    - [ ] `Cache-Control` exactly `no-store`
+    - [ ] `Content-Length` value is exactly the canonical unsigned base-10 ASCII representation of `strlen(BOOT_NOT_READY_BODY)`
+    - [ ] the expected `Content-Length` contains no leading zero
+    - [ ] numeric equality with a non-canonical representation is insufficient
+    - [ ] no `Set-Cookie`
+    - [ ] no `Location`
+    - [ ] no `X-Powered-By`
+    - [ ] no `Transfer-Encoding`
+    - [ ] body equals `BOOT_NOT_READY_BODY` byte-for-byte
+    - [ ] body ends with exactly one LF
+  - [ ] does not accept URL, path, query, arbitrary expected status, regex, headers, body, method, request headers, or payload file
+  - [ ] silent on success
+  - [ ] deterministic failure codes:
+    - [ ] `CORETSIA_SMOKE_HTTP_INVALID_ARGUMENT`
+    - [ ] `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+    - [ ] `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] `CORETSIA_SMOKE_HTTP_STATUS_MISMATCH`
+    - [ ] `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] `CORETSIA_SMOKE_HTTP_BODY_MISMATCH`
+    - [ ] `CORETSIA_SMOKE_HTTP_INTERNAL_FAILURE`
+  - [ ] failure output is one JSON line on stderr:
+    - [ ] `{"schema":1,"code":"<CODE>"}\n`
+  - [ ] failure output contains no URL, host, port, response body, response header value, path, exception message, or socket diagnostic
+
+#### Modifies
+
+- [ ] repo-root `composer.json` — add scripts:
+  - [ ] `serve` → `@php tools/http/serve`
+  - [ ] `smoke:http` → `@php tools/http/smoke http`
+  - [ ] script arguments remain pass-through after Composer `--`
+
+- [ ] `docs/architecture/PACKAGING.md`
+  - [ ] register stable HTTP entrypoints:
+    - [ ] `packages/applications/skeleton/apps/web/public/index.php`
+    - [ ] `packages/applications/skeleton/apps/api/public/index.php`
+  - [ ] document explicit front-controller target ownership
+  - [ ] document shared non-public `HttpFrontController` bootstrap seam
+  - [ ] document that console and worker use non-HTTP host entrypoints owned by their respective epics
+  - [ ] document that HTTP front-controller paths remain stable when Phase 3 replaces the temporary fallback
+
+### Verification (TEST EVIDENCE) (MUST)
+
+- [ ] `composer serve -- --target=web`
+  - [ ] selects `packages/applications/skeleton/apps/web/public`
+  - [ ] serves the web front controller
+  - [ ] returns deterministic 503 fallback
+
+- [ ] `composer serve -- --target=api`
+  - [ ] selects `packages/applications/skeleton/apps/api/public`
+  - [ ] serves the API front controller
+  - [ ] returns the same deterministic 503 fallback
+
+- [ ] `composer smoke:http -- --target=web`
+  - [ ] starts one server
+  - [ ] verifies exact response
+  - [ ] terminates the server
+  - [ ] succeeds silently
+
+- [ ] `composer smoke:http -- --target=api`
+  - [ ] starts one server
+  - [ ] verifies exact response
+  - [ ] terminates the server
+  - [ ] succeeds silently
+
+- [ ] direct `tools/http/smoke-http` without a server:
+  - [ ] fails with `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+  - [ ] starts no server
+
+- [ ] occupied serve port:
+  - [ ] fails with `CORETSIA_SERVE_PORT_UNAVAILABLE`
+  - [ ] emits only exact deterministic JSON failure output
+
+### Tests (MUST)
+
+- Contract:
+  - [ ] `tools/tests/Contract/RepoRootHttpSmokeComposerScriptsContractTest.php`
+    - [ ] repo-root `composer.json` contains exact `serve` script:
+      - [ ] `@php tools/http/serve`
+    - [ ] repo-root `composer.json` contains exact `smoke:http` script:
+      - [ ] `@php tools/http/smoke http`
+    - [ ] no duplicate or alternative serve/smoke script entry exists
+    - [ ] scripts contain no shell operator, platform-specific executable, env assignment, or CWD-dependent path
+
+  - [ ] `tools/tests/Contract/HttpSmokeEphemeralIpcContractTest.php`
+    - [ ] smoke/serve IPC does not rely on non-blocking `proc_open` pipes
+    - [ ] no `stream_select()` call receives a process pipe
+    - [ ] readiness uses only the atomic ready-file protocol
+    - [ ] orderly stop uses only the atomic stop-file protocol
+    - [ ] IPC directory and filenames match the exact contract
+    - [ ] IPC paths are absent from public diagnostics
+    - [ ] temporary IPC state is not classified as a generated artifact
+
+  - [ ] `tools/tests/Contract/HttpFrontControllerFallbackContractTest.php`
+    - [ ] class file can be required without producing output or headers
+    - [ ] class is final
+    - [ ] exact constant value is independently asserted as:
+      - [ ] `{"schema":1,"code":"CORETSIA_HTTP_BOOT_NOT_READY","message":"boot not ready"}\n`
+    - [ ] constant is ASCII-only
+    - [ ] constant contains LF only
+    - [ ] constant ends with exactly one LF
+    - [ ] constant contains no target, timestamp, host, port, path, request, process, or exception data
+    - [ ] `run('invalid')` throws exactly `LogicException('http-front-controller-target-invalid')`
+    - [ ] invalid-target exception contains no rejected target value
+
+  - [ ] `tools/tests/Contract/HttpSkeletonFrontControllersDeclareCanonicalTargetsTest.php`
+    - [ ] web front controller calls shared bootstrap with exactly `web`
+    - [ ] api front controller calls shared bootstrap with exactly `api`
+    - [ ] both use CWD-independent paths
+    - [ ] neither front controller reads superglobals
+    - [ ] neither duplicates fallback response bytes
+    - [ ] no HTTP front controller exists under console or worker skeleton apps
+
+  - [ ] `tools/tests/Contract/SmokeHttpIsSocketCheckerOnlyTest.php`
+    - [ ] rejects ext-curl and cURL symbols
+    - [ ] rejects `proc_open`
+    - [ ] rejects env reads
+    - [ ] rejects server-start, URL, path, query, regex, preview, arbitrary-header, and expected-payload options
+    - [ ] checker reads the canonical bootstrap body constant
+
+- Integration:
+  - [ ] `tools/tests/Integration/ServeSmokeAndSmokeHttpCliContractTest.php`
+    - [ ] split option forms are rejected
+    - [ ] duplicate options are rejected
+    - [ ] unknown options are rejected
+    - [ ] empty values are rejected
+    - [ ] invalid host, port, and timeout values are rejected
+    - [ ] `localhost` canonicalizes to `127.0.0.1`
+    - [ ] `0.0.0.0` uses bind host `0.0.0.0` and connect host `127.0.0.1`
+    - [ ] `console|worker` map to the exact target-not-HTTP codes
+    - [ ] unknown targets map to the exact target-invalid codes
+    - [ ] every failure exits with status `1`
+    - [ ] every failure emits exactly one safe JSON line
+    - [ ] the shared option grammar is verified independently for all three scripts
+    - [ ] `serve` and `smoke` reject invalid target case variants
+    - [ ] `smoke-http` rejects `--url` and `--path`
+    - [ ] every script works from a non-repository current working directory
+    - [ ] hostile or similarly named env values do not alter defaults or parsing
+    - [ ] internal failure output contains only the script-local internal code
+
+  - [ ] `tools/tests/Integration/ServeLifecycleControlTest.php`
+    - [ ] serve emits readiness only after TCP reachability
+    - [ ] exact atomic stop-file protocol terminates the wrapper and built-in server
+    - [ ] orderly control shutdown exits with status `0`
+    - [ ] orderly control shutdown emits no failure output
+    - [ ] selected port is no longer reachable after successful shutdown
+    - [ ] built-in-server stdin uses the platform null sink
+    - [ ] canonical `ready` and valid `stop` files are regular files rather than symlinks
+    - [ ] pre-existing reserved IPC files or symlinks cause `CORETSIA_SERVE_INVALID_ARGUMENT`
+    - [ ] malformed or symlinked `stop` state causes `CORETSIA_SERVE_INTERNAL_FAILURE`
+    - [ ] smoke-side readiness validation rejects any non-canonical ready-file state before TCP ownership confirmation
+    - [ ] control-directory paths never appear in output
+    - [ ] `serve` does not delete the caller-owned control directory
+    - [ ] after orderly serve shutdown, the control directory contains no unexpected paths beyond the reserved IPC filenames
+    - [ ] the test owner can remove all remaining reserved IPC files and the control directory
+    - [ ] atomic `ready` file contains exactly one LF-terminated readiness line
+    - [ ] atomic `ready` file uses canonical bind and connect hosts
+    - [ ] direct serve without `--control-dir` emits the same readiness bytes to stdout
+    - [ ] unexpected post-readiness child exit maps to `CORETSIA_SERVE_CHILD_EXITED`
+
+  - [ ] `tools/tests/Integration/ServeIgnoresAmbientPhpConfigurationTest.php`
+    - [ ] runs with a synthetic hostile `PHPRC`
+    - [ ] runs with a synthetic hostile `PHP_INI_SCAN_DIR`
+    - [ ] hostile INI attempts to configure:
+      - [ ] `auto_prepend_file`
+      - [ ] `auto_append_file`
+      - [ ] `display_errors`
+      - [ ] `expose_php`
+    - [ ] runs with `PHP_CLI_SERVER_WORKERS=4`
+    - [ ] response remains the exact canonical fallback
+    - [ ] no prepend/append bytes appear
+    - [ ] no `X-Powered-By` appears
+    - [ ] `PHP_CLI_SERVER_WORKERS` does not change readiness, response, or shutdown behavior
+    - [ ] orderly shutdown leaves no listener on the selected port
+    - [ ] cleanup leaves no IPC file or control directory
+
+  - [ ] `tools/tests/Integration/HttpStubSmokeTest.php`
+    - [ ] matrix:
+      - [ ] target `web`
+      - [ ] target `api`
+    - [ ] invokes `tools/http/smoke http --target=<target>`
+    - [ ] verifies status, required headers, forbidden headers, content length, and exact body bytes
+    - [ ] verifies silent success
+    - [ ] verifies server process is terminated after the smoke run
+    - [ ] verifies every owned IPC file and the smoke control directory are removed after the smoke run
+    - [ ] every normal success and checker-failure path performs cleanup
+    - [ ] final output is emitted only after cleanup
+    - [ ] cleanup failure overrides an earlier success or failure result with `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`
+
+  - [ ] `tools/tests/Integration/SmokeHttpDoesNotManageServerTest.php`
+    - [ ] without a running server, `smoke-http` fails with `CORETSIA_SMOKE_HTTP_NOT_REACHABLE`
+    - [ ] no server process is started
+    - [ ] no log or temporary diagnostic file is created
+
+  - [ ] `tools/tests/Integration/SmokeHttpFailureMappingTest.php`
+    - [ ] uses a synthetic local socket responder with fixed response fixtures
+    - [ ] malformed status line → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] incomplete header section → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] response over `65536` bytes → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] status/header section over `16384` bytes → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] `Content-Length` larger than the remaining total response budget → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] wrong status → `CORETSIA_SMOKE_HTTP_STATUS_MISMATCH`
+    - [ ] missing or duplicate required header → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] forbidden header → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] malformed `Content-Length` → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] body-length mismatch → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] wrong body bytes → `CORETSIA_SMOKE_HTTP_BODY_MISMATCH`
+    - [ ] every failure output contains no raw response data
+    - [ ] missing `Content-Length` → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] duplicate `Content-Length` → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] syntactically malformed single `Content-Length` → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] numerically correct but non-canonical `Content-Length` representation → `CORETSIA_SMOKE_HTTP_HEADER_MISMATCH`
+    - [ ] whitespace before a header colon → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] missing header colon → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+    - [ ] header mismatch takes precedence over body comparison
+    - [ ] status mismatch takes precedence over header-value and body mismatch
+    - [ ] response framing failure takes precedence over every semantic mismatch
+    - [ ] response-read timeout → `CORETSIA_SMOKE_HTTP_RESPONSE_INVALID`
+
+  - [ ] `tools/tests/Integration/ServePortUnavailableDeterministicTest.php`
+    - [ ] starts `tools/http/serve` on an already occupied port
+    - [ ] asserts `CORETSIA_SERVE_PORT_UNAVAILABLE`
+    - [ ] asserts exact one-line JSON failure output
+    - [ ] asserts no child output, path, host, port, PID, command, or exception diagnostic is exposed
+
+  - [ ] `tools/tests/Integration/SmokeOccupiedPortDoesNotEstablishReadinessTest.php`
+    - [ ] starts an unrelated synthetic listener on the selected port
+    - [ ] invokes `tools/http/smoke http`
+    - [ ] external TCP reachability is not accepted as smoke readiness
+    - [ ] smoke never invokes `smoke-http` against the unrelated listener
+    - [ ] failure maps to `CORETSIA_SMOKE_SERVER_START_FAILED`
+    - [ ] the unrelated listener remains active and is not treated as an owned orphan
+    - [ ] cleanup does not wait for the unrelated listener to terminate
+
+### DoD (MUST)
+
+- [ ] Web and API have real stable public front-controller paths.
+- [ ] Each front controller declares exactly one canonical target.
+- [ ] No target is inferred from path, request, env, config, host, or command-line runtime data.
+- [ ] `HttpFrontController` is outside public docroots.
+- [ ] The temporary 503 response is owned by the shared HTTP bootstrap seam.
+- [ ] `_boot_not_ready_payload.php` does not exist.
+- [ ] Web and API return the same byte-exact fallback body.
+- [ ] The fallback body is encoded statically and not generated at request time.
+- [ ] Status is exactly 503.
+- [ ] Required headers are deterministic.
+- [ ] Cookies, redirects, `X-Powered-By`, request reflection, and dynamic diagnostics are absent.
+- [ ] No superglobal is read by the Phase-2 fallback.
+- [ ] `serve` and `smoke http` use canonical `--target`.
+- [ ] `serve` accepts only HTTP targets `web|api`.
+- [ ] `console|worker` are rejected deterministically and receive no HTTP entrypoints.
+- [ ] `smoke` starts exactly one server and always terminates it.
+- [ ] `smoke-http` is a checker only and never starts a server.
+- [ ] No cURL or external HTTP client dependency remains.
+- [ ] No env-controlled smoke behavior remains.
+- [ ] No profiles, arbitrary expectations, dynamic logs, previews, colors, JUnit, or GitHub annotations remain.
+- [ ] Success paths are silent except for the optional deterministic `serve` readiness line.
+- [ ] Failure output is a fixed one-line JSON shape containing only schema and code.
+- [ ] Port collision produces `CORETSIA_SERVE_PORT_UNAVAILABLE`.
+- [ ] All scripts are CWD-independent.
+- [ ] Child process commands use argument vectors without shell interpolation.
+- [ ] A successful smoke run leaves no serve wrapper or PHP built-in server process.
+- [ ] Cleanup has fixed deadlines and reports `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED` instead of waiting indefinitely.
+- [ ] No default skeleton `config/http.php` is introduced.
+- [ ] HTTP front controllers are classified as executable app entrypoints, not default HTTP configuration
+- [ ] `tools/gates/no_skeleton_http_default_gate.php` remains unchanged
+- [ ] No gate allowlist or front-controller exception is introduced
+- [ ] Front-controller paths can remain unchanged when platform/http replaces the temporary fallback.
+- [ ] `smoke`, `smoke-http`, and `serve` are created by this epic rather than treated as existing Coretsia files.
+- [ ] Imported source code establishes no compatibility surface.
+- [ ] CLI option grammar, host, port, timeout, duplicate-option, and exit-status behavior are deterministic.
+- [ ] `serve` emits readiness only after the target port accepts connections.
+- [ ] `smoke` suppresses all child diagnostics and emits only its own deterministic failure payload.
+- [ ] Exact fallback bytes are independently protected by a contract test rather than verified only through the shared constant.
+- [ ] HTTP response parsing has a fixed byte budget and rejects malformed or ambiguous framing.
+- [ ] `smoke` accepts readiness only from the exact serve-wrapper readiness handshake plus TCP reachability.
+- [ ] A pre-existing listener cannot be mistaken for the smoke-owned PHP server.
+- [ ] Port-release verification is performed only for a readiness-confirmed owned server.
+- [ ] Every post-spawn smoke path performs bounded cleanup before final output.
+- [ ] Cleanup failure has deterministic precedence over every prior smoke result.
+- [ ] Built-in-server stdin uses the platform null sink and serve orchestration control exists only through atomic filesystem IPC.
+- [ ] Process descriptor mappings and platform null sinks are exact and cross-OS.
+- [ ] Every CLI script has a safe internal-failure code and one top-level failure boundary.
+- [ ] Socket connect, request-write, response-read, parsing, status, header, and body failures have exact precedence.
+- [ ] Repo-root Composer serve and HTTP-smoke entrypoints are protected by a contract test.
+- [ ] `docs/architecture/PACKAGING.md` documents the final target-aware front-controller and bootstrap ownership model.
+- [ ] Cross-OS orchestration does not depend on non-blocking `proc_open` pipes or `stream_select()` over process descriptors.
+- [ ] Smoke/serve readiness and stop control use private atomic ephemeral filesystem IPC.
+- [ ] Every owned IPC file and directory is removed after success or failure.
+- [ ] Built-in-server execution ignores ambient php.ini, scanned INI files, prepend/append files, and `PHP_CLI_SERVER_WORKERS`.
+- [ ] Windows process creation explicitly bypasses `cmd.exe`.
+- [ ] The checker child has a parent-enforced monotonic deadline.
+- [ ] Required-header cardinality is validated before parsing and applying `Content-Length`.
+- [ ] HTTP failure precedence is executable without circular or unavailable input dependencies.
+- [ ] IPC cleanup is registered immediately after control-directory creation, before process startup.
+- [ ] Atomic IPC publication uses exclusive temporary files, complete writes, flush, close, and same-directory rename.
+- [ ] Serve, checker, and wrapper termination have bounded graceful and hard-termination phases.
+- [ ] Successful smoke completion requires serve-wrapper exit status `0`.
+- [ ] A non-zero wrapper exit during cleanup maps to `CORETSIA_SMOKE_SERVER_CLEANUP_FAILED`.
+- [ ] Total HTTP response budget includes status line, headers, separator, and body.
+- [ ] `Content-Length` cannot exceed the remaining total response budget.
+- [ ] No stale stdin-pipe or readiness-output terminology remains after adoption of filesystem IPC.
+- [ ] The shared atomic IPC publication contract is referenced rather than partially duplicated in smoke cleanup.
+- [ ] Server cleanup failure triggers include process state, wrapper exit status, owned port state, and IPC removal.
+- [ ] IPC directory deletion remains owned by `smoke`, not by `serve`.
+- [ ] `tools/http/smoke` accepts only the exact layout `smoke http [options]`.
+- [ ] HTTP `Host` uses the canonical connect host rather than the original requested host token.
+- [ ] HTTP header-line colon and whitespace grammar is deterministic.
+- [ ] Expected `Content-Length` uses one canonical decimal byte representation.
+- [ ] All contract and integration tests pass.
+
+---
+
+### 3.145.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL] [REQUIRES REDESIGN]
 
 ---
 type: skeleton
@@ -4376,20 +5445,28 @@ ssot_refs:
 - "docs/ssot/routing-artifact.md"
 ---
 
+> **REQUIRES REDESIGN BEFORE IMPLEMENTATION (MUST)**
+>
+> This epic MUST be redesigned together with 3.143.0 before implementation.
+>
+> Reconcile HTTP front-controller ownership, real application bootstrap, runtime module selection, consumer-facing serving commands, and deterministic smoke verification.
+>
+> All existing implementation details, prerequisites, and acceptance criteria are provisional until both epics have been reviewed against the current packaging architecture and completed HTTP runtime.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 2.50.0 — front controller stub exists (index.php + serve script)
-  - 1.280.0–1.350.0 — core/kernel boot/config/artifacts/container compile baseline exists
+  - 1.280.0–1.340.0 — core/kernel boot/config/artifacts/container compile baseline exists
+  - 3.10.0 + 3.40.0 — errors + problem-details exist (щоб 500/404 мали канонічний flow)
   - 3.50.0 — platform/http runtime exists
   - 3.130.0 — platform/routing exists (routes artifact)
   - 3.140.0 — platform/http-app exists (router middleware + action invoker)
-  - 3.10.0 + 3.40.0 — errors + problem-details exist (щоб 500/404 мали канонічний flow)
+  - 3.143.0 — front controller stub exists (index.php + serve script)
 
 - Required deliverables (exact paths):
-  - `packages/applications/skeleton/apps/web/public/index.php` (from 2.50.0)
+  - `packages/applications/skeleton/apps/web/public/index.php` (from 3.143.0)
 
 - Required config roots/keys:
   - `app.*`, `foundation.*`, `kernel.*`, `http.*`, `routing.*`, `http_app.*` — з відповідних пакетів / skeleton app config
@@ -5688,271 +6765,3 @@ N/A
     - [ ] fallback: Accept header (redacted; never printed).
   - [ ] Redaction policy:
     - [ ] no secrets/PII in HTML, no stacktrace in prod.
-
----
-
-### 3.200.0 HTTP Performance Benchmarking Harness (MUST) [TOOLING]
-
----
-type: tools
-phase: 3
-epic_id: "3.200.0"
-owner_path: "tools/benchmarks/http/"
-
-goal: "Зацементувати deterministic HTTP benchmark harness для ключових micro-сценаріїв і ловити регресії продуктивності тільки у pinned benchmark environment до потрапляння змін у реліз."
-provides:
-- "Reference HTTP benchmarks for canonical scenarios: hello-world, JSON request/response, problem-details rendering"
-- "Pinned-environment baseline + CI gate for regression detection"
-- "Deterministic benchmark reports and comparison rules reused by later performance epics"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-adr: none
-ssot_refs:
-- "docs/ssot/metrics-policy.md"
-- "docs/ssot/http-middleware-catalog.md"
----
-
-- [ ] update `3.200.0 HTTP Performance Benchmarking Harness` to ensure benchmark output does not include raw payloads, tokens, env values, or absolute local paths.
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - 1.460.0 — CLI performance gate exists as baseline methodology for pinned-runner-only perf gating
-  - 3.40.0 — problem-details runtime exists for benchmark scenario
-  - 3.50.0 — HTTP runtime pipeline exists
-  - 3.130.0 — routing runtime exists
-  - 3.140.0 — http-app runtime exists
-  - 3.145.0 — browser-visible web app entrypoint exists
-
-- Required deliverables (exact paths):
-  - `packages/platform/http/` — HTTP runtime under test
-  - `packages/platform/problem-details/` — problem-details scenario under test
-  - `packages/platform/routing/` — compiled/runtime routing scenario under test
-  - `packages/platform/http-app/` — action invocation scenario under test
-  - N/A beyond the runtime packages under test.
-  - This epic creates and owns its dedicated benchmark fixture app:
-    - `tools/tests/Fixtures/HttpBenchApp/`
-
-- Required config roots/keys:
-  - `http.*` — HTTP runtime config used by fixture app
-  - `problem_details.*` — problem-details scenario config
-  - `app.id` — cache/app isolation for fixture benchmark app
-
-- Required tags:
-  - `http.middleware.system_pre`
-  - `http.middleware.system`
-  - `http.middleware.system_post`
-  - `http.middleware.app_pre`
-  - `http.middleware.app`
-  - `http.middleware.app_post`
-  - `http.middleware.route_pre`
-  - `http.middleware.route`
-  - `http.middleware.route_post`
-
-- Required contracts / ports:
-  - `Psr\Http\Message\ServerRequestInterface`
-  - `Psr\Http\Message\ResponseInterface`
-  - `Psr\Http\Server\RequestHandlerInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-  - `Psr\Log\LoggerInterface`
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- `devtools/internal-toolkit` (canonical tooling JSON writer / deterministic path helpers for benchmark report generation)
-
-Forbidden:
-- runtime imports from `packages/**/src/**` by path (`require/include` with package src literals)
-- live network calls during benchmark execution
-- non-pinned shared-runner gating as source of truth
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- PSR:
-  - `Psr\Http\Message\ServerRequestInterface`
-  - `Psr\Http\Message\ResponseInterface`
-- Contracts:
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-
-### Entry points / integration points (MUST)
-
-- CLI:
-  - `composer benchmark:http` → `tools/benchmarks/http/run.php`
-  - `composer benchmark:http:gate` → `tools/gates/http_benchmark_gate.php`
-
-- HTTP:
-  - benchmark scenarios MUST cover:
-    - `GET /__bench/hello`
-    - `POST /__bench/json`
-    - `GET /__bench/problem`
-
-- Kernel hooks/tags:
-  - N/A
-
-- Other runtime discovery / integration tags:
-  - N/A
-
-- Artifacts:
-  - reads: `tools/benchmarks/http/http.baseline.json`
-  - writes: `tools/benchmarks/http/http.report.json`
-
-- Notes (only if applicable):
-  - Gate MUST fail only in a dedicated pinned benchmark job.
-  - Generic CI MAY run the harness in smoke/advisory mode, but MUST NOT be the release gate source of truth.
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `tools/benchmarks/http/run.php` — canonical benchmark runner
-- [ ] `tools/benchmarks/http/BenchmarkConfig.php` — warmups/runs/scenarios/environment fingerprint policy
-- [ ] `tools/benchmarks/http/http.baseline.json` — pinned-runner baseline
-- [ ] `tools/benchmarks/http/http.report.schema.json` — report shape lock
-- [ ] `tools/benchmarks/http/README.md` — benchmark methodology + scenario list
-- [ ] `tools/gates/http_benchmark_gate.php` — baseline comparator gate
-  - [ ] MUST use `tools/support/ConsoleOutput.php` only
-  - [ ] line1 MUST be a deterministic CODE
-  - [ ] line2+ MUST contain only safe diagnostics sorted `strcmp`
-  - [ ] MUST NOT print absolute paths, raw payloads, headers, cookies, query strings, or stack traces
-- [ ] `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php` — harness proof
-- [ ] `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php` — deterministic gate proof
-- [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
-- [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
-- [ ] `tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
-- [ ] `tools/tests/Fixtures/HttpBenchApp/` — minimal benchmark app fixture
-- [ ] `docs/ops/http-benchmarks.md` — how to run/update baseline and how CI interprets results
-
-#### Modifies
-
-- [ ] `framework/composer.json` — add scripts:
-  - [ ] `benchmark:http`
-  - [ ] `benchmark:http:gate`
-- [ ] `composer.json` — add mirror scripts delegating to `framework/`
-- [ ] `.github/workflows/ci.yml` — add dedicated pinned benchmark job
-- [ ] `tools/support/ErrorCodes.php` — register:
-  - [ ] `CORETSIA_HTTP_BENCHMARK_DEGRADED`
-  - [ ] `CORETSIA_HTTP_BENCHMARK_BASELINE_MISSING`
-  - [ ] `CORETSIA_HTTP_BENCHMARK_ENV_MISMATCH`
-  - [ ] `CORETSIA_HTTP_BENCHMARK_RUN_FAILED`
-
-#### Package skeleton (if type=package)
-
-N/A
-
-#### Configuration (keys + defaults)
-
-- [ ] Files:
-  - [ ] `tools/benchmarks/http/BenchmarkConfig.php`
-- [ ] Keys (dot):
-  - [ ] `benchmark.http.warmup_runs` = 3
-  - [ ] `benchmark.http.measure_runs` = 9
-  - [ ] `benchmark.http.metric` = `median_wall_ms`
-  - [ ] `benchmark.http.threshold_multiplier` = 1.15
-  - [ ] `benchmark.http.require_env_fingerprint_match` = true
-- [ ] Rules:
-  - [ ] baseline MUST include PHP version, SAPI, opcache/JIT state, OS fingerprint, CPU class label
-
-#### Wiring / DI tags (when applicable)
-
-N/A
-
-#### Artifacts / outputs (if applicable)
-
-- [ ] Writes:
-  - [ ] `tools/benchmarks/http/http.report.json` (deterministic key order, LF-only, final newline)
-  - [ ] report JSON bytes MUST be produced via the canonical tooling JSON writer from `coretsia/devtools-internal-toolkit`
-  - [ ] ad-hoc `json_encode` MUST NOT be used in benchmark tooling for baseline/report files
-- [ ] Reads:
-  - [ ] validates baseline/report shape before compare
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-- Context reads:
-  - N/A
-- Context writes (safe only):
-  - N/A
-- [ ] Reset discipline:
-  - [ ] benchmark runner MUST boot a fresh app/kernel per measured sample OR prove equivalent reset-safe isolation
-
-#### Observability (policy-compliant)
-
-- [ ] Metrics:
-  - [ ] tool output only; no runtime metrics are required by this epic
-- [ ] Logs:
-  - [ ] benchmark output MUST contain only scenario name, run counts, median timings, threshold, outcome
-  - [ ] MUST NOT dump raw request bodies, headers, cookies, query strings, or stack traces
-
-#### Errors
-
-- Exceptions introduced:
-  - N/A
-- [ ] Mapping:
-  - [ ] deterministic tool exit codes via `ConsoleOutput` + registered error codes
-
-#### Security / Redaction
-
-- [ ] MUST NOT leak:
-  - [ ] raw payloads
-  - [ ] raw headers/cookies
-  - [ ] absolute paths
-- [ ] Allowed:
-  - [ ] scenario ids
-  - [ ] safe counts
-  - [ ] median/p95 numbers
-  - [ ] environment class/fingerprint
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If metrics/spans/logs exist → `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
-  (asserts: safe output shape only; no raw payloads)
-- [ ] If redaction exists → `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
-  (asserts: absolute paths and raw payloads never appear)
-
-#### Test harness / fixtures (when integration is needed)
-
-- [ ] Fixture app:
-  - [ ] `tools/tests/Fixtures/HttpBenchApp/`
-- [ ] Fake adapters:
-  - [ ] FakeTracer
-  - [ ] FakeMetrics
-  - [ ] FakeLogger
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkConfigTest.php`
-  - [ ] `tools/tests/Unit/Benchmarks/HttpBenchmarkReportSchemaTest.php`
-- Contract:
-  - [ ] `tools/tests/Contract/Benchmarks/HttpBenchmarkOutputDoesNotLeakTest.php`
-- Integration:
-  - [ ] `tools/tests/Integration/Benchmarks/HttpBenchmarkHarnessTest.php`
-  - [ ] `tools/tests/Integration/Gates/HttpBenchmarkGateTest.php`
-- Gates/Arch:
-  - [ ] deptrac updated (if needed)
-  - [ ] pinned benchmark CI job wired and isolated
-
-### DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected
-- [ ] Verification tests present where applicable
-- [ ] Determinism:
-  - [ ] baseline/report files are stable bytes
-  - [ ] baseline/report JSON serialization MUST use the same canonical tooling JSON writer for both generation and comparison fixtures
-  - [ ] scenario list order is fixed
-  - [ ] comparison logic is deterministic
-- [ ] Gate fails only on pinned benchmark environment
-- [ ] Docs updated:
-  - [ ] `tools/benchmarks/http/README.md`
-  - [ ] `docs/ops/http-benchmarks.md`

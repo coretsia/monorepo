@@ -308,7 +308,7 @@ Potential deliverables:
 ## ModulePlan artifact for pre-container runtime entrypoint guard
 
 - Status: candidate
-- Source epic: `1.350.0 Core Kernel: Runtime Drivers / Runtime Entrypoint Guard`
+- Source epic: `1.340.0 Core Kernel: Runtime Drivers / Runtime Entrypoint Guard`
 - Owner area: `core/kernel`, `platform/worker`
 - Priority: later cleanup
 - Type: artifact runtime boot / module-plan artifact / runtime entrypoint boundary

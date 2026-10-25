@@ -312,17 +312,17 @@ Package metadata and documentation:
 - [x] `packages/platform/errors/SECURITY.md`
   - [x] follow canonical monorepo package scaffold and licensing conventions
 
-- [ ] `packages/platform/errors/README.md`
-  - [ ] describe canonical error normalization and contracts
-  - [ ] describe module selection and dependency closure
-  - [ ] document mapper registration and deterministic ordering
-  - [ ] document safe fallback behavior
-  - [ ] document config keys and defaults
-  - [ ] document redaction ownership and mandatory fail-closed behavior
-  - [ ] document Context and UoW boundaries
-  - [ ] document reporter, logger, tracer, and meter behavior
-  - [ ] document CLI/HTTP/Worker adapter ownership
-  - [ ] document errors, tests, and architectural restrictions
+- [x] `packages/platform/errors/README.md`
+  - [x] describe canonical error normalization and contracts
+  - [x] describe module selection and dependency closure
+  - [x] document mapper registration and deterministic ordering
+  - [x] document safe fallback behavior
+  - [x] document config keys and defaults
+  - [x] document redaction ownership and mandatory fail-closed behavior
+  - [x] document Context and UoW boundaries
+  - [x] document reporter, logger, tracer, and meter behavior
+  - [x] document CLI/HTTP/Worker adapter ownership
+  - [x] document errors, tests, and architectural restrictions
 
 Module and DI:
 
@@ -722,16 +722,16 @@ CLI normalization verification:
 
 Architecture decision:
 
-- [ ] `docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md`
-  - [ ] document the canonical contracts-level normalization boundary
-  - [ ] document why TagRegistry remains the only mapper discovery authority
-  - [ ] document why the default mapper is outside the tag registry
-  - [ ] document use of the existing redaction port
-  - [ ] document reuse of the Foundation Noop reporter
-  - [ ] document the fail-closed handler behavior
-  - [ ] document the absence of a package-local reset mechanism
-  - [ ] document runtime module composition
-  - [ ] document rejected duplicate redaction, reporter, registry, and adapter implementations
+- [x] `docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md`
+  - [x] document the canonical contracts-level normalization boundary
+  - [x] document why TagRegistry remains the only mapper discovery authority
+  - [x] document why the default mapper is outside the tag registry
+  - [x] document use of the existing redaction port
+  - [x] document reuse of the Foundation Noop reporter
+  - [x] document the fail-closed handler behavior
+  - [x] document the absence of a package-local reset mechanism
+  - [x] document runtime module composition
+  - [x] document rejected duplicate redaction, reporter, registry, and adapter implementations
 
 #### Modifies
 
@@ -961,82 +961,82 @@ CLI and Kernel regression fixtures:
 
 Canonical architecture and documentation:
 
-- [ ] `docs/ssot/modes.md`
-  - [ ] update the declared `platform.cli` dependency closure to include `platform.errors`
-  - [ ] update the effective enabled-module sets for `micro`, `express`, `hybrid`, and `enterprise`
-  - [ ] update all target-local ModulePlan examples and project-wide module union examples where `platform.cli` is selected
-  - [ ] include `platform.errors` transitively in every affected enabled-module set
-  - [ ] preserve canonical byte-order sorting for enabled-module sets
-  - [ ] preserve existing dependency-topological ordering rules independently from enabled-set sorting
-  - [ ] preserve the existing preset root selections
-  - [ ] document that `platform.errors` is selected transitively, not as a new preset root
-  - [ ] document the fail-closed behavior when a selected CLI module is missing its Errors dependency
+- [x] `docs/ssot/modes.md`
+  - [x] update the declared `platform.cli` dependency closure to include `platform.errors`
+  - [x] update the effective enabled-module sets for `micro`, `express`, `hybrid`, and `enterprise`
+  - [x] update all target-local ModulePlan examples and project-wide module union examples where `platform.cli` is selected
+  - [x] include `platform.errors` transitively in every affected enabled-module set
+  - [x] preserve canonical byte-order sorting for enabled-module sets
+  - [x] preserve existing dependency-topological ordering rules independently from enabled-set sorting
+  - [x] preserve the existing preset root selections
+  - [x] document that `platform.errors` is selected transitively, not as a new preset root
+  - [x] document the fail-closed behavior when a selected CLI module is missing its Errors dependency
 
-- [ ] `docs/ssot/application-dependency-sync.md`
-  - [ ] update the canonical installation-catalog module table:
-    - [ ] add `platform.errors` with its declared dependencies
-    - [ ] add `platform.errors` to the declared `platform.cli` dependency set
-  - [ ] update the Composer baseline dependency graph:
-    - [ ] `coretsia/platform-cli` directly requires `coretsia/platform-errors`
-    - [ ] `coretsia/platform-errors` directly requires `coretsia/platform-redaction`
-  - [ ] update the effective Console `ModulePlan` example to include `platform.errors`
-  - [ ] update both `web` and `worker` target-local dependency-closure examples
-  - [ ] update the project-wide physical module union example
-  - [ ] include `coretsia/platform-errors` in the example of desired Composer package identities
-  - [ ] preserve the distinction between transitive Composer installation, target-local module enablement, and managed root requirements
-  - [ ] preserve canonical plan/review/apply ownership
-  - [ ] do not introduce implicit package installation during boot
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] update the canonical installation-catalog module table:
+    - [x] add `platform.errors` with its declared dependencies
+    - [x] add `platform.errors` to the declared `platform.cli` dependency set
+  - [x] update the Composer baseline dependency graph:
+    - [x] `coretsia/platform-cli` directly requires `coretsia/platform-errors`
+    - [x] `coretsia/platform-errors` directly requires `coretsia/platform-redaction`
+  - [x] update the effective Console `ModulePlan` example to include `platform.errors`
+  - [x] update both `web` and `worker` target-local dependency-closure examples
+  - [x] update the project-wide physical module union example
+  - [x] include `coretsia/platform-errors` in the example of desired Composer package identities
+  - [x] preserve the distinction between transitive Composer installation, target-local module enablement, and managed root requirements
+  - [x] preserve canonical plan/review/apply ownership
+  - [x] do not introduce implicit package installation during boot
 
-- [ ] `packages/framework/README.md`
-  - [ ] document that framework baseline installation includes `platform/errors` through CLI dependency closure
-  - [ ] preserve the existing direct framework requirements and module-selection policy
+- [x] `packages/framework/README.md`
+  - [x] document that framework baseline installation includes `platform/errors` through CLI dependency closure
+  - [x] preserve the existing direct framework requirements and module-selection policy
 
-- [ ] `packages/applications/skeleton/README.md`
-  - [ ] update default `micro` installation and Console ModulePlan documentation
-  - [ ] include the transitive `platform.errors` dependency
-  - [ ] update the documented `web → micro` and `worker → enterprise` target-local module closures
-  - [ ] include `platform.errors` in the documented project-wide physical module union
-  - [ ] preserve the existing preset root selections
-  - [ ] preserve the distinction between physical installation and runtime module enablement
-  - [ ] preserve source-host boot without precompiled artifacts
+- [x] `packages/applications/skeleton/README.md`
+  - [x] update default `micro` installation and Console ModulePlan documentation
+  - [x] include the transitive `platform.errors` dependency
+  - [x] update the documented `web → micro` and `worker → enterprise` target-local module closures
+  - [x] include `platform.errors` in the documented project-wide physical module union
+  - [x] preserve the existing preset root selections
+  - [x] preserve the distinction between physical installation and runtime module enablement
+  - [x] preserve source-host boot without precompiled artifacts
 
-- [ ] `packages/platform/cli/README.md`
-  - [ ] replace references to legacy `CliErrorHandler` with the canonical `ErrorHandlerInterface` flow
-  - [ ] document CLI-owned `CliExceptionMapper` and `error.mapper` registration
-  - [ ] document retained CLI public fallback mapping
-  - [ ] document updated Composer/module dependency closure
-  - [ ] preserve the documented command, output, error-code, and exit-code contracts
+- [x] `packages/platform/cli/README.md`
+  - [x] replace references to legacy `CliErrorHandler` with the canonical `ErrorHandlerInterface` flow
+  - [x] document CLI-owned `CliExceptionMapper` and `error.mapper` registration
+  - [x] document retained CLI public fallback mapping
+  - [x] document updated Composer/module dependency closure
+  - [x] preserve the documented command, output, error-code, and exit-code contracts
 
-- [ ] `docs/ssot/error-descriptor.md`
-  - [ ] document `ErrorDescriptor::fromArray()` as the canonical strict reconstruction API
-  - [ ] preserve existing descriptor field meanings and invariants
-  - [ ] reconstruction MUST NOT perform sensitive-data classification or redaction
-  - [ ] reconstruction MUST NOT replace mapper-owned safe-by-construction derivation
+- [x] `docs/ssot/error-descriptor.md`
+  - [x] document `ErrorDescriptor::fromArray()` as the canonical strict reconstruction API
+  - [x] preserve existing descriptor field meanings and invariants
+  - [x] reconstruction MUST NOT perform sensitive-data classification or redaction
+  - [x] reconstruction MUST NOT replace mapper-owned safe-by-construction derivation
 
-- [ ] `docs/ssot/errors-boundary.md`
-  - [ ] document concrete `platform/errors` normalization flow
-  - [ ] document canonical mapper registry dispatch and fallback policy
-  - [ ] document the existing `ErrorHandlerInterface` binding ownership
-  - [ ] document `CORETSIA_UNHANDLED_EXCEPTION` fallback code
-  - [ ] document mapper failure isolation without a second exception hierarchy
-  - [ ] document the canonical `platform/errors` runtime handler guarantee
-  - [ ] preserve the implementation-neutral `ErrorHandlerInterface` signature
-  - [ ] document CLI consumption through the canonical port and CLI-owned mapper registration
-  - [ ] clarify that runtime adapters own presentation, while their packages MAY contribute owner-specific `ExceptionMapperInterface` services through the canonical `error.mapper` tag
-  - [ ] contributing an owner-specific mapper MUST NOT transfer mapper discovery, ordering, fallback selection, or global handler ownership away from `platform/errors`
-  - [ ] CLI-owned exception classification MUST remain separate from CLI transport rendering
-  - [ ] no runtime adapter may introduce a second Throwable-to-ErrorDescriptor dispatch pipeline
-  - [ ] preserve transport-specific rendering and failure-boundary ownership
-  - [ ] preserve `ErrorDescriptor` and runtime adapter ownership boundaries
-  - [ ] MUST NOT introduce a competing descriptor schema
+- [x] `docs/ssot/errors-boundary.md`
+  - [x] document concrete `platform/errors` normalization flow
+  - [x] document canonical mapper registry dispatch and fallback policy
+  - [x] document the existing `ErrorHandlerInterface` binding ownership
+  - [x] document `CORETSIA_UNHANDLED_EXCEPTION` fallback code
+  - [x] document mapper failure isolation without a second exception hierarchy
+  - [x] document the canonical `platform/errors` runtime handler guarantee
+  - [x] preserve the implementation-neutral `ErrorHandlerInterface` signature
+  - [x] document CLI consumption through the canonical port and CLI-owned mapper registration
+  - [x] clarify that runtime adapters own presentation, while their packages MAY contribute owner-specific `ExceptionMapperInterface` services through the canonical `error.mapper` tag
+  - [x] contributing an owner-specific mapper MUST NOT transfer mapper discovery, ordering, fallback selection, or global handler ownership away from `platform/errors`
+  - [x] CLI-owned exception classification MUST remain separate from CLI transport rendering
+  - [x] no runtime adapter may introduce a second Throwable-to-ErrorDescriptor dispatch pipeline
+  - [x] preserve transport-specific rendering and failure-boundary ownership
+  - [x] preserve `ErrorDescriptor` and runtime adapter ownership boundaries
+  - [x] MUST NOT introduce a competing descriptor schema
 
-- [ ] `docs/ssot/tags.md`
-  - [ ] retain the existing `error.mapper` registry row
-  - [ ] document mapper service-id and priority semantics
-  - [ ] document empty metadata and lazy resolution requirements
-  - [ ] document first-non-null descriptor selection
-  - [ ] document that the default fallback mapper is not tagged
-  - [ ] MUST NOT create a second tag row or another reserved identifier
+- [x] `docs/ssot/tags.md`
+  - [x] retain the existing `error.mapper` registry row
+  - [x] document mapper service-id and priority semantics
+  - [x] document empty metadata and lazy resolution requirements
+  - [x] document first-non-null descriptor selection
+  - [x] document that the default fallback mapper is not tagged
+  - [x] MUST NOT create a second tag row or another reserved identifier
 
 - [x] `docs/ssot/observability.md`
   - [x] register `error.map` under `Baseline Canonical Events → Canonical Spans`
@@ -1058,13 +1058,13 @@ Canonical architecture and documentation:
   - [x] MUST NOT register duplicate metric or span entries
   - [x] MUST NOT introduce new global label keys
 
-- [ ] `docs/ssot/config-roots.md`
-  - [ ] add exactly one root row:
-    - [ ] root: `errors`
-    - [ ] owner: `platform/errors`
-    - [ ] defaults: `packages/platform/errors/config/errors.php`
-    - [ ] rules: `packages/platform/errors/config/rules.php`
-  - [ ] do not redefine an existing config root
+- [x] `docs/ssot/config-roots.md`
+  - [x] add exactly one root row:
+    - [x] root: `errors`
+    - [x] owner: `platform/errors`
+    - [x] defaults: `packages/platform/errors/config/errors.php`
+    - [x] rules: `packages/platform/errors/config/rules.php`
+  - [x] do not redefine an existing config root
 
 - [x] `docs/architecture/DEPENDENCIES.md`
   - [x] add the materialized `platform/errors` package to the canonical dependency matrix
@@ -1076,8 +1076,8 @@ Canonical architecture and documentation:
   - [x] MUST NOT add `platform/errors` to the CLI source import allowlist solely because CLI consumes the canonical port
   - [x] preserve Worker source and Composer dependencies unchanged
 
-- [ ] `docs/adr/INDEX.md`
-  - [ ] register `ADR-0036-platform-errors-errorhandler-exception-mapper.md`
+- [x] `docs/adr/INDEX.md`
+  - [x] register `ADR-0036-platform-errors-errorhandler-exception-mapper.md`
 
 Monorepo package metadata and generated outputs:
 
@@ -1420,13 +1420,13 @@ N/A
   - [x] tracer failure → preserve selected descriptor
   - [x] meter failure → preserve selected descriptor
   - [x] Stopwatch failure → preserve selected descriptor
-- [ ] Failure diagnostics:
+- [x] Failure diagnostics:
   - [x] mapper failures use fixed safe reason tokens
   - [x] no new `MapperFailedException` is required
   - [x] no new global error-code registry
   - [x] no exception chaining or previous Throwable retention
   - [x] internal mapper failures MUST NOT expose raw errors through public descriptors
-  - [ ] stable normalized fallback codes are documented in `docs/ssot/errors-boundary.md`
+  - [x] stable normalized fallback codes are documented in `docs/ssot/errors-boundary.md`
 - [x] Runtime guarantee:
   - [x] `ErrorHandler::handle()` MUST return a canonical `ErrorDescriptor` for ordinary runtime Throwable and collaborator-failure scenarios
   - [x] collaborator failures MUST NOT propagate outside the handler boundary
@@ -1444,7 +1444,7 @@ N/A
   - [x] no package-local hashing implementation
   - [x] no package-local redaction policy registry
   - [x] no configurable redaction bypass
-- [ ] Safe-by-construction mapping:
+- [x] Safe-by-construction mapping:
   - [x] mapper codes MUST be stable and non-sensitive
   - [x] mapper messages MUST be fixed owner-approved public messages
   - [x] mapper messages MUST NOT interpolate Throwable messages, arbitrary input values, environment data, filesystem paths, SQL, or runtime context values
@@ -1453,7 +1453,7 @@ N/A
   - [x] unknown or unclassified values MUST NOT be treated as safe merely because shared redaction did not match them
   - [x] enabled mapper implementations are trusted contributors bound by the existing ExceptionMapperInterface safety contract
   - [x] the handler MUST NOT introduce a duplicate free-text secret scanner, taint engine, or sensitive-value classifier
-  - [ ] protection against contract-violating mapper implementations MUST be covered by mapper-owner security tests and review, not assumed from generic redaction alone
+  - [x] protection against contract-violating mapper implementations MUST be covered by mapper-owner security tests and review, not assumed from generic redaction alone
   - [x] mapper extensions MUST be safe, bounded, deterministic json-like values
   - [x] all mapper implementations MUST satisfy the existing `ExceptionMapperInterface` safety contract
   - [x] no direct copying of `Throwable::getMessage()` into descriptor messages
@@ -1470,24 +1470,24 @@ N/A
   - [x] `platform/errors` MUST NOT implement another descriptor schema validator
   - [x] failures during redaction or reconstruction select the fixed safe fallback
   - [x] never return raw or partially processed candidate data after redaction failure
-- [ ] MUST NOT leak:
-  - [ ] Authorization headers
-  - [ ] Cookie and session identifiers
-  - [ ] credentials, passwords, tokens, and private keys
-  - [ ] environment secrets
-  - [ ] raw SQL or query payloads
-  - [ ] request/response bodies
+- [x] MUST NOT leak:
+  - [x] Authorization headers
+  - [x] Cookie and session identifiers
+  - [x] credentials, passwords, tokens, and private keys
+  - [x] environment secrets
+  - [x] raw SQL or query payloads
+  - [x] request/response bodies
   - [x] raw exception messages and stack traces
-  - [ ] private customer data and PII
+  - [x] private customer data and PII
   - [x] absolute local paths
   - [x] arbitrary runtime context metadata
-- [ ] Allowed safe derivations:
+- [x] Allowed safe derivations:
   - [x] stable non-sensitive error codes
   - [x] fixed safe reason tokens
-  - [ ] bounded counts
-  - [ ] safe lengths where owner policy permits disclosure
-  - [ ] safe hashes only where non-reconstruction and disclosure policy permit
-  - [ ] validated opaque identifiers only in owner-approved context channels
+  - [x] bounded counts
+  - [x] safe lengths where owner policy permits disclosure
+  - [x] safe hashes only where non-reconstruction and disclosure policy permit
+  - [x] validated opaque identifiers only in owner-approved context channels
 - [x] Security invariants:
   - [x] classifier non-matches MUST NOT be interpreted as authorization to disclose raw data
   - [x] `Placeholder` is the mandatory baseline redaction mode
@@ -1735,15 +1735,15 @@ N/A
   - [x] generated package index check green
   - [x] generated installation catalog check green
   - [x] source/compiled container parity green
-  - [ ] deterministic rerun-no-diff checks green
+  - [x] deterministic rerun-no-diff checks green
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
+- [x] Spec locked (this epic text reviewed + no open questions)
 - [x] Implementation complete
 - [x] Tests green
 - [x] Gates/Arch green
-- [ ] Docs complete
+- [x] Docs complete
 - [x] Composer/module metadata consistent
 - [x] Canonical ModulePlan dependency closure verified
 - [x] Existing `ReservedTags::ERROR_MAPPER` reused without modification
@@ -1778,8 +1778,8 @@ N/A
 - [x] Reporter-only filters do not affect normalization, redaction, fallback, or mapping telemetry
 - [x] No package-local reporting-policy registry, RNG service, or config-validator layer introduced
 - [x] No forbidden runtime adapter dependencies
-- [ ] README sections complete
-- [ ] Determinism: rerun-no-diff (where applicable)
+- [x] README sections complete
+- [x] Determinism: rerun-no-diff (where applicable)
 
 ---
 

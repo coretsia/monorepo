@@ -220,6 +220,44 @@ toArray(): array
 
 Accessors MUST NOT expose raw throwable objects, transport objects, request objects, response objects, PSR-7 objects, vendor SDK objects, service instances, closures, resources, or runtime wiring objects.
 
+## Canonical array reconstruction
+
+`ErrorDescriptor::fromArray(array $payload): self` is the canonical contracts-owned strict reconstruction API for the existing exported descriptor shape.
+
+Reconstruction MUST accept exactly the six canonical fields exported by `ErrorDescriptor::toArray()`:
+
+```text
+code
+extensions
+httpStatus
+message
+schemaVersion
+severity
+```
+
+The input map's field insertion order MUST NOT affect reconstruction. The reconstructed descriptor MUST preserve the existing canonical field meanings, constructor invariants, and deterministic export shape.
+
+Reconstruction MUST:
+
+- reject missing or unknown top-level fields;
+- require `schemaVersion === ErrorDescriptor::SCHEMA_VERSION`;
+- require `code` and `message` to be strings;
+- require `severity` to be a valid string-backed `ErrorSeverity` value;
+- require `httpStatus` to be an integer or `null`;
+- require `extensions` to be a string-keyed map;
+- reconstruct severity through `ErrorSeverity::from()`;
+- delegate final field validation and extension normalization to the existing constructor;
+- reject invalid nested extensions, forbidden semantic keys, and resource-budget violations under the existing descriptor invariants;
+- reject malformed payloads with exactly `Invalid error descriptor payload.` and without exposing rejected values, internal validation diagnostics, or a previous exception.
+
+Reconstruction MUST NOT silently coerce invalid field types, remove unknown fields, truncate invalid metadata, or repair malformed payloads.
+
+`ErrorDescriptor::fromArray()` MUST NOT perform sensitive-data classification, redaction, masking, hashing, or owner-specific safe-message derivation.
+
+Structural acceptance of a reconstructed descriptor MUST NOT be interpreted as authorization to disclose arbitrary producer data. Mapper-owned safe-by-construction derivation remains mandatory before descriptor construction.
+
+The canonical `platform/errors` runtime `ErrorHandler` uses this API after mandatory redaction through the shared `SensitiveDataRedactorInterface` binding. Reconstruction does not transfer redaction or mapper ownership to `core/contracts`.
+
 ## `code`
 
 `code` is a stable machine-readable normalized error code.

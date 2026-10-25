@@ -74,6 +74,17 @@ Coretsia\Contracts\Observability\Errors\ErrorHandlingContext
 Coretsia\Contracts\Observability\Errors\ErrorSeverity
 ```
 
+The canonical implementation-neutral handler port signature is:
+
+```php
+public function handle(
+    Throwable $throwable,
+    ?ErrorHandlingContext $context = null,
+): ErrorDescriptor;
+```
+
+This signature belongs exclusively to `core/contracts`. It MUST NOT prescribe a concrete mapper registry, DI tag, fallback implementation, reporter backend, or transport-specific output type.
+
 `core/contracts` MUST define only:
 
 - stable ports;
@@ -100,21 +111,34 @@ Coretsia\Contracts\Observability\Errors\ErrorSeverity
 
 ### `platform/errors`
 
-`platform/errors` owns the reference runtime error normalization implementation.
+`platform/errors` owns the canonical runtime error normalization implementation.
 
-It is expected to provide:
+The selected `platform.errors` runtime module contributes the shared `Coretsia\Platform\Errors\ErrorHandler` implementation and binds `ErrorHandlerInterface` to that implementation through the canonical declarative container definitions.
 
-- an `ErrorHandlerInterface` implementation;
-- mapper registry behavior;
-- mapper discovery through the reserved `error.mapper` tag;
-- safe fallback mapping when no specific mapper applies;
-- noop-safe or fail-safe reporter integration, where applicable.
+`platform/errors` owns:
 
-`platform/errors` MUST NOT redefine the `ErrorDescriptor` field schema.
+- `ErrorHandler` as the canonical format-neutral runtime normalization boundary;
+- `ExceptionMapperRegistry` as the sole runtime dispatcher for tagged exception mappers;
+- mapper discovery through `TagRegistry::all(ReservedTags::ERROR_MAPPER)`;
+- deterministic first-non-null descriptor selection under canonical TagRegistry ordering;
+- `DefaultExceptionMapper` as the fixed safe fallback outside tagged discovery;
+- mandatory descriptor redaction through the existing `SensitiveDataRedactorInterface` binding;
+- strict post-redaction reconstruction through `ErrorDescriptor::fromArray()`;
+- optional reporter, logger, tracer, and meter integration with independent failure isolation.
 
-`platform/errors` MUST return the canonical contracts `ErrorDescriptor`.
+The fixed canonical fallback descriptor uses code `CORETSIA_UNHANDLED_EXCEPTION`, message `Unhandled exception.`, severity `error`, `httpStatus = null`, and empty `extensions`. The fallback contains only static safe values and does not copy Throwable messages, traces, locations, previous exceptions, or caller metadata.
 
-`platform/errors` MAY define implementation-specific mapper ordering and fallback policy, but the final normalized output MUST remain a canonical `ErrorDescriptor`.
+`platform.errors` requires `core.foundation` and `platform.redaction` through canonical module composition and matching Composer dependencies.
+
+`platform/errors` MUST consume the existing redaction and observability ports. It MUST NOT introduce competing redaction engines, reporter implementations, mapper registries, container composition paths, or descriptor schemas.
+
+A successfully constructed runtime `ErrorHandler` MUST return a canonical `ErrorDescriptor` for every `Throwable` passed to `handle()`, without propagating mapper, redaction, reporter, logger, tracer, meter, or timing collaborator failures.
+
+This guarantee applies to the successfully constructed runtime handler. Pre-container bootstrap failures, module-composition failures, and service-construction failures remain owned by their existing boundaries.
+
+`ErrorHandler` MUST NOT install a global PHP exception handler, create or finish a Kernel UnitOfWork, reset ContextStore, or produce transport-specific output.
+
+`platform/errors` MUST NOT redefine the `ErrorDescriptor` field schema. The canonical descriptor shape remains owned by `core/contracts`.
 
 ### `platform/problem-details`
 
@@ -148,53 +172,86 @@ This is runtime policy, not a `core/contracts` dependency.
 
 ### HTTP, CLI, and Worker adapters
 
-Runtime adapters own presentation only.
+Runtime adapters own their transport-specific presentation and failure boundaries.
 
 Adapters MAY render a normalized `ErrorDescriptor` into transport-specific output.
 
-Adapters MUST NOT create alternative normalized descriptor shapes.
+Adapter-owning packages MAY also contribute owner-specific `ExceptionMapperInterface` services through the canonical `error.mapper` tag, provided that they preserve the mapper-owner safety contract.
+
+Contributing an owner-specific mapper MUST NOT transfer discovery, ordering, fallback selection, or global `ErrorHandlerInterface` binding ownership away from `platform/errors`.
+
+No runtime adapter may introduce a second `Throwable`-to-`ErrorDescriptor` dispatch pipeline or an alternative normalized descriptor shape.
 
 Adapters MUST NOT leak raw throwable details, stack traces, headers, cookies, request bodies, response bodies, raw SQL, credentials, tokens, private customer data, profile payloads, or absolute local paths.
 
 ## Canonical flow
 
-The canonical high-level flow is:
+The canonical runtime normalization flow is:
 
 ```text
 Throwable
   ↓
-ExceptionMapperInterface implementations
+ErrorHandlerInterface::handle()
   ↓
-?ErrorDescriptor
+Capture canonical correlation id at most once
   ↓
-platform/errors mapper registry fallback resolution
+Preserve explicit mapper context or construct a safe default context
   ↓
-ErrorDescriptor
+If reporting is enabled: start Stopwatch and error.map span independently
   ↓
-ErrorHandlerInterface / ErrorReporterPortInterface
+ExceptionMapperRegistry::map()
+  → TagRegistry::all(ReservedTags::ERROR_MAPPER)
+  → preserve priority DESC / serviceId ASC order
+  → lazily resolve candidates; first non-null ErrorDescriptor wins
   ↓
-Runtime adapter
+DefaultExceptionMapper if discovery is exhausted or registry dispatch fails
   ↓
-HTTP response / CLI output / worker failure result / logs / spans / metrics
+ErrorDescriptor::toArray()
+  ↓
+SensitiveDataRedactorInterface::redactJsonLike()
+  ↓
+ErrorDescriptor::fromArray()
+  ↓
+Fixed safe fallback if redaction or reconstruction fails (no redaction retry)
+  ↓
+Final format-neutral ErrorDescriptor
+  ↓
+If reporting is enabled: stop Stopwatch if started, emit metrics,
+finalize and end the span if created
+  ↓
+If reporting is enabled and reporter filters allow: report once with safe context
+  ↓
+Return ErrorDescriptor to the requesting runtime consumer
 ```
 
-`ExceptionMapperInterface::map()` MAY return `null`.
+The canonical runtime handler MUST apply one fixed redaction context:
 
-A `null` mapper result means that the mapper does not handle the throwable and the owner registry may try the next mapper or use its fallback descriptor.
+```text
+scope: errors.descriptor
+mode: placeholder
+```
 
-The stable normalization point is:
+The shared redactor is mandatory even when error reporting is disabled.
+
+An invalid redaction result, a thrown redactor exception, or failed descriptor reconstruction MUST select the fixed safe fallback. The handler MUST NOT return the unredacted candidate, retry mapper discovery, or recursively redact the fallback.
+
+Correlation enrichment MUST be invocation-local. Explicit mapper context MUST remain authoritative for mapping, while optional reporting MUST receive a separately constructed sanitized context without arbitrary caller metadata.
+
+Reporter filtering by minimum severity, excluded codes, and sampling MUST occur only after normalization. These filters MUST NOT change mapper discovery, descriptor selection, mandatory redaction, or mapping telemetry.
+
+Optional reporting, tracing, metrics, and timing operations MUST NOT replace the selected descriptor or cause recursive error handling.
+
+The stable normalization point remains:
 
 ```text
 ErrorDescriptor
 ```
 
-Transport-specific representations MUST be derived from `ErrorDescriptor`.
-
-Transport-specific representations MUST NOT become the canonical internal error model.
+Transport-specific representations MUST be derived from the canonical descriptor and MUST NOT become an alternative internal error model.
 
 ## Mapper discovery
 
-Exception mapper discovery is runtime-owned by `platform/errors`.
+Exception mapper discovery and dispatch are runtime-owned by `platform/errors`.
 
 The canonical reserved discovery tag is:
 
@@ -202,25 +259,45 @@ The canonical reserved discovery tag is:
 error.mapper
 ```
 
-The canonical code-level identifier for this Coretsia-reserved DI tag is:
+The canonical code-level identifier is:
 
 ```text
 Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER
 ```
 
-The tag is registered in:
+The tag is registered in `docs/ssot/tags.md`. The contracts package MAY reference the tag as runtime policy but MUST NOT declare its identifier or own its runtime semantics.
+
+`ExceptionMapperRegistry` MUST enumerate mapper registrations exclusively through:
 
 ```text
-docs/ssot/tags.md
+TagRegistry::all(ReservedTags::ERROR_MAPPER)
 ```
 
-The contracts package MAY reference `error.mapper` in documentation as runtime policy.
+The registry MUST preserve the existing Foundation TagRegistry invariants:
 
-The contracts package MUST NOT declare this tag as a public constant.
+- priority descending;
+- service id ascending under byte-order `strcmp`;
+- first-wins handling of duplicate `(tag, serviceId)` registrations.
 
-The contracts package MUST NOT own mapper registry semantics.
+Mapper registration metadata MUST be exactly `[]`. The actual priority MUST be supplied through canonical tag registration, not metadata.
 
-Non-owner packages using the tag MUST follow the tag registry rules, MUST use `Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER` in runtime package source, and MUST NOT redefine competing semantics, competing metadata schema, or additional code-level registries for `error.mapper`.
+Mapper services MUST be resolved lazily through their registered service ids and MUST implement `ExceptionMapperInterface`.
+
+The registry MUST preserve candidate order without re-sorting, re-deduplicating, filesystem scanning, or maintaining a separate mapper catalog.
+
+A mapper returning `null` declines the exception. The first non-null `ErrorDescriptor` wins.
+
+Invalid metadata, failed service resolution, invalid service types, and mapper execution failures MUST be isolated to the affected candidate. Subsequent candidates MUST remain eligible in canonical order.
+
+Mapper failures MAY produce only fixed safe diagnostic events and low-cardinality reason tokens when the configured diagnostics policy allows them. Raw Throwable details, mapper exceptions, service identifiers, and caller metadata MUST NOT be disclosed.
+
+Mapper failures MUST NOT introduce a second exception hierarchy or alter the canonical error contracts.
+
+An exhausted or empty registry returns `null` to `ErrorHandler`, which selects the fixed `DefaultExceptionMapper` fallback.
+
+`DefaultExceptionMapper` MUST NOT be registered under `error.mapper`. No adapter or contributing mapper owns the final fallback policy.
+
+Non-owner packages using this tag MUST follow the canonical tag contract and MUST NOT define competing mapper registries, metadata schemas, discovery mechanisms, ordering rules, or global error-handler bindings.
 
 ## Forbidden dependency directions
 
@@ -328,9 +405,39 @@ CLI adapters MAY map:
 ErrorDescriptor → CLI diagnostic output
 ```
 
+`platform.cli` consumes the canonical `ErrorHandlerInterface` supplied by the selected `platform.errors` module.
+
+`CliApplication` MUST invoke the canonical handler for normal-path Throwable normalization and MUST NOT construct or use a competing CLI-owned error handler.
+
+`platform.cli` contributes `CliExceptionMapper` as an owner-specific `ExceptionMapperInterface` implementation through `ReservedTags::ERROR_MAPPER`, using canonical tag priority `100` and empty metadata.
+
+`CliExceptionMapper` owns only the classification of its allowlisted CLI and Kernel Ops exceptions into safe `ErrorDescriptor` values. It MUST preserve the existing public error codes and reason tokens without copying raw Throwable messages, previous exceptions, traces, or arbitrary caller metadata.
+
+CLI-owned exception classification MUST remain separate from CLI transport rendering.
+
+`ExceptionRenderer` owns CLI-specific presentation of normalized descriptors. The canonical fallback descriptor:
+
+```text
+CORETSIA_UNHANDLED_EXCEPTION
+Unhandled exception.
+```
+
+MUST be rendered through the existing CLI public fallback:
+
+```text
+CORETSIA_CLI_INTERNAL_ERROR
+Internal CLI error.
+```
+
+This translation is CLI presentation policy, not a second exception mapping pass.
+
+CLI command output buffering, formatting, suggestions, exit codes, and ultra-early bootstrap failure handling remain owned by their existing CLI boundaries.
+
+HTTP and Worker are not wired to `ErrorHandlerInterface` by this epic; they retain their owner-defined failure boundaries. Any adapter consumption of the canonical handler requires an explicit integration contract, and Worker task settlement must continue receiving the original `Throwable`.
+
 CLI output MUST remain safe.
 
-CLI output MUST NOT include raw stack traces, secrets, raw payloads, raw SQL, credentials, tokens, cookies, private customer data, or absolute local paths unless a future explicit debug policy defines a safe gated mode.
+CLI output MUST NOT include raw stack traces, secrets, raw payloads, raw SQL, credentials, tokens, cookies, private customer data, or absolute local paths.
 
 ### Worker adapter policy
 
@@ -387,7 +494,7 @@ Mappers MAY inspect `Throwable` internally.
 
 Mappers MAY return `null` when they do not handle the throwable.
 
-Mapper registries owned by `platform/errors` SHOULD continue through registered mappers until a non-null `ErrorDescriptor` is returned or a safe fallback descriptor is selected.
+The canonical `ExceptionMapperRegistry` MUST continue through registered mapper candidates in TagRegistry order until the first non-null `ErrorDescriptor` is selected or all candidates are exhausted. Final fallback selection belongs exclusively to `ErrorHandler`, outside tagged mapper dispatch.
 
 Mappers MUST NOT expose raw `Throwable` objects through `ErrorDescriptor`.
 
@@ -461,21 +568,27 @@ packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php
 packages/core/contracts/tests/Contract/ErrorPortsShapeContractTest.php
 ```
 
-Future runtime evidence may include:
+Current runtime enforcement evidence includes:
 
 ```text
 packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php
+packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php
+packages/platform/errors/tests/Integration/MapperLazyResolutionTest.php
+packages/platform/errors/tests/Integration/MapperFailureIsolationTest.php
+packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php
+packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php
+packages/platform/errors/tests/Integration/ErrorHandlingContextIsolationTest.php
+packages/platform/errors/tests/Integration/ErrorsModuleCompositionTest.php
+packages/platform/cli/tests/Unit/CliExceptionMapperTest.php
+packages/platform/cli/tests/Integration/CliCanonicalErrorHandlerIntegrationTest.php
 ```
 
-That future runtime evidence is not a precondition for this SSoT document.
+These tests verify the canonical runtime normalization flow, mapper dispatch, fallback safety, redaction, context isolation, module composition, and CLI adapter integration.
 
 ## Non-goals
 
 This SSoT does not define:
 
-- concrete mapper registry implementation;
-- mapper priority algorithm;
-- concrete fallback error handler;
 - concrete HTTP middleware class shape;
 - concrete CLI renderer;
 - concrete worker failure renderer;

@@ -35,7 +35,7 @@ PHP ^8.4
 coretsia/framework
 ```
 
-`coretsia/framework` is the only project-owned Coretsia baseline root requirement. It is a Composer metapackage that requires Kernel and CLI. CLI requires Redaction, so baseline Composer installation also installs Redaction transitively:
+`coretsia/framework` is the only project-owned Coretsia baseline root requirement. It is a Composer metapackage that requires Kernel and CLI. CLI directly requires Errors and Redaction, and Errors also requires Redaction, so baseline Composer installation includes both packages transitively:
 
 ```text
 coretsia/skeleton
@@ -43,12 +43,21 @@ coretsia/skeleton
         -> coretsia/core-kernel
         -> coretsia/platform-cli
             -> coretsia/core-kernel
+            -> coretsia/platform-errors
+                -> coretsia/core-foundation
+                -> coretsia/platform-redaction
             -> coretsia/platform-redaction
 ```
 
-Composer also installs the remaining transitive dependencies, including Coretsia Contracts and Foundation. No separate CLI or Redaction root requirement is needed in the Skeleton project.
+Composer also installs the remaining transitive dependencies, including Coretsia Contracts and Foundation. No separate CLI, Errors, or Redaction root requirement is needed in the Skeleton project.
 
-The default Kernel preset is `micro` (`kernel.boot.default_preset`). It selects `core.foundation` and `core.kernel` as required runtime modules and `platform.cli` as a selectable module. The CLI module requires `core.kernel` and `platform.redaction`; Redaction is therefore part of the effective default Console `ModulePlan` through the Kernel dependency graph, not an additional preset root.
+The default Kernel preset is `micro` (`kernel.boot.default_preset`). It selects `core.foundation` and `core.kernel` as required runtime modules and `platform.cli` as a selectable module. The CLI module requires `core.kernel`, `platform.errors`, and `platform.redaction`; Errors requires `core.foundation` and `platform.redaction`. The effective default Console `ModulePlan` therefore contains:
+
+```text
+core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
+```
+
+Errors and Redaction are transitive dependencies, not additional preset roots. If `platform.cli` is selected and its Errors dependency is missing or explicitly excluded, module composition fails closed.
 
 Composer installation establishes the physical package graph; it does not enable runtime modules. The Kernel independently resolves a target-local `ModulePlan` from the effective preset and module overrides. The normal CLI host requires an enabled `platform.cli` in its Console plan and fails closed when it is excluded.
 
@@ -147,14 +156,14 @@ Canonical multi-target example with explicitly selected `web` and `worker` targe
 
 ```text
 explicit targets: web, worker
-web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.redaction
-worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
 
 project-wide physical module union:
-core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
+core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
 ```
 
-Both target-local closures include `platform.redaction` through the `platform.cli` runtime dependency. The project-wide union determines physical Composer installation intent, not global runtime enablement: `platform.worker` remains disabled in `ModulePlan(web)` even though it is installed for `worker`. Only explicitly selected targets participate in dependency planning, and adding mode-required packages still requires an explicit DependencySync `apply`.
+Both target-local closures include `platform.errors` and `platform.redaction` through the `platform.cli` runtime dependency. The project-wide union determines physical Composer installation intent, not global runtime enablement: `platform.worker` remains disabled in `ModulePlan(web)` even though it is installed for `worker`. Only explicitly selected targets participate in dependency planning, and adding mode-required packages still requires an explicit DependencySync `apply`.
 
 See `docs/ssot/application-dependency-sync.md` in the Coretsia monorepo for the normative ownership, execution, verification, and recovery contract.
 

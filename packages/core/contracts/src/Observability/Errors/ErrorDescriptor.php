@@ -271,6 +271,56 @@ final readonly class ErrorDescriptor
     }
 
     /**
+     * Reconstructs a descriptor from the canonical exported field set.
+     *
+     * Rejects malformed payloads without exposing values or retaining the
+     * underlying constructor or enum validation exception.
+     *
+     * @param array<array-key, mixed> $payload
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function fromArray(array $payload): self
+    {
+        if (
+            count($payload) !== 6
+            || !array_key_exists('code', $payload)
+            || !array_key_exists('extensions', $payload)
+            || !array_key_exists('httpStatus', $payload)
+            || !array_key_exists('message', $payload)
+            || !array_key_exists('schemaVersion', $payload)
+            || !array_key_exists('severity', $payload)
+            || !is_string($payload['code'])
+            || !is_array($payload['extensions'])
+            || count($payload['extensions']) > self::MAX_EXTENSION_NODES
+            || ($payload['httpStatus'] !== null && !is_int($payload['httpStatus']))
+            || !is_string($payload['message'])
+            || $payload['schemaVersion'] !== self::SCHEMA_VERSION
+            || !is_string($payload['severity'])
+        ) {
+            throw new \InvalidArgumentException('Invalid error descriptor payload.');
+        }
+
+        foreach ($payload['extensions'] as $key => $_) {
+            if (!is_string($key)) {
+                throw new \InvalidArgumentException('Invalid error descriptor payload.');
+            }
+        }
+
+        try {
+            return new self(
+                code: $payload['code'],
+                message: $payload['message'],
+                severity: ErrorSeverity::from($payload['severity']),
+                httpStatus: $payload['httpStatus'],
+                extensions: $payload['extensions'],
+            );
+        } catch (\Throwable) {
+            throw new \InvalidArgumentException('Invalid error descriptor payload.');
+        }
+    }
+
+    /**
      * @return non-empty-string
      */
     private static function normalizeCode(string $code): string

@@ -97,6 +97,45 @@ final class DependencySyncFreshProcessVerificationTest extends TestCase
         $root = self::consumer();
 
         try {
+            $manifest = \json_decode(
+                (string) \file_get_contents($root . '/composer.json'),
+                true,
+                flags: \JSON_THROW_ON_ERROR,
+            );
+            self::assertArrayNotHasKey('coretsia/platform-errors', $manifest['require']);
+
+            $cli = \json_decode(
+                (string) \file_get_contents($root . '/repository/coretsia-platform-cli/composer.json'),
+                true,
+                flags: \JSON_THROW_ON_ERROR,
+            );
+            self::assertSame(
+                ReleaseLine::fromFile(
+                    \dirname(__DIR__, 3) . '/tools/release/release-line.json',
+                )->publicConstraint(),
+                $cli['require']['coretsia/platform-errors'] ?? null,
+            );
+
+            $lock = \json_decode(
+                (string) \file_get_contents($root . '/composer.lock'),
+                true,
+                flags: \JSON_THROW_ON_ERROR,
+            );
+            self::assertContains(
+                'coretsia/platform-errors',
+                \array_column($lock['packages'] ?? [], 'name'),
+            );
+
+            $installed = \json_decode(
+                (string) \file_get_contents($root . '/vendor/composer/installed.json'),
+                true,
+                flags: \JSON_THROW_ON_ERROR,
+            );
+            self::assertContains(
+                'coretsia/platform-errors',
+                \array_column($installed['packages'] ?? [], 'name'),
+            );
+
             $input = self::verificationInput($root);
 
             \file_put_contents(
@@ -646,6 +685,11 @@ PHP,
                 [
                     'coretsia/platform-cli',
                     $repoRoot . '/packages/platform/cli',
+                    $releaseVersion,
+                ],
+                [
+                    'coretsia/platform-errors',
+                    $repoRoot . '/packages/platform/errors',
                     $releaseVersion,
                 ],
                 [

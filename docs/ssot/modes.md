@@ -24,7 +24,7 @@ owner: core/contracts
 
 This document is the Single Source of Truth for Coretsia mode names, mode preset meaning, mode preset contract semantics, and deterministic mode preset loading policy.
 
-This document governs contracts introduced by epic `1.70.0` under:
+This document governs the canonical mode preset contracts under:
 
 ```text
 packages/core/contracts/src/Module/
@@ -183,20 +183,18 @@ An explicit per-target exclusion MAY remove this selectable root.
 
 `platform.worker` is selectable by default only for `hybrid` and `enterprise`; neither module becomes non-excludable merely because a preset selects it.
 
-`platform.cli` declares runtime module dependencies on `core.kernel` and `platform.redaction`; `platform.redaction` requires `core.foundation`.
+`platform.cli` declares runtime module dependencies on `core.kernel`, `platform.errors`, and `platform.redaction`. `platform.errors` requires `core.foundation` and `platform.redaction`; `platform.redaction` requires `core.foundation`.
 
-The Kernel resolves this transitive dependency closure from module metadata.
-
-`platform.redaction` is not a direct `required` or `modules` entry of any canonical preset, so the canonical preset resources rely on the module graph to supply it.
+The Kernel resolves this transitive dependency closure from module metadata. `platform.errors` and `platform.redaction` are not direct `required` or `modules` entries of any canonical preset; they are enabled transitively when `platform.cli` is selected. No canonical preset root is added.
 
 Provided the corresponding modules are physically installed and no per-target overrides apply, the effective enabled `ModulePlan` sets are:
 
-| Preset       | Effective enabled modules                                                                 |
-|--------------|-------------------------------------------------------------------------------------------|
-| `micro`      | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`                    |
-| `express`    | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`                    |
-| `hybrid`     | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`, `platform.worker` |
-| `enterprise` | `core.foundation`, `core.kernel`, `platform.cli`, `platform.redaction`, `platform.worker` |
+| Preset       | Effective enabled modules                                                                                    |
+|--------------|--------------------------------------------------------------------------------------------------------------|
+| `micro`      | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`                    |
+| `express`    | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`                    |
+| `hybrid`     | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`, `platform.worker` |
+| `enterprise` | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`, `platform.worker` |
 
 These are byte-order-sorted enabled sets, not a replacement for the Kernel-owned deterministic dependency traversal or topological order.
 
@@ -204,7 +202,7 @@ Module availability and exclusions are validated per selected application target
 
 Canonical presets are runtime selection policies, not Composer package distributions, independently versioned preset packages, or implicit installation instructions.
 
-`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel` and `coretsia/platform-cli`; Composer installs `coretsia/platform-redaction` transitively through CLI.
+`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel` and `coretsia/platform-cli`; Composer installs `coretsia/platform-errors` and `coretsia/platform-redaction` transitively through CLI.
 
 Any additional physical packages required for a selected target remain subject to explicit DependencySync `plan` / `review` / `apply` operations.
 
@@ -281,7 +279,7 @@ For canonical presets, excluding the selectable `platform.cli` root removes it f
 
 Excluding `core.foundation` or `core.kernel` is invalid because both are in `required`.
 
-Excluding `platform.redaction` while `platform.cli` remains selected fails during required-dependency graph resolution rather than silently disabling a transitive dependency.
+Excluding `platform.errors` or `platform.redaction` while `platform.cli` remains selected fails during required-dependency graph resolution rather than silently disabling a transitive dependency. A missing required `platform.errors` module also fails closed during module composition.
 
 The Console source operations host also fails closed if its resolved `ModulePlan` does not enable `platform.cli`.
 
@@ -338,16 +336,16 @@ return [
 and an explicit installation set containing `web` and `worker` (with the selected module graph physically installed):
 
 ```text
-web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.redaction
-worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
 
 project-wide physical module union:
-core.foundation, core.kernel, platform.cli, platform.redaction, platform.worker
+core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
 ```
 
 The global `micro` preset is the fallback for `web`; the explicit per-target `enterprise` preset applies to `worker`.
 
-Both target-local module closures include `platform.redaction` as a transitive dependency of `platform.cli`.
+Both target-local module closures include `platform.errors` and `platform.redaction` as transitive dependencies of `platform.cli`.
 
 The physical union includes `platform.worker`, but `ModulePlan(web)` does not enable it.
 

@@ -1268,6 +1268,7 @@ ssot_refs:
 ---
 
 - [ ] update `5.60.0 coretsia/queue` to consume `SensitiveDataRedactorInterface` for job payloads, retry diagnostics, dead-letter summaries, and worker logs.
+- [ ] update `5.60.0 coretsia/queue` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for normalized, redacted worker failure reporting only, add matching direct Composer and `platform.errors` module requirements for the queue runtime, and preserve the original Throwable for retry/dead-letter settlement and Kernel UnitOfWork semantics without replacing worker lifecycle or task-settlement boundaries.
 
 ### Dependencies (MUST)
 
@@ -2164,6 +2165,7 @@ ssot_refs:
 ---
 
 - [ ] update `5.100.0 coretsia/cqrs` to consume `SensitiveDataRedactorInterface` for command/query payload summaries.
+- [ ] update `5.100.0 coretsia/cqrs` to contribute `CommandBusProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for handler-not-found failures, replacing legacy `reason` metadata and reusing Foundation `ReservedTags.php` without recreating it.
 
 ### Dependencies (MUST)
 

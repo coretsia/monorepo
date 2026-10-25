@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Cli\Provider;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
@@ -35,7 +36,6 @@ use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Exception\CliConfigInvalidException;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
@@ -236,11 +236,6 @@ final class CliServiceFactory
         return new SmartSuggestor();
     }
 
-    public static function cliErrorHandler(): CliErrorHandler
-    {
-        return new CliErrorHandler();
-    }
-
     public static function exceptionRenderer(): ExceptionRenderer
     {
         return new ExceptionRenderer();
@@ -253,7 +248,7 @@ final class CliServiceFactory
         FormatResolver $formats,
         ColorResolver $colors,
         CommandRunner $runner,
-        CliErrorHandler $errors,
+        ErrorHandlerInterface $errors,
         ExceptionRenderer $exceptions,
         OutputFormatter $output,
         SmartSuggestor $suggestions,

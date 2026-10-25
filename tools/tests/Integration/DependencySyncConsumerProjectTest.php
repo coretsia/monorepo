@@ -63,6 +63,26 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer();
 
         try {
+            $manifest = self::manifest($root);
+            self::assertArrayNotHasKey('coretsia/platform-errors', $manifest['require']);
+
+            $cli = \json_decode(
+                (string) \file_get_contents($root . '/repository/coretsia-platform-cli/composer.json'),
+                true,
+                flags: \JSON_THROW_ON_ERROR,
+            );
+            self::assertSame(
+                self::publicConstraint(),
+                $cli['require']['coretsia/platform-errors'] ?? null,
+            );
+            self::assertSame(
+                self::releaseVersion(),
+                self::lockPackage($root, 'coretsia/platform-errors')['version'],
+            );
+            self::assertTrue(
+                self::installedState($root, 'coretsia/platform-errors')['installed'],
+            );
+
             \mkdir($root . '/apps/worker', 0777, true);
 
             $payload = self::successfulAdapter(
@@ -79,6 +99,10 @@ final class DependencySyncConsumerProjectTest extends TestCase
             );
             self::assertNotContains(
                 'platform.worker',
+                $payload['result']['plan']['unionModuleIds'] ?? [],
+            );
+            self::assertContains(
+                'platform.errors',
                 $payload['result']['plan']['unionModuleIds'] ?? [],
             );
 
@@ -101,6 +125,9 @@ final class DependencySyncConsumerProjectTest extends TestCase
             );
             self::assertTrue(
                 self::installedState($root, 'coretsia/core-kernel')['installed'],
+            );
+            self::assertTrue(
+                self::installedState($root, 'coretsia/platform-errors')['installed'],
             );
             self::assertFalse(
                 self::installedState($root, 'coretsia/platform-worker')['installed'],
@@ -751,6 +778,11 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 [
                     'coretsia/platform-cli',
                     $repoRoot . '/packages/platform/cli',
+                    $releaseVersion,
+                ],
+                [
+                    'coretsia/platform-errors',
+                    $repoRoot . '/packages/platform/errors',
                     $releaseVersion,
                 ],
                 [

@@ -18,12 +18,14 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Integration;
 
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Ops\KernelOpsHostBooter;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Tests\Integration\Support\CliIntegrationTestCase;
+use Coretsia\Platform\Errors\ErrorHandler;
 use Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor;
 
 final class CliHostResolvesCanonicalSensitiveDataRedactorTest extends CliIntegrationTestCase
@@ -33,7 +35,9 @@ final class CliHostResolvesCanonicalSensitiveDataRedactorTest extends CliIntegra
         $root = self::consumer();
         try {
             $container = new KernelOpsHostBooter()->boot(new KernelOpsHostInput($root));
-            self::assertTrue($container->get(ModulePlan::class)->hasEnabledModule('platform.redaction'));
+            $plan = $container->get(ModulePlan::class);
+            self::assertTrue($plan->hasEnabledModule('platform.redaction'));
+            self::assertTrue($plan->hasEnabledModule('platform.errors'));
             $redactor = $container->get(SensitiveDataRedactorInterface::class);
             self::assertInstanceOf(DefaultSensitiveDataRedactor::class, $redactor);
             self::assertSame($redactor, $container->get(SensitiveDataRedactorInterface::class));
@@ -43,25 +47,46 @@ final class CliHostResolvesCanonicalSensitiveDataRedactorTest extends CliIntegra
                 $redactor,
                 new \ReflectionProperty(OutputFormatter::class, 'redactor')->getValue($formatter),
             );
+            $handler = $container->get(ErrorHandlerInterface::class);
+            self::assertInstanceOf(ErrorHandler::class, $handler);
+            self::assertSame($handler, $container->get(ErrorHandler::class));
+            self::assertSame(
+                $redactor,
+                new \ReflectionProperty(ErrorHandler::class, 'redactor')->getValue($handler),
+            );
         } finally {
             self::removeTree($root);
         }
     }
 
-    public function testCliProductionSourceDoesNotImportOrInstantiatePlatformRedactor(): void
+    public function testCliAndErrorsProductionSourcesDoNotImportOrInstantiatePlatformRedactor(): void
     {
-        $source = self::packageRoot() . '/src';
         foreach (
-            new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS),
-            ) as $file
+            [
+                self::packageRoot() . '/src',
+                self::repositoryRoot() . '/packages/platform/errors/src',
+            ] as $source
         ) {
-            if (!$file->isFile() || $file->getExtension() !== 'php') {
-                continue;
+            foreach (
+                new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS),
+                ) as $file
+            ) {
+                if (!$file->isFile() || $file->getExtension() !== 'php') {
+                    continue;
+                }
+                $contents = (string) \file_get_contents($file->getPathname());
+                self::assertStringNotContainsString(
+                    'Coretsia\\Platform\\Redaction\\',
+                    $contents,
+                    $file->getFilename(),
+                );
+                self::assertStringNotContainsString(
+                    'DefaultSensitiveDataRedactor',
+                    $contents,
+                    $file->getFilename(),
+                );
             }
-            $contents = (string) \file_get_contents($file->getPathname());
-            self::assertStringNotContainsString('Coretsia\\Platform\\Redaction\\', $contents, $file->getFilename());
-            self::assertStringNotContainsString('DefaultSensitiveDataRedactor', $contents, $file->getFilename());
         }
     }
 }

@@ -1,0 +1,71 @@
+{
+  "name": "coretsia/platform-errors",
+  "type": "library",
+  "description": "Coretsia error handling runtime package: deterministic exception mapping, safe error normalization, and redacted diagnostics.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "errors",
+    "runtime",
+    "error-handling",
+    "exception-mapping",
+    "error-descriptor",
+    "deterministic",
+    "redaction",
+    "observability"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.10.0",
+    "coretsia/core-foundation": "^0.10.0",
+    "coretsia/platform-redaction": "^0.10.0",
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Errors\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Errors\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.errors",
+      "moduleClass": "Coretsia\\Platform\\Errors\\Module\\ErrorsModule",
+      "providers": [
+        "Coretsia\\Platform\\Errors\\Provider\\ErrorsServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "platform.redaction"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/errors.php"
+    }
+  }
+}

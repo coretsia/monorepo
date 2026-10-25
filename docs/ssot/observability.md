@@ -184,6 +184,8 @@ The method/type mapping is canonical:
 | http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
 | cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`        |
 | cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`        |
+| error.map_total                          | `platform/errors` | counter | `operation`, `outcome`        |
+| error.map_duration_ms                    | `platform/errors` | observe | `operation`, `outcome`        |
 | foundation.reset_total                   | `core/foundation` | counter | `outcome`                     |
 | foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                     |
 | kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`        |
@@ -593,6 +595,24 @@ Configured workflow names, workflow definition values, step arguments, and optio
 
 All composite and normal command telemetry remains independently best-effort. Tracer, span, meter, logger, stopwatch, and permitted context-read failures MUST NOT mask the primary command exception, change its exit code, skip command execution, or interfere with Kernel-owned after-UoW hooks and reset.
 
+### Error normalization observability policy
+
+Error normalization observability is owned by `platform/errors`.
+
+The canonical span is `error.map`. The canonical metrics are `error.map_total` (`counter`) and `error.map_duration_ms` (`observe`), registered in the catalogs above.
+
+Both metric families MUST use exactly the existing `operation` and `outcome` label keys. The only allowed `operation` value is `map`; allowed `outcome` values are `ok` and `fallback`.
+
+`outcome = ok` requires a descriptor produced by a registered mapper and accepted after mandatory redaction and canonical descriptor validation.
+
+`outcome = fallback` means the final returned descriptor was selected through the canonical fallback path, including mapper exhaustion or fail-closed redaction or validation failure.
+
+An individual mapper failure followed by a descriptor from another registered mapper that passes redaction and validation MUST produce `outcome = ok`. Mapper-failure diagnostics MUST NOT independently determine or change the final normalization outcome.
+
+The final outcome MUST be selected after redaction, validation, and fallback selection. Reporter-only severity, code-exclusion, and sampling filters MUST NOT change this outcome or suppress mapping telemetry when global reporting is enabled.
+
+The `error.map` span MUST start before mapper dispatch with only `operation = map` and MUST finalize with only `operation = map` and `outcome = ok|fallback`. It covers normalization only, not reporter execution. No raw Throwable data, mapper details, context metadata, or additional metric label keys are permitted.
+
 ### Worker observability policy
 
 Worker observability is owned by `platform/worker`.
@@ -888,6 +908,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 
 - `http.request`
 - `cli.command`
+- `error.map`
 - `foundation.reset`
 - `kernel.uow`
 - `kernel.modules_resolve`

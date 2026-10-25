@@ -127,6 +127,23 @@ return array(
     ),
     6 =>
     array(
+      'composerName' => 'coretsia/platform-errors',
+      'defaultsConfigPath' => 'config/errors.php',
+      'id' => 'platform.errors',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Errors\\Module\\ErrorsModule',
+      'moduleId' => 'platform.errors',
+      'path' => 'packages/platform/errors',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Errors\\Provider\\ErrorsServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Errors\\',
+      'slug' => 'errors',
+    ),
+    7 =>
+    array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
       'id' => 'platform.redaction',
@@ -142,7 +159,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    7 =>
+    8 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

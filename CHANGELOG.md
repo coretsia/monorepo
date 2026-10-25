@@ -47,6 +47,41 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.10.0
+
+### Added
+
+- Introduced the `coretsia/platform-errors` runtime package as the canonical format-neutral Throwable-to-`ErrorDescriptor` normalization implementation, with the `platform.errors` module and `errors` configuration root.
+- Added deterministic exception mapper discovery and dispatch through the existing Foundation `error.mapper` tag and `TagRegistry`, preserving priority-descending and service-id-ascending ordering, lazy service resolution, candidate failure isolation, and first-non-null descriptor selection.
+- Added an untagged `DefaultExceptionMapper` with the fixed safe fallback code `CORETSIA_UNHANDLED_EXCEPTION`, ensuring that unhandled Throwables and mapper failures produce a deterministic normalized descriptor.
+- Added the strict contracts-owned `ErrorDescriptor::fromArray()` reconstruction API, preserving the canonical six-field descriptor schema and rejecting malformed payloads with a fixed safe validation error.
+- Added configurable error reporting with severity thresholds, exact error-code exclusions, integer-basis-point sampling, and independently controlled mapper-failure diagnostics. Reporting is disabled by default; normalization and redaction remain mandatory.
+- Added canonical `error.map` tracing, `error.map_total` counter, and `error.map_duration_ms` duration observations using fixed low-cardinality operation and outcome values.
+- Expanded unit, contract, integration, architecture, and consumer-project test coverage for mapper ordering, lazy resolution, failure isolation, safe fallback, redaction, reporting policy, module composition, source/compiled container parity, and CLI integration.
+- Added ADR-0036 and updated canonical SSoT, dependency architecture, package documentation, and consumer guidance for error normalization, module selection, and runtime ownership.
+
+### Changed
+
+- Integrated normal CLI Throwable normalization with the canonical `ErrorHandlerInterface` provided by `platform.errors`, while keeping CLI exception classification in the CLI-owned `CliExceptionMapper` registered under `error.mapper`.
+- Preserved CLI-specific public error codes, safe reason tokens, JSON/plain/table output, unknown-command suggestions, output buffering, and exit-code behavior. The canonical unhandled-exception fallback is presented as `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.`.
+- Extended `platform.cli` Composer and runtime module dependencies to include `platform.errors`, while retaining the direct CLI dependency on `platform.redaction`.
+- Updated the effective `micro`, `express`, `hybrid`, and `enterprise` module dependency closures to include `platform.errors` transitively without changing canonical preset roots or Kernel dependency-resolution algorithms.
+- Extended the release installation catalog and consumer DependencySync package planning to include `coretsia/platform-errors`. The framework and Skeleton baseline install Errors transitively through CLI without adding a direct framework requirement or enabling runtime modules through Composer installation.
+- Preserved Kernel UnitOfWork, Context, reset, HTTP rendering, Worker task-settlement, and runtime adapter ownership boundaries without introducing additional normalization or module-composition pipelines.
+
+### Removed
+
+- Removed the CLI-owned `CliErrorHandler` implementation and its dedicated normalization pipeline in favor of canonical handler consumption and CLI-owned mapper contribution.
+- Removed the corresponding CLI handler test fixtures, replacing their coverage with canonical exception-mapper and handler integration tests.
+
+### Security
+
+- Enforced mandatory shared sensitive-data redaction for normalized error descriptors through `SensitiveDataRedactorInterface`, followed by strict contracts-owned descriptor reconstruction.
+- Added fail-closed normalization behavior for invalid mapper output, registry failures, redaction failures, and descriptor reconstruction failures, using only fixed safe fallback values.
+- Isolated correlation enrichment, mapper-failure logging, reporter execution, tracing, metrics, and timing failures from the canonical error-handling result. The runtime handler returns a safe descriptor after successful service construction.
+- Preserved mapper-owned safe-by-construction error codes, public messages, and extensions without disclosing raw Throwable messages, stack traces, previous exceptions, credentials, payloads, sensitive context metadata, or absolute local paths.
+- Prevented reporting configuration, severity filters, exclusions, sampling, or optional observability failures from disabling mapper dispatch, mandatory redaction, or safe fallback selection.
+
 ## v0.9.1
 
 ### Added

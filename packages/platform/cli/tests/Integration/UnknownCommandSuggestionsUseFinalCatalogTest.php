@@ -77,14 +77,14 @@ final class UnknownCommandSuggestionsUseFinalCatalogTest extends TestCase
         self::assertSame('json', $records[1]['type']);
         self::assertSame([], $resolved());
         self::assertSame(0, $fixture->runtime->calls);
-        self::assertCount(2, $observed());
+        self::assertCount(3, $observed());
         self::assertSame([
             'suggestions' => [
                 SuggestionAlpcaCommand::NAME,
                 SuggestionAlpdaCommand::NAME,
                 SuggestionAlphaCommand::NAME,
             ],
-        ], $observed()[1]);
+        ], $observed()[2]);
 
         $ranked = $fixture->run(['tool:alpdz', '--format=json']);
         self::assertSame(1, $ranked['exit']);

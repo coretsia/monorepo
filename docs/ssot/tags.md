@@ -36,7 +36,7 @@ A single SSoT defines reserved DI tags, ownership, and naming rules so discovery
 - Every Coretsia-reserved DI tag identifier MUST be declared in `Coretsia\Foundation\Tag\ReservedTags`.
 - Runtime packages MUST NOT define additional code-level registries for Coretsia-reserved DI tag identifiers.
 - `ReservedTags` owns tag identifier strings only.
-- Runtime semantics, metadata schema, discovery, ordering, dispatch, validation, and consumer behavior remain owned by the semantic owner package declared in this SSoT.
+- Tag-specific semantics, metadata schema, mapper or command dispatch, validation, and consumer behavior remain owned by the semantic owner package declared in this SSoT. Deterministic tag enumeration order and duplicate-registration handling remain owned by Foundation `TagRegistry`.
 - Non-owner packages MAY use existing reserved tags, but MUST NOT redefine competing semantics or competing meta-schema for the same tag.
 - Raw literal tag strings are allowed in docs, tests, and fixtures for readability, but MUST NOT be the preferred runtime-code pattern.
 
@@ -145,6 +145,23 @@ options
 - `TagRegistry` uses first-wins semantics for repeated registrations of the same `(tag, serviceId)`; later registrations are discarded and MUST NOT be reconstructed or revalidated by the CLI consumer. Two distinct service ids declaring the same command `name` MUST fail deterministically, not silently override one another.
 - `doctor`, `help`, and `list` are reserved command names. Only the exact built-in command service ids registered by `platform/cli` MAY use them; external packages MUST NOT claim these names. The normal catalog includes the same `doctor` identity used by the ultra-early doctor path.
 - Command-owner packages MUST consume CLI command, input, and output functionality only through `Coretsia\Contracts\Cli\Command\CommandInterface`, `Coretsia\Contracts\Cli\Input\InputInterface`, and `Coretsia\Contracts\Cli\Output\OutputInterface`. They MUST NOT depend on concrete `platform/cli` implementations for command contribution or execution.
+
+## `error.mapper` Contract (MUST)
+
+`error.mapper` is owned by `platform/errors`; `Coretsia\Foundation\Tag\ReservedTags::ERROR_MAPPER` supplies only its canonical identifier.
+
+Enabled runtime packages MAY contribute owner-specific `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface` services through this existing tag without taking ownership of canonical mapper discovery, ordering, or fallback selection.
+
+- Every tagged service id MUST identify a container-registered service implementing `ExceptionMapperInterface`. Mapper services MUST be resolved lazily through `ContainerInterface::get($serviceId)` during mapper dispatch, not during registry construction.
+- Tag metadata MUST be exactly `[]`. Unknown or non-empty metadata MUST invalidate only the affected mapper candidate.
+- Mapper priority MUST be supplied through the canonical tag registration priority argument, not through metadata.
+- `TagRegistry::all(ReservedTags::ERROR_MAPPER)` defines the canonical deterministic order: actual tag priority descending, then service id ascending under byte-order `strcmp`.
+- `TagRegistry` uses first-wins semantics for duplicate `(tag, serviceId)` registrations. The Errors consumer MUST preserve the registry output without re-sorting, re-deduplicating, or constructing another mapper catalog.
+- The registry MUST invoke valid mapper candidates in canonical order. A `null` result means continue to the next candidate. The first non-null `ErrorDescriptor` wins.
+- Invalid metadata, service resolution failures, invalid service types, and mapper execution failures MUST be isolated to the affected candidate without preventing subsequent candidates from being considered.
+- If every mapper returns `null`, all candidates fail, or no mapper is registered, the registry MUST return `null` to the canonical handler.
+- `DefaultExceptionMapper` MUST NOT be registered under `error.mapper`. The fixed safe fallback is selected by `platform/errors` outside tagged discovery.
+- Contributing packages MUST NOT introduce another reserved tag identifier, registry, ordering policy, fallback pipeline, or global error-handler binding.
 
 ## Forbidden Non-canonical Tags (MUST)
 

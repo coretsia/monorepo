@@ -32,10 +32,11 @@
   ],
   "require": {
     "php": "^8.4",
-    "coretsia/core-contracts": "^0.9.0",
-    "coretsia/core-foundation": "^0.9.0",
-    "coretsia/core-kernel": "^0.9.0",
-    "coretsia/platform-redaction": "^0.9.0",
+    "coretsia/core-contracts": "^0.10.0",
+    "coretsia/core-foundation": "^0.10.0",
+    "coretsia/core-kernel": "^0.10.0",
+    "coretsia/platform-errors": "^0.10.0",
+    "coretsia/platform-redaction": "^0.10.0",
     "psr/container": "^2.0",
     "psr/log": "^3.0"
   },
@@ -65,6 +66,7 @@
       ],
       "requires": [
         "core.kernel",
+        "platform.errors",
         "platform.redaction"
       ],
       "conflicts": [],

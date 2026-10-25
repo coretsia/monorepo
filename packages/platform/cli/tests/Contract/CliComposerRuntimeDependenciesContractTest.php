@@ -35,6 +35,7 @@ final class CliComposerRuntimeDependenciesContractTest extends TestCase
             'coretsia/core-contracts',
             'coretsia/core-foundation',
             'coretsia/core-kernel',
+            'coretsia/platform-errors',
             'coretsia/platform-redaction',
         ];
         foreach ($required as $name) {
@@ -50,7 +51,10 @@ final class CliComposerRuntimeDependenciesContractTest extends TestCase
         \sort($internal);
         \sort($required);
         self::assertSame($required, $internal, 'CLI must not depend on a command-owner package for discovery.');
-        self::assertSame(['core.kernel', 'platform.redaction'], $manifest['extra']['coretsia']['requires']);
+        self::assertSame(
+            ['core.kernel', 'platform.errors', 'platform.redaction'],
+            $manifest['extra']['coretsia']['requires'],
+        );
         self::assertSame(['bin/coretsia'], $manifest['bin']);
         self::assertSame('runtime', $manifest['extra']['coretsia']['kind']);
         self::assertSame('platform.cli', $manifest['extra']['coretsia']['moduleId']);
@@ -67,7 +71,7 @@ final class CliComposerRuntimeDependenciesContractTest extends TestCase
         }
     }
 
-    public function testRedactionIsAnInstallationDependencyNotAConcretePhpDependency(): void
+    public function testErrorsAndRedactionAreInstallationDependenciesNotConcretePhpDependencies(): void
     {
         $sourceRoot = \dirname(__DIR__, 2) . '/src';
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($sourceRoot));
@@ -90,7 +94,7 @@ final class CliComposerRuntimeDependenciesContractTest extends TestCase
             }
             self::assertSame(
                 0,
-                \preg_match('~Coretsia\\\\Platform\\\\Redaction(?:\\\\|\b)~', $code),
+                \preg_match('~Coretsia\\\\Platform\\\\(?:Errors|Redaction)(?:\\\\|\b)~', $code),
                 $file->getFilename(),
             );
         }

@@ -23,6 +23,7 @@ deptrac:
     - '../../packages/core/kernel/src'
     - '../../packages/devtools/internal-toolkit/src'
     - '../../packages/platform/cli/src'
+    - '../../packages/platform/errors/src'
     - '../../packages/platform/redaction/src'
     - '../../packages/platform/worker/src'
 
@@ -56,6 +57,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Cli\\.*'
+    - name: 'platform.errors'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Errors\\.*'
     - name: 'platform.redaction'
       collectors:
         - type: classLike
@@ -78,6 +83,9 @@ deptrac:
       - 'core.contracts'
       - 'core.foundation'
       - 'core.kernel'
+    'platform.errors':
+      - 'core.contracts'
+      - 'core.foundation'
     'platform.redaction':
       - 'core.contracts'
       - 'core.foundation'

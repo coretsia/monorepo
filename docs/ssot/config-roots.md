@@ -178,6 +178,7 @@ config root: problem_details
 | root              | owner package_id           | defaults file                                                  | rules file                                           | notes                             |
 |-------------------|----------------------------|----------------------------------------------------------------|------------------------------------------------------|-----------------------------------|
 | `cli`             | `platform/cli`             | `packages/platform/cli/config/cli.php`                         | `packages/platform/cli/config/rules.php`             | Canonical CLI root.               |
+| `errors`          | `platform/errors`          | `packages/platform/errors/config/errors.php`                   | `packages/platform/errors/config/rules.php`          | Platform errors root.             |
 | `foundation`      | `core/foundation`          | `packages/core/foundation/config/foundation.php`               | `packages/core/foundation/config/rules.php`          | Runtime core root.                |
 | `kernel`          | `core/kernel`              | `packages/core/kernel/config/kernel.php`                       | `packages/core/kernel/config/rules.php`              | Runtime kernel root.              |
 | `http`            | `platform/http`            | `packages/platform/http/config/http.php`                       | `packages/platform/http/config/rules.php`            | Platform HTTP root.               |

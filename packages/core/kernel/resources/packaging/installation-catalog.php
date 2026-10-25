@@ -54,6 +54,19 @@ return array(
       'requires' =>
       array(
         0 => 'core.kernel',
+        1 => 'platform.errors',
+        2 => 'platform.redaction',
+      ),
+    ),
+    'platform.errors' =>
+    array(
+      'composerName' => 'coretsia/platform-errors',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
         1 => 'platform.redaction',
       ),
     ),
@@ -80,7 +93,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.9.0',
-  'releaseLine' => '0.9',
+  'publicConstraint' => '^0.10.0',
+  'releaseLine' => '0.10',
   'schemaVersion' => 1,
 );

@@ -48,6 +48,7 @@ This package is a Kernel-integrated source-host CLI runtime.
   - `coretsia/core-contracts`
   - `coretsia/core-foundation`
   - `coretsia/core-kernel`
+  - `coretsia/platform-errors`
   - `coretsia/platform-redaction`
   - `psr/container` and `psr/log`
 - Direct PHP source dependencies:
@@ -55,14 +56,14 @@ This package is a Kernel-integrated source-host CLI runtime.
   - `core/foundation`
   - `core/kernel`, restricted to approved runtime and host-bootstrap APIs
 - Forbidden production implementation dependencies:
-  - concrete `platform/redaction` implementation classes;
+  - concrete `platform/errors` and `platform/redaction` implementation classes;
   - `platform/worker` or any other command-owning runtime/integration package solely for command discovery or dispatch;
   - Kernel artifact compilers, generation locators, artifact readers, module-planning internals, or provider-plan resolvers;
   - third-party console frameworks, filesystem command discovery, and repository machinery under `tools/**`.
 
-`platform/redaction` is required in the Composer graph and through the `platform.cli` runtime module dependency closure. CLI consumes redaction only through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`; Composer installation does not grant permission to import concrete Redaction classes.
+`platform.errors` and `platform.redaction` are required by the `platform.cli` runtime module dependency closure and direct Composer requirements. CLI consumes canonical Throwable normalization through `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface` and redaction through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`; it does not import concrete Errors or Redaction implementations.
 
-The `coretsia/framework` baseline explicitly installs Kernel and CLI; Redaction is installed transitively through CLI. Installing a Composer package does not enable its runtime module. Kernel resolves the enabled modules for each application target from the effective preset, overrides, and declared module dependencies. Additional mode-required physical packages are handled only by explicit Kernel DependencySync `plan` / `review` / `apply` operations; application boot performs no implicit dependency synchronization.
+The `coretsia/framework` baseline directly installs Kernel and CLI; Errors and Redaction are installed transitively through CLI. Installing a Composer package does not enable its runtime module. Kernel resolves the enabled modules for each application target from the effective preset, overrides, and declared module dependencies. Additional mode-required physical packages are handled only by explicit Kernel DependencySync `plan` / `review` / `apply` operations; application boot performs no implicit dependency synchronization.
 
 ## Runtime responsibilities
 
@@ -79,7 +80,8 @@ The `coretsia/framework` baseline explicitly installs Kernel and CLI; Redaction 
 - bounded unknown-command suggestions derived from the final visible command catalog;
 - `debug:modules`, `config:validate`, `config:debug`, `config:compile`, `config:hash`, and `cache:verify` through `KernelOpsInterface`;
 - safe, deterministic JSON, table, and plain output through one final console writer;
-- CLI-owned tracing, metrics, safe completion logs, and fixed error diagnostics.
+- CLI-owned tracing, metrics, safe completion logs, and fixed error diagnostics;
+- owner-specific `CliExceptionMapper` classification through the canonical `error.mapper` tag, with normalization delegated to `ErrorHandlerInterface`.
 
 Normal CLI execution reuses the Kernel-owned source operations host and its validated configuration, module/provider plan, context, UnitOfWork, and observability ports. CLI does not create a second configuration or module-resolution pipeline, and normal operations-host boot does not require generated runtime artifacts.
 
@@ -158,7 +160,7 @@ bin/coretsia
     -> ConsoleOutputWriter
 ```
 
-The normal source host MUST resolve `ModulePlan` for `AppTarget::Console` and require `platform.cli` to be enabled. An absent or explicitly excluded CLI module fails closed with a fixed safe bootstrap diagnostic. Selecting `platform.cli` brings `core.kernel` and `platform.redaction` into the enabled module dependency closure; a Composer-installed but unselected module does not contribute its runtime services.
+The normal source host MUST resolve `ModulePlan` for `AppTarget::Console` and require `platform.cli` to be enabled. An absent or explicitly excluded CLI module fails closed with a fixed safe bootstrap diagnostic. Selecting `platform.cli` brings `core.kernel`, `platform.errors`, and `platform.redaction` into the enabled module dependency closure; a missing or excluded required Errors module fails closed during module composition. A Composer-installed but unselected module does not contribute its runtime services.
 
 Built-in Kernel operation commands include:
 
@@ -457,7 +459,9 @@ Raw argv, option or argument values, command output, paths, endpoints, config/en
 
 ## Errors
 
-CLI reports stable, path-safe error codes and bounded reason tokens rather than raw Throwable messages, stack traces, command-line contents, configuration values, or filesystem diagnostics. Known CLI and Kernel Ops port failures map through `CliErrorHandler` to safe `ErrorDescriptor` values; unknown execution errors become `CORETSIA_CLI_INTERNAL_ERROR`. The normal command failure boundary discards partial output before emitting a deterministic error record.
+CLI reports stable, path-safe error codes and bounded reason tokens rather than raw Throwable messages, stack traces, command-line contents, configuration values, or filesystem diagnostics. `CliApplication` uses the injected canonical `ErrorHandlerInterface` to normalize normal-path Throwables into safe `ErrorDescriptor` values. The CLI-owned `CliExceptionMapper` contributes allowlisted CLI and Kernel Ops exception classification as a shared service under `ReservedTags::ERROR_MAPPER` (`error.mapper`), with priority `100` and empty metadata `[]`. The canonical registry preserves Foundation `TagRegistry` ordering, lazily resolves mapper services, and selects the first non-null descriptor; the CLI does not re-sort candidates or select the final fallback.
+
+`CliExceptionMapper` returns `null` for unsupported Throwables. When no mapper selects a descriptor, `platform/errors` returns the fixed `CORETSIA_UNHANDLED_EXCEPTION` descriptor, and CLI-owned `ExceptionRenderer` presents it as `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.` This translation is transport rendering, not another Throwable mapping pass. The normal command failure boundary discards partial output before emitting a deterministic error record and preserves the existing exit-code contract.
 
 The main CLI error code families are:
 

@@ -3611,6 +3611,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.100.0 coretsia/inbox` to consume `SensitiveDataRedactorInterface` for idempotency payloads and inbound message diagnostics.
+- [ ] update `6.100.0 coretsia/inbox` to contribute `InboxProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for deterministic 409 conflict descriptors, replacing legacy `handles` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -4449,6 +4450,7 @@ ssot_refs: []
 ---
 
 - [ ] update `6.130.0 devtools/api-docs` to avoid exposing secrets/PII in generated examples or debug docs.
+- [ ] update `6.130.0 devtools/api-docs` to contribute `ApiDocsProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for guarded 403/404 failures, replacing legacy `handles` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -5780,6 +5782,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 ---
 
+- [ ] update `6.163.0 coretsia/websocket` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` at the WebSocket handler-failure boundary, add matching direct Composer and `platform.errors` module requirements, and adapt its safe descriptor only to WebSocket-owned close/error semantics without HTTP rendering, duplicate mapping, or concrete `platform/errors` source imports.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -6006,6 +6010,8 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 ---
 
+- [ ] update `6.164.0 coretsia/graphql` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for uncaught GraphQL execution failures at its owned adapter boundary, add matching direct Composer and `platform.errors` module requirements, and adapt safe descriptors to GraphQL errors without duplicate normalization, RFC7807 handling, or concrete `platform/errors` source imports.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -6217,6 +6223,8 @@ ssot_refs:
 - docs/ssot/config-roots.md
 - docs/ssot/observability-and-errors.md
 ---
+
+- [ ] update `6.165.0 coretsia/grpc` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for uncaught interceptor/service failures, add matching direct Composer and `platform.errors` module requirements, and retain gRPC status and transport-specific failure presentation in the owning adapter without duplicate normalization or concrete `platform/errors` source imports.
 
 ### Dependencies (MUST)
 
@@ -6666,6 +6674,8 @@ ssot_refs:
 - docs/ssot/observability.md
 - docs/ssot/observability-and-errors.md
 ---
+
+- [ ] update `6.180.0 coretsia/async` to contribute `AsyncProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata only when its optional timeout mapper is enabled, replacing legacy `handles` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -10097,6 +10107,7 @@ ssot_refs: []
 ---
 
 - [ ] update `6.310.0 Enterprise SSO: OIDC` to consume `SensitiveDataRedactorInterface` for tokens, claims, provider payloads, and auth diagnostics.
+- [ ] update `6.310.0 Enterprise SSO: OIDC` to contribute `OidcProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe OIDC failure descriptors, replacing legacy `domain` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -10406,6 +10417,7 @@ ssot_refs: []
 ---
 
 - [ ] update `6.320.0 Enterprise SSO: SAML` to consume `SensitiveDataRedactorInterface` for assertions, claims, certificates, provider payloads, and auth diagnostics.
+- [ ] update `6.320.0 Enterprise SSO: SAML` to contribute `SamlProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe SAML failure descriptors, replacing legacy `domain` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -10689,6 +10701,7 @@ ssot_refs: []
 ---
 
 - [ ] update `6.330.0 Enterprise: SCIM` to consume `SensitiveDataRedactorInterface` for user/group provisioning payloads.
+- [ ] update `6.330.0 Enterprise: SCIM` to contribute `ScimProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe SCIM failure descriptors, replacing legacy `domain` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -12416,6 +12429,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.380.0 Webhooks` to consume `SensitiveDataRedactorInterface` for payloads, HMAC secrets, signatures, headers, retry diagnostics, and provider responses.
+- [ ] update `6.380.0 Webhooks` to contribute `WebhookProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata only when webhook verification exceptions require canonical HTTP error adaptation, without mapping delivery retry outcomes.
 
 ### Dependencies (MUST)
 
@@ -13578,6 +13592,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.400.0 API versioning` to consume `SensitiveDataRedactorInterface` for header/request diagnostics.
+- [ ] update `6.400.0 API versioning` to contribute `ApiVersioningProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for unsupported-version descriptors, leaving RFC7807 rendering to `platform/problem-details`.
 
 ### Dependencies (MUST)
 

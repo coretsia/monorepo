@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Cli\Tests\Contract;
 
 use Coretsia\Contracts\Kernel\Ops\KernelOpsInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -37,9 +38,9 @@ use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Kernel\KernelOpsRequestResolver;
+use Coretsia\Platform\Cli\Mapper\CliExceptionMapper;
 use Coretsia\Platform\Cli\Provider\CliServiceFactory;
 use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use Coretsia\Platform\Cli\UX\SmartSuggestor;
@@ -86,7 +87,8 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         $container = $builder->build();
         self::assertTrue($container->has(KernelOpsRequestResolver::class));
         self::assertTrue($container->has(CliApplication::class));
-        self::assertTrue($container->has(CliErrorHandler::class));
+        self::assertTrue($container->has(CliExceptionMapper::class));
+        self::assertFalse($container->has(ErrorHandlerInterface::class));
         self::assertTrue($container->has(ExceptionRenderer::class));
         $tags = $builder->tagRegistry()->all(ReservedTags::CLI_COMMAND);
         $ids = \array_map(static fn ($tag): string => $tag->id(), $tags);
@@ -100,6 +102,7 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         foreach ($serviceIds as $id) {
             self::assertTrue($container->has($id), $id);
         }
+
         \sort($ids);
         \sort($expected);
         self::assertSame($expected, $ids);
@@ -122,12 +125,19 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
             self::assertIsString($source);
             self::assertStringNotContainsString('Coretsia\\Kernel\\Ops\\KernelOpsFacade', $source);
         }
+
         foreach ($tags as $tag) {
             self::assertSame(0, $tag->priority());
             $keys = \array_keys($tag->meta());
             \sort($keys);
             self::assertSame(['arguments', 'group', 'hidden', 'name', 'options', 'summary'], $keys);
         }
+
+        $mappers = $builder->tagRegistry()->all(ReservedTags::ERROR_MAPPER);
+        self::assertCount(1, $mappers);
+        self::assertSame(CliExceptionMapper::class, $mappers[0]->id());
+        self::assertSame(100, $mappers[0]->priority());
+        self::assertSame([], $mappers[0]->meta());
     }
 
     public function testSourceHostResolvesCommandsWithTheRegisteredKernelOpsPort(): void
@@ -157,22 +167,28 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         $set = $definitions->build();
         $operations = $set->toDescriptorStream();
         $bindingIds = [];
-        $tagIds = [];
+        $commandTagIds = [];
+        $mapperTags = [];
         $referencedStrings = [];
+
         foreach ($operations as $operation) {
             if (isset($operation['id'])) {
                 $bindingIds[] = $operation['id'];
             }
-            if (($operation['kind'] ?? null) === 'tag') {
-                $tagIds[] = $operation['serviceId'];
+            if (($operation['tag'] ?? null) === ReservedTags::CLI_COMMAND) {
+                $commandTagIds[] = $operation['serviceId'];
+            } elseif (($operation['tag'] ?? null) === ReservedTags::ERROR_MAPPER) {
+                $mapperTags[] = $operation;
             }
             self::collectStrings($operation, $referencedStrings);
         }
+
         self::collectStrings($set->requiredServiceIds(), $referencedStrings);
+
         foreach (
             [
                 CliApplication::class,
-                CliErrorHandler::class,
+                CliExceptionMapper::class,
                 ExceptionRenderer::class,
                 ...self::GENERIC_COMMANDS,
                 ...self::WORKFLOW_INFRASTRUCTURE,
@@ -180,9 +196,15 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         ) {
             self::assertContains($id, $bindingIds);
         }
-        self::assertSame(self::GENERIC_COMMANDS, $tagIds);
+
+        self::assertSame(self::GENERIC_COMMANDS, $commandTagIds);
+        self::assertCount(1, $mapperTags);
+        self::assertSame(CliExceptionMapper::class, $mapperTags[0]['serviceId']);
+        self::assertSame(100, $mapperTags[0]['priority']);
+        self::assertSame([], $mapperTags[0]['meta']);
+
         foreach ($operations as $operation) {
-            if (($operation['kind'] ?? null) !== 'tag') {
+            if (($operation['tag'] ?? null) !== ReservedTags::CLI_COMMAND) {
                 continue;
             }
             self::assertSame(0, $operation['priority']);
@@ -190,8 +212,14 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
             \sort($keys);
             self::assertSame(['arguments', 'group', 'hidden', 'name', 'options', 'summary'], $keys);
         }
+
+        self::assertContains(ErrorHandlerInterface::class, $set->requiredServiceIds());
+        self::assertNotContains(ErrorHandlerInterface::class, $bindingIds);
+        self::assertNotContains(ErrorHandlerInterface::class, $commandTagIds);
+        self::assertNotContains(CliExceptionMapper::class, $commandTagIds);
         self::assertCount(\count(\array_unique($bindingIds)), $bindingIds);
         self::assertSame([], \array_intersect(self::OPERATIONS, $bindingIds));
+
         foreach (
             [
                 WorkflowSchema::class => 'workflowSchema',
@@ -213,6 +241,7 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
             self::assertSame(CliServiceFactory::class, $matches[0]['factoryClass']);
             self::assertSame($method, $matches[0]['method']);
         }
+
         foreach (
             [
                 KernelOpsRequestResolver::class,
@@ -224,6 +253,7 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
         ) {
             self::assertNotContains($forbidden, $referencedStrings, $forbidden);
         }
+
         self::assertNotContains('Coretsia\\Kernel\\Ops\\KernelOpsFacade', $referencedStrings);
     }
 
@@ -234,9 +264,11 @@ final class CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest ext
             $result[] = $value;
             return;
         }
+
         if (!\is_array($value)) {
             return;
         }
+
         foreach ($value as $key => $entry) {
             if (\is_string($key)) {
                 $result[] = $key;

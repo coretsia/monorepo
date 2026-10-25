@@ -693,32 +693,32 @@ Cross-package CLI integration:
 
 CLI normalization verification:
 
-- [ ] `packages/platform/cli/tests/Unit/CliExceptionMapperTest.php`
-  - [ ] verify each of the seven known exception types
-  - [ ] preserve existing code and reason values exactly
-  - [ ] return `null` for unknown Throwable types
-  - [ ] reject raw exception-message and previous-Throwable disclosure
-  - [ ] produce no transport-specific descriptor fields
-  - [ ] mapper does not perform redaction, reporting, or rendering
+- [x] `packages/platform/cli/tests/Unit/CliExceptionMapperTest.php`
+  - [x] verify each of the seven known exception types
+  - [x] preserve existing code and reason values exactly
+  - [x] return `null` for unknown Throwable types
+  - [x] reject raw exception-message and previous-Throwable disclosure
+  - [x] produce no transport-specific descriptor fields
+  - [x] mapper does not perform redaction, reporting, or rendering
 
-- [ ] `packages/platform/cli/tests/Integration/CliCanonicalErrorHandlerIntegrationTest.php`
-  - [ ] compose `platform.cli`, `platform.errors`, and `platform.redaction` through canonical Kernel module composition
-  - [ ] verify `ErrorHandlerInterface` resolves to the `platform/errors` implementation
-  - [ ] verify CLI-owned mapper discovery through `ReservedTags::ERROR_MAPPER`
-  - [ ] verify known CLI and Kernel Ops failures preserve existing public code/message pairs in the canonical baseline
-  - [ ] verify earlier registered mapper contributions retain canonical first-non-null precedence
-  - [ ] verify CLI mapping does not perform consumer-side mapper reordering or candidate filtering
-  - [ ] verify unknown Throwable uses the canonical fallback internally
-  - [ ] verify unknown Throwable renders as `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.`
-  - [ ] verify exception rendering does not expose raw messages, traces, previous exceptions, or caller metadata
-  - [ ] verify mapped exceptions preserve existing JSON/plain/table error-output behavior
-  - [ ] verify unknown-command suggestions and workflow failures preserve current output semantics
-  - [ ] verify normal CLI exit codes remain unchanged
-  - [ ] verify disabled error reporting does not disable mapping or mandatory redaction
-  - [ ] verify source and compiled container execution produce equivalent normalized results
-  - [ ] verify ultra-early doctor does not resolve the canonical handler
-  - [ ] verify missing or excluded `platform.errors` causes safe Console host failure
-  - [ ] verify no duplicate global error-handler binding exists
+- [x] `packages/platform/cli/tests/Integration/CliCanonicalErrorHandlerIntegrationTest.php`
+  - [x] compose `platform.cli`, `platform.errors`, and `platform.redaction` through canonical Kernel module composition
+  - [x] verify `ErrorHandlerInterface` resolves to the `platform/errors` implementation
+  - [x] verify CLI-owned mapper discovery through `ReservedTags::ERROR_MAPPER`
+  - [x] verify known CLI and Kernel Ops failures preserve existing public code/message pairs in the canonical baseline
+  - [x] verify earlier registered mapper contributions retain canonical first-non-null precedence
+  - [x] verify CLI mapping does not perform consumer-side mapper reordering or candidate filtering
+  - [x] verify unknown Throwable uses the canonical fallback internally
+  - [x] verify unknown Throwable renders as `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.`
+  - [x] verify exception rendering does not expose raw messages, traces, previous exceptions, or caller metadata
+  - [x] verify mapped exceptions preserve existing JSON/plain/table error-output behavior
+  - [x] verify unknown-command suggestions and workflow failures preserve current output semantics
+  - [x] verify normal CLI exit codes remain unchanged
+  - [x] verify disabled error reporting does not disable mapping or mandatory redaction
+  - [x] verify source and compiled container execution produce equivalent normalized results
+  - [x] verify ultra-early doctor does not resolve the canonical handler
+  - [x] verify missing or excluded `platform.errors` causes safe Console host failure
+  - [x] verify no duplicate global error-handler binding exists
 
 Architecture decision:
 
@@ -1455,7 +1455,7 @@ N/A
   - [x] the handler MUST NOT introduce a duplicate free-text secret scanner, taint engine, or sensitive-value classifier
   - [ ] protection against contract-violating mapper implementations MUST be covered by mapper-owner security tests and review, not assumed from generic redaction alone
   - [x] mapper extensions MUST be safe, bounded, deterministic json-like values
-  - [ ] all mapper implementations MUST satisfy the existing `ExceptionMapperInterface` safety contract
+  - [x] all mapper implementations MUST satisfy the existing `ExceptionMapperInterface` safety contract
   - [x] no direct copying of `Throwable::getMessage()` into descriptor messages
   - [x] no direct copying of Throwable properties or arbitrary context metadata into extensions
   - [x] `ErrorDescriptor` remains the final structural and semantic-key validation authority
@@ -1488,8 +1488,8 @@ N/A
   - [ ] safe lengths where owner policy permits disclosure
   - [ ] safe hashes only where non-reconstruction and disclosure policy permit
   - [ ] validated opaque identifiers only in owner-approved context channels
-- [ ] Security invariants:
-  - [ ] classifier non-matches MUST NOT be interpreted as authorization to disclose raw data
+- [x] Security invariants:
+  - [x] classifier non-matches MUST NOT be interpreted as authorization to disclose raw data
   - [x] `Placeholder` is the mandatory baseline redaction mode
   - [x] no implicit `Hash`, `Length`, or `HashAndLength` disclosure
   - [x] no raw-detail mode for local, development, testing, or production environments
@@ -1499,250 +1499,250 @@ N/A
 
 #### Required policy tests matrix
 
-- [ ] Context and correlation:
-  - [ ] canonical correlation provider returns a valid safe id
-  - [ ] missing correlation id produces no enrichment
-  - [ ] throwing correlation provider does not affect mapping
-  - [ ] malformed correlation-provider values rejected by `ErrorHandlingContext` do not escape `handle()`
-  - [ ] rejected correlation values produce null enrichment without changing descriptor selection
-  - [ ] rejected correlation values are not forwarded to mapping or reporting sinks
-  - [ ] correlation provider is not queried again after a rejected value
-  - [ ] correlation provider is invoked at most once per handle invocation
-  - [ ] mapping and reporting use the same captured correlation id when no explicit mapping context is supplied
-  - [ ] explicit mapper context remains unchanged
-  - [ ] mapper-side Context mutations cannot change the captured reporting correlation id
-  - [ ] explicit mapper context is preserved
-  - [ ] reporting context contains only allowlisted fields
-  - [ ] arbitrary caller metadata is not forwarded to reporter or telemetry sinks
-  - [ ] correlation id is never copied into descriptor extensions or metric labels
-  - [ ] no direct ContextStore or ContextAccessor dependency
-  - [ ] no Context writes occur
-- [ ] UnitOfWork:
-  - [ ] handler does not create or finish a Kernel UoW
-  - [ ] repeated calls retain no previous invocation state
-  - [ ] no `kernel.reset` or `kernel.stateful` registrations
-- [ ] Mapper discovery:
-  - [ ] priority DESC ordering
-  - [ ] serviceId ASC ordering using canonical TagRegistry behavior
-  - [ ] duplicate `(tag, serviceId)` first-wins semantics
-  - [ ] no consumer-side sorting or deduplication
-  - [ ] lazy service resolution
-  - [ ] no mapper service resolution when the registry is constructed
-  - [ ] first non-null descriptor wins
-  - [ ] all-null mappings select fallback
-  - [ ] empty registry selects fallback
-  - [ ] invalid service, invalid metadata, and mapper failures remain isolated
-- [ ] Redaction:
-  - [ ] uses `SensitiveDataRedactorInterface`
-  - [ ] no package-local redaction engine
-  - [ ] safe descriptor round-trip preserves canonical shape
-  - [ ] known classified sensitive keys and values are redacted according to the shared redaction policy
-  - [ ] invalid or failed redaction MUST NOT return the original candidate descriptor
-  - [ ] unclassified arbitrary free-text values are not assumed to be sanitized
-  - [ ] mapper-owned safe-message and safe-extension derivation remains mandatory
-  - [ ] malformed redaction output selects safe fallback
-  - [ ] redactor exceptions select safe fallback
-  - [ ] forbidden extension keys remain rejected
-  - [ ] resource-limit violations remain fail-closed
-- [ ] Observability:
-  - [ ] reporting disabled suppresses optional emission
-  - [ ] reporting enabled invokes canonical ports
-  - [ ] metrics use registered names and labels
-  - [ ] duration metrics use integer milliseconds
-  - [ ] span end is attempted after successful span creation
-  - [ ] reporter/logger/tracer/meter failures are independently isolated through throwing fixtures
-  - [ ] Stopwatch uses the real Foundation implementation and valid invocation-local timing tokens
-  - [ ] Stopwatch failure isolation remains defensive behavior without requiring an injectable throwing Stopwatch fixture
-  - [ ] no package-local clock or timing port is introduced solely for testing
-  - [ ] no recursive error reporting
-  - [ ] no sensitive values or identifiers in metric labels
-- [ ] Architecture:
-  - [ ] module metadata and Composer metadata match
-  - [ ] module requirements resolve through canonical ModulePlan
-  - [ ] redaction binding comes from the selected `platform.redaction` module
-  - [ ] Source and compiled container definitions are equivalent
-  - [ ] no duplicate reporter or redactor bindings
-  - [ ] no direct `platform/redaction` implementation dependency
-  - [ ] no forbidden HTTP/CLI/Worker implementation dependency
-  - [ ] generated package index, installation catalog, and Deptrac configuration are consistent
+- [x] Context and correlation:
+  - [x] canonical correlation provider returns a valid safe id
+  - [x] missing correlation id produces no enrichment
+  - [x] throwing correlation provider does not affect mapping
+  - [x] malformed correlation-provider values rejected by `ErrorHandlingContext` do not escape `handle()`
+  - [x] rejected correlation values produce null enrichment without changing descriptor selection
+  - [x] rejected correlation values are not forwarded to mapping or reporting sinks
+  - [x] correlation provider is not queried again after a rejected value
+  - [x] correlation provider is invoked at most once per handle invocation
+  - [x] mapping and reporting use the same captured correlation id when no explicit mapping context is supplied
+  - [x] explicit mapper context remains unchanged
+  - [x] mapper-side Context mutations cannot change the captured reporting correlation id
+  - [x] explicit mapper context is preserved
+  - [x] reporting context contains only allowlisted fields
+  - [x] arbitrary caller metadata is not forwarded to reporter or telemetry sinks
+  - [x] correlation id is never copied into descriptor extensions or metric labels
+  - [x] no direct ContextStore or ContextAccessor dependency
+  - [x] no Context writes occur
+- [x] UnitOfWork:
+  - [x] handler does not create or finish a Kernel UoW
+  - [x] repeated calls retain no previous invocation state
+  - [x] no `kernel.reset` or `kernel.stateful` registrations
+- [x] Mapper discovery:
+  - [x] priority DESC ordering
+  - [x] serviceId ASC ordering using canonical TagRegistry behavior
+  - [x] duplicate `(tag, serviceId)` first-wins semantics
+  - [x] no consumer-side sorting or deduplication
+  - [x] lazy service resolution
+  - [x] no mapper service resolution when the registry is constructed
+  - [x] first non-null descriptor wins
+  - [x] all-null mappings select fallback
+  - [x] empty registry selects fallback
+  - [x] invalid service, invalid metadata, and mapper failures remain isolated
+- [x] Redaction:
+  - [x] uses `SensitiveDataRedactorInterface`
+  - [x] no package-local redaction engine
+  - [x] safe descriptor round-trip preserves canonical shape
+  - [x] known classified sensitive keys and values are redacted according to the shared redaction policy
+  - [x] invalid or failed redaction MUST NOT return the original candidate descriptor
+  - [x] unclassified arbitrary free-text values are not assumed to be sanitized
+  - [x] mapper-owned safe-message and safe-extension derivation remains mandatory
+  - [x] malformed redaction output selects safe fallback
+  - [x] redactor exceptions select safe fallback
+  - [x] forbidden extension keys remain rejected
+  - [x] resource-limit violations remain fail-closed
+- [x] Observability:
+  - [x] reporting disabled suppresses optional emission
+  - [x] reporting enabled invokes canonical ports
+  - [x] metrics use registered names and labels
+  - [x] duration metrics use integer milliseconds
+  - [x] span end is attempted after successful span creation
+  - [x] reporter/logger/tracer/meter failures are independently isolated through throwing fixtures
+  - [x] Stopwatch uses the real Foundation implementation and valid invocation-local timing tokens
+  - [x] Stopwatch failure isolation remains defensive behavior without requiring an injectable throwing Stopwatch fixture
+  - [x] no package-local clock or timing port is introduced solely for testing
+  - [x] no recursive error reporting
+  - [x] no sensitive values or identifiers in metric labels
+- [x] Architecture:
+  - [x] module metadata and Composer metadata match
+  - [x] module requirements resolve through canonical ModulePlan
+  - [x] redaction binding comes from the selected `platform.redaction` module
+  - [x] Source and compiled container definitions are equivalent
+  - [x] no duplicate reporter or redactor bindings
+  - [x] no direct `platform/redaction` implementation dependency
+  - [x] no forbidden HTTP/CLI/Worker implementation dependency
+  - [x] generated package index, installation catalog, and Deptrac configuration are consistent
 
 #### Test harness / fixtures (when integration is needed)
 
-- [ ] use the existing monorepo package testing infrastructure
-- [ ] compose Foundation, Redaction, and Errors providers through the canonical container APIs
-- [ ] provide deterministic fake mapper services through `error.mapper`
-- [ ] provide throwing mapper, reporter, logger, tracer, meter, correlation provider, and redactor fixtures
-- [ ] use the real `Coretsia\Foundation\Time\Stopwatch` for timing integration tests
-- [ ] verify that timing uses valid invocation-local tokens and emits non-negative integer milliseconds
-- [ ] Stopwatch failure isolation MUST remain defensive runtime behavior without introducing a package-local timing abstraction solely for fault injection
-- [ ] use the real Foundation TagRegistry for ordering and duplicate-registration tests
-- [ ] do not construct a second production container implementation
-- [ ] do not alter Kernel ModulePlan or UoW implementations for test convenience
-- [ ] preserve package isolation and source/compiled parity invariants
+- [x] use the existing monorepo package testing infrastructure
+- [x] compose Foundation, Redaction, and Errors providers through the canonical container APIs
+- [x] provide deterministic fake mapper services through `error.mapper`
+- [x] provide throwing mapper, reporter, logger, tracer, meter, correlation provider, and redactor fixtures
+- [x] use the real `Coretsia\Foundation\Time\Stopwatch` for timing integration tests
+- [x] verify that timing uses valid invocation-local tokens and emits non-negative integer milliseconds
+- [x] Stopwatch failure isolation MUST remain defensive runtime behavior without introducing a package-local timing abstraction solely for fault injection
+- [x] use the real Foundation TagRegistry for ordering and duplicate-registration tests
+- [x] do not construct a second production container implementation
+- [x] do not alter Kernel ModulePlan or UoW implementations for test convenience
+- [x] preserve package isolation and source/compiled parity invariants
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/errors/tests/Unit/DefaultExceptionMapperTest.php`
-    - [ ] maps arbitrary Throwable types to the same safe fallback
-    - [ ] never copies Throwable messages or traces
-    - [ ] preserves canonical descriptor shape
+  - [x] `packages/platform/errors/tests/Unit/DefaultExceptionMapperTest.php`
+    - [x] maps arbitrary Throwable types to the same safe fallback
+    - [x] never copies Throwable messages or traces
+    - [x] preserves canonical descriptor shape
 
-  - [ ] `packages/platform/errors/tests/Unit/ErrorHandlerFallbackTest.php`
-    - [ ] empty registry
-    - [ ] all-null registry
-    - [ ] failed mapper
-    - [ ] invalid mapper result
-    - [ ] safe fallback code and message
+  - [x] `packages/platform/errors/tests/Unit/ErrorHandlerFallbackTest.php`
+    - [x] empty registry
+    - [x] all-null registry
+    - [x] failed mapper
+    - [x] invalid mapper result
+    - [x] safe fallback code and message
 
-  - [ ] `packages/platform/errors/tests/Unit/ErrorHandlerRedactionTest.php`
-    - [ ] fixed redaction scope and Placeholder mode
-    - [ ] safe descriptor reconstruction
-    - [ ] malformed redactor output
-    - [ ] redactor failure
-    - [ ] no raw candidate leakage after redaction or reconstruction failure
-    - [ ] known classified sensitive values are not exposed in returned descriptors
-    - [ ] safe-by-construction requirements remain owned by mapper implementations
-    - [ ] whole-value sensitive string redaction changing `message` to a map selects safe fallback
-    - [ ] valid owner-approved descriptor preserves the original canonical field types
-    - [ ] nested sensitive extension replacement remains subject to ErrorDescriptor validation
-    - [ ] arbitrary unclassified embedded strings are not assumed to be sanitized by the shared redactor
-    - [ ] redaction cannot replace mapper-owner safe-message derivation requirements
+  - [x] `packages/platform/errors/tests/Unit/ErrorHandlerRedactionTest.php`
+    - [x] fixed redaction scope and Placeholder mode
+    - [x] safe descriptor reconstruction
+    - [x] malformed redactor output
+    - [x] redactor failure
+    - [x] no raw candidate leakage after redaction or reconstruction failure
+    - [x] known classified sensitive values are not exposed in returned descriptors
+    - [x] safe-by-construction requirements remain owned by mapper implementations
+    - [x] whole-value sensitive string redaction changing `message` to a map selects safe fallback
+    - [x] valid owner-approved descriptor preserves the original canonical field types
+    - [x] nested sensitive extension replacement remains subject to ErrorDescriptor validation
+    - [x] arbitrary unclassified embedded strings are not assumed to be sanitized by the shared redactor
+    - [x] redaction cannot replace mapper-owner safe-message derivation requirements
 
-  - [ ] `packages/platform/errors/tests/Unit/ErrorsServiceFactoryTest.php`
-    - [ ] validated consumption of all five reporting configuration values
-    - [ ] default configuration constructs registry and handler successfully
-    - [ ] missing or incorrectly typed reporting values fail during construction
-    - [ ] reject unknown severity values
-    - [ ] reject invalid excluded-code list items
-    - [ ] reject negative, non-integer, and above-10000 sample rates
-    - [ ] verify `0` and `10000` are accepted sample-rate boundaries
-    - [ ] reject invalid mapper-failure diagnostics flags
-    - [ ] correct immutable constructor-policy injection
-    - [ ] no reporting config reads during mapper dispatch or `handle()`
-    - [ ] no package-local redactor, reporter, or config-validator construction
+  - [x] `packages/platform/errors/tests/Unit/ErrorsServiceFactoryTest.php`
+    - [x] validated consumption of all five reporting configuration values
+    - [x] default configuration constructs registry and handler successfully
+    - [x] missing or incorrectly typed reporting values fail during construction
+    - [x] reject unknown severity values
+    - [x] reject invalid excluded-code list items
+    - [x] reject negative, non-integer, and above-10000 sample rates
+    - [x] verify `0` and `10000` are accepted sample-rate boundaries
+    - [x] reject invalid mapper-failure diagnostics flags
+    - [x] correct immutable constructor-policy injection
+    - [x] no reporting config reads during mapper dispatch or `handle()`
+    - [x] no package-local redactor, reporter, or config-validator construction
 
 - Contract:
-  - [ ] `packages/platform/errors/tests/Contract/ErrorsModuleComposerMetadataContractTest.php`
-    - [ ] Composer identity, PSR-4 namespace, module metadata, and dependencies
+  - [x] `packages/platform/errors/tests/Contract/ErrorsModuleComposerMetadataContractTest.php`
+    - [x] Composer identity, PSR-4 namespace, module metadata, and dependencies
 
-  - [ ] `packages/platform/errors/tests/Contract/ErrorsProviderDefinitionsContainNoClosuresContractTest.php`
-    - [ ] declarative definitions contain no closures or runtime objects
+  - [x] `packages/platform/errors/tests/Contract/ErrorsProviderDefinitionsContainNoClosuresContractTest.php`
+    - [x] declarative definitions contain no closures or runtime objects
 
-  - [ ] `packages/platform/errors/tests/Contract/ErrorsProviderSourceDefinitionsParityTest.php`
-    - [ ] source and compiled definition parity
+  - [x] `packages/platform/errors/tests/Contract/ErrorsProviderSourceDefinitionsParityTest.php`
+    - [x] source and compiled definition parity
 
-  - [ ] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
-    - [ ] handler returns a canonical descriptor despite injectable collaborator failures
-    - [ ] mapper resolution and execution failures are independently isolated
-    - [ ] redaction and reconstruction failures select the fixed safe fallback
-    - [ ] reporter, logger, tracer, meter, and correlation-provider failures do not replace the selected descriptor
-    - [ ] handler contains an outer Throwable boundary around registry dispatch
-    - [ ] registry-level failure handling MUST NOT require modification of Foundation TagRegistry
-    - [ ] no recursive registry dispatch or fallback redaction occurs
+  - [x] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
+    - [x] handler returns a canonical descriptor despite injectable collaborator failures
+    - [x] mapper resolution and execution failures are independently isolated
+    - [x] redaction and reconstruction failures select the fixed safe fallback
+    - [x] reporter, logger, tracer, meter, and correlation-provider failures do not replace the selected descriptor
+    - [x] handler contains an outer Throwable boundary around registry dispatch
+    - [x] registry-level failure handling MUST NOT require modification of Foundation TagRegistry
+    - [x] no recursive registry dispatch or fallback redaction occurs
 
-  - [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-    - [ ] Foundation Noop reporter, logger, tracer, and meter compatibility
+  - [x] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] Foundation Noop reporter, logger, tracer, and meter compatibility
 
-  - [ ] `packages/platform/errors/tests/Contract/ErrorsDoNotDuplicateRedactionPolicyContractTest.php`
-    - [ ] no concrete redaction implementation imports
-    - [ ] no package-local classifiers, hashers, or policy registries
+  - [x] `packages/platform/errors/tests/Contract/ErrorsDoNotDuplicateRedactionPolicyContractTest.php`
+    - [x] no concrete redaction implementation imports
+    - [x] no package-local classifiers, hashers, or policy registries
 
 - Integration:
-  - [ ] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php`
-    - [ ] priority DESC, serviceId ASC, and first-wins behavior
+  - [x] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php`
+    - [x] priority DESC, serviceId ASC, and first-wins behavior
 
-  - [ ] `packages/platform/errors/tests/Integration/MapperLazyResolutionTest.php`
-    - [ ] tagged mapper services resolve only during dispatch
+  - [x] `packages/platform/errors/tests/Integration/MapperLazyResolutionTest.php`
+    - [x] tagged mapper services resolve only during dispatch
 
-  - [ ] `packages/platform/errors/tests/Integration/MapperFailureIsolationTest.php`
-    - [ ] throwing and invalid mapper candidates do not break normalization
-    - [ ] subsequent valid mapper can still produce the selected descriptor
-    - [ ] a failed mapper followed by a successful mapper produces the successful descriptor
-    - [ ] a failed mapper followed by a successful mapper produces `outcome = ok`
-    - [ ] all mapper candidates exhausted produces `outcome = fallback`
+  - [x] `packages/platform/errors/tests/Integration/MapperFailureIsolationTest.php`
+    - [x] throwing and invalid mapper candidates do not break normalization
+    - [x] subsequent valid mapper can still produce the selected descriptor
+    - [x] a failed mapper followed by a successful mapper produces the successful descriptor
+    - [x] a failed mapper followed by a successful mapper produces `outcome = ok`
+    - [x] all mapper candidates exhausted produces `outcome = fallback`
 
-  - [ ] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php`
-    - [ ] safe fallback for otherwise unhandled Throwable
+  - [x] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php`
+    - [x] safe fallback for otherwise unhandled Throwable
 
-  - [ ] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
-    - [ ] real redaction port integration
-    - [ ] forbidden data does not leak
-    - [ ] invalid output fails closed
+  - [x] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
+    - [x] real redaction port integration
+    - [x] forbidden data does not leak
+    - [x] invalid output fails closed
 
-  - [ ] `packages/platform/errors/tests/Integration/ErrorReportingPolicyTest.php`
-    - [ ] disabled and enabled reporting behavior
-    - [ ] reporter, logger, tracer, and meter invocation policy
-    - [ ] minimum severity accepts descriptors at or above the configured threshold
-    - [ ] minimum severity suppresses only reporter invocations below the threshold
-    - [ ] all four canonical `ErrorSeverity` values follow `info < warning < error < critical`
-    - [ ] excluded codes suppress matching reporter invocations using strict case-sensitive matching
-    - [ ] excluded codes do not prevent mapping, redaction, fallback selection, or descriptor return
-    - [ ] `sample_rate = 0` suppresses reporter invocation
-    - [ ] `sample_rate = 10000` preserves every otherwise eligible reporter invocation
-    - [ ] intermediate sampling rates use a bounded `random_int(0, 9999)` decision without changing descriptors
-    - [ ] sampling tests MUST NOT depend on probabilistic event counts or flaky statistical assertions
-    - [ ] sampling failure does not escape or replace the descriptor
-    - [ ] reporter filters do not suppress canonical mapping spans, metrics, or timing
-    - [ ] reporter suppression does not change `outcome = ok|fallback`
-    - [ ] `mapper_failures.enabled = false` suppresses internal mapper-failure logs
-    - [ ] mapper-failure logs require both global reporting and mapper-failure diagnostics to be enabled
-    - [ ] mapper-failure diagnostics remain independent of reporter severity, exclusion, and sampling filters
-    - [ ] default reporting policy preserves existing behavior
-    - [ ] span starts before registry dispatch
-    - [ ] span starts with operation-only attributes
-    - [ ] final outcome is written after descriptor validation and fallback selection
-    - [ ] successfully created span is ended exactly once
-    - [ ] span finalization precedes reporter invocation
-    - [ ] reporter execution is excluded from measured normalization duration
-    - [ ] metric emission failure does not prevent span finalization
-    - [ ] span attribute failure does not prevent span end
-    - [ ] span end failure does not prevent reporting or descriptor return
-    - [ ] disabled reporting does not affect mapping or redaction
-    - [ ] reporter is invoked at most once for each handle invocation
+  - [x] `packages/platform/errors/tests/Integration/ErrorReportingPolicyTest.php`
+    - [x] disabled and enabled reporting behavior
+    - [x] reporter, logger, tracer, and meter invocation policy
+    - [x] minimum severity accepts descriptors at or above the configured threshold
+    - [x] minimum severity suppresses only reporter invocations below the threshold
+    - [x] all four canonical `ErrorSeverity` values follow `info < warning < error < critical`
+    - [x] excluded codes suppress matching reporter invocations using strict case-sensitive matching
+    - [x] excluded codes do not prevent mapping, redaction, fallback selection, or descriptor return
+    - [x] `sample_rate = 0` suppresses reporter invocation
+    - [x] `sample_rate = 10000` preserves every otherwise eligible reporter invocation
+    - [x] intermediate sampling rates use a bounded `random_int(0, 9999)` decision without changing descriptors
+    - [x] sampling tests MUST NOT depend on probabilistic event counts or flaky statistical assertions
+    - [x] sampling failure does not escape or replace the descriptor
+    - [x] reporter filters do not suppress canonical mapping spans, metrics, or timing
+    - [x] reporter suppression does not change `outcome = ok|fallback`
+    - [x] `mapper_failures.enabled = false` suppresses internal mapper-failure logs
+    - [x] mapper-failure logs require both global reporting and mapper-failure diagnostics to be enabled
+    - [x] mapper-failure diagnostics remain independent of reporter severity, exclusion, and sampling filters
+    - [x] default reporting policy preserves existing behavior
+    - [x] span starts before registry dispatch
+    - [x] span starts with operation-only attributes
+    - [x] final outcome is written after descriptor validation and fallback selection
+    - [x] successfully created span is ended exactly once
+    - [x] span finalization precedes reporter invocation
+    - [x] reporter execution is excluded from measured normalization duration
+    - [x] metric emission failure does not prevent span finalization
+    - [x] span attribute failure does not prevent span end
+    - [x] span end failure does not prevent reporting or descriptor return
+    - [x] disabled reporting does not affect mapping or redaction
+    - [x] reporter is invoked at most once for each handle invocation
 
-  - [ ] `packages/platform/errors/tests/Integration/ErrorHandlingContextIsolationTest.php`
-    - [ ] canonical correlation-provider success, null, and failure cases
-    - [ ] caller-supplied mapping context preservation
-    - [ ] sanitized reporting-context construction
-    - [ ] no arbitrary caller metadata forwarded to reporting sinks
-    - [ ] no Context writes or identifier creation
+  - [x] `packages/platform/errors/tests/Integration/ErrorHandlingContextIsolationTest.php`
+    - [x] canonical correlation-provider success, null, and failure cases
+    - [x] caller-supplied mapping context preservation
+    - [x] sanitized reporting-context construction
+    - [x] no arbitrary caller metadata forwarded to reporting sinks
+    - [x] no Context writes or identifier creation
 
-  - [ ] `packages/platform/errors/tests/Integration/ErrorHandlingUoWIsolationTest.php`
-    - [ ] handler does not introduce a nested UoW
-    - [ ] no reset registration or mutable invocation state
+  - [x] `packages/platform/errors/tests/Integration/ErrorHandlingUoWIsolationTest.php`
+    - [x] handler does not introduce a nested UoW
+    - [x] no reset registration or mutable invocation state
 
-  - [ ] `packages/platform/errors/tests/Integration/ErrorsModuleCompositionTest.php`
-    - [ ] canonical ModulePlan dependency closure
-    - [ ] Redaction module selected through declared requirements
-    - [ ] Foundation Noop observability and reporter bindings available
-    - [ ] exactly one canonical ErrorHandlerInterface binding
-    - [ ] exactly one canonical SensitiveDataRedactorInterface binding
-    - [ ] ErrorHandlerInterface resolves to the platform/errors implementation
-    - [ ] missing required redactor causes deterministic composition/resolution failure
-    - [ ] missing required reporter causes deterministic composition/resolution failure
-    - [ ] missing required correlation provider causes deterministic composition/resolution failure
-    - [ ] no package-local fallback bindings are registered for missing dependencies
-    - [ ] no implicit module enablement from Composer installation
-    - [ ] source and compiled container resolution produce equivalent service types and behavior
+  - [x] `packages/platform/errors/tests/Integration/ErrorsModuleCompositionTest.php`
+    - [x] canonical ModulePlan dependency closure
+    - [x] Redaction module selected through declared requirements
+    - [x] Foundation Noop observability and reporter bindings available
+    - [x] exactly one canonical ErrorHandlerInterface binding
+    - [x] exactly one canonical SensitiveDataRedactorInterface binding
+    - [x] ErrorHandlerInterface resolves to the platform/errors implementation
+    - [x] missing required redactor causes deterministic composition/resolution failure
+    - [x] missing required reporter causes deterministic composition/resolution failure
+    - [x] missing required correlation provider causes deterministic composition/resolution failure
+    - [x] no package-local fallback bindings are registered for missing dependencies
+    - [x] no implicit module enablement from Composer installation
+    - [x] source and compiled container resolution produce equivalent service types and behavior
 
 - Gates/Arch:
-  - [ ] package PHPUnit tests green
-  - [ ] PHPStan green
-  - [ ] repository formatting/static-analysis gates green
-  - [ ] canonical dependency matrix gate green
-  - [ ] Deptrac green
-  - [ ] generated package index check green
-  - [ ] generated installation catalog check green
-  - [ ] source/compiled container parity green
+  - [x] package PHPUnit tests green
+  - [x] PHPStan green
+  - [x] repository formatting/static-analysis gates green
+  - [x] canonical dependency matrix gate green
+  - [x] Deptrac green
+  - [x] generated package index check green
+  - [x] generated installation catalog check green
+  - [x] source/compiled container parity green
   - [ ] deterministic rerun-no-diff checks green
 
 ### DoD (MUST)
 
 - [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
+- [x] Implementation complete
+- [x] Tests green
+- [x] Gates/Arch green
 - [ ] Docs complete
 - [x] Composer/module metadata consistent
 - [x] Canonical ModulePlan dependency closure verified
@@ -1770,10 +1770,10 @@ N/A
 - [x] No new exception hierarchy or error-code registry
 - [x] No nested Kernel UnitOfWork
 - [x] No package-local reset orchestration or mutable invocation state
-- [ ] Observability names and labels registered in canonical SSoT
+- [x] Observability names and labels registered in canonical SSoT
 - [x] Reporter, logger, tracer, meter, and timing failures isolated
 - [x] All five reporting configuration keys are strictly validated and consumed at service construction
-- [ ] Reporter minimum-severity, excluded-code, and sampling policies are implemented and tested
+- [x] Reporter minimum-severity, excluded-code, and sampling policies are implemented and tested
 - [x] Mapper-failure diagnostics are independently configurable without affecting mapper dispatch
 - [x] Reporter-only filters do not affect normalization, redaction, fallback, or mapping telemetry
 - [x] No package-local reporting-policy registry, RNG service, or config-validator layer introduced

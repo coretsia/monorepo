@@ -47,6 +47,7 @@
     "coretsia/devtools-internal-toolkit": "0.9.x-dev",
     "coretsia/framework": "0.9.x-dev",
     "coretsia/platform-cli": "0.9.x-dev",
+    "coretsia/platform-errors": "0.9.x-dev",
     "coretsia/platform-redaction": "0.9.x-dev",
     "coretsia/platform-worker": "0.9.x-dev",
     "coretsia/skeleton": "0.9.x-dev",
@@ -160,6 +161,18 @@
         "reference": "config",
         "versions": {
           "coretsia/platform-cli": "0.9.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/errors",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-errors": "0.9.x-dev"
         }
       },
       "coretsia_managed": true

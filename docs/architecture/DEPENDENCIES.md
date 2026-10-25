@@ -298,8 +298,13 @@ The canonical empty dependency marker is:
 | core/kernel               | core/contracts, core/foundation              |       |
 | devtools/internal-toolkit | —                                            |       |
 | platform/cli              | core/contracts, core/foundation, core/kernel |       |
+| platform/errors           | core/contracts, core/foundation              |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
+
+The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`; its existing source dependency permissions remain unchanged.
+
+The `platform/errors` → `platform/redaction` dependency is likewise a runtime-only Composer edge backed by the direct `platform.redaction` module requirement. Errors consumes `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementations. Neither runtime-only edge belongs in the matrix `depends_on` cells or the generated Deptrac allowlist. `platform/worker` source and Composer dependencies remain unchanged.
 
 ---
 

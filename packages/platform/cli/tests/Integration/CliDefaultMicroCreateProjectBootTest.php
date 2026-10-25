@@ -46,12 +46,21 @@ final class CliDefaultMicroCreateProjectBootTest extends CliIntegrationTestCase
         self::assertArrayHasKey('coretsia/platform-cli', $framework['require']);
         self::assertArrayHasKey('coretsia/core-kernel', $framework['require']);
         self::assertArrayHasKey('coretsia/platform-redaction', $cli['require']);
+        self::assertArrayHasKey('coretsia/platform-errors', $cli['require']);
+        $errors = \json_decode(
+            (string) \file_get_contents(self::repositoryRoot() . '/packages/platform/errors/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertArrayHasKey('coretsia/platform-redaction', $errors['require']);
         self::assertSame(
             'micro',
             (require self::repositoryRoot() . '/packages/core/kernel/config/kernel.php')['boot']['default_preset'],
         );
         $micro = require self::repositoryRoot() . '/packages/core/kernel/resources/modes/micro.php';
         self::assertContains('platform.cli', $micro['modules']);
+        self::assertNotContains('platform.errors', $micro['modules']);
+        self::assertNotContains('platform.errors', $micro['required']);
 
         $root = self::consumer();
         try {
@@ -60,7 +69,7 @@ final class CliDefaultMicroCreateProjectBootTest extends CliIntegrationTestCase
             $host = new KernelOpsHostBooter()->boot(new KernelOpsHostInput($root));
             $plan = $host->get(ModulePlan::class);
             self::assertSame('console', $plan->app());
-            foreach (['core.kernel', 'platform.cli', 'platform.redaction'] as $required) {
+            foreach (['core.kernel', 'platform.cli', 'platform.errors', 'platform.redaction'] as $required) {
                 self::assertTrue($plan->hasEnabledModule($required), $required);
             }
             $result = self::execute($root . '/vendor/bin/coretsia', ['list', '--format=json']);

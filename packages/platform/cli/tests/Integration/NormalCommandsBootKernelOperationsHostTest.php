@@ -19,11 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Cli\Tests\Integration;
 
 use Coretsia\Contracts\Kernel\Ops\KernelOpsInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Ops\KernelOpsHostBooter;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Platform\Cli\Application\CliApplication;
 use Coretsia\Platform\Cli\Tests\Integration\Support\CliIntegrationTestCase;
+use Coretsia\Platform\Errors\ErrorHandler;
 
 final class NormalCommandsBootKernelOperationsHostTest extends CliIntegrationTestCase
 {
@@ -36,8 +38,12 @@ final class NormalCommandsBootKernelOperationsHostTest extends CliIntegrationTes
             self::assertInstanceOf(ModulePlan::class, $plan);
             self::assertSame('console', $plan->app());
             self::assertTrue($plan->hasEnabledModule('platform.cli'));
+            self::assertTrue($plan->hasEnabledModule('platform.errors'));
             self::assertTrue($plan->hasEnabledModule('platform.redaction'));
             self::assertInstanceOf(KernelOpsInterface::class, $host->get(KernelOpsInterface::class));
+            $handler = $host->get(ErrorHandlerInterface::class);
+            self::assertInstanceOf(ErrorHandler::class, $handler);
+            self::assertSame($handler, $host->get(ErrorHandler::class));
             self::assertInstanceOf(CliApplication::class, $host->get(CliApplication::class));
             self::assertSame(0, self::execute($root . '/vendor/bin/coretsia', ['list'])['exit']);
             self::assertNoArtifacts($root);
@@ -54,6 +60,7 @@ final class NormalCommandsBootKernelOperationsHostTest extends CliIntegrationTes
             $host = new KernelOpsHostBooter()->boot(new KernelOpsHostInput($root));
             $plan = $host->get(ModulePlan::class);
             self::assertFalse($plan->hasEnabledModule('platform.cli'));
+            self::assertFalse($plan->hasEnabledModule('platform.errors'));
             $result = self::execute($root . '/vendor/bin/coretsia', ['list']);
             self::assertSafeFailure($result, 'CORETSIA_CLI_HOST_BOOT_FAILED: host-boot-failed');
             $source = (string) \file_get_contents(self::packageRoot() . '/src/Bootstrap/CliHostBootstrap.php');

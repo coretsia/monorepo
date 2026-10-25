@@ -18,8 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Application;
 
+use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Exception\CliInputInvalidException;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
@@ -50,7 +51,7 @@ final readonly class CliApplication
         private FormatResolver $formats,
         private ColorResolver $colors,
         private CommandRunner $runner,
-        private CliErrorHandler $errors,
+        private ErrorHandlerInterface $errors,
         private ExceptionRenderer $exceptions,
         private OutputFormatter $output,
         private SmartSuggestor $suggestions,
@@ -95,14 +96,16 @@ final readonly class CliApplication
             } catch (\Throwable $exception) {
                 $exitCode = 1;
                 $buffer->discard();
-                $this->exceptions->render($this->errors->handle($exception), $buffer);
+
+                $errorDescriptor = $this->errors->handle($exception);
+                $this->exceptions->render($errorDescriptor, $buffer);
 
                 if (
                     $exception instanceof CliInputInvalidException
                     && $exception->reason() === CliInputInvalidException::REASON_COMMAND_UNKNOWN
                     && $suggestions !== []
                 ) {
-                    $this->appendSuggestions($buffer, $suggestions, $exception);
+                    $this->appendSuggestions($buffer, $suggestions, $errorDescriptor);
                 }
             }
 
@@ -126,13 +129,13 @@ final readonly class CliApplication
     private function appendSuggestions(
         CommandOutputBuffer $buffer,
         array $suggestions,
-        CliInputInvalidException $exception,
+        ErrorDescriptor $descriptor,
     ): void {
         try {
             $buffer->json(['suggestions' => $suggestions]);
         } catch (\Throwable) {
             $buffer->discard();
-            $this->exceptions->render($this->errors->handle($exception), $buffer);
+            $this->exceptions->render($descriptor, $buffer);
         }
     }
 }

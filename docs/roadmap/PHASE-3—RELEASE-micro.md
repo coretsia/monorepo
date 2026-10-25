@@ -27,12 +27,12 @@ composer: "coretsia/platform-errors"
 kind: runtime
 module_id: "platform.errors"
 
-goal: "Будь-який Throwable завжди мапиться в deterministic ErrorDescriptor без падіння ErrorHandler."
+goal: "Будь-який Throwable, переданий успішно сконструйованому runtime ErrorHandler, нормалізується в deterministic ErrorDescriptor без витоку помилок mapper/redaction/observability collaborators."
 provides:
 - "Canonical flow: Throwable → ErrorDescriptor (format-neutral), без PSR-7 залежностей"
 - "Deterministic ExceptionMapper registry через DI tag `error.mapper`"
 - "ErrorHandler noop-safe + policy: never throws (завжди повертає ErrorDescriptor)"
-- "Security redaction: detail/extensions не містять секретів/PII"
+- "Security: safe-by-construction ErrorDescriptor.code/message/extensions + shared redaction defense in depth"
 - "Cutline impact: blocks Phase 3 platform baseline cutline"
 - "`Deterministic ExceptionMapper registry` означає: deterministic enumeration via TagRegistry invariants (не custom sorting)."
 
@@ -41,94 +41,218 @@ config_roots_introduced:
 - "errors"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-errors-errorhandler-exception-mapper.md"
+adr: "docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md"
 ssot_refs:
-- "docs/ssot/error-flow.md"
-- "docs/ssot/error-codes.md"
+- "docs/ssot/errors-boundary.md"
+- "docs/ssot/error-descriptor.md"
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/sensitive-data-redaction.md"
 - "docs/ssot/tags.md"
 - "docs/ssot/config-roots.md"
-- "docs/ssot/error-descriptor.md" # shape + extensions constraints
+- "docs/ssot/modules-and-manifests.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/compiled-container.md"
+- "docs/ssot/context-store.md"
+- "docs/ssot/modes.md"
+- "docs/ssot/application-dependency-sync.md"
 ---
-
-- [ ] update `3.10.0 Platform errors` to consume `SensitiveDataRedactorInterface` instead of owning baseline sensitive-key/value policy.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - 2.25.0 — shared sensitive-data redaction boundary implemented:
+    - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` exists
+    - `platform.redaction` provides the canonical concrete implementation
+    - Foundation supplies the shared json-like normalization primitives
+  - Foundation declarative container definitions, TagRegistry ordering, and default observability bindings exist.
 
-- Required deliverables (exact paths):
-  - N/A
+- Required deliverables (already existing):
+  - `packages/core/foundation/src/Tag/ReservedTags.php` already declares `ERROR_MAPPER = 'error.mapper'`
+  - `docs/ssot/tags.md` already reserves `error.mapper` for `platform/errors`
+  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` and the canonical error ports already exist
+  - `Coretsia\Foundation\Observability\Errors\NoopErrorReporter` already implements the default reporter port
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` is already bound by the selected `platform.redaction` module
 
 - Required config roots/keys:
-  - `errors.*` — config root used by this package (enabled/reporting/redaction policy)
+  - This epic owns the new `errors` config root.
+  - Package-owned configuration keys:
+    - `errors.reporting.enabled`
+    - `errors.reporting.min_severity`
+    - `errors.reporting.exclude_codes`
+    - `errors.reporting.sample_rate`
+    - `errors.reporting.mapper_failures.enabled`
+  - Reporter filters MUST NOT affect mapper discovery, normalization, redaction, fallback selection, or mapping telemetry.
+  - Mapper-failure diagnostics MUST remain independently controlled from normalized error-report filtering.
+  - Error normalization and security redaction MUST NOT be disabled through configuration.
+  - No environment-specific raw Throwable disclosure switch may be introduced.
 
 - Required tags:
-  - `error.mapper` MUST already be reserved in `docs/ssot/tags.md` with owner `platform/errors`.
-
-- Tag owner implementation note (MUST):
-  - This epic MUST NOT re-introduce `error.mapper` in the tag registry.
-  - This epic is the owner implementation epic that introduces the canonical owner constant in
-    `packages/core/foundation/src/Tag/ReservedTags.php`.
+  - `error.mapper` is an existing reserved tag owned by `platform/errors`.
+  - `ReservedTags::ERROR_MAPPER` is the existing canonical code-level identifier.
+  - This epic MUST NOT modify `ReservedTags.php` or introduce another tag constant.
+  - This epic implements mapper discovery semantics, not tag registration infrastructure.
 
 - Required config roots registry:
-  - N/A at epic start.
-  - This epic is the owner epic that adds root `errors` to `docs/ssot/config-roots.md`.
+  - The `errors` root does not yet exist in `docs/ssot/config-roots.md`.
+  - This epic adds exactly one canonical registry row for that root.
+  - Config defaults and declarative rules remain exclusively owned by `platform/errors`.
 
-- Tag usage (MUST) — make ordering source-of-truth explicit
-  - `ExceptionMapperRegistry` MUST enumerate mappers ONLY via:
-    - `Coretsia\Foundation\Tag\TagRegistry::all(ReservedTags::ERROR_MAPPER)`
-  - Registry MUST NOT re-sort or de-duplicate results (TagRegistry already enforces):
-    - order = `priority DESC, serviceId ASC (strcmp)`,
-    - dedupe = `first wins`.
+- Tag usage (MUST):
+  - `ExceptionMapperRegistry` MUST enumerate mapper registrations only through:
+    - `TagRegistry::all(ReservedTags::ERROR_MAPPER)`
+  - Preserve the canonical registry invariants:
+    - priority DESC
+    - serviceId ASC using `strcmp`
+    - duplicate `(tag, serviceId)` registrations: first wins
+  - The registry MUST NOT re-sort, re-deduplicate, scan the filesystem, or build another mapper catalog.
+  - Mapper services MUST be resolved lazily from their tagged service ids.
+  - `error.mapper` tag metadata MUST be an empty map.
+  - Priority MUST be supplied through the canonical tag priority argument, not through metadata.
+  - The default fallback mapper MUST NOT be registered under `error.mapper`.
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface` — canonical handler port
-  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface` — mapper port
-  - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface` — reporting port (optional/noop-safe impl)
-  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor` — normalized error payload
-  - `Coretsia\Contracts\Context\ContextAccessorInterface` — optional context source for safe enrichment / correlation reads
-  - `Coretsia\Contracts\Context\ContextKeys` — reserved context keys (if context enrichment is used)
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — optional tracing enrichment
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — optional metrics enrichment
-  - `Psr\Log\LoggerInterface` — optional logging (redacted)
+  - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
+  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
+  - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
+  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
+  - `Coretsia\Contracts\Observability\Errors\ErrorHandlingContext`
+  - `Coretsia\Contracts\Observability\Errors\ErrorSeverity`
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - `Coretsia\Contracts\Security\RedactionContext`
+  - `Coretsia\Contracts\Security\RedactionMode`
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Tracing\SpanInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Foundation\Tag\TagRegistry`
+  - `Coretsia\Foundation\Tag\ReservedTags`
+  - `Coretsia\Foundation\Time\Stopwatch`
+  - `Psr\Container\ContainerInterface`
+  - `Psr\Log\LoggerInterface`
 
-- tighten to cemented APIs
-  - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
-  - Missing key handling MUST remain non-throwing for this epic’s runtime path.
+- Cemented APIs (MUST):
+  - `ErrorHandlerInterface::handle(Throwable $throwable, ?ErrorHandlingContext $context = null): ErrorDescriptor`
+  - `ErrorDescriptor::fromArray(array $payload): self` — contracts-owned strict reconstruction API introduced by this epic.
+  - `ExceptionMapperInterface::map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor`
+  - `ErrorReporterPortInterface::report(ErrorDescriptor $descriptor, ?ErrorHandlingContext $context = null): void`
+  - `CorrelationIdProviderInterface::correlationId(): ?string`
+  - Foundation owns safe correlation-id validation and missing-value handling.
+  - The handler MUST NOT duplicate canonical correlation-id parsing or validation.
+  - `SensitiveDataRedactorInterface::redactJsonLike(mixed $value, RedactionContext $context): mixed`
+  - `MeterPortInterface::increment(string $name, int $delta = 1, array $labels = []): void`
+  - `MeterPortInterface::observe(string $name, int $value, array $labels = []): void`
+  - Missing or unreadable context values MUST NOT change the error-handling outcome.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
+
 - `core/contracts`
 - `core/foundation`
 
+Runtime-only Composer dependency:
+
+- `platform/redaction` — required installation and module-composition dependency.
+- The package MUST consume redaction only through `SensitiveDataRedactorInterface`.
+- No PHP source import from `Coretsia\Platform\Redaction\*` is permitted.
+- This Composer edge MUST NOT be added to the compile-time dependency matrix or Deptrac allowlist.
+
+Module composition:
+
+- `platform.errors` requires `core.foundation` and `platform.redaction`.
+- Both module requirements MUST have matching direct Composer requirements.
+- Selecting `platform.errors` MUST resolve its dependencies through the canonical Kernel ModulePlan.
+- Composer package installation MUST NOT implicitly enable the runtime module.
+- Exactly one `SensitiveDataRedactorInterface` binding MUST already be available before `ErrorHandler` resolution.
+- The package MUST NOT instantiate the concrete redactor, register another fallback redactor, or manually append providers.
+- No second ModulePlan, provider-composition pipeline, or dependency resolver may be introduced.
+
+CLI consumer composition:
+
+- `platform.cli` requires `platform.errors` as an explicit runtime module dependency.
+- `coretsia/platform-cli` requires `coretsia/platform-errors` as a matching direct Composer dependency.
+- The CLI dependency on `platform.redaction` remains direct because CLI output formatting independently consumes the redaction port.
+- Selecting `platform.cli` MUST resolve `platform.errors` and `platform.redaction` through the existing Kernel ModulePlan.
+- Missing or explicitly excluded `platform.errors` while `platform.cli` remains selected MUST fail closed at module composition.
+- CLI MUST consume error normalization through `ErrorHandlerInterface`, not concrete `Coretsia\Platform\Errors\*` classes.
+- CLI MUST contribute its own `ExceptionMapperInterface` implementation through the shared `error.mapper` tag.
+- CLI MUST NOT provide a competing global `ErrorHandlerInterface` binding.
+- Worker MUST NOT gain a mandatory `platform.errors` dependency without a separately justified worker runtime-consumption boundary.
+- No additional Kernel preset root or second module composition mechanism is introduced.
+
 Forbidden:
+
 - `platform/http`
 - `platform/problem-details`
 - `Psr\Http\Message\*`
 - `Psr\Http\Server\*`
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
-- PSR:
+- Error normalization:
+  - `ErrorHandlerInterface`
+  - `ExceptionMapperInterface`
+  - `ErrorReporterPortInterface`
+  - `ErrorDescriptor`
+  - `ErrorHandlingContext`
+  - `ErrorSeverity`
+- Redaction:
+  - `SensitiveDataRedactorInterface`
+  - `RedactionContext`
+  - `RedactionMode`
+- Runtime infrastructure:
+  - `ConfigRepositoryInterface`
+  - `CorrelationIdProviderInterface`
+  - `TagRegistry`
+  - `ReservedTags`
+  - `ContainerInterface`
+  - `Stopwatch`
+- Observability:
+  - `TracerPortInterface`
+  - `SpanInterface`
+  - `MeterPortInterface`
   - `Psr\Log\LoggerInterface`
-- Contracts:
-  - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
-  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
-  - `Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface`
-  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
+
+All runtime dependencies MUST be injected through the canonical container.
+
+Package-local replacements for existing contracts, redaction implementations, reporter defaults, or observability ports are forbidden.
 
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - N/A (used indirectly by `platform/cli`)
+  - This epic migrates normal CLI Throwable normalization to the canonical `ErrorHandlerInterface` supplied by `platform.errors`.
+  - `platform.cli` MUST require `platform.errors` through matching Composer and module dependencies.
+  - CLI-owned exception mapping MUST be contributed through `error.mapper`.
+  - The legacy `CliErrorHandler` MUST be removed after its allowlisted mapping behavior is migrated.
+  - `CliApplication` MUST consume `ErrorHandlerInterface`, not a transport-owned implementation of that port.
+  - `ExceptionRenderer` remains CLI-owned and MUST preserve existing CLI-specific public fallback presentation.
+  - CLI output buffering, redaction, formatting, exit codes, Kernel operations, and UoW ownership remain unchanged.
+  - Ultra-early `doctor` and pre-container host-bootstrap failures MUST remain independent of `platform.errors` service resolution.
 - HTTP:
-  - N/A (HTTP rendering owner = `platform/problem-details`)
+  - N/A — HTTP error adaptation and rendering remain owned by `platform/problem-details`.
+- Worker:
+  - No mandatory `platform.errors` dependency is introduced for `platform.worker` by this epic.
+  - Worker task settlement MUST continue receiving the original Throwable.
+  - Kernel-owned UoW completion, failure, and reset ordering MUST remain unchanged.
+  - Worker lifecycle/process/bootstrap protocols retain their existing fixed safe diagnostics.
+  - Worker Console commands retain their owner-defined output and exit-code semantics.
+  - A future explicit Worker integration MAY consume `ErrorHandlerInterface` for normalized reporting, without replacing task settlement or process-control protocol boundaries.
+  - This epic MUST NOT modify Worker runtime or process lifecycle solely to force error-handler adoption.
+- Kernel runtime:
+  - The selected `platform.errors` module contributes the canonical `ErrorHandlerInterface` binding.
+  - The handler MUST NOT start, finish, or replace a Kernel UnitOfWork.
+  - No Kernel runtime hook is required for mapper discovery.
+  - The handler is available only after successful module composition and service construction.
+  - Pre-container bootstrap failures remain owned by their existing bootstrap boundaries.
+  - This epic MUST NOT install global PHP exception/error handlers or modify `set_exception_handler()` behavior.
+  - Normal-path CLI Throwable normalization is explicitly migrated to the canonical `ErrorHandlerInterface` by this epic.
+  - CLI contributes owner-specific exception mapping through `error.mapper` and retains transport-specific rendering.
+  - HTTP and Worker runtime adapters are not rewired by this epic.
+  - Any future HTTP or Worker integration MUST preserve its owning runtime boundary and use the canonical port only through an explicit integration contract.
 - Kernel hooks/tags:
   - `error.mapper` — deterministic registry ordering via Foundation TagRegistry invariants (no package-local re-sorting)
 - Artifacts:
@@ -136,78 +260,989 @@ Forbidden:
 
 ### Deliverables (MUST)
 
+#### Deletes
+
+Legacy CLI normalization:
+
+- [x] `packages/platform/cli/src/Diagnostics/CliErrorHandler.php`
+  - [x] replace its allowlisted exception mapping with CLI-owned `ExceptionMapperInterface` implementation
+  - [x] remove direct construction and DI registration of `CliErrorHandler`
+  - [x] no compatibility handler, duplicate normalization pipeline, or fallback registry remains
+  - [x] preserve existing public CLI error codes and reason tokens through the new canonical flow
+
+Legacy CLI handler tests:
+
+- [x] `packages/platform/cli/tests/Unit/CliErrorHandlerTest.php`
+  - [x] replace with CLI-owned exception-mapper tests
+
+- [x] `packages/platform/cli/tests/Integration/CliErrorHandlerMapsWorkflowExceptionsSafelyTest.php`
+  - [x] replace with canonical handler integration tests
+  - [x] preserve existing workflow error-code and output assertions
+
 #### Creates
 
-- [ ] `packages/platform/errors/src/Module/ErrorsModule.php` — module entry (runtime)
-- [ ] `packages/platform/errors/src/Provider/ErrorsServiceProvider.php` — DI wiring
-- [ ] `packages/platform/errors/src/Provider/ErrorsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants (owner)
-- [ ] `packages/platform/errors/config/errors.php` — config subtree (no repeated root)
-- [ ] `packages/platform/errors/config/rules.php` — config shape rules
-- [ ] `packages/platform/errors/README.md` — docs (Observability / Errors / Security-Redaction)
+Package metadata and documentation:
 
-- [ ] `packages/platform/errors/src/ErrorHandler.php` — implements ErrorHandlerInterface (never throws)
-  - [ ] MUST swallow failures from optional reporter/logger/tracer/meter enrichment paths
-  - [ ] final fallback path MUST still return a deterministic `ErrorDescriptor`
-  - [ ] internal sink/enrichment failures MUST NOT escape `handle()`
-- [ ] `packages/platform/errors/src/Mapper/ExceptionMapperRegistry.php` — aggregates `error.mapper` deterministically
-- [ ] `packages/platform/errors/src/Mapper/DefaultExceptionMapper.php` — fallback `CORETSIA_UNHANDLED_EXCEPTION`
-- [ ] `packages/platform/errors/src/Reporting/ErrorReporter.php` — glue to ErrorReporterPortInterface (noop-safe)
-- [ ] `packages/platform/errors/src/Redaction/ErrorRedactor.php` — prevents leaking secrets in detail/extensions
-- [ ] `packages/platform/errors/src/Exception/MapperFailedException.php` — internal exception (`CORETSIA_ERROR_MAPPER_FAILED`)
+- [x] `packages/platform/errors/composer.json`
+  - [x] package name: `coretsia/platform-errors`
+  - [x] type: `library`
+  - [x] PHP requirement: `^8.4`
+  - [x] production dependencies:
+    - [x] `coretsia/core-contracts`: `^0.9.0`
+    - [x] `coretsia/core-foundation`: `^0.9.0`
+    - [x] `coretsia/platform-redaction`: `^0.9.0`
+    - [x] `psr/container`: `^2.0`
+    - [x] `psr/log`: `^3.0`
+  - [x] production autoload:
+    - [x] `Coretsia\Platform\Errors\` → `src/`
+  - [x] test autoload:
+    - [x] `Coretsia\Platform\Errors\Tests\` → `tests/`
+  - [x] `extra.coretsia.kind = runtime`
+  - [x] `extra.coretsia.moduleId = platform.errors`
+  - [x] `extra.coretsia.moduleClass = Coretsia\Platform\Errors\Module\ErrorsModule`
+  - [x] `extra.coretsia.providers = [Coretsia\Platform\Errors\Provider\ErrorsServiceProvider]`
+  - [x] `extra.coretsia.requires = [core.foundation, platform.redaction]`
+  - [x] `extra.coretsia.conflicts = []`
+  - [x] `extra.coretsia.defaultsConfigPath = config/errors.php`
+  - [x] MUST NOT declare `coretsia/core-kernel`, `platform/http`, or `platform/problem-details` as production dependencies
+  - [x] Composer metadata MUST match the module class and canonical package index
 
-- [ ] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php` — contract proof
-- [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
-- [ ] `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` — unit proof
-- [ ] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` — deterministic registry proof
-- [ ] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php` — fallback proof
-- [ ] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php` — redaction proof
+- [x] `packages/platform/errors/LICENSE`
+- [x] `packages/platform/errors/NOTICE`
+- [x] `packages/platform/errors/SECURITY.md`
+  - [x] follow canonical monorepo package scaffold and licensing conventions
 
-- [ ] `docs/ssot/error-flow.md` — canonical error flow (HTTP/CLI/worker adapters), “no PSR-7 in errors”
-- [ ] `docs/ssot/error-codes.md` — baseline error codes + stability rules
+- [ ] `packages/platform/errors/README.md`
+  - [ ] describe canonical error normalization and contracts
+  - [ ] describe module selection and dependency closure
+  - [ ] document mapper registration and deterministic ordering
+  - [ ] document safe fallback behavior
+  - [ ] document config keys and defaults
+  - [ ] document redaction ownership and mandatory fail-closed behavior
+  - [ ] document Context and UoW boundaries
+  - [ ] document reporter, logger, tracer, and meter behavior
+  - [ ] document CLI/HTTP/Worker adapter ownership
+  - [ ] document errors, tests, and architectural restrictions
+
+Module and DI:
+
+- [x] `packages/platform/errors/src/Module/ErrorsModule.php`
+  - [x] final module metadata class
+  - [x] constants:
+    - [x] `MODULE_ID = 'platform.errors'`
+    - [x] `PACKAGE_ID = 'platform/errors'`
+    - [x] `COMPOSER_PACKAGE = 'coretsia/platform-errors'`
+    - [x] `KIND = 'runtime'`
+    - [x] `CONFIG_ROOT = 'errors'`
+  - [x] expose canonical `id()`, `packageId()`, `composerPackage()`, `kind()`, and `configRoot()` methods
+  - [x] `providers()` returns exactly `[ErrorsServiceProvider::class]`
+  - [x] MUST NOT construct containers, load config, resolve dependencies, or execute error handling
+  - [x] MUST NOT introduce runtime module discovery or provider ordering
+
+- [x] `packages/platform/errors/src/Provider/ErrorsServiceProvider.php`
+  - [x] final class implements `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+  - [x] `register(ContainerBuilder $builder)` delegates to the canonical definition provider registration path
+  - [x] `define(ContainerDefinitionBuilder $definitions, ContainerDefinitionContext $context)` contributes declarative services
+  - [x] use `ContainerValueReference::service(...)` for service dependencies
+  - [x] use canonical `classService()`, `classMethodFactory()`, and `alias()` definitions
+  - [x] declare all external DI dependencies through `ContainerDefinitionBuilder::requireService()`
+  - [x] every required service id MUST match the ordered factory argument references
+  - [x] MUST NOT require `ContextAccessorInterface` or `ContextKeys` directly
+  - [x] MUST NOT resolve the concrete Foundation `CorrelationIdProvider`
+  - [x] register `DefaultExceptionMapper::class` through `classService()` with no constructor arguments
+  - [x] register `ExceptionMapperRegistry::class` through:
+    - [x] factory class: `ErrorsServiceFactory::class`
+    - [x] method: `exceptionMapperRegistry`
+    - [x] ordered service arguments:
+      - [x] `TagRegistry::class`
+      - [x] `ContainerInterface::class`
+      - [x] `LoggerInterface::class`
+      - [x] `ConfigRepositoryInterface::class`
+  - [x] register `ErrorHandler::class` through:
+    - [x] factory class: `ErrorsServiceFactory::class`
+    - [x] method: `errorHandler`
+    - [x] ordered service arguments:
+      - [x] `ExceptionMapperRegistry::class`
+      - [x] `DefaultExceptionMapper::class`
+      - [x] `SensitiveDataRedactorInterface::class`
+      - [x] `ErrorReporterPortInterface::class`
+      - [x] `CorrelationIdProviderInterface::class`
+      - [x] `TracerPortInterface::class`
+      - [x] `MeterPortInterface::class`
+      - [x] `Stopwatch::class`
+      - [x] `ConfigRepositoryInterface::class`
+  - [x] bind `ErrorHandlerInterface::class` through `alias(ErrorHandlerInterface::class, ErrorHandler::class)`
+  - [x] all factory arguments MUST use `ContainerValueReference::service($serviceId)`
+  - [x] all three concrete services are shared and contain no mutable invocation state
+  - [x] provider registration and definition production MUST NOT instantiate the handler, registry, mapper, or any optional sink
+  - [x] require existing:
+    - [x] `ConfigRepositoryInterface`
+    - [x] `ContainerInterface`
+    - [x] `TagRegistry`
+    - [x] `SensitiveDataRedactorInterface`
+    - [x] `ErrorReporterPortInterface`
+    - [x] `CorrelationIdProviderInterface`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] `LoggerInterface`
+    - [x] `Stopwatch`
+  - [x] MUST NOT bind or override `ErrorReporterPortInterface`
+  - [x] MUST NOT bind or override `SensitiveDataRedactorInterface`
+  - [x] MUST NOT register `DefaultExceptionMapper` under `error.mapper`
+  - [x] MUST NOT register a duplicate `ERROR_MAPPER` constant
+  - [x] MUST NOT contain closures in declarative service definitions
+  - [x] MUST NOT resolve services during definition production
+  - [x] source and compiled container definitions MUST remain equivalent
+
+- [x] `packages/platform/errors/src/Provider/ErrorsServiceFactory.php`
+  - [x] final stateless factory with public static construction methods
+  - [x] canonical APIs:
+    - [x] `exceptionMapperRegistry(TagRegistry $tags, ContainerInterface $container, LoggerInterface $logger, ConfigRepositoryInterface $config): ExceptionMapperRegistry`
+    - [x] `errorHandler(ExceptionMapperRegistry $registry, DefaultExceptionMapper $fallback, SensitiveDataRedactorInterface $redactor, ErrorReporterPortInterface $reporter, CorrelationIdProviderInterface $correlations, TracerPortInterface $tracer, MeterPortInterface $meter, Stopwatch $stopwatch, ConfigRepositoryInterface $config): ErrorHandler`
+  - [x] read the merged reporting configuration through `ConfigRepositoryInterface`
+  - [x] required configuration values:
+    - [x] `errors.reporting.enabled`: strict `bool`
+    - [x] `errors.reporting.min_severity`: string-backed `ErrorSeverity` value
+    - [x] `errors.reporting.exclude_codes`: `list<non-empty-string-no-ws>`
+    - [x] `errors.reporting.sample_rate`: strict `int` in the inclusive range `0..10000`
+    - [x] `errors.reporting.mapper_failures.enabled`: strict `bool`
+  - [x] convert the validated minimum severity to the existing `ErrorSeverity` enum
+  - [x] missing, incorrectly typed, or out-of-range reporting configuration MUST fail during service construction
+  - [x] configuration validation MUST NOT create another config loader, ruleset validator, or descriptor schema
+  - [x] pass the validated immutable reporting values explicitly to runtime services through constructor arguments
+  - [x] `ExceptionMapperRegistry` receives the canonical TagRegistry, PSR-11 container, logger, reporting-enabled flag, and mapper-failure diagnostics flag
+  - [x] `ErrorHandler` receives only its used collaborators, reporting-enabled flag, minimum severity, excluded codes, and sample rate
+  - [x] `LoggerInterface` is injected into `ExceptionMapperRegistry` only, which owns safe mapper-failure diagnostics and their exception isolation
+  - [x] `ErrorHandler` MUST NOT receive an unused logger dependency or introduce unspecified logging events
+  - [x] all runtime services MUST remain shared and stateless with respect to individual `handle()` invocations
+  - [x] configuration MUST NOT be read again during individual `handle()` or mapper dispatch calls
+  - [x] MUST NOT introduce a second reporting-policy registry, mutable configuration cache, or container-resolution mechanism
+  - [x] consume the existing `SensitiveDataRedactorInterface` binding
+  - [x] consume the existing `ErrorReporterPortInterface` binding
+  - [x] MUST NOT construct concrete Redaction or Foundation reporter implementations
+  - [x] MUST NOT implement another config loader, ruleset validator, reporter, or redaction engine
+  - [x] MUST NOT store mutable runtime state, caches, buffers, mapper lists, or previous results
+
+Configuration:
+
+- [x] `packages/platform/errors/config/errors.php`
+  - [x] return the `errors` subtree only
+  - [x] exact defaults:
+    - [x] `reporting.enabled = false`
+    - [x] `reporting.min_severity = 'info'`
+    - [x] `reporting.exclude_codes = []`
+    - [x] `reporting.sample_rate = 10000`
+    - [x] `reporting.mapper_failures.enabled = false`
+  - [x] `sample_rate` uses integer basis points; `10000` means 100% reporter eligibility
+  - [x] default reporter filters MUST preserve all severity levels and error codes when reporting is enabled
+  - [x] all five keys MUST be represented in the returned configuration subtree
+  - [x] MUST NOT repeat the `errors` root wrapper
+  - [x] MUST NOT contain mapper class registries or service ids
+  - [x] MUST NOT contain a redaction disable switch
+  - [x] MUST NOT contain a raw error-detail/debug disclosure switch
+
+- [x] `packages/platform/errors/config/rules.php`
+  - [x] return a declarative ruleset array
+  - [x] `schemaVersion = 1`
+  - [x] `configRoot = errors`
+  - [x] top-level `additionalKeys = false`
+  - [x] `reporting` is a required map
+  - [x] `reporting.additionalKeys = false`
+  - [x] `reporting.enabled` is a required boolean
+  - [x] `reporting.min_severity` is a required string restricted to `info|warning|error|critical`
+  - [x] severity values MUST match the existing `ErrorSeverity` enum
+  - [x] `reporting.exclude_codes` is a required list of non-empty strings without whitespace
+  - [x] `reporting.sample_rate` is a required integer in the inclusive range `0..10000`
+  - [x] `reporting.mapper_failures` is a required map with `additionalKeys = false`
+  - [x] `reporting.mapper_failures.enabled` is a required boolean
+  - [x] use only supported canonical Kernel ConfigValidator rules and types
+  - [x] unknown keys and reserved `@*` keys MUST be rejected
+  - [x] no executable validators, closures, objects, or runtime service references
+  - [x] validation is performed by the existing Kernel ConfigValidator
+
+Error normalization:
+
+- [x] `packages/platform/errors/src/Mapper/ExceptionMapperRegistry.php`
+  - [x] final stateless mapper-discovery and dispatch service
+  - [x] canonical API:
+    - [x] `map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor`
+  - [x] constructor dependencies:
+    - [x] `TagRegistry`
+    - [x] `ContainerInterface`
+    - [x] `LoggerInterface`
+    - [x] `bool $reportingEnabled`
+    - [x] `bool $mapperFailureLoggingEnabled`
+  - [x] consume the existing `TagRegistry`
+  - [x] enumerate mapper registrations once per `map()` invocation
+  - [x] no mapper snapshot or resolved mapper cache is retained
+  - [x] empty tag metadata is required; non-empty metadata invalidates only that mapper candidate
+  - [x] invalid mapper metadata or service resolution MUST NOT abort the remaining candidates
+  - [x] invalid mapper service type MUST be treated as a candidate failure
+  - [x] mapped results MUST be either `null` or `ErrorDescriptor`
+  - [x] caught mapper `Throwable` or return-type violations MUST be treated as candidate failures
+  - [x] invalid candidate failures continue discovery in original TagRegistry order
+  - [x] safe mapper-failure logging is allowed only when both `reporting.enabled` and `reporting.mapper_failures.enabled` are true
+  - [x] mapper-failure diagnostics MUST NOT be filtered by `min_severity`, `exclude_codes`, or `sample_rate`
+  - [x] disabling mapper-failure logging MUST NOT change candidate isolation, discovery continuation, descriptor selection, or fallback behavior
+  - [x] mapper-failure diagnostics MUST use only existing fixed safe event names and low-cardinality reason tokens
+  - [x] logging failures MUST NOT affect discovery or fallback selection
+  - [x] read mapper registrations through `TagRegistry::all(ReservedTags::ERROR_MAPPER)`
+  - [x] preserve canonical priority and service-id ordering
+  - [x] do not re-sort or de-duplicate discovery results
+  - [x] resolve mapper services lazily through `ContainerInterface::get($serviceId)`
+  - [x] require resolved services to implement `ExceptionMapperInterface`
+  - [x] call `map($throwable, $context)` in canonical discovery order
+  - [x] `null` means continue to the next mapper
+  - [x] first non-null `ErrorDescriptor` wins
+  - [x] exhausted discovery returns `null` to the handler
+  - [x] no raw Throwable message, trace, mapper exception, or previous Throwable is logged
+  - [x] MUST NOT own the final fallback descriptor
+  - [x] MUST NOT implement another TagRegistry, tag sorter, or metadata registry
+
+- [x] `packages/platform/errors/src/Mapper/DefaultExceptionMapper.php`
+  - [x] final stateless implementation of `ExceptionMapperInterface`
+  - [x] `map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor`
+  - [x] handles every Throwable without inspecting or copying its raw message
+  - [x] returns a canonical `ErrorDescriptor`
+  - [x] code: `CORETSIA_UNHANDLED_EXCEPTION`
+  - [x] message: `Unhandled exception.`
+  - [x] severity: `ErrorSeverity::Error`
+  - [x] httpStatus: `null`
+  - [x] extensions: `[]`
+  - [x] uses static, owner-approved fallback values only
+  - [x] MUST NOT add Throwable class, file, line, message, trace, or previous exception to the descriptor
+  - [x] MUST NOT be registered under `error.mapper`
+  - [x] MUST NOT depend on a container, config repository, redactor, reporter, or runtime adapter
+
+- [x] `packages/platform/errors/src/ErrorHandler.php`
+  - [x] final stateless implementation of `ErrorHandlerInterface`
+  - [x] public API:
+    - [x] `handle(Throwable $throwable, ?ErrorHandlingContext $context = null): ErrorDescriptor`
+  - [x] accept caller-supplied `ErrorHandlingContext` when available
+  - [x] read `CorrelationIdProviderInterface::correlationId()` at most once per `handle()` invocation
+  - [x] capture the canonical correlation id as an invocation-local immutable snapshot
+  - [x] correlation provider invocation failures MUST be swallowed and normalized to unavailable correlation enrichment
+  - [x] mapping and reporting context construction MUST be independently exception-isolated
+  - [x] if `ErrorHandlingContext` rejects a captured provider value, treat correlation enrichment as unavailable
+  - [x] use `null` as the invocation-local correlation snapshot after such rejection
+  - [x] construct safe mapping and reporting contexts using the fixed `operation = map`, `correlationId = null`, and `metadata = []` values
+  - [x] explicit caller-supplied mapping context MUST remain unchanged
+  - [x] context construction failures MUST NOT affect mapper dispatch, descriptor selection, redaction, or fallback behavior
+  - [x] MUST NOT re-query the correlation provider or introduce package-local correlation-id validation
+  - [x] explicit caller-supplied `ErrorHandlingContext` MUST remain authoritative for mapper invocation
+  - [x] when explicit context is absent, construct mapping context as:
+    - [x] `operation = map`
+    - [x] `correlationId = captured safe correlation id|null`
+    - [x] `metadata = []`
+  - [x] construct a separate sanitized reporting context using the same captured correlation snapshot
+  - [x] reporting context MUST NOT copy caller-supplied metadata
+  - [x] mapping and reporting MUST NOT independently invoke the correlation provider
+  - [x] mapper-side Context mutations MUST NOT alter the captured reporting correlation id
+  - [x] do not read `ContextStore` or `ContextAccessorInterface` directly
+  - [x] do not validate, generate, or normalize correlation identifiers through a package-local implementation
+  - [x] correlation enrichment failures MUST NOT change the selected ErrorDescriptor
+  - [x] delegate mapper discovery and dispatch to `ExceptionMapperRegistry`
+  - [x] protect the entire registry-dispatch invocation with an outer Throwable boundary
+  - [x] registry enumeration, ordering, and dispatch failures MUST NOT escape `handle()`
+  - [x] registry-dispatch failure MUST select the fixed safe fallback without retrying discovery
+  - [x] use `DefaultExceptionMapper` when no mapper produces a descriptor or registry dispatch cannot complete
+  - [x] candidate-level mapper failures remain isolated inside the registry and MAY continue to subsequent candidates
+  - [x] registry-level failures MUST NOT be confused with individual mapper failures
+  - [x] MUST NOT introduce another TagRegistry or discovery mechanism solely to implement failure isolation
+  - [x] use `SensitiveDataRedactorInterface` as defense in depth
+  - [x] use one fixed `RedactionContext`:
+    - [x] scope: `errors.descriptor`
+    - [x] mode: `RedactionMode::Placeholder`
+  - [x] export the candidate descriptor through `ErrorDescriptor::toArray()`
+  - [x] pass the exported json-like map to `SensitiveDataRedactorInterface::redactJsonLike()`
+  - [x] require the redactor result to be an array
+  - [x] reconstruct the result only through `ErrorDescriptor::fromArray()`
+  - [x] the canonical contracts implementation owns strict field-set, field-type, schema-version, severity, and extension validation
+  - [x] invalid redactor output or failed descriptor reconstruction MUST select the fixed safe fallback
+  - [x] redactor exceptions MUST select the fixed safe fallback
+  - [x] the fallback MUST NOT be passed recursively through the failing redaction path
+  - [x] MUST NOT introduce package-local descriptor field definitions, schema validators, or reconstruction helpers
+  - [x] MUST NOT silently coerce or repair malformed redaction output
+  - [x] fallback construction MUST use only static safe constants
+  - [x] never copy arbitrary Throwable messages into fallback output
+  - [x] invoke the injected `ErrorReporterPortInterface` only when reporting is enabled and the final descriptor passes all reporter eligibility checks
+  - [x] evaluate reporter eligibility only after mapper selection, mandatory redaction, descriptor reconstruction, and fallback selection
+  - [x] apply the minimum severity threshold to the final `ErrorDescriptor::severity()`
+  - [x] canonical severity order:
+    - [x] `info < warning < error < critical`
+  - [x] exclude descriptors whose final code exactly matches a configured entry in `reporting.exclude_codes`
+  - [x] excluded-code matching MUST be strict and case-sensitive
+  - [x] apply sampling only after severity and excluded-code filtering
+  - [x] interpret `reporting.sample_rate` as integer basis points:
+    - [x] `0`: suppress every reporter invocation
+    - [x] `10000`: report every otherwise eligible descriptor
+    - [x] `1..9999`: use `random_int(0, 9999)` and report only when the result is less than the configured rate
+  - [x] random sampling MUST NOT modify the descriptor, mapper selection, fallback selection, or normalized outcome
+  - [x] sampling MUST NOT use raw Throwable data, caller metadata, credentials, request payloads, or sensitive identifiers
+  - [x] sampling failures MUST be swallowed and suppress only the optional reporter invocation
+  - [x] min-severity, excluded-code, and sampling policies MUST NOT suppress mapping metrics, spans, or canonical normalization
+  - [x] construct and pass only sanitized safe reporting context when reporter invocation is selected
+  - [x] use only normalized descriptors and safe context for reporting
+  - [x] no reporter eligibility failure may replace the selected descriptor
+  - [x] reporter execution remains at most once per `handle()` invocation
+  - [x] MUST NOT introduce a second error mapper, reporter implementation, sampling service, or mutable invocation counter
+  - [x] do not forward unvalidated caller metadata to reporter or telemetry sinks
+  - [x] isolate reporter, tracer, meter, and Stopwatch failures independently in `ErrorHandler`
+  - [x] isolate mapper-failure logger failures independently in `ExceptionMapperRegistry`
+  - [x] no reporting or enrichment failure may replace the selected descriptor
+  - [x] avoid recursive fallback mapping or recursive self-reporting
+  - [x] use a protected finally path to attempt span termination exactly once
+  - [x] span end failures MUST NOT affect the returned descriptor
+  - [x] return a format-neutral `ErrorDescriptor`
+  - [x] MUST NOT produce HTTP responses, CLI output, or worker failure payloads
+  - [x] MUST NOT import PSR-7 or transport-specific implementations
+  - [x] MUST NOT start or finish a Kernel UnitOfWork
+  - [x] MUST NOT write or reset ContextStore
+  - [x] MUST NOT retain Throwable, context, descriptor, timing token, span, or previous result between calls
+  - [x] the runtime `handle()` boundary MUST NOT propagate mapper, redaction, or optional sink failures
+
+Canonical runtime flow (MUST):
+
+```text
+Throwable
+→ capture canonical correlation snapshot (at most once)
+→ select explicit or canonical safe mapping context
+→ if reporting enabled:
+  → start Stopwatch measurement
+  → start error.map span with operation=map
+→ ExceptionMapperRegistry
+  → TagRegistry::all(ReservedTags::ERROR_MAPPER)
+  → preserve TagRegistry ordering
+  → lazy mapper service resolution
+  → ExceptionMapperInterface::map()
+  → null/failure: continue
+  → first non-null ErrorDescriptor
+→ DefaultExceptionMapper when no descriptor is selected
+→ ErrorDescriptor::toArray()
+→ SensitiveDataRedactorInterface::redactJsonLike()
+→ ErrorDescriptor::fromArray()
+  → canonical contracts-owned shape and invariant validation
+→ fixed safe fallback on validation/redaction failure
+→ final safe ErrorDescriptor
+→ determine normalization outcome: ok|fallback
+→ if reporting enabled:
+  → stop Stopwatch measurement
+  → emit error.map_total and error.map_duration_ms
+  → finalize error.map span with operation/outcome
+  → end successfully created span exactly once
+  → evaluate reporter-only minimum severity threshold
+  → evaluate reporter-only excluded error codes
+  → apply reporter-only sampling policy
+  → if reporter is eligible:
+    → construct sanitized reporting context
+    → invoke ErrorReporterPortInterface at most once
+→ return final ErrorDescriptor
+```
+
+- Normalization MUST complete independently of optional reporting.
+- Reporting-disabled execution MUST still perform complete mapper dispatch, redaction, descriptor reconstruction, and fallback handling.
+- Mapping failure or exhaustion MUST NOT re-enter the registry recursively.
+- The default mapper MUST execute only as the fallback path.
+- A redaction failure MUST NOT return the pre-redaction descriptor.
+- A redaction failure MUST NOT retry the registry or recursively redact the fallback.
+- Mapping observability MUST use only fixed operation and outcome values.
+- A reporter failure MUST NOT restart mapping.
+- All invocation-local timing and span state MUST be discarded after the call.
+- The handler MUST NOT perform application boot, module discovery, runtime adapter rendering, or Kernel UoW orchestration.
+
+- [x] All Stopwatch, metric, tracer, and reporter operations MUST be independently exception-isolated.
+- [x] Failure to start a span MUST NOT prevent mapping, metrics, or reporting.
+- [x] Failure to stop timing MUST NOT prevent span finalization or reporting.
+- [x] Span finalization MUST be attempted exactly once for every successfully created span.
+- [x] The normalization outcome MUST be determined by the final descriptor selection, not by the success or failure of observability sinks.
+- [x] Reporter execution occurs outside the measured normalization boundary.
+- [x] No observability failure may cause another mapper-dispatch or redaction pass.
+
+Cross-package CLI integration:
+
+- [x] `packages/platform/cli/src/Mapper/CliExceptionMapper.php`
+  - [x] final stateless implementation of `ExceptionMapperInterface`
+  - [x] public API:
+    - [x] `map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor`
+  - [x] replace the known-exception allowlist from the existing `CliErrorHandler`
+  - [x] supported Throwable types:
+    - [x] `CliInputInvalidException`
+    - [x] `CliConfigInvalidException`
+    - [x] `InvalidCommandTagMetaException`
+    - [x] `CliCommandFailedException`
+    - [x] `WorkflowDefinitionInvalidException`
+    - [x] `WorkflowNotFoundException`
+    - [x] `KernelOpsFailedException`
+  - [x] for supported exceptions, preserve:
+    - [x] `code = $throwable->errorCode()`
+    - [x] `message = $throwable->reason()`
+    - [x] `severity = ErrorSeverity::Error`
+    - [x] `httpStatus = null`
+    - [x] `extensions = []`
+  - [x] unsupported Throwable types MUST return `null`
+  - [x] MUST NOT become a catch-all mapper
+  - [x] MUST NOT inspect or copy arbitrary Throwable messages, traces, files, lines, or previous exceptions
+  - [x] MUST NOT copy caller context metadata into the descriptor
+  - [x] MUST NOT perform redaction, reporting, logging, rendering, or UoW orchestration
+  - [x] MUST NOT depend on concrete `platform/errors` classes
+  - [x] MUST NOT register a global `ErrorHandlerInterface` binding
+  - [x] in the canonical CLI baseline, known error codes and reason tokens MUST remain byte-for-byte compatible with the previous CLI behavior
+  - [x] the CLI mapper MUST use the canonical TagRegistry ordering without package-local priority overrides
+  - [x] an explicitly contributed mapper enumerated earlier MAY claim the same Throwable according to the first-non-null registry policy
+  - [x] CLI MUST NOT bypass mapper priority ordering to force its own descriptor selection
+
+CLI normalization verification:
+
+- [ ] `packages/platform/cli/tests/Unit/CliExceptionMapperTest.php`
+  - [ ] verify each of the seven known exception types
+  - [ ] preserve existing code and reason values exactly
+  - [ ] return `null` for unknown Throwable types
+  - [ ] reject raw exception-message and previous-Throwable disclosure
+  - [ ] produce no transport-specific descriptor fields
+  - [ ] mapper does not perform redaction, reporting, or rendering
+
+- [ ] `packages/platform/cli/tests/Integration/CliCanonicalErrorHandlerIntegrationTest.php`
+  - [ ] compose `platform.cli`, `platform.errors`, and `platform.redaction` through canonical Kernel module composition
+  - [ ] verify `ErrorHandlerInterface` resolves to the `platform/errors` implementation
+  - [ ] verify CLI-owned mapper discovery through `ReservedTags::ERROR_MAPPER`
+  - [ ] verify known CLI and Kernel Ops failures preserve existing public code/message pairs in the canonical baseline
+  - [ ] verify earlier registered mapper contributions retain canonical first-non-null precedence
+  - [ ] verify CLI mapping does not perform consumer-side mapper reordering or candidate filtering
+  - [ ] verify unknown Throwable uses the canonical fallback internally
+  - [ ] verify unknown Throwable renders as `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.`
+  - [ ] verify exception rendering does not expose raw messages, traces, previous exceptions, or caller metadata
+  - [ ] verify mapped exceptions preserve existing JSON/plain/table error-output behavior
+  - [ ] verify unknown-command suggestions and workflow failures preserve current output semantics
+  - [ ] verify normal CLI exit codes remain unchanged
+  - [ ] verify disabled error reporting does not disable mapping or mandatory redaction
+  - [ ] verify source and compiled container execution produce equivalent normalized results
+  - [ ] verify ultra-early doctor does not resolve the canonical handler
+  - [ ] verify missing or excluded `platform.errors` causes safe Console host failure
+  - [ ] verify no duplicate global error-handler binding exists
+
+Architecture decision:
+
+- [ ] `docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md`
+  - [ ] document the canonical contracts-level normalization boundary
+  - [ ] document why TagRegistry remains the only mapper discovery authority
+  - [ ] document why the default mapper is outside the tag registry
+  - [ ] document use of the existing redaction port
+  - [ ] document reuse of the Foundation Noop reporter
+  - [ ] document the fail-closed handler behavior
+  - [ ] document the absence of a package-local reset mechanism
+  - [ ] document runtime module composition
+  - [ ] document rejected duplicate redaction, reporter, registry, and adapter implementations
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/error-flow.md`
-  - [ ] `docs/ssot/error-codes.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-errors-errorhandler-exception-mapper.md`
-- [ ] `docs/ssot/config-roots.md` — add root row for `errors` (owner `platform/errors`, defaults `packages/platform/errors/config/errors.php`, rules `packages/platform/errors/config/rules.php`)
+Contracts hardening:
 
-#### Package skeleton (if type=package)
+- [x] `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - [x] add canonical static reconstruction API:
+    - [x] `public static function fromArray(array $payload): self`
+  - [x] accept only the existing canonical exported field set:
+    - [x] `code`
+    - [x] `extensions`
+    - [x] `httpStatus`
+    - [x] `message`
+    - [x] `schemaVersion`
+    - [x] `severity`
+  - [x] reject missing or unknown top-level fields
+  - [x] field ordering in the input map MUST NOT affect acceptance
+  - [x] require `schemaVersion === self::SCHEMA_VERSION`
+  - [x] require strict field types:
+    - [x] `code`: string
+    - [x] `message`: string
+    - [x] `severity`: valid string-backed `ErrorSeverity`
+    - [x] `httpStatus`: int|null
+    - [x] `extensions`: string-keyed map
+  - [x] reconstruct severity through `ErrorSeverity::from()`
+  - [x] delegate final field validation and extension normalization to the existing constructor
+  - [x] reject malformed payloads using exactly one safe `InvalidArgumentException` message:
+    - [x] `Invalid error descriptor payload.`
+  - [x] validate the exact top-level field set and strict field types before enum conversion
+  - [x] normalize constructor and enum-validation failures to the fixed reconstruction error
+  - [x] MUST NOT expose rejected values, nested extension paths, or internal validation diagnostics
+  - [x] MUST NOT retain the original validation exception through `previous`
+  - [x] MUST NOT change the existing constructor's independent validation behavior
+  - [x] MUST NOT introduce another descriptor schema, sanitizer, or redaction implementation
+  - [x] MUST NOT modify the existing constructor signature or public exported field set
+  - [x] MUST NOT silently coerce invalid types, remove unknown fields, or truncate invalid metadata
+  - [x] MUST NOT treat successful reconstruction as authorization to disclose arbitrary producer data
 
-- [ ] `packages/platform/errors/composer.json`
-- [ ] `packages/platform/errors/src/Module/ErrorsModule.php`
-- [ ] `packages/platform/errors/src/Provider/ErrorsServiceProvider.php`
-- [ ] `packages/platform/errors/config/errors.php`
-- [ ] `packages/platform/errors/config/rules.php`
-- [ ] `packages/platform/errors/README.md`
-- [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/core/contracts/tests/Contract/ErrorDescriptorShapeContractTest.php`
+  - [x] valid `fromArray(toArray())` round-trip preserves descriptor values and canonical export shape
+  - [x] input field ordering does not affect reconstruction
+  - [x] unknown and missing fields are rejected
+  - [x] invalid schema version is rejected
+  - [x] invalid severity or field types are rejected
+  - [x] malformed reconstruction exposes only `Invalid error descriptor payload.`
+  - [x] invalid nested extension paths do not appear in the reconstruction exception
+  - [x] reconstruction exceptions do not retain original validation exceptions as `previous`
+  - [x] forbidden extension keys and resource-bound violations remain rejected
+  - [x] existing constructor and getter contracts remain unchanged
+
+Cross-package CLI normalization migration:
+
+- [x] `packages/platform/cli/composer.json`
+  - [x] add direct production dependency:
+    - [x] `coretsia/platform-errors`: `^0.9.0`
+  - [x] extend `extra.coretsia.requires`:
+    - [x] `core.kernel`
+    - [x] `platform.errors`
+    - [x] `platform.redaction`
+  - [x] preserve the direct `coretsia/platform-redaction` dependency because `OutputFormatter` still consumes its port
+  - [x] preserve all existing CLI package metadata and command entrypoints
+  - [x] Composer installation MUST NOT implicitly enable the CLI or Errors runtime module
+
+- [x] `packages/platform/cli/src/Provider/CliServiceProvider.php`
+  - [x] require the existing `ErrorHandlerInterface::class` binding in canonical declarative definitions
+  - [x] register `CliExceptionMapper::class` as a shared class service
+  - [x] register its tag through the existing canonical tag API:
+    - [x] tag: `ReservedTags::ERROR_MAPPER`
+    - [x] service id: `CliExceptionMapper::class`
+    - [x] priority: `100`
+    - [x] metadata: `[]`
+  - [x] register the mapper and tag through `define()` so source and compiled definitions remain equivalent
+  - [x] replace `CliApplication` factory argument `CliErrorHandler::class` with `ErrorHandlerInterface::class`
+  - [x] remove the `CliErrorHandler::class` service definition
+  - [x] MUST NOT bind or alias `ErrorHandlerInterface` from CLI
+  - [x] MUST NOT instantiate the concrete `platform/errors` handler or registry
+  - [x] MUST NOT register `CliExceptionMapper` under `cli.command`
+  - [x] preserve all existing command tags, metadata, service ids, and source-only Kernel Ops wiring
+
+- [x] `packages/platform/cli/src/Provider/CliServiceFactory.php`
+  - [x] remove `cliErrorHandler(): CliErrorHandler`
+  - [x] change `cliApplication()` argument:
+    - [x] from `CliErrorHandler $errors`
+    - [x] to `ErrorHandlerInterface $errors`
+  - [x] forward the injected canonical port to `CliApplication` without wrapping it
+  - [x] MUST NOT construct `ErrorHandler`, `ExceptionMapperRegistry`, or a fallback mapper
+
+- [x] `packages/platform/cli/src/Application/CliApplication.php`
+  - [x] change constructor dependency:
+    - [x] from `CliErrorHandler $errors`
+    - [x] to `ErrorHandlerInterface $errors`
+  - [x] preserve existing normal-path Throwable handling:
+    - [x] discard partial output before rendering an error
+    - [x] call `$this->errors->handle($exception)` exactly once
+    - [x] retain the returned `ErrorDescriptor` as an invocation-local value
+    - [x] pass the captured descriptor to `ExceptionRenderer`
+    - [x] preserve unknown-command suggestions and their existing safety restrictions
+    - [x] change the third `appendSuggestions()` argument:
+      - [x] from `CliInputInvalidException $exception`
+      - [x] to `ErrorDescriptor $descriptor`
+    - [x] pass the captured descriptor to `appendSuggestions()` for error-output recovery
+    - [x] preserve the existing unknown-command condition in `run()` before invoking `appendSuggestions()`
+    - [x] `appendSuggestions()` MUST NOT inspect or retain the original Throwable
+    - [x] when suggestion output fails, discard partial output and re-render the captured descriptor
+    - [x] suggestion-output recovery MUST NOT invoke `ErrorHandlerInterface` a second time
+    - [x] preserve exit code `1` for uncaught normal-path failures
+  - [x] preserve invocation-local `CommandOutputBuffer`
+  - [x] preserve the independent final formatting/rendering failure boundary
+  - [x] MUST NOT create a second error handler or mapper fallback
+  - [x] MUST NOT move mapper dispatch inside an additional Kernel UoW
+
+- [x] `packages/platform/cli/src/Diagnostics/ExceptionRenderer.php`
+  - [x] continue to accept only `ErrorDescriptor` and `OutputInterface`
+  - [x] render normalized known-error descriptors through the existing output port
+  - [x] when the canonical descriptor has code `CORETSIA_UNHANDLED_EXCEPTION`, render the existing CLI public fallback:
+    - [x] code: `CORETSIA_CLI_INTERNAL_ERROR`
+    - [x] message: `Internal CLI error.`
+  - [x] preserve all other accepted descriptor codes and messages unchanged
+  - [x] fallback translation is CLI presentation policy, not another Throwable mapping pass
+  - [x] MUST NOT construct another ErrorDescriptor or invoke `ErrorHandlerInterface`
+  - [x] MUST NOT inspect Throwable objects or raw exception metadata
+  - [x] MUST NOT change `CommandOutputBuffer`, `OutputFormatter`, or console-writer responsibilities
+
+CLI and Kernel regression fixtures:
+
+- [x] `packages/platform/cli/tests/Contract/CliDoesNotBindGlobalErrorHandlerPortContractTest.php`
+  - [x] replace legacy `CliErrorHandler` expectations with canonical consumer assertions
+  - [x] CLI provider MUST require `ErrorHandlerInterface` without binding or overriding it
+  - [x] verify `CliApplication` references `ErrorHandlerInterface`
+  - [x] verify CLI mapper is registered as a service and tagged under `error.mapper`
+  - [x] verify CLI-only provider registration does not create a global handler alias
+  - [x] verify canonical module composition supplies exactly one handler binding
+
+- [x] `packages/platform/cli/tests/Contract/CliServiceProviderSeparatesSourceOnlyKernelOpsWiringContractTest.php`
+  - [x] replace `CliErrorHandler` service assertions with `CliExceptionMapper`
+  - [x] keep `cli.command` metadata assertions scoped only to `cli.command` tags
+  - [x] validate `error.mapper` metadata is empty and priority is `100`
+  - [x] preserve source-only Kernel Ops command registration
+  - [x] preserve declarative source/compiled definition parity
+
+- [x] `packages/platform/cli/tests/Contract/CliComposerRuntimeDependenciesContractTest.php`
+  - [x] add `coretsia/platform-errors` to the exact internal dependency set
+  - [x] update module requirements to include `platform.errors`
+  - [x] preserve the ban on concrete platform/errors and platform/redaction source imports
+  - [x] preserve CLI entrypoint and command-owner dependency restrictions
+
+- [x] `packages/platform/cli/tests/Contract/CliCommandOutputBufferIsInvocationLocalContractTest.php`
+  - [x] replace direct legacy handler construction with an injected `ErrorHandlerInterface` fixture
+  - [x] preserve one buffer per CLI invocation
+  - [x] preserve discard-before-render ordering and repeated-invocation isolation
+  - [x] replace the source-level assertion requiring inline `$this->exceptions->render($this->errors->handle($exception), $buffer)`
+  - [x] verify `CliApplication` invokes `ErrorHandlerInterface::handle()` exactly once for the original normal-path failure
+  - [x] verify the returned `ErrorDescriptor` is retained as an invocation-local value
+  - [x] verify `ExceptionRenderer` receives the captured descriptor
+  - [x] verify `appendSuggestions()` receives and reuses the same descriptor
+  - [x] verify suggestion-output recovery does not perform another mapper dispatch or reporting attempt
+  - [x] preserve repeated-invocation isolation without storing the descriptor as service state
+
+- [x] `packages/platform/cli/tests/Integration/Support/CliApplicationFixtureHarness.php`
+  - [x] accept a canonical `ErrorHandlerInterface` fixture or service
+  - [x] remove direct `CliErrorHandler` construction
+  - [x] preserve real CLI rendering and output-formatting behavior
+  - [x] use the canonical composed handler for mapping integration scenarios
+  - [x] MUST NOT introduce a second production mapping pipeline inside test support
+
+- [x] `packages/platform/cli/tests/Integration/CliRequiresExplicitConsoleModuleSelectionTest.php`
+  - [x] include `platform.errors` in synthetic module manifests and dependency closure
+  - [x] preserve the existing missing-redaction failure assertion
+  - [x] add independent missing-errors and explicit-errors-exclusion failure assertions
+  - [x] verify that installed but unselected CLI does not activate the Errors module
+
+- [x] `packages/platform/cli/tests/Integration/NormalCommandsBootKernelOperationsHostTest.php`
+  - [x] verify normal Console host includes `platform.errors`
+  - [x] verify canonical `ErrorHandlerInterface` resolution
+  - [x] preserve explicit CLI exclusion behavior and source-host boot invariants
+
+- [x] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
+  - [x] verify Composer baseline includes `coretsia/platform-errors` transitively
+  - [x] verify default Console ModulePlan includes `platform.errors`
+  - [x] preserve source boot without generated artifacts
+  - [x] preserve packaged CLI invocation and output behavior
+
+- [x] `packages/platform/cli/tests/Integration/CliHostResolvesCanonicalSensitiveDataRedactorTest.php`
+  - [x] preserve the single canonical redactor binding
+  - [x] verify both CLI output formatting and canonical ErrorHandler consume the existing redaction port
+  - [x] MUST NOT create a CLI-local or Errors-local concrete redactor
+
+- [x] `packages/core/kernel/tests/Support/AppBuilder.php`
+  - [x] extend synthetic manifests with `platform.errors`
+  - [x] add the Errors package config source and Composer package root to fixture resolution
+  - [x] include `ErrorsServiceProvider` in the canonical fixture provider set
+  - [x] update synthetic `platform.cli` module requirements
+  - [x] preserve existing source/compiled container composition
+  - [x] MUST NOT change Kernel ModulePlan algorithms or container compiler behavior
+
+- [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] update exact enabled-module and topological-order expectations for transitive `platform.errors`
+  - [x] preserve the same `micro` preset roots
+
+- [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] update exact enabled-module and topological-order expectations for transitive `platform.errors`
+  - [x] preserve the same `express` preset roots
+
+- [x] `packages/core/kernel/tests/Integration/ModuleResolutionOrchestratorLoadsApplicationOnlyCustomPresetTest.php`
+  - [x] update CLI-containing fixture dependency closures where required
+  - [x] preserve custom-preset and target-local selection semantics
+
+- [x] `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
+  - [x] update physical and runtime dependency-closure assertions affected by the new CLI requirement
+  - [x] preserve deterministic union ordering and explicit dependency synchronization
+
+- [x] `tools/tests/Integration/DependencySyncConsumerProjectTest.php`
+  - [x] include `coretsia/platform-errors` in the real consumer fixture's local Composer package repositories
+  - [x] use the canonical `packages/platform/errors` package root and existing release-version constraint
+  - [x] preserve the existing explicit framework, CLI, Redaction, Kernel, and Worker repository entries
+  - [x] verify the Composer solver resolves `platform/errors` transitively through `coretsia/platform-cli`
+  - [x] preserve existing dependency-sync plan/review/apply and protected-package behavior
+  - [x] MUST NOT introduce a separate dependency resolver or hard-code `platform/errors` as a direct consumer requirement
+
+- [x] `tools/tests/Integration/DependencySyncFreshProcessVerificationTest.php`
+  - [x] include `coretsia/platform-errors` in the fresh-process fixture's local Composer package repositories
+  - [x] use the canonical `packages/platform/errors` package root and existing release-version constraint
+  - [x] preserve all existing fixture package repositories and root Composer requirements
+  - [x] verify fresh Composer resolution includes `platform/errors` through the CLI dependency
+  - [x] preserve independent fresh-process dependency verification
+  - [x] MUST NOT require `coretsia/platform-errors` directly in the consumer project's root Composer requirements
+
+Canonical architecture and documentation:
+
+- [ ] `docs/ssot/modes.md`
+  - [ ] update the declared `platform.cli` dependency closure to include `platform.errors`
+  - [ ] update the effective enabled-module sets for `micro`, `express`, `hybrid`, and `enterprise`
+  - [ ] update all target-local ModulePlan examples and project-wide module union examples where `platform.cli` is selected
+  - [ ] include `platform.errors` transitively in every affected enabled-module set
+  - [ ] preserve canonical byte-order sorting for enabled-module sets
+  - [ ] preserve existing dependency-topological ordering rules independently from enabled-set sorting
+  - [ ] preserve the existing preset root selections
+  - [ ] document that `platform.errors` is selected transitively, not as a new preset root
+  - [ ] document the fail-closed behavior when a selected CLI module is missing its Errors dependency
+
+- [ ] `docs/ssot/application-dependency-sync.md`
+  - [ ] update the canonical installation-catalog module table:
+    - [ ] add `platform.errors` with its declared dependencies
+    - [ ] add `platform.errors` to the declared `platform.cli` dependency set
+  - [ ] update the Composer baseline dependency graph:
+    - [ ] `coretsia/platform-cli` directly requires `coretsia/platform-errors`
+    - [ ] `coretsia/platform-errors` directly requires `coretsia/platform-redaction`
+  - [ ] update the effective Console `ModulePlan` example to include `platform.errors`
+  - [ ] update both `web` and `worker` target-local dependency-closure examples
+  - [ ] update the project-wide physical module union example
+  - [ ] include `coretsia/platform-errors` in the example of desired Composer package identities
+  - [ ] preserve the distinction between transitive Composer installation, target-local module enablement, and managed root requirements
+  - [ ] preserve canonical plan/review/apply ownership
+  - [ ] do not introduce implicit package installation during boot
+
+- [ ] `packages/framework/README.md`
+  - [ ] document that framework baseline installation includes `platform/errors` through CLI dependency closure
+  - [ ] preserve the existing direct framework requirements and module-selection policy
+
+- [ ] `packages/applications/skeleton/README.md`
+  - [ ] update default `micro` installation and Console ModulePlan documentation
+  - [ ] include the transitive `platform.errors` dependency
+  - [ ] update the documented `web → micro` and `worker → enterprise` target-local module closures
+  - [ ] include `platform.errors` in the documented project-wide physical module union
+  - [ ] preserve the existing preset root selections
+  - [ ] preserve the distinction between physical installation and runtime module enablement
+  - [ ] preserve source-host boot without precompiled artifacts
+
+- [ ] `packages/platform/cli/README.md`
+  - [ ] replace references to legacy `CliErrorHandler` with the canonical `ErrorHandlerInterface` flow
+  - [ ] document CLI-owned `CliExceptionMapper` and `error.mapper` registration
+  - [ ] document retained CLI public fallback mapping
+  - [ ] document updated Composer/module dependency closure
+  - [ ] preserve the documented command, output, error-code, and exit-code contracts
+
+- [ ] `docs/ssot/error-descriptor.md`
+  - [ ] document `ErrorDescriptor::fromArray()` as the canonical strict reconstruction API
+  - [ ] preserve existing descriptor field meanings and invariants
+  - [ ] reconstruction MUST NOT perform sensitive-data classification or redaction
+  - [ ] reconstruction MUST NOT replace mapper-owned safe-by-construction derivation
+
+- [ ] `docs/ssot/errors-boundary.md`
+  - [ ] document concrete `platform/errors` normalization flow
+  - [ ] document canonical mapper registry dispatch and fallback policy
+  - [ ] document the existing `ErrorHandlerInterface` binding ownership
+  - [ ] document `CORETSIA_UNHANDLED_EXCEPTION` fallback code
+  - [ ] document mapper failure isolation without a second exception hierarchy
+  - [ ] document the canonical `platform/errors` runtime handler guarantee
+  - [ ] preserve the implementation-neutral `ErrorHandlerInterface` signature
+  - [ ] document CLI consumption through the canonical port and CLI-owned mapper registration
+  - [ ] clarify that runtime adapters own presentation, while their packages MAY contribute owner-specific `ExceptionMapperInterface` services through the canonical `error.mapper` tag
+  - [ ] contributing an owner-specific mapper MUST NOT transfer mapper discovery, ordering, fallback selection, or global handler ownership away from `platform/errors`
+  - [ ] CLI-owned exception classification MUST remain separate from CLI transport rendering
+  - [ ] no runtime adapter may introduce a second Throwable-to-ErrorDescriptor dispatch pipeline
+  - [ ] preserve transport-specific rendering and failure-boundary ownership
+  - [ ] preserve `ErrorDescriptor` and runtime adapter ownership boundaries
+  - [ ] MUST NOT introduce a competing descriptor schema
+
+- [ ] `docs/ssot/tags.md`
+  - [ ] retain the existing `error.mapper` registry row
+  - [ ] document mapper service-id and priority semantics
+  - [ ] document empty metadata and lazy resolution requirements
+  - [ ] document first-non-null descriptor selection
+  - [ ] document that the default fallback mapper is not tagged
+  - [ ] MUST NOT create a second tag row or another reserved identifier
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `error.map` under `Baseline Canonical Events → Canonical Spans`
+  - [x] register `error.map_total` in the canonical metrics catalog:
+    - [x] owner: `platform/errors`
+    - [x] type: `counter`
+    - [x] labels: `operation`, `outcome`
+  - [x] register `error.map_duration_ms` in the canonical metrics catalog:
+    - [x] owner: `platform/errors`
+    - [x] type: `observe`
+    - [x] labels: `operation`, `outcome`
+  - [x] `operation` values: `map`
+  - [x] `outcome` values: `ok|fallback`
+  - [x] `ok` requires a registered mapper descriptor accepted after redaction and validation
+  - [x] `fallback` means that the final returned descriptor was selected through the canonical fallback path
+  - [x] an individual mapper failure followed by a successfully accepted descriptor MUST produce `outcome = ok`
+  - [x] mapper failure diagnostics MUST NOT independently determine the final normalization outcome
+  - [x] preserve the existing global metric label allowlist
+  - [x] MUST NOT register duplicate metric or span entries
+  - [x] MUST NOT introduce new global label keys
+
+- [ ] `docs/ssot/config-roots.md`
+  - [ ] add exactly one root row:
+    - [ ] root: `errors`
+    - [ ] owner: `platform/errors`
+    - [ ] defaults: `packages/platform/errors/config/errors.php`
+    - [ ] rules: `packages/platform/errors/config/rules.php`
+  - [ ] do not redefine an existing config root
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add the materialized `platform/errors` package to the canonical dependency matrix
+  - [x] direct source dependencies: `core/contracts`, `core/foundation`
+  - [x] preserve `platform/redaction` as a runtime-only Composer dependency
+  - [x] MUST NOT add a source dependency on `platform/redaction`
+  - [x] document the direct Composer-only dependency from `platform/cli` to `platform/errors`
+  - [x] preserve the CLI source dependency boundary through `core/contracts` and `core/foundation`
+  - [x] MUST NOT add `platform/errors` to the CLI source import allowlist solely because CLI consumes the canonical port
+  - [x] preserve Worker source and Composer dependencies unchanged
+
+- [ ] `docs/adr/INDEX.md`
+  - [ ] register `ADR-0036-platform-errors-errorhandler-exception-mapper.md`
+
+Monorepo package metadata and generated outputs:
+
+- [x] `composer.json`
+  - [x] add `coretsia/platform-errors = 0.9.x-dev` to root development requirements
+  - [x] add its canonical local Composer path repository
+  - [x] preserve the existing managed repository metadata convention
+  - [x] do not add a separate direct `coretsia/platform-errors` requirement to `packages/framework/composer.json`
+  - [x] `coretsia/framework` MUST receive `coretsia/platform-errors` transitively through its existing `coretsia/platform-cli` dependency
+  - [x] preserve the distinction between Composer installation and runtime module selection
+  - [x] synchronize Composer dependency metadata using the existing repository workflow
+
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate from canonical package metadata
+  - [x] include `platform.errors` with correct module, provider, config, namespace, and Composer identity
+  - [x] MUST NOT edit generated records manually
+
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate from the canonical dependency matrix
+  - [x] include the `platform.errors` source layer
+  - [x] allow only `core.contracts` and `core.foundation`
+  - [x] MUST NOT permit imports from the concrete `platform.redaction` implementation
+  - [x] MUST NOT edit generated rules manually
+
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through the canonical installation catalog generator
+  - [x] include `platform.errors`
+  - [x] preserve declared module requirements and Composer identity
+  - [x] MUST NOT create another installation catalog or manually edit generated records
+
+Generated repository artifacts MUST change only through their canonical generators or Composer dependency synchronization.
+
+No Kernel ModulePlan implementation, runtime container compiler, Foundation TagRegistry, or Foundation Noop reporter is modified by this epic.
+
+The existing CLI-owned error handler is intentionally replaced by CLI-owned mapper contribution and canonical `ErrorHandlerInterface` consumption.
+
+Canonical Kernel preset root selections and direct framework metapackage requirements remain unchanged. The effective CLI module dependency closure and transitive Composer installation graph expand to include `platform.errors`.
+
+No Worker runtime, task-settlement, process-control, or bootstrap implementation is modified by this epic.
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/errors/config/errors.php`
-- [ ] Keys (dot):
-  - [ ] `errors.enabled` = true
-  - [ ] `errors.reporting.enabled` = false
-  - [ ] `errors.redaction.enabled` = true
-  - [ ] `errors.detail.show_in_local` = true
-- [ ] Rules:
-  - [ ] `packages/platform/errors/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/errors/config/errors.php` - canonical defaults subtree
+    - [x] `errors.reporting.enabled` = false
+    - [x] `errors.reporting.min_severity` = 'info'
+    - [x] `errors.reporting.exclude_codes` = []
+    - [x] `errors.reporting.sample_rate` = 10000
+    - [x] `errors.reporting.mapper_failures.enabled` = false
+  - [x] `packages/platform/errors/config/rules.php`
 
-#### Wiring / DI tags (when applicable)
+- Keys (dot):
+  - `errors.reporting.enabled` = false
+    - type: `bool`
+    - default: `false`
+    - consumer: `ErrorsServiceFactory`
+    - controls optional reporter, logging, tracing, and metrics emission
+  - `errors.reporting.min_severity` = 'info'
+    - type: `string`
+    - allowed: `info|warning|error|critical`
+    - default: `info`
+    - consumer: `ErrorHandler`
+    - controls minimum severity for reporter invocation only
+  - `errors.reporting.exclude_codes` = []
+    - type: `list<non-empty-string-no-ws>`
+    - default: `[]`
+    - consumer: `ErrorHandler`
+    - suppresses reporter invocation for exact matching final error codes
+  - `errors.reporting.sample_rate` = 10000
+    - type: `int`
+    - range: `0..10000`
+    - unit: basis points
+    - default: `10000`
+    - consumer: `ErrorHandler`
+    - controls reporter-only probabilistic sampling
+  - `errors.reporting.mapper_failures.enabled` = false
+    - type: `bool`
+    - default: `false`
+    - consumer: `ExceptionMapperRegistry`
+    - controls fixed safe mapper-failure diagnostics
+    - effective only when `errors.reporting.enabled = true`
+    - independent of reporter severity, exclusion, and sampling filters
+  - All reporter filters MUST NOT disable error normalization, mapper discovery, fallback, or redaction.
+  - Reporter filters MUST NOT change mapper ordering or final descriptor values.
+  - Mapping metrics and spans MUST NOT be sampled or filtered by reporter eligibility.
+- Declarative rules:
+  - `schemaVersion = 1`
+  - `configRoot = errors`
+  - all declared maps use `additionalKeys = false`
+  - all five reporting keys are required with strict types
+  - `min_severity` uses the existing `ErrorSeverity` values
+  - `sample_rate` uses the existing Kernel integer `min` and `max` validation rules
+  - `exclude_codes` uses the existing Kernel list-item validation rules
+  - missing, invalid, or unknown configuration keys fail at the canonical Kernel config-validation boundary
+  - no package-local config validator
+- Forbidden configuration surfaces:
+  - `errors.enabled`
+  - `errors.redaction.enabled`
+  - `errors.detail.show_in_local`
+  - `errors.mappers`
+  - `errors.mapper_classes`
+  - `errors.debug`
+  - arbitrary sensitive-data classification or masking configuration
+- Configuration consumption:
+  - merged configuration is read through `ConfigRepositoryInterface`
+  - `ErrorsServiceFactory` reads and strictly validates all five reporting configuration values
+  - the validated immutable reporting values are passed to runtime services at construction
+  - no reporting configuration is read during individual `handle()` or mapper dispatch calls
+  - mapper discovery always uses the DI tag, never config lists
+  - `exclude_codes` is a reporter-only suppression list, never a mapper registry or dispatch filter
+  - reporter filtering and sampling occur only after final safe descriptor selection
+  - the redaction port is always required regardless of reporting policy
+  - no environment-driven raw detail disclosure
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-  - [ ] constants:
-    - [ ] `ERROR_MAPPER = 'error.mapper'`
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Errors\ErrorHandler`
-  - [ ] binds: `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface` → `Coretsia\Errors\ErrorHandler`
-  - [ ] registers: `Coretsia\Errors\Mapper\ExceptionMapperRegistry` (reads tag `error.mapper`)
-  - [ ] registers: `Coretsia\Errors\Mapper\DefaultExceptionMapper` (lowest priority fallback)
+#### Wiring / DI tags (MUST)
+
+- [x] Existing reserved tag:
+  - [x] `ReservedTags::ERROR_MAPPER = 'error.mapper'`
+  - [x] owner: `platform/errors`
+  - [x] identifier already exists in `core/foundation`
+  - [x] MUST NOT modify `ReservedTags.php`
+- [x] Mapper contribution contract:
+  - [x] any enabled package MAY contribute an `ExceptionMapperInterface` service
+  - [x] the contributing package owns its mapper implementation and DI registration
+  - [x] service id MUST identify the registered mapper service
+  - [x] tag MUST use `ReservedTags::ERROR_MAPPER`
+  - [x] priority is an integer supplied to the canonical tag registration API
+  - [x] tag metadata MUST be empty
+  - [x] consumers MUST preserve TagRegistry enumeration order
+  - [x] services MUST be resolved only when mapping is executed
+  - [x] `platform/errors` MUST NOT compile-time depend on mapper-contributing packages
+- [x] ServiceProvider bindings:
+  - [x] `DefaultExceptionMapper::class` → concrete class service
+  - [x] `ExceptionMapperRegistry::class` → factory-backed service
+  - [x] `ErrorHandler::class` → factory-backed service
+  - [x] `ErrorHandlerInterface::class` → alias to `ErrorHandler::class`
+- [x] Existing bindings consumed:
+  - [x] `TagRegistry::class`
+  - [x] `ContainerInterface::class`
+  - [x] `ConfigRepositoryInterface::class`
+  - [x] `CorrelationIdProviderInterface::class`
+  - [x] `SensitiveDataRedactorInterface::class`
+  - [x] `ErrorReporterPortInterface::class`
+  - [x] `TracerPortInterface::class`
+  - [x] `MeterPortInterface::class`
+  - [x] `LoggerInterface::class`
+  - [x] `Stopwatch::class`
+- [x] Reporter ownership:
+  - [x] Foundation already provides `ErrorReporterPortInterface` through `NoopErrorReporter`
+  - [x] `platform/errors` consumes this binding
+  - [x] concrete reporting adapters MAY replace the composition-level binding through their owning integration
+  - [x] this epic MUST NOT add `Coretsia\Platform\Errors\Reporting\ErrorReporter`
+  - [x] this epic MUST NOT override the Foundation reporter binding
+- [x] Redaction ownership:
+  - [x] `platform.redaction` owns the concrete implementation
+  - [x] `platform.errors` consumes `SensitiveDataRedactorInterface`
+  - [x] no duplicate redaction provider, classifier, policy registry, or hasher
+  - [x] a missing required redactor is a module-composition failure, not permission to bypass redaction
+- [x] Container invariants:
+  - [x] registration uses canonical declarative definitions
+  - [x] source and compiled definitions MUST be equivalent
+  - [x] no runtime closures in declarative definitions
+  - [x] no service resolution during definition production
+  - [x] no dynamic provider registration during error handling
+  - [x] no second container or service locator implementation
 
 #### Artifacts / outputs (if applicable)
 
@@ -217,65 +1252,490 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
-- Context writes (safe only):
+- [x] Context reads:
+  - [x] canonical correlation source: `CorrelationIdProviderInterface::correlationId()`
+  - [x] Foundation owns the underlying `ContextKeys::CORRELATION_ID` read and ULID validation
+  - [x] `ContextKeys::UOW_ID`: N/A — no consumer in this package
+  - [x] `ContextKeys::UOW_TYPE`: N/A — no consumer in this package
+- [x] Context discipline:
+  - [x] explicit `ErrorHandlingContext` is forwarded unchanged only to trusted mapper implementations
+  - [x] when explicit context is absent, construct optional mapping context only from canonical safe correlation data
+  - [x] reporting context MUST be constructed independently from caller-supplied mapping metadata, using the invocation-local canonical correlation snapshot
+  - [x] the canonical correlation provider MUST NOT be queried a second time for reporting
+  - [x] explicit mapping context MUST NOT override the reporting correlation snapshot
+  - [x] reporting context MUST contain only:
+    - [x] `operation = map`
+    - [x] `correlationId = canonical safe id|null`
+    - [x] `metadata = []`
+  - [x] caller-supplied arbitrary metadata MUST NOT be forwarded to reporters, logs, metrics, or spans
+  - [x] correlation id MUST NOT be copied into `ErrorDescriptor.extensions`
+  - [x] correlation id MUST NOT become a metric label
+  - [x] missing or failing correlation enrichment MUST NOT change the normalized descriptor
+  - [x] invalid provider values rejected by `ErrorHandlingContext` MUST be treated as unavailable correlation enrichment
+  - [x] mapping and reporting MUST use the same invocation-local null correlation snapshot after rejection
+  - [x] no retry, independent correlation lookup, or package-local identifier parser is permitted
+  - [x] MUST NOT import or resolve `ContextStore`, `ContextAccessorInterface`, or `CorrelationIdProvider` concrete implementations
+  - [x] MUST NOT generate, replace, or write correlation identifiers
+- Context writes:
   - N/A
-- [ ] Reset discipline:
-  - [ ] expected: none (no stateful services)
+- [x] UnitOfWork:
+  - [x] ErrorHandler is a format-neutral normalization service used by caller-owned runtime boundaries
+  - [x] MUST NOT create, begin, finish, abort, or replace a Kernel UnitOfWork
+  - [x] MUST NOT call `KernelRuntimeInterface::runUnitOfWork()`
+  - [x] MUST NOT alter caller-owned UoW outcome or reset precedence
+  - [x] MUST NOT read or write Kernel UoW lifecycle state
+  - [x] no UoW-specific mapping or enrichment implementation
+- [x] Reset discipline:
+  - [x] expected: none
+  - [x] all mutable invocation values remain method-local
+  - [x] no mapper instances, Throwable references, descriptors, contexts, spans, or timing tokens retained between calls
+  - [x] no package-owned `ResetInterface`
+  - [x] no `kernel.reset` registration
+  - [x] no `kernel.stateful` registration
+  - [x] existing Foundation/Kernel reset orchestration remains authoritative
+  - [x] repeated handling in long-running workers MUST remain invocation-isolated
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `errors.handle` (attrs: `outcome`, `operation=map`)
-- [ ] Metrics:
-  - [ ] `errors.mapped_total` (labels: `operation=map`, `outcome=ok|fallback|fail`)
-  - [ ] `errors.mapped_duration_ms` (labels: `operation=map`, `outcome`)
-- [ ] Logs:
-  - [ ] mapper failures logged with redaction (no stacktrace in prod, no secrets)
+- [x] Reporting policy:
+  - [x] `errors.reporting.enabled = false` disables optional error telemetry, mapper-failure diagnostics, and normalized reporting emission
+  - [x] disabled reporting MUST NOT disable mapping, fallback, or redaction
+  - [x] enabled reporting uses existing injected observability ports
+  - [x] `min_severity`, `exclude_codes`, and `sample_rate` filter only `ErrorReporterPortInterface` invocation
+  - [x] mapping metrics, spans, timing, and final normalization outcome MUST remain independent of reporter eligibility
+  - [x] `mapper_failures.enabled` controls only internal safe mapper-failure logging when global reporting is enabled
+  - [x] reporter suppression MUST NOT be treated as `outcome = fallback`
+  - [x] Noop implementations remain valid baseline bindings
+- [x] Spans:
+  - [x] canonical name: `error.map`
+  - [x] owner: `platform/errors`
+  - [x] started only when reporting is enabled
+  - [x] span starts before mapper registry dispatch
+  - [x] initial attributes contain only:
+    - [x] `operation = map`
+  - [x] final attributes contain only:
+    - [x] `operation = map`
+    - [x] `outcome = ok|fallback`
+  - [x] final outcome is determined only after redaction, descriptor validation, and fallback selection
+  - [x] set final attributes in an independently protected operation
+  - [x] span MUST measure normalization, not reporter execution
+  - [x] span MUST be finalized before invoking `ErrorReporterPortInterface`
+  - [x] span creation failures MUST NOT affect mapping
+  - [x] span attribute failures MUST NOT affect mapping
+  - [x] `SpanInterface::end()` MUST be attempted exactly once for every successfully created span
+  - [x] span termination MUST occur in a protected finally path
+  - [x] span termination failures MUST be swallowed without retries or recursive reporting
+  - [x] span end failures MUST NOT escape
+  - [x] MUST NOT record raw Throwable objects or call unsafe exception recording
+- [x] Metrics:
+  - [x] `error.map_total`
+    - [x] type: `counter`
+    - [x] API: `MeterPortInterface::increment()`
+    - [x] labels: `operation`, `outcome`
+  - [x] `error.map_duration_ms`
+    - [x] type: `observe`
+    - [x] API: `MeterPortInterface::observe()`
+    - [x] value: non-negative integer milliseconds
+    - [x] labels: `operation`, `outcome`
+  - [x] allowed `operation`: `map`
+  - [x] allowed `outcome`: `ok|fallback`
+  - [x] `ok`: a registered mapper returned an accepted descriptor
+  - [x] `fallback`: no registered mapper produced an accepted descriptor, or fail-closed fallback was required
+  - [x] mapper failures do not create a third public normalization outcome
+  - [x] metric names and labels MUST be registered in `docs/ssot/observability.md`
+  - [x] no Throwable class, error message, path, correlation id, UoW id, or user identifier in metric labels
+  - [x] metric emission failures MUST be isolated independently
+- [x] Timing:
+  - [x] use `Coretsia\Foundation\Time\Stopwatch`
+  - [x] `start(): int`
+  - [x] `stop(int $startedAt): int`
+  - [x] timing token is invocation-local
+  - [x] start timing before mapper registry dispatch when reporting is enabled
+  - [x] stop timing after final descriptor selection and before reporter invocation
+  - [x] measured operation includes mapper discovery, mapping, redaction, validation, and fallback selection
+  - [x] measured duration MUST NOT include reporter execution
+  - [x] failed timing MUST NOT trigger another mapping attempt
+  - [x] timing token MUST NOT appear in descriptors, logs, spans, metrics labels, or context
+  - [x] failed timing MAY use `0` as a safe duration fallback
+  - [x] MUST NOT introduce another clock or duration utility
+- [x] Logs:
+  - [x] mapper failures MAY be logged with fixed event `error.mapper_failed`
+  - [x] allowed diagnostic fields:
+    - [x] `operation`
+    - [x] `outcome`
+    - [x] `reason`
+  - [x] reason values MUST be static, low-cardinality owner-approved tokens
+  - [x] no raw Throwable message, stack trace, class name, service id, filesystem path, SQL, credentials, tokens, or arbitrary context metadata
+  - [x] logging failures MUST NOT escape
+  - [x] failed observability operations MUST NOT recursively report themselves
+- [x] Reporter:
+  - [x] use the existing `ErrorReporterPortInterface`
+  - [x] invoke only after successful selection of a safe descriptor
+  - [x] invoke only when global reporting is enabled and the descriptor passes severity, exclusion, and sampling policies
+  - [x] apply filters in fixed order: minimum severity → excluded codes → sampling
+  - [x] preserve at-most-once reporter invocation
+  - [x] pass only normalized descriptor data and sanitized safe context
+  - [x] reporter filtering, sampling, or sink failures MUST NOT replace the returned descriptor
+  - [x] MUST NOT apply reporter-only filters to canonical mapping telemetry
+- [x] Reporting ownership:
+  - [x] `ErrorReporterPortInterface` owns normalized error reporting
+  - [x] ErrorHandler MUST invoke the injected reporter at most once per `handle()` call
+  - [x] ErrorHandler MUST NOT reproduce reporter-owned normalized error log events
+  - [x] `error.map` spans and metrics instrument only the normalization operation
+  - [x] mapper-failure diagnostics are internal mapping diagnostics, not additional normalized error reports
+  - [x] optional mapping telemetry MUST NOT recursively invoke the reporter
+  - [x] reporter failure MUST NOT trigger a second reporting attempt
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Errors\Exception\MapperFailedException` — errorCode `CORETSIA_ERROR_MAPPER_FAILED` (internal)
-- [ ] Mapping:
-  - [ ] registry: `ExceptionMapperInterface` via tag `error.mapper`, deterministic order (no dupes)
+- Exceptions introduced:
+  - N/A
+- [x] Canonical fallback:
+  - [x] code: `CORETSIA_UNHANDLED_EXCEPTION`
+  - [x] message: `Unhandled exception.`
+  - [x] severity: `ErrorSeverity::Error`
+  - [x] httpStatus: `null`
+  - [x] extensions: `[]`
+  - [x] fallback is constructed only from static safe values
+  - [x] fallback behavior is transport-neutral
+- [x] Mapper dispatch:
+  - [x] preserve `TagRegistry::all(ReservedTags::ERROR_MAPPER)` order
+  - [x] resolve each candidate lazily
+  - [x] `null` result continues discovery
+  - [x] first accepted non-null descriptor wins
+  - [x] invalid services and mapper failures are isolated
+  - [x] exhausted discovery uses the default mapper
+  - [x] the default mapper is not part of tagged discovery
+- [x] ErrorHandler failure policy:
+  - [x] mapper resolution failure → continue discovery
+  - [x] mapper execution failure → continue discovery
+  - [x] registry enumeration/dispatch failure → fixed safe fallback
+  - [x] registry-level failure MUST NOT restart mapper enumeration
+  - [x] invalid mapper result → continue discovery
+  - [x] no mapper match → safe fallback
+  - [x] invalid descriptor/redaction output → safe fallback
+  - [x] redactor failure → safe fallback
+  - [x] reporter failure → preserve selected descriptor
+  - [x] logger failure → preserve selected descriptor
+  - [x] tracer failure → preserve selected descriptor
+  - [x] meter failure → preserve selected descriptor
+  - [x] Stopwatch failure → preserve selected descriptor
+- [ ] Failure diagnostics:
+  - [x] mapper failures use fixed safe reason tokens
+  - [x] no new `MapperFailedException` is required
+  - [x] no new global error-code registry
+  - [x] no exception chaining or previous Throwable retention
+  - [x] internal mapper failures MUST NOT expose raw errors through public descriptors
+  - [ ] stable normalized fallback codes are documented in `docs/ssot/errors-boundary.md`
+- [x] Runtime guarantee:
+  - [x] `ErrorHandler::handle()` MUST return a canonical `ErrorDescriptor` for ordinary runtime Throwable and collaborator-failure scenarios
+  - [x] collaborator failures MUST NOT propagate outside the handler boundary
+  - [x] no recursive fallback handling
+  - [x] PHP engine termination and unrecoverable process failures are outside this runtime guarantee
 
 #### Security / Redaction
 
+- [x] Canonical redaction authority:
+  - [x] `SensitiveDataRedactorInterface`
+  - [x] implementation owner: `platform/redaction`
+  - [x] `RedactionContext('errors.descriptor', RedactionMode::Placeholder)`
+  - [x] no package-local key classifier
+  - [x] no package-local value classifier
+  - [x] no package-local hashing implementation
+  - [x] no package-local redaction policy registry
+  - [x] no configurable redaction bypass
+- [ ] Safe-by-construction mapping:
+  - [x] mapper codes MUST be stable and non-sensitive
+  - [x] mapper messages MUST be fixed owner-approved public messages
+  - [x] mapper messages MUST NOT interpolate Throwable messages, arbitrary input values, environment data, filesystem paths, SQL, or runtime context values
+  - [x] dynamic sensitive values MUST NOT be embedded inside otherwise safe-looking message strings
+  - [x] mapper codes MUST be stable owner-defined identifiers, not dynamically derived from input or Throwable data
+  - [x] unknown or unclassified values MUST NOT be treated as safe merely because shared redaction did not match them
+  - [x] enabled mapper implementations are trusted contributors bound by the existing ExceptionMapperInterface safety contract
+  - [x] the handler MUST NOT introduce a duplicate free-text secret scanner, taint engine, or sensitive-value classifier
+  - [ ] protection against contract-violating mapper implementations MUST be covered by mapper-owner security tests and review, not assumed from generic redaction alone
+  - [x] mapper extensions MUST be safe, bounded, deterministic json-like values
+  - [ ] all mapper implementations MUST satisfy the existing `ExceptionMapperInterface` safety contract
+  - [x] no direct copying of `Throwable::getMessage()` into descriptor messages
+  - [x] no direct copying of Throwable properties or arbitrary context metadata into extensions
+  - [x] `ErrorDescriptor` remains the final structural and semantic-key validation authority
+  - [x] redaction is defense in depth and MUST NOT be treated as proof that arbitrary unmatched values are safe
+- [x] Descriptor validation:
+  - [x] preserve the canonical `ErrorDescriptor` field set
+  - [x] preserve `code`, `message`, `severity`, `httpStatus`, and `extensions` semantics
+  - [x] no new `detail` field
+  - [x] no transport-specific fields
+  - [x] reject invalid redacted output through the contracts-owned `ErrorDescriptor::fromArray()` API
+  - [x] `fromArray()` MUST delegate semantic and extension validation to the existing constructor
+  - [x] `platform/errors` MUST NOT implement another descriptor schema validator
+  - [x] failures during redaction or reconstruction select the fixed safe fallback
+  - [x] never return raw or partially processed candidate data after redaction failure
 - [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/session id/tokens/raw SQL/payload/stacktrace (prod)
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids (`actor_id` if already safe elsewhere)
+  - [ ] Authorization headers
+  - [ ] Cookie and session identifiers
+  - [ ] credentials, passwords, tokens, and private keys
+  - [ ] environment secrets
+  - [ ] raw SQL or query payloads
+  - [ ] request/response bodies
+  - [x] raw exception messages and stack traces
+  - [ ] private customer data and PII
+  - [x] absolute local paths
+  - [x] arbitrary runtime context metadata
+- [ ] Allowed safe derivations:
+  - [x] stable non-sensitive error codes
+  - [x] fixed safe reason tokens
+  - [ ] bounded counts
+  - [ ] safe lengths where owner policy permits disclosure
+  - [ ] safe hashes only where non-reconstruction and disclosure policy permit
+  - [ ] validated opaque identifiers only in owner-approved context channels
+- [ ] Security invariants:
+  - [ ] classifier non-matches MUST NOT be interpreted as authorization to disclose raw data
+  - [x] `Placeholder` is the mandatory baseline redaction mode
+  - [x] no implicit `Hash`, `Length`, or `HashAndLength` disclosure
+  - [x] no raw-detail mode for local, development, testing, or production environments
+  - [x] every returned descriptor MUST preserve the existing contracts-level invariants
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A` (no Context writes)
-- [ ] If `kernel.reset` used → `N/A` (expected none)
-- [ ] If metrics/spans/logs exist → `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php` + metrics/log assertions where applicable
-- [ ] If redaction exists → `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php` + `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
+- [ ] Context and correlation:
+  - [ ] canonical correlation provider returns a valid safe id
+  - [ ] missing correlation id produces no enrichment
+  - [ ] throwing correlation provider does not affect mapping
+  - [ ] malformed correlation-provider values rejected by `ErrorHandlingContext` do not escape `handle()`
+  - [ ] rejected correlation values produce null enrichment without changing descriptor selection
+  - [ ] rejected correlation values are not forwarded to mapping or reporting sinks
+  - [ ] correlation provider is not queried again after a rejected value
+  - [ ] correlation provider is invoked at most once per handle invocation
+  - [ ] mapping and reporting use the same captured correlation id when no explicit mapping context is supplied
+  - [ ] explicit mapper context remains unchanged
+  - [ ] mapper-side Context mutations cannot change the captured reporting correlation id
+  - [ ] explicit mapper context is preserved
+  - [ ] reporting context contains only allowlisted fields
+  - [ ] arbitrary caller metadata is not forwarded to reporter or telemetry sinks
+  - [ ] correlation id is never copied into descriptor extensions or metric labels
+  - [ ] no direct ContextStore or ContextAccessor dependency
+  - [ ] no Context writes occur
+- [ ] UnitOfWork:
+  - [ ] handler does not create or finish a Kernel UoW
+  - [ ] repeated calls retain no previous invocation state
+  - [ ] no `kernel.reset` or `kernel.stateful` registrations
+- [ ] Mapper discovery:
+  - [ ] priority DESC ordering
+  - [ ] serviceId ASC ordering using canonical TagRegistry behavior
+  - [ ] duplicate `(tag, serviceId)` first-wins semantics
+  - [ ] no consumer-side sorting or deduplication
+  - [ ] lazy service resolution
+  - [ ] no mapper service resolution when the registry is constructed
+  - [ ] first non-null descriptor wins
+  - [ ] all-null mappings select fallback
+  - [ ] empty registry selects fallback
+  - [ ] invalid service, invalid metadata, and mapper failures remain isolated
+- [ ] Redaction:
+  - [ ] uses `SensitiveDataRedactorInterface`
+  - [ ] no package-local redaction engine
+  - [ ] safe descriptor round-trip preserves canonical shape
+  - [ ] known classified sensitive keys and values are redacted according to the shared redaction policy
+  - [ ] invalid or failed redaction MUST NOT return the original candidate descriptor
+  - [ ] unclassified arbitrary free-text values are not assumed to be sanitized
+  - [ ] mapper-owned safe-message and safe-extension derivation remains mandatory
+  - [ ] malformed redaction output selects safe fallback
+  - [ ] redactor exceptions select safe fallback
+  - [ ] forbidden extension keys remain rejected
+  - [ ] resource-limit violations remain fail-closed
+- [ ] Observability:
+  - [ ] reporting disabled suppresses optional emission
+  - [ ] reporting enabled invokes canonical ports
+  - [ ] metrics use registered names and labels
+  - [ ] duration metrics use integer milliseconds
+  - [ ] span end is attempted after successful span creation
+  - [ ] reporter/logger/tracer/meter failures are independently isolated through throwing fixtures
+  - [ ] Stopwatch uses the real Foundation implementation and valid invocation-local timing tokens
+  - [ ] Stopwatch failure isolation remains defensive behavior without requiring an injectable throwing Stopwatch fixture
+  - [ ] no package-local clock or timing port is introduced solely for testing
+  - [ ] no recursive error reporting
+  - [ ] no sensitive values or identifiers in metric labels
+- [ ] Architecture:
+  - [ ] module metadata and Composer metadata match
+  - [ ] module requirements resolve through canonical ModulePlan
+  - [ ] redaction binding comes from the selected `platform.redaction` module
+  - [ ] Source and compiled container definitions are equivalent
+  - [ ] no duplicate reporter or redactor bindings
+  - [ ] no direct `platform/redaction` implementation dependency
+  - [ ] no forbidden HTTP/CLI/Worker implementation dependency
+  - [ ] generated package index, installation catalog, and Deptrac configuration are consistent
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A (integration tests should run with minimal container wiring)
+- [ ] use the existing monorepo package testing infrastructure
+- [ ] compose Foundation, Redaction, and Errors providers through the canonical container APIs
+- [ ] provide deterministic fake mapper services through `error.mapper`
+- [ ] provide throwing mapper, reporter, logger, tracer, meter, correlation provider, and redactor fixtures
+- [ ] use the real `Coretsia\Foundation\Time\Stopwatch` for timing integration tests
+- [ ] verify that timing uses valid invocation-local tokens and emits non-negative integer milliseconds
+- [ ] Stopwatch failure isolation MUST remain defensive runtime behavior without introducing a package-local timing abstraction solely for fault injection
+- [ ] use the real Foundation TagRegistry for ordering and duplicate-registration tests
+- [ ] do not construct a second production container implementation
+- [ ] do not alter Kernel ModulePlan or UoW implementations for test convenience
+- [ ] preserve package isolation and source/compiled parity invariants
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/errors/tests/Unit/ErrorRedactorDoesNotLeakSecretsTest.php`
+  - [ ] `packages/platform/errors/tests/Unit/DefaultExceptionMapperTest.php`
+    - [ ] maps arbitrary Throwable types to the same safe fallback
+    - [ ] never copies Throwable messages or traces
+    - [ ] preserves canonical descriptor shape
+
+  - [ ] `packages/platform/errors/tests/Unit/ErrorHandlerFallbackTest.php`
+    - [ ] empty registry
+    - [ ] all-null registry
+    - [ ] failed mapper
+    - [ ] invalid mapper result
+    - [ ] safe fallback code and message
+
+  - [ ] `packages/platform/errors/tests/Unit/ErrorHandlerRedactionTest.php`
+    - [ ] fixed redaction scope and Placeholder mode
+    - [ ] safe descriptor reconstruction
+    - [ ] malformed redactor output
+    - [ ] redactor failure
+    - [ ] no raw candidate leakage after redaction or reconstruction failure
+    - [ ] known classified sensitive values are not exposed in returned descriptors
+    - [ ] safe-by-construction requirements remain owned by mapper implementations
+    - [ ] whole-value sensitive string redaction changing `message` to a map selects safe fallback
+    - [ ] valid owner-approved descriptor preserves the original canonical field types
+    - [ ] nested sensitive extension replacement remains subject to ErrorDescriptor validation
+    - [ ] arbitrary unclassified embedded strings are not assumed to be sanitized by the shared redactor
+    - [ ] redaction cannot replace mapper-owner safe-message derivation requirements
+
+  - [ ] `packages/platform/errors/tests/Unit/ErrorsServiceFactoryTest.php`
+    - [ ] validated consumption of all five reporting configuration values
+    - [ ] default configuration constructs registry and handler successfully
+    - [ ] missing or incorrectly typed reporting values fail during construction
+    - [ ] reject unknown severity values
+    - [ ] reject invalid excluded-code list items
+    - [ ] reject negative, non-integer, and above-10000 sample rates
+    - [ ] verify `0` and `10000` are accepted sample-rate boundaries
+    - [ ] reject invalid mapper-failure diagnostics flags
+    - [ ] correct immutable constructor-policy injection
+    - [ ] no reporting config reads during mapper dispatch or `handle()`
+    - [ ] no package-local redactor, reporter, or config-validator construction
+
 - Contract:
+  - [ ] `packages/platform/errors/tests/Contract/ErrorsModuleComposerMetadataContractTest.php`
+    - [ ] Composer identity, PSR-4 namespace, module metadata, and dependencies
+
+  - [ ] `packages/platform/errors/tests/Contract/ErrorsProviderDefinitionsContainNoClosuresContractTest.php`
+    - [ ] declarative definitions contain no closures or runtime objects
+
+  - [ ] `packages/platform/errors/tests/Contract/ErrorsProviderSourceDefinitionsParityTest.php`
+    - [ ] source and compiled definition parity
+
   - [ ] `packages/platform/errors/tests/Contract/ErrorHandlerNeverThrowsContractTest.php`
+    - [ ] handler returns a canonical descriptor despite injectable collaborator failures
+    - [ ] mapper resolution and execution failures are independently isolated
+    - [ ] redaction and reconstruction failures select the fixed safe fallback
+    - [ ] reporter, logger, tracer, meter, and correlation-provider failures do not replace the selected descriptor
+    - [ ] handler contains an outer Throwable boundary around registry dispatch
+    - [ ] registry-level failure handling MUST NOT require modification of Foundation TagRegistry
+    - [ ] no recursive registry dispatch or fallback redaction occurs
+
   - [ ] `packages/platform/errors/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [ ] Foundation Noop reporter, logger, tracer, and meter compatibility
+
+  - [ ] `packages/platform/errors/tests/Contract/ErrorsDoNotDuplicateRedactionPolicyContractTest.php`
+    - [ ] no concrete redaction implementation imports
+    - [ ] no package-local classifiers, hashers, or policy registries
+
 - Integration:
   - [ ] `packages/platform/errors/tests/Integration/RegistryDeterministicOrderTest.php`
+    - [ ] priority DESC, serviceId ASC, and first-wins behavior
+
+  - [ ] `packages/platform/errors/tests/Integration/MapperLazyResolutionTest.php`
+    - [ ] tagged mapper services resolve only during dispatch
+
+  - [ ] `packages/platform/errors/tests/Integration/MapperFailureIsolationTest.php`
+    - [ ] throwing and invalid mapper candidates do not break normalization
+    - [ ] subsequent valid mapper can still produce the selected descriptor
+    - [ ] a failed mapper followed by a successful mapper produces the successful descriptor
+    - [ ] a failed mapper followed by a successful mapper produces `outcome = ok`
+    - [ ] all mapper candidates exhausted produces `outcome = fallback`
+
   - [ ] `packages/platform/errors/tests/Integration/DefaultMapperCatchesAnyThrowableTest.php`
+    - [ ] safe fallback for otherwise unhandled Throwable
+
   - [ ] `packages/platform/errors/tests/Integration/ErrorDescriptorIsRedactedTest.php`
+    - [ ] real redaction port integration
+    - [ ] forbidden data does not leak
+    - [ ] invalid output fails closed
+
+  - [ ] `packages/platform/errors/tests/Integration/ErrorReportingPolicyTest.php`
+    - [ ] disabled and enabled reporting behavior
+    - [ ] reporter, logger, tracer, and meter invocation policy
+    - [ ] minimum severity accepts descriptors at or above the configured threshold
+    - [ ] minimum severity suppresses only reporter invocations below the threshold
+    - [ ] all four canonical `ErrorSeverity` values follow `info < warning < error < critical`
+    - [ ] excluded codes suppress matching reporter invocations using strict case-sensitive matching
+    - [ ] excluded codes do not prevent mapping, redaction, fallback selection, or descriptor return
+    - [ ] `sample_rate = 0` suppresses reporter invocation
+    - [ ] `sample_rate = 10000` preserves every otherwise eligible reporter invocation
+    - [ ] intermediate sampling rates use a bounded `random_int(0, 9999)` decision without changing descriptors
+    - [ ] sampling tests MUST NOT depend on probabilistic event counts or flaky statistical assertions
+    - [ ] sampling failure does not escape or replace the descriptor
+    - [ ] reporter filters do not suppress canonical mapping spans, metrics, or timing
+    - [ ] reporter suppression does not change `outcome = ok|fallback`
+    - [ ] `mapper_failures.enabled = false` suppresses internal mapper-failure logs
+    - [ ] mapper-failure logs require both global reporting and mapper-failure diagnostics to be enabled
+    - [ ] mapper-failure diagnostics remain independent of reporter severity, exclusion, and sampling filters
+    - [ ] default reporting policy preserves existing behavior
+    - [ ] span starts before registry dispatch
+    - [ ] span starts with operation-only attributes
+    - [ ] final outcome is written after descriptor validation and fallback selection
+    - [ ] successfully created span is ended exactly once
+    - [ ] span finalization precedes reporter invocation
+    - [ ] reporter execution is excluded from measured normalization duration
+    - [ ] metric emission failure does not prevent span finalization
+    - [ ] span attribute failure does not prevent span end
+    - [ ] span end failure does not prevent reporting or descriptor return
+    - [ ] disabled reporting does not affect mapping or redaction
+    - [ ] reporter is invoked at most once for each handle invocation
+
+  - [ ] `packages/platform/errors/tests/Integration/ErrorHandlingContextIsolationTest.php`
+    - [ ] canonical correlation-provider success, null, and failure cases
+    - [ ] caller-supplied mapping context preservation
+    - [ ] sanitized reporting-context construction
+    - [ ] no arbitrary caller metadata forwarded to reporting sinks
+    - [ ] no Context writes or identifier creation
+
+  - [ ] `packages/platform/errors/tests/Integration/ErrorHandlingUoWIsolationTest.php`
+    - [ ] handler does not introduce a nested UoW
+    - [ ] no reset registration or mutable invocation state
+
+  - [ ] `packages/platform/errors/tests/Integration/ErrorsModuleCompositionTest.php`
+    - [ ] canonical ModulePlan dependency closure
+    - [ ] Redaction module selected through declared requirements
+    - [ ] Foundation Noop observability and reporter bindings available
+    - [ ] exactly one canonical ErrorHandlerInterface binding
+    - [ ] exactly one canonical SensitiveDataRedactorInterface binding
+    - [ ] ErrorHandlerInterface resolves to the platform/errors implementation
+    - [ ] missing required redactor causes deterministic composition/resolution failure
+    - [ ] missing required reporter causes deterministic composition/resolution failure
+    - [ ] missing required correlation provider causes deterministic composition/resolution failure
+    - [ ] no package-local fallback bindings are registered for missing dependencies
+    - [ ] no implicit module enablement from Composer installation
+    - [ ] source and compiled container resolution produce equivalent service types and behavior
+
 - Gates/Arch:
-  - [ ] deptrac green (no forbidden deps)
+  - [ ] package PHPUnit tests green
+  - [ ] PHPStan green
+  - [ ] repository formatting/static-analysis gates green
+  - [ ] canonical dependency matrix gate green
+  - [ ] Deptrac green
+  - [ ] generated package index check green
+  - [ ] generated installation catalog check green
+  - [ ] source/compiled container parity green
+  - [ ] deterministic rerun-no-diff checks green
 
 ### DoD (MUST)
 
@@ -284,9 +1744,40 @@ N/A (integration tests should run with minimal container wiring)
 - [ ] Tests green
 - [ ] Gates/Arch green
 - [ ] Docs complete
-- [ ] ErrorHandler never throws (contract test)
-- [ ] Mapper registry deterministic (integration test)
-- [ ] Redaction policy enforced (tests)
+- [x] Composer/module metadata consistent
+- [x] Canonical ModulePlan dependency closure verified
+- [x] Existing `ReservedTags::ERROR_MAPPER` reused without modification
+- [x] ExceptionMapper registry deterministic and lazy
+- [x] Default fallback mapper remains outside tagged discovery
+- [x] ErrorHandler returns a canonical ErrorDescriptor without propagating runtime collaborator failures
+- [x] ErrorDescriptor canonical shape preserved
+- [x] Mandatory redaction consumes `SensitiveDataRedactorInterface`
+- [x] No duplicate sensitive-data policy or redaction engine
+- [x] Existing Foundation Noop reporter reused
+- [x] CLI normal-path Throwable normalization consumes canonical `ErrorHandlerInterface`
+- [x] Legacy `CliErrorHandler` implementation and DI registration removed
+- [x] CLI-owned `CliExceptionMapper` is registered through `error.mapper`
+- [x] CLI known-error codes and reason tokens remain backward compatible
+- [x] CLI unknown-error presentation remains `CORETSIA_CLI_INTERNAL_ERROR`
+- [x] CLI module dependency closure includes `platform.errors`
+- [x] Framework baseline physically installs Errors through CLI dependency closure
+- [x] Canonical preset root selections remain unchanged
+- [x] CLI source and compiled container definitions remain equivalent
+- [x] CLI output buffering, redaction, exit codes, and UoW semantics remain unchanged
+- [x] Worker task settlement and lifecycle protocols remain unchanged
+- [x] No second CLI or Worker error-normalization pipeline introduced
+- [x] No duplicate reporter implementation or binding
+- [x] No new exception hierarchy or error-code registry
+- [x] No nested Kernel UnitOfWork
+- [x] No package-local reset orchestration or mutable invocation state
+- [ ] Observability names and labels registered in canonical SSoT
+- [x] Reporter, logger, tracer, meter, and timing failures isolated
+- [x] All five reporting configuration keys are strictly validated and consumed at service construction
+- [ ] Reporter minimum-severity, excluded-code, and sampling policies are implemented and tested
+- [x] Mapper-failure diagnostics are independently configurable without affecting mapper dispatch
+- [x] Reporter-only filters do not affect normalization, redaction, fallback, or mapping telemetry
+- [x] No package-local reporting-policy registry, RNG service, or config-validator layer introduced
+- [x] No forbidden runtime adapter dependencies
 - [ ] README sections complete
 - [ ] Determinism: rerun-no-diff (where applicable)
 
@@ -1105,6 +2596,7 @@ ssot_refs:
 ---
 
 - [ ] update `3.40.0 Platform problem-details` to consume `SensitiveDataRedactorInterface` for safe `detail`, `extensions`, and debug/local-only diagnostics.
+- [ ] update `3.40.0 Platform problem-details` to consume the canonical `ErrorHandlerInterface` from `coretsia/platform-errors` once at the outer HTTP Throwable boundary, add matching direct Composer and `platform.errors` module requirements, and adapt only its normalized `ErrorDescriptor` to RFC7807 without concrete `platform/errors` source imports or duplicate mapping.
 
 ### Dependencies (MUST)
 
@@ -1369,6 +2861,7 @@ ssot_refs:
 ---
 
 - [ ] update `3.50.0 Platform HTTP runtime` to consume `SensitiveDataRedactorInterface` for request/response diagnostic summaries and to forbid raw headers, cookies, body, query payloads, and authorization values.
+- [ ] update `3.50.0 Platform HTTP runtime` to contribute a safe `ExceptionMapperInterface` for its BadJson, BodyTooLarge, and TrustedHostRejected exceptions through the shared `error.mapper` tag with empty `[]` metadata, leaving HTTP rendering to `platform/problem-details`.
 
 ### Dependencies (MUST)
 
@@ -3422,6 +4915,7 @@ ssot_refs:
 ---
 
 - [ ] update `3.120.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
+- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to contribute `DebugExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata and canonical priority ordering, reusing Foundation `ReservedTags::ERROR_MAPPER` without a second handler or local tag constant.
 
 ### Dependencies (MUST)
 
@@ -4057,6 +5551,8 @@ adr: "docs/adr/ADR-XXXX-platform-http-app-router-middleware-action-invoker.md"
 ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
+
+- [ ] update `3.140.0 Platform http-app` to consume `coretsia/platform-errors` through the shared `ExceptionMapperInterface`/`error.mapper` contract for 404/405 descriptors with empty `[]` tag metadata, reusing Foundation `ReservedTags::ERROR_MAPPER` without a local tag mirror or RFC7807 rendering.
 
 ### Dependencies (MUST)
 
@@ -5631,6 +7127,8 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
 
+- [ ] update `3.150.0 CORS middleware` to register `CorsExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata so blocked-origin failures use canonical normalization instead of ad-hoc HTTP responses or a local mirror of the Foundation tag constant.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -6023,6 +7521,8 @@ ssot_refs:
 - "docs/ssot/http-method-override.md"
 ---
 
+- [ ] update `3.170.0 Method override middleware` to register `MethodOverrideExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata and let `platform/problem-details` render the normalized failure without a local mirror of the Foundation tag constant.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -6278,6 +7778,8 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 - "docs/ssot/http-negotiation.md"
 ---
+
+- [ ] update `3.180.0 Content negotiation middleware` to register `NegotiationExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata for deterministic 406 descriptors, without local HTTP error rendering or a local mirror of the Foundation tag constant.
 
 ### Dependencies (MUST)
 
@@ -6549,6 +8051,7 @@ ssot_refs: []
 ---
 
 - [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to consume `SensitiveDataRedactorInterface` for rendered diagnostics and local debug pages.
+- [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to reuse the `ErrorDescriptor` already returned by the canonical `ErrorHandlerInterface` in the existing HTTP error middleware, without another mapping pass when selecting HTML.
 
 ### Dependencies (MUST)
 

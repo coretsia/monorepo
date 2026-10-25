@@ -98,9 +98,52 @@ final class ProjectPackagePlannerTest extends TestCase
                 ],
                 $plan->effectivePresetsByTarget(),
             );
-            self::assertContains('core.kernel', $plan->unionModuleIds());
-            self::assertContains('platform.cli', $plan->unionModuleIds());
-            self::assertContains('platform.redaction', $plan->unionModuleIds());
+            $expectedCliClosure = [
+                'core.foundation',
+                'core.kernel',
+                'platform.cli',
+                'platform.errors',
+                'platform.redaction',
+            ];
+
+            self::assertSame(
+                $expectedCliClosure,
+                $plan->enabledModuleIdsByTarget()['web'],
+            );
+            self::assertSame(
+                $expectedCliClosure,
+                $plan->enabledModuleIdsByTarget()['worker'],
+            );
+            self::assertSame($expectedCliClosure, $plan->unionModuleIds());
+
+            $publicConstraint = new ReleaseInstallationCatalogLoader()->load()->publicConstraint();
+
+            self::assertSame(
+                [
+                    'coretsia/core-foundation' => $publicConstraint,
+                    'coretsia/core-kernel' => $publicConstraint,
+                    'coretsia/platform-cli' => $publicConstraint,
+                    'coretsia/platform-errors' => $publicConstraint,
+                    'coretsia/platform-redaction' => $publicConstraint,
+                ],
+                $plan->desiredRootRequirements(),
+            );
+            self::assertSame(
+                [
+                    'composerName' => 'coretsia/platform-cli',
+                    'requires' => ['core.kernel', 'platform.errors', 'platform.redaction'],
+                    'conflicts' => [],
+                ],
+                $plan->expectedModuleMetadataById()['platform.cli'],
+            );
+            self::assertSame(
+                [
+                    'composerName' => 'coretsia/platform-errors',
+                    'requires' => ['core.foundation', 'platform.redaction'],
+                    'conflicts' => [],
+                ],
+                $plan->expectedModuleMetadataById()['platform.errors'],
+            );
             self::assertArrayNotHasKey(
                 'coretsia/platform-worker',
                 $plan->desiredRootRequirements(),
@@ -460,6 +503,31 @@ final class ProjectPackagePlannerTest extends TestCase
             );
 
             self::assertTrue($left->equals($right));
+            self::assertSame(
+                [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.redaction',
+                    'platform.worker',
+                ],
+                $left->unionModuleIds(),
+            );
+            self::assertSame(
+                [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.redaction',
+                ],
+                $left->enabledModuleIdsByTarget()['web'],
+            );
+            self::assertSame(
+                $left->unionModuleIds(),
+                $left->enabledModuleIdsByTarget()['worker'],
+            );
 
             $identity = 'sha256:' . \str_repeat('1', 64);
 

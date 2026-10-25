@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b50e306a530489d89c7212c0198c0792",
+    "content-hash": "1f16861c7cbf50bcfd8060cb850a943a",
     "packages": [],
     "packages-dev": [
         {
@@ -538,12 +538,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "fb1a2ab12e8c6ee0d37bd131491b286362415863"
+                "reference": "06b6db687bc37813d68650710fa323c69dfd62dc"
             },
             "require": {
                 "coretsia/core-contracts": "^0.9.0",
                 "coretsia/core-foundation": "^0.9.0",
                 "coretsia/core-kernel": "^0.9.0",
+                "coretsia/platform-errors": "^0.9.0",
                 "coretsia/platform-redaction": "^0.9.0",
                 "php": "^8.4",
                 "psr/container": "^2.0",
@@ -563,6 +564,7 @@
                     ],
                     "requires": [
                         "core.kernel",
+                        "platform.errors",
                         "platform.redaction"
                     ],
                     "conflicts": [],
@@ -599,6 +601,83 @@
                 "deterministic",
                 "framework",
                 "kernel-operations",
+                "php",
+                "redaction",
+                "runtime"
+            ],
+            "support": {
+                "issues": "https://github.com/coretsia/monorepo/issues",
+                "source": "https://github.com/coretsia/monorepo"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "coretsia/platform-errors",
+            "version": "0.9.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/errors",
+                "reference": "8ee0ccd272b5d676c0600105ee88c29449692a2f"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.9.0",
+                "coretsia/core-foundation": "^0.9.0",
+                "coretsia/platform-redaction": "^0.9.0",
+                "php": "^8.4",
+                "psr/container": "^2.0",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.errors",
+                    "moduleClass": "Coretsia\\Platform\\Errors\\Module\\ErrorsModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Errors\\Provider\\ErrorsServiceProvider"
+                    ],
+                    "requires": [
+                        "core.foundation",
+                        "platform.redaction"
+                    ],
+                    "conflicts": [],
+                    "defaultsConfigPath": "config/errors.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Errors\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Errors\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Vladyslav Mudrichenko",
+                    "email": "vladyslav@coretsia.dev",
+                    "role": "Creator and Lead Developer"
+                }
+            ],
+            "description": "Coretsia error handling runtime package: deterministic exception mapping, safe error normalization, and redacted diagnostics.",
+            "homepage": "https://coretsia.dev/",
+            "keywords": [
+                "coretsia",
+                "deterministic",
+                "error-descriptor",
+                "error-handling",
+                "errors",
+                "exception-mapping",
+                "framework",
+                "observability",
                 "php",
                 "redaction",
                 "runtime"
@@ -1439,11 +1518,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.3.1",
+            "version": "2.3.2",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/6155239b488e95d26d1ebd95c6b4bb294d7f09db",
-                "reference": "6155239b488e95d26d1ebd95c6b4bb294d7f09db",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/18bc23a0682f08591529377d271b5c4dfe9ed1dd",
+                "reference": "18bc23a0682f08591529377d271b5c4dfe9ed1dd",
                 "shasum": ""
             },
             "require": {
@@ -1499,7 +1578,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-08T21:09:11+00:00"
+            "time": "2026-10-24T11:36:00+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -4427,16 +4506,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.3.8",
+            "version": "13.3.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "0564c0b9b807f1740bf0f2cc965ab51551f4dc3b"
+                "reference": "c4c68c81775e8227dd01c064776edd46975d9d86"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/0564c0b9b807f1740bf0f2cc965ab51551f4dc3b",
-                "reference": "0564c0b9b807f1740bf0f2cc965ab51551f4dc3b",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/c4c68c81775e8227dd01c064776edd46975d9d86",
+                "reference": "c4c68c81775e8227dd01c064776edd46975d9d86",
                 "shasum": ""
             },
             "require": {
@@ -4469,9 +4548,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ecsphp/ecs/issues",
-                "source": "https://github.com/ecsphp/ecs/tree/13.3.8"
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.9"
             },
-            "time": "2026-10-20T21:02:34+00:00"
+            "time": "2026-10-23T12:59:45+00:00"
         },
         {
             "name": "theseer/tokenizer",
@@ -4534,6 +4613,7 @@
         "coretsia/devtools-internal-toolkit": 20,
         "coretsia/framework": 20,
         "coretsia/platform-cli": 20,
+        "coretsia/platform-errors": 20,
         "coretsia/platform-redaction": 20,
         "coretsia/platform-worker": 20,
         "coretsia/skeleton": 20

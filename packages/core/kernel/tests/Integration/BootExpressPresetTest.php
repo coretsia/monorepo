@@ -32,14 +32,14 @@ final class BootExpressPresetTest extends TestCase
             $plan = $result->modulePlan();
             self::assertSame('web', $plan->app());
             self::assertSame(
-                ['core.foundation', 'core.kernel', 'platform.cli', 'platform.redaction'],
+                ['core.foundation', 'core.kernel', 'platform.cli', 'platform.errors', 'platform.redaction'],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),
                     $plan->enabled(),
                 ),
             );
             self::assertSame(
-                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.cli'],
+                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.errors', 'platform.cli'],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),
                     $plan->topologicalOrder(),

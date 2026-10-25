@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Cli\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Module\ModuleManifest;
+use Coretsia\Kernel\Module\Exception\ModuleConflictException;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModuleSelection;
@@ -42,6 +43,7 @@ final class CliRequiresExplicitConsoleModuleSelectionTest extends CliIntegration
             ),
         );
         self::assertFalse($selected->hasEnabledModule('platform.cli'));
+        self::assertFalse($selected->hasEnabledModule('platform.errors'));
         self::assertFalse($selected->hasEnabledModule('platform.redaction'));
     }
 
@@ -55,6 +57,7 @@ final class CliRequiresExplicitConsoleModuleSelectionTest extends CliIntegration
         ];
         $plan = $resolver->resolve('console', self::manifest(true), new ModuleSelection($roots, []));
         self::assertTrue($plan->hasEnabledModule('platform.cli'));
+        self::assertTrue($plan->hasEnabledModule('platform.errors'));
         self::assertTrue($plan->hasEnabledModule('platform.redaction'));
         self::assertLessThan(
             \array_search(
@@ -68,11 +71,51 @@ final class CliRequiresExplicitConsoleModuleSelectionTest extends CliIntegration
                 true,
             ),
         );
+        $order = \array_map(static fn ($id): string => $id->value(), $plan->topologicalOrder());
+        self::assertLessThan(
+            \array_search('platform.cli', $order, true),
+            \array_search('platform.errors', $order, true),
+        );
+        self::assertLessThan(
+            \array_search('platform.errors', $order, true),
+            \array_search('platform.redaction', $order, true),
+        );
+
         $this->expectException(ModuleRequiredMissingException::class);
         $resolver->resolve('console', self::manifest(false), new ModuleSelection($roots, []));
     }
 
-    private static function manifest(bool $withRedaction): ModuleManifest
+    public function testSelectingCliFailsWhenErrorsPackageIsMissing(): void
+    {
+        $resolver = new ModuleGraphResolver(new TopologicalSorter());
+        $roots = [
+            ModuleId::fromString('core.foundation'),
+            ModuleId::fromString('core.kernel'),
+            ModuleId::fromString('platform.cli'),
+        ];
+
+        $this->expectException(ModuleRequiredMissingException::class);
+        $resolver->resolve('console', self::manifest(true, false), new ModuleSelection($roots, []));
+    }
+
+    public function testSelectingCliFailsWhenErrorsModuleIsExplicitlyExcluded(): void
+    {
+        $resolver = new ModuleGraphResolver(new TopologicalSorter());
+        $roots = [
+            ModuleId::fromString('core.foundation'),
+            ModuleId::fromString('core.kernel'),
+            ModuleId::fromString('platform.cli'),
+        ];
+
+        $this->expectException(ModuleConflictException::class);
+        $resolver->resolve(
+            'console',
+            self::manifest(true),
+            new ModuleSelection($roots, [ModuleId::fromString('platform.errors')]),
+        );
+    }
+
+    private static function manifest(bool $withRedaction, bool $withErrors = true): ModuleManifest
     {
         $composer = \json_decode(
             (string) \file_get_contents(self::packageRoot() . '/composer.json'),
@@ -82,13 +125,16 @@ final class CliRequiresExplicitConsoleModuleSelectionTest extends CliIntegration
         self::assertIsArray($composer);
 
         $requires = $composer['extra']['coretsia']['requires'] ?? null;
-        self::assertSame(['core.kernel', 'platform.redaction'], $requires);
+        self::assertSame(['core.kernel', 'platform.errors', 'platform.redaction'], $requires);
 
         $descriptors = [
             self::module('core.foundation'),
             self::module('core.kernel', ['core.foundation']),
             self::module('platform.cli', $requires),
         ];
+        if ($withErrors) {
+            $descriptors[] = self::module('platform.errors', ['core.foundation', 'platform.redaction']);
+        }
         if ($withRedaction) {
             $descriptors[] = self::module('platform.redaction');
         }

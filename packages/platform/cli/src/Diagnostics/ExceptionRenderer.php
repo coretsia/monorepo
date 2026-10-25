@@ -30,6 +30,12 @@ final class ExceptionRenderer
 {
     public function render(ErrorDescriptor $descriptor, OutputInterface $output): void
     {
+        if ($descriptor->code() === 'CORETSIA_UNHANDLED_EXCEPTION') {
+            $output->error('CORETSIA_CLI_INTERNAL_ERROR', 'Internal CLI error.');
+
+            return;
+        }
+
         $output->error($descriptor->code(), $descriptor->message());
     }
 }

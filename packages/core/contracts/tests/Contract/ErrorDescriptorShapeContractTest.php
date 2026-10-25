@@ -149,6 +149,208 @@ final class ErrorDescriptorShapeContractTest extends TestCase
         new ErrorDescriptor('123.invalid', 'Example message.');
     }
 
+    public function testFromArrayRoundTripPreservesValuesAndCanonicalExportShape(): void
+    {
+        $descriptor = new ErrorDescriptor(
+            code: 'core.example',
+            message: 'Example message.',
+            severity: ErrorSeverity::Critical,
+            httpStatus: 503,
+            extensions: [
+                'z' => [
+                    'enabled' => true,
+                    'items' => [null, 1, 'safe'],
+                ],
+                'a' => 'first',
+            ],
+        );
+
+        $reconstructed = ErrorDescriptor::fromArray($descriptor->toArray());
+
+        self::assertNotSame($descriptor, $reconstructed);
+        self::assertSame($descriptor->schemaVersion(), $reconstructed->schemaVersion());
+        self::assertSame($descriptor->code(), $reconstructed->code());
+        self::assertSame($descriptor->message(), $reconstructed->message());
+        self::assertSame($descriptor->severity(), $reconstructed->severity());
+        self::assertSame($descriptor->httpStatus(), $reconstructed->httpStatus());
+        self::assertSame($descriptor->extensions(), $reconstructed->extensions());
+        self::assertSame($descriptor->toArray(), $reconstructed->toArray());
+        self::assertSame(
+            ['code', 'extensions', 'httpStatus', 'message', 'schemaVersion', 'severity'],
+            array_keys($reconstructed->toArray()),
+        );
+    }
+
+    public function testFromArrayAcceptsUnorderedFieldsAndPreservesSeverityValues(): void
+    {
+        foreach (ErrorSeverity::cases() as $severity) {
+            $descriptor = ErrorDescriptor::fromArray([
+                'severity' => $severity->value,
+                'schemaVersion' => ErrorDescriptor::SCHEMA_VERSION,
+                'message' => 'Example message.',
+                'extensions' => [
+                    'z' => 'last',
+                    'a' => [
+                        'z' => true,
+                        'a' => null,
+                    ],
+                ],
+                'httpStatus' => null,
+                'code' => 'core.example',
+            ]);
+
+            self::assertSame($severity, $descriptor->severity());
+            self::assertNull($descriptor->httpStatus());
+            self::assertSame(
+                [
+                    'a' => [
+                        'a' => null,
+                        'z' => true,
+                    ],
+                    'z' => 'last',
+                ],
+                $descriptor->extensions(),
+            );
+            self::assertSame(
+                ['code', 'extensions', 'httpStatus', 'message', 'schemaVersion', 'severity'],
+                array_keys($descriptor->toArray()),
+            );
+            self::assertSame($severity->value, $descriptor->toArray()['severity']);
+        }
+    }
+
+    public function testFromArrayRejectsMissingAndUnexpectedFields(): void
+    {
+        $payload = new ErrorDescriptor('core.example', 'Example message.')->toArray();
+
+        foreach (array_keys($payload) as $field) {
+            $invalid = $payload;
+            unset($invalid[$field]);
+
+            self::assertInvalidReconstruction($invalid);
+        }
+
+        $unexpected = $payload;
+        $unexpected['throwable'] = 'private-exception-data';
+        self::assertInvalidReconstruction($unexpected);
+
+        $numeric = $payload;
+        $numeric[0] = 'private-exception-data';
+        self::assertInvalidReconstruction($numeric);
+    }
+
+    public function testFromArrayRejectsInvalidSchemaVersionsAndFieldValues(): void
+    {
+        $payload = new ErrorDescriptor('core.example', 'Example message.')->toArray();
+
+        foreach ([0, 2, '1', 1.0, false, null] as $version) {
+            $invalid = $payload;
+            $invalid['schemaVersion'] = $version;
+
+            self::assertInvalidReconstruction($invalid);
+        }
+
+        foreach (
+            [
+                ['code', 123],
+                ['code', ''],
+                ['code', '123.invalid'],
+                ['message', null],
+                ['message', ''],
+                ['message', "Unsafe\nmessage"],
+                ['severity', 'fatal'],
+                ['severity', 'ERROR'],
+                ['severity', ErrorSeverity::Error],
+                ['severity', null],
+                ['httpStatus', '500'],
+                ['httpStatus', true],
+                ['httpStatus', 99],
+                ['httpStatus', 600],
+                ['extensions', 'invalid'],
+                ['extensions', ['first', 'second']],
+                ['extensions', [1 => 'value']],
+                ['extensions', ['ratio' => 1.5]],
+            ] as [$field, $value]
+        ) {
+            $invalid = $payload;
+            $invalid[$field] = $value;
+
+            self::assertInvalidReconstruction($invalid);
+        }
+    }
+
+    public function testFromArrayRejectsUnsafeNestedExtensionsWithoutDisclosingPaths(): void
+    {
+        $payload = new ErrorDescriptor('core.example', 'Example message.')->toArray();
+        $payload['extensions'] = [
+            'diagnostics' => [
+                'password' => 'private-marker',
+            ],
+        ];
+
+        $exception = self::assertInvalidReconstruction($payload);
+
+        self::assertStringNotContainsString('diagnostics.password', $exception->getMessage());
+        self::assertStringNotContainsString('private-marker', $exception->getMessage());
+        self::assertStringNotContainsString('password', $exception->getMessage());
+    }
+
+    public function testFromArrayRetainsForbiddenExtensionAndResourceBudgetRejections(): void
+    {
+        $payload = new ErrorDescriptor('core.example', 'Example message.')->toArray();
+
+        $tooDeep = ['value' => 'safe'];
+
+        for ($depth = 0; $depth < 8; ++$depth) {
+            $tooDeep = ['nested' => $tooDeep];
+        }
+
+        $tooManyNodes = [
+            'items' => array_fill(0, 256, true),
+        ];
+
+        $tooManyBytes = [];
+
+        for ($index = 0; $index < 16; ++$index) {
+            $tooManyBytes[sprintf('k%03d', $index)] = str_repeat('a', 4093);
+        }
+
+        foreach (
+            [
+                ['credentials' => 'private-marker'],
+                ['details' => ['token' => 'private-marker']],
+                ['reference' => '/home/app/private/.env'],
+                ['details' => [1 => 'value']],
+                $tooDeep,
+                $tooManyNodes,
+                ['reference' => str_repeat('a', 4097)],
+                $tooManyBytes,
+            ] as $extensions
+        ) {
+            $invalid = $payload;
+            $invalid['extensions'] = $extensions;
+
+            self::assertInvalidReconstruction($invalid);
+        }
+    }
+
+    /**
+     * @param array<array-key, mixed> $payload
+     */
+    private static function assertInvalidReconstruction(array $payload): \InvalidArgumentException
+    {
+        try {
+            ErrorDescriptor::fromArray($payload);
+
+            self::fail('Expected invalid error descriptor payload.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame('Invalid error descriptor payload.', $exception->getMessage());
+            self::assertNull($exception->getPrevious());
+
+            return $exception;
+        }
+    }
+
     private static function assertParameterNamedType(
         ReflectionParameter $parameter,
         string $expectedName,

@@ -18,15 +18,23 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Integration\Support;
 
+use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Foundation\Container\ContainerBuilder;
+use Coretsia\Foundation\Observability\Errors\NoopErrorReporter;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Platform\Cli\Application\CliApplication;
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
 use Coretsia\Platform\Cli\Input\CommandInputValidator;
@@ -40,8 +48,10 @@ use Coretsia\Platform\Cli\Output\Formatter\PlainFormatter;
 use Coretsia\Platform\Cli\Output\Formatter\TableFormatter;
 use Coretsia\Platform\Cli\Output\OutputFormatter;
 use Coretsia\Platform\Cli\Output\TerminalCapabilities;
+use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use Coretsia\Platform\Cli\Runner\CommandRunner;
 use Coretsia\Platform\Cli\UX\SmartSuggestor;
+use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -58,9 +68,17 @@ final class CliApplicationFixtureHarness
         SensitiveDataRedactorInterface $redactor,
         ?CliOutputPolicy $policy = null,
         ?LoggerInterface $logger = null,
+        ?ErrorHandlerInterface $errors = null,
     ) {
-        $policy ??= new CliOutputPolicy('adaptive', 'table', 'plain', 'auto', 120);
+        $policy ??= new CliOutputPolicy(
+            'adaptive',
+            'table',
+            'plain',
+            'auto',
+            120,
+        );
         $ansi = new AnsiDecorator();
+        $errors ??= self::canonicalErrorHandler($redactor);
 
         $this->application = new CliApplication(
             new ArgvInputParser(),
@@ -87,7 +105,7 @@ final class CliApplicationFixtureHarness
                 $container,
                 new Stopwatch(),
             ),
-            new CliErrorHandler(),
+            $errors,
             new ExceptionRenderer(),
             new OutputFormatter(
                 $redactor,
@@ -97,6 +115,44 @@ final class CliApplicationFixtureHarness
             ),
             new SmartSuggestor(),
         );
+    }
+
+    private static function canonicalErrorHandler(SensitiveDataRedactorInterface $redactor): ErrorHandlerInterface
+    {
+        $builder = new ContainerBuilder();
+        $builder
+            ->instance(
+                ConfigRepositoryInterface::class,
+                new ArrayConfigRepository([
+                    'errors' => require \dirname(__DIR__, 4) . '/errors/config/errors.php',
+                ]),
+            )
+            ->instance(SensitiveDataRedactorInterface::class, $redactor)
+            ->instance(ErrorReporterPortInterface::class, new NoopErrorReporter())
+            ->instance(
+                CorrelationIdProviderInterface::class,
+                new class() implements CorrelationIdProviderInterface {
+                    public function correlationId(): ?string
+                    {
+                        return null;
+                    }
+                },
+            )
+            ->instance(TracerPortInterface::class, new NoopTracer())
+            ->instance(MeterPortInterface::class, new NoopMeter())
+            ->instance(LoggerInterface::class, new NullLogger())
+            ->instance(Stopwatch::class, new Stopwatch());
+        $builder->registerProviders([
+            new ErrorsServiceProvider(),
+            new CliServiceProvider(),
+        ]);
+
+        $handler = $builder->build()->get(ErrorHandlerInterface::class);
+        if (!$handler instanceof ErrorHandlerInterface) {
+            throw new \LogicException('cli-fixture-canonical-handler-invalid');
+        }
+
+        return $handler;
     }
 
     /**

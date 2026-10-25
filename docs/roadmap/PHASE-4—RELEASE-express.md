@@ -46,6 +46,7 @@ ssot_refs:
 ---
 
 - [ ] update `4.10.0 platform/validation` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.10.0 platform/validation` to contribute `ValidationExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 422 descriptors, replacing any legacy `handles` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -2209,6 +2210,7 @@ ssot_refs:
 ---
 
 - [ ] update `4.50.0 platform/uploads` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.50.0 platform/uploads` to contribute `UploadsProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 400/413/415 descriptors, replacing any legacy `handles` tag metadata; MUST NOT delete or recreate Foundation `ReservedTags.php`.
 
 ### Dependencies (MUST)
 
@@ -6258,6 +6260,7 @@ ssot_refs:
 ---
 
 - [ ] update `4.150.0 platform/auth` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.150.0 platform/auth` to contribute `AuthProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 401/403 descriptors, without owning the global handler.
 
 ### Dependencies (MUST)
 
@@ -6787,6 +6790,7 @@ ssot_refs: []
 ---
 
 - [ ] update `4.170.0 platform/security` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.170.0 platform/security` to contribute `SecurityProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for CSRF/signed-URL failure descriptors, without duplicating normalization, local tag constants, or RFC7807 rendering.
 
 ### Dependencies (MUST)
 
@@ -7364,6 +7368,7 @@ ssot_refs: []
 ---
 
 - [ ] update `4.190.0 platform/http Rate limiting` to consume `SensitiveDataRedactorInterface` for identity-aware diagnostics.
+- [ ] update `4.190.0 platform/http Rate limiting` to preserve deterministic HTTP 429 responses with `Retry-After` and, if `RateLimitedException` is propagated through the HTTP Throwable boundary, contribute a safe 429 mapper via the shared `error.mapper` tag with empty `[]` metadata, preserving HTTP-owned response-header policy without introducing another `ErrorHandlerInterface` implementation.
 
 ### Dependencies (MUST)
 

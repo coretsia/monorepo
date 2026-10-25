@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Cli\Provider;
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Kernel\Ops\KernelOpsInterface;
+use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
@@ -50,11 +51,11 @@ use Coretsia\Platform\Cli\Command\HelpCommand;
 use Coretsia\Platform\Cli\Command\ListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowListCommand;
 use Coretsia\Platform\Cli\Command\WorkflowRunCommand;
-use Coretsia\Platform\Cli\Diagnostics\CliErrorHandler;
 use Coretsia\Platform\Cli\Diagnostics\ExceptionRenderer;
 use Coretsia\Platform\Cli\Input\ArgvInputParser;
 use Coretsia\Platform\Cli\Input\CommandInputValidator;
 use Coretsia\Platform\Cli\Kernel\KernelOpsRequestResolver;
+use Coretsia\Platform\Cli\Mapper\CliExceptionMapper;
 use Coretsia\Platform\Cli\Output\Ansi\AnsiDecorator;
 use Coretsia\Platform\Cli\Output\CliOutputPolicy;
 use Coretsia\Platform\Cli\Output\ColorResolver;
@@ -120,7 +121,8 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             ->requireService(MeterPortInterface::class)
             ->requireService(LoggerInterface::class)
             ->requireService(Stopwatch::class)
-            ->requireService(SensitiveDataRedactorInterface::class);
+            ->requireService(SensitiveDataRedactorInterface::class)
+            ->requireService(ErrorHandlerInterface::class);
 
         $this->factory($definitions, ArgvInputParser::class, 'argvInputParser');
         $this->factory($definitions, CommandInputValidator::class, 'commandInputValidator');
@@ -179,7 +181,15 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             self::ref(Stopwatch::class),
         ]);
         $this->factory($definitions, SmartSuggestor::class, 'smartSuggestor');
-        $this->factory($definitions, CliErrorHandler::class, 'cliErrorHandler');
+
+        $definitions->classService(CliExceptionMapper::class, CliExceptionMapper::class);
+        $definitions->tag(
+            ReservedTags::ERROR_MAPPER,
+            CliExceptionMapper::class,
+            priority: 100,
+            meta: [],
+        );
+
         $this->factory($definitions, ExceptionRenderer::class, 'exceptionRenderer');
         $this->factory($definitions, CliApplication::class, 'cliApplication', [
             self::ref(ArgvInputParser::class),
@@ -188,7 +198,7 @@ final class CliServiceProvider implements ServiceProviderInterface, ContainerDef
             self::ref(FormatResolver::class),
             self::ref(ColorResolver::class),
             self::ref(CommandRunner::class),
-            self::ref(CliErrorHandler::class),
+            self::ref(ErrorHandlerInterface::class),
             self::ref(ExceptionRenderer::class),
             self::ref(OutputFormatter::class),
             self::ref(SmartSuggestor::class),

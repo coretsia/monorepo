@@ -26,6 +26,9 @@
       "package_id": "platform/cli"
     },
     {
+      "package_id": "platform/errors"
+    },
+    {
       "package_id": "platform/redaction"
     },
     {

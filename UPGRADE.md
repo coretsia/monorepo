@@ -103,6 +103,93 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.9.1 to v0.10.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- Normal CLI Throwable normalization now uses the canonical `ErrorHandlerInterface` provided by the new `platform.errors` runtime module.
+- Applications with custom CLI error handling, exception mappers, DI bindings, module selections, or dependency synchronization policies must review their integrations.
+- The public `ErrorHandlerInterface` signature and canonical `ErrorDescriptor` field set remain unchanged.
+- Existing CLI public error codes, output formats, command behavior, suggestions, exit codes, and Kernel UnitOfWork semantics remain unchanged.
+
+#### Installation and module selection
+
+The new `coretsia/platform-errors` package is installed transitively through `coretsia/platform-cli`. The `coretsia/framework` metapackage retains its direct Kernel and CLI requirements.
+
+Runtime module dependencies are:
+
+```text
+platform.cli
+    -> core.kernel
+    -> platform.errors
+    -> platform.redaction
+
+platform.errors
+    -> core.foundation
+    -> platform.redaction
+```
+
+The default `micro` Console `ModulePlan` includes:
+
+```text
+core.foundation
+core.kernel
+platform.cli
+platform.errors
+platform.redaction
+```
+
+Canonical preset roots remain unchanged. `platform.errors` is selected transitively whenever `platform.cli` is enabled, including applicable `express`, `hybrid`, and `enterprise` configurations.
+
+Review custom presets and target-local module overrides:
+
+- Missing or explicitly excluded `platform.errors` causes selected CLI module composition to fail closed.
+- Composer package installation does not automatically enable runtime modules.
+- Additional physical dependencies remain subject to explicit DependencySync `plan`, `review`, and `apply` operations.
+- Do not manually modify DependencySync-managed `lastAppliedRequire` state or introduce implicit Composer synchronization during application boot.
+
+#### CLI error handling
+
+`CliApplication` consumes the contracts-level `ErrorHandlerInterface`. CLI-specific classification is provided by `CliExceptionMapper`, registered through the existing `error.mapper` tag with priority `100` and empty metadata.
+
+Custom exception mappers must implement `ExceptionMapperInterface`, use canonical tag registration, and preserve Foundation `TagRegistry` ordering. The first non-null `ErrorDescriptor` wins; the default fallback remains outside tagged discovery.
+
+The canonical fallback is `CORETSIA_UNHANDLED_EXCEPTION` with message `Unhandled exception.`. CLI-owned `ExceptionRenderer` preserves the public presentation:
+
+```text
+CORETSIA_CLI_INTERNAL_ERROR
+Internal CLI error.
+```
+
+Applications must not register competing global error handlers or implement duplicate mapper discovery and fallback pipelines. Normal CLI output, suggestions, and exit-code behavior remain unchanged. The ultra-early `doctor` boundary remains independent.
+
+#### ErrorDescriptor, redaction, and reporting
+
+`ErrorDescriptor::fromArray(array $payload): self` provides strict reconstruction of the existing canonical descriptor shape. Invalid payloads fail with the fixed safe message `Invalid error descriptor payload.`.
+
+The canonical handler applies mandatory shared redaction through `SensitiveDataRedactorInterface` before descriptor reconstruction. Mapper, redaction, and reconstruction failures select a fixed safe fallback without exposing raw Throwable details.
+
+The new `errors` configuration root controls optional reporting:
+
+- `errors.reporting.enabled`: `false` by default.
+- `errors.reporting.min_severity`: `info` by default.
+- `errors.reporting.exclude_codes`: `[]` by default.
+- `errors.reporting.sample_rate`: `10000` by default, using integer basis points from `0` to `10000`.
+- `errors.reporting.mapper_failures.enabled`: `false` by default.
+
+Reporting filters do not affect exception mapping, mandatory redaction, or fallback selection. Redaction cannot be disabled through configuration.
+
+Kernel UnitOfWork, Context, reset, HTTP presentation, and Worker task settlement boundaries remain unchanged.
+
+#### Migration steps
+
+1. Review the `v0.10.0` release notes, update Coretsia Composer dependencies to the target release line, and refresh the application lock intentionally.
+2. Verify custom presets, module manifests, and target-local overrides include the transitive `platform.errors` dependency wherever `platform.cli` is selected.
+3. Migrate custom CLI error handling to `ErrorHandlerInterface` and register custom exception classifiers through the canonical `error.mapper` tag.
+4. Review descriptor reconstruction, safe error-message derivation, and the `errors` reporting configuration. Preserve mandatory shared redaction.
+5. Run the canonical configuration, architecture, quality, and test checks appropriate to the upgraded application.
+
 ### From v0.8.0 to v0.9.0
 
 #### Compatibility

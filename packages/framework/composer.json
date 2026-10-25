@@ -28,7 +28,7 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-kernel": "^0.9.0",
-    "coretsia/platform-cli": "^0.9.0"
+    "coretsia/core-kernel": "^0.10.0",
+    "coretsia/platform-cli": "^0.10.0"
   }
 }

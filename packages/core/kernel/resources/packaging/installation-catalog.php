@@ -93,7 +93,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.9.0',
-  'releaseLine' => '0.9',
+  'publicConstraint' => '^0.10.0',
+  'releaseLine' => '0.10',
   'schemaVersion' => 1,
 );

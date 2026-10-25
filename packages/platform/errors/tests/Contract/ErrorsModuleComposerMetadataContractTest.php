@@ -35,6 +35,24 @@ final class ErrorsModuleComposerMetadataContractTest extends TestCase
             flags: \JSON_THROW_ON_ERROR,
         );
 
+        $releaseLinePath = \dirname(__DIR__, 5) . '/tools/release/release-line.json';
+        self::assertFileExists($releaseLinePath);
+
+        $releaseLine = \json_decode(
+            (string) \file_get_contents($releaseLinePath),
+            true,
+            flags: \JSON_THROW_ON_ERROR,
+        );
+
+        self::assertIsArray($releaseLine);
+
+        $publicConstraint = $releaseLine['publicConstraint'] ?? null;
+        self::assertIsString($publicConstraint);
+        self::assertMatchesRegularExpression(
+            '/\A\^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.0\z/D',
+            $publicConstraint,
+        );
+
         self::assertSame('coretsia/platform-errors', $composer['name']);
         self::assertSame('library', $composer['type']);
         self::assertSame('^8.4', $composer['require']['php']);
@@ -45,9 +63,9 @@ final class ErrorsModuleComposerMetadataContractTest extends TestCase
         );
         self::assertSame([
             'php' => '^8.4',
-            'coretsia/core-contracts' => '^0.9.0',
-            'coretsia/core-foundation' => '^0.9.0',
-            'coretsia/platform-redaction' => '^0.9.0',
+            'coretsia/core-contracts' => $publicConstraint,
+            'coretsia/core-foundation' => $publicConstraint,
+            'coretsia/platform-redaction' => $publicConstraint,
             'psr/container' => '^2.0',
             'psr/log' => '^3.0',
         ], $composer['require']);

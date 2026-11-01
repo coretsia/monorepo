@@ -46,6 +46,7 @@ The current baseline Composer requirements declared directly by `coretsia/framew
 PHP ^8.4
 coretsia/core-kernel
 coretsia/platform-cli
+coretsia/platform-logging
 ```
 
 Internal Coretsia Composer dependencies use constraints derived from the active monorepo release line. The exact constraints are declared in the package's `composer.json` and follow the canonical repository release policy.
@@ -63,9 +64,13 @@ coretsia/framework
             -> coretsia/core-foundation
             -> coretsia/platform-redaction
         -> coretsia/platform-redaction
+    -> coretsia/platform-logging
+        -> coretsia/core-kernel
+        -> coretsia/core-foundation
+        -> coretsia/platform-redaction
 ```
 
-`coretsia/platform-errors` and `coretsia/platform-redaction` are transitive Composer dependencies of `coretsia/platform-cli`, not direct requirements of the framework metapackage. Errors also requires Redaction directly. Kernel, CLI, and Errors retain ownership of their lower-level dependency closures, including Coretsia Contracts and Foundation.
+`coretsia/platform-logging` is a direct baseline dependency of the framework metapackage. `coretsia/platform-errors` is installed transitively through CLI; `coretsia/platform-redaction` is required transitively by CLI, Errors, and Logging. Neither Errors nor Redaction is a direct framework requirement. Kernel, CLI, Logging, Errors, and Redaction retain ownership of their own dependency closures, including Coretsia Contracts and Foundation.
 
 `coretsia/framework` SHOULD depend directly only on packages that are intentionally part of the public framework baseline.
 
@@ -94,7 +99,11 @@ composer require coretsia/framework
 
 This operation installs the baseline Coretsia Composer dependency graph into the consuming application's own Composer environment. The consuming project remains the application root and owns its Composer state, configuration, application code, and runtime data.
 
-Physical Composer installation and Kernel runtime module selection are separate. `coretsia/framework` is not a runtime module, `ModePreset`, `ModuleSelection`, or `ModulePlan`, and it does not perform module selection. For each explicitly selected application target, Kernel resolves the effective preset and target-local module overrides into a `ModuleSelection`, then resolves the installed module dependency closure into that target's `ModulePlan`. Canonical presets (`micro`, `express`, `hybrid`, `enterprise`) are runtime selection policies, not Composer distributions. The default `micro` preset selects `platform.cli` as a selectable module; its resolved dependency closure includes `platform.errors` and `platform.redaction`. Physically installed CLI, Errors, and Redaction packages do not automatically enable their runtime modules.
+Physical Composer installation and Kernel runtime module selection are separate. `coretsia/framework` is not a runtime module, `ModePreset`, `ModuleSelection`, or `ModulePlan`, and it does not perform module selection. For each explicitly selected application target, Kernel resolves the effective preset and target-local module overrides into a `ModuleSelection`, then resolves the installed module dependency closure into that target's `ModulePlan`.
+
+All four canonical presets (`micro`, `express`, `hybrid`, `enterprise`) select `platform.cli` and `platform.logging` as excludable runtime modules, not non-excludable required roots. `micro` is the default preset. Its effective enabled closure includes `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.logging`, and `platform.redaction`; `hybrid` and `enterprise` additionally select `platform.worker`. Composer-installed packages do not automatically enable their runtime modules.
+
+A target-local `moduleOverrides.exclude` entry for `platform.logging` removes the logging provider only from that target's runtime `ModulePlan`, retaining the installed Composer package and Foundation `NoopLogger` binding. `logging.driver='null'` is a separate, string-valued setting: it retains the selected module but returns Foundation `NoopLogger` after full configuration validation. A physically missing selected logging module or excluded required `platform.redaction` dependency fails through Kernel module planning; neither is an implicit noop fallback.
 
 `coretsia/framework` only contributes the baseline dependency graph. Additional mode-required Coretsia packages are planned, reviewed, and reconciled through explicit Kernel DependencySync `plan` / `review` / `apply` operations for selected targets. The framework metapackage does not inspect application mode policy, modify the consumer's Composer manifest, or trigger dependency synchronization during application boot.
 
@@ -116,7 +125,7 @@ If `coretsia/framework` later becomes the canonical owner of installable runtime
 
 `coretsia/framework` composes dependencies; it does not absorb their responsibilities.
 
-Requiring a package through this distribution does not transfer its implementation or runtime responsibilities to `coretsia/framework`; those remain with the concrete package.
+Requiring a package through this distribution does not transfer its implementation or runtime responsibilities to `coretsia/framework`; those remain with the concrete package. In particular, the framework metapackage MUST NOT instantiate logging services, register `LoggerInterface` bindings, configure logging destinations, or implement a logging backend.
 
 The distribution MUST NOT become:
 
@@ -163,17 +172,17 @@ See `docs/ssot/application-dependency-sync.md` in the monorepo for the normative
 
 ## Observability
 
-`coretsia/framework` does not implement logging, metrics, tracing, profiling, or other observability behavior.
+`coretsia/framework` distributes `coretsia/platform-logging` by default but does not implement logging, metrics, tracing, profiling, or other observability behavior. Observability contracts and implementations remain with their owning Coretsia packages.
 
-Observability contracts and implementations belong to their owning Coretsia packages.
+When `platform.logging` is selected and `logging.driver='stream'` (the default), the Logging package supplies `Psr\Log\LoggerInterface` through `StreamLogger` with the fixed internal `php://stderr` destination. The optional `logging.driver='file'` uses the same logger for automatic daily UTC local files; `logging.file.path`, `logging.file.name`, and output format are configured and validated by `platform/logging`, never by the framework metapackage. The emitted filename is `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`. File retention, deletion, archival, and disk quotas remain deployment responsibilities.
 
-Adding or removing a runtime package from this distribution MUST NOT create an alternate observability policy at the framework-distribution level.
+Excluding the logging module or selecting the string driver `null` retains the Foundation `NoopLogger` binding. These are runtime policies, not changes to the installed dependency graph. Adding or removing a runtime dependency from the distribution MUST NOT create an alternate observability policy at the framework-distribution level.
 
 ## Errors
 
 `coretsia/framework` defines no runtime exception hierarchy and emits no runtime diagnostics of its own.
 
-Runtime failures remain owned by the package that implements the failing behavior.
+Runtime failures remain owned by the package that implements the failing behavior. Kernel owns missing selected-module and required-dependency failures; `platform/logging` owns its validated configuration, best-effort stream/file emission, and internal write-failure isolation. Failure to initialize the fixed STDERR destination returns Foundation `NoopLogger`, while later stream/file write failures omit the affected records without recursive diagnostics. The distribution does not convert module-composition errors into `NoopLogger` fallbacks.
 
 Composer dependency-resolution failures remain Composer-level installation concerns and MUST NOT be represented as Coretsia runtime errors by this distribution.
 
@@ -190,7 +199,7 @@ The distribution MUST NOT introduce:
 - runtime diagnostic payloads;
 - generated application state.
 
-Security-sensitive runtime behavior remains the responsibility of the owning runtime packages.
+Security-sensitive runtime behavior remains the responsibility of the owning runtime packages. `platform/redaction` provides the shared redaction and sensitive-key classification implementations required by Logging; `platform/logging` owns its mandatory whole-record redaction use and sink admission policy. The framework metapackage neither exposes a redaction-disable configuration nor performs runtime redaction.
 
 ## Non-goals
 
@@ -218,4 +227,6 @@ This distribution does not provide:
 - [Repository Structure](https://github.com/coretsia/monorepo/tree/main/docs/architecture/STRUCTURE.md)
 - [Compile-Time Package Dependencies](https://github.com/coretsia/monorepo/tree/main/docs/architecture/DEPENDENCIES.md)
 - [Kernel package source](https://github.com/coretsia/monorepo/tree/main/packages/core/kernel)
+- [Logging package source](https://github.com/coretsia/monorepo/tree/main/packages/platform/logging)
+- [Logging Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/logging-policy.md)
 - [Framework distribution source](https://github.com/coretsia/monorepo/tree/main/packages/framework)

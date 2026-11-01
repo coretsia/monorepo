@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Redaction;
 
 use Coretsia\Contracts\Security\RedactionKind;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 
 /**
  * Canonical, immutable structural-key classification policy.
@@ -28,7 +29,7 @@ use Coretsia\Contracts\Security\RedactionKind;
  *
  * @internal
  */
-final class SensitiveKeyClassifier
+final class SensitiveKeyClassifier implements SensitiveKeyClassifierInterface
 {
     /**
      * @var array<string, RedactionKind>

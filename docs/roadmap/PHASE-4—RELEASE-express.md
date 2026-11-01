@@ -14,12 +14,675 @@
 
 ## PHASE 4 — RELEASE: express (Non-product doc)
 
-### 4.10.0 coretsia/validation (reference validation engine) (MUST) [IMPL]
+### 4.10.0 Platform filesystem + Local driver (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
 epic_id: "4.10.0"
+owner_path: "packages/platform/filesystem/"
+
+package_id: "platform/filesystem"
+composer: "coretsia/platform-filesystem"
+kind: runtime
+module_id: "platform.filesystem"
+
+goal: "Надати канонічний filesystem layer (DiskManager + path safety + deterministic list) та reference local driver в integrations/*, без витоку raw paths і без platform→integrations залежності."
+provides:
+- "DiskManager + DiskInterface integration point"
+- "SSoT path safety: forbid traversal/absolute paths; symlinks forbidden by default"
+- "Deterministic list() order (lexicographic)"
+- "Observability (spans/metrics/logs) без raw paths (hash/len only)"
+- "Reference driver: integrations/filesystem-local (local disk)"
+
+tags_introduced: ["filesystem.disk_driver"]
+config_roots_introduced: ["filesystem", "filesystem_local"]
+artifacts_introduced: []
+
+adr: docs/adr/ADR-XXXX-platform-filesystem-local-driver.md
+ssot_refs:
+- docs/ssot/filesystem-path-safety.md
+---
+
+- [ ] update `4.10.0 Platform filesystem + Local driver` to consume `SensitiveDataRedactorInterface` for path diagnostics and to avoid leaking absolute local paths.
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - `core/contracts` — `DiskInterface` + observability ports
+  - `core/foundation` — DI/config baseline
+  - (policy) Phase 0 fingerprint/path rules + Phase 1 redaction — forbid traversal; symlink policy; deterministic list; no raw paths
+  - (policy) runtime MUST NOT depend on `devtools/internal-toolkit` (tooling-only); invariants are proven via runtime tests (golden vectors)
+
+- Required deliverables (exact paths):
+  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — public port
+  - `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md` — ADR (locked before impl)
+
+- Required config roots/keys:
+  - `filesystem` / `filesystem.*` — this epic introduces the root & keys
+  - `filesystem_local` / `filesystem_local.*` — reference integration config root & keys
+
+- Required tags:
+  - `filesystem.disk_driver` — introduced by this epic as canonical driver discovery mechanism
+  - `kernel.reset` — only if stateful services appear (default expectation: none)
+
+- Required contracts / ports:
+  - `Psr\Log\LoggerInterface`
+  - (optional) `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Filesystem\DiskInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - (optional) `Coretsia\Foundation\Discovery\DeterministicOrder`
+
+- Runtime expectation (policy, NOT deps):
+  - `platform/logging|tracing|metrics` provide implementations/noop-safe
+  - `integrations.filesystem-local` may be enabled to provide a `local` disk driver
+
+- External test prerequisite:
+  - `packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php` exists in contracts scope (referenced as parity proof)
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+- `core/contracts`
+- `core/foundation`
+
+Forbidden:
+- `platform/http`
+- `integrations/*` *(for `platform/filesystem` package)*
+
+> NOTE: `packages/integrations/filesystem-local/` MAY depend on `platform/filesystem`,
+> but `platform/filesystem` MUST NOT depend on integrations.
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Log\LoggerInterface`
+- Contracts:
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Filesystem\DiskInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+- Foundation stable APIs:
+  - `Coretsia\Foundation\Discovery\DeterministicOrder`
+
+### Registry locks (MUST)
+
+- Because this epic introduces:
+  - tag `filesystem.disk_driver`
+  - config roots `filesystem` and `filesystem_local`
+    it MUST update SSoT registries:
+
+1) `docs/ssot/tags.md`:
+- add row: `filesystem.disk_driver` owner `platform/filesystem`
+- only owner package defines public constant for this tag.
+
+2) `docs/ssot/config-roots.md`:
+- add root `filesystem` owner `platform/filesystem`
+- add root `filesystem_local` owner `integrations/filesystem-local`
+
+- Integrations packages MUST NOT be a compile-time dependency of `platform/filesystem` (already stated); driver ownership lives in `integrations/*`.
+
+### Entry points / integration points (MUST)
+
+- CLI:
+  - N/A
+- HTTP:
+  - N/A
+- Kernel hooks/tags:
+  - `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}` → `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php`
+  - `kernel.reset` *(only if stateful services added; default: none)*
+- Artifacts:
+  - N/A
+
+### Runtime path normalization contract (MUST)
+
+Runtime MUST re-encode Phase 0 path invariants without importing tooling:
+
+- Normalize separators: treat `\` as `/` for user input, output uses `/` only.
+- Forbid absolute paths:
+  - leading `/` or `\`
+  - Windows drive prefixes like `C:\` / `C:/`
+  - UNC prefixes like `\\server\share`
+- Forbid traversal segments `..` after normalization.
+- Forbid empty / NUL bytes.
+- Deterministic list order:
+  - `list()` returns normalized relative paths sorted by `strcmp` (byte-order), locale-independent.
+- Redaction:
+  - logs/metrics/spans MUST NOT include raw paths; only `hash(path)` and `len(path)` are allowed.
+
+### Deliverables (MUST)
+
+#### Creates
+
+**platform/filesystem**
+
+- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php` — runtime module
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php` — DI wiring
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
+- [ ] `packages/platform/filesystem/config/filesystem.php` — config subtree (no repeated root)
+- [ ] `packages/platform/filesystem/config/rules.php` — config shape rules + path-safety policy
+- [ ] `packages/platform/filesystem/README.md` — docs (Observability / Errors / Security-Redaction + path safety)
+- [ ] `docs/ssot/filesystem-path-safety.md` — SSoT traversal/symlink/normalize rules
+- [ ] `docs/guides/filesystem.md` — configure disks; local driver example
+
+Core:
+- [ ] `packages/platform/filesystem/src/Disk/DiskManager.php` — resolve disk by name (config + DI)
+
+Path safety:
+- [ ] `packages/platform/filesystem/src/Path/PathPolicy.php` — safety rails (ints/bools only)
+- [ ] `packages/platform/filesystem/src/Path/SafePathJoiner.php` — normalize + forbid traversal + optional symlink check
+
+Exceptions:
+- [ ] `packages/platform/filesystem/src/Exception/FilesystemException.php`
+- [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
+- [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
+- [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
+
+Observability + redaction:
+- [ ] `packages/platform/filesystem/src/Observability/FilesystemInstrumentation.php` — spans/metrics/logs wrapper
+- [ ] `packages/platform/filesystem/src/Security/Redaction.php` — `hashPath()/len()`
+
+**integrations/filesystem-local**
+
+- [ ] `packages/integrations/filesystem-local/src/Module/FilesystemLocalModule.php` — runtime module
+- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceProvider.php` — DI wiring
+- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/integrations/filesystem-local/config/filesystem_local.php` — config subtree (no repeated root)
+- [ ] `packages/integrations/filesystem-local/config/rules.php` — config shape rules
+- [ ] `packages/integrations/filesystem-local/README.md` — docs (config + limitations + redaction)
+
+Driver:
+- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php` — implements `DiskInterface`, atomic write where possible
+- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemPolicy.php` — root dir, chmod policy (no secrets)
+
+#### Modifies
+
+- [ ] `docs/ssot/INDEX.md` — register:
+  - [ ] `docs/ssot/filesystem-path-safety.md`
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md`
+
+#### Package skeleton (if type=package)
+
+- [ ] `packages/platform/filesystem/composer.json`
+- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php`
+- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php`
+- [ ] `packages/platform/filesystem/config/filesystem.php`
+- [ ] `packages/platform/filesystem/config/rules.php`
+- [ ] `packages/platform/filesystem/README.md`
+- [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+*(integration package skeleton is also created by this epic; see “Creates”)*
+
+#### Configuration (keys + defaults)
+
+- [ ] Files:
+  - [ ] `packages/platform/filesystem/config/filesystem.php`
+  - [ ] `packages/integrations/filesystem-local/config/filesystem_local.php`
+- [ ] Keys (dot):
+  - [ ] `filesystem.enabled` = true
+  - [ ] `filesystem.default` = 'local'
+  - [ ] `filesystem.disks` = []                       # name => {driver, ...}
+  - [ ] `filesystem.path_policy.forbid_symlinks` = true
+  - [ ] `filesystem.path_policy.forbid_absolute_paths` = true
+  - [ ] `filesystem.path_policy.max_path_length` = 4096
+  - [ ] `filesystem_local.enabled` = true
+  - [ ] `filesystem_local.root` = 'packages/applications/skeleton/var/tmp'  # reference safe default
+- [ ] Rules:
+  - [ ] `packages/platform/filesystem/config/rules.php` enforces shape + path policy invariants
+  - [ ] `packages/integrations/filesystem-local/config/rules.php` enforces shape
+
+#### Wiring / DI tags (when applicable)
+
+- [ ] Tags introduced (this epic is the OWNER):
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
+  - [ ] constant(s):
+    - [ ] `DISK_DRIVER = 'filesystem.disk_driver'`
+- [ ] ServiceProvider wiring evidence:
+  - [ ] registers: `Coretsia\Filesystem\Disk\DiskManager`
+  - [ ] registers: `Coretsia\Filesystem\Path\SafePathJoiner`
+  - [ ] registers: `Coretsia\Filesystem\Observability\FilesystemInstrumentation`
+  - [ ] adds tag: `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}`
+    - service id: `Coretsia\FilesystemLocal\Driver\LocalFilesystemDriver`
+
+#### Artifacts / outputs (if applicable)
+
+N/A *(runtime I/O only; `packages/applications/skeleton/var/**` is not an artifact)*
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- [ ] Context reads:
+  - [ ] `ContextKeys::CORRELATION_ID` (for log correlation only)
+- [ ] Context writes (safe only):
+  - [ ] none
+- [ ] Reset discipline:
+  - [ ] no stateful services expected; if added → `ResetInterface` + tag `kernel.reset`
+
+#### Observability (policy-compliant)
+
+- [ ] Spans:
+  - [ ] `fs.op` (attrs: `driver`, `operation`, `outcome`, `bytes?` — no path)
+- [ ] Metrics:
+  - [ ] `fs.op_total` (labels: `driver`, `operation`, `outcome`)
+  - [ ] `fs.op_duration_ms` (labels: `driver`, `operation`, `outcome`)
+- [ ] Label normalization applied (if needed):
+  - [ ] `op→operation`, `via→driver`
+- [ ] Logs:
+  - [ ] errors/warnings include `hash(path)` / `len(path)` only; never raw paths
+
+#### Errors
+
+- [ ] Exceptions introduced:
+  - [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
+  - [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
+  - [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
+- [ ] Mapping:
+  - [ ] reuse existing mapper (DefaultExceptionMapper) *(no dupes)*
+
+#### Security / Redaction
+
+- [ ] MUST NOT leak:
+  - [ ] raw paths, file contents, tokens
+- [ ] Allowed:
+  - [ ] `hash(value)` / `len(value)` and safe disk names
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [ ] If metrics/spans/logs exist → proof:
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+- [ ] If redaction exists → proof:
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+- [ ] If determinism exists → proof:
+  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
+- [ ] If path-safety exists → proof:
+  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
+
+### Tests (MUST)
+
+- Unit:
+  - [ ] `packages/platform/filesystem/tests/Unit/SafePathJoinerNormalizesPosixAndForbidsTraversalTest.php`
+  - [ ] `packages/platform/filesystem/tests/Unit/PathPolicyDefaultsAreSafeTest.php`
+- Contract:
+  - [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
+  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
+- Integration:
+  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
+  - [ ] `packages/integrations/filesystem-local/tests/Integration/LocalDriverUsesSafePathJoinerTest.php`
+  - [ ] `packages/integrations/filesystem-local/tests/Integration/SymlinkForbiddenTest.php`
+- Gates/Arch:
+  - [ ] deptrac: `platform/filesystem` MUST NOT depend on `integrations/*`
+
+### DoD (MUST)
+
+- [ ] Dependency rules satisfied (no platform→integrations)
+- [ ] Path safety enforced (traversal + symlink policy; golden vectors)
+- [ ] Observability policy satisfied (no raw paths; labels allowlist)
+- [ ] Tests pass (unit+contract+integration)
+- [ ] Docs complete (READMEs + `docs/ssot/filesystem-path-safety.md` + `docs/guides/filesystem.md`)
+- [ ] path safety lock (MUST)
+  - [ ] Filesystem path safety MUST align with Phase 0 fingerprint rules + Phase 1 redaction:
+    - [ ] forbid traversal (`..`)
+    - [ ] forbid symlinks by default
+    - [ ] deterministic list order
+    - [ ] never print raw paths (hash/len only)
+  - [ ] IMPORTANT: runtime MUST NOT depend on `devtools/internal-toolkit` (tooling-only).
+    - [ ] Instead: re-encode the same invariants with runtime tests (golden vectors), so Phase 0 value is not lost.
+
+---
+
+### 4.20.0 Filesystem drivers (S3/FTP/SFTP) (SHOULD) [DOC]
+
+---
+type: docs
+phase: 4
+epic_id: "4.20.0"
+owner_path: "docs/architecture/filesystem-drivers.md"
+
+goal: "Зафіксувати ownership та parity-інваріанти для filesystem drivers (S3/FTP/SFTP): drivers тільки в integrations/*, platform/filesystem не залежить від них, і драйвери не витікають secrets/paths."
+provides:
+- "Ownership rule: drivers only in `integrations/*`"
+- "Parity semantics invariants (exists/get/put/delete/list)"
+- "Security/redaction rules for drivers (secret_ref; no raw paths)"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: none
+ssot_refs:
+- docs/ssot/filesystem-driver-parity.md
+---
+
+- [ ] update `4.20.0 Filesystem drivers (S3/FTP/SFTP)` to document SecretsResolverInterface consumption by future credential-bearing integrations through secret_ref, without adding secret resolution to platform/filesystem or its local driver.
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - `platform/filesystem` exists as canonical filesystem layer (DiskManager + SafePathJoiner)
+  - `core/contracts` provides `DiskInterface`
+
+- Required deliverables (exact paths):
+  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — driver API surface
+  - `packages/platform/filesystem/README.md` — MUST reference the ownership rule doc after this epic lands
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+- none
+
+Forbidden:
+- none
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- Contracts:
+  - `Coretsia\Contracts\Filesystem\DiskInterface`
+
+### Entry points / integration points (MUST)
+
+N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [ ] `docs/architecture/filesystem-drivers.md` — drivers table + invariants + tests outline
+- [ ] `docs/ssot/filesystem-driver-parity.md` — contract-like semantics (exists/get/put/delete/list)
+- [ ] `tools/tests/Fixtures/FilesystemS3App/` — framework fixtures plan (Phase 6+, optional)
+
+#### Modifies
+
+- [ ] `packages/platform/filesystem/README.md` — reference ownership rule + ssot refs
+- [ ] `docs/ssot/INDEX.md` — register:
+  - [ ] `docs/ssot/filesystem-driver-parity.md`
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+N/A
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+N/A *(DOC epic; proof is the existence of the docs + referenced links from platform/filesystem README)*
+
+### Tests (MUST)
+
+N/A
+
+### DoD (MUST)
+
+- [ ] Ownership rule written and referenced by `platform/filesystem` README
+- [ ] Parity test outline exists (what to test, where to put fixtures)
+- [ ] Security/redaction rules for drivers documented (secret_ref; no raw paths)
+- [ ] ensure `platform/filesystem/README.md` references the ownership + parity docs as normative
+
+---
+
+### 4.30.0 Translation / i18n — Contracts + Runtime (MUST) [CONTRACTS+IMPL]
+
+---
+type: package
+phase: 4
+epic_id: "4.30.0"
+owner_path: "packages/platform/translation/"
+
+package_id: "platform/translation"
+composer: "coretsia/platform-translation"
+kind: runtime
+module_id: "platform.translation"
+
+goal: "Надати мінімальний translation/i18n шар з детермінованим loading/resolution та policy-compliant observability (без key/value як metric labels; без витоку значень)."
+provides:
+- "Translator + loaders (PHP-array, JSON) з deterministic order"
+- "Locale resolver з fallback chain"
+- "Redaction + noop-safe observability (no high-cardinality labels)"
+
+tags_introduced: []
+config_roots_introduced:
+- "translation"
+
+artifacts_introduced: []
+adr: none
+ssot_refs: []
+---
+
+- [ ] update `4.30.0 platform/translation` to provide optional localization of platform/validation messages through the canonical translator boundary, reusing validation-owned message keys and catalogs without duplicating validation rules, MessageBag, or error normalization, and preserving deterministic English fallback when translation is unavailable.
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Required config roots/keys:
+  - `translation.*` — locale/fallback/loaders/paths/disk
+
+- Required contracts / ports:
+  - (optional) `Coretsia\Contracts\Filesystem\DiskInterface` — якщо loader читає з disk binding
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
+  - `Coretsia\Contracts\Translation\TranslatorInterface`
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- `core/contracts`
+- `core/foundation`
+
+Forbidden:
+
+- `platform/http`
+- `integrations/*`
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Log\LoggerInterface` (optional)
+- Contracts:
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Filesystem\DiskInterface` (optional)
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
+  - `Coretsia\Contracts\Translation\TranslatorInterface`
+- Foundation stable APIs (if used):
+  - `Coretsia\Foundation\Discovery\DeterministicOrder`
+
+### Entry points / integration points (MUST)
+
+N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+Package skeleton:
+- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/platform/translation/config/translation.php` — returns subtree for root `translation` (no repeated root)
+- [ ] `packages/platform/translation/config/rules.php`
+- [ ] `packages/platform/translation/README.md` (Observability / Errors / Security-Redaction)
+- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+Implementation:
+- [ ] `packages/core/contracts/src/Translation/TranslatorInterface.php` — app-facing translator API
+- [ ] `packages/platform/translation/src/Translation/Translator.php` — reference translator (deterministic)
+- [ ] `packages/platform/translation/src/Loader/TranslationLoaderInterface.php`
+- [ ] `packages/platform/translation/src/Loader/PhpArrayLoader.php` — load `*.php` dictionaries (sorted)
+  - Deterministic loading policy (cemented):
+    - If loaders read from filesystem/disk, they MUST:
+      - normalize relpaths (forward slashes),
+      - sort file lists by `strcmp`,
+      - hard-fail on symlinks (MUST NOT follow),
+      - never emit raw paths or file contents in diagnostics/signals.
+    - Dictionary merge order is single-choice:
+      - loaders order = `translation.loaders` (list order preserved),
+      - within a loader: files order = sorted `strcmp`,
+      - later files override earlier keys (deterministic).
+
+- [ ] `packages/platform/translation/src/Loader/JsonLoader.php` — load `*.json` dictionaries (sorted)
+  - Deterministic loading policy (cemented):
+    - If loaders read from filesystem/disk, they MUST:
+      - normalize relpaths (forward slashes),
+      - sort file lists by `strcmp`,
+      - hard-fail on symlinks (MUST NOT follow),
+      - never emit raw paths or file contents in diagnostics/signals.
+    - Dictionary merge order is single-choice:
+      - loaders order = `translation.loaders` (list order preserved),
+      - within a loader: files order = sorted `strcmp`,
+      - later files override earlier keys (deterministic).
+
+- [ ] `packages/platform/translation/src/Resolver/LocaleResolver.php` — deterministic locale + fallback chain
+- [ ] `packages/platform/translation/src/Observability/TranslationInstrumentation.php` — spans/metrics helper
+- [ ] `packages/platform/translation/src/Exception/TranslationException.php` — deterministic codes
+
+Docs:
+- [ ] `docs/architecture/translation.md` — format, ordering, redaction, integration patterns
+
+Tests:
+- [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
+- [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
+- [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+- [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+
+#### Modifies
+
+- [ ] `docs/ssot/config-roots.md` — register `translation` root (owner `platform/translation`)
+
+#### Package skeleton (if type=package)
+
+- [ ] `packages/platform/translation/composer.json`
+- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
+- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
+- [ ] `packages/platform/translation/config/translation.php`
+- [ ] `packages/platform/translation/config/rules.php`
+- [ ] `packages/platform/translation/README.md`
+- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+#### Configuration (keys + defaults)
+
+- [ ] Files:
+  - [ ] `packages/platform/translation/config/translation.php`
+- [ ] Keys (dot):
+  - [ ] `translation.enabled` = `false`
+  - [ ] `translation.default_locale` = `'en'`
+  - [ ] `translation.fallback_locales` = `['en']`
+  - [ ] `translation.loaders` = `['php','json']`
+  - [ ] `translation.paths` = `[]` (list-like; deterministic order)
+  - [ ] `translation.disk` = `'local'` (optional; resolved at runtime)
+- [ ] Rules:
+  - [ ] `packages/platform/translation/config/rules.php` enforces shape
+
+#### Wiring / DI tags (when applicable)
+
+- [ ] Tags introduced (this epic is the OWNER):
+  - N/A
+- [ ] ServiceProvider wiring evidence:
+  - [ ] binds `TranslatorInterface` → `Translator`
+  - [ ] registers loaders + resolver as services (deterministic ordering)
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- [ ] Context reads:
+  - [ ] `ContextKeys::CORRELATION_ID` (optional; safe logs)
+- [ ] Context writes (safe only):
+  - [ ] none
+- [ ] Reset discipline:
+  - [ ] cached catalogs implement `ResetInterface` + tag `kernel.reset` (if cached in memory)
+
+#### Observability (policy-compliant)
+
+- [ ] Spans:
+  - [ ] `translation.lookup` (attrs: `outcome=hit|miss`, `locale` as span attr OK)
+- [ ] Metrics:
+  - [ ] `translation.lookup_total` (labels: `outcome`)
+  - [ ] `translation.lookup_duration_ms` (labels: `outcome`)
+- [ ] Logs:
+  - [ ] warn on missing key/locale (NO key/value dump; key only as `hash(key)`)
+
+#### Errors
+
+- [ ] Exceptions introduced:
+  - [ ] `Coretsia\Translation\Exception\TranslationException` — deterministic codes:
+    - `CORETSIA_TRANSLATION_LOAD_FAILED`
+    - `CORETSIA_TRANSLATION_INVALID_CATALOG`
+- [ ] Mapping:
+  - [ ] reuse existing mapper (no dupes)
+
+#### Security / Redaction
+
+- [ ] MUST NOT leak:
+  - [ ] translation values, user-provided interpolation values
+- [ ] Allowed:
+  - [ ] `hash(key)` / `len(value)` only
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [ ] If metrics/spans/logs exist → `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+  (asserts: no key/value raw dump; no high-cardinality labels)
+- [ ] Deterministic ordering → `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+
+### Tests (MUST)
+
+- Unit:
+  - [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
+  - [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
+- Contract:
+  - [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- Integration:
+  - [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
+  - [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
+- Gates/Arch:
+  - [ ] deptrac expectations updated (if needed)
+
+### DoD (MUST)
+
+- [ ] Deterministic loading + deterministic fallback chain
+- [ ] Observability policy satisfied (no locale/key as metric labels; no value leakage)
+- [ ] Tests green + docs complete (`README.md` + `docs/architecture/translation.md`)
+- [ ] What problem this epic solves
+  - [ ] Дає мінімальний translation/i18n шар (translator + loaders) з deterministic resolution order
+  - [ ] Підтримує PHP-array і JSON каталоги перекладів; без runtime FS scan без сортування
+  - [ ] Забезпечує redaction (не логити шаблонні змінні/значення) + noop-safe observability
+- [ ] Non-goals / out of scope
+  - [ ] Не робимо повноцінний ICU messageformat engine (може бути окремим пакетом пізніше)
+  - [ ] Не нав’язуємо інтеграцію іншим platform пакетам через compile-time deps (інтеграція — через app code/DI)
+  - [ ] Не додаємо висококардинальних labels (locale/key як label — заборонено)
+- [ ] Usually present when enabled in presets/bundles:
+  - [ ] a `DiskInterface` binding is provided by enabled filesystem modules (policy; not a compile-time dependency)
+  - [ ] `platform/logging|tracing|metrics` provide implementations/noop-safe
+- [ ] When translating a key with missing locale, then translator deterministically falls back to configured fallback locale.
+- [ ] Переклади завантажуються детерміновано, локаль/fallback працюють стабільно, а логи/метрики не містять ключів/значень як labels.
+
+---
+
+### 4.40.0 coretsia/validation (reference validation engine) (MUST) [IMPL]
+
+---
+type: package
+phase: 4
+epic_id: "4.40.0"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -45,8 +708,8 @@ ssot_refs:
 - docs/ssot/config-roots.md
 ---
 
-- [ ] update `4.10.0 platform/validation` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
-- [ ] update `4.10.0 platform/validation` to contribute `ValidationExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 422 descriptors, replacing any legacy `handles` tag metadata.
+- [ ] update `4.40.0 platform/validation` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.40.0 platform/validation` to contribute `ValidationExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 422 descriptors, replacing any legacy `handles` tag metadata.
 
 ### Dependencies (MUST)
 
@@ -319,12 +982,12 @@ N/A
 
 ---
 
-### 4.10.1 Extended format rules pack (SHOULD) [IMPL]
+### 4.40.1 Extended format rules pack (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.1"
+epic_id: "4.40.1"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -346,14 +1009,14 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.1 Extended format rules pack` to avoid leaking raw validated values in violation params/messages.
+- [ ] update `4.40.1 Extended format rules pack` to avoid leaking raw validated values in violation params/messages.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference validation engine exists
+  - 4.40.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
   - `packages/platform/validation/src/Rule/RuleInterface.php` — internal rule contract
@@ -506,12 +1169,12 @@ N/A
 
 ---
 
-### 4.10.2 Date/time rules pack (SHOULD) [IMPL]
+### 4.40.2 Date/time rules pack (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.2"
+epic_id: "4.40.2"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -533,14 +1196,14 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.2 Date/time rules pack` to avoid leaking raw validated values in violation params/messages.
+- [ ] update `4.40.2 Date/time rules pack` to avoid leaking raw validated values in violation params/messages.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference validation engine exists
+  - 4.40.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
   - `packages/platform/validation/src/Rule/RuleInterface.php`
@@ -669,12 +1332,12 @@ N/A
 
 ---
 
-### 4.10.3 Message/i18n layer (SHOULD) [IMPL]
+### 4.40.3 Message/i18n layer (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.3"
+epic_id: "4.40.3"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -697,14 +1360,15 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.3 Message/i18n layer` to ensure messages receive only safe params or redacted summaries.
+- [ ] update `4.40.3 Message/i18n layer` to ensure messages receive only safe params or redacted summaries.
+- [ ] update `4.40.3 Message/i18n layer` to keep validation-specific MessageBag, message-key resolution, safe parameters, and default English messages inside platform/validation, while delegating locale selection, localized catalog lookup, fallback chains, and general translation to the canonical platform/translation boundary introduced by 4.30.0, without duplicating a full i18n engine or affecting deterministic violation ordering.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference engine exists
+  - 4.40.0 — reference engine exists
 
 - Required deliverables (exact paths):
   - `packages/platform/validation/src/Validation/Validator.php`
@@ -835,12 +1499,12 @@ N/A
 
 ---
 
-### 4.10.4 DTO validation adapter (SHOULD) [IMPL]
+### 4.40.4 DTO validation adapter (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.4"
+epic_id: "4.40.4"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -863,14 +1527,14 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.4 DTO validation adapter` to avoid leaking raw DTO property values.
+- [ ] update `4.40.4 DTO validation adapter` to avoid leaking raw DTO property values.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference engine exists
+  - 4.40.0 — reference engine exists
   - 1.480.0 — DTO policy/gate exists
 
 - Required deliverables (exact paths):
@@ -1007,18 +1671,18 @@ N/A
 ### DoD (MUST)
 
 - [ ] DTO adapter implemented
-- [ ] Attributes live only here, not in 4.10.0
+- [ ] Attributes live only here, not in 4.40.0
 - [ ] Nested DTO validation works deterministically
 - [ ] DTO support reuses base validator instead of duplicating logic
 
 ---
 
-### 4.10.5 File validation pack (OPTIONAL) [IMPL]
+### 4.40.5 File validation pack (OPTIONAL) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.5"
+epic_id: "4.40.5"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -1040,14 +1704,14 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.5 File validation pack` to redact filenames/paths and never expose raw uploaded file metadata beyond safe summaries.
+- [ ] update `4.40.5 File validation pack` to redact filenames/paths and never expose raw uploaded file metadata beyond safe summaries.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference engine exists
+  - 4.40.0 — reference engine exists
 
 - Required deliverables (exact paths):
   - `packages/platform/validation/src/Rule/RuleInterface.php`
@@ -1178,12 +1842,12 @@ N/A
 
 ---
 
-### 4.10.6 Database validation pack (OPTIONAL) [IMPL]
+### 4.40.6 Database validation pack (OPTIONAL) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.6"
+epic_id: "4.40.6"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -1205,14 +1869,15 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.6 Database validation pack` to avoid leaking raw database values, SQL, bindings, or existence-check payloads.
+- [ ] update `4.40.6 Database validation pack` to avoid leaking raw database values, SQL, bindings, or existence-check payloads.
+- [ ] update `4.40.6 Database validation pack` to consume the canonical database ConnectionInterface for existence and uniqueness checks, without creating another connection manager, SQL executor, or concrete-driver dependency inside platform/validation.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference engine exists
+  - 4.40.0 — reference engine exists
   - 1.150.0 — database contracts exist
 
 - Required deliverables (exact paths):
@@ -1340,12 +2005,12 @@ N/A
 
 ---
 
-### 4.10.7 Convenience facade/helpers (OPTIONAL) [IMPL]
+### 4.40.7 Convenience facade/helpers (OPTIONAL) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.10.7"
+epic_id: "4.40.7"
 owner_path: "packages/platform/validation/"
 
 package_id: "platform/validation"
@@ -1367,14 +2032,14 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.10.7 Convenience facade/helpers` to consume the shared redaction boundary instead of introducing helper-local redaction.
+- [ ] update `4.40.7 Convenience facade/helpers` to consume the shared redaction boundary instead of introducing helper-local redaction.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 4.10.0 — reference validation engine exists
+  - 4.40.0 — reference validation engine exists
 
 - Required deliverables (exact paths):
   - `packages/platform/validation/src/Validation/Validator.php`
@@ -1492,12 +2157,12 @@ N/A
 
 ---
 
-### 4.20.0 coretsia/http-client (outgoing HTTP) (SHOULD) [IMPL]
+### 4.50.0 coretsia/http-client (outgoing HTTP) (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.20.0"
+epic_id: "4.50.0"
 owner_path: "packages/platform/http-client/"
 
 package_id: "platform/http-client"
@@ -1521,7 +2186,7 @@ adr: docs/adr/ADR-XXXX-http-client-outgoing.md
 ssot_refs: []
 ---
 
-- [ ] update `4.20.0 coretsia/http-client` to consume `SensitiveDataRedactorInterface` for outbound request/response diagnostics, headers, URLs, tokens, and provider payloads.
+- [ ] update `4.50.0 coretsia/http-client` to consume `SensitiveDataRedactorInterface` for outbound request/response diagnostics, headers, URLs, tokens, and provider payloads.
 
 ### Dependencies (MUST)
 
@@ -1763,429 +2428,12 @@ N/A
 
 ---
 
-### 4.30.0 Platform filesystem + Local driver (MUST) [IMPL]
+### 4.60.0 Uploads: multipart parsing + validation + quarantine (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.30.0"
-owner_path: "packages/platform/filesystem/"
-
-package_id: "platform/filesystem"
-composer: "coretsia/platform-filesystem"
-kind: runtime
-module_id: "platform.filesystem"
-
-goal: "Надати канонічний filesystem layer (DiskManager + path safety + deterministic list) та reference local driver в integrations/*, без витоку raw paths і без platform→integrations залежності."
-provides:
-- "DiskManager + DiskInterface integration point"
-- "SSoT path safety: forbid traversal/absolute paths; symlinks forbidden by default"
-- "Deterministic list() order (lexicographic)"
-- "Observability (spans/metrics/logs) без raw paths (hash/len only)"
-- "Reference driver: integrations/filesystem-local (local disk)"
-
-tags_introduced: ["filesystem.disk_driver"]
-config_roots_introduced: ["filesystem", "filesystem_local"]
-artifacts_introduced: []
-
-adr: docs/adr/ADR-XXXX-platform-filesystem-local-driver.md
-ssot_refs:
-- docs/ssot/filesystem-path-safety.md
----
-
-- [ ] update `4.30.0 Platform filesystem + Local driver` to consume `SensitiveDataRedactorInterface` for path diagnostics and to avoid leaking absolute local paths.
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - `core/contracts` — `DiskInterface` + observability ports
-  - `core/foundation` — DI/config baseline
-  - (policy) Phase 0 fingerprint/path rules + Phase 1 redaction — forbid traversal; symlink policy; deterministic list; no raw paths
-  - (policy) runtime MUST NOT depend on `devtools/internal-toolkit` (tooling-only); invariants are proven via runtime tests (golden vectors)
-
-- Required deliverables (exact paths):
-  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — public port
-  - `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md` — ADR (locked before impl)
-
-- Required config roots/keys:
-  - `filesystem` / `filesystem.*` — this epic introduces the root & keys
-  - `filesystem_local` / `filesystem_local.*` — reference integration config root & keys
-
-- Required tags:
-  - `filesystem.disk_driver` — introduced by this epic as canonical driver discovery mechanism
-  - `kernel.reset` — only if stateful services appear (default expectation: none)
-
-- Required contracts / ports:
-  - `Psr\Log\LoggerInterface`
-  - (optional) `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Filesystem\DiskInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-  - (optional) `Coretsia\Foundation\Discovery\DeterministicOrder`
-
-- Runtime expectation (policy, NOT deps):
-  - `platform/logging|tracing|metrics` provide implementations/noop-safe
-  - `integrations.filesystem-local` may be enabled to provide a `local` disk driver
-
-- External test prerequisite:
-  - `packages/core/contracts/tests/Contract/FilesystemDiskInterfaceShapeContractTest.php` exists in contracts scope (referenced as parity proof)
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- `core/contracts`
-- `core/foundation`
-
-Forbidden:
-- `platform/http`
-- `integrations/*` *(for `platform/filesystem` package)*
-
-> NOTE: `packages/integrations/filesystem-local/` MAY depend on `platform/filesystem`,
-> but `platform/filesystem` MUST NOT depend on integrations.
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- PSR:
-  - `Psr\Log\LoggerInterface`
-- Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Filesystem\DiskInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-- Foundation stable APIs:
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
-
-### Registry locks (MUST)
-
-- Because this epic introduces:
-  - tag `filesystem.disk_driver`
-  - config roots `filesystem` and `filesystem_local`
-    it MUST update SSoT registries:
-
-1) `docs/ssot/tags.md`:
-- add row: `filesystem.disk_driver` owner `platform/filesystem`
-- only owner package defines public constant for this tag.
-
-2) `docs/ssot/config-roots.md`:
-- add root `filesystem` owner `platform/filesystem`
-- add root `filesystem_local` owner `integrations/filesystem-local`
-
-- Integrations packages MUST NOT be a compile-time dependency of `platform/filesystem` (already stated); driver ownership lives in `integrations/*`.
-
-### Entry points / integration points (MUST)
-
-- CLI:
-  - N/A
-- HTTP:
-  - N/A
-- Kernel hooks/tags:
-  - `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}` → `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php`
-  - `kernel.reset` *(only if stateful services added; default: none)*
-- Artifacts:
-  - N/A
-
-### Runtime path normalization contract (MUST)
-
-Runtime MUST re-encode Phase 0 path invariants without importing tooling:
-
-- Normalize separators: treat `\` as `/` for user input, output uses `/` only.
-- Forbid absolute paths:
-  - leading `/` or `\`
-  - Windows drive prefixes like `C:\` / `C:/`
-  - UNC prefixes like `\\server\share`
-- Forbid traversal segments `..` after normalization.
-- Forbid empty / NUL bytes.
-- Deterministic list order:
-  - `list()` returns normalized relative paths sorted by `strcmp` (byte-order), locale-independent.
-- Redaction:
-  - logs/metrics/spans MUST NOT include raw paths; only `hash(path)` and `len(path)` are allowed.
-
-### Deliverables (MUST)
-
-#### Creates
-
-**platform/filesystem**
-
-- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php` — runtime module
-- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php` — DI wiring
-- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (`DISK_DRIVER = 'filesystem.disk_driver'`)
-- [ ] `packages/platform/filesystem/config/filesystem.php` — config subtree (no repeated root)
-- [ ] `packages/platform/filesystem/config/rules.php` — config shape rules + path-safety policy
-- [ ] `packages/platform/filesystem/README.md` — docs (Observability / Errors / Security-Redaction + path safety)
-- [ ] `docs/ssot/filesystem-path-safety.md` — SSoT traversal/symlink/normalize rules
-- [ ] `docs/guides/filesystem.md` — configure disks; local driver example
-
-Core:
-- [ ] `packages/platform/filesystem/src/Disk/DiskManager.php` — resolve disk by name (config + DI)
-
-Path safety:
-- [ ] `packages/platform/filesystem/src/Path/PathPolicy.php` — safety rails (ints/bools only)
-- [ ] `packages/platform/filesystem/src/Path/SafePathJoiner.php` — normalize + forbid traversal + optional symlink check
-
-Exceptions:
-- [ ] `packages/platform/filesystem/src/Exception/FilesystemException.php`
-- [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
-- [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
-- [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
-
-Observability + redaction:
-- [ ] `packages/platform/filesystem/src/Observability/FilesystemInstrumentation.php` — spans/metrics/logs wrapper
-- [ ] `packages/platform/filesystem/src/Security/Redaction.php` — `hashPath()/len()`
-
-**integrations/filesystem-local**
-
-- [ ] `packages/integrations/filesystem-local/src/Module/FilesystemLocalModule.php` — runtime module
-- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceProvider.php` — DI wiring
-- [ ] `packages/integrations/filesystem-local/src/Provider/FilesystemLocalServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/integrations/filesystem-local/config/filesystem_local.php` — config subtree (no repeated root)
-- [ ] `packages/integrations/filesystem-local/config/rules.php` — config shape rules
-- [ ] `packages/integrations/filesystem-local/README.md` — docs (config + limitations + redaction)
-
-Driver:
-- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemDriver.php` — implements `DiskInterface`, atomic write where possible
-- [ ] `packages/integrations/filesystem-local/src/Driver/LocalFilesystemPolicy.php` — root dir, chmod policy (no secrets)
-
-#### Modifies
-
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/filesystem-path-safety.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-filesystem-local-driver.md`
-
-#### Package skeleton (if type=package)
-
-- [ ] `packages/platform/filesystem/composer.json`
-- [ ] `packages/platform/filesystem/src/Module/FilesystemModule.php`
-- [ ] `packages/platform/filesystem/src/Provider/FilesystemServiceProvider.php`
-- [ ] `packages/platform/filesystem/config/filesystem.php`
-- [ ] `packages/platform/filesystem/config/rules.php`
-- [ ] `packages/platform/filesystem/README.md`
-- [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-
-*(integration package skeleton is also created by this epic; see “Creates”)*
-
-#### Configuration (keys + defaults)
-
-- [ ] Files:
-  - [ ] `packages/platform/filesystem/config/filesystem.php`
-  - [ ] `packages/integrations/filesystem-local/config/filesystem_local.php`
-- [ ] Keys (dot):
-  - [ ] `filesystem.enabled` = true
-  - [ ] `filesystem.default` = 'local'
-  - [ ] `filesystem.disks` = []                       # name => {driver, ...}
-  - [ ] `filesystem.path_policy.forbid_symlinks` = true
-  - [ ] `filesystem.path_policy.forbid_absolute_paths` = true
-  - [ ] `filesystem.path_policy.max_path_length` = 4096
-  - [ ] `filesystem.redaction.enabled` = true
-  - [ ] `filesystem_local.enabled` = true
-  - [ ] `filesystem_local.root` = 'packages/applications/skeleton/var/tmp'  # reference safe default
-- [ ] Rules:
-  - [ ] `packages/platform/filesystem/config/rules.php` enforces shape + path policy invariants
-  - [ ] `packages/integrations/filesystem-local/config/rules.php` enforces shape
-
-#### Wiring / DI tags (when applicable)
-
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-  - [ ] constant(s):
-    - [ ] `DISK_DRIVER = 'filesystem.disk_driver'`
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Filesystem\Disk\DiskManager`
-  - [ ] registers: `Coretsia\Filesystem\Path\SafePathJoiner`
-  - [ ] registers: `Coretsia\Filesystem\Observability\FilesystemInstrumentation`
-  - [ ] adds tag: `filesystem.disk_driver` priority `0` meta `{name:'local', driver:'local'}`
-    - service id: `Coretsia\FilesystemLocal\Driver\LocalFilesystemDriver`
-
-#### Artifacts / outputs (if applicable)
-
-N/A *(runtime I/O only; `packages/applications/skeleton/var/**` is not an artifact)*
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID` (for log correlation only)
-- [ ] Context writes (safe only):
-  - [ ] none
-- [ ] Reset discipline:
-  - [ ] no stateful services expected; if added → `ResetInterface` + tag `kernel.reset`
-
-#### Observability (policy-compliant)
-
-- [ ] Spans:
-  - [ ] `fs.op` (attrs: `driver`, `operation`, `outcome`, `bytes?` — no path)
-- [ ] Metrics:
-  - [ ] `fs.op_total` (labels: `driver`, `operation`, `outcome`)
-  - [ ] `fs.op_duration_ms` (labels: `driver`, `operation`, `outcome`)
-- [ ] Label normalization applied (if needed):
-  - [ ] `op→operation`, `via→driver`
-- [ ] Logs:
-  - [ ] errors/warnings include `hash(path)` / `len(path)` only; never raw paths
-
-#### Errors
-
-- [ ] Exceptions introduced:
-  - [ ] `packages/platform/filesystem/src/Exception/PathTraversalForbiddenException.php` — `CORETSIA_FS_PATH_TRAVERSAL_FORBIDDEN`
-  - [ ] `packages/platform/filesystem/src/Exception/SymlinkForbiddenException.php` — `CORETSIA_FS_SYMLINK_FORBIDDEN`
-  - [ ] `packages/platform/filesystem/src/Exception/IoException.php` — `CORETSIA_FS_IO_ERROR`
-- [ ] Mapping:
-  - [ ] reuse existing mapper (DefaultExceptionMapper) *(no dupes)*
-
-#### Security / Redaction
-
-- [ ] MUST NOT leak:
-  - [ ] raw paths, file contents, tokens
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` and safe disk names
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If metrics/spans/logs exist → proof:
-  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
-- [ ] If redaction exists → proof:
-  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
-- [ ] If determinism exists → proof:
-  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
-  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
-- [ ] If path-safety exists → proof:
-  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
-  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/filesystem/tests/Unit/SafePathJoinerNormalizesPosixAndForbidsTraversalTest.php`
-  - [ ] `packages/platform/filesystem/tests/Unit/PathPolicyDefaultsAreSafeTest.php`
-- Contract:
-  - [ ] `packages/platform/filesystem/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `packages/platform/filesystem/tests/Contract/RedactionDoesNotLeakPathsContractTest.php`
-  - [ ] `packages/platform/filesystem/tests/Contract/PathTraversalForbiddenGoldenVectorsContractTest.php`
-  - [ ] `packages/platform/filesystem/tests/Contract/SymlinkForbiddenByDefaultContractTest.php`
-  - [ ] `packages/platform/filesystem/tests/Contract/ListOrderDeterministicContractTest.php`
-- Integration:
-  - [ ] `packages/platform/filesystem/tests/Integration/ListReturnsDeterministicOrderTest.php`
-  - [ ] `packages/integrations/filesystem-local/tests/Integration/LocalDriverUsesSafePathJoinerTest.php`
-  - [ ] `packages/integrations/filesystem-local/tests/Integration/SymlinkForbiddenTest.php`
-- Gates/Arch:
-  - [ ] deptrac: `platform/filesystem` MUST NOT depend on `integrations/*`
-
-### DoD (MUST)
-
-- [ ] Dependency rules satisfied (no platform→integrations)
-- [ ] Path safety enforced (traversal + symlink policy; golden vectors)
-- [ ] Observability policy satisfied (no raw paths; labels allowlist)
-- [ ] Tests pass (unit+contract+integration)
-- [ ] Docs complete (READMEs + `docs/ssot/filesystem-path-safety.md` + `docs/guides/filesystem.md`)
-- [ ] path safety lock (MUST)
-  - [ ] Filesystem path safety MUST align with Phase 0 fingerprint rules + Phase 1 redaction:
-    - [ ] forbid traversal (`..`)
-    - [ ] forbid symlinks by default
-    - [ ] deterministic list order
-    - [ ] never print raw paths (hash/len only)
-  - [ ] IMPORTANT: runtime MUST NOT depend on `devtools/internal-toolkit` (tooling-only).
-    - [ ] Instead: re-encode the same invariants with runtime tests (golden vectors), so Phase 0 value is not lost.
-
----
-
-### 4.40.0 Filesystem drivers (S3/FTP/SFTP) (SHOULD) [DOC]
-
----
-type: docs
-phase: 4
-epic_id: "4.40.0"
-owner_path: "docs/architecture/filesystem-drivers.md"
-
-goal: "Зафіксувати ownership та parity-інваріанти для filesystem drivers (S3/FTP/SFTP): drivers тільки в integrations/*, platform/filesystem не залежить від них, і драйвери не витікають secrets/paths."
-provides:
-- "Ownership rule: drivers only in `integrations/*`"
-- "Parity semantics invariants (exists/get/put/delete/list)"
-- "Security/redaction rules for drivers (secret_ref; no raw paths)"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-
-adr: none
-ssot_refs:
-- docs/ssot/filesystem-driver-parity.md
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - `platform/filesystem` exists as canonical filesystem layer (DiskManager + SafePathJoiner)
-  - `core/contracts` provides `DiskInterface`
-
-- Required deliverables (exact paths):
-  - `packages/core/contracts/src/Filesystem/DiskInterface.php` — driver API surface
-  - `packages/platform/filesystem/README.md` — MUST reference the ownership rule doc after this epic lands
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- none
-
-Forbidden:
-- none
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- Contracts:
-  - `Coretsia\Contracts\Filesystem\DiskInterface`
-
-### Entry points / integration points (MUST)
-
-N/A
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `docs/architecture/filesystem-drivers.md` — drivers table + invariants + tests outline
-- [ ] `docs/ssot/filesystem-driver-parity.md` — contract-like semantics (exists/get/put/delete/list)
-- [ ] `tools/tests/Fixtures/FilesystemS3App/` — framework fixtures plan (Phase 6+, optional)
-
-#### Modifies
-
-- [ ] `packages/platform/filesystem/README.md` — reference ownership rule + ssot refs
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/filesystem-driver-parity.md`
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-N/A
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-N/A *(DOC epic; proof is the existence of the docs + referenced links from platform/filesystem README)*
-
-### Tests (MUST)
-
-N/A
-
-### DoD (MUST)
-
-- [ ] Ownership rule written and referenced by `platform/filesystem` README
-- [ ] Parity test outline exists (what to test, where to put fixtures)
-- [ ] Security/redaction rules for drivers documented (secret_ref; no raw paths)
-- [ ] ensure `platform/filesystem/README.md` references the ownership + parity docs as normative
-
----
-
-### 4.50.0 Uploads: multipart parsing + validation + quarantine (MUST) [IMPL]
-
----
-type: package
-phase: 4
-epic_id: "4.50.0"
+epic_id: "4.60.0"
 owner_path: "packages/platform/uploads/"
 
 package_id: "platform/uploads"
@@ -2209,8 +2457,8 @@ ssot_refs:
 - docs/ssot/http-middleware-catalog.md
 ---
 
-- [ ] update `4.50.0 platform/uploads` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
-- [ ] update `4.50.0 platform/uploads` to contribute `UploadsProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 400/413/415 descriptors, replacing any legacy `handles` tag metadata; MUST NOT delete or recreate Foundation `ReservedTags.php`.
+- [ ] update `4.60.0 platform/uploads` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.60.0 platform/uploads` to contribute `UploadsProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe 400/413/415 descriptors, replacing any legacy `handles` tag metadata; MUST NOT delete or recreate Foundation `ReservedTags.php`.
 
 ### Dependencies (MUST)
 
@@ -2498,12 +2746,264 @@ Docs:
 
 ---
 
-### 4.60.0 Platform database core (DriverPort + ConnectionManager + QueryBuilder) (MUST) [IMPL]
+### 4.70.0 coretsia/secrets — Secrets resolver (platform implementation) (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.60.0"
+epic_id: "4.70.0"
+owner_path: "packages/platform/secrets/"
+
+package_id: "platform/secrets"
+composer: "coretsia/platform-secrets"
+kind: runtime
+module_id: "platform.secrets"
+
+goal: "Будь-який пакет може викликати SecretsResolverInterface->resolve(ref) і отримати string|null детерміновано та без витоку ref/values у logs/spans/metrics, включно з noop режимом."
+provides:
+- "Reference SecretsResolver drivers: null (noop) + env (env-map)"
+- "Deterministic secret_ref parsing (env:KEY) без експозиції значень"
+- "Uses the shared sensitive-data redaction boundary for secret-ref hash/len summaries and noop-safe observability"
+
+tags_introduced: []
+config_roots_introduced: ["secrets"]
+artifacts_introduced: []
+
+adr: "docs/adr/ADR-XXXX-secrets-resolver-platform.md"
+ssot_refs:
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/metrics-policy.md"
+- "docs/ssot/config-and-env.md"
+---
+
+- [ ] update `4.70.0 platform/secrets` to consume shared redaction boundary and remove package-local `src/Security/Redaction.php`.
+- [ ] update `4.70.0 platform/secrets` to уже відому несумісність: фактичний `SecretsResolverInterface::resolve()` повертає `string`, тоді як чинний епік `4.70.0` передбачає `string|null` і noop resolver, який повертає `null`.
+
+### Dependencies (MUST)
+
+#### Preconditions (MUST)
+
+- Epic prerequisites:
+  - (pre-existing) `core/contracts` — contains `Coretsia\Contracts\Secrets\SecretsResolverInterface` and observability ports used here.
+  - (pre-existing) `core/foundation` — stable context APIs (optional usage) + container/wiring base.
+  - 2.27.0 — Sensitive data redaction boundary exists.
+  - `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+
+- Required deliverables (exact paths):
+  - `packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
+  - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
+  - (optional) `packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
+
+- Required config roots/keys:
+  - `secrets` / `secrets.*` — this epic introduces and owns.
+
+- Required tags:
+  - `kernel.reset` — only if stateful resolvers appear later (NOT used by reference drivers in this epic).
+
+- Required contracts / ports:
+  - `Coretsia\Contracts\Secrets\SecretsResolverInterface` — main port.
+  - `Psr\Log\LoggerInterface` — logging (policy-compliant redaction).
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — tracing.
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics.
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` — safe secret-ref diagnostics and hash/len summaries.
+
+- Rails reused (NO DEAD WEIGHT) (MUST):
+  - Never print ref raw; only `hash(ref)` / `len(ref)`.
+  - Never print resolved secret value (even in exceptions).
+  - Determinism: same ref + same env map ⇒ same result; observability events have stable attrs (no random ids; no embedded timestamps).
+
+#### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+- `core/contracts`
+- `core/foundation`
+
+Forbidden:
+- `platform/http`
+- `platform/cli`
+- `integrations/*`
+
+#### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - `Psr\Log\LoggerInterface`
+- Contracts:
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Secrets\SecretsResolverInterface`
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+
+### Entry points / integration points (MUST)
+
+N/A
+
+### Deliverables (MUST)
+
+#### Creates
+
+- [ ] `packages/platform/secrets/src/Module/SecretsModule.php` — runtime module entry.
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php` — DI wiring.
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (avoid typos).
+- [ ] `packages/platform/secrets/config/secrets.php` — config subtree `secrets` (no repeated root).
+- [ ] `packages/platform/secrets/config/rules.php` — config shape rules.
+- [ ] `packages/platform/secrets/README.md` — Observability / Errors / Security-Redaction.
+- [ ] `packages/platform/secrets/src/Secrets/NullSecretsResolver.php` — noop resolver (always null).
+- [ ] `packages/platform/secrets/src/Secrets/EnvSecretsResolver.php` — env-map resolver (never logs values).
+- [ ] `packages/platform/secrets/src/Secrets/SecretRefParser.php` — deterministic parsing (`env:KEY`).
+- [ ] `packages/platform/secrets/src/Exception/SecretsResolutionException.php` — deterministic errors.
+
+#### Modifies
+
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
+- [ ] `docs/ssot/config-roots.md` — add root row for `secrets` (owner `platform/secrets`, defaults `packages/platform/secrets/config/secrets.php`, rules `packages/platform/secrets/config/rules.php`)
+
+#### Package skeleton (if type=package)
+
+- [ ] `packages/platform/secrets/composer.json`
+- [ ] `packages/platform/secrets/src/Module/SecretsModule.php`
+- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php`
+- [ ] `packages/platform/secrets/config/secrets.php`
+- [ ] `packages/platform/secrets/config/rules.php`
+- [ ] `packages/platform/secrets/README.md`
+- [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+#### Configuration (keys + defaults)
+
+- [ ] Files:
+  - [ ] `packages/platform/secrets/config/secrets.php`
+- [ ] Keys (dot):
+  - [ ] `secrets.enabled` = true
+  - [ ] `secrets.driver` = "null"            # "null" | "env"
+  - [ ] `secrets.env_map` = []               # map refKey => envKey (values are env key names, not secrets)
+  - [ ] `secrets.redaction.enabled` = true
+- [ ] Rules:
+  - [ ] `packages/platform/secrets/config/rules.php` enforces shape
+
+#### Wiring / DI tags (when applicable)
+
+- [ ] Tags introduced (this epic is the OWNER):
+  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (constants to avoid typos)
+  - [ ] constant(s): `SECRETS_DRIVER` (optional, if you select by tag) OR none if selected by config
+- [ ] ServiceProvider wiring evidence:
+  - [ ] registers: `Coretsia\Contracts\Secrets\SecretsResolverInterface` → selected driver (config-driven)
+  - [ ] registers: `Coretsia\Secrets\Secrets\NullSecretsResolver`
+  - [ ] registers: `Coretsia\Secrets\Secrets\EnvSecretsResolver`
+
+#### Artifacts / outputs (if applicable)
+
+N/A
+
+### Cross-cutting (only if applicable; otherwise `N/A`)
+
+#### Context & UoW
+
+- [ ] Context reads:
+  - [ ] `ContextKeys::CORRELATION_ID` (optional; safe log fields only)
+- [ ] Context writes (safe only):
+  - [ ] none (MUST NOT write secret-derived values)
+- Reset discipline:
+  - N/A (reference drivers are stateless; future stateful drivers must implement `ResetInterface` + tag `kernel.reset`)
+
+#### Observability (policy-compliant)
+
+- [ ] Spans:
+  - [ ] `secrets.resolve` (attrs allowed: `driver`, `outcome`; NEVER raw `ref`)
+- [ ] Metrics:
+  - [ ] `secrets.resolve_total` (labels: `driver`, `outcome`)
+  - [ ] `secrets.resolve_duration_ms` (labels: `driver`, `outcome`)
+- [ ] Label normalization applied (if needed):
+  - [ ] `via→driver`
+- [ ] Logs:
+  - [ ] invalid ref format → warn with redaction (`hash/len` only)
+  - [ ] never log resolved values
+
+#### Errors
+
+- [ ] Exceptions introduced:
+  - [ ] `Coretsia\Secrets\Exception\SecretsResolutionException` — errorCode `CORETSIA_SECRETS_INVALID_REF`
+- [ ] Mapping:
+  - [ ] reuse existing default mapper (no dupes) unless a dedicated mapper becomes necessary later
+
+#### Security / Redaction
+
+- [ ] MUST NOT leak:
+  - [ ] secret values; env values; resolved bytes
+  - [ ] raw secret_ref (treat as sensitive metadata)
+- [ ] Allowed:
+  - [ ] `hash(ref)` / `len(ref)` only
+
+### Verification (TEST EVIDENCE) (MUST when applicable)
+
+#### Required policy tests matrix
+
+- [ ] If metrics/spans/logs exist → `packages/platform/secrets/tests/Contract/ObservabilityPolicyTest.php`
+- [ ] If redaction exists → `packages/platform/secrets/tests/Contract/RedactionDoesNotLeakTest.php`
+
+#### Test harness / fixtures (when integration is needed)
+
+- [ ] Fake adapters:
+  - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions
+
+### Tests (MUST)
+
+- Unit:
+  - [ ] `packages/platform/secrets/tests/Unit/SecretRefParserTest.php`
+- Contract:
+  - [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/secrets/tests/Contract/SecretsNeverLeakResolvedValuesContractTest.php`
+  - [ ] `packages/platform/secrets/tests/Contract/SecretRefRedactionIsStableContractTest.php`
+- Integration:
+  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDoesNotLeakValuesTest.php`
+  - [ ] `packages/platform/secrets/tests/Integration/NullResolverAlwaysReturnsNullTest.php`
+  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDeterministicOutcomeTest.php`
+- Gates/Arch:
+  - N/A
+
+### DoD (MUST)
+
+- [ ] Deliverables complete (creates+modifies), paths exact
+- [ ] Preconditions satisfied (no forward references)
+- [ ] deps/forbidden respected (deptrac; no cycles)
+- [ ] Verification tests present where applicable
+- [ ] Determinism: same ref inputs produce same outputs; no random ids in logs/spans
+- [ ] Docs updated:
+  - [ ] `packages/platform/secrets/README.md`
+  - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
+- [ ] Ref parsing errors deterministic (`CORETSIA_SECRETS_INVALID_REF`) and contain no raw ref or values
+- [ ] No secret values appear in any outputs (tests prove)
+- [ ] Non-goals / out of scope
+  - [ ] Інтеграції Vault/AWS/GCP (це Phase 6+ integrations)
+  - [ ] Кешування секретів між UoW як stateful оптимізація (тільки якщо буде реальна потреба)
+  - [ ] Будь-які CLI/HTTP “показати значення секрету”
+- [ ] Secret refs MUST follow Phase 0/1 redaction discipline:
+  - [ ] Never print ref raw; use `hash(ref)`/`len(ref)` only.
+  - [ ] Never print resolved secret value, even in exceptions.
+- [ ] Determinism expectations:
+  - [ ] resolving the same ref with the same env map must be deterministic (same result, no randomness)
+  - [ ] logs/spans/metrics must be stable (no random ids; no timestamps embedded)
+- [ ] Коли будь-який пакет викликає `SecretsResolverInterface->resolve($ref)`, він отримує значення або `null` без витоку значень у logs/spans/metrics та без падінь у noop режимі.
+- [ ] When `security.signed_urls.secret_ref="env:SIGNED_URL_SECRET"` and env key exists, then signed-url verification works without printing secret value anywhere.
+- [ ] Phase-compat addendum (PRELUDE/PHASE1 locks)
+  - [ ] Env policy wiring (MUST)
+    - [ ] `platform/secrets` MUST read environment only via `Coretsia\Contracts\Env\EnvRepositoryInterface` (Phase 1 env semantics: missing vs empty distinct).
+    - [ ] Direct `getenv()` MUST NOT be used in resolvers (violates EnvPolicy/Bootstrap semantics & testability).
+  - [ ] Deterministic duration measurement (MUST)
+    - [ ] Any `*_duration_ms` metric MUST be measured with `Coretsia\Foundation\Time\Stopwatch` (int ms). `microtime(true)` / floats are forbidden.
+  - [ ] SSoT registries (MUST)
+    - [ ] This epic introduces config root `secrets` ⇒ MUST update `docs/ssot/config-roots.md` (owner row for `secrets`).
+
+---
+
+### 4.80.0 Platform database core (DriverPort + ConnectionManager + QueryBuilder) (MUST) [IMPL]
+
+---
+type: package
+phase: 4
+epic_id: "4.80.0"
 owner_path: "packages/platform/database/"
 
 package_id: "platform/database"
@@ -2530,7 +3030,8 @@ ssot_refs:
 - docs/ssot/database-pdo-options.md
 ---
 
-- [ ] update `4.60.0 platform/database` to consume `SensitiveDataRedactorInterface` for SQL, bindings, DSNs, credentials, and query diagnostics.
+- [ ] update `4.80.0 platform/database` to consume `SensitiveDataRedactorInterface` for SQL, bindings, DSNs, credentials, and query diagnostics.
+- [ ] update `4.80.0 platform/database` to evaluate SecretsResolverInterface support for connection credentials via secret_ref; when supported, resolve secrets centrally at the connection boundary without exposing resolved values or introducing a second secrets resolver.
 
 ### Dependencies (MUST)
 
@@ -2916,14 +3417,14 @@ Docs:
   - [ ] `database.pdo.*` is used ONLY by PDO-based driver packages; non-PDO drivers MUST ignore it.
   - [ ] `platform/database` MUST NOT reference PDO constants anywhere.
 
-- Non-goals / OUT OF SCOPE for 4.60.0 (MUST):
+- Non-goals / OUT OF SCOPE for 4.80.0 (MUST):
   - `database.pool.*`
   - `database.logging.*`
   - `database.read_write.*`
   - `database.health.*`
   - `database.security.*`
   - `database.observability.*`
-- These return as separate epics; they MUST NOT inflate 4.60.0 rules/defaults.
+- These return as separate epics; they MUST NOT inflate 4.80.0 rules/defaults.
 
 - Щоб коректно підтримати multi-connection без змішування “secrets” і “tuning”, я пропоную додати опційний ключ:
   - `database.connections.<name>.tuning` = `[]` (NO secrets)
@@ -3069,12 +3570,12 @@ N/A
 
 ---
 
-### 4.70.0 Platform database-driver-sqlite (MUST) [IMPL]
+### 4.80.1 Platform database-driver-sqlite (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.70.0"
+epic_id: "4.80.1"
 owner_path: "packages/platform/database-driver-sqlite/"
 
 package_id: "platform/database-driver-sqlite"
@@ -3101,7 +3602,7 @@ ssot_refs:
 - "docs/ssot/database-redaction.md"
 ---
 
-- [ ] update `4.70.0 platform/database-driver-sqlite` to follow the shared database redaction policy.
+- [ ] update `4.80.1 platform/database-driver-sqlite` to follow the shared database redaction policy.
 
 ### Dependencies (MUST)
 
@@ -3109,7 +3610,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 1.150.0 — `core/contracts` Database ports exist (no vendor concretes in contracts)
-  - 4.60.0 — `platform/database` core exists and OWNS:
+  - 4.80.0 — `platform/database` core exists and OWNS:
     - tag `database.driver`
     - root `database` config + schema rules
 
@@ -3187,7 +3688,7 @@ Because we do NOT introduce a shared PDO epic:
 - keep duplicated PDO infra inside each driver package, but require semantic parity via tests + SSoT refs:
   - `docs/ssot/database-pdo-options.md`
   - `docs/ssot/database-redaction.md`
-  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.60.0
+  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.80.0
 
 ### Deliverables (MUST)
 
@@ -3328,12 +3829,12 @@ N/A
 
 ---
 
-### 4.71.0 Platform database-driver-mysql (MUST) [IMPL]
+### 4.80.2 Platform database-driver-mysql (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.71.0"
+epic_id: "4.80.2"
 owner_path: "packages/platform/database-driver-mysql/"
 
 package_id: "platform/database-driver-mysql"
@@ -3360,7 +3861,8 @@ ssot_refs:
 - "docs/ssot/database-redaction.md"
 ---
 
-- [ ] update `4.71.0 platform/database-driver-mysql` to follow the shared database redaction policy.
+- [ ] update `4.80.2 platform/database-driver-mysql` to follow the shared database redaction policy.
+- [ ] update `4.80.2 platform/database-driver-mysql` to support credentials resolved by the canonical database connection layer when secret_ref is enabled, without introducing driver-local secret resolution or logging raw credentials.
 
 ### Dependencies (MUST)
 
@@ -3368,7 +3870,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 1.150.0 — `core/contracts` Database ports exist
-  - 4.60.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
+  - 4.80.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
 
 - Canonical schema prerequisites (MUST):
   - `docs/ssot/database-config-schema.md` exists and locks:
@@ -3443,7 +3945,7 @@ Because we do NOT introduce a shared PDO epic:
 - keep duplicated PDO infra inside each driver package, but require semantic parity via tests + SSoT refs:
   - `docs/ssot/database-pdo-options.md`
   - `docs/ssot/database-redaction.md`
-  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.60.0
+  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.80.0
 
 ### Deliverables (MUST)
 
@@ -3573,12 +4075,12 @@ N/A (wiring-only; no real MySQL server required)
 
 ---
 
-### 4.72.0 Platform database-driver-mariadb (MUST) [IMPL]
+### 4.80.3 Platform database-driver-mariadb (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.72.0"
+epic_id: "4.80.3"
 owner_path: "packages/platform/database-driver-mariadb/"
 
 package_id: "platform/database-driver-mariadb"
@@ -3605,7 +4107,8 @@ ssot_refs:
 - "docs/ssot/database-redaction.md"
 ---
 
-- [ ] update `4.72.0 platform/database-driver-mariadb` to follow the shared database redaction policy.
+- [ ] update `4.80.3 platform/database-driver-mariadb` to follow the shared database redaction policy.
+- [ ] update `4.80.3 platform/database-driver-mariadb` to support credentials resolved by the canonical database connection layer when secret_ref is enabled, without introducing driver-local secret resolution or logging raw credentials.
 
 ### Dependencies (MUST)
 
@@ -3613,7 +4116,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 1.150.0 — `core/contracts` Database ports exist
-  - 4.60.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
+  - 4.80.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
 
 - Canonical schema prerequisites (MUST):
   - `docs/ssot/database-config-schema.md` exists and locks:
@@ -3688,7 +4191,7 @@ Because we do NOT introduce a shared PDO epic:
 - keep duplicated PDO infra inside each driver package, but require semantic parity via tests + SSoT refs:
   - `docs/ssot/database-pdo-options.md`
   - `docs/ssot/database-redaction.md`
-  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.60.0
+  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.80.0
 
 ### Deliverables (MUST)
 
@@ -3816,12 +4319,12 @@ N/A (wiring-only; no real server required)
 
 ---
 
-### 4.73.0 Platform database-driver-pgsql (MUST) [IMPL]
+### 4.80.4 Platform database-driver-pgsql (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.73.0"
+epic_id: "4.80.4"
 owner_path: "packages/platform/database-driver-pgsql/"
 
 package_id: "platform/database-driver-pgsql"
@@ -3848,7 +4351,8 @@ ssot_refs:
 - "docs/ssot/database-redaction.md"
 ---
 
-- [ ] update `4.73.0 platform/database-driver-pgsql` to follow the shared database redaction policy.
+- [ ] update `4.80.4 platform/database-driver-pgsql` to follow the shared database redaction policy.
+- [ ] update `4.80.4 platform/database-driver-pgsql` to support credentials resolved by the canonical database connection layer when secret_ref is enabled, without introducing driver-local secret resolution or logging raw credentials.
 
 ### Dependencies (MUST)
 
@@ -3856,7 +4360,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 1.150.0 — `core/contracts` Database ports exist
-  - 4.60.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
+  - 4.80.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
 
 - Canonical schema prerequisites (MUST):
   - `docs/ssot/database-config-schema.md` exists and locks:
@@ -3931,7 +4435,7 @@ Because we do NOT introduce a shared PDO epic:
 - keep duplicated PDO infra inside each driver package, but require semantic parity via tests + SSoT refs:
   - `docs/ssot/database-pdo-options.md`
   - `docs/ssot/database-redaction.md`
-  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.60.0
+  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.80.0
 
 ### Deliverables (MUST)
 
@@ -4059,12 +4563,12 @@ N/A (wiring-only; no real server required)
 
 ---
 
-### 4.74.0 Platform database-driver-sqlserver (MUST) [IMPL]
+### 4.80.5 Platform database-driver-sqlserver (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.74.0"
+epic_id: "4.80.5"
 owner_path: "packages/platform/database-driver-sqlserver/"
 
 package_id: "platform/database-driver-sqlserver"
@@ -4091,7 +4595,8 @@ ssot_refs:
 - "docs/ssot/database-redaction.md"
 ---
 
-- [ ] update `4.74.0 platform/database-driver-sqlserver` to follow the shared database redaction policy.
+- [ ] update `4.80.5 platform/database-driver-sqlserver` to follow the shared database redaction policy.
+- [ ] update `4.80.5 platform/database-driver-sqlserver` to support credentials resolved by the canonical database connection layer when secret_ref is enabled, without introducing driver-local secret resolution or logging raw credentials.
 
 ### Dependencies (MUST)
 
@@ -4099,7 +4604,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 1.150.0 — `core/contracts` Database ports exist
-  - 4.60.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
+  - 4.80.0 — `platform/database` core exists and OWNS `database.driver` + `database` root schema
 
 - Canonical schema prerequisites (MUST):
   - `docs/ssot/database-config-schema.md` exists and locks:
@@ -4174,7 +4679,7 @@ Because we do NOT introduce a shared PDO epic:
 - keep duplicated PDO infra inside each driver package, but require semantic parity via tests + SSoT refs:
   - `docs/ssot/database-pdo-options.md`
   - `docs/ssot/database-redaction.md`
-  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.60.0
+  - (optional) `docs/ssot/database-config-schema.md` if adopted in 4.80.0
 
 ### Deliverables (MUST)
 
@@ -4302,12 +4807,12 @@ N/A (wiring-only; no real SQL Server required)
 
 ---
 
-### 4.80.0 Database drivers (MySQL/MariaDB/PostgreSQL/SQL Server) (SHOULD) [DOC]
+### 4.80.6 Database drivers (MySQL/MariaDB/PostgreSQL/SQL Server) (SHOULD) [DOC]
 
 ---
 type: docs
 phase: 4
-epic_id: "4.80.0"
+epic_id: "4.80.6"
 owner_path: "docs/architecture/database-drivers.md"
 
 goal: "Зафіксувати ownership та parity-invariants для DB driver packages (`platform/database-driver-*`) без змін public API `platform/database`."
@@ -4720,12 +5225,185 @@ N/A
 
 ---
 
-### 4.100.0 platform/mail (MUST) [IMPL]
+### 4.100.0 Contracts: Queue (jobs, serialization, retry) (MUST) [CONTRACTS]
 
 ---
 type: package
 phase: 4
 epic_id: "4.100.0"
+owner_path: "packages/core/contracts/"
+
+package_id: "core/contracts"
+composer: "coretsia/core-contracts"
+kind: library
+
+goal: "Визначити стабільні queue contracts (job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface) із детермінізмом та без HTTP/PSR-7 залежностей."
+provides:
+- "Queue ports: job shape + driver API (reserve/ack/fail/release)"
+- "Детерміністичні правила payload (json-like; no floats; no objects) на рівні shape/serializer contract"
+- "Retry/backoff policy surface + failed jobs repository port + worker runtime surface (без реалізацій)"
+
+tags_introduced: []
+config_roots_introduced: []
+artifacts_introduced: []
+
+adr: docs/adr/ADR-XXXX-queue-ports-jobs-retry.md
+ssot_refs: []
+---
+
+### Goal (MUST)
+
+- **Definition of success:** Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
+- **Acceptance scenario:** When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
+
+## Dependencies (MUST)
+
+### Preconditions (MUST)
+
+- Epic prerequisites:
+  - N/A
+- Required deliverables (exact paths):
+  - N/A
+- Required config roots/keys:
+  - N/A
+- Required tags:
+  - N/A
+- Required contracts / ports:
+  - N/A
+
+### Compile-time deps (deptrac-enforceable) (MUST)
+
+Depends on:
+
+- none
+
+Forbidden:
+
+- `platform/*`
+- `Psr\Http\Message\*`
+- `Psr\Http\Server\*`
+
+### Uses ports (API surface, NOT deps) (optional)
+
+- PSR:
+  - none
+- Contracts:
+  - none
+- Foundation stable APIs:
+  - none
+
+## Entry points / integration points (MUST)
+
+N/A
+
+## Deliverables (exact paths only) (MUST)
+
+### Creates
+
+- [ ] `packages/core/contracts/src/Queue/JobInterface.php` — job contract (shape/metadata; payload правила на рівні contract-очікувань)
+- [ ] `packages/core/contracts/src/Queue/JobSerializerInterface.php` — серіалізація/десеріалізація з інваріантами json-like + детермінізм
+- [ ] `packages/core/contracts/src/Queue/QueueDriverInterface.php` — low-level driver port (reserve/ack/fail/release)
+- [ ] `packages/core/contracts/src/Queue/QueueInterface.php` — high-level queue facade port (dispatch/enqueue поверх driver)
+- [ ] `packages/core/contracts/src/Queue/BackoffStrategyInterface.php` — retry/backoff policy surface (delay computation)
+- [ ] `packages/core/contracts/src/Queue/FailedJobRepositoryInterface.php` — port для зберігання/читання failed jobs
+- [ ] `packages/core/contracts/src/Queue/QueueWorkerRuntimeInterface.php` — worker runtime surface (loop/control без реалізації)
+- [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова доменна exception для queue contracts
+
+### Modifies
+
+- [ ] `docs/adr/INDEX.md` — register:
+  - [ ] `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
+
+### Package skeleton (if type=package)
+
+N/A (пакет `core/contracts` вже існує; цей епік додає лише Queue contracts)
+
+### Configuration (keys + defaults)
+
+N/A
+
+### Wiring / DI tags (when applicable)
+
+N/A
+
+### Artifacts / outputs (if applicable)
+
+N/A
+
+## Cross-cutting (only if applicable; otherwise `N/A`)
+
+### Context & UoW
+
+N/A
+
+### Observability (policy-compliant)
+
+N/A
+
+### Errors
+
+- [ ] Exceptions introduced:
+  - [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова помилка домену Queue (конкретні errorCode/мапінг — на стороні імплементаційних пакетів)
+
+### Security / Redaction (MUST)
+
+- [ ] MUST NOT leak:
+  - [ ] payload/tokens/session id у будь-якому contract shape (payload тільки json-like; логування — відповідальність імплементації)
+
+## Verification (TEST EVIDENCE) (MUST when applicable)
+
+- [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+  - asserts: payload is json-like; deterministic invariants (no floats, no objects) are enforced at shape/serializer contract level
+- [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
+  - asserts: ports are stable/consistent; driver surface supports reserve/ack/fail/release + retry/backoff surfaces are present
+- [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+  - asserts: contracts remain HTTP-agnostic (no PSR-7/15 deps)
+
+## Tests (MUST)
+
+- Unit:
+  - [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
+- Contract:
+  - [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
+  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
+- Integration:
+  - N/A
+- Gates/Arch:
+  - N/A (deptrac/forbidden enforced policy-wide)
+
+## DoD (MUST)
+
+- [ ] Deliverables complete (creates+modifies), paths exact
+- [ ] Preconditions satisfied (no forward references)
+- [ ] deps/forbidden respected (deptrac; no cycles)
+- [ ] Verification tests present where applicable
+- [ ] Ports/VO shapes stable + protected by contract tests
+- [ ] ADR exists and documents invariants (json-like payload, no PSR-7)
+- [ ] Docs updated:
+  - [ ] ADR: `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
+- [ ] Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
+- [ ] When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
+- [ ] Problem this epic solves
+  - [ ] Визначити contracts для queue: job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface
+  - [ ] Забезпечити json-like payload rule + детермінізм (no floats, no objects) на рівні shape
+  - [ ] Дати стабільний базис для sync driver та DB/Redis drivers без зміни contracts
+- [ ] Non-goals / out of scope
+  - [ ] Реалізація driver/worker/CLI (це 5.50.0, 5.60.0 та 5.70.0)
+  - [ ] Storage schema (DB tables) — це імплементаційні епіки
+  - [ ] HTTP-aware типи/PSR-7 (заборонено у contracts)
+- [ ] Cutline impact
+  - [ ] blocks Phase 5 cutline
+  - [ ] MUST be completed before 5.50.0 Queue Core
+  - [ ] does not block Phase 4 Express release
+
+---
+
+### 4.110.0 platform/mail (MUST) [IMPL]
+
+---
+type: package
+phase: 4
+epic_id: "4.110.0"
 owner_path: "packages/platform/mail/"
 
 package_id: "platform/mail"
@@ -4749,7 +5427,7 @@ ssot_refs:
 - "docs/ssot/config-roots.md"
 ---
 
-- [ ] update `4.100.0 platform/mail` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
+- [ ] update `4.110.0 platform/mail` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
 
 ### Dependencies (MUST)
 
@@ -4827,7 +5505,7 @@ Optional async:
 - [ ] `packages/platform/mail/src/Queue/SendMailJobHandler.php` — handler uses Mailer (registered explicitly)
 
 Docs:
-- [ ] `docs/architecture/mail.md` — canonical mail layer: transports, redaction, async option (SMTP section added by 4.101.0)
+- [ ] `docs/architecture/mail.md` — canonical mail layer: transports, redaction, async option (SMTP section added by 4.111.0)
 
 Tests:
 - [ ] `packages/platform/mail/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
@@ -4949,12 +5627,12 @@ N/A
 
 ---
 
-### 4.101.0 integrations/mail-smtp (MUST) [IMPL]
+### 4.111.0 integrations/mail-smtp (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.101.0"
+epic_id: "4.111.0"
 owner_path: "packages/integrations/mail-smtp/"
 
 package_id: "integrations/mail-smtp"
@@ -4978,14 +5656,15 @@ ssot_refs:
 - "docs/ssot/config-roots.md"
 ---
 
-- [ ] update `4.101.0 integrations/mail-smtp` to consume `SensitiveDataRedactorInterface` for SMTP credentials, host/auth diagnostics, recipients, subject, and body summaries.
+- [ ] update `4.111.0 integrations/mail-smtp` to consume `SensitiveDataRedactorInterface` for SMTP credentials, host/auth diagnostics, recipients, subject, and body summaries.
+- [ ] update `4.111.0 integrations/mail-smtp` to consume SecretsResolverInterface for mail_smtp.password_secret_ref during SMTP authentication, without exposing secret refs or resolved passwords in logs, diagnostics, or exceptions.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `4.100.0` (platform/mail) — canonical layer існує; integration підʼєднується як transport опція (runtime composition).
+  - `4.110.0` (platform/mail) — canonical layer існує; integration підʼєднується як transport опція (runtime composition).
   - `core/contracts` містить:
     - mail contracts (`MailTransportInterface`, `MailMessage`)
     - secrets contract (`SecretsResolverInterface`)
@@ -4994,7 +5673,7 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `docs/ssot/config-roots.md` — існує та дозволяє реєстрацію нового root `mail_smtp`.
-  - `docs/architecture/mail.md` — створено в `4.100.0` (ця епіка лише доповнює SMTP секцію).
+  - `docs/architecture/mail.md` — створено в `4.110.0` (ця епіка лише доповнює SMTP секцію).
 
 - Required config roots/keys:
   - `mail_smtp.*` — smtp params (password via secret_ref)
@@ -5168,12 +5847,12 @@ N/A
 
 ---
 
-### 4.110.0 coretsia/view (MUST) [IMPL]
+### 4.120.0 coretsia/view (MUST) [IMPL]
 
 ---
 type: package
 phase: 4
-epic_id: "4.110.0"
+epic_id: "4.120.0"
 owner_path: "packages/platform/view/"
 
 package_id: "platform/view"
@@ -5196,7 +5875,7 @@ adr: none
 ssot_refs: []
 ---
 
-- [ ] update `4.110.0 coretsia/view` to avoid leaking raw template context values in rendering diagnostics.
+- [ ] update `4.120.0 coretsia/view` to avoid leaking raw template context values in rendering diagnostics.
 
 ### Dependencies (MUST)
 
@@ -5530,247 +6209,6 @@ N/A
   - [ ] Integrations MAY provide alternative renderer implementations (twig/blade) by depending on `platform/view` and wiring their own service (documented here; implemented in separate epics).
 - [ ] When a template is rendered twice with same inputs (fixtures) and the same theme/area/layout, then output bytes are identical and no variables/HTML are logged.
 - [ ] `platform.view` дозволяє **детерміновано** знайти й відрендерити template (з layout/theme/area), **без витоку** даних у логи, з чіткою політикою roots і escaping.
-
----
-
-### 4.120.0 Translation / i18n (SHOULD) [IMPL]
-
----
-type: package
-phase: 4
-epic_id: "4.120.0"
-owner_path: "packages/platform/translation/"
-
-package_id: "platform/translation"
-composer: "coretsia/platform-translation"
-kind: runtime
-module_id: "platform.translation"
-
-goal: "Надати мінімальний translation/i18n шар з детермінованим loading/resolution та policy-compliant observability (без key/value як metric labels; без витоку значень)."
-provides:
-- "Translator + loaders (PHP-array, JSON) з deterministic order"
-- "Locale resolver з fallback chain"
-- "Redaction + noop-safe observability (no high-cardinality labels)"
-
-tags_introduced: []
-config_roots_introduced:
-- "translation"
-
-artifacts_introduced: []
-adr: none
-ssot_refs: []
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Required config roots/keys:
-  - `translation.*` — locale/fallback/loaders/paths/disk
-
-- Required contracts / ports:
-  - (optional) `Coretsia\Contracts\Filesystem\DiskInterface` — якщо loader читає з disk binding
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-
-- `core/contracts`
-- `core/foundation`
-
-Forbidden:
-
-- `platform/http`
-- `integrations/*`
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- PSR:
-  - `Psr\Log\LoggerInterface` (optional)
-- Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Filesystem\DiskInterface` (optional)
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
-- Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
-
-### Entry points / integration points (MUST)
-
-N/A
-
-### Deliverables (MUST)
-
-#### Creates
-
-Package skeleton:
-- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
-- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
-- [ ] `packages/platform/translation/src/Provider/TranslationServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/translation/config/translation.php` — returns subtree for root `translation` (no repeated root)
-- [ ] `packages/platform/translation/config/rules.php`
-- [ ] `packages/platform/translation/README.md` (Observability / Errors / Security-Redaction)
-- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-
-Implementation:
-- [ ] `packages/platform/translation/src/Translation/TranslatorInterface.php` — app-facing translator API
-- [ ] `packages/platform/translation/src/Translation/Translator.php` — reference translator (deterministic)
-- [ ] `packages/platform/translation/src/Loader/TranslationLoaderInterface.php`
-- [ ] `packages/platform/translation/src/Loader/PhpArrayLoader.php` — load `*.php` dictionaries (sorted)
-  - Deterministic loading policy (cemented):
-    - If loaders read from filesystem/disk, they MUST:
-      - normalize relpaths (forward slashes),
-      - sort file lists by `strcmp`,
-      - hard-fail on symlinks (MUST NOT follow),
-      - never emit raw paths or file contents in diagnostics/signals.
-    - Dictionary merge order is single-choice:
-      - loaders order = `translation.loaders` (list order preserved),
-      - within a loader: files order = sorted `strcmp`,
-      - later files override earlier keys (deterministic).
-
-- [ ] `packages/platform/translation/src/Loader/JsonLoader.php` — load `*.json` dictionaries (sorted)
-  - Deterministic loading policy (cemented):
-    - If loaders read from filesystem/disk, they MUST:
-      - normalize relpaths (forward slashes),
-      - sort file lists by `strcmp`,
-      - hard-fail on symlinks (MUST NOT follow),
-      - never emit raw paths or file contents in diagnostics/signals.
-    - Dictionary merge order is single-choice:
-      - loaders order = `translation.loaders` (list order preserved),
-      - within a loader: files order = sorted `strcmp`,
-      - later files override earlier keys (deterministic).
-
-- [ ] `packages/platform/translation/src/Resolver/LocaleResolver.php` — deterministic locale + fallback chain
-- [ ] `packages/platform/translation/src/Observability/TranslationInstrumentation.php` — spans/metrics helper
-- [ ] `packages/platform/translation/src/Exception/TranslationException.php` — deterministic codes
-
-Docs:
-- [ ] `docs/architecture/translation.md` — format, ordering, redaction, integration patterns
-
-Tests:
-- [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
-- [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
-- [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
-- [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
-
-#### Modifies
-
-- [ ] `docs/ssot/config-roots.md` — register `translation` root (owner `platform/translation`)
-
-#### Package skeleton (if type=package)
-
-- [ ] `packages/platform/translation/composer.json`
-- [ ] `packages/platform/translation/src/Module/TranslationModule.php`
-- [ ] `packages/platform/translation/src/Provider/TranslationServiceProvider.php`
-- [ ] `packages/platform/translation/config/translation.php`
-- [ ] `packages/platform/translation/config/rules.php`
-- [ ] `packages/platform/translation/README.md`
-- [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-
-#### Configuration (keys + defaults)
-
-- [ ] Files:
-  - [ ] `packages/platform/translation/config/translation.php`
-- [ ] Keys (dot):
-  - [ ] `translation.enabled` = `false`
-  - [ ] `translation.default_locale` = `'en'`
-  - [ ] `translation.fallback_locales` = `['en']`
-  - [ ] `translation.loaders` = `['php','json']`
-  - [ ] `translation.paths` = `[]` (list-like; deterministic order)
-  - [ ] `translation.disk` = `'local'` (optional; resolved at runtime)
-- [ ] Rules:
-  - [ ] `packages/platform/translation/config/rules.php` enforces shape
-
-#### Wiring / DI tags (when applicable)
-
-- [ ] Tags introduced (this epic is the OWNER):
-  - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] binds `TranslatorInterface` → `Translator`
-  - [ ] registers loaders + resolver as services (deterministic ordering)
-
-#### Artifacts / outputs (if applicable)
-
-N/A
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID` (optional; safe logs)
-- [ ] Context writes (safe only):
-  - [ ] none
-- [ ] Reset discipline:
-  - [ ] cached catalogs implement `ResetInterface` + tag `kernel.reset` (if cached in memory)
-
-#### Observability (policy-compliant)
-
-- [ ] Spans:
-  - [ ] `translation.lookup` (attrs: `outcome=hit|miss`, `locale` as span attr OK)
-- [ ] Metrics:
-  - [ ] `translation.lookup_total` (labels: `outcome`)
-  - [ ] `translation.lookup_duration_ms` (labels: `outcome`)
-- [ ] Logs:
-  - [ ] warn on missing key/locale (NO key/value dump; key only as `hash(key)`)
-
-#### Errors
-
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Translation\Exception\TranslationException` — deterministic codes:
-    - `CORETSIA_TRANSLATION_LOAD_FAILED`
-    - `CORETSIA_TRANSLATION_INVALID_CATALOG`
-- [ ] Mapping:
-  - [ ] reuse existing mapper (no dupes)
-
-#### Security / Redaction
-
-- [ ] MUST NOT leak:
-  - [ ] translation values, user-provided interpolation values
-- [ ] Allowed:
-  - [ ] `hash(key)` / `len(value)` only
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If metrics/spans/logs exist → `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
-  (asserts: no key/value raw dump; no high-cardinality labels)
-- [ ] Deterministic ordering → `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/translation/tests/Unit/FallbackChainDeterministicTest.php`
-  - [ ] `packages/platform/translation/tests/Unit/LoaderOrderDeterministicTest.php`
-- Contract:
-  - [ ] `packages/platform/translation/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- Integration:
-  - [ ] `packages/platform/translation/tests/Integration/LoadsCatalogsInDeterministicOrderTest.php`
-  - [ ] `packages/platform/translation/tests/Integration/MissingKeyDoesNotLeakToLogsTest.php`
-- Gates/Arch:
-  - [ ] deptrac expectations updated (if needed)
-
-### DoD (MUST)
-
-- [ ] Deterministic loading + deterministic fallback chain
-- [ ] Observability policy satisfied (no locale/key as metric labels; no value leakage)
-- [ ] Tests green + docs complete (`README.md` + `docs/architecture/translation.md`)
-- [ ] What problem this epic solves
-  - [ ] Дає мінімальний translation/i18n шар (translator + loaders) з deterministic resolution order
-  - [ ] Підтримує PHP-array і JSON каталоги перекладів; без runtime FS scan без сортування
-  - [ ] Забезпечує redaction (не логити шаблонні змінні/значення) + noop-safe observability
-- [ ] Non-goals / out of scope
-  - [ ] Не робимо повноцінний ICU messageformat engine (може бути окремим пакетом пізніше)
-  - [ ] Не нав’язуємо інтеграцію іншим platform пакетам через compile-time deps (інтеграція — через app code/DI)
-  - [ ] Не додаємо висококардинальних labels (locale/key як label — заборонено)
-- [ ] Usually present when enabled in presets/bundles:
-  - [ ] a `DiskInterface` binding is provided by enabled filesystem modules (policy; not a compile-time dependency)
-  - [ ] `platform/logging|tracing|metrics` provide implementations/noop-safe
-- [ ] When translating a key with missing locale, then translator deterministically falls back to configured fallback locale.
-- [ ] Переклади завантажуються детерміновано, локаль/fallback працюють стабільно, а логи/метрики не містять ключів/значень як labels.
 
 ---
 
@@ -6561,6 +6999,8 @@ ssot_refs:
 ---
 
 - [ ] update `4.160.0 platform/auth Token/Bearer + optional JWT guard` to consume `SensitiveDataRedactorInterface` for bearer tokens, JWTs, claims, and auth failure diagnostics.
+- [ ] update `4.160.0 platform/auth Token/Bearer + optional JWT guard` to consume SecretsResolverInterface for auth.guards.jwt.secret_ref when JWT authentication is enabled, resolving verification keys and signing keys only when signing is in scope, without exposing key material or tokens.
+- [ ] update `4.160.0 platform/auth Token/Bearer + optional JWT guard` to reuse the existing AuthProblemMapper and canonical ErrorHandlerInterface for token/JWT authentication failures, without introducing a second auth exception mapper or transport-specific error normalization.
 
 ### Dependencies (MUST)
 
@@ -6791,6 +7231,7 @@ ssot_refs: []
 
 - [ ] update `4.170.0 platform/security` to consume `SensitiveDataRedactorInterface` where diagnostics/output redaction is needed.
 - [ ] update `4.170.0 platform/security` to contribute `SecurityProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for CSRF/signed-URL failure descriptors, without duplicating normalization, local tag constants, or RFC7807 rendering.
+- [ ] update `4.170.0 platform/security` to consume SecretsResolverInterface for security.signed_urls.secret_ref when signing or verifying URLs, without duplicating secret resolution or exposing HMAC key material.
 
 ### Dependencies (MUST)
 
@@ -7103,6 +7544,7 @@ ssot_refs: []
 ---
 
 - [ ] update `4.180.0 coretsia/encryption` to consume `SensitiveDataRedactorInterface` for key refs, key ids, ciphertext/plaintext diagnostics, and failure summaries.
+- [ ] update `4.180.0 platform/encryption` to consume SecretsResolverInterface for encryption.keys.*.secret_ref, ensuring fail-closed key resolution and preventing resolved key material from entering logs, diagnostics, or artifacts.
 
 ### Dependencies (MUST)
 
@@ -7863,6 +8305,8 @@ artifacts_introduced: []
 adr: docs/adr/ADR-XXXX-lock-factory-reference-drivers.md
 ssot_refs: []
 ---
+
+- [ ] update `4.210.0 platform/lock` to consume SensitiveDataRedactorInterface for lock-key and filesystem diagnostics where redaction is needed, without duplicating the shared redaction engine or replacing lock-owned safe key hash/len semantics.
 
 ### Dependencies (MUST)
 

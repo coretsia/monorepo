@@ -1683,7 +1683,6 @@ Forbidden:
   - [ ] `packages/platform/observability/config/observability.php`
 - [ ] Keys (dot):
   - [ ] `observability.enabled` = true
-  - [ ] `observability.redaction.enabled` = true
   - [ ] `observability.http.server_timing.enabled` = false
   - [ ] `observability.http.trace_response_headers.enabled` = false
 - [ ] Rules:
@@ -1837,6 +1836,9 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.50.0 integrations/cache-redis` to consume SecretsResolverInterface for cache_redis.password_secret_ref when Redis authentication is configured, without exposing resolved passwords, refs, or connection credentials.
+- [ ] update `6.50.0 integrations/cache-redis` to consume SensitiveDataRedactorInterface for Redis connection failures, key diagnostics, and credential-related telemetry, without introducing a generic package-local redaction engine.
 
 ### Dependencies (MUST)
 
@@ -2097,6 +2099,8 @@ ssot_refs:
 - docs/ssot/metrics-policy.md
 ---
 
+- [ ] update `6.60.0 integrations/cache-apcu` to consume SensitiveDataRedactorInterface for cache-key and storage diagnostics where redaction is needed, without exposing raw keys or cached values and without implementing another generic redaction engine.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -2333,6 +2337,9 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.70.0 integrations/lock-redis` to consume SecretsResolverInterface for lock_redis.password_secret_ref when Redis authentication is configured, without introducing another secrets resolver or exposing credentials.
+- [ ] update `6.70.0 integrations/lock-redis` to consume SensitiveDataRedactorInterface for Redis connection diagnostics and lock-key summaries, without exposing raw keys, credentials, or endpoint values.
 
 ### Dependencies (MUST)
 
@@ -2573,6 +2580,9 @@ ssot_refs:
 - docs/ssot/metrics-policy.md
 ---
 
+- [ ] update `6.71.0 integrations/session-redis` to consume SecretsResolverInterface for session_redis.password_secret_ref when Redis authentication is configured, without exposing credentials, session identifiers, or resolved secret values.
+- [ ] update `6.71.0 integrations/session-redis` to consume SensitiveDataRedactorInterface for Redis connection diagnostics and session-key summaries, without exposing session identifiers, payloads, credentials, or endpoint values.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -2809,6 +2819,9 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 - docs/ssot/metrics-policy.md
 ---
+
+- [ ] update `6.72.0 integrations/queue-redis` to consume SecretsResolverInterface for queue_redis.password_secret_ref when Redis authentication is configured, without exposing credentials, secret refs, or job payloads.
+- [ ] update `6.72.0 integrations/queue-redis` to consume SensitiveDataRedactorInterface for Redis connection diagnostics and queue-operation summaries, without exposing job payloads, raw queue keys, credentials, or endpoint values.
 
 ### Dependencies (MUST)
 
@@ -3936,6 +3949,8 @@ adr: none
 ssot_refs: []
 ---
 
+- [ ] update `6.110.0 coretsia/event-sourcing` to consume SensitiveDataRedactorInterface for event-store and replay diagnostics, without exposing raw event payloads, aggregate state, or sensitive projection data.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -4190,6 +4205,8 @@ artifacts_introduced: []
 adr: none
 ssot_refs: []
 ---
+
+- [ ] update `6.120.0 devtools/scaffolding` to consume SensitiveDataRedactorInterface for generator diagnostics and configuration-derived output summaries, without copying the shared redaction engine or exposing secrets from templates, configuration, or environment values.
 
 ### Dependencies (MUST)
 
@@ -4451,6 +4468,8 @@ ssot_refs: []
 
 - [ ] update `6.130.0 devtools/api-docs` to avoid exposing secrets/PII in generated examples or debug docs.
 - [ ] update `6.130.0 devtools/api-docs` to contribute `ApiDocsProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for guarded 403/404 failures, replacing legacy `handles` tag metadata.
+- [ ] update `6.130.0 devtools/api-docs` to consume SecretsResolverInterface for api_docs.guard.token_ref when token-based documentation access is enabled, without exposing resolved tokens in HTTP responses or diagnostics.
+- [ ] update `6.130.0 devtools/api-docs` to consume SensitiveDataRedactorInterface for dynamically generated diagnostics and error summaries where redaction is needed, without adding secret-bearing data to public OpenAPI documents or duplicating the shared redaction engine.
 
 ### Dependencies (MUST)
 
@@ -4732,6 +4751,7 @@ ssot_refs: # MUST include policy docs that this epic реально викори
 ---
 
 - [ ] update `6.140.0 devtools/dev-tools` to consume `SensitiveDataRedactorInterface` for debugbar/dev diagnostics.
+- [ ] update `6.140.0 devtools/dev-tools` to consume SecretsResolverInterface for dev_tools.http.debugbar.guard.token_ref when token-based access is configured, using fail-closed guard behavior without exposing resolved tokens, secret refs, or authorization headers.
 
 ### Dependencies (MUST)
 
@@ -5014,6 +5034,8 @@ ssot_refs: # add minimum policy docs this epic touches
 ---
 
 - [ ] update `6.150.0 devtools/admin-panel` to consume `SensitiveDataRedactorInterface` for admin diagnostics and previews.
+- [ ] update `6.150.0 devtools/admin-panel` to consume SecretsResolverInterface for admin_panel.guard.token_ref when token-based access is configured, without duplicating secret resolution or exposing resolved tokens in responses, logs, or diagnostics.
+- [ ] update `6.150.0 devtools/admin-panel` to reuse the existing platform/auth and platform/security authorization, CSRF, and error-mapping boundaries, without introducing admin-panel-specific authentication engines, CSRF validators, exception mappers, or RFC7807 rendering.
 
 ### Dependencies (MUST)
 
@@ -5783,6 +5805,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.163.0 coretsia/websocket` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` at the WebSocket handler-failure boundary, add matching direct Composer and `platform.errors` module requirements, and adapt its safe descriptor only to WebSocket-owned close/error semantics without HTTP rendering, duplicate mapping, or concrete `platform/errors` source imports.
+- [ ] update `6.163.0 coretsia/websocket` to consume SensitiveDataRedactorInterface for handshake, connection, and handler-failure diagnostics, without exposing WebSocket frames, authentication headers, tokens, or raw payloads.
 
 ### Dependencies (MUST)
 
@@ -6011,6 +6034,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.164.0 coretsia/graphql` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for uncaught GraphQL execution failures at its owned adapter boundary, add matching direct Composer and `platform.errors` module requirements, and adapt safe descriptors to GraphQL errors without duplicate normalization, RFC7807 handling, or concrete `platform/errors` source imports.
+- [ ] update `6.164.0 coretsia/graphql` to consume SensitiveDataRedactorInterface for GraphQL execution and transport diagnostics, without exposing raw queries, variables, resolver arguments, or response data.
 
 ### Dependencies (MUST)
 
@@ -6225,6 +6249,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.165.0 coretsia/grpc` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for uncaught interceptor/service failures, add matching direct Composer and `platform.errors` module requirements, and retain gRPC status and transport-specific failure presentation in the owning adapter without duplicate normalization or concrete `platform/errors` source imports.
+- [ ] update `6.165.0 coretsia/grpc` to consume SensitiveDataRedactorInterface for interceptor, service, and transport diagnostics, without exposing protobuf payloads, metadata headers, credentials, or authentication tokens.
 
 ### Dependencies (MUST)
 
@@ -10108,6 +10133,7 @@ ssot_refs: []
 
 - [ ] update `6.310.0 Enterprise SSO: OIDC` to consume `SensitiveDataRedactorInterface` for tokens, claims, provider payloads, and auth diagnostics.
 - [ ] update `6.310.0 Enterprise SSO: OIDC` to contribute `OidcProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe OIDC failure descriptors, replacing legacy `domain` tag metadata.
+- [ ] update `6.310.0 Enterprise SSO: OIDC` to consume SecretsResolverInterface for sso_oidc.client_secret_ref during confidential-client authentication and token exchange, without exposing client secrets or provider tokens.
 
 ### Dependencies (MUST)
 
@@ -10418,6 +10444,7 @@ ssot_refs: []
 
 - [ ] update `6.320.0 Enterprise SSO: SAML` to consume `SensitiveDataRedactorInterface` for assertions, claims, certificates, provider payloads, and auth diagnostics.
 - [ ] update `6.320.0 Enterprise SSO: SAML` to contribute `SamlProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for safe SAML failure descriptors, replacing legacy `domain` tag metadata.
+- [ ] update `6.320.0 Enterprise SSO: SAML` to consume SecretsResolverInterface for configured certificate and private-key references, without exposing key material, assertions, or credential contents.
 
 ### Dependencies (MUST)
 
@@ -11683,7 +11710,6 @@ N/A
   - [ ] `packages/enterprise/compliance/config/compliance.php`
 - [ ] Keys (dot):
   - [ ] `compliance.enabled` = false
-  - [ ] `compliance.redaction.enabled` = true
   - [ ] `compliance.retention.enabled` = true
   - [ ] `compliance.retention.default_days` = 30
   - [ ] `compliance.retention.audit_days` = 365
@@ -11831,6 +11857,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.370.0 integrations/secrets-vault` to consume `SensitiveDataRedactorInterface` for secret refs, Vault tokens, addresses, provider payloads, and backend errors.
+- [ ] update `6.370.0 integrations/secrets-vault` to implement the canonical SecretsResolverInterface for Vault secret references, coordinate global DI binding ownership with platform/secrets, and prevent recursive resolution of Vault bootstrap credentials.
 
 ### Dependencies (MUST)
 
@@ -12035,6 +12062,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.371.0 integrations/secrets-aws` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, AWS payloads, and backend errors.
+- [ ] update `6.371.0 integrations/secrets-aws` to implement the canonical SecretsResolverInterface for AWS Secrets Manager and Parameter Store references, coordinate global DI binding ownership with platform/secrets, and prevent recursive credential bootstrap.
 
 ### Dependencies (MUST)
 
@@ -12232,6 +12260,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.372.0 integrations/secrets-gcp` to consume `SensitiveDataRedactorInterface` for secret refs, credentials refs, endpoints, GCP payloads, and backend errors.
+- [ ] update `6.372.0 integrations/secrets-gcp` to implement the canonical SecretsResolverInterface for GCP Secret Manager references, coordinate global DI binding ownership with platform/secrets, and prevent recursive credential bootstrap.
 
 ### Dependencies (MUST)
 
@@ -12430,6 +12459,7 @@ ssot_refs:
 
 - [ ] update `6.380.0 Webhooks` to consume `SensitiveDataRedactorInterface` for payloads, HMAC secrets, signatures, headers, retry diagnostics, and provider responses.
 - [ ] update `6.380.0 Webhooks` to contribute `WebhookProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata only when webhook verification exceptions require canonical HTTP error adaptation, without mapping delivery retry outcomes.
+- [ ] update `6.380.0 Webhooks` to consume SecretsResolverInterface for webhooks.signing.secret_ref during HMAC signing and verification, without exposing signing keys, signatures, or webhook payloads.
 
 ### Dependencies (MUST)
 
@@ -13014,6 +13044,9 @@ ssot_refs:
 - docs/ssot/config-roots.md
 ---
 
+- [ ] update `6.391.0 integrations/search-elastic` to consume SecretsResolverInterface for search_elastic.auth.secret_ref when backend authentication is configured, without exposing resolved credentials.
+- [ ] update `6.391.0 integrations/search-elastic` to consume SensitiveDataRedactorInterface for search queries, indexed document summaries, backend errors, and provider diagnostics, without exposing raw credentials, query payloads, or documents.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -13209,6 +13242,9 @@ ssot_refs:
 - docs/ssot/config-roots.md
 ---
 
+- [ ] update `6.392.0 integrations/search-opensearch` to consume SecretsResolverInterface for search_opensearch.auth.secret_ref when backend authentication is configured, without exposing resolved credentials.
+- [ ] update `6.392.0 integrations/search-opensearch` to consume SensitiveDataRedactorInterface for search queries, indexed document summaries, backend errors, and provider diagnostics, without exposing raw credentials, query payloads, or documents.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -13400,6 +13436,9 @@ ssot_refs:
 - docs/ssot/tags.md
 - docs/ssot/config-roots.md
 ---
+
+- [ ] update `6.393.0 integrations/search-meilisearch` to consume SecretsResolverInterface for search_meilisearch.api_key.secret_ref when API-key authentication is configured, without exposing resolved API keys.
+- [ ] update `6.393.0 integrations/search-meilisearch` to consume SensitiveDataRedactorInterface for search queries, indexed document summaries, backend errors, and provider diagnostics, without exposing raw API keys, query payloads, or documents.
 
 ### Dependencies (MUST)
 
@@ -13879,6 +13918,7 @@ ssot_refs:
 ---
 
 - [ ] update `6.410.0 Rate limit advanced` to consume `SensitiveDataRedactorInterface` for identity keys, Redis keys, and tier diagnostics.
+- [ ] update `6.410.0 Rate limit advanced` to consume SecretsResolverInterface for rate_limit_redis.connection.password.secret_ref when Redis authentication is configured, without introducing a separate secret-resolution implementation.
 
 ### Dependencies (MUST)
 
@@ -15713,7 +15753,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 6.470.0 — AI contracts exist
-  - 4.20.0 — http-client exists (OPTIONAL; only if you add an HTTP adapter here)
+  - 4.50.0 — http-client exists (OPTIONAL; only if you add an HTTP adapter here)
   - 1.10.0 — tags registry exists
 
 - Required tags:
@@ -16130,7 +16170,6 @@ Forbidden:
   - [ ] `ai_guardrails.apply_to.llm` = true
   - [ ] `ai_guardrails.apply_to.embeddings` = true
   - [ ] `ai_guardrails.policy.allow_introspection` = false         # example policy knob (if used)
-  - [ ] `ai_guardrails.redaction.enabled` = true
   - [ ] `ai_guardrails.redaction.mode` = "scrub"                   # enum: scrub|deny
   - [ ] `ai_guardrails.allowlist.models` = []                      # list<string> (safe ids)
   - [ ] `ai_guardrails.denylist.models` = []                       # list<string>
@@ -16383,14 +16422,17 @@ ssot_refs:
 - docs/ssot/observability-and-errors.md
 ---
 
+- [ ] update `6.475.0 coretsia/ai-vectorstore` to consume SensitiveDataRedactorInterface for vectorstore diagnostics, document chunks, metadata, and provider errors, without exposing embeddings, raw vectors, SQL bindings, or stored content.
+- [ ] update `6.475.0 coretsia/ai-vectorstore` to reuse platform/database ConnectionInterface and the canonical PostgreSQL driver for pgvector operations, without introducing an independent PDO connection manager, transaction layer, or credential resolver.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
   - 6.474.0 — vectorstore contracts exist
-  - 4.60.0 — platform/database exists (pgvector adapter)
-  - 4.73.0 — database-driver-pgsql exists (runtime prereq for pgvector)
+  - 4.80.0 — platform/database exists (pgvector adapter)
+  - 4.80.4 — database-driver-pgsql exists (runtime prereq for pgvector)
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 

@@ -47,6 +47,39 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.11.0
+
+### Added
+
+- Introduced the `coretsia/platform-logging` runtime package as the canonical PSR-3 structured logging implementation, with the `platform.logging` module and validated `logging` configuration root.
+- Added three logging drivers: `stream` for fixed `php://stderr` output, `file` for append-only daily UTC log files, and `null` for the existing Foundation `NoopLogger` fallback.
+- Added deterministic JSONL and logfmt serialization with canonical record fields, configurable severity filtering, bounded record sizes, and exactly one LF-terminated frame per successful emission.
+- Added automatic daily UTC file partitioning with validated local destinations, canonical application-target filename prefixes, nonblocking exclusive file locks, and emission-scoped file handles.
+- Added the contracts-level `AppTargetProviderInterface` for reading the selected canonical application target without introducing another resolver or runtime state owner.
+- Added the contracts-level `SensitiveKeyClassifierInterface`, exposing the existing shared sensitive-key classification implementation alongside the canonical redaction service.
+- Added structured logging enrichment from the current Kernel UnitOfWork context, including correlation identifiers, UnitOfWork identifiers, and validated operational metadata.
+- Expanded unit, contract, integration, CLI, Kernel, and consumer-project regression coverage for logging configuration, module selection, source/compiled container parity, deterministic formatting, shared security services, filesystem behavior, and failure isolation.
+
+### Changed
+
+- Updated `coretsia/framework` to require `coretsia/platform-logging` directly alongside Kernel and CLI, making Logging part of the default framework distribution.
+- Updated canonical `micro`, `express`, `hybrid`, and `enterprise` presets to select `platform.logging` by default while preserving target-local module exclusion and Kernel-owned dependency resolution.
+- Extended Kernel declarative dependency injection to expose the selected application target and resolve the PSR-3 `LoggerInterface` binding through the enabled Logging module.
+- Preserved Foundation `NoopLogger` when Logging is not selected, explicitly excluded, or configured with `logging.driver='null'`.
+- Extended the Redaction provider with a shared sensitive-key classifier service alias, preserving the existing classifier instance used by the default redactor.
+- Updated CLI command completion logging to use the canonical PSR-3 severity methods while retaining existing command output formats, exit codes, and Kernel UnitOfWork ownership.
+- Extended the Skeleton project-root `coretsia` launcher to route explicit dependency synchronization `plan`, `review`, and `apply` operations directly to the existing project adapter before normal CLI host boot.
+- Updated Composer package dependencies, installation catalog, package index, module metadata, architectural dependency rules, and consumer documentation for the new Logging runtime.
+
+### Security
+
+- Enforced mandatory whole-record sensitive-data redaction through the shared `SensitiveDataRedactorInterface`, combined with shared sensitive-key classification and logging-specific sink-field admission.
+- Added strict validation of operational messages, context fields, canonical record shapes, service identities, file destinations, and serialized output sizes before emission.
+- Rejected unsafe structural key paths, unsupported context values, sensitive metadata, symlink destinations, and non-regular file targets without falling back to raw diagnostic output.
+- Isolated runtime record-processing, context access, classification, redaction, formatting, locking, and destination write failures from application execution without recursively logging failures. Invalid configuration and invalid PSR-3 levels remain explicit errors.
+- Preserved explicit limits on file-write atomicity and durability. Partial writes are not retried or rolled back, and retention, archival, and storage quotas remain deployment responsibilities.
+- Maintained separation between structured logging, CLI command output, Kernel runtime state, and producer-owned safe diagnostic data.
+
 ## v0.10.0
 
 ### Added

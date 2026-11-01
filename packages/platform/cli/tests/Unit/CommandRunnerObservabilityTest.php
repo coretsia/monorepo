@@ -47,7 +47,7 @@ final class CommandRunnerObservabilityTest extends TestCase
             ['owner:observe', '--secret=RAW_ARG'],
             'owner:observe',
             [],
-            ['secret' => 'RAW_ARG']
+            ['secret' => 'RAW_ARG'],
         );
         $output = new CommandOutputBuffer();
         $output->text('OUTPUT_SECRET');
@@ -73,7 +73,7 @@ final class CommandRunnerObservabilityTest extends TestCase
 
         self::assertSame(
             [['cli.command', ['operation' => 'owner:observe', 'format' => 'table']]],
-            $tracer->started
+            $tracer->started,
         );
         self::assertCount(1, $tracer->span->updates);
         self::assertSame([
@@ -150,6 +150,7 @@ final class CommandRunnerObservabilityTest extends TestCase
             self::assertSame('failure', $tracer->span->updates[0]['outcome']);
             self::assertSame($expected, $tracer->span->updates[0]['exit_code']);
             self::assertSame(['operation' => 'owner:observe', 'outcome' => 'failure'], $meter->increments[0][2]);
+            self::assertCount(1, $logger->entries);
             self::assertSame('error', $logger->entries[0][0]);
             self::assertSame($expected, $logger->entries[0][2]['exit_code']);
         }
@@ -157,7 +158,7 @@ final class CommandRunnerObservabilityTest extends TestCase
 
     public function testThrowingCommandEmitsFailureMetadataButRetainsOriginalThrowable(): void
     {
-        [$runner, , $tracer, $meter, $logger, , $command] = self::fixture(0);
+        [$runner, $events, $tracer, $meter, $logger, $runtime, $command] = self::fixture(0);
         $original = new \RuntimeException('PRIVATE_PAYLOAD /private/secrets.env');
         $command->failure = $original;
         try {
@@ -173,7 +174,37 @@ final class CommandRunnerObservabilityTest extends TestCase
             self::assertSame('failure', $tracer->span->updates[0]['outcome']);
             self::assertSame(1, $tracer->span->updates[0]['exit_code']);
             self::assertSame(['operation' => 'owner:observe', 'outcome' => 'failure'], $meter->increments[0][2]);
-            self::assertSame(1, $logger->entries[0][2]['exit_code']);
+            self::assertCount(1, $logger->entries);
+            self::assertSame(
+                [
+                    'error',
+                    'cli.command',
+                    [
+                        'operation' => 'owner:observe',
+                        'outcome' => 'failure',
+                        'exit_code' => 1,
+                        'correlation_id' => 'corr-123',
+                        'uow_id' => 'uow-456',
+                    ],
+                ],
+                $logger->entries[0],
+            );
+            self::assertFalse($runtime->inside);
+            self::assertSame(['correlation_id', 'uow_id'], $runtime->contextKeysSeen);
+            self::assertSame(
+                [
+                    'span.start',
+                    'uow.enter',
+                    'command.run',
+                    'uow.cleanup',
+                    'span.attributes',
+                    'span.end',
+                    'meter.increment',
+                    'meter.observe',
+                    'log',
+                ],
+                $events->items,
+            );
             $export = \var_export([
                 $tracer->started,
                 $tracer->span->updates,

@@ -71,6 +71,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0034: CLI Tag-First Command Catalog and Kernel Operations Consumption](./ADR-0034-cli-tag-first-command-catalog.md) — owner: platform/cli — adrVersion: 1 — scope: catalog,cli,commands,discovery,kernel-ops,output,redaction,tags
 - [ADR-0035: CLI Composite Workflows and Deterministic Suggestions](./ADR-0035-cli-composite-workflows.md) — owner: platform/cli — adrVersion: 1 — scope: catalog,cli,composite,output,suggestions,uow,workflows
 - [ADR-0036: Platform errors ErrorHandler and ExceptionMapper registry](./ADR-0036-platform-errors-errorhandler-exception-mapper.md) — owner: platform/errors — adrVersion: 1 — scope: error-handler,errors,exception-mapper,normalization,redaction,registry,runtime
+- [ADR-0037: Platform logging PSR-3 backend and sink safety](./ADR-0037-platform-logging-psr3.md) — owner: platform/logging — adrVersion: 1 — scope: admission,logging,redaction,runtime,serialization
 
 ## Cross-references
 

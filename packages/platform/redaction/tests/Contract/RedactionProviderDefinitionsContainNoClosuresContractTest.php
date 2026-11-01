@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Tests\Contract;
 
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
@@ -55,6 +56,11 @@ final class RedactionProviderDefinitionsContainNoClosuresContractTest extends Te
                     'alias' => SensitiveDataRedactorInterface::class,
                     'kind' => 'alias',
                     'serviceId' => DefaultSensitiveDataRedactor::class,
+                ],
+                [
+                    'alias' => SensitiveKeyClassifierInterface::class,
+                    'kind' => 'alias',
+                    'serviceId' => SensitiveKeyClassifier::class,
                 ],
             ],
             $operations,

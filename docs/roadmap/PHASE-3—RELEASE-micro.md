@@ -1796,36 +1796,113 @@ composer: "coretsia/platform-logging"
 kind: runtime
 module_id: "platform.logging"
 
-goal: "У будь-якому preset LoggerInterface доступний і кожен log record має correlation/uow поля без витоку секретів."
+goal: "Забезпечити реальний PSR-3 logging backend за замовчуванням у всіх canonical presets, починаючи з micro, із підтримкою фіксованого STDERR stream backend і контрольованого daily file backend; зберегти target-local відключення через moduleOverrides.exclude або logging.driver='null', Foundation NoopLogger як fallback, configurable deterministic jsonl/logfmt output, UoW-scoped correlation enrichment, mandatory shared redaction і fail-safe write semantics без дублювання Core capabilities."
 provides:
-- "Psr\\Log\\LoggerInterface завжди resolvable (мінімум NullLogger)"
-- "ContextBagProcessor додає correlation_id/uow_id/uow_type (та safe request context за наявності)"
-- "Deterministic JSON line форматтер зі стабільним порядком полів"
-- "Redaction policy: no secrets/PII (no headers/cookies/body/.env values)"
+- "coretsia/framework installs platform-logging as part of the default framework distribution."
+- "Every canonical preset selects platform.logging by default through its excludable modules list."
+- "Foundation NoopLogger remains available when platform.logging is not selected by the effective ModulePlan, explicitly excluded, or configured with logging.driver='null'."
+- "An enabled preset referencing a physically missing platform.logging module fails closed during canonical module planning; missing required packages are never silently replaced with NoopLogger."
+- "ContextBagProcessor enriches records from canonical ContextAccessorInterface and CorrelationIdProviderInterface without owning ContextStore state."
+- "Configurable deterministic jsonl/logfmt output; jsonl reuses Foundation StableJsonEncoder and both formats emit exactly one LF-terminated record."
+- "LogRecordPolicy enforces logging sink admissibility through its own canonical schema and the shared SensitiveKeyClassifierInterface, and applies mandatory SensitiveDataRedactorInterface redaction; no duplicate generic classifier or redaction engine."
+- "Safe stream writes with deterministic no-throw degradation for internal logging failures."
+- "logging.driver selects exactly stream, file, or null; stream writes only to the fixed php://stderr destination."
+- "The file backend writes append-only daily UTC files using the canonical app target, a validated configured filename stem, and the selected jsonl/logfmt extension."
+- "File emission reuses the same StreamLogger record pipeline, shared redaction, formatter, severity filtering, and byte limits; no second logger or sink admission policy."
+- "Daily file partitioning is automatic and non-configurable; file retention, deletion, archival, and storage quotas remain deployment-owned."
 - "Cutline impact: blocks Phase 3 platform baseline cutline"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-logging-psr3.md"
+adr: "docs/adr/ADR-0037-platform-logging-psr3.md"
 ssot_refs:
 - "docs/ssot/logging-policy.md"
+- "docs/ssot/sensitive-data-redaction.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/context-lifecycle.md"
+- "docs/ssot/config-roots.md"
+- "docs/architecture/DEPENDENCIES.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/modes.md"
+- "docs/ssot/modules-and-manifests.md"
+- "docs/ssot/application-dependency-sync.md"
+- "docs/ssot/context-keys.md"
 ---
-
-- [ ] update `3.20.0 Platform logging` to consume `SensitiveDataRedactorInterface` for log record redaction.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - 1.90.0 — canonical observability ports and safety policy.
+  - 1.200.0 — Foundation declarative DI/container baseline.
+  - 1.275.0 — Foundation json-like normalization and StableJsonEncoder.
+  - 2.25.0 — contracts-level SensitiveDataRedactorInterface and platform.redaction default implementation.
+
+- Repository packaging baseline:
+  - repo-root `LICENSE`, `NOTICE`, and `SECURITY.md` MUST exist before this epic is implemented.
+  - `tools/build/new-package.php` and `tools/build/sync_package_scaffold.php` MUST consume those canonical root files.
+  - package LICENSE, NOTICE, and SECURITY.md MUST be synchronized from repository-owned canonical sources.
+  - missing root legal/security sources are an external repository-baseline blocker.
+  - this epic MUST NOT synthesize root legal/security files or promote arbitrary existing package copies into canonical sources.
+
+- Repository architecture-tooling baseline:
+  - `tools/build/package_index.php`
+  - `tools/build/installation_catalog.php`
+  - `tools/build/deptrac_generate.php`
+  - `tools/build/sync_composer_repositories.php`
+  - `tools/release/sync_workspace_release_line.php`
+  - canonical generators MUST be reused without implementation changes.
 
 - Required deliverables (exact paths):
-  - N/A
+  - `packages/core/foundation/src/Logging/NoopLogger.php`
+  - `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Context/ContextStore.php`
+  - `packages/core/foundation/src/Observability/CorrelationIdProvider.php`
+  - `packages/core/contracts/src/Context/ContextAccessorInterface.php`
+  - `packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+  - `packages/core/contracts/src/Context/ContextKeys.php`
+  - `packages/core/contracts/src/Observability/CorrelationIdProviderInterface.php`
+  - `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
+  - `packages/core/contracts/src/Security/RedactionKind.php`
+  - `packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
+  - `packages/core/contracts/src/Security/RedactionContext.php`
+  - `packages/core/contracts/src/Security/RedactionMode.php`
+  - `packages/platform/redaction/src/Redaction/DefaultSensitiveDataRedactor.php`
+  - `packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
 
 - Required config roots/keys:
-  - `logging.*` — config root used by this package (driver/stream/level/redaction)
+  - `logging.*` — existing package-owned config root.
+  - `logging.driver` — required string enum: `stream|file|null`, default `stream`.
+  - `logging.file` — required configuration map containing exactly path and name.
+  - `logging.file.path` — required string, default ''; an empty value means no configured file directory and is valid only when the file backend is inactive.
+  - `logging.file.name` — required bounded filename stem, default `app`, matching `[a-z][a-z0-9_-]{0,63}`.
+  - `logging.level` — required canonical PSR-3 severity string.
+  - `logging.max_record_bytes` — required integer, range 1024..65536, default 65536.
+  - `logging.service_name` — required bounded string, default `auto`.
+  - `logging.format` — required string enum: `jsonl|logfmt`, default `jsonl`.
+  - format selection changes only the final serialization of an already admitted and redacted canonical record.
+  - both formats preserve the same canonical record fields, safe values, severity filtering, redaction, and complete-record byte limit.
+  - `logging.service_name='auto'` resolves the selected canonical app target through a contracts-level runtime port.
+  - an explicit service_name overrides the emitted service label but never changes the selected app target.
+  - no configurable redaction subtree, classifier, mode, or disable switch.
+  - package/module enablement is not controlled by `logging.*`.
+  - `logging.stream` MUST NOT be a recognized configuration key.
+  - `driver='stream'` uses the non-configurable internal destination `php://stderr`.
+  - `driver='file'` requires a non-empty, validated, absolute local directory in `logging.file.path`.
+  - `driver='null'` selects Foundation NoopLogger.
+  - `logging.file.name` is a bounded filename stem matching `[a-z][a-z0-9_-]{0,63}`, without an extension or path separator.
+  - The configured stem is treated as opaque validated text; date-like substrings and app-target-like substrings are never interpreted, stripped, or deduplicated.
+  - The complete filename is assembled exactly once using the canonical app_target, unchanged configured stem, UTC date, and selected format.
+  - The exact generated filename is `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`.
+  - The app_target prefix is resolved through AppTargetProviderInterface and MUST NOT be derived from service_name or caller context.
+  - The YYYY-MM-DD component is a UTC calendar date; jsonl and logfmt are the only permitted file extensions.
+  - File mode always partitions output by UTC day. There is no rotation-mode configuration key.
+  - File retention, deletion, archival, and total storage quotas remain external deployment responsibilities.
+  - File configuration MUST NOT change admission, mandatory shared redaction, severity filtering, or canonical record serialization.
 
 - Required config roots registry:
   - `logging` MUST already be reserved in `docs/ssot/config-roots.md` with owner `platform/logging`.
@@ -1835,214 +1912,2436 @@ ssot_refs:
   - N/A
 
 - Required contracts / ports:
-  - `Psr\Log\LoggerInterface` — primary port
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — optional enrichment only
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — optional enrichment only
-  - `Coretsia\Contracts\Context\ContextAccessorInterface` — context source (stable API)
-  - `Coretsia\Contracts\Context\ContextKeys` — reserved keys
+  - `Psr\Log\LoggerInterface` — primary public logging port.
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — validated merged runtime configuration access.
+  - `Coretsia\Contracts\Runtime\AppTargetProviderInterface` — read-only canonical selected app target source.
+  - `Coretsia\Contracts\Context\ContextAccessorInterface` — read-only UoW context source.
+  - `Coretsia\Contracts\Context\ContextKeys` — canonical context key vocabulary.
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` — canonical validated correlation-id source.
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` — mandatory shared redaction port.
+  - `Coretsia\Contracts\Security\SensitiveKeyClassifierInterface` — read-only shared sensitive-key classification port.
+  - `Coretsia\Contracts\Security\RedactionKind` — canonical classification result enum; null means unclassified, never safe for emission.
+  - `Coretsia\Contracts\Security\RedactionContext` — immutable redaction boundary context.
+  - `Coretsia\Contracts\Security\RedactionMode` — mandatory Placeholder mode.
+  - `Psr\Clock\ClockInterface` — existing Foundation-provided timestamp source.
 
-- tighten to cemented APIs
-  - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
-  - Missing key handling MUST be non-throwing (log record must still be emitted).
+- Cemented APIs:
+  - `ContextAccessorInterface::has(string $key): bool` MUST be used before optional reads.
+  - `ContextAccessorInterface::get(string $key): mixed` MUST be used without a default argument.
+  - `CorrelationIdProviderInterface::correlationId(): ?string` MUST be reused rather than introducing another correlation-id validator.
+  - missing, malformed, or throwing context reads MUST NOT fail logging.
+  - `SensitiveDataRedactorInterface::redactJsonLike(...)` MUST be called using immutable `RedactionContext('logging.record', RedactionMode::Placeholder)`.
+  - logging MUST NOT import platform.redaction implementation classes or classifiers.
+  - `SensitiveKeyClassifierInterface::classify(string $key): ?RedactionKind` MUST reuse the canonical immutable SensitiveKeyClassifier implementation provided by platform.redaction.
+  - The classifier preserves the existing exact 98-alias vocabulary and ASCII-only canonicalization semantics.
+  - Classification applies to complete structural keys. A consumer inspecting canonical dotted key paths MUST additionally classify the relevant path segments.
+  - A null classification result MUST NOT be interpreted as proof that a key or value is safe for emission.
+  - Sensitive-key classification MUST NOT replace destination-specific schema admission, semantic-key restrictions, path constraints, or mandatory shared redaction.
+  - Classification failures MUST fail closed without emitting raw input, diagnostic details, or an unclassified fallback value.
+  - No second alias registry, generic classifier, or package-local copy of the shared sensitive-key vocabulary may be introduced.
+  - redactor non-match MUST NOT authorize raw sink emission.
 
-- Deterministic JSON formatter (MUST)
-  - `JsonLineFormatter` MUST serialize via Foundation stable encoder:
-    - `Coretsia\Foundation\Serialization\StableJsonEncoder`
-  - Map keys MUST be recursively sorted by `strcmp` (byte-order), lists preserve order.
-  - Floats MUST NOT be emitted:
-    - durations/timestamps MUST be ints or strings (e.g. `duration_ms: int`, `ts_utc: string` ISO-8601).
+- Deterministic record formatting (MUST):
+  - `logging.format` selects exactly one supported formatter: `jsonl` or `logfmt`.
+  - `jsonl` remains the default and preserves the existing canonical JSON-lines format.
+  - `JsonLineFormatter` MUST delegate JSON serialization and final-LF framing to `StableJsonEncoder::encodeStableMap()`.
+  - Foundation owns recursive map sorting, list ordering, and json-like validation for JSON serialization.
+  - `LogfmtLineFormatter` MUST encode the same fully admitted, redacted, canonical record map as deterministic single-line key=value pairs.
+  - logfmt root fields MUST appear in one fixed canonical order.
+  - logfmt string values MUST be double-quoted with deterministic escaping of backslashes, quotes, and control characters.
+  - logfmt null values MUST use the unquoted `null` token; strings containing `null` remain quoted.
+  - logfmt context MUST be represented as null or one quoted compact JSON value produced through Foundation StableJsonEncoder.
+  - the Foundation-owned final LF MUST be removed only when embedding a JSON context value inside a logfmt field.
+  - LogfmtLineFormatter owns exactly one final LF for its own output and MUST NOT append an additional LF to embedded JSON.
+  - logging MUST NOT introduce another recursive JSON sorter, json-like normalizer, JSON encoder, generic redaction engine, or canonical record schema.
+  - the jsonl serialized root MUST be a JSON object, including for an empty map.
+  - floats, resources, Throwable instances, Stringable objects, and arbitrary PHP objects MUST NOT reach either formatter.
+  - timestamps MUST be UTC ISO-8601 strings or null when the clock fails.
+  - durations MUST be non-negative integer milliseconds.
+  - both formats MUST produce exactly one physical LF-terminated record for every complete successful emission.
+  - both formats MUST escape or reject embedded control characters that could create additional physical records.
+  - deterministic serialization means identical accepted record values and the same selected format produce identical bytes.
+  - runtime timestamps are captured externally and are not claimed to be invocation-independent.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
-Depends on:
+Direct layered source dependencies:
 - `core/contracts`
 - `core/foundation`
 
-Forbidden:
+Runtime-only Composer/module dependencies:
+- `core/kernel`
+  - `extra.coretsia.requires` MUST include `core.kernel`.
+  - Composer MUST require `coretsia/core-kernel`.
+  - Kernel provides the selected app target through AppTargetProviderInterface.
+  - logging MUST NOT import Coretsia\Kernel implementation classes.
+  - the dependency is runtime-only and does not grant a layered source dependency.
+
+- `platform/redaction`
+  - `extra.coretsia.requires` MUST include `platform.redaction`.
+  - Composer MUST require `coretsia/platform-redaction`.
+  - dependency is for port availability and module planning only.
+  - no production PHP source import from `Coretsia\Platform\Redaction\**` is allowed.
+  - The existing SensitiveKeyClassifier implementation MUST implement the contracts-level SensitiveKeyClassifierInterface.
+  - RedactionServiceProvider MUST expose SensitiveKeyClassifierInterface as a declarative alias to the existing shared SensitiveKeyClassifier service.
+  - The alias MUST resolve to the identical classifier instance already injected into DefaultSensitiveDataRedactor.
+  - No additional classifier instance, module, runtime dependency, or source-layer permission is introduced.
+
+External Composer dependencies:
+- `psr/log`
+- `psr/clock`
+
+Forbidden direct source dependencies:
+- `core/kernel`
 - `platform/http`
 - `platform/errors`
+- `platform/cli`
+- `platform/worker`
+- concrete `platform/redaction` implementation classes
+- other `platform/*` packages
 - `integrations/*`
+- `enterprise/*`
+- `devtools/*`
+- vendor logging, tracing, metrics, and HTTP SDK implementations
 
-#### Uses ports (API surface, NOT deps) (optional)
+`docs/architecture/DEPENDENCIES.md` MUST declare only the direct layered source dependencies.
+
+#### Uses ports (API surface, NOT concrete implementation dependencies) (MUST)
 
 - PSR:
   - `Psr\Log\LoggerInterface`
+  - `Psr\Clock\ClockInterface`
+
 - Contracts:
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
   - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
-- Foundation stable APIs:
   - `Coretsia\Contracts\Context\ContextKeys`
+  - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface`
+  - `Coretsia\Contracts\Runtime\AppTargetProviderInterface`
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - `Coretsia\Contracts\Security\SensitiveKeyClassifierInterface`
+  - `Coretsia\Contracts\Security\RedactionKind`
+  - `Coretsia\Contracts\Security\RedactionContext`
+  - `Coretsia\Contracts\Security\RedactionMode`
+
+- Foundation:
+  - `Coretsia\Foundation\Logging\NoopLogger`
+  - `Coretsia\Foundation\Serialization\StableJsonEncoder`
+  - declarative container-definition APIs
+
+`platform.logging` MUST NOT introduce another PSR-3 logging interface, context store, correlation-id generator, sensitive-value classifier, json-like normalizer, stable JSON encoder, or reset orchestrator.
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A (used implicitly by commands elsewhere)
 - HTTP:
-  - used by owner middleware `platform/http`:
-    - `\Coretsia\Http\Middleware\AccessLogMiddleware::class` (system_pre ~910)
+  - `platform/http` MAY consume the PSR-3 LoggerInterface binding.
+  - Canonical future owner:
+    - `\Coretsia\Platform\Http\Middleware\AccessLogMiddleware::class`
+    - slot: `http.middleware.system_pre`
+    - priority: `910`
+  - middleware ownership, tags, request classification, and safe access-log fields remain platform/http responsibilities.
+  - this epic MUST NOT introduce, register, instantiate, or test HTTP middleware implementations.
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
   - N/A
+- Runtime module composition:
+  - `coretsia/framework` MUST require `coretsia/platform-logging` as a baseline Composer dependency.
+  - every canonical preset (`micro`, `express`, `hybrid`, `enterprise`) MUST select `platform.logging` by default.
+  - `platform.logging` MUST be declared in each preset's `modules` list, never in `required`.
+  - the module MUST remain excludable through target-local `moduleOverrides.exclude`.
+  - `moduleOverrides.exclude` affects runtime selection, not Composer package installation.
+  - a physically installed package MUST NOT auto-enable itself outside the selected ModulePlan.
+  - platform.logging module metadata MUST require `core.foundation`, `core.kernel`, and `platform.redaction`.
+  - Foundation provides LoggerInterface through NoopLogger independently of platform.logging.
+  - when platform.logging is selected and logging.driver='stream', LoggerInterface resolves to StreamLogger.
+  - when platform.logging is selected and logging.driver='file', LoggerInterface resolves to the same StreamLogger implementation using the validated daily file destination.
+  - the file backend MUST NOT introduce another LoggerInterface binding, runtime module, service provider, or logger implementation.
+  - when platform.logging is not selected or explicitly excluded from the effective ModulePlan, LoggerInterface resolves to Foundation NoopLogger.
+  - when platform.logging is selected but its installed runtime descriptor is missing, Kernel module planning MUST fail with the existing ModuleRequiredMissingException semantics.
+  - when platform.redaction is excluded while required by an enabled module, Kernel MUST preserve its existing dependency-conflict failure semantics.
+  - no missing selected runtime module may silently degrade to NoopLogger.
+  - when platform.logging is selected and logging.driver='null', LoggerInterface resolves to Foundation NoopLogger.
+  - excluding platform.logging MUST NOT exclude platform.redaction when another enabled module requires redaction.
+  - excluding a non-excludable required module or an active transitive dependency MUST retain existing Kernel fail-closed semantics.
+  - provider-plan ordering and later-binding precedence MUST be reused from Foundation/Kernel.
+  - no new module-selection, Composer-installation, or runtime enablement mechanism is introduced.
 
 ### Deliverables (MUST)
 
+Every CREATE and MODIFY deliverable MUST define or explicitly inherit the following implementation responsibilities without introducing duplicate owners:
+
+- Exact file path and implementation status.
+- Package/layer ownership and allowed compile-time dependencies.
+- Public API, constructor dependencies, configuration reads, and DI references, when applicable.
+- Context reads/writes and UoW ownership; N/A when not applicable.
+- Spans and metrics; N/A with rationale where instrumentation is intentionally forbidden.
+- Log/output behavior and ownership; N/A where the file does not emit records.
+- Reset discipline and process-lifetime versus UoW-local state.
+- Errors, warning suppression, failure isolation, and primary-exception precedence.
+- Security, shared redaction, sensitive-key classification, and fail-closed behavior.
+- Source/compiled parity, deterministic behavior, and explicit module selection where applicable.
+- Verification by unit, contract, or integration tests corresponding to the file's responsibilities.
+
+A deliverable MUST NOT introduce a new service, registry, validator, normalizer, serializer, lock abstraction, or state owner when the required behavior is already available through an existing Coretsia contract or a compatible Foundation implementation.
+
+Cross-cutting requirements are inherited by all applicable deliverables and MUST NOT be reimplemented independently in multiple packages.
+
 #### Creates
 
-- [ ] `packages/platform/logging/src/Module/LoggingModule.php` — module entry (runtime)
-- [ ] `packages/platform/logging/src/Provider/LoggingServiceProvider.php` — DI wiring
-- [ ] `packages/platform/logging/src/Provider/LoggingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/logging/config/logging.php` — config subtree (no repeated root)
-- [ ] `packages/platform/logging/config/rules.php` — config shape rules
-- [ ] `packages/platform/logging/README.md` — docs (Observability / Errors / Security-Redaction)
+Shared runtime app-target contract:
 
-- [ ] `packages/platform/logging/src/LoggerFactory.php` — builds PSR-3 logger; default stream → `php://stderr`
-- [ ] `packages/platform/logging/src/Processor/ContextBagProcessor.php` — appends safe context keys
-  - [ ] MUST NOT append raw `ContextKeys::PATH`, `HOST`, or `USER_AGENT` values directly
-  - [ ] if request-context enrichment is enabled, those values MUST be redacted/normalized
-    (for example `hash/len`, or `path_template` when already available from context)
-  - [ ] default baseline enrichment MUST remain low-risk:
-    - [ ] `correlation_id`
-    - [ ] `uow_id`
-    - [ ] `uow_type`
-- [ ] `packages/platform/logging/src/Redaction/LogRedactor.php` — blocks secrets/PII in metadata
-- [ ] `packages/platform/logging/src/Formatter/JsonLineFormatter.php` — deterministic field order
+- [x] `packages/core/contracts/src/Runtime/AppTargetProviderInterface.php`
+  - [x] read-only contract exposing the already selected canonical app target.
+  - [x] exact method: `app(): string`.
+  - [x] accepted runtime values are web, api, console, and worker.
+  - [x] the contract does not select, discover, override, or cache an app target.
+  - [x] no dependency on Kernel implementation classes.
+  - [x] no new app-target resolver, registry, or runtime context store.
 
-- [ ] `packages/platform/logging/src/Exception/LoggingWriteFailedException.php` — (`CORETSIA_LOG_WRITE_FAILED`)
+- [x] `packages/core/contracts/src/Security/SensitiveKeyClassifierInterface.php`
+  - [x] read-only contracts-level sensitive-key classification port.
+  - [x] exact method: `classify(string $key): ?RedactionKind`.
+  - [x] reuse the existing Coretsia\Contracts\Security\RedactionKind enum.
+  - [x] a null result means unclassified, not safe for emission.
+  - [x] preserves the existing platform.redaction canonicalization and classification semantics.
+  - [x] does not own the alias vocabulary or implement key classification.
+  - [x] no constants containing sensitive-key aliases.
+  - [x] no dependency on platform.redaction implementation classes.
+  - [x] no configuration, mutable state, service locator, or runtime policy registry.
+  - [x] does not replace SensitiveDataRedactorInterface or destination-owned sink admission.
 
-- [ ] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php` — contract proof (no secrets)
-- [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
-- [ ] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php` — deterministic order proof
-- [ ] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php` — context proof
-- [ ] `packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php` — disable behavior proof
+Package scaffold:
+Uses `composer package:new -- --layer=platform --slug=logging --kind=runtime`.
 
-- [ ] `docs/ssot/logging-policy.md` — redaction rules + allowed fields + examples (AccessLog-friendly)
+- [x] `packages/platform/logging/LICENSE`
+- [x] `packages/platform/logging/NOTICE`
+- [x] `packages/platform/logging/SECURITY.md`
+
+- [x] `packages/platform/logging/composer.json`
+  - [x] `name = coretsia/platform-logging`
+  - [x] `type = library`
+  - [x] `license = Apache-2.0`
+  - [x] `php: ^8.4`
+  - [x] `coretsia/core-contracts: ^0.10.0`
+  - [x] `coretsia/core-foundation: ^0.10.0`
+  - [x] `coretsia/core-kernel: ^0.10.0`
+  - [x] `coretsia/platform-redaction: ^0.10.0`
+  - [x] `psr/log: ^3.0`
+  - [x] `psr/clock: ^1.0`
+  - [x] PSR-4: `Coretsia\Platform\Logging\` → `src/`
+  - [x] autoload-dev: `Coretsia\Platform\Logging\Tests\` → `tests/`
+  - [x] `extra.coretsia.kind = runtime`
+  - [x] `extra.coretsia.moduleId = platform.logging`
+  - [x] `extra.coretsia.moduleClass = Coretsia\Platform\Logging\Module\LoggingModule`
+  - [x] `extra.coretsia.providers = [Coretsia\Platform\Logging\Provider\LoggingServiceProvider]`
+  - [x] `extra.coretsia.requires = [core.foundation, core.kernel, platform.redaction]`
+  - [x] `extra.coretsia.conflicts = []`
+  - [x] `extra.coretsia.defaultsConfigPath = config/logging.php`
+  - [x] no direct source dependency on platform.redaction implementation classes
+  - [x] no vendor logging SDK is required
+
+- [x] `packages/platform/logging/src/Module/LoggingModule.php`
+  - [x] final runtime module metadata class
+  - [x] typed constants:
+    - [x] `MODULE_ID = 'platform.logging'`
+    - [x] `PACKAGE_ID = 'platform/logging'`
+    - [x] `COMPOSER_PACKAGE = 'coretsia/platform-logging'`
+    - [x] `KIND = 'runtime'`
+    - [x] `CONFIG_ROOT = 'logging'`
+  - [x] exact instance methods:
+    - [x] `id(): string`
+    - [x] `packageId(): string`
+    - [x] `composerPackage(): string`
+    - [x] `kind(): string`
+    - [x] `configRoot(): string`
+    - [x] `providers(): array`
+  - [x] `providers()` returns only LoggingServiceProvider::class
+  - [x] no config loading, service resolution, runtime initialization, or stream opening
+
+- [x] `packages/platform/logging/src/Provider/LoggingServiceProvider.php`
+  - [x] final class
+  - [x] implements ServiceProviderInterface
+  - [x] implements ContainerDefinitionProviderInterface
+  - [x] register() calls assertDefinitionProviderRegistrationAllowed()
+  - [x] register() delegates through registerDefinitionProvider($this)
+  - [x] define() is the single canonical source of DI definitions
+  - [x] uses the already compiled configuration model without embedding stream URI values into definition parameters
+  - [x] MUST NOT declare a `logging.config` container parameter containing `php://stderr`
+  - [x] MUST NOT place stream destinations, filesystem paths, stream resources, or runtime configuration objects into declarative definition values
+  - [x] requireService() declares:
+    - [x] AppTargetProviderInterface
+    - [x] ConfigRepositoryInterface
+    - [x] ContextAccessorInterface
+    - [x] CorrelationIdProviderInterface
+    - [x] SensitiveDataRedactorInterface
+    - [x] SensitiveKeyClassifierInterface
+    - [x] ClockInterface
+  - [x] binds Psr\Log\LoggerInterface through classMethodFactory
+  - [x] factoryClass = LoggingServiceFactory::class
+  - [x] method = createLogger
+  - [x] LoggingServiceFactory::createLogger() MUST exist as a public static method before the classMethodFactory definition is constructed.
+  - [x] source and compiled definition tests MUST verify that the declared factory method is reflectively valid.
+  - [x] factory arguments use only ContainerValueReference::service()
+  - [x] exact factory references, in positional order matching LoggingServiceFactory::createLogger():
+    - [x] ConfigRepositoryInterface
+    - [x] ContextAccessorInterface
+    - [x] CorrelationIdProviderInterface
+    - [x] SensitiveDataRedactorInterface
+    - [x] SensitiveKeyClassifierInterface
+    - [x] ClockInterface
+    - [x] AppTargetProviderInterface
+  - [x] factory argument order MUST exactly match the declared createLogger() parameter order in source and compiled definitions.
+  - [x] provider definitions contain no logging.config parameter
+  - [x] no closures, open streams, runtime objects, or resolved services in definitions
+  - [x] no provider registration-time I/O or service resolution
+  - [x] AppTargetProviderInterface is supplied through the Kernel-owned declarative classMethodFactory using the existing ModulePlan runtime seed.
+  - [x] selected app identity is resolved only when constructing the runtime logger.
+  - [x] no Kernel implementation class or app-target literal is embedded in logging provider definitions.
+  - [x] no new DI tags
+  - [x] later LoggerInterface binding overrides Foundation NoopLogger only when platform.logging is enabled
+  - [x] no override occurs when platform.logging is absent from the selected ModulePlan
+  - [x] no direct platform.redaction implementation references
+  - [x] SensitiveKeyClassifierInterface is supplied by the existing platform.redaction provider alias.
+  - [x] both sensitive-data ports are required declarative service references.
+  - [x] no concrete SensitiveKeyClassifier implementation is imported or constructed.
+  - [x] no classifier policy, alias vocabulary, or classification result is embedded in declarative definition values.
+  - [x] source and compiled definition streams remain deterministic and equivalent
+
+- [x] `packages/platform/logging/src/Provider/LoggingServiceFactory.php`
+  - [x] final stateless wiring helper
+  - [x] one public static createLogger() factory entrypoint
+  - [x] exact parameters, in order:
+    - [x] ConfigRepositoryInterface $config
+    - [x] ContextAccessorInterface $context
+    - [x] CorrelationIdProviderInterface $correlations
+    - [x] SensitiveDataRedactorInterface $redactor
+    - [x] SensitiveKeyClassifierInterface $keyClassifier
+    - [x] ClockInterface $clock
+    - [x] AppTargetProviderInterface $appTarget
+  - [x] return type: Psr\Log\LoggerInterface
+  - [x] reads only the validated merged keys:
+    - [x] logging.driver
+    - [x] logging.file.path
+    - [x] logging.file.name
+    - [x] logging.level
+    - [x] logging.max_record_bytes
+    - [x] logging.service_name
+    - [x] logging.format
+  - [x] does not read or recognize logging.stream.
+  - [x] uses ConfigRepositoryInterface::has() and get() without importing Kernel configuration implementations
+  - [x] captures validated scalar settings once during logger construction
+  - [x] does not read mutable configuration on every log record
+  - [x] independently enforces strict types and enum values for direct factory invocation outside normal Kernel configuration validation
+  - [x] validate the five shared scalar configuration keys and the required file.path/file.name structure before branching on the selected driver.
+  - [x] logging.driver='null' MUST NOT bypass validation of level, max_record_bytes, service_name, format, file.path type, or file.name grammar.
+  - [x] an empty file.path is valid for stream and null but invalid for file.
+  - [x] validate file.path destination semantics only when driver='file'.
+  - [x] a direct factory invocation with missing, malformed, or unsupported shared configuration or malformed file configuration shape fails deterministically even when the requested driver is null.
+  - [x] only a fully validated configuration with driver='null' returns the existing Foundation NoopLogger.
+  - [x] configuration validation occurs before any destination initialization.
+  - [x] invalid file.path type or file.name grammar is a deterministic configuration failure for every driver.
+  - [x] when driver='file', malformed file.path syntax or unsupported destination semantics are deterministic configuration failures; a syntactically valid but unavailable directory is an emission-time I/O failure.
+  - [x] a syntactically valid but currently missing, unavailable, or unwritable file directory is an I/O availability failure.
+  - [x] file-mode I/O availability failure MUST NOT replace the selected driver with Foundation NoopLogger.
+  - [x] StreamLogger remains the configured file-mode LoggerInterface implementation and discards affected emissions when the destination is unavailable.
+  - [x] a later emission MAY succeed if the same validated directory becomes available without changing logger configuration.
+  - [x] no mutable permanently-disabled flag, retry queue, or failure registry is introduced.
+  - [x] independently validates max_record_bytes as an integer in the range 1024..65536.
+  - [x] independently validates format against the exact supported enum ['jsonl', 'logfmt'].
+  - [x] independently validates service_name as `auto` or a bounded ASCII service token matching `[a-z][a-z0-9_-]{0,63}`.
+  - [x] the service_name grammar is identical to the existing Kernel ConfigValidator reset-group-id value grammar.
+  - [x] invalid service_name values fail canonical configuration validation before logger construction; direct factory invocation enforces the same invariant independently.
+  - [x] service_name='auto' uses AppTargetProviderInterface::app() as the effective service name.
+  - [x] explicit service_name uses the validated configured token without changing the canonical selected app target.
+  - [x] AppTargetProviderInterface::app() must resolve to one of web, api, console, worker.
+  - [x] captures effective service_name, canonical app_target, format, and max_record_bytes once during logger construction.
+  - [x] malformed app-target or logging configuration fails deterministically without silently selecting NoopLogger.
+  - [x] no app-target inference from filesystem paths, environment variables, CLI arguments, event names, or UoW context.
+  - [x] format=jsonl selects JsonLineFormatter.
+  - [x] format=logfmt selects LogfmtLineFormatter.
+  - [x] selects the formatter once during logger construction.
+  - [x] both formatters receive the same admitted and redacted canonical record schema.
+  - [x] no format-specific admission, enrichment, redaction, or severity filtering is introduced.
+  - [x] no runtime formatter registry, dynamic formatter discovery, or alternate JSON encoder is introduced.
+  - [x] malformed/missing configuration MUST fail deterministically through the existing configuration/bootstrap boundary
+  - [x] malformed configuration MUST NOT silently select NoopLogger
+  - [x] driver `null` string → Foundation NoopLogger without opening any destination.
+  - [x] driver `stream` → construct StreamLogger with the fixed internal php://stderr destination.
+  - [x] driver `file` → construct the same StreamLogger with a validated daily file destination policy.
+  - [x] php://stderr remains a non-configurable internal constant.
+  - [x] stream initialization failure → Foundation NoopLogger.
+  - [x] file destination availability or write failure → discard the affected emission without exposing diagnostics or mutating the configured driver.
+  - [x] no silent conversion of malformed configuration into Foundation NoopLogger.
+  - [x] catches destination initialization and I/O errors or PHP warnings without exposing raw diagnostics.
+  - [x] no arbitrary PHP stream wrapper, remote destination, or user-controlled stream URI is accepted.
+  - [x] constructs ContextBagProcessor, LogRecordPolicy, exactly one selected formatter, and StreamLogger for either active driver.
+  - [x] the same LogRecordPolicy and mandatory injected redactor/classifier ports apply to stream and file.
+  - [x] no FileLogger, second writer pipeline, second formatter, or second logging-specific redaction policy.
+  - [x] File destination validation:
+    - [x] file.path is an absolute path to a local filesystem directory, never a filename or stream URI.
+    - [x] file.path is a string of 1..1024 bytes when driver='file'.
+    - [x] file.path MUST reject NUL, ASCII control characters, traversal components, PHP stream wrappers, remote URI schemes, and unsupported filesystem path forms.
+    - [x] POSIX destinations MUST use absolute paths beginning with `/`.
+    - [x] Windows destinations MAY use canonical drive-rooted local absolute paths; drive-relative paths, UNC shares, device namespaces, and remote destinations MUST be rejected.
+    - [x] Windows drive-letter syntax MUST NOT be mistaken for a PHP stream scheme.
+    - [x] the configured path is normalized and checked according to the current filesystem platform without importing Kernel implementation classes.
+    - [x] factory construction validates the file.path type, absolute local path syntax, length, and forbidden components without requiring the directory to exist.
+    - [x] factory construction MUST NOT create, open, canonicalize, or require filesystem availability of the configured file directory.
+    - [x] the validated configured directory string is captured once during logger construction.
+    - [x] before every eligible file emission, the directory MUST resolve to an existing canonical local directory.
+    - [x] directory resolution, availability, and write-permission failures at emission time are I/O failures, not configuration failures.
+    - [x] logging MUST NOT automatically create directories or silently select another destination.
+    - [x] later eligible emissions MAY succeed when the same configured directory becomes available.
+    - [x] per-emission directory resolution MUST NOT modify logging configuration, app_target, service_name, or canonical record fields.
+    - [x] the configured directory and its contents MUST be controlled by the trusted deployment administrator.
+    - [x] detectable symlink destinations MUST be rejected before opening a generated log file.
+    - [x] an opened destination handle MUST be checked as a regular file before any write attempt.
+    - [x] the implementation MUST NOT claim race-free symlink protection from PHP-level is_link(), realpath(), or fstat() checks alone.
+    - [x] concurrent adversarial modification of the log directory is outside the supported security model and MUST be explicitly documented.
+    - [x] file.name is validated through the existing bounded reset-group-id grammar.
+    - [x] file.name MUST satisfy `[a-z][a-z0-9_-]{0,63}` and is treated only as a filename stem.
+    - [x] file.name MUST NOT contain a dot, extension, directory separator, or traversal component.
+    - [x] the factory MUST NOT infer, strip, normalize, or deduplicate application-target or date-like substrings in file.name.
+    - [x] the canonical app_target, configured filename stem, UTC date, and format extension are assembled exactly once in the specified order.
+    - [x] the selected canonical app_target is the only filename-prefix source.
+    - [x] the selected format is the only filename-extension source.
+    - [x] the generated filename grammar is exactly `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`.
+    - [x] file path validation MUST NOT import Kernel implementation classes or introduce another configuration-validator engine.
+    - [x] the existing Kernel ConfigValidator validates the declarative shape and supported scalar types; the factory enforces driver-dependent filesystem semantics.
+    - [x] an invalid configuration fails deterministically before a logger is returned.
+    - [x] filesystem permission and availability failures do not expose paths, PHP warnings, or raw Throwable details.
+    - [x] neither the configured directory nor the generated filename is embedded in declarative DI parameters.
+    - [x] file configuration is captured once during logger construction; the output date alone changes at record-emission time.
+  - [x] uses the mandatory injected SensitiveDataRedactorInterface
+  - [x] uses the mandatory injected SensitiveKeyClassifierInterface for destination-specific structural-key admission.
+  - [x] passes both injected ports to LogRecordPolicy without constructing another classifier or redactor.
+  - [x] the classifier port resolves through the existing platform.redaction module dependency.
+  - [x] classification is not inferred from logging configuration, environment variables, or producer identity.
+  - [x] MUST NOT instantiate DefaultSensitiveDataRedactor, SensitiveKeyClassifier, or any package-internal redaction classifier.
+  - [x] MUST NOT import Coretsia\Platform\Redaction implementation classes.
+  - [x] MUST NOT instantiate another NoopLogger class
+  - [x] no dynamic DI lookups or service locator
+  - [x] no mutable caches, record buffers, static mutable properties, UoW snapshots, or mutable runtime-state snapshots.
+  - [x] immutable validated configuration values and canonical service identity MAY be retained for the logger lifetime as explicitly required by this epic.
+  - [x] no output or self-reporting on initialization failure
+
+- [x] `packages/platform/logging/src/Logger/StreamLogger.php`
+  - [x] final implementation of Psr\Log\LoggerInterface
+  - [x] implements every PSR-3 severity method and log()
+  - [x] accepts the canonical PSR-3 message and context input shapes
+  - [x] delegates message/context admissibility to LogRecordPolicy
+  - [x] delegates UoW enrichment to ContextBagProcessor
+  - [x] delegates serialization to the factory-selected JsonLineFormatter or LogfmtLineFormatter.
+  - [x] uses the same record admission, enrichment, redaction, severity filtering, and write pipeline for both formats.
+  - [x] does not inspect the format on every log call or introduce format-specific logging branches outside serialization.
+  - [x] uses the injected ClockInterface for timestamp capture
+  - [x] enforces configured minimum severity
+  - [x] uses the configured max_record_bytes as the effective per-record emission limit.
+  - [x] retains the non-configurable MAX_RECORD_BYTES = 65536 hard upper bound.
+  - [x] uses the factory-resolved service_name and app_target as immutable logger-owned record metadata.
+  - [x] service_name and app_target are independent of the current UoW and remain available outside UoW scope.
+  - [x] caller context cannot override canonical service_name or app_target fields.
+  - [x] service identity is not inferred from event names or producer-specific context.
+  - [x] exact record processing order:
+    - [x] validate PSR-3 level
+    - [x] apply configured minimum severity
+    - [x] perform initial message/context sink admission
+    - [x] enrich with current safe UoW context
+    - [x] capture and normalize UTC timestamp through ClockInterface; use null on clock failure
+    - [x] assemble the complete canonical record, including trusted level, ts_utc, service_name, and app_target
+    - [x] invoke mandatory shared redaction on the complete assembled record
+    - [x] validate the complete post-redaction record shape and permitted fields
+    - [x] serialize through the selected formatter
+    - [x] select the permitted STDERR or UTC-daily-file destination for the complete serialized record
+    - [x] attempt exactly one bounded write to the selected destination
+  - [x] initial sink admission uses the shared classifier port through LogRecordPolicy for admitted structural key-path fields.
+  - [x] initial classifier failure aborts the complete current record before shared redaction, serialization, or stream I/O.
+  - [x] post-redaction classifier failure aborts the current record before serialization or stream I/O, without repeating the already completed shared redaction operation.
+  - [x] both classifier failure phases are isolated through the existing outer no-throw logging boundary.
+  - [x] the outer logging boundary catches internal classifier failures without exposing them to the business caller.
+  - [x] classifier failures are never converted to empty-context success or a fallback log record.
+  - [x] no second classification attempt, recursive logging, alternate sink, or raw diagnostic output is permitted.
+  - [x] enforce the complete instance-bound key-path admission policy after shared redaction.
+  - [x] never rely on structural schema validation alone when sensitive-key classification is required.
+  - [x] no canonical root field is added, replaced, or reconstructed after post-redaction validation.
+  - [x] invalid PSR-3 level is rejected before severity filtering
+  - [x] filtered records perform no context access, redaction, clock read, formatting, or I/O
+  - [x] no record may bypass the redaction and post-redaction admissibility stages
+  - [x] each successfully written complete record contains exactly one frame in the selected format.
+  - [x] severity ordering: debug, info, notice, warning, error, critical, alert, emergency
+  - [x] never interpolates raw context values into messages
+  - [x] never evaluates arbitrary Stringable objects for diagnostic output
+  - [x] unsupported or unsafe message content becomes a fixed safe event token
+  - [x] malformed or unsafe context branches are omitted
+  - [x] jsonl records use one deterministic JSON object per line.
+  - [x] logfmt records use one deterministic sequence of canonical key=value pairs per line.
+  - [x] file mode uses the same immutable configured service identity, canonical app_target, selected formatter, and effective byte limit.
+  - [x] filename generation never reads caller context, UoW state, or service_name overrides.
+  - [x] file names follow `{app_target}-{file.name}-{YYYY-MM-DD}.{format}` exactly.
+  - [x] the filename date is derived from the final post-redaction validated canonical ts_utc when it is non-null.
+  - [x] the filename date MUST NOT be derived from caller context, service_name, or a separately generated log-record timestamp.
+  - [x] when the final canonical ts_utc is null, file partitioning uses one invocation-local system UTC date obtained through gmdate('Y-m-d').
+  - [x] the system UTC fallback is used only for filename partitioning; it MUST NOT populate or replace canonical ts_utc.
+  - [x] fallback date resolution MUST NOT invoke shared redaction again, reread UoW context, or modify the canonical record.
+  - [x] failure to obtain a valid UTC filename date discards the current file emission without fallback to a different destination.
+  - [x] the UTC date is resolved for every admitted file emission, never cached permanently at logger construction.
+  - [x] a new dated file is used automatically after the UTC day changes.
+  - [x] file emission resolves and validates the configured local directory before constructing the daily destination pathname.
+  - [x] missing, inaccessible, or non-directory destinations discard the current emission without raw diagnostics or fallback.
+  - [x] the generated daily basename is appended only to the resolved permitted directory.
+  - [x] file emission never changes the configured directory or filename stem.
+  - [x] file emission opens the selected day's file in append-binary mode and closes it after the write attempt.
+  - [x] directory and destination checks are repeated for each eligible emission because filesystem availability may change after logger construction.
+  - [x] all filesystem checks and I/O occur only after successful severity filtering, admission, mandatory redaction, formatting, and record-byte validation.
+  - [x] file mode does not retain an obsolete process-lifetime file handle across UTC day changes.
+  - [x] file emission does not rename, truncate, delete, archive, compress, or rotate existing files.
+  - [x] an existing generated destination MUST be a regular local file, not a symlink, directory, device, pipe, or socket.
+  - [x] deployment MUST prevent untrusted modification of the log directory and destination files.
+  - [x] file writes use a non-blocking exclusive flock() for each complete record.
+  - [x] flock() applies to the actual opened daily log-file handle, not to an independently derived lock-anchor file.
+  - [x] Foundation ScopedFileLock MUST NOT be invoked for daily log records because its directory-creation, separate lock-anchor, and permission-management semantics do not match logging destination ownership.
+  - [x] the logger MUST NOT introduce another reusable filesystem lock abstraction or duplicate Foundation ScopedFileLock.
+  - [x] destination locking remains a minimal logging-owned I/O operation.
+  - [x] failure to acquire the lock discards the current record without waiting, retrying, or emitting diagnostics.
+  - [x] one fully serialized record is submitted through exactly one fwrite() attempt while the lock is held.
+  - [x] the lock is released and the file handle is closed on every exit path.
+  - [x] failed or short writes are failed emissions without raw fallback or a second write.
+  - [x] no guarantee of durable fsync, atomic operation across unsupported filesystems, or recovery from partial writes is claimed.
+  - [x] no file retention, automatic deletion, archival, total-file-size limit, or retention configuration is introduced.
+  - [x] stream and file writes are attempted without caller-visible internal logging exceptions.
+  - [x] PHP stream, filesystem, and locking warnings MUST NOT escape into diagnostics or response output.
+  - [x] one fully serialized bounded record is submitted through a single write attempt to the selected destination.
+  - [x] partial/short writes are treated as failed emissions
+  - [x] partial writes MUST NOT trigger a second raw fallback write
+  - [x] no guarantee of atomic multi-process writes or complete framing after an underlying partial write is claimed
+  - [x] failed emissions remain no-throw and do not recursively report themselves
+  - [x] internal write failure does not permanently disable the logger through mutable failure state
+  - [x] destination open, lock, write, unlock, and close warnings are suppressed and isolated without disclosure.
+  - [x] MAX_RECORD_BYTES = 65536 is the non-configurable hard upper bound.
+  - [x] the effective per-record byte limit is the validated logging.max_record_bytes value.
+  - [x] the effective limit MUST NOT exceed MAX_RECORD_BYTES.
+  - [x] the limit applies to the complete serialized UTF-8 record in either format, including the final LF.
+  - [x] byte-limit enforcement occurs after the selected formatter produces the complete record.
+  - [x] the final serialized byte length is measured through strlen().
+  - [x] records larger than the effective limit are discarded before stream I/O.
+  - [x] records of exactly the effective limit are accepted.
+  - [x] no truncation of serialized JSON, message, context, or final LF is allowed.
+  - [x] no alternate output channel or fallback write is attempted for oversized records.
+  - [x] no recursive self-logging or self-reporting
+  - [x] no in-memory per-UoW record buffer, correlation cache, or mutable policy registry
+  - [x] the STDERR stream handle is process-lifetime I/O infrastructure, not UoW context state.
+  - [x] daily file handles are emission-scoped I/O infrastructure, not UoW state.
+  - [x] no file handle, date, lock, or failure state is retained between file emissions.
+  - [x] internal write failures are no-op-safe
+  - [x] invalid PSR-3 log levels follow the PSR-3 InvalidArgumentException contract; internal write failures remain no-throw
+
+- [x] `packages/platform/logging/src/Record/LogRecordPolicy.php`
+  - [x] final logging-sink admissibility policy
+  - [x] consumes SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface only as injected security ports.
+  - [x] preserves mandatory shared redaction through SensitiveDataRedactorInterface.
+  - [x] uses SensitiveKeyClassifierInterface only for read-only sensitive-key classification during sink admission.
+  - [x] exact constructor dependencies, in order:
+    - [x] SensitiveDataRedactorInterface $redactor
+    - [x] SensitiveKeyClassifierInterface $keyClassifier
+  - [x] exact public admission operations:
+    - [x] admitMessage(mixed $message): string
+    - [x] admitContext(array $context): ?array
+    - [x] redactRecord(array $record): ?array
+  - [x] retain isValidCanonicalRecord(array $record): bool only as a structural canonical-schema validator.
+  - [x] static structural validation never substitutes instance-bound sensitive-key admission.
+  - [x] admitContext() uses the injected classifier for applicable key_paths before allowing their inclusion.
+  - [x] a rejected key_paths branch is omitted in full without retaining a partial list of its original values.
+  - [x] ordinarily empty or omitted context returns null without indicating an internal classifier failure.
+  - [x] classifier failure aborts admission through the existing outer StreamLogger no-throw failure boundary.
+  - [x] redactRecord() applies complete structural and instance-bound semantic admission to its supplied canonical record before invoking shared redaction.
+  - [x] direct redactRecord() invocation cannot bypass sensitive-key classification by skipping admitContext().
+  - [x] a valid pre-admission result proceeds to exactly one mandatory shared redaction operation on the complete assembled canonical record.
+  - [x] an invalid structural or semantic pre-admission result is rejected without invoking the shared redactor.
+  - [x] redactRecord() performs complete structural and instance-bound semantic validation of the redacted output.
+  - [x] post-redaction key-path classification never substitutes a second redaction operation.
+  - [x] no raw record, previous Throwable, partial redaction result, or classifier diagnostic is retained.
+  - [x] no new public logging exception, service locator, classifier registry, or mutable policy state.
+  - [x] does not import or instantiate the platform.redaction classifier implementation.
+  - [x] fixed RedactionContext scope `logging.record`
+  - [x] fixed RedactionMode::Placeholder
+  - [x] no configurable redaction mode
+  - [x] no duplicate generic key/value classifiers, hashing engine, or recursive redaction walker.
+  - [x] no package-local copy of the canonical sensitive-key alias vocabulary or its equivalent regex patterns.
+  - [x] destination-specific structural validation remains logging-owned.
+  - [x] selects only producer-owned safe-by-construction fields for emission
+  - [x] declares one canonical, immutable, logging-specific sink-field allowlist
+  - [x] admissibility is field-specific; unknown field names are not admitted
+  - [x] the baseline field families cover existing safe producer-owned log summaries:
+    - [x] operation/outcome/event/reason/code/status
+    - [x] driver/control_transport/presetName
+    - [x] app_target/preset
+    - [x] duration_ms/exit_code/pid
+    - [x] byte_count and existing explicitly approved *_count fields
+    - [x] artifact_basename/artifact_path/artifact_paths/artifact_reasons
+    - [x] bucket_names
+    - [x] source_paths/key_paths/directive_names/source_types/source_kinds/source_layers
+    - [x] moduleIds
+    - [x] endpoint_hash
+    - [x] canonical safe UoW/correlation identifiers
+    - [x] path_template as an optional context-only field, never as a canonical root field
+  - [x] key_paths use the existing bounded structural-path admission rules.
+  - [x] each canonical dotted key path is checked as a complete string and by its non-empty dot-separated segments.
+  - [x] every complete key and segment is classified through the injected SensitiveKeyClassifierInterface.
+  - [x] any non-null RedactionKind classification for the complete key path or any segment rejects the entire key_paths context field.
+  - [x] no subset of the original key_paths list is emitted after one of its items is rejected.
+  - [x] malformed dotted paths, including empty segments and unsupported structural characters, are rejected before semantic classification.
+  - [x] existing safe Kernel key-path representations, including bounded structural placeholders, remain admissible when they satisfy the logging schema and shared classifier policy.
+  - [x] a rejected field is an ordinary omission; an exception or contract failure from the classifier aborts the entire record.
+  - [x] examples such as db.password, db.client_secret, db.access_token, and user.email_address are rejected.
+  - [x] unclassified names are not automatically safe; existing logging sink restrictions and producer-owned semantic safety remain mandatory.
+  - [x] Kernel ConfigKernel retains ownership of its existing safe key-path producer restrictions, including sensitive-key and SQL-like patterns.
+  - [x] LogRecordPolicy MUST NOT copy, import, or maintain Kernel ConfigKernel sensitive-key or SQL-like regex tables.
+  - [x] LogRecordPolicy applies its own producer-neutral structural key-path schema, bounded-value constraints, and the shared sensitive-key classifier port.
+  - [x] a shared classifier null result does not override producer-owned rejection rules or authorize arbitrary runtime-derived key paths.
+  - [x] a producer MUST NOT pass a key path that its owner-specific policy has rejected.
+  - [x] logging MUST NOT reconstruct rejected producer paths, bypass producer validation, or introduce producer-specific admission branches.
+  - [x] no duplication of the canonical platform.redaction alias list is permitted.
+  - [x] a rejected key path is never replaced with its raw value, a hash, a length, or a partially redacted representation.
+  - [x] classifier exceptions or invalid classification results cause failure of the entire current logging admission operation.
+  - [x] classifier failure MUST NOT be represented as an ordinarily empty or omitted context.
+  - [x] an empty admitted context and a classifier failure MUST remain distinguishable to StreamLogger.
+  - [x] the failure is propagated only to the existing outer no-throw logging boundary; it is not emitted, logged recursively, or returned to the business caller.
+  - [x] no previous Throwable, raw key path, partial classification result, hash, or length is retained in logging state.
+  - [x] classifier failure during initial admission aborts the record before shared redaction, formatting, or stream I/O.
+  - [x] classifier failure during post-redaction validation aborts the record after the already completed redaction call.
+  - [x] post-redaction classifier failure MUST NOT trigger a second redaction operation, raw fallback, formatting, or stream I/O.
+  - [x] both failure phases remain distinguishable from ordinary context omission without exposing internal diagnostics.
+  - [x] the same key-path safety rules apply before and after mandatory shared record redaction.
+  - [x] every allowed scalar field has an exact declared type, byte limit, and semantic safety constraint
+  - [x] every allowed list has a fixed maximum item count, item type, item byte limit, and deterministic ordering contract
+  - [x] relative artifact/source paths reuse existing owner-defined safe-path semantics
+  - [x] absolute filesystem paths and raw request paths remain forbidden
+  - [x] endpoint_hash is accepted only in its existing owner-approved safe form
+  - [x] count and duration fields accept non-negative bounded integers only
+  - [x] exit_code and pid use their documented safe integer bounds rather than arbitrary numeric strings
+  - [x] operation, outcome, event, reason, code, status, and driver values remain bounded safe categories, not arbitrary user text
+  - [x] operation values MUST follow one bounded, producer-neutral category-token grammar; colon-separated values are admissible when structurally safe, without source-specific exceptions or knowledge of command names.
+  - [x] log-record admission MUST depend only on the canonical field schema, field-specific safety constraints, shared redaction, and current canonical runtime context; it MUST NOT branch on producer identity, package identity, or event/message name.
+  - [x] caller-supplied correlation_id/uow_id/uow_type values MUST NOT populate or override processor-owned canonical root fields.
+  - [x] caller-supplied identifiers MAY remain only as bounded, validated, non-authoritative nested context fields when admitted by the same canonical sink-field policy as other context values.
+  - [x] canonical root correlation_id/uow_id/uow_type MUST reflect only the current canonical context; missing, invalid, or reset context values MUST resolve to null, regardless of previously captured caller data.
+  - [x] the logger MUST NOT restore completed runtime context, retain per-UoW snapshots, or introduce producer-specific context reconstruction.
+  - [x] preserve existing safe-by-construction Core log summaries without widening acceptance to arbitrary map entries
+  - [x] redaction results are checked again against the declared output schema
+  - [x] post-redaction validation also enforces the injected sensitive-key classification policy for any remaining key_paths.
+  - [x] classification is instance-bound to the injected port; no static service locator, mutable classifier registry, or globally cached policy is introduced.
+  - [x] a static structural schema check, if retained, MUST NOT independently authorize final sink emission without instance-bound semantic admission.
+  - [x] both jsonl and logfmt receive only records that have passed the same complete instance-bound sink admission.
+  - [x] a RedactedValue map is not automatically admissible in a field requiring a scalar string
+  - [x] no second key classifier, value classifier, hasher, or general-purpose json-like traversal engine.
+  - [x] semantic sensitive-key classification is delegated exclusively to the shared classifier port.
+  - [x] logging-specific schema, category, path, type, and bounded-value validators remain part of LogRecordPolicy.
+  - [x] forbids raw transport paths, raw host, raw user-agent, raw query, raw payload, headers, cookies, Authorization, tokens, credentials, raw SQL, raw env values, and arbitrary customer data
+  - [x] treats unclassified values as untrusted rather than automatically safe
+  - [x] drops unsupported keys instead of preserving arbitrary metadata
+  - [x] rejects or omits unsupported PHP values: Throwable, objects, resources, closures, and floats
+  - [x] does not call arbitrary __toString() methods
+  - [x] sanitizes user-supplied message separately from the context map
+  - [x] message policy distinguishes producer-owned static event identifiers from arbitrary diagnostic text
+  - [x] static event identifiers follow an exact bounded ASCII token grammar documented in logging-policy.md
+  - [x] existing Core message identifiers with dot, underscore, and hyphen separators remain supported
+  - [x] unsupported message types and values violating the exact event-token grammar fall back to one fixed safe event token.
+  - [x] high-confidence sensitive messages detected through the shared redactor MUST NOT be emitted unchanged.
+  - [x] lexical validation cannot establish the provenance of an otherwise valid-looking runtime string.
+  - [x] producer-owned static event identifiers are required; arbitrary user-derived messages are forbidden by the producer contract.
+  - [x] no claim is made that a PSR-3 string alone can prove absence of all sensitive content.
+  - [x] lexical validity alone MUST NOT be documented as proof that a runtime-generated message contains no sensitive data
+  - [x] producer-owned static-message requirements remain mandatory
+  - [x] raw Stringable objects MUST NOT be evaluated through __toString() to determine sink safety
+  - [x] permits only static, bounded, safe event identifiers as message values
+  - [x] must not treat lexical event-name validity as proof that runtime-derived user input is safe
+  - [x] owner-provided static event identifiers remain a mandatory producer contract
+  - [x] uses shared redaction as defense in depth after sink-field selection
+  - [x] shared redaction failure rejects the entire current record.
+  - [x] no partially redacted record is returned.
+  - [x] no raw passthrough, second redaction attempt, or fallback sink is permitted.
+  - [x] fixed safe event-token fallback applies only to rejected messages before record redaction.
+  - [x] no raw input, redaction failure, or previous Throwable is retained
+  - [x] no arbitrary hash/length disclosure of low-entropy secrets
+  - [x] no mutable key registries, runtime patterns, or dynamic policy configuration
+
+- [x] `packages/platform/logging/src/Processor/ContextBagProcessor.php`
+  - [x] final stateless processor
+  - [x] depends on ContextAccessorInterface and CorrelationIdProviderInterface
+  - [x] correlation_id comes from the existing CorrelationIdProviderInterface
+  - [x] uow_id and uow_type are read through ContextAccessorInterface
+  - [x] optional ContextKeys::PATH_TEMPLATE may be read only when already safe-by-construction.
+  - [x] an admitted route template is placed under context.path_template, never at the record root.
+  - [x] raw request paths, runtime route parameters, and unverified templates are never emitted.
+  - [x] HTTP route-template production and ownership remain outside platform.logging.
+  - [x] MUST NOT read raw PATH, HOST, USER_AGENT, CLIENT_IP, headers, or request body for generic enrichment
+  - [x] uses ContextKeys instead of duplicated literal source-key definitions
+  - [x] checks has() before get()
+  - [x] does not use a default parameter in get()
+  - [x] validates optional UoW identifiers and categories against bounded safe shapes
+  - [x] exposes correlation_id, uow_id, and uow_type as nullable record fields
+  - [x] outside UoW or on failed reads, those fields are null
+  - [x] does not generate synthetic correlation IDs outside Kernel UoW ownership
+  - [x] processor-owned canonical fields cannot be overridden by caller context
+  - [x] no ContextStore writes, context snapshots, reset orchestration, or stored request state
+
+- [x] `packages/platform/logging/src/Formatter/JsonLineFormatter.php`
+  - [x] final stateless formatter
+  - [x] accepts only a fully sanitized canonical log record map
+  - [x] accepts only the canonical post-redaction record schema, not an arbitrary json-like map.
+  - [x] reuses LogRecordPolicy::isValidCanonicalRecord() for structural validation before encoding.
+  - [x] rejects missing, unexpected, or malformed canonical fields through that shared structural validator.
+  - [x] MUST NOT maintain a second root-field allowlist, independent field-type matrix, or duplicated canonical schema.
+  - [x] static structural validation does not replace the instance-bound admission already required before StreamLogger invokes the formatter.
+  - [x] ts_utc is nullable and otherwise an exact UTC ISO-8601 timestamp
+  - [x] receives ts_utc already normalized to a UTC ISO-8601 string or null.
+  - [x] validates ts_utc as part of the complete post-redaction canonical record.
+  - [x] does not invoke ClockInterface, normalize timestamps, or reconstruct canonical root fields.
+  - [x] null ts_utc after clock failure remains a valid canonical field value.
+  - [x] context is null or a bounded non-empty string-keyed map containing only approved json-like values.
+  - [x] no second recursive normalizer, stable encoder, or newline-framing implementation
+  - [x] final record-byte budget is enforced before stream I/O
+  - [x] record output guarantees apply only to complete successful writes
+  - [x] canonical root fields:
+    - [x] ts_utc
+    - [x] level
+    - [x] message
+    - [x] service_name
+    - [x] app_target
+    - [x] correlation_id
+    - [x] uow_id
+    - [x] uow_type
+    - [x] context
+  - [x] service_name is a required bounded non-empty safe string.
+  - [x] app_target is a required canonical string enum: web, api, console, worker.
+  - [x] both identity fields are provided by trusted logger construction, not arbitrary caller context.
+  - [x] both identity fields participate in mandatory shared redaction and post-redaction schema validation.
+  - [x] the canonical root remains deterministic for identical accepted record values.
+  - [x] correlation/uow fields always exist, nullable outside UoW
+  - [x] context is null or a non-empty sanitized string-keyed map.
+  - [x] empty admitted context is represented as null, never as an empty JSON list.
+  - [x] non-empty context is serialized as a JSON object.
+  - [x] no object-casting or second shape-preserving JSON encoder is introduced.
+  - [x] the nested empty-map/list limitation remains Foundation-owned.
+  - [x] no caller context key may replace canonical root fields
+  - [x] uses StableJsonEncoder::encodeStableMap()
+  - [x] delegates all recursive sorting and final-LF framing to Foundation
+  - [x] does not append another newline
+  - [x] embedded newline/control data cannot create an additional physical JSON record
+  - [x] does not emit floats, objects, resources, or unnormalized maps
+  - [x] serialization failure does not expose rejected input
+  - [x] no stream ownership or I/O
+
+- [x] `packages/platform/logging/src/Formatter/LogfmtLineFormatter.php`
+  - [x] final stateless formatter.
+  - [x] accepts only the same fully sanitized canonical log record map as JsonLineFormatter.
+  - [x] does not perform message admission, context enrichment, shared redaction, or severity filtering.
+  - [x] consumes the already admitted and redacted canonical record.
+  - [x] reuses LogRecordPolicy::isValidCanonicalRecord() for defensive structural validation.
+  - [x] MUST NOT define a second canonical root-field allowlist or independently duplicate field-type rules.
+  - [x] structural validation does not substitute the instance-bound sensitive-key admission and mandatory redaction performed before formatting.
+  - [x] preserves all canonical fields, including service_name, app_target, correlation_id, uow_id, uow_type, and context.
+  - [x] emits root fields in the fixed order: ts_utc, level, message, service_name, app_target, correlation_id, uow_id, uow_type, context.
+  - [x] serializes each field as a key=value pair separated by exactly one ASCII space.
+  - [x] serializes non-null strings as double-quoted UTF-8 values.
+  - [x] escapes backslash as `\\`, double quote as `\"`, LF as `\n`, CR as `\r`, and TAB as `\t`.
+  - [x] escapes every remaining ASCII control byte in the ranges 0x00..0x1F and 0x7F as `\u00XX` using uppercase hexadecimal digits.
+  - [x] valid UTF-8 characters outside the prohibited control ranges remain unchanged.
+  - [x] no raw CR, LF, or prohibited control byte may appear inside a serialized field value.
+  - [x] serializes null as an unquoted `null` token.
+  - [x] serializes non-empty context as a quoted compact JSON string produced by StableJsonEncoder::encodeStableMap().
+  - [x] removes only the Foundation-generated final LF from embedded context JSON before quoting.
+  - [x] serializes absent admitted context as unquoted context=null.
+  - [x] never performs a second recursive JSON sort, normalization, or JSON encoding.
+  - [x] appends exactly one final LF to the complete logfmt record.
+  - [x] embedded newlines and control characters cannot create additional physical log records.
+  - [x] identical accepted canonical records produce byte-identical output.
+  - [x] never evaluates arbitrary Stringable objects or serializes unsupported PHP values.
+  - [x] does not emit raw Throwable data, filesystem paths, credentials, or unadmitted producer values.
+  - [x] serialization failures are isolated by StreamLogger and never trigger raw fallback emission.
+  - [x] the final serialized byte budget is enforced before stream I/O.
+  - [x] no stream ownership, I/O, runtime configuration reads, or mutable state.
+
+- [x] `packages/platform/logging/config/logging.php`
+  - [x] returns the `logging` subtree only
+  - [x] exact defaults:
+    - [x] driver = stream
+    - [x] file.path = ''
+    - [x] file.name = app
+    - [x] level = info
+    - [x] max_record_bytes = 65536
+    - [x] service_name = auto
+    - [x] format = jsonl
+  - [x] no logging.stream key
+  - [x] file is a nested map containing exactly path and name.
+  - [x] file.path is an empty string by default because file output is inactive.
+  - [x] file.name is a filename stem without an extension.
+  - [x] no repeated `logging` root
+  - [x] no redaction disable switch
+  - [x] no environment reads, runtime service objects, closures, or mutable state
+  - [x] driver is always a string.
+  - [x] `stream` selects the fixed php://stderr backend.
+  - [x] `file` selects the automatic daily UTC file backend.
+  - [x] `null` selects the Foundation NoopLogger.
+  - [x] PHP null is not a valid driver configuration value.
+  - [x] redaction is not configurable and no redaction subtree is returned.
+  - [x] security and redaction invariants are not configurable.
+  - [x] no daily rotation, retention, file-permission, or file-size configuration keys.
+  - [x] no automatic filesystem directory creation or external configuration discovery.
+
+- [x] `packages/platform/logging/config/rules.php`
+  - [x] schemaVersion = 1
+  - [x] configRoot = logging
+  - [x] additionalKeys = false
+  - [x] required top-level keys: driver, file, level, max_record_bytes, service_name, format
+  - [x] driver:
+    - [x] required = true
+    - [x] type = string
+    - [x] allowedValues = ['stream', 'file', 'null']
+    - [x] PHP null and boolean false are rejected
+  - [x] file:
+    - [x] required = true
+    - [x] type = map
+    - [x] additionalKeys = false
+    - [x] exact nested keys: path, name
+  - [x] file.path:
+    - [x] required = true
+    - [x] type = string
+    - [x] default = '' through logging.php
+    - [x] empty string is permitted by the declarative schema for inactive file mode.
+    - [x] non-empty absolute local directory validation is enforced by LoggingServiceFactory only for driver='file'.
+    - [x] PHP null, arrays, objects, and other non-string values are rejected.
+  - [x] file.name:
+    - [x] required = true
+    - [x] type = reset-group-id
+    - [x] default = app through logging.php
+    - [x] reuse the existing ConfigValidator bounded ASCII grammar: `[a-z][a-z0-9_-]{0,63}`.
+    - [x] dots, file extensions, directory separators, whitespace, control characters, and traversal are rejected.
+  - [x] level:
+    - [x] required = true
+    - [x] type = string
+    - [x] allowedValues = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency']
+  - [x] max_record_bytes:
+    - [x] required = true
+    - [x] type = int
+    - [x] min = 1024
+    - [x] max = 65536
+    - [x] booleans, floats, numeric strings, zero, and out-of-range values are rejected
+  - [x] service_name:
+    - [x] required = true
+    - [x] type = reset-group-id
+    - [x] reuse the existing ConfigValidator bounded ASCII token grammar: `[a-z][a-z0-9_-]{0,63}`
+    - [x] `auto` is the only automatic-resolution sentinel
+    - [x] explicit service names may use lowercase ASCII letters, digits, underscores, and hyphens.
+    - [x] dots, paths, URLs, whitespace, control characters, and strings exceeding 64 bytes are rejected during canonical configuration validation.
+    - [x] LoggingServiceFactory independently enforces the identical grammar for direct invocation outside canonical configuration validation.
+  - [x] format:
+    - [x] required = true
+    - [x] type = string
+    - [x] allowedValues = ['jsonl', 'logfmt']
+    - [x] default = jsonl through logging.php
+    - [x] unsupported formats fail configuration validation
+    - [x] format selection cannot disable shared redaction or change the canonical record schema.
+    - [x] format determines the filename extension only when driver='file'.
+  - [x] ConfigValidator schema uses only supported declarative rule types.
+  - [x] nested file validation reuses the existing map, keys, additionalKeys, string, and reset-group-id rule semantics.
+  - [x] cross-field file.path requirements are independently enforced by LoggingServiceFactory.
+  - [x] logging.stream is an unknown key and is rejected.
+  - [x] Unknown logging.redaction configuration is rejected through additionalKeys = false.
+  - [x] rejects unknown keys and reserved @* keys
+  - [x] rejects unsupported driver values and unknown configurable stream destinations through the strict declarative schema.
+  - [x] LoggingServiceFactory rejects arbitrary stream wrappers, remote URLs, and unsafe file destinations when driver='file'.
+  - [x] no executable validators or package-local config-validation engine
+  - [x] no user-configurable redaction policy
+
+- [x] `packages/platform/logging/README.md`
+  - [x] package purpose and ownership
+  - [x] canonical `## Observability`, `## Errors`, and `## Security / Redaction` sections
+  - [x] Foundation noop baseline versus enabled stream backend
+  - [x] module enablement and driver configuration
+  - [x] three supported drivers: stream, file, and null.
+  - [x] stream writes to fixed php://stderr without a public logging.stream key.
+  - [x] file.path is an administrator-controlled absolute local directory path validated during logger construction.
+  - [x] the directory must exist and be accessible at emission time, not necessarily at logger construction.
+  - [x] temporarily missing or unavailable directories cause best-effort record omission without changing the selected backend.
+  - [x] the same logger instance may resume emission after external restoration of the configured directory.
+  - [x] file.name is a configurable basename stem, default app, without extension or date.
+  - [x] file names use `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`.
+  - [x] filename app_target comes from AppTargetProviderInterface, not service_name.
+  - [x] daily UTC file partitioning is automatic and cannot be disabled.
+  - [x] file output uses append-only writes and non-blocking exclusive file locks.
+  - [x] file directory ownership, permissions, and symlink restrictions are documented.
+  - [x] inactive file configuration does not open or create files or directories.
+  - [x] daily file creation does not implement retention, deletion, archival, or disk quotas.
+  - [x] file mode reuses StreamLogger, the same redaction policy, and the same formatters.
+  - [x] examples distinguish module absence from logging.driver = 'null'
+  - [x] coretsia/framework installs platform.logging as a baseline dependency.
+  - [x] all canonical presets enable platform.logging by default.
+  - [x] logging.driver='stream' is the default for the enabled module.
+  - [x] moduleOverrides.exclude may disable real logging per application target.
+  - [x] logging.driver='null' may disable stream emission without excluding the module.
+  - [x] Foundation NoopLogger remains available when real logging is disabled.
+  - [x] configuration has no redaction.enabled flag or redaction subtree
+  - [x] invalid configuration is a bootstrap/configuration failure
+  - [x] missing or failed stream/file emission is best-effort/no-op-safe.
+  - [x] existing logging consumers continue to depend only on LoggerInterface
+  - [x] the allowed operational context fields and fixed size limits are documented
+  - [x] limitations of automatic sensitive-value detection are explicitly documented
+  - [x] partial writes, non-blocking file-lock contention, multi-process limitations, and filesystem race limitations are documented.
+  - [x] canonical JSON record example with synthetic data
+  - [x] correlation/UoW field lifecycle and null semantics
+  - [x] exact severity filtering behavior
+  - [x] PSR-3 invalid-level exception distinction
+  - [x] internal write failure/no-op behavior
+  - [x] required shared redaction port
+  - [x] required shared SensitiveKeyClassifierInterface port for key-path sink admission.
+  - [x] distinguish shared sensitive-key classification from mandatory whole-record redaction.
+  - [x] document full-path and segment-level classification for context.key_paths.
+  - [x] document complete key_paths omission when any item is classified as sensitive.
+  - [x] explain that classifier null results never establish emission safety.
+  - [x] document ordinary field omission versus fail-closed whole-record rejection on classifier failure.
+  - [x] document pre-redaction and post-redaction classifier failure semantics.
+  - [x] no duplicated sensitive-key aliases, concrete platform.redaction imports, custom classifier, or redaction configuration.
+  - [x] producer-owned safe-by-construction message/context policy
+  - [x] no custom redaction implementation or disable switch
+  - [x] no per-record logging spans or metrics
+  - [x] no logger-owned UoW state/reset service
+  - [x] points to logging-policy.md and sensitive-data-redaction.md
+  - [x] documents logging.max_record_bytes and the immutable hard upper bound.
+  - [x] documents logging.service_name=auto and automatic web/api/console/worker identity.
+  - [x] documents explicit bounded service-name overrides.
+  - [x] documents logging.format=jsonl|logfmt with jsonl as the default.
+  - [x] provides canonical synthetic output examples for both formats.
+  - [x] documents identical admission, redaction, service identity, severity filtering, and byte-limit behavior across formats.
+  - [x] documents deterministic logfmt field ordering, quoting, escaping, null handling, and nested context representation.
+  - [x] documents that changing format affects serialized stderr records and file extensions, but never CLI stdout or command exit codes.
+  - [x] documents unsupported-format rejection.
+  - [x] distinguishes per-record byte limits from automatic daily file partitioning, external retention, and total storage quotas.
+
+Docs:
+- [x] `docs/adr/ADR-0037-platform-logging-psr3.md`
+  - [x] adrVersion = 1
+  - [x] records reuse of Foundation LoggerInterface noop binding
+  - [x] records platform.logging as the default real logging backend of canonical presets
+  - [x] records its physical installation through coretsia/framework
+  - [x] records its selectable and excludable runtime-module semantics
+  - [x] records Foundation NoopLogger as the fallback after exclusion or disabled driver
+  - [x] records mandatory dependency on shared redaction port
+  - [x] records the additional contracts-level SensitiveKeyClassifierInterface dependency.
+  - [x] records reuse of the existing platform.redaction SensitiveKeyClassifier and its immutable alias vocabulary.
+  - [x] records why logging-specific sink admission remains necessary even when classification returns null.
+  - [x] records why the shared alias vocabulary is not moved into core/contracts or duplicated inside platform.logging.
+  - [x] records the declarative classifier alias and preservation of the existing shared classifier instance.
+  - [x] records canonical logging sink-field admissibility ownership
+  - [x] records why generic redaction alone is not proof of log safety
+  - [x] records Foundation stable JSON reuse
+  - [x] records declarative source/compiled DI parity
+  - [x] records no per-record observability instrumentation due to recursion risk
+  - [x] records stream initialization and write degradation semantics
+  - [x] records no new LoggerInterface, generic redactor, JSON encoder, correlation provider, or reset service
+  - [x] records reuse of Kernel ModulePlan through the contracts-level AppTargetProviderInterface.
+  - [x] records automatic canonical app-target service identity without a second app-target resolver.
+  - [x] records the configurable per-record size limit under the immutable 65536-byte hard ceiling.
+  - [x] records jsonl as the default format and logfmt as an explicitly supported alternative.
+  - [x] records why both formatters consume one canonical admitted and redacted record schema.
+  - [x] records Foundation StableJsonEncoder reuse for jsonl and embedded logfmt context serialization.
+  - [x] records deterministic single-line framing and the shared serialized byte budget.
+  - [x] records that formatter selection is runtime configuration, not a second logging backend or DI mechanism.
+  - [x] records why stream uses fixed php://stderr without a public logging.stream key.
+  - [x] records file as a second destination mode using the existing StreamLogger pipeline.
+  - [x] records the exact stream, file, and null driver semantics.
+  - [x] records file.path as an administrator-controlled, syntactically validated absolute local directory; directory existence and availability are checked at emission time, not during logger construction.
+  - [x] records file.name as a bounded extension-free filename stem.
+  - [x] records deterministic app-target/date/format filename construction.
+  - [x] records why filename identity uses app_target rather than service_name.
+  - [x] records automatic daily UTC file partitioning without a rotation-mode switch.
+  - [x] records per-record open/append/lock/write/close behavior and multi-process limitations.
+  - [x] records why file mode does not require FileLogger or another record admission pipeline.
+  - [x] records external ownership of retention, deletion, archival, and total-file-size management.
+
+- [x] `docs/ssot/logging-policy.md`
+  - [x] ssotVersion = 1
+  - [x] owner = platform/logging
+  - [x] exact canonical record schema, nullable field semantics, and format-specific jsonl/logfmt representations
+  - [x] canonical records include required service_name and app_target root fields.
+  - [x] service_name='auto' derives from the existing canonical selected app target through AppTargetProviderInterface.
+  - [x] explicit service_name overrides are bounded safe labels and never change canonical app_target.
+  - [x] exact service_name grammar is `[a-z][a-z0-9_-]{0,63}`, including the automatic-resolution sentinel auto.
+  - [x] canonical configuration validation reuses the existing Kernel reset-group-id rule type without a package-local validator.
+  - [x] invalid service_name configuration fails before LoggerInterface construction.
+  - [x] service identity is immutable for the lifetime of the constructed logger.
+  - [x] caller context cannot override canonical service identity.
+  - [x] service identity participates in mandatory redaction and post-redaction validation.
+  - [x] logging.max_record_bytes controls the serialized per-record budget, not total log-file size.
+  - [x] MAX_RECORD_BYTES = 65536 remains the immutable hard ceiling.
+  - [x] the file backend automatically partitions records into daily UTC files.
+  - [x] daily partitioning is fixed behavior, not a configurable rotation policy.
+  - [x] retention, old-file deletion, archival, and total-file-size policies are external runtime responsibilities.
+  - [x] logging.format supports exactly jsonl and logfmt, with jsonl as the default.
+  - [x] both formats consume one canonical record schema after sink-field admission, enrichment, mandatory shared redaction, and post-redaction validation.
+  - [x] jsonl uses Foundation StableJsonEncoder for deterministic serialization and final-LF framing.
+  - [x] logfmt uses deterministic canonical field ordering, key=value pairs, quoted strings, strict escaping, and one final LF.
+  - [x] logfmt nullable fields use unquoted null, while string values are always quoted.
+  - [x] logfmt non-empty context uses compact JSON generated by Foundation StableJsonEncoder and embedded as an escaped quoted value.
+  - [x] the Foundation-generated LF is removed only from JSON embedded within logfmt context.
+  - [x] both formats preserve canonical service_name, app_target, correlation_id, uow_id, uow_type, and context field semantics.
+  - [x] the effective max_record_bytes limit applies to the complete output of either format, including the final LF.
+  - [x] formatter selection does not change record admission, classification, redaction, severity filtering, or runtime UoW context ownership.
+  - [x] no alternative formatter may bypass mandatory shared redaction, introduce raw diagnostics, or add another recursive JSON encoder.
+  - [x] canonical context is null or a non-empty sanitized string-keyed map.
+  - [x] jsonl serializes null context as JSON null and non-empty context as a JSON object.
+  - [x] logfmt serializes null context as unquoted context=null and non-empty context as one quoted, escaped compact JSON value produced through Foundation StableJsonEncoder.
+  - [x] both formats preserve identical canonical context values without introducing another context schema.
+  - [x] no nested empty-map encoder is introduced.
+  - [x] trusted logger-generated metadata is distinguished from untrusted producer input.
+  - [x] shared redaction failure causes complete record omission.
+  - [x] message provenance is producer-owned and cannot be proven from a PSR-3 string alone.
+  - [x] MAX_RECORD_BYTES = 65536, including final LF.
+  - [x] existing app_target, preset, moduleIds, and worker diagnostic fields retain their owner-approved safety constraints.
+  - [x] active StreamLogger invalid-level semantics are distinguished from existing Foundation NoopLogger behavior.
+  - [x] canonical presets select platform.logging by default.
+  - [x] Composer installation alone does not activate a runtime module.
+  - [x] platform.logging activation is determined by the target-local ModulePlan.
+  - [x] moduleOverrides.exclude and logging.driver='null' are distinct supported disable mechanisms.
+  - [x] excluding platform.logging preserves the Foundation NoopLogger binding.
+  - [x] real backend availability begins after successful module/container composition; pre-composition logging is not guaranteed to use an active backend.
+  - [x] exact logging.driver string enum: stream, file, null.
+  - [x] stream uses fixed php://stderr; file uses the validated daily local file; null uses Foundation NoopLogger.
+  - [x] logging.file.path and logging.file.name semantics, defaults, and validation boundaries.
+  - [x] exact generated filename grammar `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`.
+  - [x] canonical app_target controls the filename prefix independently of service_name.
+  - [x] filename format extension follows the selected jsonl or logfmt serializer.
+  - [x] daily UTC date resolution, record timestamp handling, and null-timestamp fallback.
+  - [x] disabled module versus selected null driver semantics
+  - [x] no redaction configuration surface
+  - [x] required redaction-module dependency for active logging module
+  - [x] declarative DI values MUST NOT contain php://stderr
+  - [x] runtime ConfigRepositoryInterface provides the selected driver and validated file configuration.
+  - [x] the internal php://stderr destination is not configurable.
+  - [x] file paths, dates, and stream handles never enter declarative service-definition parameters.
+  - [x] exact pre-admission → enrichment → UTC timestamp capture → canonical record assembly → shared redaction → post-admission → formatting → I/O order.
+  - [x] complete canonical root fields are assembled before mandatory shared redaction.
+  - [x] post-redaction schema validation covers every field subsequently submitted to the selected formatter.
+  - [x] no canonical record mutation occurs between post-redaction validation and serialization.
+  - [x] exact per-field context admissibility matrix
+  - [x] documents SensitiveKeyClassifierInterface as the shared read-only sensitive-key classification dependency.
+  - [x] distinguishes shared semantic key classification from logging-owned destination sink admission.
+  - [x] defines structural validation and per-segment classification for canonical dotted key_paths.
+  - [x] documents rejection of classified sensitive keys and continued rejection of unsafe unclassified keys.
+  - [x] documents Kernel ownership of existing sensitive-key and SQL-like producer restrictions.
+  - [x] documents that logging does not duplicate Kernel-specific regex tables.
+  - [x] documents the distinction between producer validation, shared classification, and logging sink admission.
+  - [x] documents that producer-rejected key paths never become admissible through a classifier null result.
+  - [x] classifier null results never authorize arbitrary key-path emission.
+  - [x] classifier failures are fail-closed and never expose raw key paths.
+  - [x] exact key-path restrictions are enforced before and after shared redaction.
+  - [x] both jsonl and logfmt use identical key-path admission semantics.
+  - [x] the canonical sensitive-key alias vocabulary remains exclusively owned by platform.redaction.
+  - [x] no local copies of the shared alias list or generic sensitive-key classification regex are permitted.
+  - [x] sink-field admission is producer-neutral: package-specific behavior, event-specific branches, command-name interpretation, and runtime lifecycle reconstruction are forbidden.
+  - [x] producers own the semantics and safety of generated log values; platform.logging owns only canonical record admission, severity filtering, enrichment, shared redaction, formatting, and emission.
+  - [x] new packages SHOULD reuse existing canonical log fields and safe value categories; extending the sink schema requires explicit SSoT review rather than producer-specific exceptions.
+  - [x] existing Kernel, Foundation, CLI, Errors, and Worker safe log fields are covered
+  - [x] explicit per-field scalar bounds and list limits
+  - [x] exact static event identifier grammar and fixed unsafe-message fallback
+  - [x] producer-owned safe-by-construction obligation and limits of classifier-based detection
+  - [x] redacted summaries do not automatically satisfy destination field-type requirements
+  - [x] UTC timestamp formatting and null-on-clock-failure policy
+  - [x] serialized record byte budget and oversized-record behavior
+  - [x] one write attempt per serialized record for either active destination.
+  - [x] file mode uses non-blocking flock() and emission-scoped append-binary handles.
+  - [x] file destination validation and administrator-owned directory security.
+  - [x] no claim of filesystem race immunity, cross-filesystem atomicity, or guaranteed complete framing after partial writes.
+  - [x] invalid configuration versus unavailable destination failure distinction.
+  - [x] factory-time configuration syntax validation and emission-time filesystem availability checks have separate owners.
+  - [x] missing file directories do not constitute malformed configuration when file.path syntax is otherwise valid.
+  - [x] file-mode availability failures do not replace StreamLogger with Foundation NoopLogger.
+  - [x] no directory recovery cache, failure registry, retry queue, or logging-owned reset capability is introduced.
+  - [x] no file retention, automatic deletion, archival, or built-in disk quota management.
+  - [x] source/compiled DI parity without URI-valued declarative parameters
+  - [x] exact permitted levels and filtering order
+  - [x] safe event-message contract
+  - [x] safe operational context allowlist and per-field type/bounds
+  - [x] owner-approved safe relative artifact summaries
+  - [x] forbidden metadata and value categories
+  - [x] redaction call order and fail-closed behavior
+  - [x] fixed logging.record redaction scope and Placeholder mode
+  - [x] no generic classifier duplication
+  - [x] validated correlation and UoW enrichment semantics
+  - [x] no arbitrary request-context export
+  - [x] timestamp shape and clock-failure fallback
+  - [x] jsonl delegates stable JSON serialization and final-LF framing to Foundation StableJsonEncoder.
+  - [x] logfmt reuses Foundation StableJsonEncoder only for nested context JSON and owns the final LF of the complete logfmt record.
+  - [x] both formats emit exactly one physical LF-terminated record after a successful complete write.
+  - [x] null driver, stream initialization failure, file destination failure, and file-lock contention behavior.
+  - [x] PSR-3 invalid-level exception contract.
+  - [x] process-lifetime STDERR handle versus emission-scoped daily file handles.
+  - [x] no logging-owned UoW state, file-date cache, or mutable failure registry.
+  - [x] no per-record logging spans/metrics
+  - [x] canonical synthetic examples and explicit forbidden counterexamples
+  - [x] links to context, observability, redaction, configuration, and packaging SSoTs
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/logging-policy.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-logging-psr3.md`
+- [x] `packages/platform/redaction/src/Redaction/SensitiveKeyClassifier.php`
+  - [x] implement Coretsia\Contracts\Security\SensitiveKeyClassifierInterface.
+  - [x] preserve the exact public classify(string $key): ?RedactionKind method.
+  - [x] preserve the exact immutable private 98-alias table and RedactionKind mappings.
+  - [x] preserve ASCII-only case folding and the four canonical separator-removal rules.
+  - [x] preserve existing ambiguous and unclassified key behavior.
+  - [x] retain the concrete classifier as a package-internal implementation.
+  - [x] no additional classifier, alias registry, configuration, or mutable state.
+  - [x] no changes to DefaultSensitiveDataRedactor classification behavior.
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/redaction/src/Provider/RedactionServiceProvider.php`
+  - [x] add a declarative SensitiveKeyClassifierInterface alias to SensitiveKeyClassifier::class.
+  - [x] reuse the existing shared SensitiveKeyClassifier classService definition.
+  - [x] preserve the existing SensitiveDataRedactorInterface alias to DefaultSensitiveDataRedactor::class.
+  - [x] append the new classifier alias after the existing redactor alias in the canonical definition stream.
+  - [x] preserve the existing four classService operations and their ordering.
+  - [x] preserve the three existing DefaultSensitiveDataRedactor constructor references and their order.
+  - [x] both classifier service IDs MUST resolve to the identical shared instance.
+  - [x] DefaultSensitiveDataRedactor MUST continue to use that identical instance.
+  - [x] no additional classifier construction, closure, classMethodFactory, runtime lookup, configuration, or tag.
+  - [x] preserve source and compiled container-definition parity.
+  - [x] provider application remains explicit and module-selection owned.
 
-- [ ] `packages/platform/logging/composer.json`
-- [ ] `packages/platform/logging/src/Module/LoggingModule.php`
-- [ ] `packages/platform/logging/src/Provider/LoggingServiceProvider.php`
-- [ ] `packages/platform/logging/config/logging.php`
-- [ ] `packages/platform/logging/config/rules.php`
-- [ ] `packages/platform/logging/README.md`
-- [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/platform/redaction/tests/Unit/SensitiveKeyClassifierTest.php`
+  - [x] verify SensitiveKeyClassifier implements SensitiveKeyClassifierInterface.
+  - [x] preserve all 98 canonical alias and RedactionKind mapping assertions.
+  - [x] preserve separator normalization, ASCII case folding, and locale-independence tests.
+  - [x] preserve ambiguous and unclassified key cases, including null results.
+
+- [x] `packages/platform/redaction/tests/Contract/RedactionProviderDefinitionsContainNoClosuresContractTest.php`
+  - [x] update the exact expected descriptor stream with the appended classifier port alias.
+  - [x] verify the alias targets SensitiveKeyClassifier::class.
+  - [x] preserve existing classService and redactor alias ordering.
+  - [x] preserve typed reference, deterministic descriptor, and no-closure assertions.
+
+- [x] `packages/platform/redaction/tests/Contract/RedactionProviderSourceDefinitionsParityTest.php`
+  - [x] add SensitiveKeyClassifierInterface::class to the exact expected service IDs.
+  - [x] verify source and declarative definitions produce identical classifier bindings.
+  - [x] verify both classifier IDs resolve to the same shared instance.
+  - [x] verify the redactor retains that identical injected classifier instance.
+  - [x] preserve existing redactor service identity and no-tag assertions.
+
+- [x] `packages/platform/redaction/tests/Integration/RedactionProviderRequiresExplicitApplicationTest.php`
+  - [x] verify package/autoload presence does not register the classifier port.
+  - [x] update the exact expected alias descriptors to include the new classifier alias.
+  - [x] update the exact expected service IDs.
+  - [x] verify both aliases are registered only after explicit provider application.
+  - [x] preserve the absence of automatic module activation, configuration, and tags.
+
+- [x] `packages/platform/redaction/tests/Integration/RedactionServiceProviderWiresDefaultRedactorTest.php`
+  - [x] include SensitiveKeyClassifierInterface::class in expected bindings.
+  - [x] verify the interface resolves to the existing shared SensitiveKeyClassifier instance.
+  - [x] verify DefaultSensitiveDataRedactor retains the identical classifier dependency.
+  - [x] preserve existing redactor constructor shape and shared identity assertions.
+  - [x] preserve redaction behavior and configuration-free provider semantics.
+
+- [x] `packages/core/kernel/src/Module/ModulePlan.php`
+  - [x] implement Coretsia\Contracts\Runtime\AppTargetProviderInterface.
+  - [x] reuse the existing app(): string method without changing its signature or behavior.
+  - [x] preserve existing canonical app-target validation.
+  - [x] do not introduce another app-target field, resolver, or state snapshot.
+
+- [x] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] bind AppTargetProviderInterface through the existing declarative classMethodFactory API, not through alias().
+  - [x] factoryClass = KernelServiceFactory::class
+  - [x] method = appTargetProvider
+  - [x] KernelServiceFactory::appTargetProvider() MUST exist as a public static method before the classMethodFactory definition is constructed.
+  - [x] the implementation MUST preserve the same ModulePlan runtime-seed identity in source and compiled containers.
+  - [x] factory arguments contain exactly ContainerValueReference::service(ModulePlan::class).
+  - [x] declare ModulePlan::class as a required runtime seed service reference.
+  - [x] reuse the existing canonical ModulePlan runtime seed without defining, replacing, or duplicating it.
+  - [x] preserve source/compiled container definition parity.
+  - [x] do not resolve ModulePlan during provider registration or definition construction.
+  - [x] do not add logging-specific configuration, logging implementation references, or module-selection logic.
+
+- [x] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] add one public static appTargetProvider() factory method.
+  - [x] exact signature: appTargetProvider(ModulePlan $plan): AppTargetProviderInterface.
+  - [x] return the injected ModulePlan instance unchanged.
+  - [x] reuse ModulePlan's existing implementation of AppTargetProviderInterface.
+  - [x] do not construct another app-target provider, resolver, or value object.
+  - [x] do not copy, cache, mutate, or independently validate the selected app target.
+  - [x] do not access runtime configuration, filesystem paths, environment variables, or UoW state.
+  - [x] preserve existing KernelServiceFactory responsibilities and stateless behavior.
+
+- [x] `packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php`
+  - [x] add AppTargetProviderInterface::class to the exact expected Kernel runtime service IDs in canonical descriptor order.
+  - [x] add ModulePlan::class to the exact expected requiredServiceIds set.
+  - [x] provide one valid canonical ModulePlan instance as an external source-container seed before provider registration.
+  - [x] exclude the test-owned ModulePlan seed from the provider-owned binding ID comparison.
+  - [x] verify AppTargetProviderInterface resolves to the identical seeded ModulePlan instance.
+  - [x] verify the AppTargetProviderInterface service definition remains shared.
+  - [x] preserve the existing KernelRuntimeInterface alias assertions.
+  - [x] preserve source/compiled definition parity and deterministic service ordering.
+  - [x] do not introduce another app-target resolver, ModulePlan definition, or runtime state owner.
+
+- [x] `packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php`
+  - [x] add AppTargetProviderInterface::class to the exact expected Kernel runtime definition binding IDs.
+  - [x] add ModulePlan::class to the exact expected requiredServiceIds set.
+  - [x] verify AppTargetProviderInterface is a graph-defined classMethodFactory service.
+  - [x] verify ModulePlan::class remains an external runtime seed and never becomes a runtime graph binding.
+  - [x] preserve the existing compile-host-only service exclusion assertions.
+  - [x] preserve the prohibition on runtime definitions for compile-host services.
+  - [x] do not change ContainerGraphCompletenessValidator or the canonical runtime seed allowlist.
+
+- [x] `packages/framework/composer.json`
+  - [x] add `coretsia/platform-logging: ^0.10.0` to `require`
+  - [x] update the metapackage description to include Logging in the baseline runtime installation dependencies
+  - [x] preserve existing coretsia/core-kernel and coretsia/platform-cli requirements
+  - [x] Composer dependency ensures physical installation of the logging package
+  - [x] platform-logging installs platform-redaction through its own Composer dependencies
+  - [x] metapackage remains dependency-only
+  - [x] no runtime module activation logic is introduced into Composer metadata
+
+- [x] `packages/core/kernel/resources/modes/micro.php`
+  - [x] add `platform.logging` to `modules`
+  - [x] do not add platform.logging to `required`
+  - [x] preserve core.foundation and core.kernel as required
+  - [x] preserve platform.cli as a selectable module
+  - [x] default micro selection includes real logging
+  - [x] target-local exclude may disable platform.logging
+  - [x] preserve schemaVersion, featureBundles, and metadata
+
+- [x] `packages/core/kernel/resources/modes/express.php`
+  - [x] add `platform.logging` to `modules`
+  - [x] do not add platform.logging to `required`
+  - [x] preserve all existing module roots
+  - [x] default express selection includes real logging
+  - [x] target-local exclude may disable platform.logging
+  - [x] preserve schemaVersion, featureBundles, and metadata
+
+- [x] `packages/core/kernel/resources/modes/hybrid.php`
+  - [x] add `platform.logging` to `modules`
+  - [x] do not add platform.logging to `required`
+  - [x] preserve platform.cli and platform.worker
+  - [x] default hybrid selection includes real logging
+  - [x] target-local exclude may disable platform.logging independently of platform.worker
+  - [x] preserve schemaVersion, featureBundles, and metadata
+
+- [x] `packages/core/kernel/resources/modes/enterprise.php`
+  - [x] add `platform.logging` to `modules`
+  - [x] do not add platform.logging to `required`
+  - [x] preserve platform.cli and platform.worker
+  - [x] default enterprise selection includes real logging
+  - [x] target-local exclude may disable platform.logging independently of platform.worker
+  - [x] preserve schemaVersion, featureBundles, and metadata
+
+- [x] `packages/platform/cli/src/Runner/CommandRunner.php`
+  - [x] replace the dynamic `LoggerInterface::log()` severity selection with explicit `LoggerInterface::info()` for successful commands and `LoggerInterface::error()` for failed commands.
+  - [x] construct the existing safe log context once and reuse it in both branches.
+  - [x] preserve the static `cli.command` event identifier, operation, outcome, exit_code, and existing safe context identifiers.
+  - [x] preserve exactly one logging attempt per command completion and the existing best-effort Throwable isolation.
+  - [x] preserve CommandRunner-owned lifecycle observability, Kernel UoW ordering, exit-code semantics, primary exception propagation, and CLI output behavior.
+  - [x] do not introduce any concrete platform/logging dependency or another logging abstraction.
+
+- [x] `packages/platform/cli/tests/Unit/CommandRunnerObservabilityTest.php`
+  - [x] preserve existing assertions that successful commands log at `info` and non-zero exit codes log at `error`.
+  - [x] additionally assert that a command throwing an exception logs at `error`.
+  - [x] verify exactly one log attempt per completed command lifecycle.
+  - [x] preserve existing safe context, correlation identifier, telemetry ordering, and exception isolation assertions.
+  - [x] preserve logging in CommandRunner's existing finally block after the completed runUnitOfWork() boundary.
+  - [x] captured safe identifiers may remain only as validated non-authoritative log context fields.
+  - [x] do not restore the completed UoW or repopulate canonical root correlation_id, uow_id, or uow_type from captured command identifiers.
+  - [x] canonical root identifiers follow the current ContextAccessorInterface and CorrelationIdProviderInterface state at emission time.
+  - [x] after the UoW has been reset, canonical root identifiers may be null even when bounded caller context identifiers are present.
+  - [x] preserve exactly one completion logging attempt and existing primary exception precedence.
+
+- [x] `packages/core/kernel/tests/Support/AppBuilder.php`
+  - [x] add platform.logging to canonical micro/express test fixture manifests
+  - [x] add logging module metadata, provider, Composer identity, and default config path
+  - [x] declare logging module requires core.foundation, core.kernel, and platform.redaction
+  - [x] reuse the canonical Kernel AppTargetProviderInterface binding through ModulePlan
+  - [x] add logging package root to test ComposerPackageInstallPathResolver
+  - [x] preserve existing Foundation, Kernel, CLI, Errors, and Redaction fixture wiring
+  - [x] reuse the actual LoggingServiceProvider; no test-only logging DI implementation
+  - [x] preserve source/compiled artifact boot coverage
+
+- [x] `packages/core/kernel/tests/Integration/ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest.php`
+  - [x] micro and express modules match exactly [platform.cli, platform.logging].
+  - [x] hybrid and enterprise modules match exactly [platform.cli, platform.logging, platform.worker].
+  - [x] existing required arrays remain exactly [core.foundation, core.kernel].
+  - [x] preserve micro/express equality and hybrid/enterprise worker distinctions.
+  - [x] verify platform.logging is never required
+  - [x] preserve existing micro/express equality assertions
+  - [x] preserve hybrid/enterprise worker distinctions
+  - [x] verify canonical schema and featureBundles remain unchanged
+
+- [x] `packages/core/kernel/tests/Unit/ProjectPackagePlannerTest.php`
+  - [x] update canonical micro and express installation-planning expectations to include platform.logging.
+  - [x] preserve the existing per-target preset selection and application discovery rules.
+  - [x] the default micro and express resolved module closure includes core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, and platform.redaction.
+  - [x] hybrid and enterprise additionally include platform.worker.
+  - [x] add platform.logging to exact byte-order sorted enabledModuleIdsByTarget() and unionModuleIds() expectations for canonical presets.
+  - [x] add coretsia/platform-logging with the existing canonical release-line constraint to desiredRootRequirements() expectations.
+  - [x] add the exact platform.logging expectedModuleMetadataById() entry:
+    - [x] composerName = coretsia/platform-logging
+    - [x] requires = [core.foundation, core.kernel, platform.redaction]
+    - [x] conflicts = []
+  - [x] preserve existing core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, and platform.worker metadata expectations.
+  - [x] preserve exact deterministic package ordering and approved planning payload encoding.
+  - [x] verify target-local exclusion of platform.logging removes it only from the affected target's enabled module closure.
+  - [x] verify another target may retain platform.logging in the union installation plan.
+  - [x] verify excluding platform.logging does not remove platform.redaction when another enabled module requires it.
+  - [x] preserve custom application-only preset behavior without implicitly adding platform.logging.
+  - [x] preserve the Kernel bootstrap floor, required dependency closure, and fail-closed unknown-module semantics.
+  - [x] preserve the absence of implicit Composer mutations, application-target discovery, or runtime module auto-enablement.
+  - [x] no new DependencySync planner, package registry, configuration source, span, metric, context state, or reset service.
+
+- [x] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] expect platform.logging in default enabled ModulePlan
+  - [x] verify compiled container resolves the real LoggerInterface backend
+  - [x] update canonical topological-order expectations
+  - [x] expected enabled modules are byte-order sorted and include platform.logging.
+  - [x] platform.redaction precedes platform.logging in topological order.
+  - [x] the real logging backend is resolved through the compiled container.
+  - [x] no Kernel-owned alternate logger wiring is introduced.
+  - [x] preserve existing artifact and Kernel boot assertions
+  - [x] verify AppTargetProviderInterface resolves to the already selected canonical ModulePlan app.
+  - [x] verify AppTargetProviderInterface resolves to the identical ModulePlan runtime seed instance.
+  - [x] verify the AppTargetProviderInterface binding is compiled as a class-method factory, not an alias.
+  - [x] verify both source and compiled containers preserve the selected app target without additional state.
+  - [x] verify logging.service_name='auto' adds canonical service_name and app_target to emitted records.
+  - [x] verify source and compiled container paths resolve identical service identity semantics.
+
+- [x] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] expect platform.logging in default enabled ModulePlan
+  - [x] verify compiled container resolves the real LoggerInterface backend
+  - [x] update canonical topological-order expectations
+  - [x] expected enabled modules are byte-order sorted and include platform.logging.
+  - [x] platform.redaction precedes platform.logging in topological order.
+  - [x] the real logging backend is resolved through the compiled container.
+  - [x] no Kernel-owned alternate logger wiring is introduced.
+  - [x] preserve existing artifact and Kernel boot assertions
+  - [x] verify AppTargetProviderInterface resolves to the already selected canonical ModulePlan app.
+  - [x] verify AppTargetProviderInterface resolves to the identical ModulePlan runtime seed instance.
+  - [x] verify the AppTargetProviderInterface binding is compiled as a class-method factory, not an alias.
+  - [x] verify both source and compiled containers preserve the selected app target without additional state.
+  - [x] verify logging.service_name='auto' adds canonical service_name and app_target to emitted records.
+  - [x] verify source and compiled container paths resolve identical service identity semantics.
+
+- [x] `packages/core/kernel/tests/Integration/ModuleSelectionFactoryTest.php`
+  - [x] verify platform.logging is selected by default in each canonical preset.
+  - [x] verify target-local exclude removes platform.logging from selected roots.
+  - [x] verify excluding logging does not remove core.foundation, core.kernel, or platform.cli.
+  - [x] verify exclusion does not implicitly remove transitive platform.redaction required by another enabled module.
+  - [x] reuse the canonical ModuleSelectionFactory without introducing logging-specific selection logic.
+
+- [x] `packages/core/kernel/tests/Integration/ModuleGraphResolverRejectsMissingSelectedRootTest.php`
+  - [x] verify a selected but physically missing platform.logging module fails closed.
+  - [x] verify the existing missing-selected-root exception semantics remain authoritative.
+  - [x] verify no implicit NoopLogger fallback replaces a missing selected module during planning.
+
+- [x] `packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php`
+  - [x] verify a declarative classMethodFactory service may consume ModulePlan::class as a canonical external runtime seed reference.
+  - [x] verify AppTargetProviderInterface is exposed as a graph-defined service rather than an alias targeting ModulePlan::class.
+  - [x] verify the resulting graph passes the existing ContainerGraphCompletenessValidator.
+  - [x] preserve the existing runtime seed allowlist and unknown-seed rejection behavior.
+  - [x] do not modify the validator or introduce a new runtime seed.
+
+- [x] `packages/platform/cli/tests/Integration/CliDefaultMicroCreateProjectBootTest.php`
+  - [x] assert coretsia/skeleton requires coretsia/framework.
+  - [x] assert coretsia/framework directly requires coretsia/platform-logging.
+  - [x] assert coretsia/platform-logging requires coretsia/platform-redaction.
+  - [x] assert kernel.boot.default_preset remains micro.
+  - [x] assert canonical micro selects platform.logging through modules, not required.
+  - [x] assert default Console ModulePlan includes platform.logging.
+  - [x] assert normal Console source-host wiring resolves the real logging backend.
+  - [x] preserve existing artifact-free normal CLI host boot behavior.
+  - [x] verify successful CLI output remains valid coretsia.cli-output@1 JSON.
+  - [x] verify permitted diagnostic logs are JSON-lines on stderr.
+  - [x] do not require stderr to be empty when an admitted info-level log event is emitted.
+  - [x] verify log records contain no PHP warnings, raw paths, credentials, or stack traces.
+  - [x] preserve ultra-early doctor behavior independently of normal runtime logging.
+  - [x] verify target-local exclusion selects Foundation NoopLogger without removing platform.logging from Composer.
+  - [x] verify the default logging.format=jsonl preserves JSON-lines stderr diagnostics.
+  - [x] verify a target-local logging.format=logfmt configuration produces parseable logfmt stderr diagnostics without changing canonical CLI stdout or exit codes.
+  - [x] verify format selection does not affect command lifecycle logging severity or safe context semantics.
+
+- [x] `packages/platform/cli/tests/Integration/CoretsiaBinaryListCommandTest.php`
+  - [x] preserve identical command exit codes between Composer proxy and Skeleton wrapper.
+  - [x] preserve byte-identical canonical command stdout for identical input.
+  - [x] do not require two independent stderr log streams to be byte-identical when records contain independently captured runtime timestamps or correlation identifiers.
+  - [x] parse and validate every emitted stderr JSON-lines record.
+  - [x] verify the same safe event types and canonical field schema for both invocation paths.
+  - [x] exclude runtime timestamps and UoW-specific identifiers only from cross-invocation equivalence comparisons.
+  - [x] retain exact deterministic JSON serialization assertions for identical fixed input records.
+  - [x] preserve failure-path safety assertions.
+  - [x] preserve CLI output and logging pipeline separation.
+
+- [x] `packages/platform/cli/tests/Integration/NonInteractiveAdaptiveOutputUsesTableFormatTest.php`
+  - [x] preserve exact stdout and exit-code assertions for identical commands.
+  - [x] do not compare entire process results byte-for-byte across independent executions when stderr contains runtime-generated log records.
+  - [x] validate diagnostic stderr records against the canonical logging JSON-lines schema.
+  - [x] preserve tests using explicitly injected logging test doubles.
+
+- [x] `packages/platform/cli/tests/Integration/CoretsiaRepositoryWrapperIsCwdIndependentTest.php`
+  - [x] preserve CWD-independent application-root, autoload, exit-code, and stdout semantics.
+  - [x] replace byte-identical stderr comparisons across independent invocations with canonical log-record validation.
+  - [x] ignore independently generated timestamps and UoW identifiers only when comparing otherwise equivalent log records.
+  - [x] preserve protection against wrong-CWD autoload and configuration access.
+
+- [x] `packages/platform/cli/tests/Integration/CoretsiaBinaryHelpCommandTest.php`
+  - [x] preserve existing help-command stdout, metadata, formatting, and exit-code assertions.
+  - [x] replace empty-stderr expectations for successfully dispatched commands with canonical JSON-lines logging validation when the real logging backend is enabled.
+  - [x] preserve deterministic help output independently of runtime-generated logging timestamps and UoW identifiers.
+  - [x] do not suppress normal CLI logging to satisfy legacy stderr assertions.
+
+- [x] `packages/platform/cli/tests/Integration/WorkflowCatalogIsResolvedOnlyForWorkflowCommandsTest.php`
+  - [x] preserve lazy workflow catalog resolution and existing command failure semantics.
+  - [x] allow canonical JSON-lines diagnostic records for successfully dispatched commands when platform.logging is enabled.
+  - [x] preserve empty-stderr expectations where execution fails before any logging-producing command lifecycle.
+  - [x] preserve stdout error descriptors and sensitive-data non-disclosure assertions.
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register logging-policy.md exactly once
+  - [x] use canonical SSoT entry format
+  - [x] owner = platform/logging
+  - [x] ssotVersion = 1
+  - [x] preserve strcmp relative-path ordering
+  - [x] no forward references
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register ADR-0037-platform-logging-psr3.md exactly once
+  - [x] owner = platform/logging
+  - [x] adrVersion = 1
+  - [x] preserve deterministic relative-path ordering
+  - [x] no ADR-XXXX placeholder remains
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add canonical platform/logging matrix row
+  - [x] depends_on = core/contracts, core/foundation
+  - [x] preserve sorted package-id rows
+  - [x] document platform/logging → platform/redaction as runtime-only Composer/module edge
+  - [x] document platform/logging → core/kernel as a runtime-only Composer/module edge for AppTargetProviderInterface availability.
+  - [x] preserve the prohibition on direct platform/logging source imports from core/kernel.
+  - [x] no direct source dependency permission on platform/redaction
+  - [x] no changes to existing package dependency edges
+
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] add platform.logging to the canonical materialized-module table
+  - [x] ModuleId = platform.logging
+  - [x] composerName = coretsia/platform-logging
+  - [x] requires = core.foundation, core.kernel, platform.redaction
+  - [x] update materialized installation catalog coverage expectations
+  - [x] package installation does not imply module enablement
+  - [x] platform.logging is selected by default in micro, express, hybrid, and enterprise.
+  - [x] coretsia/framework installs coretsia/platform-logging as part of the Composer bootstrap floor.
+  - [x] the documented bootstrap dependency graph includes coretsia/platform-logging and its platform-redaction dependency.
+  - [x] canonical materialized-module table includes platform.logging.
+  - [x] default ModulePlan examples include platform.logging.
+  - [x] moduleOverrides.exclude removes platform.logging only from the selected target's runtime ModulePlan.
+  - [x] target-local exclusion does not remove the package from the shared Composer vendor graph.
+  - [x] installed-state verification respects target-local logging exclusions.
+  - [x] no implicit Composer update or dependency synchronization occurs during boot.
+  - [x] Foundation NoopLogger remains the baseline for all presets without platform.logging
+  - [x] explicitly selected platform.logging contributes its own required module closure
+  - [x] absence or exclusion of required platform.redaction fails during canonical module planning
+  - [x] no changes to existing target-local preset selection semantics
+  - [x] no new dependency-sync engine, package resolver, or Composer graph implementation
+
+- [x] `docs/ssot/modes.md`
+  - [x] update canonical preset runtime module policy table for all four presets
+  - [x] add platform.logging to each preset's selectable modules
+  - [x] preserve core.foundation and core.kernel as non-excludable required modules
+  - [x] preserve existing platform.cli and platform.worker selection rules
+  - [x] update the exact canonical ModePreset required/modules matrix for micro, express, hybrid, and enterprise.
+  - [x] micro and express modules = [platform.cli, platform.logging].
+  - [x] hybrid and enterprise modules = [platform.cli, platform.logging, platform.worker].
+  - [x] every canonical preset retains required = [core.foundation, core.kernel].
+  - [x] micro and express effective enabled ModulePlan contains core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction.
+  - [x] hybrid and enterprise additionally contain platform.worker.
+  - [x] update all existing multi-target examples and effective module-union examples.
+  - [x] update existing bootstrap Composer baseline documentation to include platform.logging.
+  - [x] document missing selected logging module failure through existing graph resolver.
+  - [x] document successful exclusion of platform.logging without excluding platform.redaction required by other modules.
+  - [x] preserve the distinction between product-level Required capability and ModePreset.required non-excludable modules.
+  - [x] document platform.logging target-local exclusion
+  - [x] distinguish Composer installation from runtime module selection
+  - [x] document Foundation NoopLogger fallback after exclusion
+  - [x] preserve schemaVersion = 1
+  - [x] no new ModePreset keys, ModuleSelection APIs, or ModuleGraphResolver behavior
+
+- [x] `packages/framework/README.md`
+  - [x] update the direct baseline Composer dependency list:
+    - [x] coretsia/core-kernel
+    - [x] coretsia/platform-cli
+    - [x] coretsia/platform-logging
+  - [x] update the baseline Composer dependency graph.
+  - [x] document platform-redaction as a transitive dependency required by platform-cli and platform-logging.
+  - [x] document platform.logging as part of the default public framework distribution.
+  - [x] preserve coretsia/framework as a dependency-only metapackage.
+  - [x] framework MUST NOT instantiate logging services or own runtime logging implementation.
+  - [x] distinguish physical Composer installation from Kernel runtime module activation.
+  - [x] document default platform.logging selection in all canonical presets.
+  - [x] document target-local exclusion through moduleOverrides.exclude.
+  - [x] document logging.driver='null' as a separate backend-disable mechanism.
+  - [x] document stream as the default fixed STDERR backend and file as the optional daily local-file backend.
+  - [x] explain that file output is configured by platform/logging, not framework.
+  - [x] distinguish disabled logging from missing selected runtime dependencies.
+  - [x] preserve existing DependencySync ownership and explicit-apply semantics.
+  - [x] update Observability documentation without transferring logging ownership from platform/logging to framework.
+  - [x] preserve Errors and Security / Redaction distribution boundaries.
+
+- [x] `packages/applications/skeleton/README.md`
+  - [x] preserve coretsia/framework as the only project-owned baseline Coretsia Composer root requirement.
+  - [x] update the default create-project dependency graph to include coretsia/platform-logging.
+  - [x] document platform-redaction as the required transitive dependency.
+  - [x] preserve kernel.boot.default_preset='micro' as the default preset source.
+  - [x] preserve config/app.php returning [] as a valid default configuration.
+  - [x] default micro ModulePlan includes:
+    - [x] core.foundation
+    - [x] core.kernel
+    - [x] platform.cli
+    - [x] platform.errors
+    - [x] platform.logging
+    - [x] platform.redaction
+  - [x] distinguish intended future micro capabilities from currently materialized runtime modules.
+  - [x] document StreamLogger as the default runtime LoggerInterface implementation after successful module composition.
+  - [x] document moduleOverrides.exclude for target-local logging deactivation.
+  - [x] document logging.driver='null' for backend deactivation without excluding the runtime module.
+  - [x] document logging.driver='file' and its required administrator-controlled file.path.
+  - [x] document automatic UTC-daily filenames and their app-target prefixes.
+  - [x] explain that daily file partitioning does not manage retention, deletion, or disk quotas.
+  - [x] document that a missing selected logging module is a bootstrap failure, not a NoopLogger fallback.
+  - [x] document that selecting another preset does not automatically install its additional Composer dependencies.
+  - [x] preserve explicit DependencySync plan/review/apply as the package installation workflow.
+  - [x] preserve existing project-root CLI wrapper and bootstrap ownership.
+  - [x] document that runtime logs may be written to stderr independently of CLI command output.
+  - [x] preserve the existing Observability, Errors, and Security / Redaction boundaries.
+
+- [x] `packages/platform/cli/README.md`
+  - [x] remove the coretsia/framework baseline Composer dependency description.
+  - [x] CLI documentation MUST NOT enumerate or maintain coretsia/framework distribution dependencies.
+  - [x] preserve CLI-owned direct Composer and PHP source dependency declarations.
+  - [x] preserve LoggerInterface as the only logging dependency consumed by CLI.
+  - [x] preserve canonical Kernel ModulePlan and DependencySync integration semantics.
+  - [x] preserve CLI output, error handling, observability, and redaction ownership.
+  - [x] no direct Composer or PHP source dependency on platform/logging is introduced.
+  - [x] no changes to CliServiceProvider or CLI output pipeline are required solely for logging backend selection.
+
+Shared redaction public contract documentation:
+
+- [x] `docs/ssot/sensitive-data-redaction.md`
+  - [x] register SensitiveKeyClassifierInterface as a second contracts-level cross-package security port.
+  - [x] preserve SensitiveDataRedactorInterface as the mandatory redaction port.
+  - [x] document exact classify(string $key): ?RedactionKind semantics.
+  - [x] preserve the exact 98-alias vocabulary, RedactionKind mappings, and canonicalization algorithm.
+  - [x] preserve platform.redaction ownership of the immutable classification policy.
+  - [x] keep the concrete SensitiveKeyClassifier package-internal.
+  - [x] update the exclusive one-port statements in Scope, Authority boundary, and Consumer safety.
+  - [x] document the new declarative classifier interface alias to the existing shared implementation.
+  - [x] update the exact provider definition operation order.
+  - [x] document classifier alias identity with the instance used by DefaultSensitiveDataRedactor.
+  - [x] clarify that a null classification result never authorizes consumer sink emission.
+  - [x] document that composite key-path interpretation is consumer-owned; the classifier receives individual structural keys and does not parse paths.
+  - [x] preserve lower-layer Core independence from platform.redaction.
+  - [x] update canonical verification requirements for interface conformance, alias identity, and source/compiled definition parity.
+  - [x] no new classifier implementation, public alias registry, configuration, or redaction engine.
+
+- [x] `packages/platform/redaction/README.md`
+  - [x] list SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface as the two supported contracts-level ports.
+  - [x] distinguish the redaction operation from read-only structural-key classification.
+  - [x] document the unchanged concrete SensitiveKeyClassifier as an internal implementation.
+  - [x] document both declarative provider aliases and their shared concrete service identities.
+  - [x] preserve the requirement for explicit platform.redaction module selection.
+  - [x] clarify that classifier non-match does not establish sink safety.
+  - [x] preserve consumer ownership of destination-specific admission.
+  - [x] no additional runtime configuration, classifier registry, or module.
+
+- [x] `packages/core/contracts/README.md`
+  - [x] add SensitiveKeyClassifierInterface to the canonical Security contracts inventory.
+  - [x] document the exact classify(string $key): ?RedactionKind method.
+  - [x] distinguish the read-only classification port from SensitiveDataRedactorInterface.
+  - [x] preserve the two existing SensitiveDataRedactorInterface entrypoints unchanged.
+  - [x] replace the exclusive SensitiveDataRedactorInterface-only consumer statement with the two supported contracts-level security ports.
+  - [x] preserve platform.redaction ownership of the canonical 98-alias vocabulary and classification algorithm.
+  - [x] document that null classification means unclassified, not safe for emission.
+  - [x] preserve destination-owned schema, path, semantic-key, omission, cardinality, and resource-limit requirements.
+  - [x] forbid direct consumer dependencies on concrete platform.redaction classifier implementations.
+  - [x] preserve the existing RedactionKind enum and all existing redaction failure/result contracts.
+  - [x] no second classifier, policy registry, runtime configuration, context store, spans, metrics, or reset capability.
+
+- [x] `docs/adr/ADR-0010-sensitive-data-redaction-boundary.md`
+  - [x] preserve the existing ADR identifier, metadata, decision history, and redaction ownership.
+  - [x] update Decision 1 to distinguish one default redaction implementation from two supported contracts-level security ports.
+  - [x] register SensitiveKeyClassifierInterface alongside SensitiveDataRedactorInterface.
+  - [x] preserve the exact two-method SensitiveDataRedactorInterface API.
+  - [x] document classify(string $key): ?RedactionKind as read-only classification, not redaction or sink authorization.
+  - [x] preserve SensitiveKeyClassifier as the package-internal concrete classifier.
+  - [x] preserve the exact 98-alias classification vocabulary and existing canonicalization semantics.
+  - [x] document the new declarative classifier interface alias to the existing shared classifier instance.
+  - [x] preserve identity with the instance injected into DefaultSensitiveDataRedactor.
+  - [x] clarify that composite key-path segmentation is a consumer responsibility.
+  - [x] preserve producer- and sink-owned safety constraints when classification returns null.
+  - [x] preserve platform.redaction independence from Kernel, logging, context, observability, and reset implementations.
+  - [x] preserve config-free, stateless, deterministic, and fail-closed redaction behavior.
+  - [x] no second redaction implementation, alias registry, package, or runtime module.
+
+Generated repository changes:
+
+- [x] `composer.json`
+  - [x] add managed workspace path repository for coretsia/platform-logging
+  - [x] add canonical release-line require-dev entry
+  - [x] use existing sync tools
+  - [x] preserve unrelated unmanaged Composer state
+
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate through package_index.php
+  - [x] include platform/logging canonical package metadata
+  - [x] do not hand-edit generated payload
+
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through installation_catalog.php
+  - [x] include platform.logging and required runtime module edges
+  - [x] preserve schemaVersion and canonical deterministic ordering
+  - [x] do not hand-edit generated payload
+
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate through deptrac_generate.php
+  - [x] reflect only canonical source edges from DEPENDENCIES.md
+  - [x] do not add runtime-only platform/redaction edge as source permission
+  - [x] do not hand-edit generated rules
+
+- [x] Runtime/Kernel/Foundation source:
+  - [x] Kernel ModulePlan implements the contracts-level AppTargetProviderInterface using its existing app() method.
+  - [x] KernelServiceProvider exposes the existing ModulePlan through KernelServiceFactory::appTargetProvider() and a declarative classMethodFactory binding.
+  - [x] the binding references ModulePlan::class only as a canonical external runtime seed.
+  - [x] no compiled-container alias targets a runtime seed.
+  - [x] Foundation production source remains unchanged.
+  - [x] no new app-target resolver, runtime seed, context store, or module-selection mechanism is introduced.
+
+- [x] Canonical preset resources:
+  - [x] micro.php selects platform.logging by default
+  - [x] express.php selects platform.logging by default
+  - [x] hybrid.php selects platform.logging by default
+  - [x] enterprise.php selects platform.logging by default
+  - [x] all four declare platform.logging in modules, not required
+  - [x] target-local exclusion remains supported
+  - [x] Foundation NoopLogger remains the fallback
+  - [x] no new mode preset selection semantics are introduced
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/logging/config/logging.php`
-- [ ] Keys (dot):
-  - [ ] `logging.enabled` = true
-  - [ ] `logging.driver` = 'stream'
-  - [ ] `logging.stream` = 'php://stderr'
-  - [ ] `logging.level` = 'info'
-  - [ ] `logging.redaction.enabled` = true
-- [ ] Rules:
-  - [ ] `packages/platform/logging/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/logging/config/logging.php`
+  - [x] `packages/platform/logging/config/rules.php`
+- [x] Keys (dot):
+  - [x] `logging.driver` = 'stream'
+  - [x] `logging.file.path` = ''
+  - [x] `logging.file.name` = 'app'
+  - [x] `logging.level` = 'info'
+  - [x] `logging.max_record_bytes` = 65536
+  - [x] `logging.service_name` = 'auto'
+  - [x] `logging.format` = 'jsonl'
+  - [x] no logging.stream key
+- [x] Service identity:
+  - [x] `auto` resolves the selected app target through AppTargetProviderInterface.
+  - [x] canonical app targets are web, api, console, worker.
+  - [x] an explicit bounded service_name may replace the emitted service label.
+  - [x] canonical app_target remains separately available in every emitted record.
+  - [x] service identity is resolved during logger construction, not per record.
+- [x] Record size:
+  - [x] configurable per-record limit is 1024..65536 bytes.
+  - [x] MAX_RECORD_BYTES = 65536 remains the immutable hard upper bound.
+  - [x] automatic daily UTC file partitioning is introduced only for driver='file'.
+  - [x] no configurable total-file-size limit, retention period, archival, or automatic old-file deletion is introduced.
+- [x] Format:
+  - [x] supported values are jsonl and logfmt.
+  - [x] default format is jsonl.
+  - [x] jsonl uses JsonLineFormatter and Foundation StableJsonEncoder.
+  - [x] logfmt uses LogfmtLineFormatter and the same admitted, redacted canonical record map.
+  - [x] logfmt nested context serialization reuses Foundation StableJsonEncoder.
+  - [x] both formats produce one deterministic LF-terminated physical record.
+  - [x] both formats preserve canonical service identity, correlation fields, and safe context semantics.
+  - [x] format is selected once during LoggerInterface construction.
+  - [x] format does not affect module selection, log severity, shared redaction, or driver selection.
+  - [x] format determines the daily filename extension only for driver='file'.
+  - [x] unsupported format values fail configuration validation.
+- [x] Driver semantics:
+  - [x] stream → fixed php://stderr backend using the selected logging.format.
+  - [x] file → automatic daily UTC append-only file backend using the same StreamLogger and formatter.
+  - [x] null → Foundation NoopLogger.
+  - [x] package not enabled → Foundation NoopLogger remains active.
+  - [x] invalid configuration never silently selects NoopLogger.
+  - [x] unavailable file destinations and failed file writes are isolated without a raw fallback.
+- [x] Security:
+  - [x] no `logging.redaction.enabled`
+  - [x] redaction is mandatory for every emitted stream or file record.
+  - [x] no raw/debug/passthrough redaction modes
+  - [x] no configurable classifier or sensitive-key registry
+- [x] Rules:
+  - [x] strict declarative config shape
+  - [x] unknown and reserved keys rejected
+  - [x] no arbitrary stream URI, remote destination, unsafe file directory, or unvalidated filename.
+  - [x] file output is restricted to the configured absolute local directory after successful per-emission canonical resolution and validation, using only the generated daily filename; an unavailable directory causes emission omission without fallback or configuration mutation.
+  - [x] config validation remains Kernel-owned
 
 #### Wiring / DI tags (when applicable)
 
-- Tags introduced (this epic is the OWNER):
+- Tags introduced:
   - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] binds `Psr\Log\LoggerInterface` → factory result (or NullLogger)
-  - [ ] ensures `ContextBagProcessor` attached deterministically
+- [x] ServiceProvider wiring evidence:
+  - [x] Foundation LoggerInterface → NoopLogger remains unchanged.
+  - [x] LoggingServiceProvider uses both canonical provider interfaces.
+  - [x] platform.logging module requires platform.redaction.
+  - [x] LoggingServiceProvider declares ConfigRepositoryInterface as a required service reference.
+  - [x] LoggingServiceProvider declares SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface as required service references.
+  - [x] SensitiveKeyClassifierInterface resolves through the existing platform.redaction declarative alias.
+  - [x] the classifier alias resolves to the identical shared instance used by DefaultSensitiveDataRedactor.
+  - [x] LoggingServiceFactory receives the two security ports in the exact declared positional order.
+  - [x] no concrete platform.redaction implementation or duplicated classifier is introduced into logging DI definitions.
+  - [x] LoggingServiceFactory reads validated logging.driver, logging.file.path, logging.file.name, logging.level, logging.max_record_bytes, logging.service_name, and logging.format during LoggerInterface construction.
+  - [x] file.path is validated semantically only when driver='file'; no filesystem I/O occurs for inactive file mode.
+  - [x] file.name is validated through the canonical bounded ASCII grammar.
+  - [x] AppTargetProviderInterface resolves through the Kernel-owned classMethodFactory binding backed by the existing ModulePlan runtime seed.
+  - [x] source and compiled containers return the same ModulePlan instance through AppTargetProviderInterface.
+  - [x] the compiled graph passes ContainerGraphCompletenessValidator without runtime-seed alias targets.
+  - [x] LoggerInterface construction captures the validated selected app target and effective service_name.
+  - [x] no app-target values, stream destinations, or runtime configuration objects enter deterministic declarative DI parameters.
+  - [x] no logging.config declarative parameter is introduced.
+  - [x] no php://stderr value enters canonical service-definition parameters.
+  - [x] source and compiled container definitions use the same classMethodFactory references.
+  - [x] LoggerInterface binding uses classMethodFactory with LoggingServiceFactory::createLogger().
+  - [x] all service dependencies use ContainerValueReference.
+  - [x] service definitions contain no closures, open streams, or mutable runtime values.
+  - [x] enabled stream driver resolves StreamLogger with fixed php://stderr.
+  - [x] enabled file driver resolves the same StreamLogger with validated daily file output.
+  - [x] null driver resolves Foundation NoopLogger.
+  - [x] stream initialization failure resolves Foundation NoopLogger.
+  - [x] file destination and write failures discard the affected emission without disclosing diagnostics.
+  - [x] file output introduces no additional LoggerInterface binding or provider.
+  - [x] existing provider-plan ordering determines binding precedence.
+  - [x] source and compiled container definitions remain semantically identical.
+  - [x] no service locator or second DI implementation.
+  - [x] no kernel.reset or kernel.stateful tags.
 
 #### Artifacts / outputs (if applicable)
 
-N/A
+- [x] Build and compiled artifacts:
+  - [x] N/A — no new Coretsia artifact schema, manifest, registry, or compiled artifact format.
+- [x] Runtime outputs:
+  - [x] driver=stream emits admitted and redacted records only to php://stderr.
+  - [x] driver=file emits admitted and redacted records to `{app_target}-{file.name}-{YYYY-MM-DD}.{format}` inside the validated existing directory.
+  - [x] driver=null emits no records.
+  - [x] daily log files are runtime output files, not Kernel build artifacts.
+  - [x] the file backend does not publish, register, fingerprint, or hydrate log files through the Kernel artifact pipeline.
+  - [x] the selected format determines the encoded record and filename extension, not an additional artifact schema.
+  - [x] no retention, deletion, archival, or total-storage management is introduced.
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] (optional) `ContextKeys::CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, `USER_AGENT`
-- Context writes (safe only):
+- [x] Context reads:
+  - [x] correlation_id through CorrelationIdProviderInterface
+  - [x] `ContextKeys::UOW_ID`
+  - [x] `ContextKeys::UOW_TYPE`
+  - [x] optional `ContextKeys::PATH_TEMPLATE` only when already safe-by-construction
+- [x] Context fields:
+  - [x] correlation_id
+  - [x] uow_id
+  - [x] uow_type
+  - [x] all three canonical record fields always exist
+  - [x] absent/invalid/unreadable values become null
+  - [x] values MUST NOT be copied from arbitrary caller context
+  - [x] no synthetic UoW/correlation identifiers are generated
+- [x] Context writes:
   - N/A
-- [ ] Reset discipline:
-  - [ ] expected stateless; if state introduced → implement `ResetInterface` + tag `kernel.reset`
+- [x] Reset discipline:
+  - [x] ContextStore remains the sole owner of UoW-local context state.
+  - [x] ContextBagProcessor reads context on each admitted emission.
+  - [x] processor/logger MUST NOT cache ContextBag, current UoW IDs, raw request values, or per-UoW diagnostic records.
+  - [x] process-lifetime STDERR stream handle is not UoW-scoped state.
+  - [x] emission-scoped daily file handles are not UoW-scoped state.
+  - [x] file partitioning never changes canonical UoW identity, correlation fields, or reset semantics.
+  - [x] no ResetInterface or kernel.reset tag is introduced.
+  - [x] after ContextStore reset, the next record cannot inherit identifiers from the previous UoW.
+  - [x] missing/throwing context reads remain no-op-safe.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `logging.write` (attrs: `driver`, `outcome`)
-- [ ] Metrics:
-  - [ ] `logging.write_total` (labels: `driver`, `outcome`)
-  - [ ] `logging.write_duration_ms` (labels: `driver`, `outcome`)
-- [ ] Logs:
-  - [ ] never log Authorization/Cookie/session id/tokens/raw payload/raw SQL
-  - [ ] if reference needed: only `hash/len`
+- [x] Spans:
+  - [x] N/A — no per-log-record logging.write span.
+  - [x] emitting spans from LoggerInterface risks recursive logging through tracer/exporter implementations.
+  - [x] existing operation-boundary tracing remains authoritative.
+- [x] Metrics:
+  - [x] N/A — no per-log-record logging.write_total or logging.write_duration_ms.
+  - [x] emitting metrics from LoggerInterface risks recursive logging through metric adapters.
+  - [x] existing producer operation metrics remain authoritative.
+  - [x] no changes to canonical metrics catalog are required.
+- [x] Logs:
+  - [x] every emitted record uses the selected jsonl or logfmt serialization of the same canonical admitted and redacted record schema.
+  - [x] jsonl remains the default and preserves canonical JSON-lines record compatibility.
+  - [x] logfmt preserves all canonical fields through deterministic key=value serialization.
+  - [x] both formats emit exactly one physical LF-terminated record after a complete successful write.
+  - [x] correlation/uow fields have UoW-scoped nullable semantics
+  - [x] only static safe event identifiers are emitted
+  - [x] only logging-policy-approved operational context fields are emitted
+  - [x] redaction is defense in depth after producer-owned field admissibility
+  - [x] no raw Throwable messages, stack traces, paths, headers, cookies, credentials, tokens, payloads, SQL, or env values
+  - [x] no self-logging on internal logger failure
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Logging\Exception\LoggingWriteFailedException` — errorCode `CORETSIA_LOG_WRITE_FAILED`
-    - [ ] `LoggingWriteFailedException` is internal-only:
-      - [ ] public `Psr\Log\LoggerInterface` calls MUST NOT surface this exception to callers
-      - [ ] write failures MUST degrade deterministically to `NullLogger` / noop-safe behavior
-      - [ ] runtime MUST remain no-throw from the caller perspective
-- [ ] Mapping:
-  - [ ] failures must not crash runtime; fallback to NullLogger / noop-safe behavior with no stateful "warn once" requirement
+- [x] Exceptions introduced:
+  - [x] N/A — no package-local LoggingWriteFailedException.
+- [x] Error handling:
+  - [x] stream initialization failure → Foundation NoopLogger.
+  - [x] file destination unavailable or unwritable → discard current emission without altering validated configuration.
+  - [x] stream or file write failure → discard current record without propagating internal failure.
+  - [x] file lock contention → discard current record without blocking, retrying, or emitting diagnostics.
+  - [x] file handles and acquired locks are released even when emission fails.
+  - [x] formatting failure → discard current record
+  - [x] redaction failure → no raw fallback or partial record emission
+  - [x] optional context read failure → null/omitted enrichment
+  - [x] no stateful permanent-disable flag or "warn once" mechanism
+  - [x] no recursive error reporting through LoggerInterface
+  - [x] no PHP warnings, configured or generated filesystem paths, OS errors, lock diagnostics, Throwable messages, or previous Throwable data escape from destination handling.
+  - [x] invalid PSR-3 level remains subject to Psr\Log\InvalidArgumentException as required by PSR-3
+  - [x] internal logging failures MUST NOT alter caller business behavior or primary exception precedence
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/session id/tokens/raw payload/raw SQL
-  - [ ] raw request path / raw host / raw user-agent via generic logging enrichment
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids (`actor_id` only if already safe elsewhere)
+- [x] Mandatory shared redaction:
+  - [x] consumes SensitiveDataRedactorInterface
+  - [x] consumes SensitiveKeyClassifierInterface for read-only classification of admitted structural key paths.
+  - [x] the canonical 98-alias vocabulary remains exclusively owned by platform.redaction.
+  - [x] initial classification failure prevents the mandatory redaction call for the rejected record.
+  - [x] post-redaction classification failure rejects the already redacted record without repeating redaction.
+  - [x] an unclassified key is not considered safe without the logging-owned sink admission constraints.
+  - [x] classification and redaction never introduce logging-owned spans, metrics, reset hooks, or runtime context state.
+  - [x] fixed RedactionContext scope = logging.record
+  - [x] fixed RedactionMode = Placeholder
+  - [x] producer-owned field admission precedes shared redaction
+  - [x] the shared redactor processes the complete assembled canonical record, including admitted producer message/context, safe UoW enrichment, and trusted logger-generated metadata.
+  - [x] trusted logger-generated level, ts_utc, service_name, and app_target fields are assembled before mandatory shared redaction.
+  - [x] trusted logger-generated metadata MUST NOT contain arbitrary producer or request data.
+  - [x] ClockInterface failure produces null ts_utc before shared redaction without failing the log call.
+  - [x] the complete canonical record is validated after shared redaction and before serialization.
+  - [x] no canonical root field may be added, overwritten, or reconstructed after post-redaction validation.
+  - [x] no caller-controlled field may bypass the shared redactor by being classified as trusted logger metadata.
+  - [x] post-redaction admissibility validation is mandatory
+  - [x] classifier non-match never authorizes an otherwise forbidden field
+  - [x] unexpected redactor output type is treated as a failed emission
+  - [x] RedactionException and other redactor failures never return original or partially redacted data to the sink
+  - [x] redaction failure deterministically discards the entire record.
+  - [x] no second redaction pass or synthetic replacement record is emitted.
+  - [x] a redaction failure MUST NOT be converted into a successful logging emission.
+  - [x] no hash/length disclosure mode is introduced implicitly
+  - [x] no redaction disable flag
+  - [x] no duplicate generic classifiers, redaction walkers, or hashing utilities
+- [x] Sink admissibility:
+  - [x] producer-owned safe-by-construction event/context requirements remain mandatory
+  - [x] only explicitly approved fields enter the canonical log record
+  - [x] classifier non-match is not proof of safety
+  - [x] unsupported fields and values are omitted
+  - [x] unsafe messages become fixed safe event tokens
+  - [x] no arbitrary Stringable evaluation
+  - [x] no Throwable or object serialization
+  - [x] no context interpolation into event messages
+- [x] MUST NOT leak:
+  - [x] Authorization, Cookie, Set-Cookie, session ids, credentials, tokens
+  - [x] raw headers, query, request/response body, provider payloads, raw SQL
+  - [x] raw env/config values or sensitive secret references
+  - [x] raw request path, host, user-agent, client IP
+  - [x] email, phone, username, names, or other private customer data
+  - [x] raw exception messages, previous Throwable data, or stack traces
+- [x] Allowed:
+  - [x] canonical safe correlation/uow identifiers
+  - [x] bounded operation/outcome/reason/status tokens
+  - [x] non-negative integer durations and counts
+  - [x] owner-approved route templates and normalized relative artifact summaries
+  - [x] explicitly approved safe derivations only when the owner policy permits disclosure
+- [x] Fail-closed:
+  - [x] redaction failure never returns raw input to the sink
+  - [x] unsupported values never bypass the shared redactor
+  - [x] no alternate raw/debug output channel
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A` (no Context writes)
-- [ ] If `kernel.reset` used → `N/A` (not expected)
-- [ ] If metrics/spans/logs exist → `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
-- [ ] If redaction exists → `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
+- [x] Context writes:
+  - [x] N/A — no ContextStore writes
 
-#### Test harness / fixtures (when integration is needed)
+- [x] kernel.reset:
+  - [x] N/A — no package-owned UoW state
 
-N/A
+- [x] LoggerInterface baseline:
+  - [x] `packages/platform/logging/tests/Integration/LoggingProviderOverridesFoundationNoopTest.php`
+
+- [x] Correlation/UoW:
+  - [x] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+
+- [x] Redaction:
+  - [x] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
+
+- [x] Deterministic serialization:
+  - [x] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php`
+  - [x] `packages/platform/logging/tests/Unit/LogfmtLineFormatterDeterministicOrderTest.php`
+  - [x] both formats preserve the same canonical admitted and redacted record values.
+
+- [x] Fail-safe/noop:
+  - [x] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+#### Test harness / fixtures
+
+- [x] Tests use deterministic, isolated I/O fixtures: the fixed php://stderr destination is exercised in isolated PHP subprocesses, and the file backend is exercised using isolated temporary directories with deterministic cleanup.
+- [x] StreamLogger stream-write and short-write failures are exercised against the fixed php://stderr destination in isolated PHP subprocesses using process-local stream-wrapper substitution where required.
+- [x] Serialization, formatter-failure, and serialized-frame byte-limit tests exercise the existing formatter and StreamLogger pipeline using deterministic canonical records and isolated temporary file destinations where applicable.
+- [x] Byte-limit tests verify exact inclusive and exclusive boundaries against the complete serialized frame, including the final LF, without bypassing canonical record admission or introducing a test-only production sink.
+- [x] File backend tests use isolated temporary directories with cleanup and no dependence on the host's /var/log permissions.
+- [x] Daily file tests cover UTC date transitions, multiple canonical app targets, both formats, and fixed filename stems.
+- [x] File tests verify regular-file destinations, denied symbolic links, missing directories, permissions, non-blocking lock contention, and cleanup after failed writes.
+- [x] File tests verify append-only behavior and complete-record locking without requiring external log-rotation services.
+- [x] File tests use fixed clocks to verify deterministic date selection where ts_utc is available.
+- [x] Clock failure tests verify the unchanged nullable ts_utc contract and the UTC system-date fallback used only for file partitioning.
+- [x] No filesystem test mutates real application, system, or user log directories.
+- [x] LoggingServiceFactory stream initialization failure is tested separately from StreamLogger write failure.
+- [x] a failed php://stderr open is simulated only in an isolated PHP subprocess or an equivalently isolated test process.
+- [x] tests may temporarily unregister and restore the PHP stream wrapper inside that isolated process.
+- [x] stream-wrapper manipulation MUST NOT affect the PHPUnit parent process or parallel test workers.
+- [x] the test restores modified process-local runtime facilities before subprocess exit.
+- [x] no production stream-opener abstraction, arbitrary destination configuration, runtime closure, or test-only DI service is introduced solely for failure simulation.
+- [x] No real HTTP, network, database, or external logging service required.
+- [x] No platform/http production symbols imported.
+- [x] Package-owned tests MUST NOT import platform/errors implementation classes or Kernel module-planning implementations.
+- [x] Test-only imports of Coretsia\Kernel\Config\ConfigValidator and Coretsia\Kernel\Container\ContainerCompiler are permitted exclusively in package-owned contract tests for canonical configuration validation and source/compiled container-definition parity.
+- [x] These narrowly scoped test-only dependencies MUST NOT introduce Kernel implementation imports into packages/platform/logging/src/**, extend the production layered dependency matrix, or duplicate Kernel-owned configuration validation, container compilation, or module planning.
+- [x] ConfigRepositoryInterface test doubles replace Kernel concrete config repositories where only the port is required.
+- [x] Runtime module planning is not duplicated inside platform.logging tests.
+- [x] The package test harness MUST NOT require direct injection of arbitrary writable stream resources into StreamLogger.
+- [x] The production stream backend retains the fixed, non-configurable php://stderr destination; failure simulation uses isolated subprocesses and process-local PHP stream-wrapper substitution without adding another constructor dependency, stream-opener abstraction, or configurable destination.
+- [x] File destination tests use temporary directories and do not introduce a production runtime filesystem service solely for testing.
+- [x] Fixed clocks used for deterministic timestamp tests.
+- [x] Foundation ContextStore may be used in integration tests for UoW/reset behavior.
+- [x] No package-local replacement context store, redaction engine, or serialization helper.
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php`
+  - [x] `packages/platform/logging/tests/Unit/LoggingServiceFactoryConfigTest.php`
+    - [x] reads exactly logging.driver, logging.file.path, logging.file.name, logging.level, logging.max_record_bytes, logging.service_name, and logging.format.
+    - [x] does not recognize or read logging.stream.
+    - [x] accepts SensitiveKeyClassifierInterface as the fifth positional factory dependency.
+    - [x] preserves the exact seven-argument factory signature and provider reference order.
+    - [x] passes the injected classifier and redactor ports to LogRecordPolicy.
+    - [x] verifies the factory does not instantiate or import a concrete platform.redaction classifier.
+    - [x] preserves all existing logging configuration validation and backend selection semantics.
+    - [x] accepts max_record_bytes in the inclusive range 1024..65536.
+    - [x] rejects malformed or out-of-range max_record_bytes values.
+    - [x] accepts format=jsonl and format=logfmt.
+    - [x] selects JsonLineFormatter for jsonl.
+    - [x] selects LogfmtLineFormatter for logfmt.
+    - [x] rejects unsupported formats, wrong types, and malformed configuration.
+    - [x] verifies both formats use identical canonical record admission, enrichment, redaction, and severity filtering.
+    - [x] verifies formatter selection is captured once during logger construction.
+    - [x] resolves service_name=auto from an injected AppTargetProviderInterface test double.
+    - [x] verifies automatic service names for web, api, console, and worker.
+    - [x] accepts bounded explicit service names and rejects unsafe values.
+    - [x] rejects invalid canonical app-target provider values.
+    - [x] preserves the canonical app_target independently of explicit service_name overrides.
+    - [x] does not import Kernel implementation classes or introduce another app-target resolver.
+    - [x] accepts exact valid string enum values
+    - [x] rejects PHP null, boolean false, unknown driver, and unknown level
+    - [x] stream always selects the fixed php://stderr destination.
+    - [x] file constructs StreamLogger with the validated directory policy, immutable filename stem, canonical app_target, and selected format; the daily destination pathname is resolved only during an eligible emission using the UTC record date.
+    - [x] verifies filename identity is independent of explicit service_name overrides.
+    - [x] rejects relative, traversing, malformed, remote, and stream-wrapper file.path values.
+    - [x] rejects malformed file.name values and explicit extensions.
+    - [x] requires non-empty file.path only for file driver.
+    - [x] validates file.path and file.name types even when the file backend is inactive.
+    - [x] stream and null drivers do not open or create daily file destinations; stream initializes only the fixed php://stderr destination, while null opens no destination.
+    - [x] malformed configuration is not silently converted into NoopLogger
+    - [x] rejects malformed non-driver configuration even when logging.driver='null'.
+    - [x] validates the five shared scalar keys and the two required nested file keys before constructing or returning a logger.
+    - [x] validates driver-dependent file.path syntax and file.name grammar before returning the logger.
+    - [x] a syntactically valid file.path does not require an existing or writable directory during factory construction.
+    - [x] factory construction does not create, resolve, open, or probe the configured file directory.
+    - [x] a missing directory is treated as an emission-time I/O failure by StreamLogger.
+    - [x] a malformed path is rejected deterministically before StreamLogger construction.
+    - [x] distinguishes invalid configuration from stream initialization failure.
+    - [x] valid null driver returns Foundation NoopLogger
+    - [x] stream initialization failure returns Foundation NoopLogger
+    - [x] simulate failure to open the exact allowlisted php://stderr destination in an isolated PHP process.
+    - [x] verify the failure selects the existing Foundation NoopLogger without exposing PHP warnings.
+    - [x] verify no alternative stream destination or second open attempt is used.
+    - [x] verify the test does not alter PHP stream-wrapper state in the parent PHPUnit process.
+    - [x] runtime settings are captured once during construction
+    - [x] file mode captures the validated directory and filename stem once.
+    - [x] file mode resolves the UTC day at emission time without rereading runtime configuration.
+    - [x] valid file configuration selects the same StreamLogger class and shared record pipeline as stream mode.
+    - [x] no logger-owned configuration cache
+    - [x] no filesystem path or error message leakage
+
+  - [x] `packages/platform/logging/tests/Unit/JsonLineFormatterDeterministicOrderTest.php`
+    - [x] recursive strcmp key order
+    - [x] list order preserved
+    - [x] exact one final LF
+    - [x] root emitted as JSON object
+    - [x] empty context is emitted as JSON null, not JSON [].
+    - [x] non-empty context is emitted as a JSON object.
+    - [x] nested list values preserve their original order.
+    - [x] no second JSON encoder or object-casting fallback is introduced.
+    - [x] deterministic encoding across map insertion orders
+    - [x] embedded newline cannot introduce another physical record
+    - [x] no float/object/resource serialization
+    - [x] stable canonical root field schema
+    - [x] canonical root schema includes service_name and app_target.
+    - [x] service identity fields remain present outside UoW.
+    - [x] caller context cannot override canonical service identity fields.
+    - [x] service identity fields participate in post-redaction validation.
+    - [x] format=jsonl preserves deterministic JSON-lines serialization through Foundation StableJsonEncoder.
+
+  - [x] `packages/platform/logging/tests/Unit/LogfmtLineFormatterDeterministicOrderTest.php`
+    - [x] deterministic canonical root field ordering.
+    - [x] exact key=value spacing and quoting.
+    - [x] correct quoted-string versus unquoted-null distinction.
+    - [x] deterministic escaping of backslashes, double quotes, LF, CR, TAB, and prohibited control characters.
+    - [x] canonical service_name and app_target fields remain present.
+    - [x] correlation_id, uow_id, and uow_type remain present and nullable.
+    - [x] empty context is emitted as context=null.
+    - [x] non-empty context is serialized through Foundation StableJsonEncoder and embedded as one quoted value.
+    - [x] nested context ordering remains deterministic.
+    - [x] exactly one final LF is emitted.
+    - [x] embedded control characters cannot introduce additional physical records.
+    - [x] no arbitrary Stringable evaluation or unsupported PHP value serialization.
+    - [x] identical canonical records produce byte-identical logfmt output.
+    - [x] formatting failures do not expose rejected input or diagnostics.
+    - [x] no second recursive JSON normalizer or encoder.
+
+  - [x] `packages/platform/logging/tests/Unit/LogRecordPolicyTest.php`
+    - [x] accepts canonical safe operational fields
+    - [x] omits unknown/unsafe fields
+    - [x] preserves existing approved Kernel operational summaries
+    - [x] preserves safe app_target and preset values from Kernel Ops.
+    - [x] preserves bounded moduleIds and presetName from module-resolution diagnostics.
+    - [x] preserves existing services_count and groups_count from Foundation reset diagnostics.
+    - [x] preserves worker status, driver, control_transport, pid, worker_count, and endpoint_hash under their owner-approved safety rules.
+    - [x] preserves the already bounded safe artifact/source metadata lists.
+    - [x] does not reinterpret safe producer-owned relative paths as raw HTTP paths.
+    - [x] rejects classified sensitive key_paths through SensitiveKeyClassifierInterface.
+    - [x] preserves mandatory whole-record redaction through SensitiveDataRedactorInterface independently of key-path rejection.
+    - [x] rejects messages violating the canonical event-token grammar.
+    - [x] applies mandatory shared redaction to admitted message values.
+    - [x] recognized sensitive messages never reach the output sink.
+    - [x] unsupported Stringable messages are not evaluated.
+    - [x] tests do not assume that generic redaction can detect every arbitrary unclassified secret.
+    - [x] producer-owned static event identifiers remain a mandatory caller contract.
+    - [x] does not pass through raw paths under innocent-looking keys
+    - [x] omits invalid json-like branches
+    - [x] rejects raw Throwable, Stringable object evaluation, resources, and floats
+    - [x] catches shared redaction failure and fails closed
+    - [x] uses only Placeholder disclosure mode
+    - [x] no duplicate generic redaction classifier
+    - [x] uses an injected SensitiveKeyClassifierInterface test double.
+    - [x] does not import platform.redaction implementation classes.
+    - [x] rejects canonical dotted key paths containing classified sensitive segments.
+    - [x] rejects db.password, db.client_secret, db.access_token, and user.email_address.
+    - [x] rejects sensitive aliases hidden in indexed structural segments, including db.password[0] and db.client_secret[3].
+    - [x] rejects sensitive aliases hidden inside structural placeholders, including user.<password>.
+    - [x] classifies the original complete path and dot-separated segments before inspecting structural components.
+    - [x] rejects the complete key_paths field when any indexed or placeholder component is classified as sensitive.
+    - [x] preserves safe bounded Kernel structural placeholders whose components are not classified as sensitive.
+    - [x] verifies the additional structural-component checks do not duplicate the canonical sensitive-key alias vocabulary.
+    - [x] accepts safe producer-owned examples such as logging.driver and worker.output.format.
+    - [x] verifies that classifier null results do not bypass logging-owned structural and semantic constraints.
+    - [x] verifies the policy does not import or duplicate Kernel ConfigKernel sensitive-key or SQL-like regex tables.
+    - [x] verifies unsafe structural key paths are rejected independently of shared classifier results.
+    - [x] preserves safe Core producer key paths that pass their owner-owned validation and logging sink admission.
+    - [x] never treats an unclassified key as automatically safe.
+    - [x] verifies both complete-path and segment-level classification.
+    - [x] preserves exact structural, cardinality, and byte bounds.
+    - [x] omits rejected key-path fields without emitting raw input, hashes, or lengths.
+    - [x] rejects the complete key_paths field when any one item is classified as sensitive.
+    - [x] does not emit a partially retained key_paths list.
+    - [x] rejects empty dotted path segments.
+    - [x] preserves safe bounded structural placeholders produced by existing Core diagnostics.
+    - [x] distinguishes ordinary key-path rejection from classifier failure requiring complete record omission.
+    - [x] classifier failure causes omission of the entire current record.
+    - [x] distinguish a valid empty admitted context from a classifier failure.
+    - [x] verify a throwing classifier never produces a successful record with context=null.
+    - [x] verify initial classifier failure does not invoke the mandatory redactor or formatter.
+    - [x] verify post-redaction classifier failure occurs after exactly one mandatory redaction call.
+    - [x] verify post-redaction classifier failure does not invoke the formatter or stream writer.
+    - [x] verify direct redactRecord() invocation cannot bypass instance-bound sensitive-key classification.
+    - [x] verify a redactor test double that introduces a classified sensitive key path causes post-redaction record rejection.
+    - [x] verify no second redaction call or partial record is emitted after post-redaction classifier failure.
+    - [x] verify the entire record is omitted without exposing raw input or Throwable details.
+    - [x] revalidates key-path safety after shared redaction.
+    - [x] static structural validation cannot bypass instance-bound classifier admission.
+    - [x] no local sensitive-key alias registry or duplicated classification regex.
+    - [x] preserves one mandatory shared redaction operation per admitted record.
+    - [x] admits bounded colon-separated operation category tokens through one producer-neutral grammar while rejecting unsafe, unbounded, or arbitrary user-derived values.
+    - [x] caller-supplied identifiers are admitted only through the canonical context-field policy and cannot override processor-owned root identifiers.
+    - [x] identical admissible records receive identical sink-policy decisions regardless of their producer or static event identifier.
+    - [x] no producer-specific, package-specific, or event-specific admission rules are introduced.
+
+  - [x] `packages/platform/logging/tests/Unit/StreamLoggerFailureIsolationTest.php`
+    - [x] severity filtering before emission
+    - [x] invalid PSR-3 level contract
+    - [x] short/failed stream write isolation
+    - [x] clock failure isolation
+    - [x] ClockInterface is invoked only for records admitted by severity filtering and initial sink admission.
+    - [x] UTC timestamp is captured and normalized before mandatory shared redaction.
+    - [x] clock failure produces canonical ts_utc=null without interrupting logging.
+    - [x] file mode uses the validated UTC timestamp date for daily filename selection.
+    - [x] file mode retains ts_utc=null on ClockInterface failure and uses a separate UTC system-date fallback only for the filename.
+    - [x] a UTC date rollover selects a new daily filename without restarting the logger.
+    - [x] no filename date cache or stale file descriptor survives between file emissions.
+    - [x] the shared redactor receives the complete assembled canonical record, including ts_utc, level, service_name, and app_target.
+    - [x] post-redaction validation occurs after all canonical root fields have been assembled.
+    - [x] no canonical root field is modified after post-redaction validation.
+    - [x] jsonl and logfmt receive the same complete validated canonical record.
+    - [x] formatter failure isolation
+    - [x] no raw fallback output
+    - [x] no recursive self-reporting
+    - [x] no caller-visible internal logging failure
+    - [x] verify MAX_RECORD_BYTES = 65536 remains the immutable hard ceiling.
+    - [x] verify the configured effective byte limit cannot exceed MAX_RECORD_BYTES.
+    - [x] verify hard-ceiling enforcement is applied to the complete serialized frame after formatting.
+    - [x] do not bypass canonical record admission or widen safe field bounds merely to manufacture 65536-byte or 65537-byte fixtures.
+    - [x] exercise exact inclusive and exclusive boundaries using configured byte limits reachable with fully admitted canonical records.
+    - [x] do not introduce another formatter abstraction or synthetic production sink solely for hard-ceiling tests.
+    - [x] configured max_record_bytes=16384 admits records of exactly 16384 serialized bytes.
+    - [x] configured max_record_bytes=16384 discards records of 16385 serialized bytes before I/O.
+    - [x] configured limits cannot exceed MAX_RECORD_BYTES.
+    - [x] both jsonl and logfmt enforce the effective limit after complete serialization.
+    - [x] both formats admit records of exactly the configured byte limit.
+    - [x] both formats discard records exceeding the configured byte limit before I/O.
+    - [x] both formats isolate serialization and write failures without raw fallback emission.
+    - [x] both formats preserve one-write-attempt and no-recursive-reporting semantics.
+    - [x] no truncation or fallback emission occurs at the configurable byte limit.
+    - [x] final LF participates in byte-limit accounting.
+    - [x] oversized records are not truncated into invalid JSON.
+    - [x] no fallback emission occurs when the byte budget is exceeded.
+    - [x] file mode enforces the identical record-byte limit including the final LF.
+    - [x] no file is opened for records rejected by severity filtering, initial admission, redaction, post-admission, formatting, or byte-limit checks.
+    - [x] file mode attempts exactly one bounded fwrite() for each admitted serialized record.
+    - [x] failed or short file writes never trigger a second write or fallback destination.
+
+  - [x] `packages/platform/logging/tests/Unit/DailyFileDestinationTest.php`
+    - [x] driver=file uses the existing StreamLogger class.
+    - [x] file.path is a syntactically validated absolute local directory path.
+    - [x] the directory is required to exist only when an eligible file emission is attempted.
+    - [x] a valid file logger can be constructed while its configured directory is temporarily missing.
+    - [x] missing directories cause omission of the current emission without file creation, fallback, or diagnostic leakage.
+    - [x] creating the configured directory externally permits a subsequent emission through the same StreamLogger instance.
+    - [x] removing or making the directory inaccessible between emissions does not change logger configuration or cached runtime identity.
+    - [x] no new LoggerInterface instance, DI resolution, or configuration read is required for recovery.
+    - [x] file.name is an extension-free bounded stem.
+    - [x] the exact generated filename is `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`.
+    - [x] canonical app targets web, api, console, and worker produce distinct prefixes.
+    - [x] explicit service_name overrides never change the filename prefix.
+    - [x] jsonl produces .jsonl; logfmt produces .logfmt.
+    - [x] UTC calendar date controls daily file selection.
+    - [x] multiple records on one UTC day append to the same file.
+    - [x] a new UTC day creates a different filename.
+    - [x] existing files are never renamed, truncated, deleted, compressed, or archived.
+    - [x] no file is created when driver=stream or driver=null.
+    - [x] invalid directory, unsupported destination type, and symbolic link destinations are rejected without raw diagnostics.
+    - [x] file writes acquire a non-blocking exclusive flock().
+    - [x] lock contention omits the record without blocking or retrying.
+    - [x] one complete serialized bounded record is submitted through one fwrite() attempt.
+    - [x] short writes and filesystem failures are isolated without raw fallback.
+    - [x] resources and locks are released after success or failure.
+    - [x] locking uses the actual daily destination handle, not a separate lock-anchor file.
+    - [x] file emission does not instantiate or invoke Foundation ScopedFileLock.
+    - [x] file emission creates no additional directory, lock file, manifest, or temporary log artifact.
+    - [x] an opened destination is verified as a regular file before writing.
+    - [x] detectable symlinks are rejected without attempting raw fallback.
+    - [x] concurrent modifications by an untrusted actor are explicitly outside the supported trusted-directory guarantee.
+    - [x] missing and temporarily unwritable directories are isolated as I/O failures without replacing StreamLogger with NoopLogger.
+    - [x] a subsequent emission can succeed after the destination becomes available.
+    - [x] POSIX and Windows path-shape tests cover the supported local absolute forms where applicable.
+    - [x] both formats use the existing record admission and mandatory shared redaction.
+    - [x] tests use isolated temporary directories and deterministic fixture cleanup.
+
 - Contract:
-  - [ ] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
-  - [ ] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] `packages/core/contracts/tests/Contract/SensitiveKeyClassifierInterfaceShapeContractTest.php`
+    - [x] verify the exact Coretsia\Contracts\Security\SensitiveKeyClassifierInterface FQCN.
+    - [x] verify it is an interface, not a class or enum.
+    - [x] verify exactly one public instance method: classify.
+    - [x] verify the exact string $key parameter and nullable RedactionKind return type.
+    - [x] verify no additional public methods, properties, alias constants, or mutable policy state.
+    - [x] verify the contract depends only on contracts-level types.
+    - [x] verify no dependency on platform.redaction, Kernel, Foundation, or logging implementations.
+    - [x] verify no service locator, configuration, runtime context, or reset contract.
+    - [x] verify null classification is documented as unclassified, not sink-safe.
+    - [x] preserve the existing SensitiveDataRedactorInterfaceShapeContractTest unchanged.
+    - [x] no classifier implementation or redaction behavior is introduced in core/contracts tests.
+
+  - [x] `packages/platform/logging/tests/Contract/LoggingConfigAndDefinitionSafetyContractTest.php`
+    - [x] no logging.config parameter containing php://stderr
+    - [x] no stream URI serialized into declarative container parameter values
+    - [x] ConfigRepositoryInterface is a required factory service reference
+    - [x] definition construction succeeds with valid logging configuration
+    - [x] source and compiled definition inputs contain only admissible deterministic values
+    - [x] logging.driver uses only supported ConfigValidator string enum semantics
+    - [x] allowed logging.driver values are exactly stream, file, and null.
+    - [x] logging.stream is rejected as an unknown configuration key.
+    - [x] logging.file is a required map with exactly path and name.
+    - [x] logging.file.path is a required string and defaults to ''.
+    - [x] logging.file.name uses the existing reset-group-id rule and defaults to app.
+    - [x] nested unknown and reserved keys are rejected.
+    - [x] file.path requires a syntactically valid non-empty absolute local directory path when driver=file.
+    - [x] Kernel ConfigValidator owns declarative nested-map and scalar validation only.
+    - [x] LoggingServiceFactory owns driver-dependent file.path syntax validation without a new configuration rule type.
+    - [x] StreamLogger owns per-emission filesystem availability checks.
+    - [x] a missing but syntactically valid directory MUST NOT fail canonical configuration validation or silently select NoopLogger.
+    - [x] no runtime filesystem checks, paths, file handles, or directory existence results enter declarative DI definition values.
+    - [x] the factory independently validates driver-dependent file destination semantics.
+    - [x] canonical ConfigValidator accepts file.path='' when the file backend is inactive.
+    - [x] canonical ConfigValidator validates the nested file map without new rule types.
+    - [x] factory rejects file.path='' when driver=file.
+    - [x] factory rejects malformed absolute paths independently of declarative type validation.
+    - [x] neither formatter duplicates the canonical root-field allowlist defined by LogRecordPolicy.
+    - [x] both formatter implementations reuse LogRecordPolicy::isValidCanonicalRecord() for structural checks.
+    - [x] file mode introduces no second sink admission policy, generic lock service, runtime registry, or DI tag.
+    - [x] no file path, generated filename, or opened file handle enters declarative DI definitions.
+    - [x] logging.service_name uses the existing ConfigValidator reset-group-id type.
+    - [x] canonical configuration validation accepts auto, web, api, console, worker, and valid bounded explicit service names.
+    - [x] canonical configuration validation rejects dotted names, paths, URLs, whitespace, control characters, uppercase letters, and values exceeding 64 bytes.
+    - [x] malformed service_name fails canonical configuration validation without waiting for lazy LoggerInterface resolution.
+    - [x] LoggingServiceFactory independently rejects the same invalid values when invoked directly.
+    - [x] PHP null is rejected as driver
+    - [x] logging.redaction.enabled cannot be introduced as a recognized config key
+    - [x] unknown logging.redaction subtree is rejected
+    - [x] mandatory redaction binding cannot be bypassed by configuration
+    - [x] logging.format accepts exactly jsonl and logfmt.
+    - [x] invalid format configuration fails deterministically before stream or file emission.
+    - [x] formatter selection does not introduce non-declarative DI definitions or runtime formatter registries.
+
+  - [x] `packages/platform/logging/tests/Contract/LoggingDoesNotLogSecretsContractTest.php`
+    - [x] Authorization/Cookie/session/token redaction
+    - [x] header/body/payload branch suppression
+    - [x] raw SQL and raw env values suppressed
+    - [x] raw path/host/user-agent/client IP suppressed
+    - [x] unknown-key secret and PII cases fail closed
+    - [x] classified sensitive key-path segments are rejected before serialization.
+    - [x] classifier null results cannot bypass destination-specific admission.
+    - [x] classifier exceptions fail closed without fallback output.
+    - [x] malicious key-path values cannot be restored through post-redaction context processing.
+    - [x] shared classifier aliases remain effective without being duplicated in logging.
+    - [x] both jsonl and logfmt enforce identical key-path confidentiality.
+    - [x] stream and file destinations enforce identical shared redaction and sink admission.
+    - [x] file mode cannot emit a rejected record or an unredacted fallback.
+    - [x] unsafe filenames and filesystem error diagnostics are never included in emitted records.
+    - [x] unsafe message handling
+    - [x] redaction failure does not leak raw input
+    - [x] malformed map/object/float handling
+    - [x] redaction cannot be disabled by config
+    - [x] all existing secret, PII, malformed-value, and redaction-failure cases are verified for jsonl and logfmt.
+    - [x] logfmt quoting and escaping cannot disclose rejected raw values.
+    - [x] embedded JSON context values are emitted only after mandatory shared redaction and post-redaction validation.
+    - [x] no format-specific redaction bypass or fallback sink exists.
+
+  - [x] `packages/platform/logging/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] all PSR-3 severity methods
+    - [x] arbitrary PSR-3 context accepted safely
+    - [x] internal write failures do not throw
+    - [x] StreamLogger rejects invalid log levels through Psr\Log\InvalidArgumentException.
+    - [x] Foundation NoopLogger retains its existing no-op behavior without new validation.
+    - [x] disabled-driver tests do not require changes to Foundation NoopLogger semantics.
+    - [x] internal stream/redaction/serialization failures remain distinct from invalid-level API errors.
+    - [x] null driver performs no I/O
+
+  - [x] `packages/platform/logging/tests/Contract/LoggingModuleComposerMetadataContractTest.php`
+    - [x] canonical runtime metadata
+    - [x] exact module/provider identity
+    - [x] requires core.foundation, core.kernel, and platform.redaction
+    - [x] canonical config root/defaultsConfigPath
+    - [x] no unwanted dependencies or tags
+
+  - [x] `packages/platform/logging/tests/Contract/LoggingProviderDeclarativeDefinitionsContractTest.php`
+    - [x] dual-interface provider
+    - [x] register delegates declaratively
+    - [x] define is single wiring source
+    - [x] no closures/runtime resources in definitions
+    - [x] deterministic parameter/service references
+    - [x] SensitiveKeyClassifierInterface is declared as a required service reference.
+    - [x] the exact factory argument order includes SensitiveKeyClassifierInterface immediately after SensitiveDataRedactorInterface.
+    - [x] source and compiled definitions preserve the identical seven factory references.
+    - [x] no concrete platform.redaction classifier appears in logging definitions.
+    - [x] no source-only imperative graph
+    - [x] no new stateful/reset tags
+
 - Integration:
-  - [ ] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
-  - [ ] `packages/platform/logging/tests/Integration/NullLoggerResolvesWhenDisabledTest.php`
+  - [x] `packages/platform/logging/tests/Integration/LoggingProviderOverridesFoundationNoopTest.php`
+    - [x] Foundation alone resolves NoopLogger
+    - [x] enabled stream module resolves StreamLogger
+    - [x] enabled file driver resolves the same StreamLogger implementation.
+    - [x] file and stream modes preserve identical provider bindings and source/compiled definition parity.
+    - [x] daily filename prefix derives from the injected canonical AppTargetProviderInterface.
+    - [x] file mode does not require a new service-provider binding or constructor dependency.
+    - [x] later binding precedence is deterministic
+    - [x] AppTargetProviderInterface is supplied through a contracts-level test double for package-local provider tests.
+    - [x] factory-resolved service_name=auto matches the injected canonical app target.
+    - [x] explicit service_name overrides only the service label.
+    - [x] logging provider source and compiled definitions retain equivalent service references.
+    - [x] explicit Foundation + Logging provider registration is tested through Foundation ContainerBuilder
+    - [x] required SensitiveDataRedactorInterface is supplied through a contracts-level test double
+    - [x] required SensitiveKeyClassifierInterface is supplied through a contracts-level test double.
+    - [x] logging provider composition requires both security ports.
+    - [x] classifier service wiring does not depend on a package-local classifier implementation.
+    - [x] no Kernel module resolver or module-planning implementation is imported into package-owned tests.
+    - [x] Kernel ContainerCompiler is used only by the dedicated declarative-definitions contract test to verify source/compiled definition parity; package-local provider integration tests use Foundation ContainerBuilder and contracts-level test doubles without importing Kernel compiler implementations.
+    - [x] source definition semantics and later-binding precedence are verified without rebuilding Kernel module-planning logic
+    - [x] module dependency closure is verified through canonical module metadata and repository-owned module-planning gates
+    - [x] compiled definition compatibility remains subject to the canonical repository architecture gates
+    - [x] module package presence does not auto-enable logging
+    - [x] logging.format=jsonl emits the canonical JSON-lines record.
+    - [x] logging.format=logfmt emits the canonical deterministic logfmt record.
+    - [x] both formats use the same LoggerInterface binding and StreamLogger backend.
+    - [x] format selection does not change provider ordering, lifecycle ownership, or Foundation NoopLogger fallback semantics.
+    - [x] both formats preserve the same canonical service identity and nullable UoW fields.
+
+  - [x] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php`
+    - [x] before UoW: nullable correlation/uow fields
+    - [x] correlation_id field is structurally present even when its value is null
+    - [x] UoW absence does not force creation of an artificial correlation identifier
+    - [x] same canonical field-presence invariant applies to uow_id and uow_type
+    - [x] during UoW: actual validated correlation_id/uow_id/uow_type
+    - [x] optional safe path_template when available
+    - [x] missing/throwing context reads do not fail logging
+    - [x] caller context cannot override canonical identifiers
+    - [x] after ContextStore reset: previous identifiers absent
+    - [x] next UoW receives only its own identifiers
+    - [x] no cross-UoW cached context state
+    - [x] after canonical context reset, processor-owned root identifiers are null even when caller-supplied context contains previously captured identifiers.
+    - [x] admitted caller-supplied identifiers remain non-authoritative nested context values and cannot restore completed runtime context or leak into subsequent UoWs.
+    - [x] context lifecycle behavior is independent of producer identity and event name.
+    - [x] canonical correlation_id, uow_id, and uow_type keys are always present, but their values may be null outside an active UoW.
+    - [x] active UoW values come only from current canonical context providers.
+    - [x] after reset, previous correlation and UoW identifiers are not restored.
+    - [x] separately captured caller identifiers cannot override canonical root fields.
+    - [x] no logger-owned UoW snapshot, cache, or reset orchestration is introduced.
+
+  - [x] `packages/platform/logging/tests/Integration/FoundationNoopResolvesWhenDisabledTest.php`
+    - [x] FoundationServiceProvider alone resolves Foundation NoopLogger.
+    - [x] omitting LoggingServiceProvider preserves the Foundation LoggerInterface binding.
+    - [x] registering LoggingServiceProvider with logging.driver='null' resolves Foundation NoopLogger.
+    - [x] null driver does not open a stream.
+    - [x] null driver does not open or create a file.
+    - [x] inactive file configuration never causes filesystem I/O.
+    - [x] selecting the null driver does not require an existing file.path directory.
+    - [x] no additional NoopLogger implementation.
+    - [x] no Kernel ModulePlan, ModuleSelectionFactory, or ModuleGraphResolver implementation is imported or duplicated.
+    - [x] target-local exclusion and missing selected modules are verified by existing Kernel-owned integration test deliverables.
+
 - Gates/Arch:
-  - [ ] deptrac green (no forbidden deps)
+  - [x] package compliance green
+  - [x] package scaffold check green
+  - [x] module metadata and provider contract gates green
+  - [x] package index check green
+  - [x] installation catalog check green
+  - [x] workspace Composer sync checks green
+  - [x] deptrac generation/check/analyze green
+  - [x] observability naming/catalog gates green
+  - [x] PHPStan and package PHPUnit green
+  - [x] full existing platform/cli integration suite green with canonical default logging enabled.
+  - [x] existing empty-stderr expectations are reviewed for every normal CLI host execution.
+  - [x] normal CLI diagnostic logging is validated independently from command stdout.
+  - [x] tests with injected noop loggers retain their existing expectations.
+  - [x] ultra-early doctor and pre-container diagnostic contracts remain unchanged.
+  - [x] no production CLI code changes are introduced solely to suppress default logging.
+  - [x] no forbidden platform/http or platform/errors source dependency
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] LoggerInterface always resolvable
-- [ ] ContextBagProcessor attaches correlation/uow keys
-- [ ] No secrets leakage (tests)
-- [ ] README sections complete
-- [ ] Any mention like “used by owner middleware platform/http” is OK as documentation, BUT tests and compile-time deps MUST NOT reference platform/http symbols.
+- [x] Spec locked (this epic text reviewed + no open questions)
+- [x] Implementation complete
+- [x] Tests green
+- [x] Gates/Arch green
+- [x] Docs complete
+- [x] Foundation LoggerInterface noop baseline remains unchanged
+- [x] Enabled platform.logging provides the real fixed-STDERR stream backend and optional daily-file backend.
+- [x] coretsia/skeleton installs coretsia/framework with the baseline platform-logging dependency
+- [x] default kernel.boot.default_preset remains micro
+- [x] all four canonical presets select platform.logging through modules, not required
+- [x] target-local moduleOverrides.exclude disables real logging without removing its Composer package
+- [x] missing selected platform.logging fails closed during canonical module planning
+- [x] platform.redaction remains required for every active stream or file backend.
+- [x] framework, skeleton, and CLI README dependency/behavior contracts are updated
+- [x] normal CLI command output remains independent from diagnostic logging in either supported format.
+- [x] jsonl remains the default for canonical CLI integration tests.
+- [x] target-local logfmt selection changes only diagnostic serialization, not CLI stdout or exit-code semantics.
+- [x] default micro create-project integration verifies active real logging
+- [x] affected CLI integration tests account for independently captured logging timestamps
+- [x] existing ultra-early diagnostic and pre-container output contracts remain intact
+- [x] no new package installer, module-selection mechanism, logger port, or reset orchestrator is introduced
+- [x] Null driver resolves Foundation NoopLogger
+- [x] No duplicated LoggerInterface, NoopLogger, redactor, JSON encoder, or context store
+- [x] Shared SensitiveDataRedactorInterface is mandatory
+- [x] Shared SensitiveKeyClassifierInterface is mandatory for active logging sink admission
+- [x] SensitiveKeyClassifier implements the contracts-level classifier interface without modifying the canonical 98-alias vocabulary
+- [x] RedactionServiceProvider exposes the classifier interface through an alias to the existing shared classifier instance
+- [x] DefaultSensitiveDataRedactor retains the identical injected classifier instance
+- [x] LoggingServiceProvider and LoggingServiceFactory use the exact seven-argument factory dependency order
+- [x] LogRecordPolicy does not duplicate the shared sensitive-key alias vocabulary or generic classification regex
+- [x] Canonical dotted key_paths are classified as complete paths and individual segments
+- [x] Classified sensitive key paths are rejected without raw fallback, hashing, or length disclosure
+- [x] Unclassified key paths remain subject to all destination-specific safety constraints
+- [x] Classifier failures cause fail-closed omission of the current record
+- [x] Sensitive-key admission is enforced both before and after shared record redaction
+- [x] Both jsonl and logfmt preserve identical sensitive-key admission behavior
+- [x] Redaction provider source/compiled definition parity and shared service identity are verified
+- [x] Existing platform.redaction unit, contract, and integration tests remain green
+- [x] docs/ssot/sensitive-data-redaction.md and platform/redaction README describe both supported security ports
+- [x] No second classifier, redactor, alias vocabulary, configuration surface, or runtime module is introduced
+- [x] Redaction cannot be disabled
+- [x] LogRecordPolicy enforces destination sink safety independently of redactor classifier matches
+- [x] Deterministic jsonl serialization uses Foundation StableJsonEncoder.
+- [x] Deterministic logfmt serialization preserves the same canonical admitted and redacted record schema.
+- [x] LogfmtLineFormatter reuses Foundation StableJsonEncoder for nested context JSON without introducing a second generic encoder.
+- [x] Correlation/uow fields are UoW-scoped, nullable, and reset-safe
+- [x] No raw secrets, PII, transport payloads, or arbitrary Throwable details leak
+- [x] Internal logger failure does not alter business behavior
+- [x] No recursive logger-owned spans/metrics or stateful telemetry guard
+- [x] No new kernel.reset service is needed
+- [x] Source and compiled container wiring parity verified
+- [x] No php://stderr value appears inside deterministic DI parameters or serialized service-definition values
+- [x] ConfigRepositoryInterface is used for runtime logging configuration access
+- [x] logging.max_record_bytes is validated and enforced as the effective per-record byte limit.
+- [x] MAX_RECORD_BYTES = 65536 remains an immutable hard upper bound.
+- [x] logging.service_name='auto' resolves the canonical selected app target through AppTargetProviderInterface.
+- [x] Kernel ModulePlan is reused without another app-target resolver or runtime state owner.
+- [x] service_name and app_target are present in every emitted canonical log record.
+- [x] service identity is immutable, safe, and cannot be overridden by caller context.
+- [x] logging.format accepts exactly jsonl and logfmt, with jsonl as the default.
+- [x] both formats preserve canonical service identity, correlation, nullable UoW identifiers, and context.
+- [x] both formats enforce mandatory shared redaction and the same serialized byte limits.
+- [x] selecting logfmt requires no second logger backend, context store, or redaction implementation.
+- [x] file mode automatically partitions output by UTC day without configurable rotation modes.
+- [x] retention, deletion, archival, and total storage quotas remain externally owned.
+- [x] stream uses fixed php://stderr and logging.stream is not a recognized configuration key.
+- [x] file.path and file.name are validated through canonical declarative configuration rules and factory-owned destination checks.
+- [x] filenames use the canonical app_target, configured stem, UTC date, and selected format.
+- [x] service_name overrides cannot change filename app-target prefixes.
+- [x] stream and file modes reuse the same StreamLogger, LogRecordPolicy, redactor, classifier, and formatter.
+- [x] file writes are append-only, use non-blocking exclusive locking, and isolate missing destinations, contention, and partial writes.
+- [x] daily file rollover works without restarting the logger or retaining stale file handles.
+- [x] neither daily file creation nor filename formatting introduces another runtime module, logger port, or DI mechanism.
+- [x] logging.driver = 'null' is a string enum value, never PHP null
+- [x] Invalid configuration does not silently disable logging
+- [x] Post-redaction sink schema validation is complete
+- [x] Existing safe Core log context fields remain supported
+- [x] Existing http-middleware-catalog logging evidence path remains valid
+- [x] No Kernel-owned module planning implementation is duplicated inside package tests
+- [x] Successful full writes produce exactly one deterministic LF-terminated frame in the selected jsonl or logfmt format.
+- [x] Both formats preserve no-throw internal failure handling, partial-write isolation, and no raw fallback emission.
+- [x] Partial write and multi-process atomicity limitations are explicitly documented
+- [x] Canonical architecture and installation artifacts regenerated
+- [x] Root canonical legal/security sources exist and package scaffold verification passes
+- [x] README, ADR, and SSoT sections complete
+- [x] No platform/http production symbol appears in package source or tests
 
 ---
 
@@ -2731,7 +5030,6 @@ Normative:
   - [ ] `problem_details.enabled` = true
   - [ ] `problem_details.show_detail` = false
   - [ ] `problem_details.show_detail_in_local` = true
-  - [ ] `problem_details.redaction.enabled` = true
 - [ ] Rules:
   - [ ] `packages/platform/problem-details/config/rules.php` enforces shape
 

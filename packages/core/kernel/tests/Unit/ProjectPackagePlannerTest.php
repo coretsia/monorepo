@@ -103,6 +103,7 @@ final class ProjectPackagePlannerTest extends TestCase
                 'core.kernel',
                 'platform.cli',
                 'platform.errors',
+                'platform.logging',
                 'platform.redaction',
             ];
 
@@ -124,6 +125,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'coretsia/core-kernel' => $publicConstraint,
                     'coretsia/platform-cli' => $publicConstraint,
                     'coretsia/platform-errors' => $publicConstraint,
+                    'coretsia/platform-logging' => $publicConstraint,
                     'coretsia/platform-redaction' => $publicConstraint,
                 ],
                 $plan->desiredRootRequirements(),
@@ -143,6 +145,14 @@ final class ProjectPackagePlannerTest extends TestCase
                     'conflicts' => [],
                 ],
                 $plan->expectedModuleMetadataById()['platform.errors'],
+            );
+            self::assertSame(
+                [
+                    'composerName' => 'coretsia/platform-logging',
+                    'requires' => ['core.foundation', 'core.kernel', 'platform.redaction'],
+                    'conflicts' => [],
+                ],
+                $plan->expectedModuleMetadataById()['platform.logging'],
             );
             self::assertArrayNotHasKey(
                 'coretsia/platform-worker',
@@ -312,6 +322,103 @@ final class ProjectPackagePlannerTest extends TestCase
         }
     }
 
+    public function testCanonicalPresetsHaveExactResolvedModuleClosures(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            foreach (['micro', 'express', 'hybrid', 'enterprise'] as $preset) {
+                $plan = self::planner()->plan(
+                    $root,
+                    new ProjectInstallationIntent(
+                        new ProjectApplicationSet([AppTarget::Web]),
+                        ['web' => $preset],
+                    ),
+                );
+
+                $expected = [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.logging',
+                    'platform.redaction',
+                ];
+
+                if (\in_array($preset, ['hybrid', 'enterprise'], true)) {
+                    $expected[] = 'platform.worker';
+                }
+
+                self::assertSame($expected, $plan->enabledModuleIdsByTarget()['web']);
+                self::assertSame($expected, $plan->unionModuleIds());
+            }
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testTargetLocalLoggingExclusionPreservesOtherTargetAndRedaction(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            self::writeAppConfig($root, [
+                'presets' => [
+                    'web' => 'micro',
+                    'worker' => 'enterprise',
+                ],
+                'moduleOverrides' => [
+                    'web' => [
+                        'include' => [],
+                        'exclude' => ['platform.logging'],
+                    ],
+                ],
+            ]);
+
+            $plan = self::planner()->plan(
+                $root,
+                new ProjectInstallationIntent(
+                    new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+                ),
+            );
+
+            self::assertSame(['platform.logging'], $plan->excludedModuleIdsByTarget()['web']);
+            self::assertSame(
+                [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.redaction',
+                ],
+                $plan->enabledModuleIdsByTarget()['web'],
+            );
+            self::assertSame(
+                [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.logging',
+                    'platform.redaction',
+                    'platform.worker',
+                ],
+                $plan->enabledModuleIdsByTarget()['worker'],
+            );
+            self::assertSame(
+                $plan->enabledModuleIdsByTarget()['worker'],
+                $plan->unionModuleIds(),
+            );
+            self::assertArrayHasKey(
+                'coretsia/platform-logging',
+                $plan->desiredRootRequirements(),
+            );
+            self::assertContains('platform.redaction', $plan->enabledModuleIdsByTarget()['web']);
+        } finally {
+            self::remove($root);
+        }
+    }
+
     public function testTransitiveKernelBootstrapFloorIsAccepted(): void
     {
         $root = self::projectRoot();
@@ -339,6 +446,7 @@ final class ProjectPackagePlannerTest extends TestCase
                 ],
                 $plan->unionModuleIds(),
             );
+            self::assertNotContains('platform.logging', $plan->unionModuleIds());
         } finally {
             self::remove($root);
         }
@@ -509,6 +617,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'core.kernel',
                     'platform.cli',
                     'platform.errors',
+                    'platform.logging',
                     'platform.redaction',
                     'platform.worker',
                 ],
@@ -520,6 +629,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'core.kernel',
                     'platform.cli',
                     'platform.errors',
+                    'platform.logging',
                     'platform.redaction',
                 ],
                 $left->enabledModuleIdsByTarget()['web'],

@@ -786,6 +786,11 @@ final class DependencySyncConsumerProjectTest extends TestCase
                     $releaseVersion,
                 ],
                 [
+                    'coretsia/platform-logging',
+                    $repoRoot . '/packages/platform/logging',
+                    $releaseVersion,
+                ],
+                [
                     'coretsia/platform-redaction',
                     $repoRoot . '/packages/platform/redaction',
                     $releaseVersion,

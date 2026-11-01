@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a92daa61645765e6574f696b00090515",
+    "content-hash": "39979488ee34c31abe0c64259315900b",
     "packages": [],
     "packages-dev": [
         {
@@ -151,11 +151,11 @@
         },
         {
             "name": "coretsia/core-contracts",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/contracts",
-                "reference": "045979e9034e72f1fa3be4118738c081e270ebd1"
+                "reference": "18bde5dddddb211090b88fc51be158811346e5e8"
             },
             "require": {
                 "php": "^8.4"
@@ -212,11 +212,11 @@
         },
         {
             "name": "coretsia/core-dto-attribute",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/dto-attribute",
-                "reference": "ab9b1da5d9575e3d697ce1a7d0cd4f943a0e93c8"
+                "reference": "e39dd4ab261637c1788713602dbfe074a9b685b1"
             },
             "require": {
                 "php": "^8.4"
@@ -273,14 +273,14 @@
         },
         {
             "name": "coretsia/core-foundation",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/foundation",
-                "reference": "dea7783a8db8fe64a7f1ee247e15d39efee8d508"
+                "reference": "d56b1f951d30f99131539f697b5d7c3a3a32a6f7"
             },
             "require": {
-                "coretsia/core-contracts": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
                 "php": "^8.4",
                 "psr/clock": "^1.0",
                 "psr/container": "^2.0",
@@ -348,16 +348,16 @@
         },
         {
             "name": "coretsia/core-kernel",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/core/kernel",
-                "reference": "a4355dcef0b0bec476160d0aaf05f6545e20e596"
+                "reference": "6216afde78f0f98f64d882f6bc689b5d0a340e4a"
             },
             "require": {
                 "composer-runtime-api": "^2.2",
-                "coretsia/core-contracts": "^0.10.0",
-                "coretsia/core-foundation": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
                 "ext-ctype": "*",
                 "php": "^8.4",
                 "psr/container": "^2.0",
@@ -427,11 +427,11 @@
         },
         {
             "name": "coretsia/devtools-internal-toolkit",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/devtools/internal-toolkit",
-                "reference": "7e4948c10ff78282f4f08af58a48fe3a2776bdf2"
+                "reference": "0b46994c4ac924f467ba4dde511d2e5ffd6a3342"
             },
             "require": {
                 "ext-json": "*",
@@ -488,15 +488,16 @@
         },
         {
             "name": "coretsia/framework",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/framework",
-                "reference": "8d14342e0363ea50cc86f4ee20a78bd9ccfcb183"
+                "reference": "3a809c642b085b0ecdbb5857d32bae3096da2cb8"
             },
             "require": {
-                "coretsia/core-kernel": "^0.10.0",
-                "coretsia/platform-cli": "^0.10.0",
+                "coretsia/core-kernel": "^0.11.0",
+                "coretsia/platform-cli": "^0.11.0",
+                "coretsia/platform-logging": "^0.11.0",
                 "php": "^8.4"
             },
             "type": "metapackage",
@@ -510,7 +511,7 @@
                     "role": "Creator and Lead Developer"
                 }
             ],
-            "description": "Coretsia framework metapackage: baseline Kernel and CLI runtime installation dependencies.",
+            "description": "Coretsia framework metapackage: baseline Kernel, CLI and Logging runtime installation dependencies.",
             "homepage": "https://coretsia.dev/",
             "keywords": [
                 "cli",
@@ -534,18 +535,18 @@
         },
         {
             "name": "coretsia/platform-cli",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/cli",
-                "reference": "cae723370ee1f1fb3c61919f0b1a0fbf808bad74"
+                "reference": "2cd9165f217e72ed747a918ec6f14c37b08666f7"
             },
             "require": {
-                "coretsia/core-contracts": "^0.10.0",
-                "coretsia/core-foundation": "^0.10.0",
-                "coretsia/core-kernel": "^0.10.0",
-                "coretsia/platform-errors": "^0.10.0",
-                "coretsia/platform-redaction": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "coretsia/core-kernel": "^0.11.0",
+                "coretsia/platform-errors": "^0.11.0",
+                "coretsia/platform-redaction": "^0.11.0",
                 "php": "^8.4",
                 "psr/container": "^2.0",
                 "psr/log": "^3.0"
@@ -616,16 +617,16 @@
         },
         {
             "name": "coretsia/platform-errors",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/errors",
-                "reference": "d9ad4822182fb48d03ae2bac69da096a48776b6d"
+                "reference": "6bd1f2dfc19c954c5610ccf8ddbf307ad2e11006"
             },
             "require": {
-                "coretsia/core-contracts": "^0.10.0",
-                "coretsia/core-foundation": "^0.10.0",
-                "coretsia/platform-redaction": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "coretsia/platform-redaction": "^0.11.0",
                 "php": "^8.4",
                 "psr/container": "^2.0",
                 "psr/log": "^3.0"
@@ -692,16 +693,97 @@
             }
         },
         {
+            "name": "coretsia/platform-logging",
+            "version": "0.11.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/logging",
+                "reference": "23f9695c2dfbf3531061ee83440374e285c02430"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "coretsia/core-kernel": "^0.11.0",
+                "coretsia/platform-redaction": "^0.11.0",
+                "php": "^8.4",
+                "psr/clock": "^1.0",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.logging",
+                    "moduleClass": "Coretsia\\Platform\\Logging\\Module\\LoggingModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Logging\\Provider\\LoggingServiceProvider"
+                    ],
+                    "requires": [
+                        "core.foundation",
+                        "core.kernel",
+                        "platform.redaction"
+                    ],
+                    "conflicts": [],
+                    "defaultsConfigPath": "config/logging.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Logging\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Logging\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Vladyslav Mudrichenko",
+                    "email": "vladyslav@coretsia.dev",
+                    "role": "Creator and Lead Developer"
+                }
+            ],
+            "description": "Coretsia PSR-3 logging runtime package: deterministic JSONL/logfmt output, UoW correlation enrichment, and safe redacted stream/file logging.",
+            "homepage": "https://coretsia.dev/",
+            "keywords": [
+                "coretsia",
+                "correlation",
+                "deterministic",
+                "framework",
+                "jsonl",
+                "logfmt",
+                "logging",
+                "observability",
+                "php",
+                "psr-3",
+                "redaction",
+                "runtime",
+                "structured-logging"
+            ],
+            "support": {
+                "issues": "https://github.com/coretsia/monorepo/issues",
+                "source": "https://github.com/coretsia/monorepo"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "coretsia/platform-redaction",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/redaction",
-                "reference": "ad9cb1bb7652bdbbaf40353c1963fd3ee63cc870"
+                "reference": "0a7263601227d4956b6a290debe619358a546d67"
             },
             "require": {
-                "coretsia/core-contracts": "^0.10.0",
-                "coretsia/core-foundation": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
                 "php": "^8.4"
             },
             "type": "library",
@@ -764,16 +846,16 @@
         },
         {
             "name": "coretsia/platform-worker",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/platform/worker",
-                "reference": "7903e43dbc978d1e5f8c80b5bc584751a7ebb594"
+                "reference": "55579e1be9df1ea7afecbd89f823a9262943224e"
             },
             "require": {
-                "coretsia/core-contracts": "^0.10.0",
-                "coretsia/core-foundation": "^0.10.0",
-                "coretsia/core-kernel": "^0.10.0",
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "coretsia/core-kernel": "^0.11.0",
                 "ext-ctype": "*",
                 "php": "^8.4",
                 "psr/container": "^2.0",
@@ -846,14 +928,14 @@
         },
         {
             "name": "coretsia/skeleton",
-            "version": "0.10.x-dev",
+            "version": "0.11.x-dev",
             "dist": {
                 "type": "path",
                 "url": "packages/applications/skeleton",
-                "reference": "95fef99cd12f3c68ac72381e3391aef3c6a74ae4"
+                "reference": "5448f0424a64882488812b1c7855e2b6a978bb30"
             },
             "require": {
-                "coretsia/framework": "^0.10.0",
+                "coretsia/framework": "^0.11.0",
                 "php": "^8.4"
             },
             "type": "project",
@@ -1471,16 +1553,16 @@
         },
         {
             "name": "phpstan/phpdoc-parser",
-            "version": "2.3.6",
+            "version": "2.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpdoc-parser.git",
-                "reference": "1427af4647235b4a73b13940b1f1258d3584f36e"
+                "reference": "af8e840551031d254cfdb3a18a62c3470a309c10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/1427af4647235b4a73b13940b1f1258d3584f36e",
-                "reference": "1427af4647235b4a73b13940b1f1258d3584f36e",
+                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/af8e840551031d254cfdb3a18a62c3470a309c10",
+                "reference": "af8e840551031d254cfdb3a18a62c3470a309c10",
                 "shasum": ""
             },
             "require": {
@@ -1512,17 +1594,17 @@
             "description": "PHPDoc parser with support for nullable, intersection and generic types",
             "support": {
                 "issues": "https://github.com/phpstan/phpdoc-parser/issues",
-                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.6"
+                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.4.1"
             },
-            "time": "2026-09-27T20:07:45+00:00"
+            "time": "2026-10-30T19:36:28+00:00"
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.3.2",
+            "version": "2.3.4",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/18bc23a0682f08591529377d271b5c4dfe9ed1dd",
-                "reference": "18bc23a0682f08591529377d271b5c4dfe9ed1dd",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f20ce6f3c82556cfcfc086b152445a12d1d64fff",
+                "reference": "f20ce6f3c82556cfcfc086b152445a12d1d64fff",
                 "shasum": ""
             },
             "require": {
@@ -1578,7 +1660,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-24T11:36:00+00:00"
+            "time": "2026-10-28T22:38:53+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -1939,16 +2021,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.40",
+            "version": "12.5.42",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "76bd3198f16aeb375a4d5f3626471445aed0966e"
+                "reference": "1d6dbe748c079e5d2b03bca1be69d0f4cc52a578"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/76bd3198f16aeb375a4d5f3626471445aed0966e",
-                "reference": "76bd3198f16aeb375a4d5f3626471445aed0966e",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/1d6dbe748c079e5d2b03bca1be69d0f4cc52a578",
+                "reference": "1d6dbe748c079e5d2b03bca1be69d0f4cc52a578",
                 "shasum": ""
             },
             "require": {
@@ -2017,7 +2099,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.40"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.42"
             },
             "funding": [
                 {
@@ -2025,7 +2107,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-10-16T05:55:07+00:00"
+            "time": "2026-10-27T04:15:03+00:00"
         },
         {
             "name": "psr/clock",
@@ -3921,16 +4003,16 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
-            "version": "v1.43.0",
+            "version": "v1.43.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
-                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75"
+                "reference": "5a8f33c87aeecffce24e721b5064fab05f4becf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/5cac8f4db97208823aa353f59a01faad2da52c75",
-                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/5a8f33c87aeecffce24e721b5064fab05f4becf8",
+                "reference": "5a8f33c87aeecffce24e721b5064fab05f4becf8",
                 "shasum": ""
             },
             "require": {
@@ -3979,7 +4061,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.43.0"
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.43.3"
             },
             "funding": [
                 {
@@ -3999,7 +4081,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-25T15:46:47+00:00"
+            "time": "2026-10-15T09:18:53+00:00"
         },
         {
             "name": "symfony/polyfill-intl-normalizer",
@@ -4088,16 +4170,16 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.43.0",
+            "version": "v1.43.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72"
+                "reference": "122889ed24dc000165bcbfd77ec412f15cbdfc6a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
-                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/122889ed24dc000165bcbfd77ec412f15cbdfc6a",
+                "reference": "122889ed24dc000165bcbfd77ec412f15cbdfc6a",
                 "shasum": ""
             },
             "require": {
@@ -4149,7 +4231,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.43.0"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.43.3"
             },
             "funding": [
                 {
@@ -4169,7 +4251,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-24T15:19:04+00:00"
+            "time": "2026-10-28T09:35:49+00:00"
         },
         {
             "name": "symfony/service-contracts",
@@ -4430,16 +4512,16 @@
         },
         {
             "name": "symfony/yaml",
-            "version": "v7.4.21",
+            "version": "v7.4.22",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "044907929c7999814378be22da34722c7a86bad4"
+                "reference": "1ed6afa13d48c579c51cbf32e38f50686313497b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/044907929c7999814378be22da34722c7a86bad4",
-                "reference": "044907929c7999814378be22da34722c7a86bad4",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/1ed6afa13d48c579c51cbf32e38f50686313497b",
+                "reference": "1ed6afa13d48c579c51cbf32e38f50686313497b",
                 "shasum": ""
             },
             "require": {
@@ -4482,7 +4564,7 @@
             "description": "Loads and dumps YAML files",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/yaml/tree/v7.4.21"
+                "source": "https://github.com/symfony/yaml/tree/v7.4.22"
             },
             "funding": [
                 {
@@ -4502,20 +4584,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-12T12:34:30+00:00"
+            "time": "2026-10-18T14:39:27+00:00"
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.3.9",
+            "version": "13.3.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "c4c68c81775e8227dd01c064776edd46975d9d86"
+                "reference": "712df94dba55ddda2a8f360a65c13fa3160f24b2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/c4c68c81775e8227dd01c064776edd46975d9d86",
-                "reference": "c4c68c81775e8227dd01c064776edd46975d9d86",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/712df94dba55ddda2a8f360a65c13fa3160f24b2",
+                "reference": "712df94dba55ddda2a8f360a65c13fa3160f24b2",
                 "shasum": ""
             },
             "require": {
@@ -4548,9 +4630,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ecsphp/ecs/issues",
-                "source": "https://github.com/ecsphp/ecs/tree/13.3.9"
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.12"
             },
-            "time": "2026-10-23T12:59:45+00:00"
+            "time": "2026-10-29T14:53:28+00:00"
         },
         {
             "name": "theseer/tokenizer",
@@ -4614,6 +4696,7 @@
         "coretsia/framework": 20,
         "coretsia/platform-cli": 20,
         "coretsia/platform-errors": 20,
+        "coretsia/platform-logging": 20,
         "coretsia/platform-redaction": 20,
         "coretsia/platform-worker": 20,
         "coretsia/skeleton": 20

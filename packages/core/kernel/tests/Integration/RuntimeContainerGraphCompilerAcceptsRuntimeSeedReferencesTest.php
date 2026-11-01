@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -26,6 +27,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterfac
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Provider\KernelServiceFactory;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -60,6 +62,27 @@ final class RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest extend
                 'id',
             ),
         );
+        self::assertSame(
+            [
+                'arguments' => [
+                    ['id' => ModulePlan::class, 'type' => 'service'],
+                ],
+                'construction' => [
+                    'factory' => [
+                        'class' => KernelServiceFactory::class,
+                        'kind' => 'class-method',
+                        'method' => 'appTargetProvider',
+                    ],
+                ],
+                'id' => AppTargetProviderInterface::class,
+                'shared' => true,
+                'type' => 'factory',
+            ],
+            $payload['services'][AppTargetProviderInterface::class],
+        );
+        self::assertArrayNotHasKey(AppTargetProviderInterface::class, $payload['aliases']);
+        self::assertArrayNotHasKey(ModulePlan::class, $payload['services']);
+        self::assertArrayNotHasKey(ModulePlan::class, $payload['aliases']);
     }
 }
 
@@ -83,12 +106,21 @@ final class RuntimeContainerGraphCompilerRuntimeSeedReferencesProvider implement
             class: RuntimeContainerGraphCompilerRuntimeSeedReferencesSubject::class,
             arguments: \array_map(
                 static fn (
-                    string $serviceId
+                    string $serviceId,
                 ): ContainerValueReference => ContainerValueReference::service(
                     $serviceId,
                 ),
                 $runtimeSeedIds,
             ),
+        );
+
+        $definitions->classMethodFactory(
+            id: AppTargetProviderInterface::class,
+            factoryClass: KernelServiceFactory::class,
+            method: 'appTargetProvider',
+            arguments: [
+                ContainerValueReference::service(ModulePlan::class),
+            ],
         );
 
         foreach ($runtimeSeedIds as $serviceId) {

@@ -50,7 +50,7 @@ final class CoretsiaBinaryHelpCommandTest extends CliIntegrationTestCase
                     ['help', '--format=' . $format, '--color=never'],
                 );
                 self::assertSame(0, $result['exit'], $result['stderr']);
-                self::assertSame('', $result['stderr']);
+                self::jsonlDiagnostics($result['stderr']);
                 if ($format === 'json') {
                     $envelope = self::jsonRecord($result['stdout']);
                     $commands = $envelope['data']['records'][0]['payload']['commands'];
@@ -80,6 +80,7 @@ final class CoretsiaBinaryHelpCommandTest extends CliIntegrationTestCase
             }
             $specific = self::execute($root . '/vendor/bin/coretsia', ['help', 'config:compile', '--format=json']);
             self::assertSame(0, $specific['exit'], $specific['stderr']);
+            self::jsonlDiagnostics($specific['stderr']);
             $payload = self::jsonRecord($specific['stdout'])['data']['records'][0]['payload'];
             self::assertSame('config:compile', $payload['name']);
             $descriptor = $catalog->require('config:compile');
@@ -90,11 +91,17 @@ final class CoretsiaBinaryHelpCommandTest extends CliIntegrationTestCase
             self::assertSame($descriptor->options(), $payload['options']);
             $table = self::execute($root . '/vendor/bin/coretsia', ['help', 'config:compile', '--format=table']);
             self::assertSame(0, $table['exit'], $table['stderr']);
+            self::jsonlDiagnostics($table['stderr']);
             self::assertStringContainsString('target', $table['stdout']);
             $invalid = self::execute($root . '/vendor/bin/coretsia', ['help', 'not:a:command', '--format=plain']);
-            self::assertSafeFailure(
-                $invalid,
-                'CORETSIA_CLI_INPUT_INVALID: cli-command-unknown',
+            self::assertSame(1, $invalid['exit']);
+            self::assertSame('', $invalid['stdout']);
+
+            $diagnostic = 'CORETSIA_CLI_INPUT_INVALID: cli-command-unknown' . "\n";
+            self::assertTrue(\str_ends_with($invalid['stderr'], $diagnostic));
+
+            self::jsonlDiagnostics(
+                \substr($invalid['stderr'], 0, -\strlen($diagnostic)),
             );
             self::assertStringNotContainsString($root, $invalid['stderr']);
             self::assertNoArtifacts($root);

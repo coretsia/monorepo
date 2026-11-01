@@ -26,6 +26,7 @@ return [
     ],
     'modules' => [
         'platform.cli',
+        'platform.logging',
     ],
     'featureBundles' => [
         'observability' => 'minimal',

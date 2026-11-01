@@ -22,6 +22,7 @@ use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Platform\Cli\Bootstrap\UltraEarlyDoctorRunner;
 use Coretsia\Platform\Cli\Command\DoctorCommand;
+use Coretsia\Platform\Cli\Input\ArgvInput;
 use Coretsia\Platform\Cli\Output\CommandOutputBuffer;
 use Coretsia\Platform\Cli\Output\ConsoleOutputWriter;
 use Coretsia\Platform\Cli\Provider\CliServiceProvider;
@@ -130,7 +131,7 @@ final class UltraEarlyDoctorUsesSafeFixedOutputPipelineTest extends CliIntegrati
         );
         $output = new CommandOutputBuffer();
         $code = new DoctorCommand()->run(
-            new \Coretsia\Platform\Cli\Input\ArgvInput(['doctor'], 'doctor', [], []),
+            new ArgvInput(['doctor'], 'doctor', [], []),
             $output,
         );
         self::assertSame(0, $code);

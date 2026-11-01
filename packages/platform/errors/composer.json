@@ -30,9 +30,9 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-contracts": "^0.10.0",
-    "coretsia/core-foundation": "^0.10.0",
-    "coretsia/platform-redaction": "^0.10.0",
+    "coretsia/core-contracts": "^0.11.0",
+    "coretsia/core-foundation": "^0.11.0",
+    "coretsia/platform-redaction": "^0.11.0",
     "psr/container": "^2.0",
     "psr/log": "^3.0"
   },

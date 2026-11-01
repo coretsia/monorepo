@@ -18,7 +18,7 @@
 
 Coretsia [kɔˈrɛtsjɑ] / [ko-RET-si-ya] — from the Ukrainian word “серцевина” (*core, foundation*)
 
-**A deterministic PHP 8.4+ application framework with explicit preset policy and runtime module selection, reproducible artifacts, explicit runtime lifecycles, and machine-enforced package boundaries and framework architecture rules.**
+**A deterministic PHP 8.4+ application framework for systems that need to remain understandable, reproducible, and under explicit control as they evolve.**
 
 *Start minimal. Add capabilities as the application grows. Keep the same foundation.*
 
@@ -38,6 +38,10 @@ The framework is built around a single architectural premise:
 > Application capabilities should be composed explicitly and deterministically, rather than emerging from incidental registration order, filesystem discovery, or undocumented bootstrap behavior.
 
 Coretsia therefore treats module composition, generated artifacts, package boundaries, runtime lifecycles, and architecture verification as parts of the framework itself.
+
+The goal is to make framework behavior explainable as an application evolves. Teams should be able to determine which modules are active, where configuration values originate, how runtime services are assembled, and whether generated artifacts represent the intended state.
+
+Coretsia does not eliminate application complexity. It makes framework-owned decisions explicit and inspectable so teams can understand and control that complexity over time.
 
 ## Core model
 
@@ -68,7 +72,7 @@ Runtime module discovery uses Composer installed metadata only. It does not scan
 
 ## Progressive capability modes
 
-Coretsia defines four canonical framework modes:
+Coretsia defines four canonical framework modes. All four mode presets are represented in Kernel selection policy, but their presence does not imply that every corresponding application capability or release is implemented. The profiles below describe the intended progression of capabilities; currently available runtime packages are documented separately under Implemented today.
 
 ### `micro`
 
@@ -107,9 +111,7 @@ An extended platform profile for:
 - broader infrastructure integrations;
 - larger and longer-lived systems.
 
-Modes are capability profiles. They do not prescribe MVC, DDD, Clean Architecture, Vertical Slice Architecture, or another application architecture style.
-
-An application may use a simple architecture in a broader mode or a highly structured architecture in `micro`. The application architecture remains an owner decision.
+Modes define capability profiles, not application architecture. MVC, DDD, Clean Architecture, Vertical Slice Architecture, or another organizational style remains an application-owned decision, independent of the selected mode.
 
 ### Modes, targets, and runtime drivers
 
@@ -117,15 +119,15 @@ Coretsia keeps three concerns separate:
 
 - a **mode preset** selects the active framework capability profile;
 - an **application target** identifies an application entrypoint or execution surface, such as `web`, `api`, `console`, or `worker`;
-- a **runtime driver** selects the execution mechanism, such as classic PHP, FrankenPHP, Swoole, or RoadRunner.
+- a **runtime driver** identifies the execution mechanism; the compatibility matrix may define driver identities for integrations that are not yet implemented.
 
 These concepts are related but are not interchangeable. The selected application target determines which validated `moduleOverrides` apply to the preset policy. Effective module selection is represented by `ModuleSelection`; the application target does not change dependency-graph traversal or introduce filesystem-based module discovery.
 
 ## How Coretsia differs
 
-Coretsia does not attempt to differentiate itself merely by providing a container, modules, middleware, queues, workers, or runtime adapters. Modern PHP frameworks already provide mature versions of those capabilities.
+Coretsia differentiates through how framework capabilities are composed, inspected, and governed rather than through the size of its feature catalog.
 
-Its intended difference is the way those capabilities are composed and governed.
+The following mechanisms make framework decisions explicit, reproducible, and verifiable.
 
 ### Deterministic module composition
 
@@ -192,9 +194,9 @@ Enforcement covers package and dependency boundaries, DTO and public API policy,
 
 Development status by capability track:
 
-- **Bootstrap & prototypes — implemented.** Repository bootstrap, packaging foundations, development tooling, CI/architecture verification, deterministic tooling primitives, prototypes, and initial CLI foundations are in place.
-- **Core — implemented.** Contracts, Foundation, Kernel, the baseline persistent Worker runtime, and the supporting composition and runtime infrastructure are implemented.
-- **Micro release track — active development.** Current work focuses on mode infrastructure, production CLI integration, target-aware application entrypoints, and the remaining runtime infrastructure required for the first complete `micro` application release.
+- **Bootstrap & prototypes — implemented.** Repository development, packaging, and architecture verification infrastructure are in place.
+- **Core infrastructure — implemented.** The foundational composition, artifact, lifecycle, and persistent Worker infrastructure is available.
+- **Micro application release — active development.** A complete HTTP application entrypoint and the first usable `micro` application release remain in development.
 - **Express release — planned.**
 - **Hybrid release — planned.**
 - **Enterprise extensions — planned.**
@@ -219,6 +221,27 @@ Development status by capability track:
 - runtime context and reset orchestration;
 - runtime-driver selection and compatibility guard.
 
+### Command-line interface and dependency synchronization
+
+- tag-first command discovery through enabled runtime modules;
+- lazy command resolution and Kernel UnitOfWork execution;
+- built-in `list`, `help`, and ultra-early `doctor` commands;
+- Kernel operations for module inspection, configuration validation, debugging, compilation, hashing, and cache verification;
+- deterministic, configuration-defined sequential CLI workflows;
+- structured command input validation and safe output rendering;
+- Kernel-owned dependency synchronization with managed Composer root requirements, protected project dependencies, fresh installed verification, and recovery reporting.
+
+The Skeleton project-root `coretsia` launcher exposes `plan`, `review`, and `apply` as explicit adapter operations before normal CLI host boot. These operations are not registered `cli.command` services and are not exposed through the packaged CLI command catalog.
+
+### Logging, errors, redaction, and workers
+
+- PSR-3 logging through `coretsia/platform-logging`, with configurable severity filtering and deterministic JSONL or logfmt records;
+- fixed STDERR logging, optional daily UTC file destinations, and a configurable null backend;
+- centralized error normalization and CLI exception mapping through `coretsia/platform-errors`;
+- shared sensitive-data redaction through `coretsia/platform-redaction`;
+- an internal persistent Worker runtime with process supervision, readiness handling, controlled shutdown, and worker recycling;
+- Worker generation fencing, process lifecycle coordination, and artifact-based child bootstrap.
+
 ### Tooling and architecture governance
 
 - deterministic tooling and CI verification;
@@ -233,37 +256,47 @@ Development status by capability track:
 - release and publishing safety checks;
 - architecture generator idempotence verification.
 
+## Explore the current CLI
+
+The Skeleton project-root launcher provides access to the Composer-installed CLI and its own explicit dependency synchronization operations.
+
+Together, these entrypoints support the following framework inspection, verification, and maintenance tasks:
+
+| Developer question                                                            | Available operation |
+|-------------------------------------------------------------------------------|---------------------|
+| Which runtime modules are enabled for this application target?                | `debug:modules`     |
+| Where did a configuration value come from?                                    | `config:debug`      |
+| Is the application configuration valid?                                       | `config:validate`   |
+| Can the framework configuration and service graph be compiled into artifacts? | `config:compile`    |
+| Do the generated artifacts still match the intended framework state?          | `cache:verify`      |
+| Which managed Coretsia dependencies would change?                             | Skeleton `plan`     |
+
+For executable CLI examples and the full consumer workflow, see the [Skeleton README](packages/applications/skeleton/README.md). The normative dependency synchronization contract is defined in the [Application Dependency Sync SSoT](docs/ssot/application-dependency-sync.md).
+
 ## Current stability limitations
 
 Coretsia does not yet provide:
 
 - long-term backward compatibility guarantees;
 - stable upgrade paths;
+- a complete out-of-the-box HTTP application experience;
+- production-ready FrankenPHP, Swoole, or RoadRunner adapters;
 - a mature third-party package ecosystem.
 
-Product-level integration and release hardening remain in progress.
-
-## Design priorities
-
-Coretsia prioritizes:
-
-1. a small initial application surface that can grow by adding capabilities without replacing the application foundation;
-2. deterministic module and artifact composition;
-3. consistent lifecycle behavior across classic and long-running runtimes;
-4. enforceable architecture boundaries without unnecessary application-level ceremony.
+These limitations distinguish the implemented framework infrastructure from a complete application platform. Product-level integration, end-to-end application workflows, and release hardening remain in progress.
 
 ## Who should evaluate Coretsia?
 
-Coretsia may currently be relevant to:
+Coretsia may be worth evaluating if your team:
 
-- framework and platform engineers;
-- maintainers of long-lived PHP systems;
-- teams interested in reproducible framework artifacts;
-- developers working with modular monoliths;
-- engineers evaluating long-running PHP lifecycle safety;
-- contributors interested in architecture tooling and enforceable package boundaries.
+- maintains PHP applications expected to evolve over many years;
+- needs to understand active modules, configuration provenance, and framework service composition;
+- wants dependency changes and generated framework artifacts to be explicit, reviewable, and verifiable;
+- is building modular systems where package ownership and predictable composition matter;
+- is evaluating lifecycle and state-reset boundaries for long-running PHP workloads;
+- wants to explore machine-enforced framework architecture and reproducible builds.
 
-Coretsia should not currently be selected for a production application that requires a stable framework, broad ecosystem support, or proven long-term upgrade compatibility.
+Coretsia is particularly relevant to platform engineers, maintainers of long-lived systems, and teams investigating stronger control over application composition and operational behavior.
 
 ## Repository layout
 
@@ -283,22 +316,13 @@ docs/
 ```
 
 - `packages/framework/` — public `coretsia/framework` distribution;
-- `packages/applications/skeleton/` — public `coretsia/skeleton` application template, including the consumer `bin/dependency-sync.php` integration entrypoint;
+- `packages/applications/skeleton/` — public `coretsia/skeleton` application template, including its project-root CLI launcher and canonical `bin/dependency-sync.php` adapter;
 - `packages/{core,platform,integrations,devtools}/**` — publishable split Composer packages;
 - `tools/**` — repository tooling, generators, and CI support, including installation-catalog generation/checking;
 - `var/**` — mutable/generated repository workspace state;
 - `docs/ssot/**` — canonical invariants, schemas, ownership, and policies;
 - `docs/architecture/**` — architecture guidance that refers to SSoT for normative truth;
 - `docs/ops/**` — operational and repository-maintenance documentation.
-
-Canonical package layers are:
-
-```text
-core
-platform
-integrations
-devtools
-```
 
 ## Package and release model
 
@@ -321,6 +345,17 @@ packages/framework/              → coretsia/framework
 packages/applications/skeleton/ → coretsia/skeleton
 ```
 
+The current `coretsia/framework` distribution directly requires the baseline Kernel, CLI, and Logging packages:
+
+```text
+coretsia/framework
+├── coretsia/core-kernel
+├── coretsia/platform-cli
+└── coretsia/platform-logging
+```
+
+Additional Coretsia dependencies, including Foundation, Contracts, Errors, and Redaction, are installed transitively according to package metadata. A Composer-installed package is not automatically an enabled runtime module; effective runtime selection remains target-local and governed by Kernel policy.
+
 All Coretsia packages use one monorepo-wide release train:
 
 ```text
@@ -330,13 +365,6 @@ vMAJOR.MINOR.PATCH
 Independent per-package version streams are intentionally not supported.
 
 This keeps Coretsia packages, runtime contracts, generated artifact schemas, documentation, and tooling aligned under one compatibility line.
-
-See:
-
-- [Canonical packaging strategy](docs/architecture/PACKAGING.md)
-- [Repository structure](docs/architecture/STRUCTURE.md)
-- [Releasing guide](docs/guides/releasing.md)
-- [Packagist split publishing guide](docs/guides/packagist-split-publishing-guide.md)
 
 ## Evaluate the monorepo
 
@@ -355,7 +383,7 @@ composer ci
 - `composer setup` configures the repository development environment and managed Composer repositories;
 - `composer ci` runs the full verification pipeline, including default tests, the dedicated slow test rail, and architecture checks.
 
-This is the framework-development workflow. Consumer package synchronization uses the skeleton `bin/dependency-sync.php` entrypoint after the baseline application dependencies are installed.
+This workflow is intended for framework development rather than consumer application management. For the separate consumer workflow, see [Explore the current CLI](#explore-the-current-cli) and the [Skeleton README](packages/applications/skeleton/README.md).
 
 ## Canonical documentation
 
@@ -370,13 +398,28 @@ This is the framework-development workflow. Consumer package synchronization use
 ### Architecture and operations
 
 - [ADR-0033: Application dependency synchronization](docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
+- [ADR-0034: Tag-first CLI command catalog](docs/adr/ADR-0034-cli-tag-first-command-catalog.md)
+- [ADR-0035: CLI composite workflows](docs/adr/ADR-0035-cli-composite-workflows.md)
+- [ADR-0036: Errors and exception mapping](docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md)
+- [ADR-0037: PSR-3 logging](docs/adr/ADR-0037-platform-logging-psr3.md)
 - [Canonical packaging strategy](docs/architecture/PACKAGING.md)
 - [Coretsia determinism contract](docs/architecture/DETERMINISM.md)
 - [Repository structure](docs/architecture/STRUCTURE.md)
+- [Releasing guide](docs/guides/releasing.md)
+- [Packagist split publishing guide](docs/guides/packagist-split-publishing-guide.md)
 - [Command catalog](docs/guides/commands.md)
 - [Git hooks and managed repositories](docs/guides/git-hooks.md)
 - [Architecture generator idempotence evidence](docs/ops/architecture-generator-evidence.md)
 - [Security policy](SECURITY.md)
+
+### Implemented platform packages
+
+- [Command-line interface](packages/platform/cli/README.md)
+- [Logging](packages/platform/logging/README.md)
+- [Errors](packages/platform/errors/README.md)
+- [Sensitive-data redaction](packages/platform/redaction/README.md)
+- [Persistent Worker runtime](packages/platform/worker/README.md)
+- [Application Skeleton](packages/applications/skeleton/README.md)
 
 ## Contributing and discussions
 

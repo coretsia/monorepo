@@ -195,7 +195,7 @@ The normal error boundary discards buffered command output after an exception an
 
 The Composer-installable baseline is owned by `coretsia/framework` and includes Kernel and CLI, with `platform/redaction` installed through CLI's dependency closure. Runtime module enablement remains a separate Kernel policy decision. The default `micro` Console selection enables `platform.cli` through the canonical preset and ModulePlan; merely installing a package does not enable its module.
 
-The `coretsia` monorepo wrapper delegates to the packaged CLI through a fixed repository-relative path, independent of the current working directory. The Composer-installed Skeleton wrapper delegates through its project-local Composer binary proxy. Neither wrapper performs command discovery or introduces a second CLI runtime.
+The `coretsia` monorepo wrapper delegates to the packaged CLI through a fixed repository-relative path, independent of the current working directory. The Skeleton project-root launcher routes only the explicit `plan`, `review`, and `apply` dependency synchronization operations to its project-owned adapter before normal CLI host boot; all other invocations delegate through the project-local Composer binary proxy. These routes are not `cli.command` services, do not participate in the command catalog or CLI UnitOfWork lifecycle, and do not introduce a second CLI runtime. Neither entrypoint performs command discovery.
 
 ## Consequences
 

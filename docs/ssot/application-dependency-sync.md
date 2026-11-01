@@ -205,7 +205,7 @@ requires
 conflicts
 ```
 
-The current committed catalog establishes these identities:
+The canonical materialized installation catalog MUST establish these identities:
 
 | ModuleId             | Composer package              | Module dependencies                                    |
 |----------------------|-------------------------------|--------------------------------------------------------|
@@ -213,6 +213,7 @@ The current committed catalog establishes these identities:
 | `core.kernel`        | `coretsia/core-kernel`        | `core.foundation`                                      |
 | `platform.cli`       | `coretsia/platform-cli`       | `core.kernel`, `platform.errors`, `platform.redaction` |
 | `platform.errors`    | `coretsia/platform-errors`    | `core.foundation`, `platform.redaction`                |
+| `platform.logging`   | `coretsia/platform-logging`   | `core.foundation`, `core.kernel`, `platform.redaction` |
 | `platform.redaction` | `coretsia/platform-redaction` | `core.foundation`                                      |
 | `platform.worker`    | `coretsia/platform-worker`    | `core.kernel`                                          |
 
@@ -224,6 +225,8 @@ php tools/build/installation_catalog.php --check
 ```
 
 The generator derives catalog entries from validated package manifests and release-line policy.
+
+The materialized catalog MUST contain `platform.logging` and its complete required-module closure before planning any canonical preset; a stale catalog missing a selected logging module fails closed instead of silently substituting Foundation `NoopLogger`. Catalog generation and its rerun-no-diff check MUST be completed before release.
 
 Repository source paths MUST NOT appear in the distributed catalog.
 
@@ -247,6 +250,10 @@ coretsia/skeleton
                 -> coretsia/core-foundation
                 -> coretsia/platform-redaction
             -> coretsia/platform-redaction
+        -> coretsia/platform-logging
+            -> coretsia/core-kernel
+            -> coretsia/core-foundation
+            -> coretsia/platform-redaction
 ```
 
 The graph shows the Coretsia baseline dependency edges.
@@ -255,16 +262,16 @@ Composer also installs their transitive dependencies, including `coretsia/core-f
 
 `coretsia/framework` is a dependency-only metapackage; it does not own a second runtime or dependency-sync implementation.
 
-The default `kernel.boot.default_preset = micro` requires `core.foundation` and `core.kernel` and selects `platform.cli` as a selectable root. The declared module dependency closure enables `platform.errors` and `platform.redaction` transitively, without changing the preset roots:
+The default `kernel.boot.default_preset = micro` requires `core.foundation` and `core.kernel` and selects `platform.cli` and `platform.logging` as excludable roots. All four canonical presets select `platform.logging`; `hybrid` and `enterprise` additionally select `platform.worker`. The declared module dependency closure enables `platform.errors` through CLI and `platform.redaction` through CLI and Logging, without making either a direct preset root:
 
 ```text
 explicit Console target -> micro
-ModulePlan(console): core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
+ModulePlan(console): core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
 ```
 
-If `platform.cli` remains selected, missing or explicitly excluded `platform.errors` fails closed during module composition.
+If `platform.cli` remains selected, missing or explicitly excluded `platform.errors` fails closed during module composition. Missing selected `platform.logging` or excluded `platform.redaction` required by either selected module also fails through the existing Kernel graph resolver.
 
-Composer package presence does not enable runtime modules.
+An explicit `moduleOverrides.exclude` for `platform.logging` affects only the selected target's `ModulePlan`, not the shared Composer installation. If another selected module requires `platform.redaction`, that dependency remains enabled; without the logging provider, `LoggerInterface` retains Foundation `NoopLogger`. Composer package presence does not enable runtime modules.
 
 A target is included in installation planning only through the explicit `ProjectApplicationSet`; the enabled modules for each selected target are resolved through Kernel Phase A preset, override, and module dependency policy.
 
@@ -297,6 +304,7 @@ Canonical marker shape:
           "coretsia/core-kernel",
           "coretsia/platform-cli",
           "coretsia/platform-errors",
+          "coretsia/platform-logging",
           "coretsia/platform-redaction"
         ],
         "lastAppliedRequire": {
@@ -304,6 +312,7 @@ Canonical marker shape:
           "coretsia/core-kernel": "<applied-constraint>",
           "coretsia/platform-cli": "<applied-constraint>",
           "coretsia/platform-errors": "<applied-constraint>",
+          "coretsia/platform-logging": "<applied-constraint>",
           "coretsia/platform-redaction": "<applied-constraint>"
         }
       }
@@ -382,7 +391,9 @@ The shipped skeleton adapter is:
 bin/dependency-sync.php
 ```
 
-It supports exactly these operations:
+The shipped Skeleton project-root `coretsia` launcher MUST route only the exact explicit operation names `plan`, `review`, and `apply` to this adapter before normal CLI host boot. It MUST forward the original argv without interpreting operation flags, changing target or preset selection, or duplicating DependencySync execution policy. All other commands retain normal Composer-installed CLI delegation. The project-local routes are not `cli.command` catalog entries and do not enable implicit dependency synchronization.
+
+The adapter supports exactly these operations, independently of the Skeleton launcher:
 
 ```bash
 php bin/dependency-sync.php plan --target=web
@@ -502,7 +513,7 @@ The fresh verifier loads the current consumer `vendor/autoload.php`, obtains ins
 
 Verification MUST independently resolve one `ModulePlan` for every explicit target and compare it with the approved planning expectations.
 
-A package that is physically installed because another target needs it, or because Composer pulled it transitively, MUST NOT become enabled in a target whose policy did not select it.
+A package that is physically installed because another target needs it, or because Composer pulled it transitively, MUST NOT become enabled in a target whose policy did not select it. In particular, `platform.logging` MUST remain disabled in any target that excludes it through `moduleOverrides.exclude`, even when the shared vendor graph contains `coretsia/platform-logging`; the target's installed `ModulePlan` MUST retain the same excluded selection and enabled required dependency closure as the approved plan.
 
 The verifier protocol is canonical and bounded.
 
@@ -549,24 +560,25 @@ worker
 Current canonical policy resolves the following target-local module closures:
 
 ```text
-web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
-worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 
 project union (physical installation intent):
-core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
+core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 
 desired Composer package identities:
 coretsia/core-foundation
 coretsia/core-kernel
 coretsia/platform-cli
 coretsia/platform-errors
+coretsia/platform-logging
 coretsia/platform-redaction
 coretsia/platform-worker
 ```
 
 The `coretsia/framework` requirement remains project-owned baseline state; the desired Composer package identities are derived from the catalog, and only an explicit DependencySync `apply` may reconcile tracked managed root requirements.
 
-Composer resolves one project graph, but physical installation is not runtime module enablement: `ModulePlan(web)` enables `platform.cli`, `platform.errors`, and `platform.redaction`, not `platform.worker`, even though the worker target requires that package in the project-wide union.
+Composer resolves one project graph, but physical installation is not runtime module enablement: `ModulePlan(web)` enables `platform.cli`, `platform.errors`, `platform.logging`, and `platform.redaction`, not `platform.worker`, even though the worker target requires that package in the project-wide union. Excluding `platform.logging` for `web` removes it only from the web runtime plan; the package can remain installed, and CLI's `platform.redaction` dependency remains enabled.
 
 The `worker` target participates only because the caller explicitly selected it; the presence of `presets.worker` does not add it to the installation set.
 
@@ -698,7 +710,7 @@ This SSoT does not define or authorize:
 - weakening protected third-party root identity in order to make a Coretsia solve succeed;
 - shell fallback for Composer or verifier execution;
 - hidden or guaranteed atomic rollback of Composer/vendor side effects;
-- a final public CLI alias beyond the shipped `bin/dependency-sync.php` integration seam;
+- registration of dependency synchronization as a normal `cli.command` service, a CLI workflow step, or an automatic runtime/bootstrap operation;
 - direct DependencySync dependency on Kernel Artifact/Runtime implementation or the reverse.
 
 ## Change rules

@@ -14,264 +14,12 @@
 
 ## PHASE 5 — RELEASE: hybrid (Non-product doc)
 
-### 5.10.0 coretsia/secrets — Secrets resolver (platform implementation) (MUST) [IMPL]
+### 5.10.0 coretsia/auth — Authorization engines: RBAC + REBAC (OPTIONAL) [IMPL]
 
 ---
 type: package
 phase: 5
 epic_id: "5.10.0"
-owner_path: "packages/platform/secrets/"
-
-package_id: "platform/secrets"
-composer: "coretsia/platform-secrets"
-kind: runtime
-module_id: "platform.secrets"
-
-goal: "Будь-який пакет може викликати SecretsResolverInterface->resolve(ref) і отримати string|null детерміновано та без витоку ref/values у logs/spans/metrics, включно з noop режимом."
-provides:
-- "Reference SecretsResolver drivers: null (noop) + env (env-map)"
-- "Deterministic secret_ref parsing (env:KEY) без експозиції значень"
-- "Uses the shared sensitive-data redaction boundary for secret-ref hash/len summaries and noop-safe observability"
-
-tags_introduced: []
-config_roots_introduced: ["secrets"]
-artifacts_introduced: []
-
-adr: "docs/adr/ADR-XXXX-secrets-resolver-platform.md"
-ssot_refs:
-- "docs/ssot/observability-and-errors.md"
-- "docs/ssot/metrics-policy.md"
-- "docs/ssot/config-and-env.md"
----
-
-- [ ] update `5.10.0 platform/secrets` to consume shared redaction boundary and remove package-local `src/Security/Redaction.php`.
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - (pre-existing) `core/contracts` — contains `Coretsia\Contracts\Secrets\SecretsResolverInterface` and observability ports used here.
-  - (pre-existing) `core/foundation` — stable context APIs (optional usage) + container/wiring base.
-  - 2.27.0 — Sensitive data redaction boundary exists.
-  - `packages/core/contracts/src/Security/SensitiveDataRedactorInterface.php`
-
-- Required deliverables (exact paths):
-  - `packages/core/contracts/src/Env/EnvRepositoryInterface.php` — env reads (policy-compliant).
-  - `packages/core/contracts/src/Secrets/SecretsResolverInterface.php` — contract port consumed by this package.
-  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php` — tracing (noop-safe).
-  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php` — metrics (noop-safe).
-  - (optional) `packages/core/contracts/src/Context/ContextAccessorInterface.php` — context reads (signature `get(string $key): mixed`, no default).
-
-- Required config roots/keys:
-  - `secrets` / `secrets.*` — this epic introduces and owns.
-
-- Required tags:
-  - `kernel.reset` — only if stateful resolvers appear later (NOT used by reference drivers in this epic).
-
-- Required contracts / ports:
-  - `Coretsia\Contracts\Secrets\SecretsResolverInterface` — main port.
-  - `Psr\Log\LoggerInterface` — logging (policy-compliant redaction).
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` — tracing.
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` — metrics.
-  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface` — safe secret-ref diagnostics and hash/len summaries.
-
-- Rails reused (NO DEAD WEIGHT) (MUST):
-  - Never print ref raw; only `hash(ref)` / `len(ref)`.
-  - Never print resolved secret value (even in exceptions).
-  - Determinism: same ref + same env map ⇒ same result; observability events have stable attrs (no random ids; no embedded timestamps).
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- `core/contracts`
-- `core/foundation`
-
-Forbidden:
-- `platform/http`
-- `platform/cli`
-- `integrations/*`
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-- PSR:
-  - `Psr\Log\LoggerInterface`
-- Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Secrets\SecretsResolverInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-
-### Entry points / integration points (MUST)
-
-N/A
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `packages/platform/secrets/src/Module/SecretsModule.php` — runtime module entry.
-- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php` — DI wiring.
-- [ ] `packages/platform/secrets/src/Provider/SecretsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — constants (avoid typos).
-- [ ] `packages/platform/secrets/config/secrets.php` — config subtree `secrets` (no repeated root).
-- [ ] `packages/platform/secrets/config/rules.php` — config shape rules.
-- [ ] `packages/platform/secrets/README.md` — Observability / Errors / Security-Redaction.
-- [ ] `packages/platform/secrets/src/Secrets/NullSecretsResolver.php` — noop resolver (always null).
-- [ ] `packages/platform/secrets/src/Secrets/EnvSecretsResolver.php` — env-map resolver (never logs values).
-- [ ] `packages/platform/secrets/src/Secrets/SecretRefParser.php` — deterministic parsing (`env:KEY`).
-- [ ] `packages/platform/secrets/src/Exception/SecretsResolutionException.php` — deterministic errors.
-
-#### Modifies
-
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
-- [ ] `docs/ssot/config-roots.md` — add root row for `secrets` (owner `platform/secrets`, defaults `packages/platform/secrets/config/secrets.php`, rules `packages/platform/secrets/config/rules.php`)
-
-#### Package skeleton (if type=package)
-
-- [ ] `packages/platform/secrets/composer.json`
-- [ ] `packages/platform/secrets/src/Module/SecretsModule.php`
-- [ ] `packages/platform/secrets/src/Provider/SecretsServiceProvider.php`
-- [ ] `packages/platform/secrets/config/secrets.php`
-- [ ] `packages/platform/secrets/config/rules.php`
-- [ ] `packages/platform/secrets/README.md`
-- [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-
-#### Configuration (keys + defaults)
-
-- [ ] Files:
-  - [ ] `packages/platform/secrets/config/secrets.php`
-- [ ] Keys (dot):
-  - [ ] `secrets.enabled` = true
-  - [ ] `secrets.driver` = "null"            # "null" | "env"
-  - [ ] `secrets.env_map` = []               # map refKey => envKey (values are env key names, not secrets)
-  - [ ] `secrets.redaction.enabled` = true
-- [ ] Rules:
-  - [ ] `packages/platform/secrets/config/rules.php` enforces shape
-
-#### Wiring / DI tags (when applicable)
-
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php` (constants to avoid typos)
-  - [ ] constant(s): `SECRETS_DRIVER` (optional, if you select by tag) OR none if selected by config
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Contracts\Secrets\SecretsResolverInterface` → selected driver (config-driven)
-  - [ ] registers: `Coretsia\Secrets\Secrets\NullSecretsResolver`
-  - [ ] registers: `Coretsia\Secrets\Secrets\EnvSecretsResolver`
-
-#### Artifacts / outputs (if applicable)
-
-N/A
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID` (optional; safe log fields only)
-- [ ] Context writes (safe only):
-  - [ ] none (MUST NOT write secret-derived values)
-- Reset discipline:
-  - N/A (reference drivers are stateless; future stateful drivers must implement `ResetInterface` + tag `kernel.reset`)
-
-#### Observability (policy-compliant)
-
-- [ ] Spans:
-  - [ ] `secrets.resolve` (attrs allowed: `driver`, `outcome`; NEVER raw `ref`)
-- [ ] Metrics:
-  - [ ] `secrets.resolve_total` (labels: `driver`, `outcome`)
-  - [ ] `secrets.resolve_duration_ms` (labels: `driver`, `outcome`)
-- [ ] Label normalization applied (if needed):
-  - [ ] `via→driver`
-- [ ] Logs:
-  - [ ] invalid ref format → warn with redaction (`hash/len` only)
-  - [ ] never log resolved values
-
-#### Errors
-
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Secrets\Exception\SecretsResolutionException` — errorCode `CORETSIA_SECRETS_INVALID_REF`
-- [ ] Mapping:
-  - [ ] reuse existing default mapper (no dupes) unless a dedicated mapper becomes necessary later
-
-#### Security / Redaction
-
-- [ ] MUST NOT leak:
-  - [ ] secret values; env values; resolved bytes
-  - [ ] raw secret_ref (treat as sensitive metadata)
-- [ ] Allowed:
-  - [ ] `hash(ref)` / `len(ref)` only
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If metrics/spans/logs exist → `packages/platform/secrets/tests/Contract/ObservabilityPolicyTest.php`
-- [ ] If redaction exists → `packages/platform/secrets/tests/Contract/RedactionDoesNotLeakTest.php`
-
-#### Test harness / fixtures (when integration is needed)
-
-- [ ] Fake adapters:
-  - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/secrets/tests/Unit/SecretRefParserTest.php`
-- Contract:
-  - [ ] `packages/platform/secrets/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `packages/platform/secrets/tests/Contract/SecretsNeverLeakResolvedValuesContractTest.php`
-  - [ ] `packages/platform/secrets/tests/Contract/SecretRefRedactionIsStableContractTest.php`
-- Integration:
-  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDoesNotLeakValuesTest.php`
-  - [ ] `packages/platform/secrets/tests/Integration/NullResolverAlwaysReturnsNullTest.php`
-  - [ ] `packages/platform/secrets/tests/Integration/EnvSecretsResolverDeterministicOutcomeTest.php`
-- Gates/Arch:
-  - N/A
-
-### DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Determinism: same ref inputs produce same outputs; no random ids in logs/spans
-- [ ] Docs updated:
-  - [ ] `packages/platform/secrets/README.md`
-  - [ ] `docs/adr/ADR-XXXX-secrets-resolver-platform.md`
-- [ ] Ref parsing errors deterministic (`CORETSIA_SECRETS_INVALID_REF`) and contain no raw ref or values
-- [ ] No secret values appear in any outputs (tests prove)
-- [ ] Non-goals / out of scope
-  - [ ] Інтеграції Vault/AWS/GCP (це Phase 6+ integrations)
-  - [ ] Кешування секретів між UoW як stateful оптимізація (тільки якщо буде реальна потреба)
-  - [ ] Будь-які CLI/HTTP “показати значення секрету”
-- [ ] Secret refs MUST follow Phase 0/1 redaction discipline:
-  - [ ] Never print ref raw; use `hash(ref)`/`len(ref)` only.
-  - [ ] Never print resolved secret value, even in exceptions.
-- [ ] Determinism expectations:
-  - [ ] resolving the same ref with the same env map must be deterministic (same result, no randomness)
-  - [ ] logs/spans/metrics must be stable (no random ids; no timestamps embedded)
-- [ ] Коли будь-який пакет викликає `SecretsResolverInterface->resolve($ref)`, він отримує значення або `null` без витоку значень у logs/spans/metrics та без падінь у noop режимі.
-- [ ] When `security.signed_urls.secret_ref="env:SIGNED_URL_SECRET"` and env key exists, then signed-url verification works without printing secret value anywhere.
-- [ ] Phase-compat addendum (PRELUDE/PHASE1 locks)
-  - [ ] Env policy wiring (MUST)
-    - [ ] `platform/secrets` MUST read environment only via `Coretsia\Contracts\Env\EnvRepositoryInterface` (Phase 1 env semantics: missing vs empty distinct).
-    - [ ] Direct `getenv()` MUST NOT be used in resolvers (violates EnvPolicy/Bootstrap semantics & testability).
-  - [ ] Deterministic duration measurement (MUST)
-    - [ ] Any `*_duration_ms` metric MUST be measured with `Coretsia\Foundation\Time\Stopwatch` (int ms).  
-      `microtime(true)` / floats are forbidden.
-  - [ ] SSoT registries (MUST)
-    - [ ] This epic introduces config root `secrets` ⇒ MUST update `docs/ssot/config-roots.md` (owner row for `secrets`).
-
----
-
-### 5.20.0 coretsia/auth — Authorization engines: RBAC + REBAC (OPTIONAL) [IMPL]
-
----
-type: package
-phase: 5
-epic_id: "5.20.0"
 owner_path: "packages/platform/auth/"
 
 package_id: "platform/auth"
@@ -295,6 +43,8 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 - "docs/ssot/config-and-env.md"
 ---
+
+- [ ] update `5.10.0 platform/auth — RBAC + REBAC` to reuse the existing AuthProblemMapper and canonical ErrorHandlerInterface for authorization failures, without introducing a separate REBAC exception mapper or duplicating 403 normalization.
 
 ### Dependencies (MUST)
 
@@ -471,12 +221,12 @@ N/A
 
 ---
 
-### 5.30.0 Contracts: Events (sync + deferred, UoW-friendly) (MUST) [CONTRACTS]
+### 5.20.0 Contracts: Events (sync + deferred, UoW-friendly) (MUST) [CONTRACTS]
 
 ---
 type: package
 phase: 5
-epic_id: "5.30.0"
+epic_id: "5.20.0"
 owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
@@ -498,7 +248,7 @@ ssot_refs:
 - docs/ssot/uow-and-reset-contracts.md    # UoW-friendly / hook boundary context
 ---
 
-- [ ] update `5.30.0 Contracts: Events` to reference the shared redaction boundary for event payload diagnostics.
+- [ ] update `5.20.0 Contracts: Events` to reference the shared redaction boundary for event payload diagnostics.
 
 ### Dependencies (MUST)
 
@@ -636,7 +386,7 @@ N/A
   - [ ] Забезпечити json-like payload policy і заборонити “event subscriber monolith” (канон: listeners через DI tag у `platform/events`)
   - [ ] Дати стабільні VO shapes для snapshot/contract tests
 - [ ] Non-goals:
-  - [ ] Реалізація dispatcher/listener registry/deferred flush (це 5.40.0)
+  - [ ] Реалізація dispatcher/listener registry/deferred flush (це 5.30.0)
   - [ ] Будь-які storage/DB/outbox semantics (це інші епіки)
   - [ ] HTTP-aware типи (PSR-7), роутинг, middleware (заборонено в contracts)
 - [ ] Usually present when enabled in presets/bundles:
@@ -649,12 +399,12 @@ N/A
 
 ---
 
-### 5.40.0 coretsia/events — Sync dispatcher + deferred queue (MUST) [IMPL]
+### 5.30.0 coretsia/events — Sync dispatcher + deferred queue (MUST) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.40.0"
+epic_id: "5.30.0"
 owner_path: "packages/platform/events/"
 
 package_id: "platform/events"
@@ -684,14 +434,14 @@ ssot_refs:
 - docs/ssot/stateful-services.md
 ---
 
-- [ ] update `5.40.0 coretsia/events` to consume `SensitiveDataRedactorInterface` for event payload summaries and dispatcher diagnostics.
+- [ ] update `5.30.0 coretsia/events` to consume `SensitiveDataRedactorInterface` for event payload summaries and dispatcher diagnostics.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.30.0 — contracts ports for events must exist
+  - 5.20.0 — contracts ports for events must exist
 
 - Required deliverables (exact paths):
   - `packages/core/contracts/src/Events/EventDispatcherInterface.php` — dispatcher port
@@ -938,12 +688,12 @@ N/A
 
 ---
 
-### 5.50.0 Deferred events semantics (flush policy) (SHOULD) [DOC]
+### 5.40.0 Deferred events semantics (flush policy) (SHOULD) [DOC]
 
 ---
 type: docs
 phase: 5
-epic_id: "5.50.0"
+epic_id: "5.40.0"
 owner_path: "docs/architecture/"
 
 goal: "Документ однозначно описує deferred semantics (flush only on success) і служить рев’ю-опорою для тестів/рефакторингів."
@@ -960,14 +710,14 @@ ssot_refs:
 - docs/ssot/tags.md
 ---
 
-- [ ] update `5.50.0 Deferred events semantics` to define safe payload diagnostics for deferred/flushed events.
+- [ ] update `5.40.0 Deferred events semantics` to define safe payload diagnostics for deferred/flushed events.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.40.0 — implementation exists to reference in doc/tests (recommended)
+  - 5.30.0 — implementation exists to reference in doc/tests (recommended)
 
 - Required deliverables (exact paths):
   - none
@@ -1051,7 +801,7 @@ N/A
   - [ ] Зацементувати SSoT правило: deferred events flush тільки при `UnitOfWorkResult.outcome=success`
   - [ ] Пояснити “де живе логіка” (platform/events AfterUowHook) і “чому kernel залишається dumb”
 - [ ] Non-goals:
-  - [ ] Реалізація коду (це 5.40.0)
+  - [ ] Реалізація коду (це 5.30.0)
   - [ ] Outbox semantics (інший епік)
 - [ ] Usually present when enabled in presets/bundles:
   - [ ] `platform/events` enabled
@@ -1062,185 +812,12 @@ N/A
 
 ---
 
-### 5.55.0 Contracts: Queue (jobs, serialization, retry) (MUST) [CONTRACTS]
+### 5.50.0 coretsia/queue — Core (sync driver + worker runtime) (MUST) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.55.0"
-owner_path: "packages/core/contracts/"
-
-package_id: "core/contracts"
-composer: "coretsia/core-contracts"
-kind: library
-
-goal: "Визначити стабільні queue contracts (job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface) із детермінізмом та без HTTP/PSR-7 залежностей."
-provides:
-- "Queue ports: job shape + driver API (reserve/ack/fail/release)"
-- "Детерміністичні правила payload (json-like; no floats; no objects) на рівні shape/serializer contract"
-- "Retry/backoff policy surface + failed jobs repository port + worker runtime surface (без реалізацій)"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-
-adr: docs/adr/ADR-XXXX-queue-ports-jobs-retry.md
-ssot_refs: []
----
-
-### Goal (MUST)
-
-- **Definition of success:** Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
-- **Acceptance scenario:** When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
-
-## Dependencies (MUST)
-
-### Preconditions (MUST)
-
-- Epic prerequisites:
-  - N/A
-- Required deliverables (exact paths):
-  - N/A
-- Required config roots/keys:
-  - N/A
-- Required tags:
-  - N/A
-- Required contracts / ports:
-  - N/A
-
-### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-
-- none
-
-Forbidden:
-
-- `platform/*`
-- `Psr\Http\Message\*`
-- `Psr\Http\Server\*`
-
-### Uses ports (API surface, NOT deps) (optional)
-
-- PSR:
-  - none
-- Contracts:
-  - none
-- Foundation stable APIs:
-  - none
-
-## Entry points / integration points (MUST)
-
-N/A
-
-## Deliverables (exact paths only) (MUST)
-
-### Creates
-
-- [ ] `packages/core/contracts/src/Queue/JobInterface.php` — job contract (shape/metadata; payload правила на рівні contract-очікувань)
-- [ ] `packages/core/contracts/src/Queue/JobSerializerInterface.php` — серіалізація/десеріалізація з інваріантами json-like + детермінізм
-- [ ] `packages/core/contracts/src/Queue/QueueDriverInterface.php` — low-level driver port (reserve/ack/fail/release)
-- [ ] `packages/core/contracts/src/Queue/QueueInterface.php` — high-level queue facade port (dispatch/enqueue поверх driver)
-- [ ] `packages/core/contracts/src/Queue/BackoffStrategyInterface.php` — retry/backoff policy surface (delay computation)
-- [ ] `packages/core/contracts/src/Queue/FailedJobRepositoryInterface.php` — port для зберігання/читання failed jobs
-- [ ] `packages/core/contracts/src/Queue/QueueWorkerRuntimeInterface.php` — worker runtime surface (loop/control без реалізації)
-- [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова доменна exception для queue contracts
-
-### Modifies
-
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
-
-### Package skeleton (if type=package)
-
-N/A (пакет `core/contracts` вже існує; цей епік додає лише Queue contracts)
-
-### Configuration (keys + defaults)
-
-N/A
-
-### Wiring / DI tags (when applicable)
-
-N/A
-
-### Artifacts / outputs (if applicable)
-
-N/A
-
-## Cross-cutting (only if applicable; otherwise `N/A`)
-
-### Context & UoW
-
-N/A
-
-### Observability (policy-compliant)
-
-N/A
-
-### Errors
-
-- [ ] Exceptions introduced:
-  - [ ] `packages/core/contracts/src/Queue/QueueException.php` — базова помилка домену Queue (конкретні errorCode/мапінг — на стороні імплементаційних пакетів)
-
-### Security / Redaction (MUST)
-
-- [ ] MUST NOT leak:
-  - [ ] payload/tokens/session id у будь-якому contract shape (payload тільки json-like; логування — відповідальність імплементації)
-
-## Verification (TEST EVIDENCE) (MUST when applicable)
-
-- [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
-  - asserts: payload is json-like; deterministic invariants (no floats, no objects) are enforced at shape/serializer contract level
-- [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
-  - asserts: ports are stable/consistent; driver surface supports reserve/ack/fail/release + retry/backoff surfaces are present
-- [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
-  - asserts: contracts remain HTTP-agnostic (no PSR-7/15 deps)
-
-## Tests (MUST)
-
-- Unit:
-  - [ ] `packages/core/contracts/tests/Unit/QueueContractsShapesTest.php`
-- Contract:
-  - [ ] `packages/core/contracts/tests/Contract/QueueContractsTest.php`
-  - [ ] `packages/core/contracts/tests/Contract/ContractsDoNotDependOnPsr7ContractTest.php`
-- Integration:
-  - N/A
-- Gates/Arch:
-  - N/A (deptrac/forbidden enforced policy-wide)
-
-## DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Ports/VO shapes stable + protected by contract tests
-- [ ] ADR exists and documents invariants (json-like payload, no PSR-7)
-- [ ] Docs updated:
-  - [ ] ADR: `docs/adr/ADR-XXXX-queue-ports-jobs-retry.md`
-- [ ] Contracts дозволяють реалізувати sync driver і DB driver, а також worker loop, без зміни портів та без HTTP залежностей.
-- [ ] When a job is serialized/deserialized, then the payload remains json-like and deterministic, and the driver API supports reserve/ack/fail/release.
-- [ ] Problem this epic solves
-  - [ ] Визначити contracts для queue: job shape, serialization, driver API, retry/backoff, failed jobs, worker runtime surface
-  - [ ] Забезпечити json-like payload rule + детермінізм (no floats, no objects) на рівні shape
-  - [ ] Дати стабільний базис для sync driver та DB/Redis drivers без зміни contracts
-- [ ] Non-goals / out of scope
-  - [ ] Реалізація driver/worker/CLI (це 5.60.0, 5.70.0 та 5.80.0)
-  - [ ] Storage schema (DB tables) — це імплементаційні епіки
-  - [ ] HTTP-aware типи/PSR-7 (заборонено у contracts)
-- [ ] Cutline impact
-  - [ ] blocks Phase 5 cutline
-  - [ ] MUST be completed before 5.60.0 Queue Core
-  - [ ] does not block Phase 4 Express release
-
----
-
-### 5.60.0 coretsia/queue — Core (sync driver + worker runtime) (MUST) [IMPL]
-
----
-type: package
-phase: 5
-epic_id: "5.60.0"
+epic_id: "5.50.0"
 owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
@@ -1252,7 +829,7 @@ goal: "Коли `platform.queue` увімкнено, `QueueInterface->dispatch()
 provides:
 - "Reference queue runtime: sync driver + worker loop, кожен job = KernelRuntime UoW"
 - "Deterministic serialization (stable JSON) + retry/backoff policy + never-leak-payload policy"
-- "Extension point for async drivers (DB driver у 5.70.0)"
+- "Extension point for async drivers (DB driver у 5.60.0)"
 
 tags_introduced: []
 config_roots_introduced:
@@ -1267,15 +844,15 @@ ssot_refs:
 - docs/ssot/uow-outcome-policy.md
 ---
 
-- [ ] update `5.60.0 coretsia/queue` to consume `SensitiveDataRedactorInterface` for job payloads, retry diagnostics, dead-letter summaries, and worker logs.
-- [ ] update `5.60.0 coretsia/queue` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for normalized, redacted worker failure reporting only, add matching direct Composer and `platform.errors` module requirements for the queue runtime, and preserve the original Throwable for retry/dead-letter settlement and Kernel UnitOfWork semantics without replacing worker lifecycle or task-settlement boundaries.
+- [ ] update `5.50.0 coretsia/queue` to consume `SensitiveDataRedactorInterface` for job payloads, retry diagnostics, dead-letter summaries, and worker logs.
+- [ ] update `5.50.0 coretsia/queue` to consume `ErrorHandlerInterface` from `coretsia/platform-errors` for normalized, redacted worker failure reporting only, add matching direct Composer and `platform.errors` module requirements for the queue runtime, and preserve the original Throwable for retry/dead-letter settlement and Kernel UnitOfWork semantics without replacing worker lifecycle or task-settlement boundaries.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.55.0 — Queue contracts exist in `core/contracts` and define the canonical job, serialization, driver, retry/backoff, failed-job repository, and worker runtime ports
+  - 4.100.0 — Queue contracts exist in `core/contracts` and define the canonical job, serialization, driver, retry/backoff, failed-job repository, and worker runtime ports
   - core/kernel UoW runtime exists — worker wraps each job in UoW (begin/after)
 
 - Required deliverables (exact paths):
@@ -1286,7 +863,7 @@ ssot_refs:
 
 - Required tags:
   - `kernel.reset` — used to reset worker runtime state (if stateful) via `packages/core/foundation/src/Tag/ReservedTags.php` (owner)
-  - `cli.command` — referenced for commands (commands are in 5.90.0; discovered by `platform/cli`) via `packages/core/foundation/src/Tag/ReservedTags.php` (owner)
+  - `cli.command` — referenced for commands (commands are in 5.80.0; discovered by `platform/cli`) via `packages/core/foundation/src/Tag/ReservedTags.php` (owner)
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Queue\JobInterface`
@@ -1337,7 +914,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - N/A (commands are defined in 5.90.0 and discovered via `cli.command` by `platform/cli`)
+  - N/A (commands are defined in 5.80.0 and discovered via `cli.command` by `platform/cli`)
 - HTTP:
   - N/A
 - Kernel hooks/tags:
@@ -1514,9 +1091,9 @@ N/A
 - [ ] Solves:
   - [ ] Надати reference queue runtime: sync driver + worker loop, який обгортає кожен job у KernelRuntime UoW
   - [ ] Забезпечити deterministic serialization (stable JSON), retry/backoff policy, і “never leak payload” policy
-  - [ ] Підготувати розширення під async drivers (DB driver у 5.70.0)
+  - [ ] Підготувати розширення під async drivers (DB driver у 5.60.0)
 - [ ] Non-goals:
-  - [ ] DB driver schema/locking (це 5.70.0)
+  - [ ] DB driver schema/locking (це 5.60.0)
   - [ ] Integrations redis/sqs/rabbit (Phase 6+)
   - [ ] Вивід payload у CLI/logs/spans (заборонено)
   - [ ] Не дублює керування процесами; працює лише як task-провайдер (через TaskFactory)
@@ -1531,12 +1108,12 @@ N/A
 
 ---
 
-### 5.70.0 coretsia/queue — DB driver (async reference) (SHOULD) [IMPL]
+### 5.60.0 coretsia/queue — DB driver (async reference) (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.70.0"
+epic_id: "5.60.0"
 owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
@@ -1552,21 +1129,22 @@ provides:
 
 tags_introduced: []
 config_roots_introduced:
-- "queue"  # extends existing root from 5.60.0
+- "queue"  # extends existing root from 5.50.0
 
 artifacts_introduced: []
 adr: none
 ssot_refs: []
 ---
 
-- [ ] update `5.70.0 coretsia/queue DB driver` to consume `SensitiveDataRedactorInterface` for persisted job diagnostics and DB-backed queue failures.
+- [ ] update `5.60.0 coretsia/queue DB driver` to consume `SensitiveDataRedactorInterface` for persisted job diagnostics and DB-backed queue failures.
+- [ ] update `5.60.0 coretsia/queue — DB driver` to reuse database connection credentials resolved through the canonical platform/database boundary, including SecretsResolverInterface when secret_ref is supported, without implementing another credentials resolver inside platform/queue.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.60.0 — queue core runtime exists (sync driver + worker + config root)
+  - 5.50.0 — queue core runtime exists (sync driver + worker + config root)
   - `platform/database` + `platform/migrations` — required for DB driver + migrations
 
 - Required deliverables (exact paths):
@@ -1578,7 +1156,7 @@ ssot_refs: []
   - `queue.failed.store` — must exist (extended to allow "db")
 
 - Required tags:
-  - `cli.command` — referenced for queue CLI (5.90.0)
+  - `cli.command` — referenced for queue CLI (5.80.0)
   - migrations discovery via `platform/migrations` (reverse dependency via paths, not `platform/migrations` depending on queue)
 
 - Required contracts / ports:
@@ -1624,7 +1202,7 @@ Forbidden:
 ### Entry points / integration points (MUST)
 
 - CLI:
-  - N/A (queue CLI in 5.90.0)
+  - N/A (queue CLI in 5.80.0)
 - HTTP:
   - N/A
 - Kernel hooks/tags:
@@ -1659,7 +1237,7 @@ Forbidden:
 #### Observability (policy-compliant)
 
 - [ ] Metrics:
-  - [ ] reuse `queue.*` metrics from 5.60.0 (no new metric names; driver label distinguishes)
+  - [ ] reuse `queue.*` metrics from 5.50.0 (no new metric names; driver label distinguishes)
 - [ ] Logs:
   - [ ] no raw SQL; no payload
 
@@ -1714,12 +1292,12 @@ Forbidden:
 
 ---
 
-### 5.80.0 coretsia/queue — CLI commands queue:* (MUST) [IMPL]
+### 5.70.0 coretsia/queue — CLI commands queue:* (MUST) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.80.0"
+epic_id: "5.70.0"
 owner_path: "packages/platform/queue/"
 
 package_id: "platform/queue"
@@ -1745,7 +1323,7 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 ---
 
-- [ ] update `5.80.0 coretsia/queue CLI commands` to consume the shared redaction boundary for queue:* command output.
+- [ ] update `5.70.0 coretsia/queue CLI commands` to consume the shared redaction boundary for queue:* command output.
 
 ### Dependencies (MUST)
 
@@ -1952,12 +1530,12 @@ N/A
 
 ---
 
-### 5.90.0 Contracts: CommandBus + Scheduler (MUST) [CONTRACTS]
+### 5.80.0 Contracts: CommandBus + Scheduler (MUST) [CONTRACTS]
 
 ---
 type: package
 phase: 5
-epic_id: "5.90.0"
+epic_id: "5.80.0"
 owner_path: "packages/core/contracts/"
 
 package_id: "core/contracts"
@@ -1980,7 +1558,7 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 ---
 
-- [ ] update `5.90.0 Contracts: CommandBus + Scheduler` to reference the shared redaction boundary for command/schedule diagnostics.
+- [ ] update `5.80.0 Contracts: CommandBus + Scheduler` to reference the shared redaction boundary for command/schedule diagnostics.
 
 ### Dependencies (MUST)
 
@@ -2132,12 +1710,12 @@ N/A
 
 ---
 
-### 5.100.0 coretsia/cqrs — Command bus + middleware pipeline (MUST) [IMPL]
+### 5.90.0 coretsia/cqrs — Command bus + middleware pipeline (MUST) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.100.0"
+epic_id: "5.90.0"
 owner_path: "packages/platform/cqrs/"
 
 package_id: "platform/cqrs"
@@ -2164,15 +1742,15 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 ---
 
-- [ ] update `5.100.0 coretsia/cqrs` to consume `SensitiveDataRedactorInterface` for command/query payload summaries.
-- [ ] update `5.100.0 coretsia/cqrs` to contribute `CommandBusProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for handler-not-found failures, replacing legacy `reason` metadata and reusing Foundation `ReservedTags.php` without recreating it.
+- [ ] update `5.90.0 coretsia/cqrs` to consume `SensitiveDataRedactorInterface` for command/query payload summaries.
+- [ ] update `5.90.0 coretsia/cqrs` to contribute `CommandBusProblemMapper` through the shared `error.mapper` tag with empty `[]` metadata for handler-not-found failures, replacing legacy `reason` metadata and reusing Foundation `ReservedTags.php` without recreating it.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.90.0 — contracts for CommandBus/Scheduler ports must exist (CommandBus interfaces used here)
+  - 5.80.0 — contracts for CommandBus/Scheduler ports must exist (CommandBus interfaces used here)
 
 - Required deliverables (exact paths):
   - `packages/core/contracts/src/Bus/CommandBusInterface.php` — port used by this implementation
@@ -2388,12 +1966,12 @@ N/A
 
 ---
 
-### 5.110.0 coretsia/scheduler — Schedule registry + schedule:run (MUST) [IMPL]
+### 5.100.0 coretsia/scheduler — Schedule registry + schedule:run (MUST) [IMPL]
 
 ---
 type: package
 phase: 5
-epic_id: "5.110.0"
+epic_id: "5.100.0"
 owner_path: "packages/platform/scheduler/"
 
 package_id: "platform/scheduler"
@@ -2423,15 +2001,16 @@ ssot_refs:
 - "docs/ssot/metrics-policy.md"
 ---
 
-- [ ] update `5.110.0 coretsia/scheduler` to consume `SensitiveDataRedactorInterface` for schedule payloads, command args, and run diagnostics.
+- [ ] update `5.100.0 coretsia/scheduler` to consume `SensitiveDataRedactorInterface` for schedule payloads, command args, and run diagnostics.
+- [ ] update `5.100.0 coretsia/scheduler` to reuse the canonical LockFactoryInterface for optional execution locking, without introducing a scheduler-owned lock manager, Redis client, or separate distributed-lock implementation.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 5.90.0 — Scheduler ports must exist (ScheduleRegistryInterface / ScheduleRunnerInterface / shapes)
-  - 5.100.0 — optional at runtime if `scheduler.dispatch.via=command_bus` (policy/config)
+  - 5.80.0 — Scheduler ports must exist (ScheduleRegistryInterface / ScheduleRunnerInterface / shapes)
+  - 5.90.0 — optional at runtime if `scheduler.dispatch.via=command_bus` (policy/config)
 
 - Required deliverables (exact paths):
   - `packages/core/contracts/src/Scheduler/ScheduleRegistryInterface.php`
@@ -2689,12 +2268,12 @@ Forbidden:
 
 ---
 
-### 5.120.0 Enterprise fixture E2E (RC MUST) (MUST) [IMPL]
+### 5.110.0 Enterprise fixture E2E (RC MUST) (MUST) [IMPL]
 
 ---
 type: skeleton
 phase: 5
-epic_id: "5.120.0"
+epic_id: "5.110.0"
 owner_path: "packages/core/kernel/tests/Fixtures/EnterpriseApp/"
 
 goal: "Один POST `/api/checkout` створює order у SQLite, пушить deferred event, listener ставить job у queue, і `coretsia queue:work --once` виконує side-effect — все без витоку PII/секретів і з deterministic поведінкою."
@@ -2957,12 +2536,12 @@ N/A (fixture uses existing module wiring + SSoT middleware catalog + module enab
 
 ---
 
-### 5.130.0 Test Coverage Gate (MUST) [TOOLING]
+### 5.120.0 Test Coverage Gate (MUST) [TOOLING]
 
 ---
 type: tools
 phase: 5
-epic_id: "5.130.0"
+epic_id: "5.120.0"
 owner_path: "tools/gates/"
 
 goal: "Ensure that critical packages have sufficient test coverage by analyzing PHPUnit coverage reports and enforcing thresholds."

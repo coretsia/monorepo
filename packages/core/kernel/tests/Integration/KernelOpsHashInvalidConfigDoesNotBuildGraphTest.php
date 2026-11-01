@@ -90,6 +90,10 @@ final class KernelOpsHashInvalidConfigDoesNotBuildGraphTest extends TestCase
 
         try {
             ArtifactPipelineTestSupport::writePhpReturn(
+                $root . '/config/logging.php',
+                ['driver' => 'null'],
+            );
+            ArtifactPipelineTestSupport::writePhpReturn(
                 $root . '/apps/api/config/kernel.php',
                 [
                     'boot' => [

@@ -78,8 +78,6 @@ platform.redaction
 
 Kernel's canonical `ModulePlan` resolves the selected module and its dependency closure. Composer package installation is not implicit runtime module enablement. The module's provider is `Coretsia\Platform\Errors\Provider\ErrorsServiceProvider` and its package defaults path is `config/errors.php`.
 
-Selecting `platform.cli` includes `platform.errors` as an explicit runtime dependency. The CLI Composer package also requires `coretsia/platform-errors` directly; its independent output formatter continues to require the shared Redaction port.
-
 The handler binding exists only after successful module composition and service construction. Missing or excluded required modules fail through the established Kernel/CLI host boundary; there is no hidden fallback provider or second ModulePlan.
 
 ## Canonical normalization
@@ -127,24 +125,6 @@ Mapping, fallback selection, mandatory redaction, and strict reconstruction run 
 ## Mapper registration and deterministic discovery
 
 Contributing packages MAY register their owner-specific `ExceptionMapperInterface` services under the existing `error.mapper` tag. The canonical identifier is `ReservedTags::ERROR_MAPPER` and the tag's semantic owner is `platform/errors`. Foundation `TagRegistry` owns ordering and duplicate registration behavior.
-
-The CLI provider uses this canonical declarative registration pattern for its own mapper:
-
-```php
-$definitions->classService(
-    CliExceptionMapper::class,
-    CliExceptionMapper::class,
-);
-
-$definitions->tag(
-    ReservedTags::ERROR_MAPPER,
-    CliExceptionMapper::class,
-    priority: 100,
-    meta: [],
-);
-```
-
-`CliExceptionMapper` is defined and registered by `platform/cli`; the example is not a service registration performed by `platform/errors`.
 
 The mapper contract requires:
 
@@ -267,14 +247,6 @@ The runtime `ErrorHandler` implements a never-throws normalization boundary for 
 Invalid package reporting configuration can prevent service construction. Missing required module dependencies or unavailable required container bindings fail at module composition or service resolution. Such pre-handler failures are not covered by the constructed handler's runtime guarantee.
 
 `ErrorDescriptor::fromArray()` performs strict contracts-owned shape and value validation. Its acceptance does not classify arbitrary strings as safe. Fallback code and public message are fixed; no package-specific exception hierarchy is introduced for mapper errors.
-
-## CLI, HTTP, and Worker boundaries
-
-`platform.cli` contributes `CliExceptionMapper` under `error.mapper` but does not bind a global `ErrorHandlerInterface`. Known CLI and Kernel Ops exception types map to owner-approved safe codes and reasons; unknown Throwables are handled by canonical registry/fallback selection.
-
-`CliApplication` consumes `ErrorHandlerInterface` on its normal failure path; `ExceptionRenderer` owns rendering. It translates the internal fallback `CORETSIA_UNHANDLED_EXCEPTION` into public CLI code `CORETSIA_CLI_INTERNAL_ERROR` with message `Internal CLI error.`. This is presentation only, not a second Throwable-to-descriptor mapping pass. Existing CLI JSON, table, plain, suggestions, exit-code, output-buffer, and ultra-early `doctor` boundaries remain unchanged.
-
-HTTP error adaptation and presentation remain owned by `platform/problem-details`. Worker settlement continues receiving the original Throwable and retains its supervisor/process/bootstrap failure boundaries. HTTP and Worker runtime adapters do not consume the canonical handler in the current runtime composition; adapter integration requires an explicit contract.
 
 ## Security / Redaction
 

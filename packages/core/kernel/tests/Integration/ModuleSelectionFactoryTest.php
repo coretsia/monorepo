@@ -21,13 +21,83 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Module\Exception\InvalidModuleSelectionException;
 use Coretsia\Kernel\Module\ModePreset;
+use Coretsia\Kernel\Module\ModePresetSchemaValidator;
+use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
 use Coretsia\Kernel\Module\ResolvedModuleOverrides;
+use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class ModuleSelectionFactoryTest extends TestCase
 {
+    public function testCanonicalPresetsSelectLoggingAndPermitTargetLocalExclusion(): void
+    {
+        $validator = new ModePresetSchemaValidator();
+        $factory = new ModuleSelectionFactory(new ModuleIdSetNormalizer());
+        $manifest = ModeInfrastructureTestSupport::manifest([
+            ModeInfrastructureTestSupport::descriptor('core.foundation'),
+            ModeInfrastructureTestSupport::descriptor('core.kernel', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.cli', [
+                'core.kernel',
+                'platform.errors',
+                'platform.redaction',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.errors', [
+                'core.foundation',
+                'platform.redaction',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.logging', [
+                'core.foundation',
+                'core.kernel',
+                'platform.redaction',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.redaction', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.worker', ['core.kernel']),
+        ]);
+
+        foreach (['micro', 'express', 'hybrid', 'enterprise'] as $name) {
+            $preset = $validator->validate(
+                $name,
+                require \dirname(__DIR__, 2) . '/resources/modes/' . $name . '.php',
+            );
+            $selection = $factory->create($preset, new ResolvedModuleOverrides([], []));
+            $expectedRoots = ['core.foundation', 'core.kernel', 'platform.cli', 'platform.logging'];
+
+            if (\in_array($name, ['hybrid', 'enterprise'], true)) {
+                $expectedRoots[] = 'platform.worker';
+            }
+
+            self::assertSame($expectedRoots, self::values($selection->roots()));
+
+            $excluded = $factory->create(
+                $preset,
+                new ResolvedModuleOverrides(
+                    include: [],
+                    exclude: [ModuleId::fromString('platform.logging')],
+                ),
+            );
+            self::assertSame(['platform.logging'], self::values($excluded->excluded()));
+            self::assertSame(
+                \array_values(\array_diff($expectedRoots, ['platform.logging'])),
+                self::values($excluded->roots()),
+            );
+
+            $plan = new ModuleGraphResolver(new TopologicalSorter())->resolve(
+                app: 'web',
+                installed: $manifest,
+                selection: $excluded,
+            );
+            $enabled = self::values($plan->enabled());
+            self::assertNotContains('platform.logging', $enabled);
+            self::assertContains('core.foundation', $enabled);
+            self::assertContains('core.kernel', $enabled);
+            self::assertContains('platform.cli', $enabled);
+            self::assertContains('platform.redaction', $enabled);
+        }
+    }
+
     public function testIncludesAddsAndExcludesNonRequiredPresetModule(): void
     {
         $preset = new ModePreset(
@@ -46,11 +116,11 @@ final class ModuleSelectionFactoryTest extends TestCase
         );
         self::assertSame(
             ['core.foundation', 'core.kernel', 'platform.worker'],
-            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->roots())
+            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->roots()),
         );
         self::assertSame(
             ['platform.http'],
-            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->excluded())
+            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->excluded()),
         );
     }
 
@@ -69,7 +139,7 @@ final class ModuleSelectionFactoryTest extends TestCase
         );
         self::assertSame(
             ['core.kernel'],
-            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->roots())
+            \array_map(static fn (ModuleId $id): string => $id->value(), $selection->roots()),
         );
     }
 
@@ -108,5 +178,15 @@ final class ModuleSelectionFactoryTest extends TestCase
         ) {
             self::assertStringNotContainsString($forbidden, $source);
         }
+    }
+
+    /**
+     * @param list<ModuleId> $moduleIds
+     *
+     * @return list<string>
+     */
+    private static function values(array $moduleIds): array
+    {
+        return \array_map(static fn (ModuleId $id): string => $id->value(), $moduleIds);
     }
 }

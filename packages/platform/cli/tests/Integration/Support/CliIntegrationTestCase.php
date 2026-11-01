@@ -18,6 +18,12 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Cli\Tests\Integration\Support;
 
+use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Platform\Logging\Record\LogRecordPolicy;
+use Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor;
+use Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier;
+use Coretsia\Platform\Redaction\Redaction\SensitiveValueClassifier;
+use Coretsia\Platform\Redaction\Redaction\StableRedactionHasher;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -110,6 +116,190 @@ abstract class CliIntegrationTestCase extends TestCase
         }
 
         return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];
+    }
+
+    /** @return list<array<string, mixed>> */
+    protected static function jsonlDiagnostics(string $stderr): array
+    {
+        self::assertNotSame('', $stderr);
+        self::assertTrue(\str_ends_with($stderr, "\n"));
+        self::assertStringNotContainsString("\r", $stderr);
+        $records = [];
+
+        foreach (\explode("\n", \substr($stderr, 0, -1)) as $line) {
+            self::assertNotSame('', $line);
+            $record = \json_decode($line, true, 512, \JSON_THROW_ON_ERROR);
+            self::assertIsArray($record);
+            self::assertSame($line . "\n", StableJsonEncoder::encodeStableMap($record));
+            self::assertCanonicalDiagnosticRecord($record);
+            $records[] = $record;
+        }
+
+        return $records;
+    }
+
+    /** @return list<array<string, mixed>> */
+    protected static function logfmtDiagnostics(string $stderr): array
+    {
+        self::assertNotSame('', $stderr);
+        self::assertTrue(\str_ends_with($stderr, "\n"));
+        $records = [];
+        $fieldOrder = [
+            'ts_utc',
+            'level',
+            'message',
+            'service_name',
+            'app_target',
+            'correlation_id',
+            'uow_id',
+            'uow_type',
+            'context',
+        ];
+
+        foreach (\explode("\n", \substr($stderr, 0, -1)) as $line) {
+            self::assertNotSame('', $line);
+            $matches = [];
+            self::assertGreaterThan(
+                0,
+                \preg_match_all(
+                    '/(?:\A| )([a-z_]+)=(null|"(?:\\\\.|[^"\\\\])*")/',
+                    $line,
+                    $matches,
+                    \PREG_SET_ORDER | \PREG_OFFSET_CAPTURE,
+                ),
+            );
+            $record = [];
+            $cursor = 0;
+
+            foreach ($matches as $match) {
+                self::assertSame($cursor, $match[0][1]);
+                $cursor += \strlen($match[0][0]);
+                $value = $match[2][0] === 'null'
+                    ? null
+                    : \json_decode($match[2][0], true, 512, \JSON_THROW_ON_ERROR);
+                $record[$match[1][0]] = $value;
+            }
+
+            self::assertSame(\strlen($line), $cursor);
+            self::assertSame($fieldOrder, \array_keys($record));
+
+            if ($record['context'] !== null) {
+                self::assertIsString($record['context']);
+                $record['context'] = \json_decode($record['context'], true, 512, \JSON_THROW_ON_ERROR);
+            }
+
+            self::assertCanonicalDiagnosticRecord($record);
+            $records[] = $record;
+        }
+
+        return $records;
+    }
+
+    /** @param array<string, mixed> $record */
+    private static function assertCanonicalDiagnosticRecord(array $record): void
+    {
+        $expected = [
+            'app_target',
+            'context',
+            'correlation_id',
+            'level',
+            'message',
+            'service_name',
+            'ts_utc',
+            'uow_id',
+            'uow_type',
+        ];
+
+        $keys = \array_keys($record);
+        \sort($keys, \SORT_STRING);
+
+        self::assertSame($expected, $keys);
+        self::assertTrue(LogRecordPolicy::isValidCanonicalRecord($record));
+        if (\is_array($record['context']) && \array_key_exists('key_paths', $record['context'])) {
+            $classifier = new SensitiveKeyClassifier();
+            $policy = new LogRecordPolicy(
+                new DefaultSensitiveDataRedactor(
+                    $classifier,
+                    new SensitiveValueClassifier(),
+                    new StableRedactionHasher(),
+                ),
+                $classifier,
+            );
+
+            self::assertSame($record['context'], $policy->admitContext($record['context']));
+        }
+        self::assertSame('console', $record['app_target']);
+        self::assertSame('console', $record['service_name']);
+        self::assertContains($record['level'], [
+            'debug',
+            'info',
+            'notice',
+            'warning',
+            'error',
+            'critical',
+            'alert',
+            'emergency',
+        ]);
+        self::assertIsString($record['message']);
+        self::assertSame(1, \preg_match('/\A[a-z][a-z0-9._-]{0,127}\z/', $record['message']));
+        self::assertTrue(
+            $record['ts_utc'] === null || (
+                \is_string($record['ts_utc'])
+                && \preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\z/', $record['ts_utc']) === 1
+            ),
+        );
+
+        foreach (['correlation_id', 'uow_id', 'uow_type'] as $key) {
+            self::assertTrue($record[$key] === null || \is_string($record[$key]));
+        }
+
+        self::assertTrue($record['context'] === null || \is_array($record['context']));
+    }
+
+    /** @return list<array<string, mixed>> */
+    protected static function assertEquivalentJsonlDiagnostics(string $left, string $right): array
+    {
+        $expected = self::jsonlDiagnostics($left);
+        $actual = self::jsonlDiagnostics($right);
+
+        self::assertEquivalentDiagnosticRecords($expected, $actual);
+
+        return $actual;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $expected
+     * @param list<array<string, mixed>> $actual
+     */
+    protected static function assertEquivalentDiagnosticRecords(array $expected, array $actual): void
+    {
+        self::assertCount(\count($expected), $actual);
+
+        foreach ($expected as $i => $record) {
+            $other = $actual[$i];
+            self::assertSame(
+                \array_keys($record['context'] ?? []),
+                \array_keys($other['context'] ?? []),
+            );
+
+            foreach (['ts_utc', 'correlation_id', 'uow_id'] as $key) {
+                unset($record[$key], $other[$key]);
+            }
+
+            foreach (['correlation_id', 'uow_id', 'duration_ms'] as $key) {
+                if ($record['context'] !== null) {
+                    unset($record['context'][$key]);
+                }
+
+                if ($other['context'] !== null) {
+                    unset($other['context'][$key]);
+                }
+            }
+
+            \ksort($record, \SORT_STRING);
+            \ksort($other, \SORT_STRING);
+            self::assertSame($record, $other);
+        }
     }
 
     protected static function assertSafeFailure(array $result, string $diagnostic): void

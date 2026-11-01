@@ -70,6 +70,19 @@ return array(
         1 => 'platform.redaction',
       ),
     ),
+    'platform.logging' =>
+    array(
+      'composerName' => 'coretsia/platform-logging',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+        1 => 'core.kernel',
+        2 => 'platform.redaction',
+      ),
+    ),
     'platform.redaction' =>
     array(
       'composerName' => 'coretsia/platform-redaction',
@@ -93,7 +106,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.10.0',
-  'releaseLine' => '0.10',
+  'publicConstraint' => '^0.11.0',
+  'releaseLine' => '0.11',
   'schemaVersion' => 1,
 );

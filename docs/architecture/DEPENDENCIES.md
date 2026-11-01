@@ -299,12 +299,15 @@ The canonical empty dependency marker is:
 | devtools/internal-toolkit | —                                            |       |
 | platform/cli              | core/contracts, core/foundation, core/kernel |       |
 | platform/errors           | core/contracts, core/foundation              |       |
+| platform/logging          | core/contracts, core/foundation              |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
 The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`; its existing source dependency permissions remain unchanged.
 
 The `platform/errors` → `platform/redaction` dependency is likewise a runtime-only Composer edge backed by the direct `platform.redaction` module requirement. Errors consumes `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementations. Neither runtime-only edge belongs in the matrix `depends_on` cells or the generated Deptrac allowlist. `platform/worker` source and Composer dependencies remain unchanged.
+
+The `platform/logging` → `core/kernel` and `platform/logging` → `platform/redaction` edges are runtime-only Composer/module requirements. Kernel supplies the already selected app target through the contracts-level `AppTargetProviderInterface`; Redaction supplies the shared `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` services through contracts-level ports. `platform/logging` imports neither Kernel nor concrete Redaction implementation classes in production source. These runtime-only edges grant no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
 
 ---
 

@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Tests\Unit;
 
 use Coretsia\Contracts\Security\RedactionKind;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,12 @@ use ReflectionClass;
 
 final class SensitiveKeyClassifierTest extends TestCase
 {
+    public function testClassifierImplementsCanonicalSensitiveKeyClassifierPort(): void
+    {
+        self::assertInstanceOf(SensitiveKeyClassifierInterface::class, new SensitiveKeyClassifier());
+        self::assertCount(98, self::canonicalAliases());
+    }
+
     #[DataProvider('canonicalAliases')]
     public function testEveryDocumentedAliasAndItsAsciiVariantsHaveExactlyOneKind(
         string $alias,

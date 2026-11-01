@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Module;
 
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 
 /**
  * Immutable deterministic Kernel ModulePlan.
@@ -39,7 +40,7 @@ use Coretsia\Contracts\Module\ModuleId;
  * preset raw payloads, raw config payloads, runtime services, service
  * instances, closures, resources, or filesystem handles.
  */
-final readonly class ModulePlan
+final readonly class ModulePlan implements AppTargetProviderInterface
 {
     public const int SCHEMA_VERSION = 1;
     /**

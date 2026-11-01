@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Tests\Contract;
 
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -46,6 +47,7 @@ final class RedactionProviderSourceDefinitionsParityTest extends TestCase
         $expectedIds = [
             DefaultSensitiveDataRedactor::class,
             SensitiveDataRedactorInterface::class,
+            SensitiveKeyClassifierInterface::class,
             SensitiveKeyClassifier::class,
             SensitiveValueClassifier::class,
             StableRedactionHasher::class,
@@ -66,6 +68,20 @@ final class RedactionProviderSourceDefinitionsParityTest extends TestCase
             $container = $builder->build();
             $redactor = $container->get(SensitiveDataRedactorInterface::class);
             $implementation = $container->get(DefaultSensitiveDataRedactor::class);
+            $classifier = $container->get(SensitiveKeyClassifier::class);
+
+            self::assertInstanceOf(SensitiveKeyClassifierInterface::class, $classifier);
+            self::assertSame(
+                $classifier,
+                $container->get(SensitiveKeyClassifierInterface::class),
+            );
+            self::assertSame(
+                $classifier,
+                new \ReflectionProperty(
+                    DefaultSensitiveDataRedactor::class,
+                    'keyClassifier',
+                )->getValue($implementation),
+            );
 
             self::assertInstanceOf(DefaultSensitiveDataRedactor::class, $redactor);
             self::assertSame($implementation, $redactor);

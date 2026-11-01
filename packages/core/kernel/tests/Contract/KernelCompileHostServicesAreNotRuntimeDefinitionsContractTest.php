@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
@@ -90,6 +91,7 @@ use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelection;
@@ -99,6 +101,7 @@ use Coretsia\Kernel\Module\Preset\CustomPresetSource;
 use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Provider\KernelServiceFactory;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -310,6 +313,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
 
         self::assertSame(
             self::sorted([
+                AppTargetProviderInterface::class,
                 RuntimeDriverResolver::class,
                 HookInvoker::class,
                 KernelRuntime::class,
@@ -318,6 +322,34 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
             self::bindingIds(
                 $definitions->build()->toDescriptorStream(),
             ),
+        );
+
+        $appTargetDefinitions = \array_values(
+            \array_filter(
+                $definitions->build()->toDescriptorStream(),
+                static fn (array $operation): bool => ($operation['id'] ?? null)
+                    === AppTargetProviderInterface::class,
+            ),
+        );
+
+        self::assertSame(
+            [
+                [
+                    'arguments' => [
+                        ['id' => ModulePlan::class, 'type' => 'service'],
+                    ],
+                    'factoryClass' => KernelServiceFactory::class,
+                    'id' => AppTargetProviderInterface::class,
+                    'kind' => ContainerDefinitionKind::SERVICE_FACTORY_CLASS_METHOD->value,
+                    'method' => 'appTargetProvider',
+                    'shared' => true,
+                ],
+            ],
+            $appTargetDefinitions,
+        );
+        self::assertNotContains(
+            ModulePlan::class,
+            self::bindingIds($definitions->build()->toDescriptorStream()),
         );
     }
 
@@ -346,6 +378,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 LoggerInterface::class,
                 TracerPortInterface::class,
                 MeterPortInterface::class,
+                ModulePlan::class,
             ]),
             $definitions->build()->requiredServiceIds(),
         );

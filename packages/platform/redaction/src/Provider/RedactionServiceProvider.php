@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Provider;
 
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -34,7 +35,8 @@ use Coretsia\Platform\Redaction\Redaction\StableRedactionHasher;
  * Declarative, config-free sensitive-data redaction DI wiring.
  *
  * The provider contributes one shared redactor implementation and the
- * contracts-level port alias only when its module is explicitly enabled.
+ * contracts-level redactor and key-classifier aliases only when its module
+ * is explicitly enabled.
  * Registration performs no service resolution, runtime work, or config reads.
  */
 final class RedactionServiceProvider implements
@@ -76,6 +78,10 @@ final class RedactionServiceProvider implements
             ->alias(
                 SensitiveDataRedactorInterface::class,
                 DefaultSensitiveDataRedactor::class,
+            )
+            ->alias(
+                SensitiveKeyClassifierInterface::class,
+                SensitiveKeyClassifier::class,
             );
     }
 }

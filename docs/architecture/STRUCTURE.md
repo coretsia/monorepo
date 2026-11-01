@@ -86,7 +86,9 @@
 
 - `packages/applications/skeleton/` is the public `coretsia/skeleton` create-project template.
 - Template-owned application surfaces may include `apps/`, `modules/`, `config/`, `resources/`, `var/`, and `tests/`.
-- `packages/applications/skeleton/bin/dependency-sync.php` is the shipped thin consumer integration seam for explicit dependency-sync `plan` / `review` / `apply` invocation.
+- `packages/applications/skeleton/bin/dependency-sync.php` is the canonical project-owned adapter for explicit dependency-sync `plan` / `review` / `apply` operations.
+- `packages/applications/skeleton/coretsia` routes only these exact explicit operations to the adapter before normal CLI host boot; all other invocations delegate to the Composer-installed CLI binary.
+- The Skeleton-specific dependency synchronization routes are not `cli.command` services and do not participate in the normal CLI command catalog or UnitOfWork lifecycle.
 - `config/` in the skeleton template contains application overrides only, not framework defaults.
 - Package defaults exist only for runtime packages that own a reserved config root. Their canonical defaults files live under `packages/<layer>/<slug>/config/<root>.php` and are declared through `extra.coretsia.defaultsConfigPath`.
 - Config-free runtime packages do not contribute package default-config sources and MUST NOT be required to create placeholder config files.

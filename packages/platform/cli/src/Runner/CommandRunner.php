@@ -187,16 +187,18 @@ final readonly class CommandRunner
             }
 
             try {
-                $this->logger->log(
-                    $outcome === self::OUTCOME_SUCCESS ? 'info' : 'error',
-                    'cli.command',
-                    [
-                        'operation' => $operation,
-                        'outcome' => $outcome,
-                        'exit_code' => $exitCode,
-                        ...$identifiers,
-                    ],
-                );
+                $logContext = [
+                    'operation' => $operation,
+                    'outcome' => $outcome,
+                    'exit_code' => $exitCode,
+                    ...$identifiers,
+                ];
+
+                if ($outcome === self::OUTCOME_SUCCESS) {
+                    $this->logger->info('cli.command', $logContext);
+                } else {
+                    $this->logger->error('cli.command', $logContext);
+                }
             } catch (\Throwable) {
                 // Logging is best-effort.
             }

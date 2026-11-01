@@ -103,6 +103,73 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.10.0 to v0.11.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- The new `platform.logging` runtime module provides active PSR-3 structured logging by default, replacing the effective Foundation `NoopLogger` binding in enabled canonical presets.
+- Existing `Psr\Log\LoggerInterface` consumers do not need to depend on or construct the concrete `StreamLogger`.
+- Normal CLI output formats, public error codes, exit codes, and Kernel UnitOfWork semantics remain unchanged. Structured diagnostic records may now appear on STDERR independently of command STDOUT.
+- Review custom module presets, LoggerInterface bindings, logging producers, and tests that assume successful CLI execution always produces empty STDERR.
+
+#### Installation and module selection
+
+`coretsia/framework` now directly requires `coretsia/platform-logging` alongside Kernel and CLI.
+
+All canonical presets (`micro`, `express`, `hybrid`, `enterprise`) select `platform.logging` by default. The module requires `core.foundation`, `core.kernel`, and `platform.redaction`.
+
+Review custom presets and target-local module overrides:
+
+- `platform.logging` must be physically installed wherever selected; missing required modules fail closed.
+- Use target-local `moduleOverrides.exclude` to disable Logging for a specific application target without removing its Composer package.
+- Excluding Logging does not disable Redaction when another enabled module still requires it.
+- Composer installation does not automatically enable runtime modules. Additional dependencies remain subject to explicit DependencySync `plan`, `review`, and `apply` operations.
+
+#### Logging configuration
+
+The `logging` configuration root provides these defaults:
+
+- `logging.driver`: `stream` by default.
+- `logging.file.path`: `''` by default.
+- `logging.file.name`: `app` by default.
+- `logging.level`: `info` by default.
+- `logging.max_record_bytes`: `65536` by default.
+- `logging.service_name`: `auto` by default.
+- `logging.format`: `jsonl` by default.
+
+Supported drivers are:
+
+- `stream`: writes structured records to fixed `php://stderr`.
+- `file`: writes append-only daily UTC files to an explicitly configured, existing absolute local directory.
+- `null`: selects Foundation `NoopLogger`; this is the literal string `'null'`, not PHP `null`.
+
+Supported formats are `jsonl` and `logfmt`. File names follow `{app_target}-{file.name}-{YYYY-MM-DD}.{format}`, using the canonical application target and UTC date.
+
+Configuration is strictly validated. Unknown keys, unsupported drivers, invalid file paths, and malformed values fail deterministically rather than silently selecting `NoopLogger`.
+
+File retention, archival, directory provisioning, filesystem permissions, and storage quotas remain deployment responsibilities.
+
+#### Logging security and CLI behavior
+
+Logging uses canonical UnitOfWork correlation enrichment, bounded operational records, mandatory shared redaction, and the new contracts-level `SensitiveKeyClassifierInterface` backed by the existing Redaction implementation.
+
+Producers must use safe static event identifiers and explicitly admitted operational context fields. Raw exception messages, request payloads, credentials, arbitrary context values, and sensitive key paths are not valid logging inputs.
+
+Runtime record-processing and destination I/O failures are isolated from application execution; invalid configuration and invalid PSR-3 levels remain explicit errors. File writes use nonblocking locks, but partial-write recovery, universal multi-process atomicity, and durable filesystem synchronization are not guaranteed.
+
+Normal CLI commands retain their output contracts while default Logging may emit structured records to STDERR. The ultra-early `doctor` execution boundary remains unchanged.
+
+The Skeleton project-root launcher also routes `php coretsia plan`, `review`, and `apply` directly to the existing dependency synchronization adapter before normal CLI host boot. Only `apply` may perform explicitly authorized Composer effects.
+
+#### Migration steps
+
+1. Update Coretsia Composer dependencies to `v0.11.0` and refresh the application lockfile intentionally.
+2. Verify Logging installation, custom presets, and target-local module overrides. Use `moduleOverrides.exclude` or `logging.driver='null'` where logging must remain disabled.
+3. Review `logging.*` configuration. For file mode, provision a trusted local directory and configure deployment-owned retention and permissions.
+4. Review custom logging producers and CLI STDERR expectations. Preserve safe operational fields, mandatory shared redaction, and separation between command output and diagnostic logging.
+5. Run explicit DependencySync operations where module requirements change, then execute the applicable configuration, architecture, quality, security, and regression checks.
+
 ### From v0.9.1 to v0.10.0
 
 #### Compatibility

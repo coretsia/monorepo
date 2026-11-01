@@ -106,7 +106,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.10.0',
-  'releaseLine' => '0.10',
+  'publicConstraint' => '^0.11.0',
+  'releaseLine' => '0.11',
   'schemaVersion' => 1,
 );

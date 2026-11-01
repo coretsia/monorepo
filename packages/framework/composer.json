@@ -28,8 +28,8 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-kernel": "^0.10.0",
-    "coretsia/platform-cli": "^0.10.0",
-    "coretsia/platform-logging": "^0.10.0"
+    "coretsia/core-kernel": "^0.11.0",
+    "coretsia/platform-cli": "^0.11.0",
+    "coretsia/platform-logging": "^0.11.0"
   }
 }

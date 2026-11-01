@@ -1297,16 +1297,7 @@ RuntimeDriverContributions::fromDrivers(
 
 `RuntimeDriverContributions` contains selected canonical drivers only. It does not carry package/module requirements or executable readiness.
 
-For Worker:
-
-```text
-worker.task_type=queue -> bg.worker_queue
-worker.task_type=http  -> http.worker
-```
-
-That mapping is owned by `platform/worker`.
-
-`core/kernel` does not read `worker.task_type`, validate `worker.*`, inspect `platform.worker`, or use `ModulePlan` to infer/validate owner package prerequisites.
+Package-specific runtime input mapping remains the responsibility of the contributing owner. Kernel receives only canonical `RuntimeDriverContributions` and does not read, validate, or infer another package's configuration or prerequisites.
 
 The composition rules are:
 
@@ -1762,11 +1753,7 @@ The resolver receives owner-selected runtime drivers through explicit:
 RuntimeDriverContributions
 ```
 
-`core/kernel` does not read `worker.task_type`.
-
-`worker.task_type` is owned, defaulted, normalized, and validated by `platform/worker`.
-
-When Worker participates in runtime-driver selection, `platform/worker` converts `worker.task_type` into `RuntimeDriverContributions` before calling `RuntimeDriverResolver`.
+The resolver does not read owner-package configuration. Each contributing owner is responsible for producing its own `RuntimeDriverContributions` from validated inputs.
 
 `kernel.modules.discovery.source` is shape-validated by config rules, but supported-source membership is enforced by `ModuleResolutionOrchestrator` against `kernel.modules.discovery.allowed_sources` before preset loading or Composer manifest discovery.
 

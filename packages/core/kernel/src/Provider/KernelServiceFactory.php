@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Foundation\Container\Container as FoundationContainer;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
@@ -88,6 +89,7 @@ use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
@@ -398,6 +400,17 @@ final class KernelServiceFactory
         }
 
         return new ModulePlanResolver($graph);
+    }
+
+    /**
+     * Exposes the already selected canonical app target through its ModulePlan.
+     *
+     * Returns the runtime seed unchanged. No target discovery, validation,
+     * configuration reads, or additional runtime state are introduced.
+     */
+    public static function appTargetProvider(ModulePlan $plan): AppTargetProviderInterface
+    {
+        return $plan;
     }
 
     /**

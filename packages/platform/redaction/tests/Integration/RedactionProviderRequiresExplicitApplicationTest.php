@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Redaction\Tests\Integration;
 
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -51,6 +52,7 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
         self::assertSame([], $builder->serviceIds());
         self::assertSame([], $builder->tagRegistry()->tagNames());
         self::assertFalse($builder->build()->has(SensitiveDataRedactorInterface::class));
+        self::assertFalse($builder->build()->has(SensitiveKeyClassifierInterface::class));
 
         try {
             $builder->build()->get(SensitiveDataRedactorInterface::class);
@@ -72,6 +74,7 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
         self::assertSame([], $builder->serviceIds());
         self::assertSame([], $builder->tagRegistry()->tagNames());
         self::assertFalse($builder->build()->has(SensitiveDataRedactorInterface::class));
+        self::assertFalse($builder->build()->has(SensitiveKeyClassifierInterface::class));
 
         $provider = new RedactionServiceProvider();
 
@@ -80,6 +83,7 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
         self::assertSame([], $builder->serviceIds());
         self::assertSame([], $builder->tagRegistry()->tagNames());
         self::assertFalse($builder->build()->has(SensitiveDataRedactorInterface::class));
+        self::assertFalse($builder->build()->has(SensitiveKeyClassifierInterface::class));
     }
 
     public function testDebugEnvironmentAndConfigCannotAutoApplyAnUnregisteredProvider(): void
@@ -103,6 +107,7 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
             self::assertSame([RedactionServiceProvider::class], $module->providers());
             self::assertSame([], $builder->serviceIds());
             self::assertFalse($builder->build()->has(SensitiveDataRedactorInterface::class));
+            self::assertFalse($builder->build()->has(SensitiveKeyClassifierInterface::class));
         }
     }
 
@@ -139,6 +144,11 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
                     'kind' => ContainerDefinitionKind::ALIAS->value,
                     'serviceId' => DefaultSensitiveDataRedactor::class,
                 ],
+                [
+                    'alias' => SensitiveKeyClassifierInterface::class,
+                    'kind' => ContainerDefinitionKind::ALIAS->value,
+                    'serviceId' => SensitiveKeyClassifier::class,
+                ],
             ],
             $aliases,
         );
@@ -156,6 +166,7 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
         $expectedIds = [
             DefaultSensitiveDataRedactor::class,
             SensitiveDataRedactorInterface::class,
+            SensitiveKeyClassifierInterface::class,
             SensitiveKeyClassifier::class,
             SensitiveValueClassifier::class,
             StableRedactionHasher::class,
@@ -177,5 +188,19 @@ final class RedactionProviderRequiresExplicitApplicationTest extends TestCase
         self::assertInstanceOf(DefaultSensitiveDataRedactor::class, $redactor);
         self::assertSame($redactor, $container->get(DefaultSensitiveDataRedactor::class));
         self::assertSame($redactor, $container->get(SensitiveDataRedactorInterface::class));
+
+        $classifier = $container->get(SensitiveKeyClassifier::class);
+
+        self::assertSame(
+            $classifier,
+            $container->get(SensitiveKeyClassifierInterface::class),
+        );
+        self::assertSame(
+            $classifier,
+            new \ReflectionProperty(
+                DefaultSensitiveDataRedactor::class,
+                'keyClassifier',
+            )->getValue($redactor),
+        );
     }
 }

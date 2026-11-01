@@ -52,7 +52,7 @@ final class CoretsiaRepositoryWrapperIsCwdIndependentTest extends CliIntegration
             ) {
                 $expected = self::execute($wrapper, $arguments, $repositoryRoot);
                 self::assertSame(0, $expected['exit'], $expected['stderr']);
-                self::assertSame('', $expected['stderr']);
+                self::jsonlDiagnostics($expected['stderr']);
                 self::assertSame($arguments[0], self::jsonRecord($expected['stdout'])['meta']['command']);
 
                 foreach ([$skeletonSource, $outside] as $cwd) {
@@ -63,11 +63,11 @@ final class CoretsiaRepositoryWrapperIsCwdIndependentTest extends CliIntegration
                         self::normalizeOutput($actual['stdout']),
                         $cwd,
                     );
-                    self::assertSame(
-                        self::normalizeOutput($expected['stderr']),
-                        self::normalizeOutput($actual['stderr']),
-                        $cwd,
+                    self::assertEquivalentJsonlDiagnostics(
+                        $expected['stderr'],
+                        $actual['stderr'],
                     );
+                    self::assertStringNotContainsString('WRONG_CWD_', $actual['stderr']);
                     self::assertSame(
                         self::jsonRecord($expected['stdout']),
                         self::jsonRecord($actual['stdout']),

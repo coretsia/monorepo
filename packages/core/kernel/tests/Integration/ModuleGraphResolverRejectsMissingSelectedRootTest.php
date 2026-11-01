@@ -18,15 +18,62 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Kernel\Module\Exception\ModuleErrorCodes;
 use Coretsia\Kernel\Module\Exception\ModuleRequiredMissingException;
+use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModuleSelection;
+use Coretsia\Kernel\Module\ModuleSelectionFactory;
+use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class ModuleGraphResolverRejectsMissingSelectedRootTest extends TestCase
 {
+    public function testMissingCanonicalLoggingRootFailsClosedDuringPlanning(): void
+    {
+        $preset = new ModePresetSchemaValidator()->validate(
+            'micro',
+            require \dirname(__DIR__, 2) . '/resources/modes/micro.php',
+        );
+        $selection = new ModuleSelectionFactory(new ModuleIdSetNormalizer())->create(
+            $preset,
+            new ResolvedModuleOverrides([], []),
+        );
+        $manifest = ModeInfrastructureTestSupport::manifest([
+            ModeInfrastructureTestSupport::descriptor('core.foundation'),
+            ModeInfrastructureTestSupport::descriptor('core.kernel', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.cli', [
+                'core.kernel',
+                'platform.errors',
+                'platform.redaction',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.errors', [
+                'core.foundation',
+                'platform.redaction',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.redaction', ['core.foundation']),
+        ]);
+
+        try {
+            new ModuleGraphResolver(new TopologicalSorter())->resolve(
+                app: 'web',
+                installed: $manifest,
+                selection: $selection,
+            );
+            self::fail('Missing selected platform.logging must fail during module planning.');
+        } catch (ModuleRequiredMissingException $exception) {
+            self::assertSame(ModuleErrorCodes::CORETSIA_MODULE_REQUIRED_MISSING, $exception->errorCode());
+            self::assertSame(
+                ModuleRequiredMissingException::REASON_SELECTED_ROOT_MODULE_MISSING,
+                $exception->reason(),
+            );
+            self::assertSame(['missingModuleId' => 'platform.logging'], $exception->context());
+        }
+    }
+
     public function testMultipleMissingRootsFailWithSmallestIdRegardlessOfInputOrder(): void
     {
         $manifest = ModeInfrastructureTestSupport::manifest(

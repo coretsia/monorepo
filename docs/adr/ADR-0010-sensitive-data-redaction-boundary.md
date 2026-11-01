@@ -22,33 +22,36 @@ owner: platform/redaction
 
 ## Context
 
-Coretsia needs one deterministic, config-free defense-in-depth redaction capability for explicitly sensitive string values and recursive json-like diagnostic/output values. Eligible consumers require a contracts-level port without depending on a concrete redaction engine or copying generic classification logic into their own packages.
+Coretsia needs one deterministic, config-free defense-in-depth redaction capability for explicitly sensitive string values and recursive json-like diagnostic/output values. Eligible consumers require contracts-level security ports for redaction and read-only structural-key classification without depending on concrete implementations or copying generic classification logic into their own packages.
 
 Redaction cannot establish whether an arbitrary producer value is safe for a destination. Error descriptors, Kernel operations, Context/UoW boundaries, observability sinks, secrets consumers, and other producers retain their own safe-by-construction contracts, semantic-key restrictions, omission rules, cardinality controls, and resource limits. An unclassified value is not thereby safe to emit.
 
-The json-like value model, deterministic normalization, and structural resource accounting belong to `core/foundation`. Canonical stable-JSON byte framing also belongs to Foundation. Shared generic semantic classification and redaction belong to the `platform.redaction` runtime module, while explicit classification identifiers and failure/result contracts belong to `core/contracts`.
+The json-like value model, deterministic normalization, and structural resource accounting belong to `core/foundation`. Canonical stable-JSON byte framing also belongs to Foundation. Shared generic semantic classification and redaction belong to the `platform.redaction` runtime module, while implementation-neutral security ports, explicit classification identifiers, and failure/result contracts belong to `core/contracts`.
 
 ## Decision
 
-### Decision 1: One contracts port and one default platform implementation
+### Decision 1: Two contracts-level security ports and one default redaction implementation
 
-`core/contracts` defines the sole cross-package redaction port:
+`core/contracts` defines two supported cross-package security ports:
 
 ```text
 Coretsia\Contracts\Security\SensitiveDataRedactorInterface
+Coretsia\Contracts\Security\SensitiveKeyClassifierInterface
 ```
 
-It exposes exactly `redactValue(string, RedactionKind, RedactionContext): RedactedValue` and `redactJsonLike(mixed, RedactionContext): mixed`. `RedactionContext`, `RedactionKind`, `RedactionMode`, `RedactedValue`, and `Coretsia\Contracts\Security\Exception\RedactionException` are contracts-level types. They contain no concrete classifier, hashing, DI, transport, or configuration dependency.
+`SensitiveDataRedactorInterface` exposes exactly `redactValue(string, RedactionKind, RedactionContext): RedactedValue` and `redactJsonLike(mixed, RedactionContext): mixed`. The separate read-only `SensitiveKeyClassifierInterface` exposes exactly `classify(string $key): ?RedactionKind`; it classifies only the supplied structural key and neither redacts values nor authorizes sink emission. A `null` result means unclassified, not safe for emission. `RedactionContext`, `RedactionKind`, `RedactionMode`, `RedactedValue`, and `Coretsia\Contracts\Security\Exception\RedactionException` remain contracts-level types. The ports and value contracts contain no concrete classifier, hashing, DI, transport, or configuration dependency.
 
-`platform/redaction` owns exactly one default implementation:
+`platform/redaction` owns exactly one default redaction implementation:
 
 ```text
 Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor
 ```
 
-`SensitiveKeyClassifier`, `SensitiveValueClassifier`, and `StableRedactionHasher` are package-internal, stateless implementation services, **not** cross-package extension points. Eligible consumers depend on `SensitiveDataRedactorInterface`, not those concrete helpers. The shared service is registered only by explicit application of the `RedactionServiceProvider` declared by `RedactionModule::providers()`; package/autoload presence, debug state, configuration, and environment never auto-enable it. Kernel owns module planning.
+`SensitiveKeyClassifier`, `SensitiveValueClassifier`, and `StableRedactionHasher` remain package-internal, stateless implementation services, **not** cross-package extension points. `SensitiveKeyClassifier` implements the classification port using the canonical immutable 98-alias vocabulary and ASCII-only key canonicalization. Composite key-path grammar validation and classification of both the complete path and its relevant segments remain consumer responsibilities. Producers and sinks retain their own semantic-key restrictions, schema admission, omission rules, cardinality controls, and resource limits, independently of any classifier non-match.
 
-The `platform.redaction` module is the single owner of shared generic semantic redaction. A separate `platform/security` security capability does not own or introduce another generic redaction engine. This division does not import security backend or lower-layer owner policy into the redactor.
+`RedactionServiceProvider` declares the shared concrete services and aliases `SensitiveDataRedactorInterface` to `DefaultSensitiveDataRedactor` and `SensitiveKeyClassifierInterface` to `SensitiveKeyClassifier`. Both aliases retain their concrete service identities. `DefaultSensitiveDataRedactor` receives the same shared `SensitiveKeyClassifier` instance exposed through the classifier port. Services are registered only when the provider declared by `RedactionModule::providers()` is explicitly applied; package/autoload presence, debug state, configuration, and environment never auto-enable the module. Kernel owns module planning.
+
+The `platform.redaction` module is the single owner of shared generic semantic redaction. A separate `platform/security` security capability does not own or introduce another generic redaction engine. This division does not import security backend or lower-layer owner policy into the redactor. No second redaction implementation, alias registry, package, or runtime module is introduced.
 
 ### Decision 2: Config-free, stateless, deterministic, fail-closed behavior
 
@@ -98,7 +101,7 @@ Lower-layer `core/contracts`, `core/foundation`, and `core/kernel` owners mainta
 
 ### Decision 8: No implicit interpretation of opaque values
 
-Structural keys are canonicalized using ASCII lowercase and removal of only `-`, `_`, `.`, and ASCII space. The immutable alias table assigns documented kinds only. Value classification uses a deterministic ordered set of high-confidence **whole-value** ASCII grammars. Unknown keys, near-misses, and unclassified values return `null`, never permission to export them.
+Structural keys are canonicalized using ASCII-only `A..Z` to `a..z` folding and removal of only ASCII hyphen (`-`), underscore (`_`), dot (`.`), and space (`0x20`) bytes from a temporary lookup key. The immutable table has exactly 98 aliases and assigns only their documented kinds; the supplied structural key remains unchanged. Value classification uses a deterministic ordered set of high-confidence **whole-value** ASCII grammars. Unknown keys, near-misses, and unclassified values return `null`, never permission to export them.
 
 No JSON, URL, base64, JWT payload, SQL statement, provider payload, or arbitrary transport body is decoded, semantically parsed, or rewritten. Owner-known SQL, environment values, local paths, and other sensitive values without an unambiguous shared structural kind must use the owner's explicit `redactValue()` classification (or omission). Ambiguous vocabulary from another Core boundary is not mechanically imported as shared redaction aliases.
 
@@ -106,7 +109,7 @@ No JSON, URL, base64, JWT payload, SQL statement, provider payload, or arbitrary
 
 ### Positive
 
-- Eligible consumer packages share one contracts-level entrypoint and one canonical deterministic semantic policy.
+- Eligible consumer packages share two contracts-level security ports, one default redaction implementation, and one canonical deterministic semantic classification policy.
 - Fixed, stateless, config-free services give repeatable results without runtime context, observability, or reset dependencies.
 - Foundation remains the single owner of json-like validity, aggregate resource accounting, and stable JSON framing.
 - Explicit operation scope, kind, and representation domains prevent accidental equality of different canonical SHA-256 preimages.
@@ -123,7 +126,7 @@ No JSON, URL, base64, JWT payload, SQL statement, provider payload, or arbitrary
 
 ### Duplicate generic redaction engines in eligible consumers
 
-Consumer-local copies of generic key/value classification and redaction can drift. Eligible consumers use the contracts-level port; owner-specific safe-by-construction guards remain local and are not generic replacement engines.
+Consumer-local copies of generic key/value classification and redaction can drift. Eligible consumers use the contracts-level redaction and read-only key-classification ports as applicable; owner-specific safe-by-construction guards remain local and are not generic replacement engines.
 
 ### Config-driven classifiers and mutable policy registries
 
@@ -164,7 +167,7 @@ A distinct security capability does not duplicate the shared semantic redaction 
 
 ## Related SSoT
 
-- `docs/ssot/sensitive-data-redaction.md` — canonical port, classifiers, traversal, hashing, modes, limits, and failures.
+- `docs/ssot/sensitive-data-redaction.md` — canonical security ports, classifiers, traversal, hashing, modes, limits, and failures.
 - `docs/ssot/json-like-runtime-values.md` — Foundation normalization, resource accounting, and stable JSON framing.
 - `docs/ssot/runtime-container-definitions.md` — explicit canonical provider definitions and DI lifecycle.
 - `docs/ssot/error-descriptor.md` — owner-specific safe field/extension admissibility.

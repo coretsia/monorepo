@@ -79,6 +79,8 @@ final class KernelCommandsRequireExplicitTargetTest extends CliIntegrationTestCa
     {
         $root = self::consumer();
         try {
+            self::write($root . '/config/logging.php', "<?php return ['driver' => 'null'];\n");
+
             self::assertSafeFailure(
                 self::execute($root . '/vendor/bin/coretsia', ['config:validate', '--format=plain']),
                 'CORETSIA_CLI_INPUT_INVALID: cli-target-invalid',

@@ -48,6 +48,7 @@
     "coretsia/framework": "0.10.x-dev",
     "coretsia/platform-cli": "0.10.x-dev",
     "coretsia/platform-errors": "0.10.x-dev",
+    "coretsia/platform-logging": "0.10.x-dev",
     "coretsia/platform-redaction": "0.10.x-dev",
     "coretsia/platform-worker": "0.10.x-dev",
     "coretsia/skeleton": "0.10.x-dev",
@@ -173,6 +174,18 @@
         "reference": "config",
         "versions": {
           "coretsia/platform-errors": "0.10.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/logging",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-logging": "0.10.x-dev"
         }
       },
       "coretsia_managed": true

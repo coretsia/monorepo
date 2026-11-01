@@ -1,7 +1,7 @@
 {
   "name": "coretsia/framework",
   "type": "metapackage",
-  "description": "Coretsia framework metapackage: baseline Kernel and CLI runtime installation dependencies.",
+  "description": "Coretsia framework metapackage: baseline Kernel, CLI and Logging runtime installation dependencies.",
   "keywords": [
     "coretsia",
     "php",
@@ -29,6 +29,7 @@
   "require": {
     "php": "^8.4",
     "coretsia/core-kernel": "^0.10.0",
-    "coretsia/platform-cli": "^0.10.0"
+    "coretsia/platform-cli": "^0.10.0",
+    "coretsia/platform-logging": "^0.10.0"
   }
 }

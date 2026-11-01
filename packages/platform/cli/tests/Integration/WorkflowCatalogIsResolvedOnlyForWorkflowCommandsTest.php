@@ -52,7 +52,8 @@ final class WorkflowCatalogIsResolvedOnlyForWorkflowCommandsTest extends CliInte
             ) {
                 $result = self::execute($root . '/vendor/bin/coretsia', $tokens);
                 self::assertSame(0, $result['exit'], $result['stderr']);
-                self::assertSame('', $result['stderr']);
+                self::jsonlDiagnostics($result['stderr']);
+                self::assertStringNotContainsString('PRIVATE_', $result['stderr']);
                 self::assertSame('coretsia.cli-output@1', self::jsonRecord($result['stdout'])['schema']);
                 self::assertStringNotContainsString(WorkflowDefinitionInvalidException::ERROR_CODE, $result['stdout']);
             }
@@ -97,7 +98,9 @@ final class WorkflowCatalogIsResolvedOnlyForWorkflowCommandsTest extends CliInte
             ) {
                 $result = self::execute($root . '/vendor/bin/coretsia', $tokens);
                 self::assertSame(1, $result['exit']);
-                self::assertSame('', $result['stderr']);
+                self::jsonlDiagnostics($result['stderr']);
+                self::assertStringNotContainsString('PRIVATE_', $result['stderr']);
+                self::assertStringNotContainsString('missing:private', $result['stderr']);
                 $document = self::jsonRecord($result['stdout']);
                 $records = $document['data']['records'];
                 self::assertCount(1, $records);

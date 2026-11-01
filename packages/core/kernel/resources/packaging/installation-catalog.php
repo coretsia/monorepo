@@ -70,6 +70,19 @@ return array(
         1 => 'platform.redaction',
       ),
     ),
+    'platform.logging' =>
+    array(
+      'composerName' => 'coretsia/platform-logging',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+        1 => 'core.kernel',
+        2 => 'platform.redaction',
+      ),
+    ),
     'platform.redaction' =>
     array(
       'composerName' => 'coretsia/platform-redaction',

@@ -23,6 +23,7 @@ use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
@@ -88,6 +89,7 @@ use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
 use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
@@ -755,6 +757,15 @@ final class KernelServiceProvider implements
             ->requireService(LoggerInterface::class)
             ->requireService(TracerPortInterface::class)
             ->requireService(MeterPortInterface::class)
+            ->requireService(ModulePlan::class)
+            ->classMethodFactory(
+                id: AppTargetProviderInterface::class,
+                factoryClass: KernelServiceFactory::class,
+                method: 'appTargetProvider',
+                arguments: [
+                    ContainerValueReference::service(ModulePlan::class),
+                ],
+            )
             ->classMethodFactory(
                 id: RuntimeDriverResolver::class,
                 factoryClass: KernelServiceFactory::class,

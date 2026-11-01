@@ -144,6 +144,23 @@ return array(
     ),
     7 =>
     array(
+      'composerName' => 'coretsia/platform-logging',
+      'defaultsConfigPath' => 'config/logging.php',
+      'id' => 'platform.logging',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Logging\\Module\\LoggingModule',
+      'moduleId' => 'platform.logging',
+      'path' => 'packages/platform/logging',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Logging\\Provider\\LoggingServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Logging\\',
+      'slug' => 'logging',
+    ),
+    8 =>
+    array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
       'id' => 'platform.redaction',
@@ -159,7 +176,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    8 =>
+    9 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

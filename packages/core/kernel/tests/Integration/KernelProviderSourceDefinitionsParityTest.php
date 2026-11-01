@@ -22,6 +22,7 @@ use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
@@ -35,6 +36,7 @@ use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
@@ -50,6 +52,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
      * @var list<class-string>
      */
     private const array SERVICE_IDS = [
+        AppTargetProviderInterface::class,
         RuntimeDriverResolver::class,
         HookInvoker::class,
         KernelRuntime::class,
@@ -67,6 +70,10 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
         $config = self::validConfig();
 
         $sourceBuilder = new ContainerBuilder(config: $config);
+        $sourceBuilder->instance(
+            ModulePlan::class,
+            new ModulePlan('web', [], [], [], []),
+        );
         $sourceBuilder->register(
             new FoundationServiceProvider(),
             new KernelRuntimeDefinitionProviderFixture(),
@@ -116,6 +123,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
                 LoggerInterface::class,
                 TracerPortInterface::class,
                 MeterPortInterface::class,
+                ModulePlan::class,
             ]),
             $definitionSet->requiredServiceIds(),
         );
@@ -151,6 +159,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
                     ),
                     [
                         TagRegistry::class,
+                        ModulePlan::class,
                     ],
                 ),
             ),
@@ -245,7 +254,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
             \array_filter(
                 $operations,
                 static fn (
-                    array $operation
+                    array $operation,
                 ): bool => ($operation['kind'] ?? null) === ContainerDefinitionKind::TAG->value,
             ),
         );
@@ -257,6 +266,11 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
         self::assertSame(
             $container->get(KernelRuntime::class),
             $container->get(KernelRuntimeInterface::class),
+        );
+
+        self::assertSame(
+            $container->get(ModulePlan::class),
+            $container->get(AppTargetProviderInterface::class),
         );
     }
 

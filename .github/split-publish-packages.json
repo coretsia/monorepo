@@ -29,6 +29,9 @@
       "package_id": "platform/errors"
     },
     {
+      "package_id": "platform/logging"
+    },
+    {
       "package_id": "platform/redaction"
     },
     {

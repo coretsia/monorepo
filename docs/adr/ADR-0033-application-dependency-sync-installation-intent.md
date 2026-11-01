@@ -218,7 +218,7 @@ Artifact generation and DependencySync may both use Foundation `ScopedFileLock`;
 
 ## Non-goals
 
-This decision does not define a final public CLI product name, runtime auto-install, multiple Composer graphs per project, package publication orchestration, or Artifact/Runtime activation orchestration.
+This decision does not define registration of DependencySync operations in the normal CLI command catalog, runtime auto-install, multiple Composer graphs per project, package publication orchestration, or Artifact/Runtime activation orchestration. Project-local Skeleton launcher routes are governed by the Application Dependency Sync SSoT and do not change Kernel DependencySync ownership.
 
 ## Related SSoT
 

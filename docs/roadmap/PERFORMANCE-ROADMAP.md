@@ -2107,9 +2107,9 @@ required_for_product_release: false
 activation: explicit
 eligible_after:
 - "0.50.0"
-- "4.30.0"
-- "4.60.0"
-- "4.70.0"
+- "4.10.0"
+- "4.80.0"
+- "4.80.1"
 - "4.90.0"
 
 goal: "Додати pinned-runner performance gates для типових database та filesystem операцій, щоб бачити регресії від змін драйверів, query/path shaping або IO policy до виходу релізу."
@@ -2133,9 +2133,9 @@ ssot_refs:
 
 - Epic prerequisites:
   - 0.50.0 — deterministic file IO policy exists
-  - 4.30.0 — filesystem implementation exists
-  - 4.60.0 — platform/database core exists
-  - 4.70.0 — SQLite database driver exists
+  - 4.10.0 — filesystem implementation exists
+  - 4.80.0 — platform/database core exists
+  - 4.80.1 — SQLite database driver exists
   - 4.90.0 — migrations exist
   - PERF.10.0 — shared benchmark toolkit foundation exists
 
@@ -2337,11 +2337,11 @@ execution_policy: deferred
 required_for_product_release: false
 activation: explicit
 eligible_after:
-- "5.40.0"
-- "5.60.0"
-- "5.80.0"
+- "5.30.0"
+- "5.50.0"
+- "5.70.0"
+- "5.90.0"
 - "5.100.0"
-- "5.110.0"
 
 goal: "Зацементувати async benchmark suite для events/queue/scheduler та прибрати найдорогіші накладні витрати на dispatch, serialization/deserialization і UoW-boundary без порушення determinism та redaction policy."
 provides:
@@ -2366,11 +2366,11 @@ ssot_refs:
 > Everything that MUST already exist (files/keys/tags/contracts/artifacts).
 
 - Epic prerequisites:
-  - 5.40.0 — events runtime exists
-  - 5.60.0 — queue core exists
-  - 5.80.0 — queue CLI commands exist
-  - 5.100.0 — command bus exists
-  - 5.110.0 — scheduler runtime exists
+  - 5.30.0 — events runtime exists
+  - 5.50.0 — queue core exists
+  - 5.70.0 — queue CLI commands exist
+  - 5.90.0 — command bus exists
+  - 5.100.0 — scheduler runtime exists
   - PERF.10.0 — shared benchmark toolkit foundation exists
 
 - Required deliverables (exact paths):
@@ -2802,7 +2802,6 @@ Tests:
   - [ ] `profiling.output.max_summaries` = 100
   - [ ] `profiling.exporter` = "null"                     # "null"|<name from integrations>
   - [ ] `profiling.storage.path` = "packages/applications/skeleton/var/tmp/profiles"
-  - [ ] `profiling.redaction.enabled` = true
 - [ ] Rules:
   - [ ] raw vendor payloads are optional debug outputs only
   - [ ] normalized summary JSON is the only Coretsia-owned deterministic output

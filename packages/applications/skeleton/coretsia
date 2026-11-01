@@ -17,7 +17,27 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-// Delegation to the Composer-installed CLI is the only execution path.
+// Explicit dependency synchronization runs before normal CLI host boot.
+$dependencySyncOperation = $argv[1] ?? null;
+
+if (\in_array($dependencySyncOperation, ['plan', 'review', 'apply'], true)) {
+    $entrypoint = __DIR__ . '/bin/dependency-sync.php';
+
+    if (!\is_file($entrypoint) || \is_link($entrypoint) || !\is_readable($entrypoint)) {
+        @\fwrite(\STDERR, "CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable\n");
+        exit(1);
+    }
+
+    try {
+        @require $entrypoint;
+    } catch (\Throwable) {
+        exit(1);
+    }
+
+    exit(1);
+}
+
+// All other commands delegate to the Composer-installed CLI.
 $binary = __DIR__ . '/vendor/bin/coretsia';
 
 if (!\is_file($binary) || !\is_readable($binary)) {

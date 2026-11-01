@@ -45,8 +45,19 @@ final class CoretsiaBinaryListCommandTest extends CliIntegrationTestCase
                 $proxy = self::execute($root . '/vendor/bin/coretsia', $argv);
                 $wrapper = self::execute($root . '/coretsia', $argv, self::repositoryRoot());
                 self::assertSame(0, $proxy['exit'], $proxy['stderr']);
-                self::assertSame($proxy, $wrapper, 'Skeleton and proxy must preserve exactly the same command input.');
-                self::assertSame('', $proxy['stderr']);
+                self::assertSame($proxy['exit'], $wrapper['exit']);
+                self::assertSame($proxy['stdout'], $wrapper['stdout']);
+
+                $records = self::assertEquivalentJsonlDiagnostics(
+                    $proxy['stderr'],
+                    $wrapper['stderr'],
+                );
+                self::assertNotEmpty($records);
+
+                foreach ([$proxy['stderr'], $wrapper['stderr']] as $diagnostics) {
+                    self::assertStringNotContainsString($root, $diagnostics);
+                    self::assertStringNotContainsString('Stack trace', $diagnostics);
+                }
                 if ($arguments[0] === '--format=json') {
                     $record = self::jsonRecord($proxy['stdout']);
                     $groups = $record['data']['records'][0]['payload']['groups'];

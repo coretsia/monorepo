@@ -2649,6 +2649,180 @@ Usage (repo root):
 
 ---
 
+### Coretsia application dependency sync plan
+
+Id: `application.dependency_sync_plan` \
+Entrypoint: `php coretsia plan --target=<target>` \
+Category: application / dependency synchronization / planning \
+Outputs:
+- No project files are modified
+- Emits one JSON document containing the resolved application installation plan
+- Does not invoke Composer, modify package requirements, or create runtime artifacts
+
+Determinism:
+
+| Mode / flags                 | Determinism   | Notes                                                                               |
+|------------------------------|---------------|-------------------------------------------------------------------------------------|
+| `--target=<target>`          | deterministic | Resolves installation intent for explicitly selected application targets            |
+| `--preset=<target>=<preset>` | deterministic | Uses a target-qualified fixed installation preset for an explicitly selected target |
+
+Notes:
+- Purpose: calculate the required physical Composer installation intent for one or more explicitly selected application targets.
+- This command belongs to the installed Coretsia Skeleton project, not the monorepo-root CLI.
+- Execute from the Skeleton application root after the baseline Composer installation.
+- The project-root `coretsia` launcher delegates directly to the canonical project-owned adapter `bin/dependency-sync.php` before normal CLI host boot.
+- Equivalent direct invocation: `php bin/dependency-sync.php plan --target=<target>`.
+- The operation is not registered in the normal `cli.command` catalog and does not create a Kernel UnitOfWork.
+- Requires at least one explicit `--target=web|api|console|worker`.
+- Multiple targets are selected by repeating `--target`; duplicate targets are rejected.
+- An optional `--preset=<target>=<preset>` must reference an explicitly selected target.
+- Each target resolves its effective preset, module selection, and required module closure independently through Kernel Phase A.
+- The project-wide module union determines physical Composer installation intent, not global runtime module enablement.
+- Successful `result` includes:
+  - `applications`;
+  - `effectivePresetsByTarget`;
+  - `fixedPresetByTarget`;
+  - `enabledModuleIdsByTarget`;
+  - `excludedModuleIdsByTarget`;
+  - `unionModuleIds`;
+  - `desiredRootRequirements`.
+- The result is deterministic for equivalent application configuration, installation catalog, and explicit input.
+- Composer execution authorization flags are not accepted.
+- Machine output uses `schemaVersion=1`, `status=ok`, `operation=plan`, and `result`.
+- Failures use `schemaVersion=1`, `status=error`, a stable `code`, and bounded `context`.
+- Exit-code policy:
+  - `0`: installation plan resolved successfully;
+  - `1`: invalid input, unavailable baseline, planning failure, or unexpected execution failure.
+
+Usage (Skeleton application root):
+- `php coretsia plan --target=web`
+- `php coretsia plan --target=web --target=worker`
+- `php coretsia plan --target=web --target=worker --preset=worker=enterprise`
+
+---
+
+### Coretsia application dependency sync review
+
+Id: `application.dependency_sync_review` \
+Entrypoint: `php coretsia review --target=<target>` \
+Category: application / dependency synchronization / reconciliation review \
+Outputs:
+- No intentional modifications to `composer.json`, `composer.lock`, or `vendor/`
+- Emits one JSON document describing the proposed managed Composer root reconciliation
+- Does not execute Composer effects or create project synchronization locks
+
+Determinism:
+
+| Mode / flags                 | Determinism   | Notes                                                                     |
+|------------------------------|---------------|---------------------------------------------------------------------------|
+| `--target=<target>`          | deterministic | Reviews managed root requirements against the selected installation plan  |
+| `--preset=<target>=<preset>` | deterministic | Reviews reconciliation using a target-qualified fixed installation preset |
+
+Notes:
+- Purpose: inspect the proposed reconciliation between the resolved installation plan and existing project Composer root requirements before authorizing changes.
+- This command belongs to the installed Coretsia Skeleton project, not the monorepo-root CLI.
+- Execute from the Skeleton application root after the baseline Composer installation.
+- The project-root `coretsia` launcher delegates directly to the canonical project-owned adapter before normal CLI host boot.
+- Equivalent direct invocation: `php bin/dependency-sync.php review --target=<target>`.
+- The operation does not participate in the normal `cli.command` catalog or Kernel UnitOfWork lifecycle.
+- Requires at least one explicit application target; repeated `--target` arguments select multiple unique targets.
+- An optional `--preset=<target>=<preset>` must reference an explicitly selected target.
+- Resolves the same target-local installation plan as `plan`, then evaluates managed Composer root reconciliation.
+- DependencySync ownership is recorded under `extra.coretsia.dependencySync` using `managedRequire` and `lastAppliedRequire`.
+- Only previously tracked DependencySync-managed Coretsia root requirements may be rewritten or removed by a subsequent apply.
+- Untracked project-owned requirements are not silently claimed or replaced.
+- Explicit non-Coretsia root requirements remain protected project state.
+- Successful `result` includes:
+  - `changed`, always `false` for review-only execution;
+  - `managedRequireWrites`;
+  - `managedRequireRemovals`;
+  - `preservedSatisfiers`;
+  - `composerUpdateScope`;
+  - `plan`, containing the resolved installation plan.
+- Review does not execute Composer dependency updates, repair installed vendor state, or perform fresh installed-state verification.
+- Apply-only effect authorization flags are rejected.
+- Machine output uses `schemaVersion=1`, `status=ok`, `operation=review`, and `result`.
+- Failures use `schemaVersion=1`, `status=error`, a stable `code`, and bounded `context`.
+- Exit-code policy:
+  - `0`: installation plan and reconciliation review completed successfully;
+  - `1`: invalid input, ownership conflict, invalid project state, or unexpected execution failure.
+
+Usage (Skeleton application root):
+- `php coretsia review --target=web`
+- `php coretsia review --target=web --target=worker`
+- `php coretsia review --target=web --target=worker --preset=worker=enterprise`
+
+---
+
+### Coretsia application dependency sync apply
+
+Id: `application.dependency_sync_apply` \
+Entrypoint: `php coretsia apply --target=<target>` \
+Category: application / dependency synchronization / Composer effects \
+Outputs:
+- May update application `composer.json`, including managed Coretsia root requirements and the `extra.coretsia.dependencySync` ownership marker
+- May update `composer.lock` and installed dependencies under `vendor/`
+- Uses `var/locks/dependency-sync.lock` for exclusive synchronization
+- May create recovery material under `var/dependency-sync/recovery/<recoveryReceiptId>/` during effectful execution
+- Emits one JSON document containing the synchronization result
+
+Determinism:
+
+| Mode / flags                 | Determinism      | Notes                                                                        |
+|------------------------------|------------------|------------------------------------------------------------------------------|
+| `--target=<target>`          | NONDETERMINISTIC | May execute Composer operations and modify project dependency state          |
+| `--preset=<target>=<preset>` | NONDETERMINISTIC | Applies installation intent with an explicitly selected fixed preset         |
+| `--allow-composer-scripts`   | NONDETERMINISTIC | Explicitly permits Composer scripts during authorized effects                |
+| `--allow-composer-plugins`   | NONDETERMINISTIC | Explicitly permits Composer plugins during authorized effects                |
+| `--allow-broad-update`       | NONDETERMINISTIC | Authorizes a full Composer update only when the applicable state requires it |
+| `--allow-repair`             | NONDETERMINISTIC | Authorizes Composer install repair for incomplete installed vendor state     |
+
+Notes:
+- Purpose: explicitly reconcile DependencySync-managed Coretsia root requirements and, when necessary, synchronize the physical Composer installation for selected application targets.
+- This command belongs to the installed Coretsia Skeleton project, not the monorepo-root CLI.
+- Execute from the Skeleton application root after the baseline Composer installation.
+- The project-root `coretsia` launcher delegates directly to the canonical project-owned adapter before normal CLI host boot.
+- Equivalent direct invocation: `php bin/dependency-sync.php apply --target=<target>`.
+- The operation is not a normal `cli.command` service and does not participate in the Kernel UnitOfWork lifecycle.
+- Requires at least one explicit application target; multiple unique targets are selected through repeated `--target` arguments.
+- An optional `--preset=<target>=<preset>` must reference an explicitly selected target.
+- Only `apply` is authorized to execute Composer dependency effects.
+- Composer scripts and plugins are disabled by default unless separately authorized through `--allow-composer-scripts` or `--allow-composer-plugins`.
+- `--allow-broad-update` does not automatically widen a healthy constrained update.
+- `--allow-repair` permits repair only for incomplete installed vendor state, not arbitrary module-plan or metadata divergence.
+- The reconciled project-wide module union determines physical Composer dependencies; each application target retains its independent runtime ModulePlan.
+- DependencySync may rewrite or remove only Coretsia root requirements tracked by its ownership marker.
+- Explicit non-Coretsia root requirements and their protected lock and installed identities must remain unchanged.
+- Before Composer effects, synchronization validates project state and acquires an exclusive nonblocking project lock.
+- After an effectful Composer operation, the resulting lock and installed vendor state are verified in a fresh PHP process, including independent ModulePlan verification for every explicitly selected target.
+- A repeated synchronization from a fresh PHP process is a stable no-op when the manifest, lock, installed vendor state, and selected target plans already match.
+- Composer effects are not transactionally atomic across `composer.json`, `composer.lock`, and `vendor/`.
+- If an effectful Composer process has started and a subsequent Composer or verification failure occurs, the operation reports `RECOVERY_REQUIRED` and retains the recovery receipt for explicit recovery.
+- Successful effectful synchronization discards its recovery snapshot before returning success.
+- Successful `result` includes:
+  - `changed`, indicating whether synchronization performed a change;
+  - `managedRequireWrites`;
+  - `managedRequireRemovals`;
+  - `preservedSatisfiers`;
+  - `composerUpdateScope`;
+  - `plan`, containing the approved installation plan.
+- Machine output uses `schemaVersion=1`, `status=ok`, `operation=apply`, and `result`.
+- Failures use `schemaVersion=1`, `status=error`, a stable `code`, and bounded `context`.
+- Exit-code policy:
+  - `0`: synchronization completed successfully or the installed state was already valid;
+  - `1`: invalid input, policy violation, Composer failure, verification failure, recovery-required state, or unexpected execution failure.
+- Composer effects and environment-dependent dependency resolution make effectful execution unsuitable for deterministic rerun-no-diff CI workflows.
+- Full ownership, execution, verification, and recovery rules are defined in `docs/ssot/application-dependency-sync.md`.
+
+Usage (Skeleton application root):
+- `php coretsia apply --target=web`
+- `php coretsia apply --target=web --target=worker`
+- `php coretsia apply --target=web --target=worker --preset=worker=enterprise`
+- `php coretsia apply --target=web --allow-repair`
+- `php coretsia apply --target=web --allow-composer-scripts --allow-composer-plugins`
+
+---
+
 ### Coretsia CLI help
 
 Id: `cli.help` \

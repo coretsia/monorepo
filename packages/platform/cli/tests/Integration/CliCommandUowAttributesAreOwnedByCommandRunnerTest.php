@@ -79,6 +79,8 @@ final class CliCommandUowAttributesAreOwnedByCommandRunnerTest extends CliIntegr
     {
         $root = self::consumer();
         try {
+            self::write($root . '/config/logging.php', "<?php return ['driver' => 'null'];\n");
+
             $container = new KernelOpsHostBooter()->boot(new KernelOpsHostInput($root));
             $runtime = $container->get(KernelRuntimeInterface::class);
             $context = $container->get(ContextStore::class);

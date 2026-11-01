@@ -45,15 +45,18 @@ final class NonInteractiveAdaptiveOutputUsesTableFormatTest extends CliIntegrati
             );
             $table = self::execute($root . '/vendor/bin/coretsia', ['list']);
             self::assertSame(0, $table['exit'], $table['stderr']);
-            self::assertSame('', $table['stderr']);
+            self::jsonlDiagnostics($table['stderr']);
             self::assertStringContainsString('+---', $table['stdout']);
             self::assertStringContainsString('| ', $table['stdout']);
             self::assertStringNotContainsString('coretsia.cli-output@1', $table['stdout']);
             self::assertStringNotContainsString("\x1B", $table['stdout']);
-            self::assertSame($table, self::execute($root . '/vendor/bin/coretsia', ['list']));
+            $again = self::execute($root . '/vendor/bin/coretsia', ['list']);
+            self::assertSame($table['exit'], $again['exit']);
+            self::assertSame($table['stdout'], $again['stdout']);
+            self::assertEquivalentJsonlDiagnostics($table['stderr'], $again['stderr']);
             $json = self::execute($root . '/vendor/bin/coretsia', ['list', '--format=json']);
             self::assertSame(0, $json['exit'], $json['stderr']);
-            self::assertSame('', $json['stderr']);
+            self::jsonlDiagnostics($json['stderr']);
             self::assertStringNotContainsString("\x1B", $json['stdout']);
             self::jsonRecord(\rtrim($json['stdout'], "\n"));
         } finally {

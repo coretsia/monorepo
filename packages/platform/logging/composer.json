@@ -1,0 +1,75 @@
+{
+  "name": "coretsia/platform-logging",
+  "type": "library",
+  "description": "Coretsia PSR-3 logging runtime package: deterministic JSONL/logfmt output, UoW correlation enrichment, and safe redacted stream/file logging.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "logging",
+    "runtime",
+    "psr-3",
+    "structured-logging",
+    "jsonl",
+    "logfmt",
+    "correlation",
+    "redaction",
+    "deterministic",
+    "observability"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.10.0",
+    "coretsia/core-foundation": "^0.10.0",
+    "coretsia/core-kernel": "^0.10.0",
+    "coretsia/platform-redaction": "^0.10.0",
+    "psr/clock": "^1.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Logging\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Logging\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.logging",
+      "moduleClass": "Coretsia\\Platform\\Logging\\Module\\LoggingModule",
+      "providers": [
+        "Coretsia\\Platform\\Logging\\Provider\\LoggingServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "core.kernel",
+        "platform.redaction"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/logging.php"
+    }
+  }
+}

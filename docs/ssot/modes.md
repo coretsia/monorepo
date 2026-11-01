@@ -170,31 +170,33 @@ Source payloads may not contain secrets, absolute paths, closures, resources, or
 
 The Kernel-owned canonical preset resources under `packages/core/kernel/resources/modes/` define these runtime selection roots:
 
-| Preset       | `required` (non-excludable)      | `modules` (selectable)            |
-|--------------|----------------------------------|-----------------------------------|
-| `micro`      | `core.foundation`, `core.kernel` | `platform.cli`                    |
-| `express`    | `core.foundation`, `core.kernel` | `platform.cli`                    |
-| `hybrid`     | `core.foundation`, `core.kernel` | `platform.cli`, `platform.worker` |
-| `enterprise` | `core.foundation`, `core.kernel` | `platform.cli`, `platform.worker` |
+| Preset       | `required` (non-excludable)      | `modules` (selectable)                                |
+|--------------|----------------------------------|-------------------------------------------------------|
+| `micro`      | `core.foundation`, `core.kernel` | `platform.cli`, `platform.logging`                    |
+| `express`    | `core.foundation`, `core.kernel` | `platform.cli`, `platform.logging`                    |
+| `hybrid`     | `core.foundation`, `core.kernel` | `platform.cli`, `platform.logging`, `platform.worker` |
+| `enterprise` | `core.foundation`, `core.kernel` | `platform.cli`, `platform.logging`, `platform.worker` |
 
-All four canonical presets select `platform.cli` by default through `modules`, not `required`.
+All four canonical presets select `platform.cli` and `platform.logging` by default through `modules`, not `required`.
 
-An explicit per-target exclusion MAY remove this selectable root.
+An explicit per-target exclusion MAY remove either selectable root without changing the `required` modules or Composer installation.
 
-`platform.worker` is selectable by default only for `hybrid` and `enterprise`; neither module becomes non-excludable merely because a preset selects it.
+`platform.worker` is selectable by default only for `hybrid` and `enterprise`; these selectable modules do not become non-excludable merely because a preset selects them.
 
-`platform.cli` declares runtime module dependencies on `core.kernel`, `platform.errors`, and `platform.redaction`. `platform.errors` requires `core.foundation` and `platform.redaction`; `platform.redaction` requires `core.foundation`.
+The product-level `Required` capability classification is distinct from `ModePreset.required`, which contains only non-excludable runtime module roots.
 
-The Kernel resolves this transitive dependency closure from module metadata. `platform.errors` and `platform.redaction` are not direct `required` or `modules` entries of any canonical preset; they are enabled transitively when `platform.cli` is selected. No canonical preset root is added.
+`platform.cli` declares runtime module dependencies on `core.kernel`, `platform.errors`, and `platform.redaction`. `platform.logging` requires `core.foundation`, `core.kernel`, and `platform.redaction`. `platform.errors` requires `core.foundation` and `platform.redaction`; `platform.redaction` requires `core.foundation`.
+
+The Kernel resolves this transitive dependency closure from module metadata. `platform.errors` and `platform.redaction` are not direct `required` or `modules` entries of any canonical preset. `platform.errors` is enabled transitively through `platform.cli`; `platform.redaction` is required by both `platform.cli` and `platform.logging` when selected. No additional preset root is introduced beyond `platform.logging`.
 
 Provided the corresponding modules are physically installed and no per-target overrides apply, the effective enabled `ModulePlan` sets are:
 
-| Preset       | Effective enabled modules                                                                                    |
-|--------------|--------------------------------------------------------------------------------------------------------------|
-| `micro`      | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`                    |
-| `express`    | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`                    |
-| `hybrid`     | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`, `platform.worker` |
-| `enterprise` | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.redaction`, `platform.worker` |
+| Preset       | Effective enabled modules                                                                                                        |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `micro`      | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.logging`, `platform.redaction`                    |
+| `express`    | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.logging`, `platform.redaction`                    |
+| `hybrid`     | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.logging`, `platform.redaction`, `platform.worker` |
+| `enterprise` | `core.foundation`, `core.kernel`, `platform.cli`, `platform.errors`, `platform.logging`, `platform.redaction`, `platform.worker` |
 
 These are byte-order-sorted enabled sets, not a replacement for the Kernel-owned deterministic dependency traversal or topological order.
 
@@ -202,7 +204,7 @@ Module availability and exclusions are validated per selected application target
 
 Canonical presets are runtime selection policies, not Composer package distributions, independently versioned preset packages, or implicit installation instructions.
 
-`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel` and `coretsia/platform-cli`; Composer installs `coretsia/platform-errors` and `coretsia/platform-redaction` transitively through CLI.
+`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel`, `coretsia/platform-cli`, and `coretsia/platform-logging`; Composer installs `coretsia/platform-errors` through CLI and `coretsia/platform-redaction` transitively through both CLI and Logging. Physical installation alone does not select a runtime module.
 
 Any additional physical packages required for a selected target remain subject to explicit DependencySync `plan` / `review` / `apply` operations.
 
@@ -275,11 +277,11 @@ It does not consult an installed manifest or traverse the dependency graph.
 
 The `ModuleSelection` is compile-host-only, consumed by Phase B, and is neither a runtime seed nor part of the public contracts API.
 
-For canonical presets, excluding the selectable `platform.cli` root removes it from that target's selection.
+For canonical presets, excluding a selectable `platform.cli` or `platform.logging` root removes it only from that target's selection. Excluding `platform.logging` while `platform.cli` remains selected succeeds and retains `platform.errors` and `platform.redaction` through CLI's required module closure. With no selected logging provider, `Psr\Log\LoggerInterface` retains the Foundation `NoopLogger` binding.
 
 Excluding `core.foundation` or `core.kernel` is invalid because both are in `required`.
 
-Excluding `platform.errors` or `platform.redaction` while `platform.cli` remains selected fails during required-dependency graph resolution rather than silently disabling a transitive dependency. A missing required `platform.errors` module also fails closed during module composition.
+Excluding `platform.errors` while `platform.cli` remains selected, or excluding `platform.redaction` while either `platform.cli` or `platform.logging` remains selected, fails during required-dependency graph resolution rather than silently disabling a transitive dependency. Missing selected `platform.logging` or required `platform.errors` / `platform.redaction` module descriptors fail closed through the existing Kernel `ModuleGraphResolver`; no missing-module condition silently selects `NoopLogger`.
 
 The Console source operations host also fails closed if its resolved `ModulePlan` does not enable `platform.cli`.
 
@@ -336,16 +338,16 @@ return [
 and an explicit installation set containing `web` and `worker` (with the selected module graph physically installed):
 
 ```text
-web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction
-worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
+web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
+worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 
 project-wide physical module union:
-core.foundation, core.kernel, platform.cli, platform.errors, platform.redaction, platform.worker
+core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 ```
 
 The global `micro` preset is the fallback for `web`; the explicit per-target `enterprise` preset applies to `worker`.
 
-Both target-local module closures include `platform.errors` and `platform.redaction` as transitive dependencies of `platform.cli`.
+Both target-local module closures include `platform.errors` through `platform.cli` and `platform.redaction` through the requirements of `platform.cli` and `platform.logging`. A target-local exclusion of `platform.logging` leaves the shared Composer package installation unchanged and preserves any redaction dependency still required by another selected module.
 
 The physical union includes `platform.worker`, but `ModulePlan(web)` does not enable it.
 

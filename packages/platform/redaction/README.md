@@ -65,19 +65,20 @@ Foundation owns baseline json-like input normalization, resource-budget enforcem
 - deterministic placeholder, byte-length, hash, and combined summary modes;
 - fixed resource limits and validation before and after recursive redaction;
 - fail-closed failures with bounded, reason-only diagnostics;
-- declarative container definitions for one default implementation of the contracts-level redaction port.
+- declarative container definitions for the shared default redactor and read-only structural-key classifier ports.
 
 The package is stateless. It does not retain redacted input, traversal state, current paths, prior failures, or runtime context between calls.
 
 ## Ownership boundaries
 
-The cross-package API is:
+The supported cross-package security ports are:
 
 ```text
 Coretsia\Contracts\Security\SensitiveDataRedactorInterface
+Coretsia\Contracts\Security\SensitiveKeyClassifierInterface
 ```
 
-Cross-package consumers MUST depend on this interface rather than on the concrete implementation or its helper services.
+`SensitiveDataRedactorInterface` performs explicit and recursive redaction; `SensitiveKeyClassifierInterface` exposes read-only structural-key classification. Consumers MUST depend on these contracts-level ports rather than on concrete redactor or classifier implementations.
 
 The default implementation is:
 
@@ -85,7 +86,7 @@ The default implementation is:
 Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor
 ```
 
-The following classes are package-internal implementation details, not consumer extension points:
+The following concrete classes are package-internal implementation details, not consumer extension points; cross-package consumers MUST access sensitive-key classification only through `SensitiveKeyClassifierInterface`:
 
 ```text
 Coretsia\Platform\Redaction\Redaction\SensitiveKeyClassifier
@@ -95,7 +96,7 @@ Coretsia\Platform\Redaction\Redaction\StableRedactionHasher
 
 Consumers own their output schemas, acceptable diagnostic fields, semantic-key restrictions, cardinality, path and size limits, and decisions about permitted metadata disclosure. A redacted summary does not override those policies.
 
-Lower-layer Core packages keep their own boundary-specific validation, rejection, omission, and safe derivation. Kernel operation results remain safe by construction and do not depend on this redaction port.
+Consumers retain their own boundary-specific validation, rejection, omission, and safe derivation. The Redaction package does not take ownership of consumer output contracts or add upward implementation dependencies.
 
 ## Module and provider
 
@@ -107,7 +108,7 @@ Coretsia\Platform\Redaction\Module\RedactionModule
 
 The module identifies `platform.redaction` and declares `RedactionServiceProvider` as its provider.
 
-`RedactionServiceProvider` implements the canonical Foundation service-provider and declarative definition-provider interfaces. When explicitly applied, its definitions contribute one `SensitiveDataRedactorInterface` binding to the shared `DefaultSensitiveDataRedactor` service and its internal dependencies.
+`RedactionServiceProvider` implements the canonical Foundation service-provider and declarative definition-provider interfaces. When explicitly applied, its definitions register the shared `DefaultSensitiveDataRedactor` and `SensitiveKeyClassifier` implementations and expose the declarative aliases `SensitiveDataRedactorInterface` → `DefaultSensitiveDataRedactor` and `SensitiveKeyClassifierInterface` → `SensitiveKeyClassifier`. The redactor receives the same shared `SensitiveKeyClassifier` service instance exposed through the classifier alias, not a second classifier.
 
 Composer installation, class availability, environment state, and debug mode MUST NOT automatically enable or register the module. Module selection and provider application remain the responsibility of the application composition owner; consumers declare their module dependency explicitly.
 
@@ -115,7 +116,7 @@ The package introduces no configuration root, defaults file, runtime configurati
 
 ## Public API
 
-The public contract offers exactly two operations:
+`SensitiveDataRedactorInterface` exposes exactly two redaction operations:
 
 ```php
 public function redactValue(
@@ -144,6 +145,16 @@ Call `redactJsonLike()` for a diagnostic or output boundary that is allowed to u
 The operation validates and normalizes the complete input before semantic traversal. For a map, it classifies each original structural key first. A sensitive key causes its entire associated branch to be replaced; descendants are not individually processed. An otherwise unclassified map key that matches a sensitive-value pattern fails with `sensitive-map-key`. String leaves under non-sensitive keys are then classified by conservative whole-value patterns.
 
 Unclassified values are not necessarily safe. Classifier non-match MUST NOT be used as permission to export arbitrary raw values. List order is preserved, and maps use deterministic `strcmp` key ordering.
+
+### Read-only structural-key classification
+
+`SensitiveKeyClassifierInterface` exposes one operation:
+
+```php
+public function classify(string $key): ?RedactionKind;
+```
+
+The shared implementation classifies only the supplied structural key using the immutable 98-alias vocabulary. Canonical lookup applies ASCII-only case folding and removes ASCII hyphen, underscore, dot, and space separators. This operation does not redact values or establish emission safety: `null` means unclassified, not safe. Consumers inspecting dotted or compound key paths MUST validate their structural grammar and classify the complete path and its relevant segments. Destination-specific schema, semantic-key restrictions, omission, cardinality, and resource limits remain consumer-owned; mandatory redaction where required is a separate operation through `SensitiveDataRedactorInterface`.
 
 ### Usage
 

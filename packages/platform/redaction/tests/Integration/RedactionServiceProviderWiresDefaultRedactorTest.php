@@ -22,6 +22,7 @@ use Coretsia\Contracts\Security\RedactionContext;
 use Coretsia\Contracts\Security\RedactionKind;
 use Coretsia\Contracts\Security\RedactionMode;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
@@ -44,6 +45,7 @@ final class RedactionServiceProviderWiresDefaultRedactorTest extends TestCase
         $expectedIds = [
             DefaultSensitiveDataRedactor::class,
             SensitiveDataRedactorInterface::class,
+            SensitiveKeyClassifierInterface::class,
             SensitiveKeyClassifier::class,
             SensitiveValueClassifier::class,
             StableRedactionHasher::class,
@@ -62,6 +64,11 @@ final class RedactionServiceProviderWiresDefaultRedactorTest extends TestCase
 
         $container = $builder->build();
         $redactor = $container->get(SensitiveDataRedactorInterface::class);
+
+        self::assertSame(
+            $container->get(SensitiveKeyClassifier::class),
+            $container->get(SensitiveKeyClassifierInterface::class),
+        );
 
         self::assertInstanceOf(DefaultSensitiveDataRedactor::class, $redactor);
         self::assertSame($redactor, $container->get(DefaultSensitiveDataRedactor::class));

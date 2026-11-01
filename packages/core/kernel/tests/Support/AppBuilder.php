@@ -49,6 +49,7 @@ use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Tests\Integration\ArtifactPipelineTestSupport;
 use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
+use Coretsia\Platform\Logging\Provider\LoggingServiceProvider;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -64,6 +65,7 @@ final class AppBuilder
     private const string MODULE_CORE_KERNEL = 'core.kernel';
     private const string MODULE_PLATFORM_CLI = 'platform.cli';
     private const string MODULE_PLATFORM_ERRORS = 'platform.errors';
+    private const string MODULE_PLATFORM_LOGGING = 'platform.logging';
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
     private const string MODULE_PLATFORM_REDACTION = 'platform.redaction';
 
@@ -280,6 +282,7 @@ final class AppBuilder
                 'coretsia/core-kernel' => self::packageRoot(),
                 'coretsia/platform-cli' => self::cliPackageRoot(),
                 'coretsia/platform-errors' => self::errorsPackageRoot(),
+                'coretsia/platform-logging' => self::loggingPackageRoot(),
                 'coretsia/platform-redaction' => self::redactionPackageRoot(),
             ]),
             modePresetLoaderFactory: $modePresetLoaderFactory,
@@ -402,6 +405,7 @@ final class AppBuilder
                 self::MODULE_CORE_KERNEL,
                 self::MODULE_PLATFORM_CLI,
                 self::MODULE_PLATFORM_ERRORS,
+                self::MODULE_PLATFORM_LOGGING,
                 self::MODULE_PLATFORM_REDACTION,
             ],
         );
@@ -451,6 +455,7 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'config/kernel.php',
             self::MODULE_PLATFORM_CLI => 'config/cli.php',
             self::MODULE_PLATFORM_ERRORS => 'config/errors.php',
+            self::MODULE_PLATFORM_LOGGING => 'config/logging.php',
             self::MODULE_PLATFORM_REDACTION,
             self::MODULE_PLATFORM_HTTP => null,
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
@@ -464,6 +469,7 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'coretsia/core-kernel',
             self::MODULE_PLATFORM_CLI => 'coretsia/platform-cli',
             self::MODULE_PLATFORM_ERRORS => 'coretsia/platform-errors',
+            self::MODULE_PLATFORM_LOGGING => 'coretsia/platform-logging',
             self::MODULE_PLATFORM_REDACTION => 'coretsia/platform-redaction',
             self::MODULE_PLATFORM_HTTP => 'coretsia/platform-http',
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
@@ -487,6 +493,9 @@ final class AppBuilder
             ],
             self::MODULE_PLATFORM_ERRORS => [
                 ErrorsServiceProvider::class,
+            ],
+            self::MODULE_PLATFORM_LOGGING => [
+                LoggingServiceProvider::class,
             ],
             self::MODULE_PLATFORM_REDACTION => [
                 RedactionServiceProvider::class,
@@ -513,6 +522,11 @@ final class AppBuilder
             ],
             self::MODULE_PLATFORM_ERRORS => [
                 self::MODULE_CORE_FOUNDATION,
+                self::MODULE_PLATFORM_REDACTION,
+            ],
+            self::MODULE_PLATFORM_LOGGING => [
+                self::MODULE_CORE_FOUNDATION,
+                self::MODULE_CORE_KERNEL,
                 self::MODULE_PLATFORM_REDACTION,
             ],
             self::MODULE_PLATFORM_REDACTION => [
@@ -588,6 +602,11 @@ final class AppBuilder
     private static function errorsPackageRoot(): string
     {
         return \dirname(self::packageRoot(), 2) . '/platform/errors';
+    }
+
+    private static function loggingPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/logging';
     }
 
     private static function redactionPackageRoot(): string

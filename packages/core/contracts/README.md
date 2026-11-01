@@ -83,7 +83,7 @@ Contract areas include:
 - rate-limit ports;
 - mail ports;
 - secrets ports;
-- security redaction ports and immutable redacted summary shapes;
+- security redaction and structural-key classification ports and immutable redacted summary shapes;
 - transport-neutral Worker task-source and task-settlement ports.
 
 `core/contracts` owns boundary vocabulary and public cross-package shapes only.
@@ -333,13 +333,7 @@ The contracts package does not own:
 - tracing;
 - context export policy.
 
-Known implementation owners include:
-
-- `core/foundation` for `ContextStore`, `ContextBag`, `ContextStorePolicy`, and accessor binding;
-- `core/kernel` for base UnitOfWork context writes;
-- platform packages for transport- or runtime-specific context enrichment.
-
-Context vocabulary ownership and runtime write ownership are separate concerns.
+Context vocabulary ownership and runtime write ownership are separate concerns. The contracts define the shared read/write shapes but do not construct context stores, bind services, or perform UnitOfWork-specific context mutations.
 
 ## Config and environment contracts
 
@@ -510,12 +504,13 @@ Unsafe runtime values SHOULD be omitted, normalized, redacted, or represented th
 
 Concrete redaction policy remains an implementation-owner responsibility.
 
-### Sensitive data redaction contracts
+### Sensitive data redaction and key classification contracts
 
 `core/contracts` defines the public, implementation-neutral sensitive-data redaction boundary under:
 
 ```text
 Coretsia\Contracts\Security\SensitiveDataRedactorInterface
+Coretsia\Contracts\Security\SensitiveKeyClassifierInterface
 Coretsia\Contracts\Security\RedactionContext
 Coretsia\Contracts\Security\RedactionKind
 Coretsia\Contracts\Security\RedactionMode
@@ -540,6 +535,14 @@ public function redactJsonLike(mixed $value, RedactionContext $context): mixed;
 `redactJsonLike()` operates on recursively json-like values: `null`, `bool`, `int`, `string`, lists, and string-keyed maps. Its return value is restricted to the same json-like value model. Key and value classification, traversal, and replacement behavior are implementation-owned.
 
 Both entrypoints require an explicitly supplied immutable `RedactionContext`. Its scope is a stable, low-cardinality operation or output-boundary identifier matching `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z` and is limited to 128 bytes. Scopes MUST NOT be derived from paths, endpoints, user or tenant identifiers, request identifiers, tokens, field values, or other high-cardinality runtime data.
+
+`SensitiveKeyClassifierInterface` exposes a separate read-only structural-key classification operation:
+
+```php
+public function classify(string $key): ?RedactionKind;
+```
+
+The method examines only the supplied structural key and performs no redaction. A `null` classification means unclassified, not safe for emission. The interface defines no alias vocabulary, key canonicalization algorithm, or sink-admission policy; it returns the existing `RedactionKind` enum. Consumers inspecting composite key paths MUST validate their path grammar and classify the complete key and relevant segments. Destination-owned schema, semantic-key, path, omission, cardinality, and resource-limit policies remain mandatory regardless of classification.
 
 `RedactionMode` defines exactly `Placeholder`, `Length`, `Hash`, and `HashAndLength`. `Placeholder` is the default. Non-placeholder modes require explicit owner approval for the metadata they disclose. One context mode applies uniformly to every selected sensitive branch during a recursive redaction operation.
 
@@ -568,9 +571,9 @@ internal-failure
 
 The exception message and custom state MUST NOT disclose rejected values, map keys, scopes, hashes, paths, payload fragments, or previous Throwable messages. Native PHP stack traces remain subject to the existing diagnostic boundary policy.
 
-`core/contracts` owns only the public port, immutable value objects, enums, and failure vocabulary. It does not own redaction execution, key or value classifiers, hashing algorithms, traversal policy, container wiring, configurable classifiers, or mutable policy registries.
+`core/contracts` owns only the two public security ports, immutable value objects, enums, and failure vocabulary. It does not own redaction execution, concrete key or value classifiers, classification algorithms, hashing algorithms, traversal policy, container wiring, configurable classifiers, or mutable policy registries.
 
-The default redaction implementation and its classification and hashing policies belong to `platform/redaction`. Cross-package consumers MUST depend on `SensitiveDataRedactorInterface`, not on concrete redaction services or package-internal classifiers.
+Cross-package consumers MUST use `SensitiveDataRedactorInterface` for redaction and `SensitiveKeyClassifierInterface` for read-only structural-key classification; they MUST NOT import concrete implementation classes or maintain a second classifier or alias registry.
 
 Redaction remains defense in depth. Producer-owned safe-by-construction output, omission, and destination-specific schema, semantic-key, path, cardinality, and resource-limit policies remain authoritative. A valid redacted summary or classifier non-match does not authorize exporting otherwise unsafe diagnostic data.
 

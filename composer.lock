@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c4437f60bf71558337048ca6eb1166c3",
+    "content-hash": "26602d4f10fa6362bb19b619c62a46c8",
     "packages": [],
     "packages-dev": [
         {
@@ -763,6 +763,78 @@
                 "redaction",
                 "runtime",
                 "structured-logging"
+            ],
+            "support": {
+                "issues": "https://github.com/coretsia/monorepo/issues",
+                "source": "https://github.com/coretsia/monorepo"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "coretsia/platform-metrics",
+            "version": "0.11.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/metrics",
+                "reference": "a9550d29de670d5b816352eddc6d10f27b48fa21"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.metrics",
+                    "moduleClass": "Coretsia\\Platform\\Metrics\\Module\\MetricsModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Metrics\\Provider\\MetricsServiceProvider"
+                    ],
+                    "requires": [
+                        "core.foundation"
+                    ],
+                    "conflicts": [],
+                    "defaultsConfigPath": "config/metrics.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Metrics\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Metrics\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Vladyslav Mudrichenko",
+                    "email": "vladyslav@coretsia.dev",
+                    "role": "Creator and Lead Developer"
+                }
+            ],
+            "description": "Coretsia metrics runtime package: deterministic label allowlist validation, noop-safe meter calls, and null rendering.",
+            "homepage": "https://coretsia.dev/",
+            "keywords": [
+                "coretsia",
+                "deterministic",
+                "framework",
+                "label-allowlist",
+                "metrics",
+                "noop",
+                "observability",
+                "php",
+                "renderer",
+                "runtime"
             ],
             "support": {
                 "issues": "https://github.com/coretsia/monorepo/issues",
@@ -3620,7 +3692,7 @@
         },
         {
             "name": "symfony/deprecation-contracts",
-            "version": "v3.7.1",
+            "version": "v3.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/deprecation-contracts.git",
@@ -3667,7 +3739,7 @@
             "description": "A generic function and convention to trigger deprecation notices",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.7.1"
+                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.8.0"
             },
             "funding": [
                 {
@@ -3776,7 +3848,7 @@
         },
         {
             "name": "symfony/event-dispatcher-contracts",
-            "version": "v3.7.1",
+            "version": "v3.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/event-dispatcher-contracts.git",
@@ -3832,7 +3904,7 @@
                 "standards"
             ],
             "support": {
-                "source": "https://github.com/symfony/event-dispatcher-contracts/tree/v3.7.1"
+                "source": "https://github.com/symfony/event-dispatcher-contracts/tree/v3.8.0"
             },
             "funding": [
                 {
@@ -4329,7 +4401,7 @@
         },
         {
             "name": "symfony/service-contracts",
-            "version": "v3.7.3",
+            "version": "v3.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/service-contracts.git",
@@ -4392,7 +4464,7 @@
                 "standards"
             ],
             "support": {
-                "source": "https://github.com/symfony/service-contracts/tree/v3.7.3"
+                "source": "https://github.com/symfony/service-contracts/tree/v3.8.0"
             },
             "funding": [
                 {
@@ -4771,6 +4843,7 @@
         "coretsia/platform-cli": 20,
         "coretsia/platform-errors": 20,
         "coretsia/platform-logging": 20,
+        "coretsia/platform-metrics": 20,
         "coretsia/platform-redaction": 20,
         "coretsia/platform-tracing": 20,
         "coretsia/platform-worker": 20,

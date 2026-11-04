@@ -462,8 +462,10 @@ Forbidden:
   - [ ] implement the existing increment() and observe() method signatures exactly.
   - [ ] own all admitted counter and histogram state through one shared DI service instance.
   - [ ] no additional RecordingMeter wrapper, global singleton, or parallel metrics store.
-  - [ ] reuse existing AllowedLabelSet::accepts() for global label-key admission.
-  - [ ] enforce metric-specific canonical name/type/label admission before recording.
+  - [ ] reuse the existing `Coretsia\Platform\Metrics\Labels\AllowedLabelSet::accepts()` as the only global label-key and scalar-type admission gate, without modifying its fixed six-key allowlist.
+  - [ ] after global admission and before any registry state mutation, enforce the canonical metric name, owner, method/type compatibility, required and permitted metric-specific label keys, and approved bounded-value domains defined by `docs/ssot/observability.md`.
+  - [ ] globally accepted labels MUST NOT bypass metric-specific restrictions; unknown names, wrong types, missing required labels, forbidden values, and unsafe values MUST be skipped without recording.
+  - [ ] any immutable runtime representation of metric-specific catalog rows MUST remain verified against `docs/ssot/observability.md`; it MUST NOT become an independent catalog authority or require parsing Markdown during production execution.
   - [ ] increment() accepts only registered counter metrics.
   - [ ] observe() accepts only registered observe metrics.
   - [ ] apply deterministic label-key ordering before series identity construction.
@@ -477,9 +479,10 @@ Forbidden:
   - [ ] no logging of metric samples or registry snapshots.
   - [ ] no self-instrumentation or recursive registry recording.
   - [ ] no implicit ContextStore reads/writes or UnitOfWork identity derivation.
-  - [ ] registry state has explicit process lifetime and does not belong to Kernel UoW state.
-  - [ ] no duplicate reset orchestrator or new reset tag.
-  - [ ] no automatic UoW reset of admitted process-wide aggregates.
+  - [ ] registry state has an explicit, documented process lifetime, finite series and aggregate bounds, and a defined clearing/recycling policy; it MUST NOT become Kernel-owned UnitOfWork state.
+  - [ ] no duplicate reset orchestrator, independent reset dispatcher, or new reset tag is introduced.
+  - [ ] admitted process-owned aggregates MUST NOT be automatically cleared at each UnitOfWork boundary.
+  - [ ] any explicit registry clearing operation MUST have one documented owner and MUST preserve the existing Kernel/Foundation reset contracts.
   - [ ] process recycling and bounded memory policy MUST be documented and tested.
   - [ ] no HTTP transport or exporter-specific serialization.
   - [ ] Verification: no-throw recording, bounded memory, deterministic snapshots, scalar safety, counter overflow, metric-specific admission, and process-lifetime behavior.
@@ -663,8 +666,8 @@ Docs:
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
+- Context reads:
+  - N/A; metrics recording and endpoint handling MUST NOT read ContextStore or derive metric labels from implicit correlation identity.
 - [ ] Context writes (safe only):
   - [ ] none (endpoint must not mutate context)
 - [ ] Reset discipline:
@@ -686,9 +689,10 @@ Docs:
   - [ ] N/A; no new metrics.render span or tracing dependency.
   - [ ] renderer instrumentation remains deferred until a concrete approved owner exists.
 - [ ] Metrics:
-  - [ ] N/A (package must NOT emit high-cardinality labels; `LabelSet` enforces keys at call sites)
-- [ ] Label normalization applied (if needed):
-  - [ ] `op→operation`, `via→driver` (enforced at call sites; renderer only validates keys)
+  - [ ] every recording path MUST apply the existing AllowedLabelSet global admission and canonical metric-specific validation before retaining a sample.
+  - [ ] unapproved label keys, values, or cardinality expansion MUST NOT be recorded.
+- Label normalization:
+  - N/A; automatic label-key aliases such as `op→operation` and `via→driver` are not introduced. Producers MUST supply canonical allowlisted keys directly.
 - [ ] Logs:
   - [ ] exporter issues warn (no dumps); redaction applied; no secrets/PII
 
@@ -761,7 +765,11 @@ Docs:
     - [ ] canonical metric names, types, and label keys match docs/ssot/observability.md.
     - [ ] runtime recording cannot introduce an undeclared metric.
     - [ ] no second global AllowedLabelSet or runtime catalog authority.
-    - [ ] metric-specific bounded-value policy is verified.
+    - [ ] metric-specific required label keys and bounded-value domains are verified against `docs/ssot/observability.md`.
+    - [ ] `kernel.operation_total` and `kernel.operation_duration_ms` accept the canonical `operation=config.validate` and `outcome=success` pair with their corresponding counter/observe methods.
+    - [ ] the same metrics reject `operation=execute`, `outcome=ok`, or a missing required `operation`, even though these inputs pass global AllowedLabelSet scalar-type admission.
+    - [ ] rejected samples MUST leave recorded aggregates and deterministic snapshots unchanged.
+    - [ ] tests MUST detect drift between runtime metric-specific admission and the canonical SSoT in either direction.
     - [ ] invalid or new metric names require explicit SSoT ownership changes.
 
 - Integration:
@@ -861,7 +869,7 @@ ssot_refs:
   - `core/foundation` — provides `DeterministicOrder` utilities if needed for stable formatting.
 
 - Required deliverables (exact paths):
-  - `packages/platform/metrics/src/Export/NullMetricsRenderer.php` — baseline fallback exists (this integration replaces/bypasses it via selection).
+  - `packages/platform/metrics/src/Noop/NullMetricsRenderer.php` — baseline fallback exists (this integration replaces/bypasses it via selection).
   - `packages/platform/metrics/config/metrics.php` — must contain `metrics.exporter` selection key.
 
 - Required config roots/keys:
@@ -870,7 +878,8 @@ ssot_refs:
 
 - Constraints / out of scope:
   - No compile-time dependency on `platform/http`.
-  - No new label keys outside `metrics.labels.allowed`.
+  - No new global or metric-specific label keys outside `docs/ssot/observability.md`.
+  - No `metrics.labels.allowed` configuration key, second global allowlist, or independent metric catalog is introduced.
   - Never log metric dumps.
 
 - Cutline impact: none.

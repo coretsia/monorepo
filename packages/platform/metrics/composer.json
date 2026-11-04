@@ -1,0 +1,66 @@
+{
+  "name": "coretsia/platform-metrics",
+  "type": "library",
+  "description": "Coretsia metrics runtime package: deterministic label allowlist validation, noop-safe meter calls, and null rendering.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "metrics",
+    "runtime",
+    "observability",
+    "label-allowlist",
+    "noop",
+    "renderer",
+    "deterministic"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.11.0",
+    "coretsia/core-foundation": "^0.11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Metrics\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Metrics\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.metrics",
+      "moduleClass": "Coretsia\\Platform\\Metrics\\Module\\MetricsModule",
+      "providers": [
+        "Coretsia\\Platform\\Metrics\\Provider\\MetricsServiceProvider"
+      ],
+      "requires": [
+        "core.foundation"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/metrics.php"
+    }
+  }
+}

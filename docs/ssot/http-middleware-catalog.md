@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Scope
 
-This document is the Single Source of Truth for Coretsia HTTP middleware slot taxonomy, baseline HTTP middleware catalog placement, cross-cutting runtime invariants, noop-safe observability expectations, context and unit-of-work policy, redaction rules, and ownership boundaries introduced by epic `1.190.0`.
+This document is the Single Source of Truth for Coretsia HTTP middleware slot taxonomy, baseline HTTP middleware catalog placement, cross-cutting runtime invariants, noop-safe observability expectations, context and unit-of-work policy, redaction rules, and ownership boundaries.
 
 This document locks the canonical HTTP middleware taxonomy under the existing reserved tags:
 
@@ -48,9 +48,7 @@ docs/ssot/observability-and-errors.md
 docs/ssot/uow-and-reset-contracts.md
 ```
 
-Epic `1.190.0` is coordination and policy only.
-
-It creates this SSoT catalog snapshot and does not create or modify runtime package files.
+This catalog is coordination and policy only. It does not create or modify runtime package files.
 
 ## Normative language
 
@@ -58,7 +56,7 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Goal
 
-Runtime-wide HTTP cross-cutting behavior must have one stable policy baseline before concrete runtime package epics add or revise HTTP, logging, tracing, metrics, problem-details, health, routing, auth, session, tenancy, uploads, or other runtime integrations.
+Runtime-wide HTTP cross-cutting behavior must have one stable policy baseline independently of when runtime packages add or revise HTTP, logging, tracing, metrics, problem-details, health, routing, auth, session, tenancy, uploads, or other runtime integrations.
 
 This document defines:
 
@@ -76,7 +74,7 @@ This document does not implement middleware classes, package config, DI provider
 
 ## Coordination boundary
 
-Epic `1.190.0` is a docs-only coordination epic.
+This catalog establishes a documentation-only coordination boundary.
 
 It introduces no:
 
@@ -93,7 +91,7 @@ It introduces no:
 - exception taxonomy;
 - metric label keys.
 
-Concrete package files for the following packages MUST be created or modified only by their owning package epics:
+Concrete package files for the following packages MUST be created or modified only by their owning packages:
 
 ```text
 packages/platform/http/**
@@ -186,7 +184,7 @@ For `platform/http`, the baseline compile-time policy is:
 
 Optional middleware owners listed in this catalog MUST NOT become class-string defaults inside `platform/http` config.
 
-Optional package middleware MUST be registered by the optional package itself when installed.
+Implemented optional package middleware MUST be registered by its owning package according to that package's activation policy. Package installation or module selection alone MUST NOT activate a future-only middleware reservation.
 
 ## Tag taxonomy
 
@@ -294,7 +292,7 @@ Compiled artifacts MUST NOT redefine:
 - default optional package participation;
 - forbidden non-canonical tag policy.
 
-Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy when the corresponding owner epic introduces them.
+Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy as their corresponding implementations become available.
 
 ## Platform HTTP defaults policy
 
@@ -309,6 +307,8 @@ if installed, it SHOULD register itself
 ```
 
 Optional packages are responsible for their own registration, toggles, package config, DI providers, and runtime dependencies.
+
+The conditional wording presupposes an implemented middleware class and owner-controlled registration. A future-only catalog reservation MUST NOT be registered merely because its package is installed or its module is selected.
 
 ## Noop-safe observability baseline
 
@@ -567,7 +567,7 @@ Producers MUST prefer omission over unsafe emission.
 
 ## Error policy
 
-This epic introduces no exception taxonomy.
+This catalog introduces no exception taxonomy.
 
 Error taxonomy is defined by `core/contracts` descriptor models and related contracts SSoTs.
 
@@ -634,7 +634,7 @@ The HTTP middleware catalog is single-choice.
 
 A middleware class listed as `platform/http` owned is a baseline platform HTTP responsibility.
 
-A middleware class listed under an optional owner is conditional and MUST be registered by that optional package itself when installed.
+An implemented middleware class listed under an optional owner MAY be registered only by its owning package, subject to the owner's activation policy. A future-only reservation is not an implementation and MUST remain unregistered.
 
 A single middleware class MUST NOT be auto-wired into both:
 
@@ -729,13 +729,17 @@ System-pre middleware runs before the main system, application, and route middle
 
 Optional package entries MUST NOT be referenced by `platform/http` defaults.
 
-If installed, each optional owner SHOULD register itself.
+If installed, each optional owner SHOULD register itself, except for future-only catalog reservations, which MUST remain unregistered.
 
 | priority | owner package_id           | middleware class                                                                       | registration                            |
 |----------|----------------------------|----------------------------------------------------------------------------------------|-----------------------------------------|
 | `1000`   | `platform/problem-details` | `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` | if installed, it SHOULD register itself |
 | `600`    | `platform/health`          | `\Coretsia\Platform\Health\Http\Middleware\HealthEndpointsMiddleware::class`           | if installed, it SHOULD register itself |
-| `590`    | `platform/metrics`         | `\Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`          | if installed, it SHOULD register itself |
+| `590`    | `platform/metrics`         | `\Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`          | reserved; MUST NOT register in baseline |
+
+The priority `590` `MetricsEndpointMiddleware` entry is a documentation-only reservation owned by `platform/metrics` for its future recording-capable HTTP integration. That future implementation owns the endpoint, its registration, and its lifecycle; the stateless noop metrics baseline does not implement them.
+
+The reserved middleware MUST NOT be created or registered while only `DefaultMeter` and `NullMetricsRenderer` are available. Neither installation of `coretsia/platform-metrics` nor explicit selection of `platform.metrics` activates the reserved slot, an HTTP route, a metrics endpoint, or a collector/exporter.
 
 ## Slot: `http.middleware.system`
 
@@ -856,7 +860,7 @@ They MUST NOT be platform HTTP defaults.
 
 Optional package catalog entries are non-binding for `platform/http`.
 
-An optional owner MAY register its middleware when installed.
+An optional owner MAY register its implemented middleware when installed. A documentation-only reservation is not sufficient for registration; this includes the inactive `platform/metrics` priority `590` entry.
 
 An optional owner MUST obey:
 
@@ -873,7 +877,7 @@ Optional owners MUST NOT require `platform/http` to reference their middleware c
 
 ## Config policy
 
-Epic `1.190.0` introduces no config roots and no config keys.
+This catalog introduces no config roots or keys.
 
 The HTTP config root is already reserved by:
 
@@ -889,15 +893,15 @@ platform/http
 
 Possible config keys referenced by this catalog are owner-policy references only.
 
-They do not create config defaults or rules in this epic.
+They do not create config defaults or rules through this catalog.
 
-Concrete config defaults and config rules are owned by the corresponding runtime package epics.
+Concrete config defaults and rules remain owned by the corresponding runtime packages.
 
 ## Artifact policy
 
-Epic `1.190.0` introduces no artifacts.
+This catalog introduces no artifacts.
 
-Concrete artifacts are owned by their dedicated runtime epics.
+Concrete artifacts remain owned by their respective runtime packages.
 
 Examples:
 
@@ -920,7 +924,7 @@ Generated artifacts MUST NOT contain secrets, credentials, tokens, cookies, raw 
 
 ## Gates and verification policy
 
-This coordination epic expects existing CI rails to run:
+This catalog expects existing CI rails to run:
 
 ```text
 tools/gates/cross_cutting_contract_gate.php
@@ -928,20 +932,20 @@ tools/gates/cross_cutting_contract_gate.php
 
 Referenced owner-package tests are evidence inputs for this coordination policy.
 
-They are not owned by this epic.
+They are not owned by this catalog.
 
 Future owner-package evidence may include:
 
 ```text
 packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
-packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php
+packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php
 packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php
 ```
 
 Those tests are reference-only here.
 
-They MUST be introduced, owned, and maintained by their respective package epics.
+They MUST be introduced, owned, and maintained by their respective packages.
 
 ## Runtime acceptance scenario
 
@@ -950,22 +954,22 @@ When the Micro preset handles an HTTP request:
 1. the request enters the canonical HTTP middleware taxonomy through `system_pre`;
 2. correlation id handling is available;
 3. trace context handling is available;
-4. metrics emission is available;
+4. the canonical meter port remains available through a noop-safe fallback; metric recording is not implied;
 5. structured access logging is available;
 6. noop tracing, metrics, and logging fallbacks never throw merely because a backend is absent;
 7. early pre-identity throttling, if enabled, is handled by `EarlyRateLimitMiddleware` in `http.middleware.system_pre`;
 8. identity-aware throttling, if enabled, is handled by `RateLimitMiddleware` in `http.middleware.app_pre`;
 9. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
 10. context and unit-of-work state do not leak across repeated runtime boundaries;
-11. concrete proof is provided by the owning runtime package epics.
+11. concrete proof is provided by the owning runtime packages.
 
 This scenario is expected runtime policy.
 
-It is not implemented by this docs-only epic.
+It is not implemented by this documentation-only catalog.
 
-## What this epic MUST NOT create
+## What this catalog MUST NOT create
 
-Epic `1.190.0` MUST NOT create or modify:
+This catalog MUST NOT create or modify:
 
 ```text
 packages/platform/http/config/http.php

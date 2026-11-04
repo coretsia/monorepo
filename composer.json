@@ -49,6 +49,7 @@
     "coretsia/platform-cli": "0.11.x-dev",
     "coretsia/platform-errors": "0.11.x-dev",
     "coretsia/platform-logging": "0.11.x-dev",
+    "coretsia/platform-metrics": "0.11.x-dev",
     "coretsia/platform-redaction": "0.11.x-dev",
     "coretsia/platform-tracing": "0.11.x-dev",
     "coretsia/platform-worker": "0.11.x-dev",
@@ -187,6 +188,18 @@
         "reference": "config",
         "versions": {
           "coretsia/platform-logging": "0.11.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/metrics",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-metrics": "0.11.x-dev"
         }
       },
       "coretsia_managed": true

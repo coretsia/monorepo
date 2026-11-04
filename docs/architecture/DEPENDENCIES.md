@@ -300,6 +300,7 @@ The canonical empty dependency marker is:
 | platform/cli              | core/contracts, core/foundation, core/kernel |       |
 | platform/errors           | core/contracts, core/foundation              |       |
 | platform/logging          | core/contracts, core/foundation              |       |
+| platform/metrics          | core/contracts, core/foundation              |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
 | platform/tracing          | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |

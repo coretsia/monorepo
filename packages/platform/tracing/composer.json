@@ -1,0 +1,68 @@
+{
+  "name": "coretsia/platform-tracing",
+  "type": "library",
+  "description": "Coretsia tracing runtime package: deterministic W3C traceparent propagation, bounded validation, and Foundation noop fallback.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "tracing",
+    "runtime",
+    "w3c",
+    "trace-context",
+    "traceparent",
+    "context-propagation",
+    "noop",
+    "deterministic",
+    "observability"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.11.0",
+    "coretsia/core-foundation": "^0.11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Tracing\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Tracing\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.tracing",
+      "moduleClass": "Coretsia\\Platform\\Tracing\\Module\\TracingModule",
+      "providers": [
+        "Coretsia\\Platform\\Tracing\\Provider\\TracingServiceProvider"
+      ],
+      "requires": [
+        "core.foundation"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/tracing.php"
+    }
+  }
+}

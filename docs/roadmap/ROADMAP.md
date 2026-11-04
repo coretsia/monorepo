@@ -137,9 +137,9 @@
 
 ### 3.10.0 Platform errors: ErrorHandler + ExceptionMapper registry (MUST) [IMPL]
 ### 3.20.0 Platform logging (PSR-3) (MUST) [IMPL]
-### 3.30.0 Platform tracing baseline (noop-safe + W3C propagation) (MUST) [IMPL]
+### 3.30.0 Platform tracing propagation baseline (Foundation noop reuse + W3C traceparent) (MUST) [IMPL]
 ### 3.35.0 Platform metrics baseline (noop-safe + label allowlist + renderer port) (MUST) [IMPL]
-### 3.40.0 Platform problem-details (RFC7807) (MUST) [IMPL]
+### 3.40.0 Platform problem-details (RFC9457 + RFC7807 compatibility) (MUST) [IMPL]
 ### 3.50.0 Platform HTTP runtime (pipeline + middleware + UoW + wiring model) (MUST) [IMPL]
 ### 3.55.0 HTTP long-running safety harness (MUST) [IMPL]
 ### 3.60.0 RequestId vs CorrelationId policy (SHOULD) [IMPL]
@@ -226,7 +226,7 @@
 ## [PHASE 6+ — RELEASE: enterprise (extensions)](PHASE-6—RELEASE-enterprise.md)
 
 ### 6.10.0 coretsia/health (real owner for `/health*`) (MUST) [IMPL]
-### 6.20.0 coretsia/metrics (MUST) [IMPL]
+### 6.20.0 Platform metrics recording backend (bounded registry + HTTP endpoint ownership) (MUST) [IMPL]
 ### 6.21.0 integrations/metrics-prometheus (MUST) [IMPL]
 ### 6.30.0 coretsia/tracing (MUST) [IMPL]
 ### 6.31.0 integrations/tracing-otlp (MUST) [IMPL]

@@ -72,6 +72,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0035: CLI Composite Workflows and Deterministic Suggestions](./ADR-0035-cli-composite-workflows.md) — owner: platform/cli — adrVersion: 1 — scope: catalog,cli,composite,output,suggestions,uow,workflows
 - [ADR-0036: Platform errors ErrorHandler and ExceptionMapper registry](./ADR-0036-platform-errors-errorhandler-exception-mapper.md) — owner: platform/errors — adrVersion: 1 — scope: error-handler,errors,exception-mapper,normalization,redaction,registry,runtime
 - [ADR-0037: Platform logging PSR-3 backend and sink safety](./ADR-0037-platform-logging-psr3.md) — owner: platform/logging — adrVersion: 1 — scope: admission,logging,redaction,runtime,serialization
+- [ADR-0038: Platform tracing W3C traceparent propagation](./ADR-0038-platform-tracing-w3c-propagation.md) — owner: platform/tracing — adrVersion: 1 — scope: context,foundation,propagation,security,traceparent,tracing,w3c
 
 ## Cross-references
 

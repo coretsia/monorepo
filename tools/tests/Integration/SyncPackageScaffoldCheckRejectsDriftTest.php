@@ -97,6 +97,15 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
             . "}\n",
         );
 
+        $this->ensureDir($root . '/docs/ssot');
+        $this->writeBytesExact(
+            $root . '/docs/ssot/config-roots.md',
+            "## Reserved Config Roots (MUST)\n\n"
+            . "| root | owner package_id | defaults file | rules file | notes |\n"
+            . "|---|---|---|---|---|\n"
+            . "| `drifted_runtime` | `platform/drifted-runtime` | `packages/platform/drifted-runtime/config/drifted_runtime.php` | `packages/platform/drifted-runtime/config/rules.php` | Fixture |\n",
+        );
+
         foreach (['LICENSE', 'NOTICE', 'SECURITY.md'] as $file) {
             $this->writeBytesExact(
                 $root . '/' . $file,
@@ -173,8 +182,21 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
             $packageRoot . '/src/Provider/' . $studlySlug . 'ServiceProvider.php',
             $this->phpClassFile($namespace . 'Provider', $studlySlug . 'ServiceProvider'),
         );
-        $this->writeBytesExact($packageRoot . '/config/' . $slug . '.php', $this->phpConfigFile("return [];\n"));
-        $this->writeBytesExact($packageRoot . '/config/rules.php', $this->phpConfigFile("return [];\n"));
+        $this->writeBytesExact(
+            $packageRoot . '/config/' . \str_replace('-', '_', $slug) . '.php',
+            $this->phpConfigFile("return [];\n"),
+        );
+        $this->writeBytesExact(
+            $packageRoot . '/config/rules.php',
+            $this->phpConfigFile(
+                "return [\n"
+                . "    'schemaVersion' => 1,\n"
+                . "    'configRoot' => 'drifted_runtime',\n"
+                . "    'additionalKeys' => false,\n"
+                . "    'keys' => [],\n"
+                . "];\n",
+            ),
+        );
         $this->writeBytesExact(
             $packageRoot . '/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php',
             $this->noopContractTest($namespace . 'Tests\\Contract'),
@@ -208,7 +230,7 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
             $extra['providers'] = [
                 $namespaceRoot . 'Provider\\' . $studlySlug . 'ServiceProvider',
             ];
-            $extra['defaultsConfigPath'] = 'config/' . $slug . '.php';
+            $extra['defaultsConfigPath'] = 'config/' . \str_replace('-', '_', $slug) . '.php';
         }
 
         $data = [

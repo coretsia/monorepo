@@ -94,6 +94,17 @@ return array(
         0 => 'core.foundation',
       ),
     ),
+    'platform.tracing' =>
+    array(
+      'composerName' => 'coretsia/platform-tracing',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+      ),
+    ),
     'platform.worker' =>
     array(
       'composerName' => 'coretsia/platform-worker',

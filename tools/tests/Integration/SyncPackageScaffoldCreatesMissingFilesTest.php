@@ -41,7 +41,7 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
         );
 
         $this->writeBytesExact($runtimeRoot . '/README.md', $runtimeReadme);
-        $this->writeBytesExact($runtimeRoot . '/config/sample-runtime.php', $runtimeDefaultsConfig);
+        $this->writeBytesExact($runtimeRoot . '/config/sample_runtime.php', $runtimeDefaultsConfig);
         $this->writeBytesExact($runtimeRoot . '/src/Module/SampleRuntimeModule.php', $runtimeModuleCode);
 
         [$code, $output] = $this->runSyncPackageScaffold($scanRoot);
@@ -53,14 +53,14 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
         self::assertSame($this->readBytes($this->repoRoot() . '/NOTICE'), $this->readBytes($libraryRoot . '/NOTICE'));
         self::assertSame(
             $this->readBytes($this->repoRoot() . '/SECURITY.md'),
-            $this->readBytes($libraryRoot . '/SECURITY.md')
+            $this->readBytes($libraryRoot . '/SECURITY.md'),
         );
 
         self::assertSame($this->readBytes($this->repoRoot() . '/LICENSE'), $this->readBytes($runtimeRoot . '/LICENSE'));
         self::assertSame($this->readBytes($this->repoRoot() . '/NOTICE'), $this->readBytes($runtimeRoot . '/NOTICE'));
         self::assertSame(
             $this->readBytes($this->repoRoot() . '/SECURITY.md'),
-            $this->readBytes($runtimeRoot . '/SECURITY.md')
+            $this->readBytes($runtimeRoot . '/SECURITY.md'),
         );
 
         self::assertFileExists($libraryRoot . '/README.md');
@@ -76,7 +76,16 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
         self::assertFileExists($runtimeRoot . '/src/Provider/SampleRuntimeServiceProvider.php');
         self::assertFileExists($runtimeRoot . '/config/rules.php');
 
-        self::assertSame($runtimeDefaultsConfig, $this->readBytes($runtimeRoot . '/config/sample-runtime.php'));
+        self::assertSame(
+            [
+                'schemaVersion' => 1,
+                'configRoot' => 'sample_runtime',
+                'additionalKeys' => false,
+                'keys' => [],
+            ],
+            require $runtimeRoot . '/config/rules.php',
+        );
+        self::assertSame($runtimeDefaultsConfig, $this->readBytes($runtimeRoot . '/config/sample_runtime.php'));
         self::assertSame($runtimeModuleCode, $this->readBytes($runtimeRoot . '/src/Module/SampleRuntimeModule.php'));
     }
 
@@ -109,6 +118,15 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
             . "  \"name\": \"coretsia/package-scaffold-fixture\",\n"
             . "  \"type\": \"project\"\n"
             . "}\n",
+        );
+
+        $this->ensureDir($root . '/docs/ssot');
+        $this->writeBytesExact(
+            $root . '/docs/ssot/config-roots.md',
+            "## Reserved Config Roots (MUST)\n\n"
+            . "| root | owner package_id | defaults file | rules file | notes |\n"
+            . "|---|---|---|---|---|\n"
+            . "| `sample_runtime` | `platform/sample-runtime` | `packages/platform/sample-runtime/config/sample_runtime.php` | `packages/platform/sample-runtime/config/rules.php` | Fixture |\n",
         );
 
         foreach (['LICENSE', 'NOTICE', 'SECURITY.md'] as $file) {
@@ -167,7 +185,7 @@ final class SyncPackageScaffoldCreatesMissingFilesTest extends ToolContractTestC
             $extra['providers'] = [
                 $namespaceRoot . 'Provider\\' . $studlySlug . 'ServiceProvider',
             ];
-            $extra['defaultsConfigPath'] = 'config/' . $slug . '.php';
+            $extra['defaultsConfigPath'] = 'config/' . \str_replace('-', '_', $slug) . '.php';
         }
 
         $data = [

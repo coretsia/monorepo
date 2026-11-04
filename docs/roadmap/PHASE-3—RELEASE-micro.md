@@ -4345,7 +4345,7 @@ Generated repository changes:
 
 ---
 
-### 3.30.0 Platform tracing baseline (noop-safe + W3C propagation) (MUST) [IMPL]
+### 3.30.0 Platform tracing propagation baseline (Foundation noop reuse + W3C traceparent) (MUST) [IMPL]
 
 ---
 type: package
@@ -4358,35 +4358,86 @@ composer: "coretsia/platform-tracing"
 kind: runtime
 module_id: "platform.tracing"
 
-goal: "У будь-якому runtime виклики tracer/propagation ніколи не кидають і дають deterministic behavior."
+goal: "Надати deterministic, fail-closed W3C traceparent propagation baseline поверх уже існуючих Foundation noop tracing ports, без другого tracer/span lifecycle, exporter pipeline, runtime state або ContextStore owner; tracing infrastructure failures не змінюють primary operation outcome, а callback exceptions зберігають контрактну precedence."
 provides:
-- "Noop-safe TracerPortInterface + SpanInterface (без if(enabled) у callers)"
-- "Deterministic W3C tracecontext propagation (extract/inject) для HTTP middleware (owner `platform/http`)"
-- "Callers-safe baseline: tracer/propagation завжди resolvable і no-throw (noop за замовчуванням)"
-- "Cutline impact: blocks Phase 3 platform baseline cutline"
+- "Reuse existing Foundation NoopTracer, NoopSpan, and NoopContextPropagation as the canonical disabled/fallback implementations."
+- "Deterministic, bounded W3C traceparent extract/inject through the existing ContextPropagationInterface."
+- "Explicit target-local module selection and one declarative ContextPropagationInterface binding when platform.tracing is enabled."
+- "No duplicate tracer, span, sampler, exporter, context store, reset service, metrics catalog, or observability registry."
+- "Fail-closed malformed propagation input without raw-header disclosure or primary-exception replacement."
+- "HTTP middleware integration remains owned by a later platform/http implementation."
+- "Cutline impact: establishes transport-neutral W3C traceparent propagation capability; no recording spans, persisted traces, trace viewer, or automatic HTTP integration are provided by this epic."
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-tracing-metrics-w3c-propagation.md"
+adr: "docs/adr/ADR-0038-platform-tracing-w3c-propagation.md"
 ssot_refs:
 - "docs/ssot/tracecontext.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/context-keys.md"
+- "docs/ssot/modules-and-manifests.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/config-roots.md"
+- "docs/ssot/http-middleware-catalog.md"
 ---
 
-- [ ] update `3.30.0 Platform tracing baseline` to consume `SensitiveDataRedactorInterface` for span attribute summaries where redaction is needed.
+### Scope boundary (MUST)
+
+- This epic provides transport-neutral W3C traceparent propagation, not a recording tracing backend.
+- No human-viewable trace history, exported spans, or persisted telemetry are produced.
+- Existing Foundation noop tracer/span implementations remain authoritative.
+- This epic MUST preserve the public ContextPropagationInterface contract for subsequent recording/exporting implementations.
+- A later SDK tracer MAY consume validated trace identities but MUST NOT redefine the W3C parsing policy.
+- Recording and exporting capabilities belong to epic 6.30.0 and subsequent integration epics 6.31.0/6.32.0.
+- No HTTP middleware, active span lifecycle, exporter, sampler, trace storage, or trace viewer is introduced here.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - Foundation canonical noop tracing implementations MUST already exist.
+  - Kernel declarative runtime container definitions and target-local ModulePlan MUST exist.
+  - Core tracing contracts MUST already exist without modification.
+  - The reserved `tracing` config root MUST already be owned by `platform/tracing`.
+  - Repository package scaffold, Composer repository synchronization, package-index generation, and Deptrac generation MUST be available.
 
-- Required deliverables (exact paths):
-  - N/A
+- Existing Foundation implementations to reuse:
+  - `packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
+  - `packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
+  - `packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
+
+- Existing contracts to reuse:
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
+  - `packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
+  - `packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
+
+- Existing implementation boundaries:
+  - `TracerPortInterface` is already resolvable through Foundation.
+  - `ContextPropagationInterface` is already resolvable through Foundation.
+  - No new tracer/span port or binding is required for noop fallback.
+  - `ContextAccessorInterface` is read-only and MUST NOT become a tracing context writer.
+  - `CorrelationIdProviderInterface` provides Kernel correlation identity, not W3C trace identity.
+  - Foundation ContextStore remains the sole owner of its UoW-local context state and reset behavior.
+  - Kernel remains the owner of UnitOfWork lifecycle, correlation identity generation, and operation-boundary reset orchestration.
+  - W3C propagation MUST NOT read, write, replace, or synchronize Kernel-owned context implicitly.
+  - Trace/span lifecycle MUST remain independent of Kernel UnitOfWork lifecycle.
+  - This epic introduces no active span lifecycle, reset hook, ContextStore adapter, or correlation-id bridge.
+
+- Required existing implementation paths:
+  - `packages/core/contracts/src/Observability/Tracing/ContextPropagationInterface.php`
+  - `packages/core/contracts/src/Observability/Tracing/TracerPortInterface.php`
+  - `packages/core/contracts/src/Observability/Tracing/SpanInterface.php`
+  - `packages/core/foundation/src/Observability/Tracing/NoopContextPropagation.php`
+  - `packages/core/foundation/src/Observability/Tracing/NoopTracer.php`
+  - `packages/core/foundation/src/Observability/Tracing/NoopSpan.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
 
 - Required config roots/keys:
-  - `tracing.*` — config root used by tracing
+  - `tracing` — existing reserved package-owned root.
+  - No configurable keys are introduced in the Phase 3 propagation baseline.
+  - ModulePlan controls whether W3C propagation overrides the Foundation noop binding.
 
 - Required config roots registry:
   - `tracing` MUST already be reserved in `docs/ssot/config-roots.md` with owner `platform/tracing`.
@@ -4396,18 +4447,9 @@ ssot_refs:
   - N/A
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Tracing\SpanInterface`
   - `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
-  - `Coretsia\Contracts\Observability\Tracing\SpanExporterInterface`
-  - `Coretsia\Contracts\Observability\Tracing\SamplerInterface`
-  - `Psr\Log\LoggerInterface` (optional warn-only)
-  - `Coretsia\Contracts\Context\ContextKeys` (optional; if used)
-
-- tighten to cemented APIs
-  - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
-  - Missing key handling MUST remain non-throwing for this epic’s runtime path.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -4418,103 +4460,712 @@ Depends on:
 Forbidden:
 - `platform/http`
 - `integrations/*`
+- `core/kernel` production-source imports
+- `platform/redaction`
+- `platform/logging`
+- `platform/metrics`
+- `platform/cli`
+- `platform/worker`
+- `enterprise/*`
+- `devtools/*`
+- vendor tracing SDK implementations
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
-- PSR:
-  - `Psr\Log\LoggerInterface` (optional)
 - Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
-  - `Coretsia\Contracts\Observability\Tracing\SpanInterface`
   - `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
-  - `Coretsia\Contracts\Observability\Tracing\SpanExporterInterface`
-  - `Coretsia\Contracts\Observability\Tracing\SamplerInterface`
-- Foundation stable APIs:
-  - `Coretsia\Contracts\Context\ContextKeys` (optional)
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (existing Foundation fallback only)
+  - `Coretsia\Contracts\Observability\Tracing\SpanInterface` (existing Foundation fallback only)
+
+- Foundation:
+  - `Coretsia\Foundation\Observability\Tracing\NoopContextPropagation`
+  - canonical declarative container-definition APIs
+
+- No direct ContextStore, KernelRuntime, LoggerInterface, MeterPortInterface, TracerPortInterface implementation, SamplerInterface, SpanExporterInterface, or redaction-service dependency is introduced.
 
 ### Entry points / integration points (MUST)
 
-- CLI:
-  - N/A
+- Runtime DI:
+  - `ContextPropagationInterface` resolves to Foundation `NoopContextPropagation` when `platform.tracing` is absent or excluded.
+  - When `platform.tracing` is explicitly selected, its provider contributes one target-local `ContextPropagationInterface` binding.
+  - Explicit selection of `platform.tracing` binds `ContextPropagationInterface` directly to `W3cTraceContextPropagation`.
+  - No `w3c|noop` configuration selector, runtime factory, or alternate noop-mode override is introduced.
+  - `TracerPortInterface` continues to resolve through the existing Foundation `NoopTracer`.
+  - This epic MUST NOT override `TracerPortInterface` or introduce a second `SpanInterface` implementation.
+  - Package installation MUST NOT automatically enable the tracing module.
+
+- Propagation:
+  - `extract()` accepts an explicit `array<string,string|list<string>>` carrier.
+  - `inject()` accepts an explicit `array<string,string|list<string>>` carrier and normalized safe context map.
+  - The existing ContextPropagationInterface defines the accepted carrier shape; platform/tracing MUST NOT redefine or widen that contract.
+  - Malformed traceparent field values are handled without throwing or invoking implicit type conversions.
+  - Unrelated carrier fields remain caller-owned and are preserved when the carrier satisfies the existing port contract.
+  - Validation of unrelated transport fields belongs to the transport owner, not the tracing package.
+  - The implementation MUST NOT implicitly read or mutate `ContextStore`.
+  - Extracted W3C trace identity MUST NOT overwrite Kernel correlation_id, request_id, or uow_id.
+  - No new W3C trace ID or span ID is generated by this baseline.
+
 - HTTP:
-  - used by `platform/http` middlewares (owner=http):
-    - `\Coretsia\Http\Middleware\TraceContextMiddleware::class` (system_pre ~930) uses `ContextPropagationInterface`
+  - `platform/http` owns `TraceContextMiddleware`.
+  - No HTTP middleware production file is created or modified by this epic.
+  - This epic verifies only the reusable transport-neutral propagation contract.
+  - HTTP lifecycle integration requires a separate owner epic once platform/http implementation exists.
+
+- CLI:
+  - N/A.
+
 - Kernel hooks/tags:
-  - N/A
+  - N/A. No new hook, tag, lifecycle stage, or reset registration.
+
 - Artifacts:
-  - N/A
+  - No new artifact schema.
+  - Existing Kernel source/compiled container parity MUST be preserved.
 
 ### Deliverables (MUST)
 
-Naming lock (MUST)
-- This epic uses neutral platform-local names to avoid cross-package collisions:
+Naming and ownership lock (MUST)
+
+- Canonical noop tracing implementations remain owned by core/foundation:
+  - `Coretsia\Foundation\Observability\Tracing\NoopTracer`
+  - `Coretsia\Foundation\Observability\Tracing\NoopSpan`
+  - `Coretsia\Foundation\Observability\Tracing\NoopContextPropagation`
+
+- This epic MUST NOT create:
   - `Default/DefaultTracer.php`
   - `Default/DefaultSpan.php`
-- This epic text does not use platform-local `NoopTracer/NoopSpan` names.
+  - package-local NoopTracer or NoopSpan classes
+  - new tracer lifecycle, active span stack, or context storage
+
+- The only new propagation implementation is:
+  - `W3c/W3cTraceContextPropagation.php`
+
+- No tracer/propagation service aliases or wrapper implementations may be introduced solely to rename an existing Foundation noop service.
+
+Every CREATE and MODIFY deliverable MUST define or explicitly inherit the following implementation responsibilities without introducing duplicate owners:
+
+- Exact file path and implementation status.
+- Package/layer ownership and allowed compile-time dependencies.
+- Public API, constructor dependencies, configuration reads, and DI references, when applicable.
+- Context reads/writes and UoW ownership; N/A when not applicable.
+- Spans and metrics; N/A with rationale where instrumentation is intentionally forbidden.
+- Log/output behavior and ownership; N/A where the file does not emit records.
+- Reset discipline and process-lifetime versus UoW-local state.
+- Errors, warning suppression, failure isolation, and primary-exception precedence.
+- Security, shared redaction, sensitive-key classification, and fail-closed behavior.
+- Source/compiled parity, deterministic behavior, and explicit module selection where applicable.
+- Verification by unit, contract, or integration tests corresponding to the file's responsibilities.
+
+A deliverable MUST NOT introduce a new service, registry, validator, normalizer, serializer, lock abstraction, or state owner when the required behavior is already available through an existing Coretsia contract or a compatible Foundation implementation.
+
+Cross-cutting requirements are inherited by all applicable deliverables and MUST NOT be reimplemented independently in multiple packages.
 
 #### Creates
 
-- [ ] `packages/platform/tracing/src/Module/TracingModule.php` — module entry
-- [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php` — DI wiring
-- [ ] `packages/platform/tracing/src/Provider/TracingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/tracing/config/tracing.php` — config subtree
-- [ ] `packages/platform/tracing/config/rules.php` — config rules
-- [ ] `packages/platform/tracing/README.md` — docs
+Package scaffold:
+- [x] Run `composer package:new -- --layer=platform --slug=tracing --kind=runtime --description="Coretsia tracing runtime package: deterministic W3C traceparent propagation, bounded validation, and Foundation noop fallback." --keywords=coretsia,php,framework,tracing,runtime,w3c,trace-context,traceparent,context-propagation,noop,deterministic,observability` exactly once.
 
-- [ ] `packages/platform/tracing/src/Default/DefaultTracer.php` — TracerPortInterface
-- [ ] `packages/platform/tracing/src/Default/DefaultSpan.php` — SpanInterface
-- [ ] `packages/platform/tracing/src/W3c/W3cTraceContextPropagation.php` — ContextPropagationInterface (deterministic, no-throw)
-- [ ] `packages/platform/tracing/src/Noop/NullSpanExporter.php` — SpanExporterInterface
-- [ ] `packages/platform/tracing/src/Sampling/AlwaysOffSampler.php` — SamplerInterface (Phase 0 default; no-throw)
+- [x] `packages/platform/tracing/LICENSE`
+- [x] `packages/platform/tracing/NOTICE`
+- [x] `packages/platform/tracing/SECURITY.md`
 
-- [ ] `packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
-- [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-- [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
+- [x] `packages/platform/tracing/composer.json`
+  - [x] `name = coretsia/platform-tracing`.
+  - [x] `type = library`.
+  - [x] `license = Apache-2.0`.
+  - [x] Composer metadata generation (canonical scaffold-owned):
+    - [x] `description` is generated from the explicit `--description` argument.
+    - [x] `keywords` is always generated as a nonempty deterministic JSON list.
+    - [x] when `--keywords` is omitted, generate exactly the canonical baseline `[coretsia, php, framework]` in that order.
+    - [x] explicitly empty `--keywords` values are rejected instead of triggering the baseline.
+    - [x] when `--keywords` is explicitly supplied, emit only validated caller-provided values, preserving first-occurrence order after deterministic deduplication.
+    - [x] explicit keywords are never merged with the canonical baseline.
+    - [x] no layer, slug, kind, or package capability keywords are inferred automatically.
+    - [x] `authors` is inherited from repository-root `composer.json`.
+    - [x] `homepage` is inherited from repository-root `composer.json`.
+    - [x] `support` is inherited from repository-root `composer.json`.
+    - [x] `config.sort-packages = true` remains generated by the existing scaffold.
+    - [x] `config.platform.php` is inherited from repository-root `composer.json`.
+    - [x] generated metadata uses the existing ComposerJson canonical encoder.
+    - [x] no tracing-specific Composer metadata template or registry is introduced.
+    - [x] package-specific requirements and module dependencies are completed explicitly after scaffold creation.
+    - [x] generated metadata MUST NOT require manual correction for standard package identity, author, homepage, support, keywords, description, or PHP platform fields.
+  - [x] PHP requirement follows the active monorepo PHP ^8.4 policy.
+  - [x] Composer requires exactly:
+    - [x] `php: ^8.4`.
+    - [x] `coretsia/core-contracts: ^0.11.0`.
+    - [x] `coretsia/core-foundation: ^0.11.0`.
+  - [x] No direct Composer requirement on `coretsia/core-kernel`; Kernel remains the application-level module composition owner.
+  - [x] production PHP imports remain restricted to core/contracts and core/foundation.
+  - [x] no transitive runtime dependency grants additional compile-time source imports.
+  - [x] future release-line changes use the repository's canonical release synchronization tooling rather than manual dependency drift.
+  - [x] MUST NOT require platform/http, logging, metrics, redaction, vendor tracing SDKs, or optional exporter packages.
+  - [x] PSR-4 `Coretsia\Platform\Tracing\` → `src/`.
+  - [x] PSR-4 test namespace → `tests/`.
+  - [x] `extra.coretsia.kind = runtime`.
+  - [x] `extra.coretsia.moduleId = platform.tracing`.
+  - [x] `extra.coretsia.moduleClass = Coretsia\Platform\Tracing\Module\TracingModule`.
+  - [x] `extra.coretsia.providers = [Coretsia\Platform\Tracing\Provider\TracingServiceProvider]`.
+  - [x] `extra.coretsia.requires = [core.foundation]`.
+  - [x] `extra.coretsia.conflicts = []`.
+  - [x] `extra.coretsia.defaultsConfigPath = config/tracing.php`.
+  - [x] Composer/module dependencies do not grant additional direct PHP source imports.
+  - [x] Package metadata MUST pass existing package identity, manifest, and dependency gates.
 
-Docs:
-- [ ] `docs/ssot/tracecontext.md` — W3C propagation rules + redaction + “no labels for trace ids”
+Module:
+- [x] `packages/platform/tracing/src/Module/TracingModule.php`
+  - [x] final module-metadata class.
+  - [x] public typed constants:
+    - [x] `MODULE_ID = 'platform.tracing'`.
+    - [x] `PACKAGE_ID = 'platform/tracing'`.
+    - [x] `COMPOSER_PACKAGE = 'coretsia/platform-tracing'`.
+    - [x] `KIND = 'runtime'`.
+    - [x] `CONFIG_ROOT = 'tracing'`.
+  - [x] exact metadata methods follow the established LoggingModule shape.
+  - [x] `providers()` returns only `TracingServiceProvider::class`.
+  - [x] no runtime service construction, config loading, filesystem access, module discovery, ContextStore access, spans, metrics, logging, or reset ownership.
+  - [x] metadata consistency verified against composer.json and config-roots registry.
+
+Provider:
+- [x] `packages/platform/tracing/src/Provider/TracingServiceProvider.php`
+  - [x] final class implementing ServiceProviderInterface and ContainerDefinitionProviderInterface.
+  - [x] `register()` calls `assertDefinitionProviderRegistrationAllowed()`.
+  - [x] `register()` delegates to `registerDefinitionProvider($this)`.
+  - [x] `define()` is the single canonical declarative wiring source.
+  - [x] binds only `ContextPropagationInterface` directly to `W3cTraceContextPropagation` through the existing `ContainerDefinitionBuilder::classService()` API.
+  - [x] no `TracingServiceFactory`, `ConfigRepositoryInterface`, `ContainerValueReference`, constructor arguments, runtime selector, or service locator is required.
+  - [x] MUST NOT rebind TracerPortInterface or create a new NoopTracer/NoopSpan definition.
+  - [x] MUST NOT bind SamplerInterface, SpanExporterInterface, MeterPortInterface, LoggerInterface, ContextAccessorInterface, or ContextStore.
+  - [x] MUST NOT add tags, lifecycle hooks, reset registrations, mutable registries, or runtime closures to declarative definitions.
+  - [x] Foundation `NoopContextPropagation` remains the fallback when `platform.tracing` is absent or excluded from target-local ModulePlan.
+  - [x] module selection and provider order remain Kernel-owned.
+  - [x] source/compiled service-definition behavior MUST be equivalent.
+  - [x] no configuration reader, propagation-mode factory, or parallel DI path is introduced.
+
+Configuration:
+- [x] `packages/platform/tracing/config/tracing.php`
+  - [x] returns exactly `[]` as the package-owned `tracing` configuration subtree.
+  - [x] no `propagation.mode`, enabled switch, sampler, exporter, or recording backend selector.
+  - [x] no runtime state, raw header, trace ID, span ID, context snapshot, or service instance in configuration.
+  - [x] no executable validator, config reader, runtime factory, or environment access.
+  - [x] Verification: empty defaults and existing reserved config-root ownership.
+
+- [x] `packages/platform/tracing/config/rules.php`
+  - [x] schemaVersion = 1.
+  - [x] configRoot = tracing.
+  - [x] additionalKeys = false.
+  - [x] keys = [].
+  - [x] no configurable keys or `propagation.mode` selector in this baseline.
+  - [x] reject unknown keys through the existing Kernel ConfigValidator.
+  - [x] plain declarative ruleset only; no closures, callbacks, custom rule types, config readers, or executable validators.
+  - [x] Kernel owns config validation and env-overlay projection.
+  - [x] Verification: strict empty-root shape and invalid-key rejection.
+
+Propagation implementation:
+- [x] `packages/platform/tracing/src/W3c/W3cTraceContextPropagation.php`
+  - [x] final class implementing the exact ContextPropagationInterface.
+  - [x] public methods:
+    - [x] `inject(array $carrier, array $context = []): array`.
+    - [x] `extract(array $carrier): array`.
+  - [x] stateless; no constructor dependencies are required for the baseline.
+  - [x] operates only on explicit carrier/context arguments.
+  - [x] MUST NOT read or write ContextStore.
+  - [x] MUST NOT generate trace IDs, span IDs, correlation IDs, request IDs, or UnitOfWork IDs.
+  - [x] does not construct or retain SpanInterface instances.
+  - [x] HTTP carrier field names are recognized ASCII case-insensitively.
+  - [x] emitted traceparent field name is lowercase.
+  - [x] validates exact W3C traceparent version-00 shape:
+    - [x] version `00`.
+    - [x] 32 lowercase hexadecimal trace-id characters.
+    - [x] 16 lowercase hexadecimal parent-id characters.
+    - [x] two lowercase hexadecimal trace-flags characters.
+    - [x] no all-zero trace-id.
+    - [x] no all-zero parent-id.
+    - [x] no invalid separators, control bytes, or trailing content.
+  - [x] W3C traceparent version handling:
+    - [x] version `00` requires exactly 55 ASCII bytes and exactly four canonical fields.
+    - [x] version `ff` is always invalid.
+    - [x] versions `01..fe` use the W3C forward-compatibility parsing policy.
+    - [x] forward-version values shorter than 55 bytes are rejected.
+    - [x] forward-version trace-id, parent-id, and trace-flags positions follow the W3C version-00 field layout.
+    - [x] unknown forward-version fields are never decoded, interpreted, stored, or exported.
+    - [x] accepted forward-version context is normalized to the supported version-00 output model during injection.
+    - [x] trace-flags follow the W3C Trace Context Level 2 bitfield policy.
+    - [x] the sampled flag is bit `0x01`.
+    - [x] the random-trace-id flag is bit `0x02`.
+    - [x] sampled is determined by `(flags & 0x01) !== 0`.
+    - [x] random-trace-id is determined by `(flags & 0x02) !== 0`.
+    - [x] version-00 traceparent accepts only trace_flags values `00|01|02|03`; any nonzero reserved bits fail closed and extract() returns [].
+    - [x] accepted version-00 trace_flags MUST NOT be silently rewritten or normalized to a different byte value.
+    - [x] accepted forward-version trace_flags retain the supported sampled and random-trace-id bits; unsupported bits are cleared only when constructing the explicitly downgraded version-00 representation.
+    - [x] the strict version-00 reserved-bit rejection is an explicit Coretsia ingress policy and MUST be documented as such.
+    - [x] normalized trace_flags is exactly one of `00|01|02|03`.
+    - [x] injection accepts only normalized trace_flags values `00|01|02|03`.
+    - [x] Injection flag-mutation policy:
+      - [x] when the carrier contains one valid existing traceparent, compare its parsed trace_id, parent_id, and supported trace_flags against the requested outgoing context.
+      - [x] if trace_id is unchanged, the random-trace-id bit MUST remain unchanged, regardless of parent_id changes.
+      - [x] if trace_id and parent_id are unchanged, the sampled bit MUST remain unchanged.
+      - [x] changing sampled while retaining the same parent_id is rejected; injection follows the existing fail-closed tracing-field removal policy.
+      - [x] when sampled changes and parent_id differs, the new parent_id is explicitly caller-provided; the propagator MUST NOT generate or claim ownership of that identity.
+      - [x] the propagator MUST NOT make sampling decisions.
+      - [x] no provenance guarantee can be inferred for context transferred between independent carriers; the caller owns continuity and parent identity outside the information available to inject().
+      - [x] a future recording tracer owns the generation of local span identity and sampling decisions.
+    - [x] unknown/reserved bits beyond `0x03` are cleared only during an accepted forward-version downgrade; an existing version-00 traceparent MUST NOT be rewritten solely to clear reserved bits.
+    - [x] the propagator MUST NOT infer whether an incoming trace_id was actually generated randomly.
+    - [x] identical-header pass-through is permitted only when the existing traceparent value is canonical and byte-identical to the required outgoing value.
+    - [x] all rules are byte-oriented, bounded, locale-independent, and deterministic.
+  - [x] extracted context uses only:
+    - [x] `trace_id`.
+    - [x] `parent_id`.
+    - [x] `trace_flags`.
+  - [x] extracted values are canonical strings, never raw header maps.
+  - [x] Normalized context shape:
+    - [x] the result contains exactly `trace_id`, `parent_id`, and `trace_flags` when extraction succeeds.
+    - [x] extracted context contains no header version, tracestate, baggage, or arbitrary extensions.
+    - [x] validation is independent of PHP associative-array insertion order.
+    - [x] injection accepts the three required keys regardless of their insertion order.
+    - [x] missing, extra, non-string, or structurally invalid context entries reject injection deterministically.
+    - [x] no implicit conversion from integer, float, bool, object, or Stringable into trace-id components.
+    - [x] no arbitrary context key is forwarded into traceparent.
+    - [x] parent_id represents the upstream caller identity, not a newly recorded local span.
+    - [x] no local span identity is allocated or published by this implementation.
+    - [x] absent incoming context does not cause synthetic trace identity generation.
+  - [x] Forward compatibility with 6.30.0:
+    - [x] `trace_id` is a validated 128-bit W3C trace identity encoded as 32 lowercase hexadecimal characters.
+    - [x] `parent_id` is the validated upstream W3C parent identity encoded as 16 lowercase hexadecimal characters.
+    - [x] `trace_flags` preserves the canonical W3C sampled and random-trace-id bits: `00|01|02|03`.
+    - [x] a future recording tracer MUST preserve the random-trace-id bit when continuing an extracted trace_id.
+    - [x] extracted identifiers are immutable values returned to the caller, not references to mutable tracing runtime state.
+    - [x] the propagation implementation does not infer or allocate the current local span identity.
+    - [x] a future recording tracer owns local span-id generation and active-span lifecycle.
+    - [x] a future recording tracer MAY reuse the extracted trace_id while creating its own local span_id.
+    - [x] incoming parent_id MUST NOT be confused with the local span_id.
+    - [x] the format of this extracted context MUST NOT be silently changed by 6.30.0.
+    - [x] any future richer trace-context representation must be introduced through an explicitly compatible contract decision.
+  - [x] no arbitrary carrier fields are copied into the extracted context.
+  - [x] Existing traceparent validation:
+    - [x] extract() rejects duplicate, conflicting, malformed, oversized, or invalid traceparent values deterministically.
+    - [x] inject() validates an existing traceparent before evaluating continuity or preserving tracestate.
+    - [x] zero existing traceparent fields permits injection of an independently validated normalized context.
+    - [x] exactly one existing traceparent field is accepted as either a string or a list containing exactly one string.
+    - [x] string and single-string-list representations use the same canonical traceparent parser.
+    - [x] duplicate traceparent names, including ASCII case variants, invalidate existing carrier trace context.
+    - [x] malformed, oversized, invalid-version, invalid-identifier, invalid-flags, or invalid-list traceparent input invalidates existing carrier trace context.
+    - [x] invalid existing traceparent prevents injection of a new traceparent into that carrier.
+    - [x] invalid existing traceparent and associated tracestate fields are removed from the returned carrier.
+    - [x] unrelated contract-valid carrier fields remain unchanged.
+    - [x] valid existing traceparent follows the documented identity and flag-mutation policy.
+    - [x] when the existing traceparent value is byte-identical to the required outgoing value, existing tracestate remains unchanged.
+    - [x] otherwise existing tracestate is removed under the documented privacy-preserving mutation policy.
+    - [x] no second parser, context registry, carrier validator, or transport normalization layer is introduced.
+  - [x] invalid extraction returns [].
+  - [x] valid injection emits one canonical traceparent representation.
+  - [x] invalid injection context emits no new propagation fields and MUST NOT forward an unvalidated pre-existing traceparent/tracestate value.
+  - [x] Missing-context injection:
+    - [x] the default empty context `[]` is not a valid normalized tracing context.
+    - [x] empty context produces no new traceparent.
+    - [x] pre-existing traceparent and tracestate are removed from the result.
+    - [x] all unrelated carrier entries are preserved.
+    - [x] inject([], []) returns [].
+    - [x] this behavior does not apply to Foundation NoopContextPropagation, which preserves its existing pass-through contract.
+  - [x] unrelated carrier fields remain unchanged.
+  - [x] Carrier resource policy:
+    - [x] Extraction carrier policy:
+      - [x] maximum accepted carrier entry count is 128.
+      - [x] when carrier entry count exceeds 128, extract() returns [] without inspecting individual header values.
+      - [x] invalid or non-string carrier keys fail extraction deterministically.
+      - [x] the entry count is based on the received PHP array, not a reconstructed header collection.
+    - [x] Injection carrier policy:
+      - [x] carriers with at most 128 entries follow the normal validation and mutation rules.
+      - [x] when carrier entry count exceeds 128, injection emits no new traceparent.
+      - [x] over-limit injection removes existing traceparent and tracestate fields using ASCII case-insensitive key comparison.
+      - [x] all unrelated carrier entries remain unchanged.
+      - [x] over-limit injection performs only a key-oriented removal pass; unrelated values are never inspected, normalized, reflected, serialized, or converted.
+      - [x] over-limit injection never returns a partially constructed tracing context.
+      - [x] no exception escapes because of the carrier size.
+      - [x] this over-limit rule is an explicit fail-closed exception to normal propagation and is covered by deterministic tests.
+    - [x] maximum traceparent candidate length: 512 bytes.
+    - [x] version-00 traceparent length must be exactly 55 bytes.
+    - [x] a traceparent carrier value may be a string or a list containing exactly one string.
+    - [x] an empty or multi-value traceparent list is invalid.
+    - [x] duplicate traceparent names, including ASCII case variants, are invalid.
+    - [x] malformed or oversized traceparent input returns [] on extraction.
+    - [x] Carrier contract boundary:
+      - [x] accepted carrier keys are strings.
+      - [x] Header-name matching:
+        - [x] recognize only exact ASCII case-insensitive names `traceparent` and `tracestate`.
+        - [x] compare header-name byte length before case-insensitive matching.
+        - [x] `traceparent` name length is exactly 11 ASCII bytes.
+        - [x] `tracestate` name length is exactly 10 ASCII bytes.
+        - [x] unrelated header names MUST NOT be lowercased, copied into temporary normalized maps, or scanned through an unbounded normalization pipeline.
+        - [x] long unrelated carrier keys remain caller-owned and unchanged.
+        - [x] matching is locale-independent and does not invoke Unicode normalization.
+        - [x] extract() and inject() MUST use equivalent tracing-header name matching semantics.
+      - [x] accepted carrier values are strings or lists of strings.
+      - [x] malformed traceparent values are rejected deterministically without implicit conversions, reflection, serialization, or Stringable::__toString().
+      - [x] unrelated fields within the accepted carrier shape are preserved byte-for-byte and in their existing PHP value structure.
+      - [x] unrelated fields are not semantically parsed, normalized, classified, or redacted by the tracing package.
+      - [x] malformed unrelated fields outside the ContextPropagationInterface carrier contract are transport-owner validation failures, not a new tracing normalization responsibility.
+      - [x] no general-purpose header validator, carrier serializer, or second transport normalization layer is introduced.
+    - [x] outbound tracing fields are subject to the documented fail-closed mutation policy.
+    - [x] numeric limits are package-owned fixed policy constants, not independently configurable runtime limits.
+    - [x] the exact policy and failure precedence are documented once in tracecontext.md.
+  - [x] tracestate policy:
+    - [x] tracestate is not parsed into the normalized extracted context.
+    - [x] this epic does not create, interpret, enrich, or serialize tracestate entries.
+    - [x] when an existing valid traceparent is propagated byte-identically, existing caller-owned tracestate MUST remain unchanged.
+    - [x] when traceparent is replaced or downgraded, existing tracestate handling follows the explicitly documented privacy-preserving removal policy.
+    - [x] invalid traceparent MUST NOT authorize forwarding associated tracestate as a newly accepted trace context.
+    - [x] unrelated carrier fields remain caller-owned and unchanged.
+    - [x] transport-layer validation of unrelated headers remains the responsibility of the transport owner.
+    - [x] full tracestate parsing, mutation, and vendor-specific semantics remain outside this epic.
+  - [x] no baggage support.
+  - [x] no raw header, opaque vendor value, Authorization, Cookie, token, credential, SQL, payload, or customer data is returned in context.
+  - [x] no exceptions caused by absent/malformed transport data or invalid carrier contents.
+  - [x] no output, logger, spans, metrics, exporter calls, or reset registrations.
+  - [x] no mutable process-lifetime or UnitOfWork-local state.
+  - [x] no duplicate generic normalization, serialization, redaction, or context storage layer.
+  - [x] deterministic results for identical inputs.
+
+Documentation:
+- [x] `packages/platform/tracing/README.md`
+  - [x] package identity, namespace, module id, dependencies, and exact supported public ports.
+  - [x] explain reuse of Foundation noop tracer/span/propagation.
+  - [x] explain that this package does not implement an active recording tracer.
+  - [x] provide an exact capability matrix:
+    - [x] Foundation noop tracer: supported.
+    - [x] W3C traceparent extraction/injection: supported when selected.
+    - [x] automatic trace/span ID creation: not supported.
+    - [x] recording spans and durations: not supported.
+    - [x] span sampling/exporting: not supported.
+    - [x] trace files, telemetry endpoint, or persistent storage: not supported.
+    - [x] Jaeger/Grafana Tempo integration: not supported.
+    - [x] automatic HTTP middleware integration: not supported.
+  - [x] explain that users cannot view trace history produced by this package.
+  - [x] include synthetic extract/inject examples with expected return values.
+  - [x] document the accepted carrier PHP shape defined by ContextPropagationInterface.
+  - [x] distinguish malformed traceparent handling from transport-owned validation of unrelated carrier fields.
+  - [x] demonstrate preservation of unrelated contract-valid carrier fields without implicit type conversion.
+  - [x] explain that logging correlation_id and W3C trace_id are separate identities.
+  - [x] explain the future recording/exporting integration boundary without claiming that it is implemented.
+  - [x] document explicit module selection and target-local provider binding.
+  - [x] document direct `ContextPropagationInterface → W3cTraceContextPropagation` binding when `platform.tracing` is selected.
+  - [x] document Foundation `NoopContextPropagation` fallback when the module is absent and the absence of a runtime propagation-mode selector.
+  - [x] document W3C sampled and random-trace-id flags with synthetic `00|01|02|03` examples.
+  - [x] explain that version-00 headers with nonzero reserved trace-flags are rejected under the Coretsia strict ingress policy.
+  - [x] explain that forward-version downgrade follows a separate documented compatibility policy.
+  - [x] document same-carrier sampled/random flag mutation restrictions and caller-owned cross-carrier identity continuity.
+  - [x] document traceparent-only scope and excluded tracestate/baggage.
+  - [x] explicitly document that extract(incomingCarrier) followed by inject(outboundCarrier, context) does not transfer tracestate between separate carriers.
+  - [x] explain that tracestate can remain unchanged only when it is already present in the carrier passed to inject() and traceparent remains byte-identical.
+  - [x] full cross-carrier tracestate propagation requires a separately approved transport/security boundary; this package MUST NOT introduce an implicit raw-header store.
+  - [x] document carrier/context examples using synthetic IDs only.
+  - [x] document the difference between W3C trace_id and Kernel correlation_id/uow_id.
+  - [x] document that full HTTP middleware integration belongs to platform/http.
+  - [x] include canonical `## Observability`, `## Errors`, and `## Security / Redaction` sections.
+  - [x] the Security / Redaction section documents raw traceparent/tracestate handling, carrier validation, diagnostic disclosure restrictions, and fail-closed behavior.
+  - [x] refer to the unmodified canonical SECURITY.md for vulnerability reporting.
+  - [x] no misleading claims about exporter pipelines, sampled spans, tracing metrics, or automatic cross-process trace continuity.
+  - [x] references docs/ssot/tracecontext.md as normative policy.
+
+- [x] `docs/adr/ADR-0038-platform-tracing-w3c-propagation.md`
+  - [x] ADR version 1 and platform/tracing ownership.
+  - [x] record reuse of Foundation noop ports instead of new DefaultTracer/DefaultSpan.
+  - [x] record the only new runtime binding: `ContextPropagationInterface → W3cTraceContextPropagation` when the module is selected.
+  - [x] record rejection of a redundant `w3c|noop` configuration selector and `TracingServiceFactory` in favor of ModulePlan selection.
+  - [x] record explicit module selection and source/compiled parity.
+  - [x] record traceparent-only baseline and its limitations.
+  - [x] record no ContextStore ownership, trace-id generation, sampler, exporter, spans, metrics, or reset service.
+  - [x] record security/failure isolation and future platform/http ownership.
+  - [x] record why the full tracestate policy is deferred.
+  - [x] explicitly evaluate why Foundation noop implementations are reused.
+  - [x] document the value of transport-neutral propagation without an active recording backend.
+  - [x] record the limitation that no production consumer exists until a transport owner integrates the port.
+  - [x] record that no trace viewer or persisted tracing output is delivered.
+  - [x] distinguish W3C traceparent-only support from full W3C tracecontext support.
+  - [x] define pass-through behavior and the conditions under which tracestate can be removed.
+  - [x] record why local span identity and trace generation are deferred.
+
+- [x] `docs/ssot/tracecontext.md`
+  - [x] canonical SSoT header, ssotVersion = 1, owner = platform/tracing.
+  - [x] exact scope and non-goals.
+  - [x] exact ContextPropagationInterface methods and carrier/context shapes.
+  - [x] exact three-key extracted context schema.
+  - [x] exact PHP types, allowed fields, required keys, and insertion-order independence.
+  - [x] distinguish the existing typed carrier contract from defensive malformed traceparent parsing.
+  - [x] define transport-owner responsibility for unrelated out-of-contract carrier fields.
+  - [x] require preservation of contract-valid unrelated carrier fields without semantic inspection.
+  - [x] forbid package-local general-purpose carrier validation or normalization.
+  - [x] exact version-00 and forward-version parsing behavior.
+  - [x] exact trace-flags sampled-bit interpretation and canonical output policy.
+  - [x] explicitly lock the W3C Trace Context Level 2 sampled and random-trace-id bit semantics.
+  - [x] define supported bits `0x01|0x02`, normalization mask `0x03`, and normalized values `00|01|02|03`.
+  - [x] require random-trace-id flag preservation when the same trace_id is propagated.
+  - [x] forbid inferring actual trace-id entropy or randomness from the flag.
+  - [x] define reserved-bit clearing and associated traceparent/tracestate mutation behavior.
+  - [x] define the strict version-00 reserved-bit ingress rejection policy.
+  - [x] distinguish rejected version-00 reserved flags from accepted forward-version downgrades.
+  - [x] forbid implicit version-00 flag rewriting without an authorized W3C mutation.
+  - [x] specify same-carrier trace_id, parent_id, sampled-bit, and random-trace-id mutation checks.
+  - [x] explicitly document the limitation that independent-carrier context provenance cannot be established by this stateless propagator.
+  - [x] define the exact fail-closed result when a prohibited flag mutation is detected.
+  - [x] exact distinction between upstream parent-id and a locally generated span-id.
+  - [x] exact pass-through versus mutation behavior for traceparent and tracestate.
+  - [x] exact handling of duplicate headers, list-valued carriers, and conflicting case-insensitive names.
+  - [x] explicit policy for unrelated caller-owned carrier fields.
+  - [x] explicit statement that Foundation noop propagation is not a sanitization boundary.
+  - [x] document the direct W3C binding for a selected module, the Foundation noop fallback for an unselected module, and absence of a configurable propagation-mode selector.
+  - [x] explicit statement that this SSoT does not define recording, exporting, sampling, or persisted trace history.
+  - [x] exact traceparent version, hexadecimal, separator, nonzero-ID, and flags validation.
+  - [x] exact behavior for unknown/forward versions.
+  - [x] exact duplicate, case-insensitive, missing, malformed, invalid-type, and oversized header behavior.
+  - [x] exact injection behavior when a carrier already contains invalid or duplicate traceparent fields.
+  - [x] exact single-string and single-string-list traceparent equivalence.
+  - [x] exact tracing-field removal behavior for invalid existing carrier context.
+  - [x] exact bounded ASCII header-name matching policy for traceparent and tracestate.
+  - [x] prohibit unbounded normalization of unrelated carrier header names.
+  - [x] exact bounded carrier/list handling and deterministic precedence.
+  - [x] document the exact package-owned carrier entry and traceparent byte limits.
+  - [x] define failure precedence for oversized carrier, duplicates, malformed values, invalid version, and invalid identifiers.
+  - [x] distinguish tracing-field validation from validation of unrelated caller-owned carrier fields.
+  - [x] exact invalid extraction and invalid injection behavior.
+  - [x] exact treatment of pre-existing traceparent/tracestate on injection.
+  - [x] explicitly distinguish same-carrier tracestate preservation from cross-carrier propagation.
+  - [x] document that the three-field normalized context cannot independently transport opaque tracestate values.
+  - [x] do not claim complete W3C Trace Context forwarding compliance for the traceparent-only baseline.
+  - [x] leave full tracestate forwarding, validation, and privacy policy to an explicitly approved future transport integration.
+  - [x] no raw-header disclosure or unchecked opaque vendor state.
+  - [x] explicit non-support of tracestate and baggage in this baseline.
+  - [x] explicit separation of W3C trace identity from Kernel correlation/UoW identity.
+  - [x] no implicit ContextStore write or active-span mutation.
+  - [x] no hidden runtime state, reset tag, span, metric, or logging side effect.
+  - [x] no-throw propagation failures without suppressing primary business exceptions.
+  - [x] deterministic canonical fixtures, invalid-input matrix, and exact safety acceptance criteria.
+  - [x] references W3C Trace Context specification and existing Coretsia observability/security policies.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/tracecontext.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-tracing-metrics-w3c-propagation.md`
+- [x] `tools/build/new-package.php`
+  - [x] Extend the existing NewPackage generator; MUST NOT create a second package generator, Composer metadata registry, or template pipeline.
+  - [x] Preserve the existing required CLI arguments:
+    - [x] `--layer`
+    - [x] `--slug`
+    - [x] `--kind`
+  - [x] Preserve the existing optional CLI argument:
+    - [x] `--repo-root`
+  - [x] When --repo-root is omitted, preserve the existing RepositoryContext discovery behavior.
+  - [x] New metadata arguments MUST NOT change repository-root resolution.
+  - [x] Add optional CLI arguments:
+    - [x] `--description=<text>`
+    - [x] `--keywords=<comma-separated-tokens>`
+  - [x] Metadata argument parsing:
+    - [x] Preserve raw values of --description and --keywords until their validation is complete.
+    - [x] Validate raw metadata values before applying any whitespace normalization.
+    - [x] Apply deterministic fallback only when --description or --keywords is omitted.
+    - [x] Reject explicitly empty --description and --keywords values consistently.
+    - [x] Do not trim or normalize raw metadata values to make invalid input acceptable.
+    - [x] Reject leading/trailing whitespace in --description.
+    - [x] Reject leading/trailing whitespace in --keywords and individual keyword tokens.
+    - [x] Reject empty keyword entries and embedded control bytes.
+    - [x] Preserve existing trim/parse behavior for --layer, --slug, --kind, and --repo-root.
+    - [x] Support both existing CLI forms: --key=value and --key value.
+    - [x] Do not introduce a second CLI argument parser or metadata normalization pipeline.
+    - [x] Invalid metadata MUST fail through CORETSIA_NEW_PACKAGE_FAILED before package commit.
+  - [x] Preserve backward compatibility with existing package:new invocations.
+  - [x] Description:
+    - [x] explicit description is used verbatim after validation.
+    - [x] absent description produces a deterministic neutral description derived from layer, slug, and kind.
+    - [x] reject empty, multiline, control-byte, surrounding-whitespace, or oversized descriptions.
+    - [x] maximum accepted description length: 240 bytes.
+    - [x] do not infer implementation features or capabilities from package names.
+  - [x] Keywords:
+    - [x] `--keywords` remains an optional CLI argument.
+    - [x] the generated composer.json MUST always contain a nonempty `keywords` property.
+    - [x] when `--keywords` is omitted, generate exactly `[coretsia, php, framework]` in canonical order.
+    - [x] explicitly empty `--keywords` values MUST fail validation rather than activate fallback.
+    - [x] when supplied, parse comma-separated keyword tokens in caller-provided order.
+    - [x] allowed grammar: lowercase ASCII kebab-case tokens with single hyphen separators.
+    - [x] numeric components are allowed, including `psr-11`, `data-transfer-object`, and `unit-of-work`.
+    - [x] reject empty or malformed keyword tokens.
+    - [x] reject repeated hyphens, leading/trailing hyphens, underscores, uppercase letters, and invalid separators.
+    - [x] reject leading/trailing whitespace and control bytes.
+    - [x] reject whitespace surrounding individual keyword tokens without trimming or normalization.
+    - [x] remove duplicate supplied values while preserving first occurrence.
+    - [x] maximum resulting keyword count: 24.
+    - [x] explicit keyword values MUST replace, not merge with, the canonical baseline.
+    - [x] no layer, slug, kind, or implementation capability keywords are inferred automatically.
+    - [x] root Composer keywords MUST NOT be inherited.
+    - [x] output remains a deterministic JSON list.
+    - [x] no package-specific keyword registry, classifier, or automatic keyword discovery is introduced.
+  - [x] Shared metadata:
+    - [x] read repository-root composer.json through the existing ComposerJson utility.
+    - [x] inherit only canonical `authors`, `homepage`, `support`, and `config.platform.php`.
+    - [x] reject absent or structurally invalid required shared metadata before committing a new package.
+    - [x] do not inherit root package name, type, require, require-dev, autoload, scripts, or distribution-specific metadata.
+    - [x] preserve generated package-local name, type, PSR-4, and extra.coretsia identity.
+    - [x] preserve `config.sort-packages = true`.
+  - [x] Composer dependency ownership:
+    - [x] keep generated `require.php = ^8.4`.
+    - [x] do not infer extensions, PSR dependencies, package dependencies, or module requirements from layer/slug/kind.
+    - [x] do not create implicit Kernel or platform package dependencies.
+    - [x] package-specific requirements remain explicit implementation deliverables.
+  - [x] Serialization:
+    - [x] reuse ComposerJson::encodeCanonical().
+    - [x] preserve UTF-8, LF-only, final newline, 2-space indentation, and deterministic key/list ordering.
+    - [x] no new JSON encoder, serializer, filesystem writer, or manifest normalization pipeline.
+  - [x] Failure isolation:
+    - [x] validate new arguments and inherited metadata before final package commit.
+    - [x] preserve atomic staging/commit behavior.
+    - [x] on invalid arguments or metadata, fail through the existing CORETSIA_NEW_PACKAGE_FAILED boundary.
+    - [x] no partially created package directory or leaked staging state.
+    - [x] no raw malformed input or sensitive metadata values in diagnostics.
+  - [x] Context/UoW: N/A; repository tooling only.
+  - [x] Spans/metrics/logs: N/A; preserve existing deterministic CLI output behavior.
+  - [x] Reset: N/A; no process-lifetime state or runtime service registration.
+  - [x] Verification: existing atomic-creation tests plus new metadata-generation cases MUST pass.
 
-#### Package skeleton (if type=package)
+- [x] `tools/tests/Integration/NewPackageAtomicCreationTest.php`
+  - [x] Extend the existing integration test class; do not create a second package-new test harness.
+  - [x] Update the sandbox root composer.json fixture with canonical authors, homepage, support, and config.platform.php metadata.
+  - [x] Test existing required-only CLI invocation remains successful.
+  - [x] Test deterministic neutral default description when --description is omitted.
+  - [x] Test that omitting --keywords generates exactly `[coretsia, php, framework]`.
+  - [x] Test that the canonical baseline is generated identically for library and runtime packages.
+  - [x] Test that default keywords do not inherit root Composer keywords or infer layer, slug, kind, or implementation capabilities.
+  - [x] Test that explicitly empty --description and --keywords values are rejected in both CLI argument forms.
+  - [x] Test that explicit keywords replace the baseline without implicit merging.
+  - [x] Test valid hyphenated keywords, including `psr-11`, `data-transfer-object`, and `unit-of-work`.
+  - [x] Test that malformed hyphenation and whitespace are rejected without normalization.
+  - [x] Test exact tracing keyword order, deduplication, and absence of unsupported capabilities.
+  - [x] Test explicit description and keywords are correctly generated.
+  - [x] Test inherited authors, homepage, support, and PHP platform match the sandbox root composer metadata.
+  - [x] Test generated package name, type, autoload, autoload-dev, and extra.coretsia remain correct.
+  - [x] Test library and runtime package generation independently.
+  - [x] Test keyword deduplication and stable ordering.
+  - [x] Test empty, malformed, and oversized metadata values are rejected.
+  - [x] Test repeated --description or --keywords CLI options are rejected.
+  - [x] Test duplicate keyword values within a single --keywords argument are deduplicated while preserving first-occurrence order.
+  - [x] Test that explicitly supplied keywords appear exactly once after deduplication and no additional keywords are generated.
+  - [x] Test leading/trailing whitespace in raw --description is rejected.
+  - [x] Test leading/trailing whitespace in raw --keywords and individual tokens is rejected.
+  - [x] Test both --key=value and --key value metadata argument forms.
+  - [x] Test invalid raw metadata does not create a package or leave staging artifacts.
+  - [x] Test missing or malformed canonical root metadata fails without final package creation.
+  - [x] Test no partially committed package or staging directory remains on failure.
+  - [x] Test generated composer.json retains LF-only encoding, final newline, and canonical JSON formatting.
+  - [x] Test package-scaffold --check remains green.
+  - [x] Preserve the existing missing-scaffold, existing-target, and atomic-failure regression tests.
+  - [x] Context/UoW: N/A.
+  - [x] Spans/metrics/logs: N/A; test only process output and generator results.
+  - [x] Reset: N/A; test fixture isolation and cleanup remain canonical.
+  - [x] Security: no secrets or raw invalid metadata emitted in failed command diagnostics.
 
-- [ ] `packages/platform/tracing/composer.json`
-- [ ] `packages/platform/tracing/src/Module/TracingModule.php`
-- [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php`
-- [ ] `packages/platform/tracing/config/tracing.php`
-- [ ] `packages/platform/tracing/config/rules.php`
-- [ ] `packages/platform/tracing/README.md`
-- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `docs/architecture/PACKAGING.md`
+  - [x] Extend section `9) Composer package metadata (MUST)` with the canonical new-package generation policy.
+  - [x] State that new layered packages inherit shared authors, homepage, support, and PHP platform metadata from repository-root composer.json.
+  - [x] State that the root composer.json is the development workspace metadata source for these fields, not a publishable package.
+  - [x] Document deterministic neutral default description generation.
+  - [x] Document that generated Composer keywords are always present as a nonempty deterministic JSON list.
+  - [x] Document the canonical fallback `[coretsia, php, framework]` when --keywords is omitted.
+  - [x] Document that explicitly empty --description and --keywords values fail validation.
+  - [x] Document that explicitly supplied keywords replace the baseline without implicit merging.
+  - [x] Document that no layer, slug, kind, or implementation capability keywords are inferred.
+  - [x] Document lowercase ASCII kebab-case grammar, including numeric components and single hyphen separators.
+  - [x] Document strict raw metadata validation without whitespace normalization.
+  - [x] Document validated keyword ordering, deduplication, and resource limits.
+  - [x] Document optional --description and --keywords arguments.
+  - [x] Document validation and atomic failure behavior for invalid metadata.
+  - [x] State that package-specific Composer requirements, extensions, PSR dependencies, and extra.coretsia.requires MUST remain explicitly defined.
+  - [x] Preserve the existing package identity, namespace, legal-file, module, and config-root rules.
+  - [x] No second metadata registry, configuration root, manifest owner, or package discovery mechanism.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; documentation-only change.
+  - [x] Verification: generated package metadata and package-scaffold contract tests remain green.
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add exactly one materialized package row for `platform/tracing`.
+  - [x] direct production source dependencies: `core/contracts, core/foundation`.
+  - [x] preserve strcmp package-id row ordering.
+  - [x] no speculative platform/http, redaction, logging, metrics, or vendor SDK source dependencies.
+  - [x] generated Deptrac policy MUST consume this row without a parallel allowlist.
+
+- [x] `composer.json`
+  - [x] register `coretsia/platform-tracing: 0.11.x-dev` under require-dev for the current monorepo workspace baseline.
+  - [x] synchronize the managed path repository entry using existing repository tooling.
+  - [x] MUST NOT hand-maintain a competing workspace repository catalog.
+  - [x] preserve deterministic repository ordering and existing package references.
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `docs/ssot/tracecontext.md` exactly once.
+  - [x] use canonical title, owner, ssotVersion, and scope formatting.
+  - [x] preserve strcmp ordering and no-forward-reference policy.
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register `docs/adr/ADR-0038-platform-tracing-w3c-propagation.md` exactly once.
+  - [x] use canonical title, owner, adrVersion, and scope formatting.
+  - [x] preserve strcmp ordering and no-forward-reference policy.
+
+Generated artifacts:
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate through the existing package-index generator.
+  - [x] MUST NOT edit the generated table manually.
+
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate through the existing Deptrac generator.
+  - [x] MUST NOT add manually maintained exceptions or duplicated layer policy.
+
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through the existing installation-catalog generator.
+  - [x] preserve generated schema and existing Kernel ownership.
+  - [x] MUST NOT introduce a tracing-owned installation catalog.
+
+Generation and verification:
+- [x] Generate workspace Composer repositories using the canonical sync tool.
+- [x] Generate the package index using `composer arch:package-index:generate`.
+- [x] Generate Deptrac configuration using `composer arch:deptrac:generate`.
+- [x] Verify that the existing `tools/testing/deptrac.allowlist.yaml` remains unchanged and does not exclude production tracing sources.
+- [x] Do not regenerate or modify the canonical Deptrac allowlist solely because `platform/tracing` is added.
+- [x] Generate the installation catalog using `composer arch:installation-catalog:generate`.
+- [x] Preserve the distinction between missing Composer bootstrap autoload and a genuine installation-catalog generation failure.
+- [x] Do not claim installation-catalog verification is green until the required bootstrap environment exists and the check succeeds.
+- [x] Do not edit generator-owned outputs by hand.
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/tracing/config/tracing.php`
-- [ ] Keys (dot):
-  - [ ] `tracing.enabled` = true
-  - [ ] `tracing.sampling.mode` = 'always_off'
-  - [ ] `tracing.exporter` = 'null'
-- [ ] Rules:
-  - [ ] `packages/platform/tracing/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/tracing/config/tracing.php`
+  - [x] `packages/platform/tracing/config/rules.php`
+- [x] Root:
+  - [x] `tracing` — existing reserved package-owned root.
+- [x] Baseline defaults:
+  - [x] `config/tracing.php` returns exactly `[]`.
+  - [x] `config/rules.php` defines `schemaVersion = 1`, `configRoot = tracing`, `additionalKeys = false`, and `keys = []`.
+- [x] No keys for:
+  - [x] `propagation.mode` or any `w3c|noop` selector.
+  - [x] enabled/disabled module switches.
+  - [x] sampling, exporter, or tracer runtime selection.
+  - [x] ContextStore, trace/span identity persistence, or span buffers.
+  - [x] metrics/export instrumentation.
+- [x] Rules:
+  - [x] unknown config keys are rejected by the existing Kernel ConfigValidator.
+  - [x] no custom validator, executable rules, or runtime configuration factory.
+  - [x] no automatic modification of Phase A appEnv, preset, or ModulePlan.
 
 #### Wiring / DI tags (when applicable)
 
-- Tags introduced (this epic is the OWNER):
-  - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] binds:
-    - [ ] `TracerPortInterface` → `DefaultTracer`
-    - [ ] `ContextPropagationInterface` → `W3cTraceContextPropagation`
-    - [ ] `SpanExporterInterface` → `NullSpanExporter`
-    - [ ] `SamplerInterface` → `AlwaysOffSampler`
+- Tags introduced:
+  - N/A.
+- [x] ServiceProvider wiring:
+  - [x] selected `platform.tracing` binds `ContextPropagationInterface` directly to `W3cTraceContextPropagation` through the existing declarative `classService()` API.
+  - [x] unselected `platform.tracing` retains Foundation `ContextPropagationInterface → NoopContextPropagation`.
+  - [x] no `TracingServiceFactory`, `ConfigRepositoryInterface`, `ContainerValueReference`, runtime selector, or alternate DI path.
+  - [x] Foundation NoopContextPropagation::extract() returns [].
+  - [x] Foundation NoopContextPropagation::inject() returns the original carrier unchanged.
+  - [x] Foundation noop fallback is not a header sanitizer and MUST NOT be described as removing malformed trace headers.
+  - [x] no transport parsing, validation, or security normalization is performed by the Foundation noop implementation.
+  - [x] Foundation `TracerPortInterface` remains unchanged.
+  - [x] Foundation `NoopSpan` remains unchanged.
+  - [x] source/compiled binding parity MUST hold.
+  - [x] target-local ModulePlan selection controls whether provider participates.
+  - [x] no new tags, aliases, reset services, or alternate container paths.
 
 #### Artifacts / outputs (if applicable)
 
@@ -4524,75 +5175,288 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID` (span/log only; never metric label)
-- Context writes (safe only):
-  - N/A
-- [ ] Reset discipline:
-  - [ ] noop tracer is stateless
+- Context reads:
+  - N/A. No implicit ContextAccessorInterface read.
+- Context writes:
+  - N/A. No ContextStore write.
+- [x] Trace context:
+  - [x] extracted W3C IDs are local values returned from extract().
+  - [x] W3C trace_id is not Kernel correlation_id.
+  - [x] W3C parent_id is not Kernel uow_id.
+  - [x] no implicit correlation identity conversion.
+  - [x] no synthetic context generation when source context is absent.
+- [x] Reset discipline:
+  - [x] W3cTraceContextPropagation is stateless.
+  - [x] no request-local or UnitOfWork-local mutable state.
+  - [x] no active span registry or stack.
+  - [x] no kernel.reset service registration.
+  - [x] no cross-UnitOfWork state retention.
+  - [x] repeated calls are deterministic and independent.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `tracing.noop` (debug-only; optional)
-- [ ] Metrics:
-  - [ ] `tracing.export_total` (labels: `outcome=skipped|ok|fail`)
-  - [ ] `tracing.export_duration_ms` (labels: `outcome`)
-- [ ] Logs:
-  - [ ] never log trace headers or raw payloads; only safe meta + hashes/len
+- [x] Spans:
+  - N/A.
+  - [x] existing Foundation NoopTracer emits no recording spans.
+  - [x] propagation helpers MUST NOT create a tracing.noop span.
+- [x] Metrics:
+  - N/A.
+  - [x] no tracing.export_total.
+  - [x] no tracing.export_duration_ms.
+  - [x] no exporter lifecycle is introduced.
+  - [x] no new metric name or label is introduced.
+  - [x] trace_id, span_id, parent_id, and correlation_id MUST NOT become metric labels.
+- [x] Logs:
+  - N/A.
+  - [x] propagation helpers emit no log records.
+  - [x] raw traceparent, tracestate, baggage, and carrier contents MUST NOT reach logging sinks.
+  - [x] no warn-only logger dependency is introduced.
+- [x] Observability failures:
+  - [x] no recursive self-instrumentation.
+  - [x] no observability failure may replace a primary operation result or exception.
 
 #### Errors
 
-- Exceptions introduced:
-  - N/A (normative: W3C extract/inject MUST be no-throw; invalid headers → ignore + deterministic outcome)
-- [ ] Mapping:
-  - [ ] prefer noop/skip over throwing (all phases)
+- New exception classes:
+  - N/A.
+- [x] Existing failure policy:
+  - [x] No configuration-selector exception is introduced by this baseline.
+  - [x] No exception for absent, malformed, conflicting, or oversized propagation carrier data.
+  - [x] No propagation failure may replace a primary application exception.
+- [x] Propagation:
+  - [x] absent, malformed, conflicting, oversized, or invalid traceparent field data MUST NOT throw.
+  - [x] invalid traceparent field types MUST NOT trigger implicit conversions or application exceptions.
+  - [x] the existing ContextPropagationInterface carrier shape remains a caller precondition.
+  - [x] unrelated malformed transport fields outside that contract are not interpreted or normalized by platform/tracing.
+  - [x] no propagation parsing failure may replace a primary application exception.
+  - [x] invalid extraction returns an empty safe context.
+  - [x] W3cTraceContextPropagation invalid injection follows the fail-closed traceparent/tracestate mutation policy without introducing unvalidated tracing fields.
+  - [x] Foundation noop fallback for an unselected module preserves its existing pass-through contract and is not subject to W3C sanitizer behavior.
+  - [x] no raw input value, raw header, source path, or previous Throwable enters diagnostics.
+  - [x] programming/type-boundary failures are not represented as transport parsing results.
+- [x] Existing tracer contract:
+  - [x] inSpan() MUST preserve and rethrow the original callback Throwable.
+  - [x] no-throw tracing infrastructure MUST NOT swallow primary application exceptions.
+  - [x] callback exception precedence remains governed by TracerPortInterface.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/session id/tokens/raw SQL/payload
-  - [ ] trace headers in logs (raw)
-- [ ] Allowed:
-  - [ ] safe ids in span/log fields, `hash/len`
+- [x] No raw trace headers, opaque vendor state, Authorization, Cookie, tokens, credentials, session ids, SQL, payloads, or private customer data may enter exported context.
+- [x] Extracted traceparent components MUST be structurally validated before becoming public normalized context.
+- [x] No unchecked string can become a span name, span attribute, metric label, or logger context field.
+- [x] No raw carrier map or arbitrary nested structure may be returned from extract().
+- [x] tracestate and baggage are never exported as normalized trace context; existing caller-owned carrier values are handled according to the explicit W3C pass-through and mutation policy.
+- [x] The implementation MUST NOT introduce its own redactor, sensitive-key classifier, hash engine, serializer, or security policy registry.
+- [x] Shared SensitiveDataRedactorInterface remains available for future tracing sinks, but is not consumed without a concrete eligible sink in this epic.
+- [x] Any future use of redacted summaries in spans remains subject to owner-specific sink schemas; redaction does not automatically make arbitrary attributes admissible.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist →
-  - [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+- Context writes:
+  - N/A; verify absence of ContextStore writes and new ContextKeys.
+- Reset:
+  - N/A; verify absence of reset tags, ResetInterface implementations, and request-local mutable state.
+- Spans:
+  - N/A; verify the existing Foundation noop tracer is preserved and no new spans are emitted.
+- Metrics:
+  - N/A; verify no runtime metric names, labels, or catalog entries are introduced.
+- Logs:
+  - N/A; verify no log emission or raw diagnostic output from propagation.
+- [x] Dependency boundaries:
+  - [x] verify only core/contracts and core/foundation production source imports.
+  - [x] verify no duplicate tracing, ContextStore, exporter, sampler, or redaction implementations.
+- [x] Propagation:
+  - [x] verify exact deterministic W3C traceparent fixtures.
+  - [x] verify malformed carrier fail-closed behavior.
+  - [x] verify no unvalidated input reaches returned context or output carrier.
+- [x] Module/DI:
+  - [x] verify Foundation noop fallback.
+  - [x] verify explicit module selection.
+  - [x] verify selected-module W3C binding and unselected-module Foundation noop fallback without a runtime mode selector.
+  - [x] verify source/compiled parity.
+- [x] Packaging:
+  - [x] verify canonical legal files, Composer metadata, package index, installation catalog, dependency matrix, and generated architecture gates.
 
 #### Test harness / fixtures (when integration is needed)
 
-- N/A (integration tests use minimal middleware harness)
+- [x] Use deterministic synthetic carrier fixtures only.
+- [x] No concrete HTTP middleware is introduced.
+- [x] No real network, clock, filesystem, tracer backend, exporter, or active Kernel UoW is needed for propagation unit tests.
+- [x] Source/compiled DI tests reuse existing Kernel/Foundation test infrastructure.
+- [x] Production platform/http integration is explicitly deferred.
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
+  - [x] `packages/platform/tracing/tests/Unit/W3cPropagationExtractInjectDeterministicTest.php`
+    - [x] valid traceparent fixtures, malformed version/separators/hex/length cases.
+    - [x] all-zero trace-id and parent-id rejection.
+    - [x] duplicate/case-varied headers and list-valued carrier handling.
+    - [x] injection replacement, invalid-context fail-closed behavior, unrelated carrier preservation.
+    - [x] forward-version policy and bounded-input checks.
+    - [x] extract() returns only the three normalized context fields and never exposes raw traceparent or tracestate values.
+    - [x] inject() emits a canonical traceparent only through its returned carrier, as explicitly required by the propagation contract.
+    - [x] existing tracestate is preserved only under the documented byte-identical traceparent pass-through policy.
+    - [x] neither method emits raw-header diagnostics, logs, metrics, spans, or other output.
+    - [x] absent traceparent returns [] without throwing.
+    - [x] invalid traceparent value types, including object, resource, integer, bool, and malformed lists, are rejected without throwing or implicit conversion.
+    - [x] unrelated carrier fields containing contract-valid strings and lists of strings remain unchanged.
+    - [x] extraction with invalid carrier key types fails deterministically.
+    - [x] tests distinguish malformed tracing-field input from carrier shapes outside the existing ContextPropagationInterface contract.
+    - [x] no test simultaneously requires preserving an out-of-contract unrelated value and returning a contract-valid carrier.
+    - [x] associative context key ordering does not change valid injection.
+    - [x] duplicate traceparent header names differing only by ASCII case fail deterministically.
+    - [x] inject() with valid context rejects duplicate existing traceparent headers.
+    - [x] inject() with valid context rejects malformed existing traceparent values.
+    - [x] inject() with valid context rejects invalid existing traceparent lists.
+    - [x] invalid existing traceparent removes traceparent and tracestate without removing unrelated fields.
+    - [x] absent existing traceparent permits injection from independently validated normalized context.
+    - [x] a single-string-list traceparent is validated identically to its string representation.
+    - [x] byte-identical traceparent values preserve existing tracestate for both accepted input representations.
+    - [x] traceparent replacement removes existing tracestate.
+    - [x] long unrelated header names do not trigger unbounded normalization.
+    - [x] ASCII case-insensitive header matching is independent of locale.
+    - [x] no Stringable, reflection, serialization, or Unicode conversion is invoked during header-name matching.
+    - [x] version ff is rejected.
+    - [x] version 00 length and separator boundaries are exact.
+    - [x] higher-version fields follow the documented W3C forward-compatibility policy.
+    - [x] sampled flag is interpreted by bit masking.
+    - [x] trace_flags `00`, `01`, `02`, and `03` are extracted without losing supported bits.
+    - [x] input trace_flags `03` extracts normalized `03`, not `01`.
+    - [x] input trace_flags `02` extracts normalized `02`, not `00`.
+    - [x] unsupported flag bits are cleared only when constructing an accepted forward-version downgrade; version-00 input with reserved bits is rejected without normalization.
+    - [x] same-trace-id injection preserves the random-trace-id bit.
+    - [x] outgoing traceparent with flags `03` preserves canonical byte identity when the incoming header is otherwise unchanged.
+    - [x] injection rejects unsupported normalized trace_flags values.
+    - [x] version-00 trace_flags `04`, `05`, `80`, and `ff` are rejected by the strict ingress policy.
+    - [x] rejected version-00 reserved bits are never silently converted into a different version-00 traceparent.
+    - [x] accepted forward-version traceparent with unsupported flag bits follows the explicit downgrade policy.
+    - [x] unchanged trace_id with changed random-trace-id bit is rejected during same-carrier injection.
+    - [x] unchanged parent_id with changed sampled bit is rejected during same-carrier injection.
+    - [x] changed parent_id with an explicitly supplied valid context follows the documented caller-owned identity policy.
+    - [x] invalid flag mutations do not preserve an unvalidated tracestate value.
+    - [x] identical traceparent propagation preserves existing tracestate.
+    - [x] replaced or downgraded traceparent follows the defined tracestate removal policy.
+    - [x] unrelated carrier fields remain unchanged.
+    - [x] no Stringable::__toString() is invoked to interpret invalid input.
+    - [x] no trace/span/correlation ID is generated.
+    - [x] exactly 128 carrier entries are accepted for extraction.
+    - [x] 129 carrier entries return [] on extraction.
+    - [x] over-limit injection strips traceparent and tracestate without removing unrelated fields.
+    - [x] over-limit injection never emits a new traceparent, even with otherwise valid context.
+    - [x] traceparent appearing after the 128th carrier entry cannot bypass the over-limit policy.
+    - [x] missing/default empty context causes no tracing-field injection.
+    - [x] inject([], []) returns [].
+    - [x] malformed carrier entry types never trigger implicit scalar conversion.
+
 - Contract:
-  - [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
-  - [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
-  - [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
+    - [x] test ContextPropagationInterface shape and canonical output.
+    - [x] verify repeated calls with the same inputs produce identical results.
+    - [x] verify no implicit id generation or ContextStore access.
+    - [x] verify unsupported/invalid data follows the documented deterministic policy.
+
+  - [x] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] replace scaffold placeholder assertion with executable behavior checks.
+    - [x] verify Foundation noop tracer/span behavior and absence of instrumentation side effects.
+    - [x] verify repeated span end remains harmless.
+    - [x] verify callback exceptions remain observable and are not swallowed.
+    - [x] verify no new tracing state/reset dependency exists.
+
+  - [x] `packages/platform/tracing/tests/Contract/TracingConfigRulesContractTest.php`
+    - [x] `config/tracing.php` returns exactly `[]`.
+    - [x] exact ruleset shape: schemaVersion = 1, configRoot = tracing, additionalKeys = false, keys = [].
+    - [x] unknown config keys, including `propagation` and `propagation.mode`, are rejected by the existing Kernel ConfigValidator.
+    - [x] verify package-owned defaultsConfigPath and registered tracing root.
+    - [x] verify no `w3c|noop` selector or configuration factory exists.
+
+  - [x] `packages/platform/tracing/tests/Contract/TracingModuleMetadataContractTest.php`
+    - [x] exact module id, package identity, provider list, runtime requirements, and Composer metadata parity.
+
+  - [x] `packages/platform/tracing/tests/Contract/TracingBoundaryNoForbiddenDependenciesContractTest.php`
+    - [x] no forbidden production imports.
+    - [x] no platform-local NoopTracer/NoopSpan.
+    - [x] no ContextStore, KernelRuntime, HTTP middleware, exporter, sampler, logging, meter, or redaction implementation dependency.
+    - [x] no ContextAccessorInterface or CorrelationIdProviderInterface constructor dependency in W3cTraceContextPropagation.
+    - [x] no ContextStore reads, writes, snapshot exports, or reset registration.
+    - [x] no implicit conversion between W3C trace_id, parent_id, Kernel correlation_id, request_id, or uow_id.
+    - [x] Foundation remains the owner of noop tracing and UoW-local context reset.
+    - [x] selected and unselected tracing modules preserve Kernel lifecycle ownership.
+
 - Integration:
-  - [ ] `packages/platform/tracing/tests/Integration/W3cPropagationMissingHeadersNoThrowTest.php`
+  - [x] `packages/platform/tracing/tests/Integration/TracingModuleSelectionAndFallbackTest.php`
+    - [x] unselected module retains Foundation `ContextPropagationInterface → NoopContextPropagation`.
+    - [x] explicitly selected `platform.tracing` resolves `ContextPropagationInterface → W3cTraceContextPropagation` without reading runtime config.
+    - [x] no `w3c|noop` mode or service-factory selector is introduced.
+    - [x] TracerPortInterface remains the existing Foundation binding.
+    - [x] no unexpected services, tags, or reset registrations.
+
+  - [x] `packages/platform/tracing/tests/Integration/TracingProviderSourceCompiledParityTest.php`
+    - [x] verify declarative provider definition parity across available source and compiled-container integration harnesses.
+    - [x] verify exactly one direct `ContextPropagationInterface → W3cTraceContextPropagation` definition for the selected module.
+    - [x] verify no `ConfigRepositoryInterface` reference or factory-method descriptor is introduced.
+    - [x] verify only the intended ContextPropagationInterface override.
+    - [x] verify deterministic module/provider ordering and absence of runtime factory execution.
+
+  - [x] `packages/platform/tracing/tests/Integration/TracingPropagationApplicationUsageSmokeTest.php`
+    - [x] construct a real application-facing ContextPropagationInterface through the existing DI composition.
+    - [x] enable platform.tracing explicitly for one selected application target.
+    - [x] verify that the selected implementation is W3cTraceContextPropagation.
+    - [x] extract a valid synthetic incoming traceparent.
+    - [x] verify the exact normalized trace_id, parent_id, and trace_flags values.
+    - [x] inject the validated context into a synthetic outbound carrier.
+    - [x] verify the canonical outgoing traceparent value.
+    - [x] verify noop fallback when the module is excluded.
+    - [x] verify that no spans, metrics, logs, ContextStore values, or reset services are created.
+    - [x] verify identical behavior across repeated calls.
+    - [x] reuse existing Kernel/Foundation DI test harnesses.
+    - [x] no fake HTTP middleware or second application bootstrap is introduced.
+
 - Gates/Arch:
-  - [ ] deptrac green
+  - [x] deptrac green
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] TracerPortInterface + ContextPropagationInterface always resolvable
-- [ ] W3C propagation deterministic and no-throw
-- [ ] README sections complete
+- [x] Spec locked with no open W3C carrier/context shape decisions.
+- [x] No duplicate Foundation tracer/span/noop implementation.
+- [x] Platform tracing package scaffold and metadata complete.
+- [x] NewPackage generator produces canonical shared Composer metadata without manual post-generation fixes and always emits validated description and keywords.
+- [x] Missing --description and --keywords arguments generate their deterministic neutral description and canonical keyword baseline respectively.
+- [x] Explicitly empty metadata arguments fail validation without partial package creation or staging leaks.
+- [x] Explicitly supplied keywords replace the canonical baseline without implicit merging or package-capability inference.
+- [x] Canonical baseline keywords are limited to `coretsia`, `php`, and `framework`; no layer, slug, or kind keywords are inferred.
+- [x] Explicit lowercase ASCII kebab-case keywords, including hyphenated and numeric tokens, preserve caller order after deterministic deduplication.
+- [x] Package-specific description and keywords remain explicitly configurable through the extended package:new CLI.
+- [x] Existing package:new invocations remain backward-compatible.
+- [x] NewPackageAtomicCreationTest covers generated metadata, invalid inputs, and atomic failure cleanup.
+- [x] PACKAGING.md documents shared metadata ownership and package-specific dependency boundaries.
+- [x] packages/platform/tracing/SECURITY.md remains byte-identical to repository-root SECURITY.md.
+- [x] package-scaffold --check remains green.
+- [x] W3C traceparent extract/inject deterministic and fail-closed under the exact version, carrier, normalized-context, and mutation policies defined in tracecontext.md.
+- [x] W3C version-00 and forward-version behavior covered by deterministic contract tests.
+- [x] tracestate pass-through and mutation rules covered by deterministic tests.
+- [x] No claim of complete W3C tracestate implementation.
+- [x] Unsupported tracestate/baggage behavior explicitly documented.
+- [x] Existing Foundation TracerPortInterface always resolvable.
+- [x] ContextPropagationInterface always resolvable with Foundation noop fallback.
+- [x] Explicitly selected `platform.tracing` binds `ContextPropagationInterface` directly to `W3cTraceContextPropagation`, without a runtime propagation-mode selector.
+- [x] No new UoW state, ContextStore writes, reset tags, or active span lifecycle.
+- [x] No tracing exporter, sampler, metrics, or recording spans introduced.
+- [x] No persisted traces, trace viewer, or automatic recording capability claimed.
+- [x] No implicit generation or publication of trace IDs and local span IDs.
+- [x] Foundation noop implementation and its existing behavior remain unchanged.
+- [x] Selected tracing module provides only W3C propagation; unselected module retains the canonical Foundation noop fallback.
+- [x] Production HTTP integration and future recording/exporting remain separate deliverables.
+- [x] Primary callback exceptions remain preserved.
+- [x] Source and compiled DI behavior equivalent.
+- [x] Canonical dependency matrix, package index, installation catalog, Composer repository metadata, and Deptrac outputs synchronized.
+- [x] All exact tests green.
+- [x] Gates/Arch green.
+- [x] ADR and SSoT registered in canonical indexes.
+- [x] README sections complete.
+- [x] platform/http integration remains outside this epic and is not claimed as implemented.
 
 ---
 
@@ -4609,38 +5473,73 @@ composer: "coretsia/platform-metrics"
 kind: runtime
 module_id: "platform.metrics"
 
-goal: "У будь-якому runtime виклики meter/renderer ніколи не кидають і дають deterministic behavior (label allowlist enforced)."
+goal: "Надати deterministic, noop-safe platform metrics baseline поверх існуючих Foundation observability contracts: перевірку дозволених label keys, stateless MeterPortInterface implementation та null MetricsRendererInterface без запису, накопичення або експорту метрик; Kernel UoW, Foundation noop і reset ownership залишаються незмінними."
 provides:
-- "Noop-safe MeterPortInterface (без if(enabled) у callers)"
-- "MetricsRendererInterface baseline (null renderer у Phase 3 baseline)"
-- "Label allowlist enforcement even in noop"
-- "Callers-safe baseline: meter/renderer завжди resolvable і no-throw (noop за замовчуванням)"
-- "Cutline impact: blocks Phase 3 platform baseline cutline"
+- "Reuse existing Foundation NoopMeter as the canonical fallback when platform.metrics is absent."
+- "Stateless DefaultMeter with deterministic, no-throw label admission and no metric recording."
+- "NullMetricsRenderer implementing the existing MetricsRendererInterface."
+- "Fixed global metric label allowlist aligned with docs/ssot/observability.md."
+- "Explicit target-local module selection and declarative MeterPortInterface/MetricsRendererInterface bindings."
+- "No collector, exporter, metrics buffer, metrics registry, ContextStore owner, reset service, or new metric catalog."
+- "Cutline impact: establishes a policy-safe metrics baseline without claiming active metrics collection or rendering."
 
 tags_introduced: []
 
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-tracing-metrics-w3c-propagation.md"
+adr: "docs/adr/ADR-0039-platform-metrics-noop-baseline.md"
 ssot_refs:
 - "docs/ssot/metrics-policy.md"
 - "docs/ssot/observability.md"
 ---
 
-- [ ] update `3.35.0 Platform metrics baseline` to clarify that redaction does not permit arbitrary metric labels; metrics remain allowlist-only.
+### Scope boundary (MUST)
+
+- This epic establishes a noop-only, policy-safe metrics baseline, not a recording or exporting metrics backend.
+- No metric sample is retained, aggregated, exported, persisted, or exposed through an HTTP endpoint.
+- Existing Foundation NoopMeter remains the canonical fallback when platform.metrics is not selected.
+- The selected DefaultMeter performs label admission but does not collect metric data.
+- MetricsRendererInterface is resolved through NullMetricsRenderer only when platform.metrics is selected.
+- No metrics registry, counter/histogram storage, exporter selection, HTTP endpoint, or process-lifetime metrics state is introduced.
+- A future recording backend MUST preserve the existing MeterPortInterface and MetricsRendererInterface contracts.
+- Epic 6.20.0 MUST extend the existing platform/metrics package, not recreate its composer.json, module, provider, configuration files, or README.
+- Epic 6.20.0 owns the future metrics registry, metric-specific runtime validation, aggregation, lifecycle, cardinality limits, and reset discipline.
+- Epic 6.21.0 owns the optional Prometheus integration and MUST NOT introduce another platform metrics package or HTTP endpoint owner.
+- The existing Noop/NullMetricsRenderer.php is the canonical null renderer; future integrations MUST reuse or explicitly replace its binding without creating a duplicate null renderer implementation.
+- AllowedLabelSet remains the canonical global label-key admission helper; future metric-specific validation MUST NOT replace, extend, or relax the global allowlist.
+- Future recording components MAY introduce state only with an explicit lifecycle and reset decision; the Phase 3 baseline remains stateless.
+- No future exporter, renderer, or collector is implicitly enabled by package installation.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - [ ] Existing Foundation NoopMeter and canonical MeterPortInterface MUST remain available.
+  - [ ] MetricsRendererInterface MUST already exist in core/contracts.
+  - [ ] Kernel declarative runtime container definitions and target-local ModulePlan MUST be available.
+  - [ ] The metrics configuration root MUST already be reserved for platform/metrics.
+  - [ ] Epic 3.30.0 package:new metadata extension MUST be completed before using --description and --keywords.
+  - [ ] ADR-0038 MUST already be registered before allocating ADR-0039.
+  - [ ] Existing observability metric catalog and label allowlist gates MUST remain authoritative.
 
-- Required deliverables (exact paths):
-  - N/A
+- Required existing implementation paths (MUST; reuse without modification):
+  - `packages/core/contracts/src/Observability/Metrics/MeterPortInterface.php`
+  - `packages/core/contracts/src/Observability/Metrics/MetricsRendererInterface.php`
+  - `packages/core/foundation/src/Observability/Metrics/NoopMeter.php`
+  - `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php`
+  - `docs/ssot/observability.md`
+  - `docs/ssot/observability-and-errors.md`
+  - `docs/ssot/config-roots.md`
+  - `docs/ssot/runtime-container-definitions.md`
+  - `tools/gates/observability_metric_catalog_gate.php`
 
 - Required config roots/keys:
-  - `metrics.*` — config root used by metrics
+  - `metrics` — reserved package-owned config root.
+  - No runtime-selectable metrics backend, collector, exporter, label allowlist, or renderer configuration is introduced by this baseline.
+  - The existing package scaffold config files remain valid and declarative.
 
 - Required config roots registry:
   - `metrics` MUST already be reserved in `docs/ssot/config-roots.md` with owner `platform/metrics`.
@@ -4658,20 +5557,27 @@ ssot_refs:
     - `operation`
     - `table`
     - `outcome`
+  - [ ] Global label admission is not equivalent to full metric-specific validation.
+  - [ ] Every emitted metric MUST also satisfy the canonical catalog row for its name, type, owner, and permitted labels.
+  - [ ] Existing observability metric catalog gates remain authoritative for production callsites.
+  - [ ] AllowedLabelSet enforces the fixed global label key set and accepted scalar value types; it MUST NOT introduce a second metric catalog.
+  - [ ] The Phase 3 baseline emits no metric samples, so it MUST NOT claim complete backend-level metric-specific admission or cardinality enforcement.
+  - [ ] A future recording backend MUST establish metric-specific runtime validation before emitting samples.
+  - [ ] Redacted values MUST NOT expand either allowlist.
 
 - Required tags:
   - N/A
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
-  - `Psr\Log\LoggerInterface` (optional warn-only)
-  - `Coretsia\Contracts\Context\ContextKeys` (optional; if used)
 
-- tighten to cemented APIs
-  - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
-  - Missing key handling MUST remain non-throwing for this epic’s runtime path.
+- Existing Foundation fallback:
+  - `Coretsia\Foundation\Observability\Metrics\NoopMeter`
+
+- No ContextAccessorInterface, ContextKeys, CorrelationIdProviderInterface, LoggerInterface, TracerPortInterface, or ResetInterface dependency is required by the baseline.
+
+- No second context owner, UnitOfWork lifecycle, or reset orchestrator is introduced.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -4682,25 +5588,47 @@ Depends on:
 Forbidden:
 - `platform/http`
 - `integrations/*`
+- `core/kernel` production-source imports
+- `platform/logging`
+- `platform/redaction`
+- `platform/tracing`
+- `platform/worker`
+- vendor metrics SDK implementations
+- metrics exporters and persistence adapters
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
-- PSR:
-  - `Psr\Log\LoggerInterface` (optional)
 - Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
-- Foundation stable APIs:
-  - `Coretsia\Contracts\Context\ContextKeys` (optional)
+
+- Foundation:
+  - `Coretsia\Foundation\Observability\Metrics\NoopMeter` (existing unselected fallback)
+  - canonical declarative container-definition APIs
+
+- No ContextAccessorInterface, ContextKeys, CorrelationIdProviderInterface, LoggerInterface, TracerPortInterface, ConfigRepositoryInterface, or ResetInterface dependency is introduced.
+- Metric names and labels are supplied explicitly by producers through the existing MeterPortInterface.
+- The metrics baseline MUST NOT read or write Kernel-owned UnitOfWork context.
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A
 - HTTP:
-  - used by `platform/http` middlewares (owner=http):
-    - `\Coretsia\Http\Middleware\HttpMetricsMiddleware::class` (system_pre ~920) uses `MeterPortInterface`
+  - `platform/http` owns future HTTP metrics middleware integration.
+  - This epic MUST NOT create or modify an HTTP middleware.
+  - No HTTP route, endpoint, response adapter, or metrics scraping transport is introduced.
+  - MetricsRendererInterface remains transport-neutral.
+  - HTTP metrics producers consume the existing MeterPortInterface through their own module lifecycle.
+- Runtime DI:
+  - Foundation already provides MeterPortInterface → NoopMeter.
+  - When platform.metrics is absent, the Foundation meter binding remains unchanged.
+  - Foundation does not currently provide a MetricsRendererInterface binding.
+  - When platform.metrics is explicitly selected, its provider binds MeterPortInterface → DefaultMeter and MetricsRendererInterface → NullMetricsRenderer.
+  - Renderer availability is guaranteed only for targets selecting platform.metrics.
+  - DefaultMeter remains stateless and discards every metric sample.
+  - Provider registration MUST NOT create an additional metrics backend, collector, registry, buffer, or lifecycle owner.
+  - Source and compiled container definitions MUST preserve the same effective bindings.
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
@@ -4715,68 +5643,334 @@ Naming lock (MUST)
 
 #### Creates
 
-- [ ] `packages/platform/metrics/src/Module/MetricsModule.php` — module entry
-- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php` — DI wiring
-- [ ] `packages/platform/metrics/src/Provider/MetricsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/metrics/config/metrics.php` — config subtree
-- [ ] `packages/platform/metrics/config/rules.php` — config rules
-- [ ] `packages/platform/metrics/README.md` — docs
+- [ ] Run `composer package:new -- --layer=platform --slug=metrics --kind=runtime --description="Coretsia metrics runtime package: deterministic label allowlist validation, noop-safe meter calls, and null rendering." --keywords=coretsia,php,framework,metrics,runtime,observability,label-allowlist,noop,renderer,deterministic` exactly once.
+- [ ] Preserve the canonical scaffold-generated package structure.
+- [ ] LICENSE and NOTICE MUST remain byte-identical to their repository-root counterparts.
+- [ ] SECURITY.md MUST remain byte-identical to repository-root SECURITY.md.
+- [ ] Do not customize package-level SECURITY.md; metrics-specific security policy belongs to README.md and metrics-policy.md.
+- [ ] Complete module, provider, configuration, and test placeholders using existing Coretsia conventions.
+- [ ] Package creation MUST NOT implicitly enable platform.metrics in application targets or presets.
 
-- [ ] `packages/platform/metrics/src/Default/DefaultMeter.php` — MeterPortInterface
-- [ ] `packages/platform/metrics/src/Noop/NullMetricsRenderer.php` — MetricsRendererInterface
-- [ ] `packages/platform/metrics/src/Labels/AllowedLabelSet.php` — allowlist enforcement
-  - [ ] MUST enforce the fixed SSoT allowlist from `docs/ssot/observability.md`
-  - [ ] MUST NOT read allowlist values from runtime/app config
-- [ ] `packages/platform/metrics/src/Exception/MetricLabelForbiddenException.php` — (`CORETSIA_METRIC_LABEL_FORBIDDEN`)
+- [ ] `packages/platform/metrics/LICENSE`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root LICENSE.
+  - [ ] no package-specific license amendments.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical legal file.
+  - [ ] Verification: package-scaffold --check.
 
-- [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
-- [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
-- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
+- [ ] `packages/platform/metrics/NOTICE`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root NOTICE.
+  - [ ] no package-specific notice amendments.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical notice file.
+  - [ ] Verification: package-scaffold --check.
+
+- [ ] `packages/platform/metrics/SECURITY.md`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root SECURITY.md.
+  - [ ] MUST NOT introduce package-local security reporting authority.
+  - [ ] metric label, data-admission, and export-safety restrictions belong to README.md and docs/ssot/metrics-policy.md.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical security-policy file.
+  - [ ] Verification: package-scaffold --check.
+
+- [ ] `packages/platform/metrics/composer.json`
+  - [ ] `name = coretsia/platform-metrics`.
+  - [ ] `type = library`.
+  - [ ] `license = Apache-2.0`.
+  - [ ] Description and keywords are generated from the explicit package:new arguments.
+  - [ ] Authors, homepage, support, and PHP platform follow the canonical package:new metadata policy established by 3.30.0.
+  - [ ] Composer requires exactly:
+    - [ ] `php: ^8.4`.
+    - [ ] `coretsia/core-contracts: ^0.11.0`.
+    - [ ] `coretsia/core-foundation: ^0.11.0`.
+  - [ ] PSR-4 `Coretsia\Platform\Metrics\` → `src/`.
+  - [ ] PSR-4 test namespace → `tests/`.
+  - [ ] `extra.coretsia.kind = runtime`.
+  - [ ] `extra.coretsia.moduleId = platform.metrics`.
+  - [ ] `extra.coretsia.moduleClass = Coretsia\Platform\Metrics\Module\MetricsModule`.
+  - [ ] `extra.coretsia.providers = [Coretsia\Platform\Metrics\Provider\MetricsServiceProvider]`.
+  - [ ] `extra.coretsia.requires = [core.foundation]`.
+  - [ ] `extra.coretsia.conflicts = []`.
+  - [ ] `extra.coretsia.defaultsConfigPath = config/metrics.php`.
+  - [ ] MUST NOT require core/kernel, platform/http, tracing, logging, redaction, or vendor metrics SDKs.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; Composer metadata only.
+  - [ ] Verification: package identity, manifest, dependency, Composer metadata, and scaffold gates.
+
+- [ ] `packages/platform/metrics/src/Module/MetricsModule.php`
+  - [ ] final runtime module-metadata class.
+  - [ ] public typed constants:
+    - [ ] `MODULE_ID = 'platform.metrics'`.
+    - [ ] `PACKAGE_ID = 'platform/metrics'`.
+    - [ ] `COMPOSER_PACKAGE = 'coretsia/platform-metrics'`.
+    - [ ] `KIND = 'runtime'`.
+    - [ ] `CONFIG_ROOT = 'metrics'`.
+  - [ ] Metadata methods follow the existing LoggingModule shape.
+  - [ ] `providers()` returns only MetricsServiceProvider::class.
+  - [ ] No runtime service construction, context access, metric emission, logging, or reset ownership.
+  - [ ] Verification: module metadata matches composer.json and the config-roots registry.
+
+- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php`
+  - [ ] final class implementing ServiceProviderInterface and ContainerDefinitionProviderInterface.
+  - [ ] `register()` uses assertDefinitionProviderRegistrationAllowed() and registerDefinitionProvider($this).
+  - [ ] `define()` is the single canonical declarative service-definition source.
+  - [ ] binds MeterPortInterface directly to DefaultMeter.
+  - [ ] binds MetricsRendererInterface directly to NullMetricsRenderer.
+  - [ ] uses existing ContainerDefinitionBuilder::classService() APIs.
+  - [ ] no factory helper is required for these constructor-free baseline services.
+  - [ ] no configuration reader, service locator, runtime closure, dynamic registry, or backend discovery.
+  - [ ] no ContextAccessorInterface, ContextStore, Stopwatch, LoggerInterface, or TracerPortInterface dependency.
+  - [ ] no new tags, hooks, reset registrations, or stateful services.
+  - [ ] Foundation NoopMeter binding remains authoritative when this module is absent.
+  - [ ] Kernel owns explicit module selection and provider ordering.
+  - [ ] Source and compiled service-definition behavior MUST be equivalent.
+  - [ ] Verification: selected/unselected target bindings, definition descriptors, and source/compiled parity.
+
+- [ ] `packages/platform/metrics/config/metrics.php`
+  - [ ] returns an empty package-owned configuration subtree.
+  - [ ] exact baseline result is `[]`.
+  - [ ] no enabled switch, renderer selector, collector, exporter, or backend configuration.
+  - [ ] no configurable label allowlist, metric catalog, or label normalization map.
+  - [ ] no environment access, runtime objects, callbacks, or mutable state.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; defaults-only file.
+  - [ ] Verification: exact defaults shape and reserved metrics root ownership.
+
+- [ ] `packages/platform/metrics/config/rules.php`
+  - [ ] schemaVersion = 1.
+  - [ ] configRoot = metrics.
+  - [ ] additionalKeys = false.
+  - [ ] keys = [].
+  - [ ] no user-configurable metrics keys in this baseline.
+  - [ ] unknown or reserved keys are rejected by the existing Kernel ConfigValidator.
+  - [ ] no executable validators, callbacks, closures, or custom schema types.
+  - [ ] no duplicate configuration validation pipeline.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; declarative configuration policy only.
+  - [ ] Verification: canonical ruleset shape and invalid-key rejection.
+
+- [ ] `packages/platform/metrics/src/Default/DefaultMeter.php`
+  - [ ] final stateless class implementing MeterPortInterface.
+  - [ ] public methods match the existing contract exactly:
+    - [ ] `increment(string $name, int $delta = 1, array $labels = []): void`.
+    - [ ] `observe(string $name, int $value, array $labels = []): void`.
+  - [ ] both increment() and observe() call AllowedLabelSet::accepts($labels) before deterministic noop completion.
+  - [ ] no additional AllowedLabelSet service, wrapper, factory, or dependency-injection binding is introduced.
+  - [ ] valid labels complete without recording, buffering, forwarding, or exporting samples.
+  - [ ] forbidden labels fail closed through deterministic skip behavior.
+  - [ ] forbidden labels MUST NOT throw, log, emit metrics, or expose raw values.
+  - [ ] no metric names, values, labels, or invocation details are retained.
+  - [ ] no self-instrumentation or recursive metrics.record_* emission.
+  - [ ] no clocks, timers, context reads, configuration reads, or backend dependencies.
+  - [ ] no mutable process-lifetime or UnitOfWork-local state.
+  - [ ] no reset service or kernel.reset tag.
+  - [ ] metric-specific catalog enforcement remains governed by the existing observability gates.
+  - [ ] no claim of active recording or runtime backend-level cardinality enforcement.
+  - [ ] Verification: contract signatures, admitted/rejected labels, no-throw calls, statelessness, and absence of output.
+
+- [ ] `packages/platform/metrics/src/Noop/NullMetricsRenderer.php`
+  - [ ] final stateless class implementing MetricsRendererInterface.
+  - [ ] `contentType(): string` returns exactly `text/plain; charset=utf-8`.
+  - [ ] `render(): string` returns exactly an empty string.
+  - [ ] no collector, registry, filesystem, network, process state, or service dependency.
+  - [ ] no HTTP response, endpoint, Prometheus integration, or telemetry export.
+  - [ ] no metric names, samples, labels, payloads, or private data are rendered.
+  - [ ] repeated calls are deterministic and no-throw.
+  - [ ] no context reads/writes, spans, metrics, logs, or reset ownership.
+  - [ ] Verification: exact content type, empty rendering, repeated calls, and source/compiled DI resolution.
+
+- [ ] `packages/platform/metrics/src/Labels/AllowedLabelSet.php`
+  - [ ] final stateless global metric label-key admission helper.
+  - [ ] canonical allowed keys are exactly:
+    - [ ] `method`.
+    - [ ] `status`.
+    - [ ] `driver`.
+    - [ ] `operation`.
+    - [ ] `table`.
+    - [ ] `outcome`.
+  - [ ] public static `accepts(array $labels): bool` performs deterministic, no-throw validation.
+  - [ ] the helper has no constructor dependencies, service registration, mutable static properties, or runtime cache.
+  - [ ] all keys must be strings matching the fixed global allowlist.
+  - [ ] accepted values are only string, int, or bool.
+  - [ ] null, float, list, map, object, resource, and closure values are rejected.
+  - [ ] unknown label keys are rejected without invoking implicit conversion or Stringable::__toString().
+  - [ ] empty label maps are accepted.
+  - [ ] no arbitrary label-value normalization, hashing, redaction, or coercion is introduced.
+  - [ ] the allowlist is a fixed runtime representation of the canonical SSoT, not a second policy owner.
+  - [ ] runtime and app config MUST NOT extend or replace the allowlist.
+  - [ ] no production filesystem reads or Markdown parsing.
+  - [ ] tests MUST detect drift between this fixed set and docs/ssot/observability.md.
+  - [ ] metric-specific catalog validation and producer-owned safe-value derivation remain separate responsibilities.
+  - [ ] no context reads/writes, spans, metrics, logs, or reset ownership.
+  - [ ] Verification: exact six-key policy, invalid types, deterministic ordering independence, and SSoT consistency.
 
 Docs:
-- [ ] `docs/ssot/metrics-policy.md` — metric naming + normalization map + examples
-  - [ ] MUST NOT redefine, extend, replace, or relax the canonical label allowlist from `docs/ssot/observability.md`
+- [ ] `packages/platform/metrics/README.md`
+  - [ ] package identity, namespace, dependencies, module ID, and supported ports.
+  - [ ] document Foundation NoopMeter reuse when platform.metrics is absent.
+  - [ ] document DefaultMeter as selected stateless label-validating noop behavior.
+  - [ ] explain why DefaultMeter is not a second collector or metrics state owner.
+  - [ ] document MetricsRendererInterface availability only when platform.metrics is selected.
+  - [ ] document fixed null renderer content type and empty output.
+  - [ ] document exact global label allowlist and metric-specific catalog restrictions by reference to observability.md.
+  - [ ] include synthetic increment() and observe() examples using existing canonical metric names.
+  - [ ] explicitly state that no metrics are collected, retained, exported, or queryable.
+  - [ ] explain the future backend integration boundary without claiming one is implemented.
+  - [ ] document that no runtime config keys are introduced in the baseline.
+  - [ ] include canonical `## Observability`, `## Errors`, and `## Security / Redaction` sections.
+  - [ ] no raw labels, sensitive values, or unsupported exporter claims.
+  - [ ] reference metrics-policy.md and observability.md as normative policies.
+  - [ ] vulnerability reporting follows the unmodified canonical SECURITY.md.
+
+- [ ] `docs/ssot/metrics-policy.md`
+  - [ ] canonical SSoT header, ssotVersion = 1, owner = platform/metrics.
+  - [ ] define the Phase 3 noop-only metrics capability and non-goals.
+  - [ ] document the exact MeterPortInterface and MetricsRendererInterface contract usage.
+  - [ ] document selected versus unselected module DI behavior.
+  - [ ] define DefaultMeter label admission and deterministic skip behavior.
+  - [ ] distinguish global label keys from metric-specific catalog restrictions.
+  - [ ] reference docs/ssot/observability.md as the single owner of metric names, metric types, label keys, and metric-specific labels.
+  - [ ] MUST NOT introduce a competing runtime metric catalog or configurable allowlist.
+  - [ ] document producer-owned safe-value derivation and bounded-cardinality obligations.
+  - [ ] document that redaction does not authorize arbitrary label keys or values.
+  - [ ] document the absence of active collection, export, storage, HTTP exposure, and queryable metrics.
+  - [ ] document no ContextStore reads/writes, UnitOfWork ownership, or reset registration.
+  - [ ] document no-throw behavior and absence of diagnostics from invalid labels.
+  - [ ] include deterministic examples and verification requirements.
+  - [ ] no new observability metric names or span names are introduced.
+
+- [ ] `docs/adr/ADR-0039-platform-metrics-noop-baseline.md`
+  - [ ] ADR version 1 and platform/metrics ownership.
+  - [ ] record the decision to reuse Foundation NoopMeter as the unselected fallback.
+  - [ ] explain why selected DefaultMeter performs label admission while remaining noop.
+  - [ ] record the existing MeterPortInterface and MetricsRendererInterface as canonical ports.
+  - [ ] record direct declarative DI bindings without a baseline factory.
+  - [ ] record why active collection, exporter, metric storage, and HTTP rendering are deferred.
+  - [ ] record why no runtime metrics configuration is required.
+  - [ ] explicitly reject a second metrics registry, context owner, or reset orchestrator.
+  - [ ] document SSoT authority for global and metric-specific labels.
+  - [ ] record no-throw failure isolation, security restrictions, and source/compiled parity.
+  - [ ] record that the baseline cannot produce queryable metrics.
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/metrics-policy.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-tracing-metrics-w3c-propagation.md`
+- [ ] `docs/architecture/DEPENDENCIES.md`
+  - [ ] add exactly one materialized package row for platform/metrics.
+  - [ ] direct production source dependencies: core/contracts, core/foundation.
+  - [ ] preserve strcmp package-id ordering.
+  - [ ] no source dependency on core/kernel, platform/http, logging, redaction, tracing, or vendor metrics backends.
+  - [ ] Deptrac generator MUST consume this row as the canonical dependency policy.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; architecture documentation only.
+  - [ ] Verification: dependency matrix and generated Deptrac policy remain consistent.
 
-#### Package skeleton (if type=package)
+- [ ] `composer.json`
+  - [ ] register `coretsia/platform-metrics: 0.11.x-dev` under the monorepo require-dev workspace baseline.
+  - [ ] synchronize the managed path repository entry through existing Composer repository tooling.
+  - [ ] preserve existing workspace package references and deterministic ordering.
+  - [ ] do not create a separate workspace package registry.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; workspace metadata only.
+  - [ ] Verification: Composer repository sync and package identity checks.
 
-- [ ] `packages/platform/metrics/composer.json`
-- [ ] `packages/platform/metrics/src/Module/MetricsModule.php`
-- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php`
-- [ ] `packages/platform/metrics/config/metrics.php`
-- [ ] `packages/platform/metrics/config/rules.php`
-- [ ] `packages/platform/metrics/README.md`
-- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `docs/ssot/INDEX.md`
+  - [ ] register docs/ssot/metrics-policy.md exactly once.
+  - [ ] use canonical title, owner, ssotVersion, and scope formatting.
+  - [ ] preserve strcmp ordering and no-forward-reference policy.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [ ] Verification: SSoT index consistency gate.
+
+- [ ] `docs/adr/INDEX.md`
+  - [ ] register docs/adr/ADR-0039-platform-metrics-noop-baseline.md exactly once.
+  - [ ] preserve canonical ADR title, owner, adrVersion, and scope formatting.
+  - [ ] maintain sequence after ADR-0038.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [ ] Verification: ADR index consistency gate.
+
+- [ ] `docs/ssot/http-middleware-catalog.md`
+  - [ ] update the obsolete platform/metrics owner-package test reference from NoopNeverThrowsContractTest.php to CrossCuttingNoopDoesNotThrowTest.php.
+  - [ ] preserve the existing future MetricsEndpointMiddleware reservation under http.middleware.system_pre at priority 590.
+  - [ ] clarify that this reservation is documentation-only during epic 3.35.0.
+  - [ ] update the priority-590 catalog registration description to explicitly identify the future epic 6.20.0 owner and prohibit registration during the Phase 3 noop-only baseline.
+  - [ ] the generic optional-package registration guidance MUST NOT imply that installation or selection of platform.metrics during 3.35.0 activates MetricsEndpointMiddleware.
+  - [ ] preserve the existing middleware class reservation without creating or registering its implementation.
+  - [ ] preserve platform/metrics ownership of the future optional metrics endpoint.
+  - [ ] this epic MUST NOT register MetricsEndpointMiddleware or activate the reserved HTTP slot.
+  - [ ] HTTP endpoint implementation and its lifecycle remain owned by epic 6.20.0.
+  - [ ] no new HTTP middleware class, tag, route, response adapter, or metrics exposure policy is introduced.
+  - [ ] Context/UoW: N/A; documentation-only change.
+  - [ ] Spans/metrics/logs: N/A; no production emission.
+  - [ ] Reset: N/A; no runtime state.
+  - [ ] Verification: canonical middleware catalog retains one future metrics endpoint owner and references an existing planned contract test.
+
+- [ ] `tools/testing/package-index.php`
+  - [ ] regenerate through the existing package-index generator.
+  - [ ] MUST NOT edit generated package metadata manually.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; generated metadata only.
+  - [ ] Verification: package-index --check.
+
+- [ ] `tools/testing/deptrac.yaml`
+  - [ ] regenerate through the existing Deptrac generator.
+  - [ ] MUST NOT introduce a separate metrics dependency allowlist.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; generated architecture policy only.
+  - [ ] Verification: deptrac generator --check.
+
+- [ ] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [ ] regenerate through the existing installation-catalog generator.
+  - [ ] preserve Kernel ownership and generated schema.
+  - [ ] MUST NOT introduce a metrics-owned installation catalog.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; generated installation metadata only.
+  - [ ] Verification: installation-catalog generation and --check with a valid Composer bootstrap.
+
+Generation and verification:
+- [ ] Synchronize workspace Composer repositories through the canonical tooling.
+- [ ] Generate the package index through the canonical package-index generator.
+- [ ] Generate Deptrac configuration through the canonical Deptrac generator.
+- [ ] Generate the installation catalog through the canonical installation-catalog generator.
+- [ ] Preserve the existing Deptrac allowlist unless a separate justified policy change is required.
+- [ ] Run the existing observability metric catalog gate without introducing any new metric names.
+- [ ] Run package-scaffold --check and package identity/manifest gates.
+- [ ] Generated artifacts MUST NOT be hand-edited.
+- [ ] Missing Composer bootstrap autoload MUST NOT be reported as successful installation-catalog verification.
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
   - [ ] `packages/platform/metrics/config/metrics.php`
-- [ ] Keys (dot):
-  - [ ] `metrics.enabled` = true
-  - [ ] `metrics.renderer` = 'null'
-- [ ] Normative:
-  - [ ] there MUST be no configurable `metrics.labels.allowed` key
-  - [ ] label allowlist is fixed by `docs/ssot/observability.md`
-  - [ ] `docs/ssot/metrics-policy.md` MAY document metric-specific normalization/examples only
+  - [ ] `packages/platform/metrics/config/rules.php`
+- [ ] Root:
+  - [ ] `metrics` — already reserved with platform/metrics ownership.
+- [ ] Baseline defaults:
+  - [ ] `config/metrics.php` returns [].
+  - [ ] `config/rules.php` defines an empty strict configuration map.
+- [ ] Runtime behavior:
+  - [ ] selected platform.metrics always provides stateless DefaultMeter and NullMetricsRenderer.
+  - [ ] no backend, collector, exporter, or metrics buffer is activated.
+  - [ ] no enabled/disabled switch is required for the noop-only baseline.
+- [ ] No keys for:
+  - [ ] label allowlists.
+  - [ ] metric catalogs.
+  - [ ] renderer selection.
+  - [ ] sampling.
+  - [ ] collectors.
+  - [ ] exporters.
+  - [ ] metric storage.
+  - [ ] ContextStore or UnitOfWork identity.
 - [ ] Rules:
-  - [ ] `packages/platform/metrics/config/rules.php` enforces shape
+  - [ ] canonical Kernel configuration validation only.
+  - [ ] no unknown or reserved keys.
+  - [ ] no custom validator, config loader, or runtime policy registry.
+  - [ ] no automatic modification of application presets or ModulePlan.
 
 #### Wiring / DI tags (when applicable)
 
-- Tags introduced (this epic is the OWNER):
-  - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] binds:
-    - [ ] `MeterPortInterface` → `DefaultMeter`
-    - [ ] `MetricsRendererInterface` → `NullMetricsRenderer`
+- Tags introduced:
+  - N/A.
+- [ ] ServiceProvider wiring:
+  - [ ] Foundation continues to bind MeterPortInterface → NoopMeter when platform.metrics is absent.
+  - [ ] explicitly selected platform.metrics binds MeterPortInterface → DefaultMeter.
+  - [ ] explicitly selected platform.metrics binds MetricsRendererInterface → NullMetricsRenderer.
+  - [ ] use existing declarative ContainerDefinitionBuilder::classService() definitions.
+  - [ ] no MetricsServiceFactory is required for the constructor-free noop baseline.
+  - [ ] no ConfigRepositoryInterface or ContextAccessorInterface dependency is required.
+  - [ ] module/provider registration order remains Kernel-owned.
+  - [ ] source and compiled containers MUST resolve equivalent selected services.
+  - [ ] no new tags, aliases, reset services, backend registries, or alternative container wiring paths.
 
 #### Artifacts / outputs (if applicable)
 
@@ -4786,33 +5980,51 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::UOW_TYPE` (normalized → `operation`) (optional; if you ever map UoW into metrics)
-- Context writes (safe only):
-  - N/A
+- Context reads:
+  - N/A; no ContextAccessorInterface or ContextKeys consumption.
+- Context writes:
+  - N/A; no ContextStore writes.
+- [ ] UnitOfWork ownership:
+  - [ ] Kernel remains the owner of UnitOfWork lifecycle and correlation identity.
+  - [ ] metrics baseline does not derive operation labels implicitly from Kernel context.
+  - [ ] producer-owned metric labels are supplied explicitly through MeterPortInterface.
 - [ ] Reset discipline:
-  - [ ] noop meter is stateless
+  - [ ] DefaultMeter, AllowedLabelSet, and NullMetricsRenderer are stateless.
+  - [ ] no request-local or process-lifetime metric buffer.
+  - [ ] no kernel.reset registration or ResetInterface implementation.
+  - [ ] no cross-UnitOfWork metric state retention.
+  - [ ] repeated calls remain deterministic and independent.
 
 #### Observability (policy-compliant)
 
+- [ ] Spans:
+  - [ ] N/A; no tracing contract dependency or span emission.
 - [ ] Metrics:
-  - [ ] `metrics.record_total` (labels: `operation=record`, `outcome=ok|noop`)
-  - [ ] `metrics.record_duration_ms` (labels: `operation`, `outcome`)
+  - [ ] no new baseline metric name is introduced.
+  - [ ] no metrics.record_total or metrics.record_duration_ms emission.
+  - [ ] DefaultMeter performs global label admission and discards all samples.
+  - [ ] metric-specific catalog policy remains authoritative through existing observability gates.
+  - [ ] no metric collector, exporter, registry, persistence, aggregation, or renderer state.
+  - [ ] no self-instrumentation or recursive metrics reporting.
+  - [ ] no new metric dimensions or high-cardinality labels.
 - [ ] Logs:
-  - [ ] never log raw payloads; only safe meta + hashes/len
-- [ ] Label normalization applied (if needed):
-  - [ ] `uow_type→operation` (when used)
+  - [ ] N/A; baseline components emit no logs.
+  - [ ] invalid metric names, labels, or values MUST NOT produce diagnostic records.
+  - [ ] no optional warn-only logger dependency.
+  - [ ] raw labels, payloads, tokens, credentials, SQL, and customer data are never emitted.
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Metrics\Exception\MetricLabelForbiddenException` — errorCode `CORETSIA_METRIC_LABEL_FORBIDDEN`
-    - [ ] `MetricLabelForbiddenException` is internal-only:
-      - [ ] public `MeterPortInterface` calls MUST NOT surface this exception to callers
-      - [ ] forbidden labels MUST degrade deterministically to noop/skip behavior
-      - [ ] runtime MUST remain no-throw from the caller perspective
-- [ ] Mapping:
-  - [ ] label violations MUST be enforced deterministically; callers MUST NOT crash runtime
+- Exceptions introduced:
+  - N/A.
+- [ ] Runtime failure policy:
+  - [ ] MeterPortInterface calls remain no-throw for valid contract-typed arguments.
+  - [ ] forbidden label keys and invalid label-value types degrade deterministically to skip behavior.
+  - [ ] no MetricLabelForbiddenException or equivalent runtime exception class is introduced.
+  - [ ] NullMetricsRenderer contentType() and render() remain deterministic and no-throw.
+  - [ ] no metrics failure changes primary operation outcome or exception precedence.
+  - [ ] programming errors outside the typed public contracts are not misclassified as metric admission failures.
+  - [ ] no recursive reporting, raw diagnostics, or hidden fallback collector.
 
 #### Security / Redaction
 
@@ -4820,34 +6032,122 @@ N/A
   - [ ] Authorization/Cookie/session id/tokens/raw SQL/payload
   - [ ] raw path as metric label; correlation_id/request_id as metric label
 - [ ] Allowed:
-  - [ ] safe normalized labels (allowlist), `hash/len` when needed
+  - [ ] only globally allowlisted label keys with contract-valid scalar values.
+  - [ ] metric-specific label restrictions remain authoritative for every emitted metric.
+  - [ ] safe bounded-cardinality values are producer-owned and MUST NOT be inferred from arbitrary input.
+  - [ ] hash/len derivations are not automatically permitted as metric labels.
+  - [ ] redaction never authorizes new label keys or unsafe cardinality.
+  - [ ] no raw metric input, rejected label, or sensitive value is logged or persisted by the baseline.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist →
-  - [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
+- Context writes:
+  - N/A; verify no ContextStore writes or new ContextKeys.
+- Reset:
+  - N/A; verify no ResetInterface implementation, kernel.reset tag, or mutable metric state.
+- Spans:
+  - N/A; verify no TracerPortInterface dependency or span emission.
+- [ ] Metrics:
   - [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
-- [ ] If redaction exists → covered by SSoT “no labels for trace ids / request ids” + allowlist enforcement tests above
+  - [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+  - [ ] verify no metric recording, aggregation, buffering, exporting, or self-instrumentation.
+- Logs:
+  - N/A; verify no log emission or warn-only logger dependency.
+- [ ] Redaction:
+  - N/A; no redaction service or metric output sink is introduced.
+  - [ ] verify forbidden label keys and invalid value types are rejected without exposing input.
+  - [ ] verify redaction cannot authorize new metric labels.
+- [ ] Runtime DI:
+  - [ ] `packages/platform/metrics/tests/Integration/MetricsSelectedModuleBindingParityTest.php`
+  - [ ] verify Foundation fallback and selected-module source/compiled parity.
+- [ ] Future compatibility:
+  - [ ] verify no second metric collector, registry, renderer fallback, context owner, or reset service is introduced.
 
 #### Test harness / fixtures (when integration is needed)
 
-- N/A (integration tests use minimal middleware harness)
+- [ ] Reuse existing Foundation/Kernel declarative DI and ModulePlan test infrastructure.
+- [ ] Use deterministic synthetic metric names and allowlisted labels.
+- [ ] Use a Foundation-only target to verify the unselected NoopMeter fallback.
+- [ ] Use an explicitly selected platform.metrics target to verify DefaultMeter and NullMetricsRenderer bindings.
+- [ ] Exercise the same service definitions through source and compiled container paths.
+- [ ] No HTTP middleware, HTTP request, endpoint, transport, network, filesystem sink, metrics backend, or exporter is required.
+- [ ] No real UnitOfWork lifecycle or ContextStore mutation is required.
+- [ ] No additional test container, service registry, or reset orchestrator is introduced.
 
 ### Tests (MUST)
 
 - Unit:
   - [ ] `packages/platform/metrics/tests/Unit/AllowedLabelSetRejectsForbiddenKeysTest.php`
+    - [ ] exact six-key allowlist.
+    - [ ] allowed string, int, and bool label values.
+    - [ ] reject null, float, list, map, object, resource, and closure values.
+    - [ ] reject trace_id, span_id, correlation_id, request_id, uow_id, raw_path, token, and unknown labels.
+    - [ ] empty labels are accepted.
+    - [ ] associative-array insertion order does not change admission.
+    - [ ] invalid values never invoke Stringable::__toString().
+    - [ ] no runtime config, context, logger, or filesystem dependency.
+    - [ ] no exceptions, mutations, or emitted diagnostics.
+
+  - [ ] `packages/platform/metrics/tests/Unit/NullMetricsRendererDeterministicTest.php`
+    - [ ] exact contentType() = text/plain; charset=utf-8.
+    - [ ] render() returns an empty string.
+    - [ ] repeated calls return byte-identical values.
+    - [ ] no collected metrics, output side effects, context access, or reset dependency.
+    - [ ] no exceptions.
+
 - Contract:
-  - [ ] `packages/platform/metrics/tests/Contract/NoopNeverThrowsContractTest.php`
   - [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [ ] replace the scaffold placeholder assertion with executable behavior tests.
+    - [ ] verify DefaultMeter implements MeterPortInterface.
+    - [ ] verify increment() and observe() accept contract-valid arguments.
+    - [ ] verify forbidden labels are skipped without throwing or emitting diagnostics.
+    - [ ] verify no metric state, buffer, exporter, or renderer data is accumulated.
+    - [ ] verify repeated calls remain harmless.
+    - [ ] verify no ContextStore or reset hooks are introduced.
+    - [ ] verify Foundation NoopMeter remains the unselected fallback.
+
+  - [ ] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+    - [ ] verify exact correspondence between AllowedLabelSet and the global label allowlist in docs/ssot/observability.md.
+    - [ ] fail when a label key is added, removed, or renamed on either side.
+    - [ ] verify metrics-policy.md does not introduce an alternative metric catalog or label-key authority.
+    - [ ] verify runtime config cannot extend the allowlist.
+    - [ ] verify canonical metric-specific catalog restrictions remain separate.
+
+  - [ ] `packages/platform/metrics/tests/Contract/MetricsModuleComposerMetadataContractTest.php`
+    - [ ] verify module ID, package ID, composer name, kind, and config root.
+    - [ ] verify exact provider list.
+    - [ ] verify Composer dependencies and extra.coretsia.requires.
+    - [ ] verify no forbidden source dependency, runtime tag, or stateful service owner.
+
+  - [ ] `packages/platform/metrics/tests/Contract/MetricsConfigRulesContractTest.php`
+    - [ ] exact empty metrics defaults.
+    - [ ] exact schemaVersion/configRoot/additionalKeys/keys shape.
+    - [ ] reject unknown config keys.
+    - [ ] verify no enabled, renderer, collector, exporter, or configurable label allowlist keys.
+
 - Integration:
-  - [ ] `packages/platform/metrics/tests/Integration/NoopMeterRecordNoThrowTest.php`
+  - [ ] `packages/platform/metrics/tests/Integration/MetricsSelectedModuleBindingParityTest.php`
+    - [ ] verify Foundation-only MeterPortInterface resolves NoopMeter.
+    - [ ] verify Foundation-only runtime does not claim a MetricsRendererInterface binding.
+    - [ ] verify explicit platform.metrics selection resolves DefaultMeter and NullMetricsRenderer.
+    - [ ] verify the selected DefaultMeter performs label admission without recording metrics.
+    - [ ] verify source and compiled containers preserve equivalent selected bindings.
+    - [ ] verify package installation alone does not select the module.
+    - [ ] verify no ContextStore writes, new metric catalog, reset service, or active exporter.
+    - [ ] reuse the existing Foundation/Kernel DI test harnesses.
+
 - Gates/Arch:
-  - [ ] deptrac green
+  - [ ] package identity and scaffold gates green.
+  - [ ] Composer repository sync check green.
+  - [ ] package-index generator check green.
+  - [ ] Deptrac generator check green.
+  - [ ] observability metric catalog gate green.
+  - [ ] installation-catalog generator check green.
+  - [ ] dependency matrix and source/compiled definition parity green.
+  - [ ] no new unauthorized metric names or labels.
 
 ### DoD (MUST)
 
@@ -4856,8 +6156,21 @@ N/A
 - [ ] Tests green
 - [ ] Gates/Arch green
 - [ ] Docs complete
-- [ ] MeterPortInterface + MetricsRendererInterface always resolvable
-- [ ] Label allowlist enforced (even in noop)
+- [ ] Foundation MeterPortInterface remains resolvable through canonical NoopMeter when platform.metrics is absent.
+- [ ] Explicit platform.metrics selection resolves DefaultMeter and NullMetricsRenderer in source and compiled containers.
+- [ ] DefaultMeter enforces the global label allowlist before deterministic noop completion.
+- [ ] No guarantee of MetricsRendererInterface resolution is made for targets not selecting platform.metrics.
+- [ ] Metric-specific catalog restrictions remain owned by docs/ssot/observability.md and the existing observability gates.
+- [ ] No samples are recorded, buffered, exported, or made queryable by the Phase 3 baseline.
+- [ ] No metrics.record_total or metrics.record_duration_ms is introduced.
+- [ ] No ContextStore owner, active metric registry, exporter, or reset hook is introduced.
+- [ ] No duplicate metrics factory, label policy registry, or runtime exception hierarchy is introduced.
+- [ ] Future 6.20.0 recording backend can extend the existing platform/metrics package without recreating package identity, module metadata, or the public metrics ports.
+- [ ] Future 6.20.0 reuses the canonical global AllowedLabelSet policy and adds metric-specific runtime validation without introducing a second global allowlist.
+- [ ] Future 6.20.0 owns metrics registry lifecycle, cardinality controls, and reset discipline before metric samples can be retained.
+- [ ] Future 6.21.0 can override the renderer through the existing MetricsRendererInterface without introducing a second null renderer or HTTP endpoint owner.
+- [ ] Phase 3 metrics baseline remains stateless and does not claim recording, export, persistence, or queryable metrics.
+- [ ] Canonical package metadata, ADR-0039, metrics-policy.md, generated artifacts, and source/compiled DI tests are complete.
 - [ ] No package-local allowlist drift:
   - [ ] runtime enforcement uses the canonical allowlist from `docs/ssot/observability.md`
   - [ ] `docs/ssot/metrics-policy.md` does not redefine label ownership or expand label keys
@@ -4865,7 +6178,7 @@ N/A
 
 ---
 
-### 3.40.0 Platform problem-details (RFC7807) (MUST) [IMPL]
+### 3.40.0 Platform problem-details (RFC9457 + RFC7807 compatibility) (MUST) [IMPL]
 
 ---
 type: package
@@ -4878,56 +6191,110 @@ composer: "coretsia/platform-problem-details"
 kind: runtime
 module_id: "platform.problem-details"
 
-goal: "Будь-який Throwable у HTTP перетворюється на deterministic RFC7807 response без витоку секретів."
+goal: "Надати deterministic, fail-closed HTTP Problem Details adaptation поверх канонічного ErrorHandlerInterface та ErrorDescriptor, з безпечним RFC9457 application/problem+json rendering і PSR-15 Throwable boundary; без другого exception mapper, redaction engine, HTTP pipeline owner, observability registry або reset lifecycle."
 provides:
-- "Єдиний HTTP error rendering формат: RFC7807 `application/problem+json` з deterministic payload"
-- "Outermost middleware ловить Throwable і делегує в `ErrorHandlerInterface` (format-neutral)"
-- "Redaction policy: жодних секретів/PII у problem response та логах"
-- "Phase 3 baseline: лише JSON RFC7807 (HTML pages — окремий epic 3.190.0 SHOULD)"
+- "Reuse canonical platform/errors ErrorHandlerInterface and format-neutral ErrorDescriptor."
+- "Transport-specific ErrorDescriptor to Problem Details adaptation without duplicate exception mapping."
+- "Deterministic RFC9457 JSON rendering with RFC7807-compatible base fields."
+- "PSR-15 outer HTTP Throwable boundary using the existing http.middleware.system_pre tag."
+- "Fail-closed public error disclosure without raw descriptor messages, arbitrary extensions, exception traces, or context dumps."
+- "Existing platform/errors redaction and reporting remain authoritative."
+- "No duplicate error handler, serializer, redactor, logging pipeline, metric catalog, tracer lifecycle, or reset owner."
+- "Cutline impact: provides JSON Problem Details output only; future HTML error pages remain outside this epic."
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-problem-details-rfc7807.md"
+adr: "docs/adr/ADR-0040-platform-problem-details-http-adaptation.md"
 ssot_refs:
+- "docs/ssot/problem-details.md"
 - "docs/ssot/error-descriptor.md"
+- "docs/ssot/errors-boundary.md"
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/sensitive-data-redaction.md"
+- "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/config-roots.md"
 - "docs/ssot/tags.md"
 ---
 
-- [ ] update `3.40.0 Platform problem-details` to consume `SensitiveDataRedactorInterface` for safe `detail`, `extensions`, and debug/local-only diagnostics.
-- [ ] update `3.40.0 Platform problem-details` to consume the canonical `ErrorHandlerInterface` from `coretsia/platform-errors` once at the outer HTTP Throwable boundary, add matching direct Composer and `platform.errors` module requirements, and adapt only its normalized `ErrorDescriptor` to RFC7807 without concrete `platform/errors` source imports or duplicate mapping.
+### Scope boundary (MUST)
+
+- This epic owns HTTP Problem Details adaptation and rendering, not canonical exception normalization.
+- `platform/errors` remains the single owner of Throwable mapping, ErrorDescriptor normalization, redaction during normalization, and eligible error reporting.
+- `platform/problem-details` consumes ErrorHandlerInterface through the existing contracts-level port.
+- Exactly one ErrorHandlerInterface::handle() invocation is permitted for each caught downstream Throwable.
+- No second mapper registry, fallback exception mapper, error reporter, or redaction implementation is introduced.
+- Problem Details is an HTTP response representation, not a telemetry exporter.
+- This epic introduces no trace storage, span recording, metrics recording, error-event stream, or observability backend.
+- The Phase 3 public payload contains only safe-by-construction Problem Details members.
+- Raw ErrorDescriptor.message, extensions, Throwable details, runtime context, and debug metadata MUST NOT be forwarded automatically.
+- `detail`, `instance`, and arbitrary extension members are omitted in the baseline unless a separately approved disclosure policy explicitly permits them.
+- RFC9457 is the normative format specification; RFC7807-compatible baseline clients remain supported.
+- HTML error pages, content negotiation between JSON and HTML, and custom problem-type URI catalogs remain outside this epic.
+- `platform/http` owns middleware execution, pipeline ordering, HTTP request/response lifecycle, and transport integration.
+- `platform/problem-details` contributes to the existing HTTP middleware slot without owning that slot.
+- The module MUST be explicitly selected in a compatible HTTP target.
+- Package installation alone MUST NOT activate HTTP error handling.
+- No ContextStore owner, UnitOfWork lifecycle, reset hook, or mutable request-local registry is introduced.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - [ ] Canonical ErrorHandlerInterface and ErrorDescriptor MUST already exist in core/contracts.
+  - [ ] Platform/errors canonical ErrorHandler implementation and provider MUST already exist.
+  - [ ] Platform/redaction canonical redaction implementation MUST remain available through platform.errors.
+  - [ ] Foundation StableJsonEncoder and declarative container-definition APIs MUST already exist.
+  - [ ] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE MUST already exist.
+  - [ ] Kernel target-local ModulePlan and source/compiled container definitions MUST exist.
+  - [ ] The problem_details config root MUST already be reserved for platform/problem-details.
+  - [ ] Epic 3.30.0 package:new metadata extension MUST be available before using --description and --keywords.
+  - [ ] ADR-0038 and ADR-0039 MUST be registered before allocating ADR-0040.
+  - [ ] A compatible PSR-15 HTTP runtime and PSR response/stream factories are required for complete HTTP pipeline integration verification.
+  - [ ] If platform/http has not yet been implemented, standalone middleware tests MAY proceed, but full outermost pipeline integration MUST remain unverified until the HTTP owner is available.
 
-- Required deliverables (exact paths):
-  - N/A
+- Required existing implementation paths (MUST; reuse without modification):
+  - `packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
+  - `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - `packages/core/contracts/src/Observability/Errors/ErrorHandlingContext.php`
+  - `packages/platform/errors/src/ErrorHandler.php`
+  - `packages/platform/errors/src/Provider/ErrorsServiceProvider.php`
+  - `packages/platform/errors/src/Mapper/DefaultExceptionMapper.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerValueReference.php`
+  - `docs/ssot/error-descriptor.md`
+  - `docs/ssot/sensitive-data-redaction.md`
+  - `docs/ssot/config-roots.md`
+  - `docs/ssot/tags.md`
 
 - Required config roots/keys:
-  - `problem_details.*` — config root used by this package
+  - `problem_details` — existing reserved package-owned root.
+  - No public error-detail or debug-disclosure configuration is introduced in this baseline.
 
 - Required config roots registry:
-  - `problem_details` MUST already be reserved in `docs/ssot/config-roots.md` with owner `platform/problem-details`.
-  - This epic adds/implements package-owned defaults and rules under the existing root; it does not introduce a new root.
+  - `problem_details` MUST remain reserved in docs/ssot/config-roots.md with owner platform/problem-details.
+  - This epic MUST NOT introduce another config root.
 
 - Required tags:
-  - `http.middleware.system_pre` (owner: platform/http) is needed for wiring.
+  - `http.middleware.system_pre` — existing tag owned by platform/http.
+  - Priority `1000` — existing optional problem-details middleware reservation.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
   - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
-  - `Psr\Log\LoggerInterface` (optional; redacted only)
+
+- No direct ContextAccessorInterface, ContextKeys, TracerPortInterface, MeterPortInterface, LoggerInterface, or ResetInterface dependency is introduced by the baseline.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -4935,33 +6302,53 @@ Depends on:
 - `core/contracts`
 - `core/foundation`
 
-Forbidden:
-- `platform/http`
-- `platform/errors` (direct; allowed only via contracts)
-- `core/kernel`
+Runtime-only Composer/module requirements:
+- `platform/errors` — canonical ErrorHandlerInterface implementation.
+- `platform/redaction` is supplied through the existing platform.errors module dependency.
 
-#### Uses ports (API surface, NOT deps) (optional)
+Forbidden:
+- `platform/http` production-source imports
+- `platform/errors` concrete production-source imports
+- `platform/redaction` concrete production-source imports
+- `core/kernel` production-source imports
+- `platform/logging`
+- `platform/tracing`
+- `platform/metrics`
+- vendor exception-mapping SDK implementations
+- vendor tracing or metrics exporters
+- duplicate redaction and error-mapping implementations
+
+- Composer/module requirements MUST NOT grant additional direct PHP source-import permissions.
+- PSR HTTP interface dependencies are explicitly declared in composer.json.
+
+#### Uses ports (API surface, NOT deps) (MUST)
+
+- Contracts:
+  - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
+  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
+
+- Foundation:
+  - `Coretsia\Foundation\Serialization\StableJsonEncoder`
+  - `Coretsia\Foundation\Tag\ReservedTags`
+  - canonical declarative container-definition APIs
 
 - PSR:
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
-  - `Psr\Log\LoggerInterface` (optional)
-- Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface`
-  - `Coretsia\Contracts\Observability\Errors\ErrorDescriptor`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
+
+- No direct platform/errors implementation or mapper-registry dependency.
+- No duplicate JSON serializer, redaction engine, logger, metrics backend, tracer, or HTTP pipeline.
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A
 - HTTP:
-  - middleware: `\Coretsia\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class`
+  - middleware: `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class`
   - middleware slots/tags: `http.middleware.system_pre` priority `1000` (meta per owner `platform/http` tag schema, if any)
 - Kernel hooks/tags:
   - N/A
@@ -4970,76 +6357,475 @@ Forbidden:
 
 ### Deliverables (MUST)
 
-Normative:
-- [ ] Non-owner packages MUST NOT define public owner-like constants for tags they do not own.
-- [ ] Because owner package `platform/http` is a forbidden compile-time dependency here, runtime wiring SHOULD use a package-local internal mirror constant.
-  - [ ] The canonical string literal `'http.middleware.system_pre'` is allowed only as a fallback.
-- [ ] Any package-local mirror constant used here:
-  - [ ] MUST be package-internal only
-  - [ ] MUST equal the canonical tag string exactly
-  - [ ] MUST NOT be treated as public API
+Naming and ownership lock (MUST)
+
+- [ ] The canonical HTTP middleware tag identifier is ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
+- [ ] Platform/http remains the semantic owner of this middleware slot.
+- [ ] Platform/problem-details contributes only a middleware service and one tag registration.
+- [ ] No package-local mirror constant, reserved-tag registry, or competing tag owner is introduced.
+- [ ] No duplicate ErrorHandlerInterface implementation, exception mapper, redaction engine, JSON encoder, or HTTP pipeline owner is introduced.
+- [ ] The package namespace is Coretsia\Platform\ProblemDetails.
+- [ ] Module ID is platform.problem-details; config root is problem_details.
+- [ ] The package MUST NOT replace ErrorDescriptor or modify its canonical field schema.
 
 #### Creates
 
-- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php` — module entry
-- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php` — DI wiring
-- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
+Package scaffold:
+- [ ] Implementation order (MUST):
+  - [ ] Complete the existing 3.30.0 package:new metadata argument extension before invoking the scaffold.
+  - [ ] Complete the canonical hyphenated-slug config-path changes in new-package.php, sync_package_scaffold.php, and package_compliance_gate.php.
+  - [ ] Verify the extended generator, scaffold synchronization, and compliance gate with their integration tests.
+  - [ ] Run the problem-details package scaffold command exactly once after these tooling changes pass.
+  - [ ] Do not invoke the unmodified package:new command with unsupported --description or --keywords arguments.
+  - [ ] Complete problem-details-specific Composer dependencies and module requirements after canonical scaffold creation.
+  - [ ] Preserve generated legal, security, and baseline package files without introducing duplicate configuration files.
+- [ ] Run `composer package:new -- --layer=platform --slug=problem-details --kind=runtime --description="Coretsia HTTP Problem Details runtime package: safe error descriptor adaptation, deterministic RFC 9457 JSON rendering, and PSR-15 middleware." --keywords=coretsia,php,framework,problem-details,runtime,http,error-handling,error-descriptor,rfc9457,rfc7807,psr-15,deterministic` exactly once.
+- [ ] Epic 3.30.0 metadata argument support MUST be verified before running this command.
+- [ ] Preserve the canonical scaffold-generated package structure.
+- [ ] Complete generated module, provider, configuration, and contract-test placeholders.
+- [ ] Normalize the generated config defaults path to config/problem_details.php through the canonical packaging policy.
+- [ ] No second package scaffold or duplicate configuration root is introduced.
+- [ ] Package creation MUST NOT automatically enable platform.problem-details in application targets or presets.
+- [ ] LICENSE, NOTICE, and SECURITY.md MUST remain byte-identical to their repository-root counterparts.
+- [ ] Problem-details-specific disclosure and security restrictions belong to README.md and docs/ssot/problem-details.md.
 
-- [ ] `packages/platform/problem-details/config/problem_details.php` — config subtree
-- [ ] `packages/platform/problem-details/config/rules.php` — config rules
-- [ ] `packages/platform/problem-details/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php` — cross-cutting proof
+- [ ] `packages/platform/problem-details/LICENSE`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root LICENSE.
+  - [ ] no package-specific license amendments.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical legal file.
+  - [ ] Verification: package-scaffold --check.
 
-- [ ] `packages/platform/problem-details/src/ProblemDetails.php` — VO (RFC7807 fields)
-- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsRendererInterface.php` — package-local renderer port
-- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php` — deterministic JSON + content-type
-  - [ ] MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder` (single-choice runtime writer)
-  - [ ] MUST recursively sort map keys by `strcmp`; lists preserve order
-  - [ ] MUST NOT emit floats/NaN/INF
-  - [ ] MUST NOT use ad-hoc `json_encode` directly in renderer logic
-- [ ] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php` — ErrorDescriptor → RFC7807 mapping
-- [ ] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php` — PSR-15 outer wrapper
-- [ ] `packages/platform/problem-details/src/Security/Redaction.php` — redaction helpers (hash/len, safe fields)
-- [ ] `packages/platform/problem-details/src/Exception/ProblemDetailsRenderFailedException.php` — (`CORETSIA_PROBLEM_DETAILS_RENDER_FAILED`)
+- [ ] `packages/platform/problem-details/NOTICE`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root NOTICE.
+  - [ ] no package-specific notice amendments.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical notice file.
+  - [ ] Verification: package-scaffold --check.
 
-- [ ] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
-- [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
-- [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
-- [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+- [ ] `packages/platform/problem-details/SECURITY.md`
+  - [ ] generated by the existing package scaffold.
+  - [ ] MUST remain byte-identical to repository-root SECURITY.md.
+  - [ ] MUST NOT introduce package-local security reporting authority.
+  - [ ] Problem Details disclosure, HTTP response safety, and redaction restrictions belong to README.md and docs/ssot/problem-details.md.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical security-policy file.
+  - [ ] Verification: package-scaffold --check.
+
+- [ ] `packages/platform/problem-details/composer.json`
+  - [ ] `name = coretsia/platform-problem-details`.
+  - [ ] `type = library`.
+  - [ ] `license = Apache-2.0`.
+  - [ ] Description and keywords are generated exclusively from explicit package:new arguments.
+  - [ ] Authors, homepage, support, and PHP platform follow the canonical package:new metadata policy.
+  - [ ] Composer requires:
+    - [ ] `php: ^8.4`.
+    - [ ] `coretsia/core-contracts: ^0.11.0`.
+    - [ ] `coretsia/core-foundation: ^0.11.0`.
+    - [ ] `coretsia/platform-errors: ^0.11.0`.
+    - [ ] `psr/http-message: ^2.0`.
+    - [ ] `psr/http-factory: ^1.0`.
+    - [ ] `psr/http-server-middleware: ^1.0`.
+    - [ ] `psr/http-server-handler: ^1.0`.
+  - [ ] No direct platform/http or concrete platform/redaction implementation dependency.
+  - [ ] PSR-4 `Coretsia\Platform\ProblemDetails\` → `src/`.
+  - [ ] PSR-4 test namespace → `tests/`.
+  - [ ] `extra.coretsia.kind = runtime`.
+  - [ ] `extra.coretsia.moduleId = platform.problem-details`.
+  - [ ] `extra.coretsia.moduleClass = Coretsia\Platform\ProblemDetails\Module\ProblemDetailsModule`.
+  - [ ] `extra.coretsia.providers = [Coretsia\Platform\ProblemDetails\Provider\ProblemDetailsServiceProvider]`.
+  - [ ] `extra.coretsia.requires = [core.foundation, platform.errors]`.
+  - [ ] `extra.coretsia.conflicts = []`.
+  - [ ] `extra.coretsia.defaultsConfigPath = config/problem_details.php`.
+  - [ ] The platform.errors dependency supplies canonical error mapping and redaction through its existing module requirements.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; Composer metadata only.
+  - [ ] Verification: package identity, manifest, dependency, scaffold, and Composer metadata gates.
+
+- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
+  - [ ] final runtime module-metadata class.
+  - [ ] public typed constants:
+    - [ ] `MODULE_ID = 'platform.problem-details'`.
+    - [ ] `PACKAGE_ID = 'platform/problem-details'`.
+    - [ ] `COMPOSER_PACKAGE = 'coretsia/platform-problem-details'`.
+    - [ ] `KIND = 'runtime'`.
+    - [ ] `CONFIG_ROOT = 'problem_details'`.
+  - [ ] Metadata methods follow the existing ErrorsModule shape.
+  - [ ] `providers()` returns only ProblemDetailsServiceProvider::class.
+  - [ ] No runtime service construction, request handling, config loading, metrics, spans, logging, or reset ownership.
+  - [ ] Verification: Composer metadata and module identity parity.
+
+- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
+  - [ ] final class implementing ServiceProviderInterface and ContainerDefinitionProviderInterface.
+  - [ ] `register()` calls assertDefinitionProviderRegistrationAllowed() and registerDefinitionProvider($this).
+  - [ ] `define()` is the single declarative wiring source.
+  - [ ] require the existing ErrorHandlerInterface binding.
+  - [ ] require PSR ResponseFactoryInterface and StreamFactoryInterface services from the selected compatible HTTP target.
+  - [ ] register ErrorDescriptorToProblemDetailsAdapter and ProblemDetailsJsonRenderer.
+  - [ ] register HttpErrorHandlingMiddleware through constructor dependencies.
+  - [ ] use ContainerValueReference::service() for required service references.
+  - [ ] contribute one ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE tag at priority 1000.
+  - [ ] use the existing ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE identifier and priority 1000.
+  - [ ] use an empty tag metadata map while the platform/http owner has not defined a normative metadata schema.
+  - [ ] platform/problem-details package ownership is declared by the canonical HTTP middleware catalog, not invented through a tag metadata key.
+  - [ ] MUST NOT introduce owner, path, mode, or other package-local metadata keys without an explicit platform/http-owned contract.
+  - [ ] if platform/http defines a normative metadata schema before implementation, consume that exact schema without introducing a competing one.
+  - [ ] no alternative ErrorHandler, mapper, reporter, redactor, serializer, or service locator.
+  - [ ] no runtime closures, imperative parallel DI graph, or mutable provider state.
+  - [ ] module selection and provider order remain Kernel-owned.
+  - [ ] source and compiled definitions MUST be equivalent.
+  - [ ] Verification: provider descriptors, required services, exact tag, selected/unselected module behavior, and source/compiled parity.
+
+- [ ] `packages/platform/problem-details/config/problem_details.php`
+  - [ ] returns only the problem_details root subtree.
+  - [ ] exact Phase 3 baseline result is [].
+  - [ ] no show_detail, show_detail_in_local, raw exception disclosure, or debug switch.
+  - [ ] no transport-specific secrets, runtime state, HTTP objects, or service instances.
+  - [ ] no environment reads, executable validators, or callbacks.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; defaults-only file.
+  - [ ] Verification: exact defaults shape and reserved-root ownership.
+
+- [ ] `packages/platform/problem-details/config/rules.php`
+  - [ ] schemaVersion = 1.
+  - [ ] configRoot = problem_details.
+  - [ ] additionalKeys = false.
+  - [ ] keys = [].
+  - [ ] no configurable disclosure, redaction, exception mapping, or serializer policy.
+  - [ ] unknown keys are rejected through the existing Kernel ConfigValidator.
+  - [ ] no duplicate config validator or custom schema types.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; declarative rules only.
+  - [ ] Verification: canonical ruleset shape and invalid-key rejection.
+
+- [ ] `packages/platform/problem-details/src/ProblemDetails.php`
+  - [ ] final readonly HTTP response-model class.
+  - [ ] distinct from the format-neutral ErrorDescriptor.
+  - [ ] baseline public members are type, title, and status.
+  - [ ] type defaults to the fixed safe URI reference about:blank.
+  - [ ] status is restricted to an accepted HTTP error status in 400..599.
+  - [ ] title is derived internally from status through one fixed canonical HTTP status/title mapping.
+  - [ ] public construction accepts only an accepted HTTP error status; it MUST NOT accept caller-provided title, detail, instance, extensions, or arbitrary public text.
+  - [ ] standard HTTP error statuses use fixed English status phrases consistent with RFC 9110.
+  - [ ] non-standard error statuses within 400..599 use exactly HTTP Error.
+  - [ ] status 500 uses exactly Internal Server Error.
+  - [ ] the mapping MUST NOT depend on ErrorDescriptor, Throwable, HTTP request, localization, environment, or application configuration.
+  - [ ] no second status/title lookup table or public title override is introduced.
+  - [ ] no raw exception message or descriptor extension is copied automatically.
+  - [ ] no arbitrary detail, instance, or extension fields in the baseline.
+  - [ ] no Throwable, ErrorHandlingContext, request, response, or ContextStore reference is retained.
+  - [ ] no clocks, random IDs, environment access, logging, spans, metrics, or reset ownership.
+  - [ ] expose a deterministic safe map for the canonical renderer.
+  - [ ] Verification: immutable shape, allowed statuses, safe fields, ordering independence, and no data disclosure.
+
+- [ ] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php`
+  - [ ] final stateless adapter consuming the existing ErrorDescriptor.
+  - [ ] map(ErrorDescriptor $descriptor): ProblemDetails.
+  - [ ] use the descriptor's httpStatus only as a transport status hint.
+  - [ ] null, informational, redirection, or unsupported status hints produce a fixed safe HTTP 500 fallback.
+  - [ ] HTTP status adaptation:
+    - [ ] accepted status hints are integers in the inclusive range 400..599.
+    - [ ] null and status hints outside 400..599 produce HTTP 500.
+    - [ ] construct ProblemDetails using only the validated or fallback status.
+    - [ ] ProblemDetails owns the single canonical status/title mapping.
+    - [ ] the adapter MUST NOT accept, derive, or forward an arbitrary title.
+    - [ ] the adapter MUST NOT introduce a second HTTP status/title table.
+    - [ ] no ErrorDescriptor message, code, extensions, request data, or Throwable content influences the public title.
+    - [ ] mapping is deterministic and independent of locale, environment, and configuration.
+  - [ ] use about:blank instead of deriving a problem-type URI from arbitrary error codes.
+  - [ ] do not copy message, extensions, severity, or schemaVersion into the HTTP response.
+  - [ ] no new exception mapper, error-code catalog, or descriptor transformation pipeline.
+  - [ ] no ContextAccessorInterface, ContextStore, LoggerInterface, or redactor implementation dependency.
+  - [ ] no spans, metrics, logs, mutable caches, or reset hooks.
+  - [ ] invalid adapter behavior fails closed to a safe internal-error problem.
+  - [ ] Verification: status mapping, fallback, title stability, and absence of raw descriptor fields.
+
+- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php`
+  - [ ] final stateless JSON renderer.
+  - [ ] render(ProblemDetails $problem): string.
+  - [ ] contentType(): string returns application/problem+json.
+  - [ ] use StableJsonEncoder::encodeStableMap() as the canonical JSON writer.
+  - [ ] output is deterministic, with recursive map-key sorting and preserved list ordering.
+  - [ ] output has a final LF and no runtime-dependent formatting.
+  - [ ] no direct ad-hoc json_encode() in renderer logic.
+  - [ ] no floats, NaN, INF, arbitrary objects, Throwable values, or raw nested payloads.
+  - [ ] do not introduce a new renderer interface, serializer registry, or JSON normalization pipeline.
+  - [ ] no HTTP response construction inside the JSON renderer.
+  - [ ] no context reads/writes, spans, metrics, logs, or reset ownership.
+  - [ ] Verification: exact Content-Type, RFC9457 fields, stable JSON, invalid data, and repeatability.
+
+- [ ] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
+  - [ ] final PSR-15 middleware implementing MiddlewareInterface.
+  - [ ] exact namespace Coretsia\Platform\ProblemDetails\Http\Middleware.
+  - [ ] process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface.
+  - [ ] delegate a successful downstream request unchanged.
+  - [ ] catch Throwable from downstream processing at the outer HTTP error boundary.
+  - [ ] invoke canonical ErrorHandlerInterface::handle() exactly once for the captured Throwable.
+  - [ ] adapt only the returned normalized ErrorDescriptor.
+  - [ ] render the resulting ProblemDetails through ProblemDetailsJsonRenderer.
+  - [ ] construct the HTTP response through the injected PSR response and stream factories.
+  - [ ] actual response status MUST equal the problem body status.
+  - [ ] set Content-Type to application/problem+json.
+  - [ ] apply a safe no-store caching policy for generated error responses.
+  - [ ] do not forward raw request headers, cookies, body, exception message, trace, or descriptor extensions.
+  - [ ] Emergency response policy:
+    - [ ] failures of ErrorHandlerInterface, the adapter, or the renderer MUST NOT trigger a second ErrorHandlerInterface::handle() invocation.
+    - [ ] an emergency response uses HTTP 500 and the fixed safe Problem Details representation.
+    - [ ] the emergency JSON body is exactly {"status":500,"title":"Internal Server Error","type":"about:blank"} followed by LF.
+    - [ ] emergency response Content-Type is application/problem+json.
+    - [ ] emergency response headers include Cache-Control: no-store.
+    - [ ] the emergency body is a fixed canonical byte sequence, not arbitrary error data or a second JSON serialization implementation.
+    - [ ] a failed renderer MUST NOT be recursively invoked to render its own failure.
+    - [ ] no raw Throwable, ErrorDescriptor, rendering exception, request data, or context metadata is included.
+    - [ ] response and stream construction use the injected PSR factories.
+    - [ ] failure of response or stream construction preserves the original downstream Throwable precedence.
+    - [ ] no additional mapper, reporter, renderer registry, or exception hierarchy is introduced.
+  - [ ] do not call ErrorHandlerInterface again when an adapter or renderer fails.
+  - [ ] a response-factory failure MUST NOT be misrepresented as a successful safe response.
+  - [ ] when no valid response can be produced, preserve the original Throwable precedence rather than substituting an internal rendering exception.
+  - [ ] no second exception mapping, reporter, logger, redactor, or JSON serializer.
+  - [ ] no implicit ContextStore reads/writes or Kernel UoW lifecycle ownership.
+  - [ ] no additional spans, metrics, warning logs, or reset hooks.
+  - [ ] Verification: success pass-through, Throwable mapping, fallback, status/body parity, output safety, and primary-exception precedence.
+
+Documentation:
+- [ ] `packages/platform/problem-details/README.md`
+  - [ ] package identity, namespace, module ID, dependencies, and exact supported HTTP functionality.
+  - [ ] explain ErrorHandlerInterface and ErrorDescriptor reuse.
+  - [ ] explain why this package is an HTTP adapter rather than a second exception handler.
+  - [ ] document RFC9457 baseline and RFC7807-compatible output.
+  - [ ] document the exact type, title, and status response members.
+  - [ ] document omitted detail, instance, and arbitrary extensions in the Phase 3 baseline.
+  - [ ] explain safe fallback for null or invalid HTTP status hints.
+  - [ ] document PSR-15 middleware selection and priority 1000.
+  - [ ] document compatible HTTP target and response/stream factory requirements.
+  - [ ] document no direct platform/http implementation dependency.
+  - [ ] document that HTML error pages remain outside this epic.
+  - [ ] include synthetic error-response examples with exact status, Content-Type, and body.
+  - [ ] include canonical Observability, Errors, and Security / Redaction sections.
+  - [ ] no claims of new tracing, metrics, error reporting, debug disclosure, or persistent telemetry.
+  - [ ] reference docs/ssot/problem-details.md and docs/ssot/error-descriptor.md.
+  - [ ] vulnerability reporting follows the unmodified canonical SECURITY.md.
+
+- [ ] `docs/ssot/problem-details.md`
+  - [ ] canonical SSoT header, ssotVersion = 1, owner = platform/problem-details.
+  - [ ] define the exact RFC9457 JSON baseline and RFC7807 compatibility boundary.
+  - [ ] define the exact HTTP Problem Details response schema.
+  - [ ] define accepted status hints, fallback status, and status/title mapping.
+  - [ ] define type = about:blank and excluded public fields.
+  - [ ] define the distinction between ErrorDescriptor and HTTP ProblemDetails.
+  - [ ] prohibit raw Throwable and arbitrary descriptor field forwarding.
+  - [ ] define stable JSON encoding and final-LF behavior.
+  - [ ] define error boundary, fallback, and primary-exception precedence.
+  - [ ] define exact Content-Type and response status parity.
+  - [ ] define module selection and middleware priority.
+  - [ ] preserve platform/http ownership of middleware execution.
+  - [ ] preserve platform/errors ownership of normalization and reporting.
+  - [ ] preserve shared redaction policy without introducing another redaction engine.
+  - [ ] define no ContextStore writes, spans, metrics, logs, or reset hooks.
+  - [ ] include deterministic synthetic examples and security acceptance tests.
+  - [ ] no duplicate ErrorDescriptor field schema or competing HTTP middleware catalog.
+
+- [ ] `docs/adr/ADR-0040-platform-problem-details-http-adaptation.md`
+  - [ ] ADR version 1 and platform/problem-details ownership.
+  - [ ] record canonical ErrorHandlerInterface and ErrorDescriptor reuse.
+  - [ ] record why a transport-specific ProblemDetails model is necessary.
+  - [ ] record why no second ErrorHandler, renderer interface, redactor, serializer, or exception hierarchy is introduced.
+  - [ ] record RFC9457 adoption and RFC7807 compatibility.
+  - [ ] record safe-by-construction response disclosure.
+  - [ ] record PSR-15 middleware and platform/http slot ownership.
+  - [ ] record exact module and runtime dependency boundaries.
+  - [ ] record deterministic fallback, source/compiled parity, and no runtime state.
+  - [ ] record deferred HTML rendering and richer public problem metadata.
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-problem-details-rfc7807.md`
+- [ ] `docs/architecture/DEPENDENCIES.md`
+  - [ ] add exactly one materialized package row for platform/problem-details.
+  - [ ] direct production source dependencies: core/contracts, core/foundation.
+  - [ ] platform/errors is a runtime-only Composer/module edge, not a direct PHP source-import permission.
+  - [ ] preserve strcmp package-id ordering.
+  - [ ] generated Deptrac policy consumes the canonical dependency row.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; architecture documentation only.
+  - [ ] Verification: dependency matrix and generated Deptrac policy consistency.
 
-#### Package skeleton (if type=package)
+- [ ] `composer.json`
+  - [ ] register coretsia/platform-problem-details: 0.11.x-dev under the current monorepo require-dev baseline.
+  - [ ] synchronize the managed path repository through existing tooling.
+  - [ ] preserve existing package references and deterministic ordering.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; workspace metadata only.
+  - [ ] Verification: Composer repositories synchronization and package identity gates.
 
-- [ ] `packages/platform/problem-details/composer.json`
-- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
-- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
-- [ ] `packages/platform/problem-details/config/problem_details.php`
-- [ ] `packages/platform/problem-details/config/rules.php`
-- [ ] `packages/platform/problem-details/README.md`
-- [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [ ] `docs/adr/INDEX.md`
+  - [ ] register docs/adr/ADR-0040-platform-problem-details-http-adaptation.md exactly once.
+  - [ ] preserve canonical title, owner, adrVersion, and scope formatting.
+  - [ ] preserve strcmp ordering and no-forward-reference policy.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [ ] Verification: ADR index consistency.
+
+- [ ] `docs/ssot/INDEX.md`
+  - [ ] register docs/ssot/problem-details.md exactly once.
+  - [ ] use canonical title, owner, ssotVersion, and scope formatting.
+  - [ ] preserve deterministic ordering and no-forward-reference policy.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [ ] Verification: SSoT index consistency.
+
+- [ ] `docs/ssot/http-middleware-catalog.md`
+  - [ ] preserve the existing priority-1000 problem-details reservation.
+  - [ ] clarify that registration requires explicit selection in a compatible HTTP target.
+  - [ ] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
+  - [ ] preserve platform/http ownership of slot execution and metadata semantics.
+  - [ ] no new HTTP tag, route, middleware registry, or pipeline implementation.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; documentation-only change.
+  - [ ] Verification: exact reservation owner, class, priority, and module-selection semantics.
+
+- [ ] `docs/ssot/errors-boundary.md`
+  - [ ] preserve platform/errors as the canonical Throwable normalization and error reporting owner.
+  - [ ] preserve platform/problem-details as the HTTP adaptation and rendering owner.
+  - [ ] replace installation-implies-registration wording with explicit target-local module selection requirements.
+  - [ ] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
+  - [ ] selected platform.problem-details contributes one existing http.middleware.system_pre registration at priority 1000.
+  - [ ] preserve platform/http ownership of middleware execution and pipeline ordering.
+  - [ ] document RFC9457 as the normative Problem Details specification with RFC7807-compatible baseline fields.
+  - [ ] document that ErrorHandlerInterface::handle() is invoked once for a captured downstream Throwable.
+  - [ ] preserve format-neutral ErrorDescriptor ownership and prohibit duplicate exception mapping.
+  - [ ] no second redaction engine, error reporting pipeline, context owner, or reset orchestration.
+  - [ ] Context/UoW: N/A; documentation-only change.
+  - [ ] Spans/metrics/logs: N/A; no new production instrumentation.
+  - [ ] Reset: N/A; no lifecycle change.
+  - [ ] Verification: consistency with problem-details.md, http-middleware-catalog.md, and selected-module DI behavior.
+
+- [ ] `tools/build/new-package.php`
+  - [ ] preserve the existing generator and its atomic package creation behavior.
+  - [ ] generate a valid config defaults filename for kebab-case runtime package slugs.
+  - [ ] map hyphens to underscores in generated config-root filenames.
+  - [ ] for problem-details, generate defaultsConfigPath = config/problem_details.php.
+  - [ ] do not change the canonical module ID or package slug.
+  - [ ] no package-specific filename exception or second config-path registry.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository tooling only.
+  - [ ] Verification: runtime scaffold with a hyphenated slug and canonical config path.
+
+- [ ] `tools/build/sync_package_scaffold.php`
+  - [ ] validate the canonical defaultsConfigPath declared in package metadata.
+  - [ ] use the validated declared defaults path rather than assuming config/<slug>.php.
+  - [ ] preserve symlink/path safety and atomic scaffold behavior.
+  - [ ] ensure one canonical defaults file is required, not a hyphen/underscore duplicate.
+  - [ ] preserve byte-identical LICENSE, NOTICE, and SECURITY.md gates.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository tooling only.
+  - [ ] Verification: package-scaffold --check passes with config/problem_details.php and rejects missing or malformed canonical paths.
+
+- [ ] `tools/gates/package_compliance_gate.php`
+  - [ ] preserve the existing canonical package-compliance gate and its diagnostic codes.
+  - [ ] validate runtime defaultsConfigPath against the canonical config-root filename policy.
+  - [ ] support kebab-case package slugs whose config root uses underscores.
+  - [ ] for platform/problem-details, accept exactly config/problem_details.php.
+  - [ ] preserve moduleId = platform.problem-details independently of configRoot = problem_details.
+  - [ ] do not require an additional config/problem-details.php file.
+  - [ ] validate the declared defaultsConfigPath before any filesystem access.
+  - [ ] reject absolute paths, traversal, symlinks, malformed paths, and mismatched metadata.
+  - [ ] preserve existing package namespace, module, provider, and configuration validations.
+  - [ ] preserve existing behavior for packages whose slug and config-root spelling already match.
+  - [ ] no package-specific exception, alternate config registry, or second compliance validator is introduced.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository compliance tooling only.
+  - [ ] Verification: canonical config-path acceptance, malformed-path rejection, existing fixture compatibility, and package-compliance gate green.
+
+- [ ] `tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
+  - [ ] add a valid runtime fixture using a hyphenated package slug.
+  - [ ] verify moduleId = platform.problem-details and defaultsConfigPath = config/problem_details.php.
+  - [ ] verify the canonical underscore defaults file is accepted without a duplicate hyphenated file.
+  - [ ] preserve existing non-hyphenated runtime fixture acceptance.
+
+- [ ] `tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
+  - [ ] reject mismatched defaultsConfigPath metadata.
+  - [ ] reject path traversal, absolute paths, and invalid config-root filenames.
+  - [ ] reject missing canonical defaults files.
+  - [ ] verify rejection does not require creating a second defaults file.
+  - [ ] preserve existing deterministic diagnostic behavior.
+
+- [ ] `tools/tests/Integration/NewPackageAtomicCreationTest.php`
+  - [ ] add a hyphenated runtime-slug fixture.
+  - [ ] verify moduleId preserves the original slug while defaultsConfigPath uses the canonical config-root filename.
+  - [ ] verify no duplicate hyphenated defaults file is generated.
+  - [ ] verify existing package:new invocations remain compatible.
+  - [ ] preserve atomic failure and cleanup tests.
+
+- [ ] `tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
+  - [ ] verify the canonical metadata-defined defaults path is checked.
+  - [ ] reject missing or malformed defaults paths.
+  - [ ] verify no obsolete slug-derived defaults file is required.
+
+- [ ] `tools/testing/package-index.php`
+  - [ ] regenerate through the canonical package-index generator.
+  - [ ] no manual generated-table edits.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [ ] Verification: package-index --check.
+
+- [ ] `tools/testing/deptrac.yaml`
+  - [ ] regenerate through the canonical Deptrac generator.
+  - [ ] no separate problem-details dependency allowlist.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [ ] Verification: deptrac --check.
+
+- [ ] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [ ] regenerate through the canonical installation-catalog generator.
+  - [ ] preserve Kernel ownership and schema.
+  - [ ] no package-local installation catalog.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [ ] Verification: installation-catalog --check with valid Composer bootstrap.
+
+Generation and verification:
+- [ ] Synchronize Composer repositories through canonical tooling.
+- [ ] Generate the package index through the existing generator.
+- [ ] Generate Deptrac configuration through the existing generator.
+- [ ] Generate the installation catalog through the existing generator.
+- [ ] Run package identity, manifest, scaffold, dependency, and HTTP middleware catalog checks.
+- [ ] Preserve the existing Deptrac allowlist.
+- [ ] Do not edit generator-owned artifacts manually.
+- [ ] Missing Composer bootstrap or unavailable HTTP runtime MUST NOT be reported as successful end-to-end verification.
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
   - [ ] `packages/platform/problem-details/config/problem_details.php`
-- [ ] Keys (dot):
-  - [ ] `problem_details.enabled` = true
-  - [ ] `problem_details.show_detail` = false
-  - [ ] `problem_details.show_detail_in_local` = true
+  - [ ] `packages/platform/problem-details/config/rules.php`
+- [ ] Root:
+  - [ ] `problem_details` — existing reserved package-owned root.
+- [ ] Baseline defaults:
+  - [ ] config/problem_details.php returns [].
+  - [ ] config/rules.php defines a strict empty map.
+- [ ] No keys for:
+  - [ ] show_detail.
+  - [ ] show_detail_in_local.
+  - [ ] raw exception disclosure.
+  - [ ] stacktrace output.
+  - [ ] arbitrary extensions.
+  - [ ] problem type registry.
+  - [ ] renderer selection.
+  - [ ] custom exception mapping.
+  - [ ] redaction policy overrides.
 - [ ] Rules:
-  - [ ] `packages/platform/problem-details/config/rules.php` enforces shape
+  - [ ] existing Kernel configuration validation only.
+  - [ ] unknown keys are rejected.
+  - [ ] no executable validator or environment-derived debug policy.
+  - [ ] no automatic modification of application presets or ModulePlan.
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] N/A (contributes to `http.middleware.system_pre`, but tag owner is `platform/http`)
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware`
-  - [ ] adds tag: `http.middleware.system_pre` priority `1000`
+- Tags introduced:
+  - N/A.
+- [ ] Existing tag reuse:
+  - [ ] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
+  - [ ] priority = 1000.
+  - [ ] registered middleware package owner = platform/problem-details in the canonical HTTP middleware catalog.
+  - [ ] tag meta = [] until the platform/http owner explicitly defines a non-empty metadata schema.
+  - [ ] no package-local mirror constant or new tag registry.
+- [ ] ServiceProvider wiring:
+  - [ ] consume the existing ErrorHandlerInterface binding from platform.errors.
+  - [ ] register ErrorDescriptorToProblemDetailsAdapter.
+  - [ ] register ProblemDetailsJsonRenderer.
+  - [ ] register HttpErrorHandlingMiddleware.
+  - [ ] consume PSR response and stream factories from the selected compatible HTTP target.
+  - [ ] contribute exactly one existing middleware tag registration.
+  - [ ] no duplicate ErrorHandler, mapper, reporter, redactor, serializer, or runtime factory.
+  - [ ] source and compiled service definitions MUST be equivalent.
+  - [ ] unselected module MUST NOT contribute middleware services or tags.
+  - [ ] no new reset, lifecycle, metrics, or tracing tags.
 
 #### Artifacts / outputs (if applicable)
 
@@ -5049,80 +6835,233 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID` (logs only; never metric labels)
-- Context writes (safe only):
-  - N/A
+- Context reads:
+  - N/A; no ContextAccessorInterface or ContextKeys consumption.
+- Context writes:
+  - N/A; no ContextStore writes.
+- [ ] UnitOfWork ownership:
+  - [ ] Kernel remains the owner of UnitOfWork lifecycle and correlation identity.
+  - [ ] ErrorHandlerInterface remains responsible for its existing safe correlation enrichment.
+  - [ ] problem-details does not derive public identifiers from Kernel context.
 - [ ] Reset discipline:
-  - [ ] expected none
+  - [ ] ProblemDetails, adapter, renderer, provider, and middleware are stateless.
+  - [ ] no request-local mutable registry or process-lifetime output cache.
+  - [ ] no ResetInterface implementation or kernel.reset registration.
+  - [ ] repeated rendering is deterministic and independent across requests.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `http.error.render` (attrs: `outcome`, `status`)
-- [ ] Metrics:
-  - [ ] `http.error_total` (labels: `status`, `outcome`)
-  - [ ] `http.error_duration_ms` (labels: `status`, `outcome`)
-- [ ] Logs:
-  - [ ] handled_error/fatal_error summary (no stacktrace in prod, no secrets)
+- Spans:
+  - N/A; no http.error.render span is introduced.
+- Metrics:
+  - N/A; no http.error_total or http.error_duration_ms is introduced.
+- Logs:
+  - N/A; no duplicate handled_error/fatal_error logging pipeline.
+- [ ] Existing error observability:
+  - [ ] platform.errors remains the owner of error reporting, existing spans, metrics, and diagnostics.
+  - [ ] problem-details MUST NOT report or instrument the same Throwable a second time.
+  - [ ] renderer and middleware failures MUST NOT trigger recursive self-instrumentation.
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\ProblemDetails\Exception\ProblemDetailsRenderFailedException` — errorCode `CORETSIA_PROBLEM_DETAILS_RENDER_FAILED`
-- [ ] Mapping:
-  - [ ] uses `ErrorHandlerInterface` (port) and never duplicates mapping logic
+- New exception classes:
+  - N/A.
+- [ ] Runtime failure policy:
+  - [ ] ErrorHandlerInterface::handle() is invoked once for each captured downstream Throwable.
+  - [ ] no second exception mapping is performed.
+  - [ ] absent HTTP status hint produces a fixed HTTP 500 fallback.
+  - [ ] adapter or renderer failure produces a fixed safe fallback where response construction remains possible.
+  - [ ] no raw Throwable, descriptor message, previous exception, or stack trace is serialized.
+  - [ ] no rendering failure is reported as a new primary application error.
+  - [ ] a response-factory failure cannot be claimed as successful no-throw response construction.
+  - [ ] when response construction is impossible, preserve the original Throwable precedence.
+  - [ ] successful requests pass through unchanged.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/session id/tokens/raw SQL/payload/stacktrace (prod)
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids (`actor_id` if already safe elsewhere)
+- [ ] Public Problem Details is safe by construction.
+- [ ] Existing platform.errors redaction and error normalization remain authoritative.
+- [ ] No independent sensitive-key classifier, redactor, hash engine, or masking implementation.
+- [ ] The baseline does not export arbitrary descriptor message or extensions.
+- [ ] No raw authorization headers, cookies, session IDs, tokens, SQL, payloads, customer identifiers, or local paths are exposed.
+- [ ] No arbitrary hash/len summaries or actor identifiers are added to public error responses.
+- [ ] Redaction is not sufficient authorization to expose arbitrary diagnostic values.
+- [ ] Public response fields, status, Content-Type, and output size are governed by the package's fixed safe schema.
+- [ ] Any future detail, instance, or extension disclosure requires an explicit owner-approved policy and corresponding security tests.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → integration tests must assert deterministic body + no secrets
-- [ ] If redaction exists →
-  - [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+- Context writes:
+  - N/A; verify no ContextStore writes or new ContextKeys.
+- Reset:
+  - N/A; verify no ResetInterface implementation, kernel.reset tag, or mutable request-local state.
+- Spans:
+  - N/A; no new span name or tracing instrumentation.
+- Metrics:
+  - N/A; no new metric name or metrics recording.
+- Logs:
+  - N/A; canonical platform.errors reporting remains authoritative.
+- [ ] Errors:
+  - [ ] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
+  - [ ] verify ErrorHandlerInterface::handle() is invoked exactly once per captured downstream Throwable.
+  - [ ] verify no duplicate mapper, reporter, or exception hierarchy.
+  - [ ] verify primary-exception precedence when HTTP response construction fails.
+- [ ] Security / Redaction:
+  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
   - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+  - [ ] verify raw exception messages, descriptor extensions, request payloads, and private metadata are absent.
+  - [ ] verify emergency fallback is safe and deterministic.
+- [ ] Runtime DI:
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
+  - [ ] verify exact middleware tag, priority, module selection, and source/compiled parity.
+- [ ] Package configuration:
+  - [ ] verify config/problem_details.php is the only canonical defaults file.
+  - [ ] verify scaffold, package compliance, manifest, and configuration gates.
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A (PSR-15 middleware can be tested via unit/integration harness)
+- [ ] Reuse existing Foundation/Kernel declarative DI test infrastructure.
+- [ ] Use deterministic synthetic ErrorDescriptor and Throwable fixtures.
+- [ ] Use a controlled ErrorHandlerInterface test double for invocation-count and failure-isolation cases.
+- [ ] Use PSR-7 response/stream factory and PSR-15 request-handler test doubles.
+- [ ] No real network listener, external HTTP server, logs, metrics backend, or exporter is required.
+- [ ] No real ContextStore mutation or UnitOfWork lifecycle is required.
+- [ ] Full platform/http pipeline verification remains mandatory once its runtime owner is available.
 
 ### Tests (MUST)
 
 - Unit:
   - [ ] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
+    - [ ] exact application/problem+json Content-Type.
+    - [ ] deterministic stable JSON map ordering.
+    - [ ] final LF and identical bytes for repeated rendering.
+    - [ ] reject unsupported floats, objects, and malformed values.
+    - [ ] no raw descriptor fields or output side effects.
+    - [ ] no additional serializer, metrics, spans, logs, or reset state.
+
+  - [ ] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
+    - [ ] canonical ErrorDescriptor input.
+    - [ ] accepted error-status hints and deterministic title mapping.
+    - [ ] verify canonical status/title pairs for standard 4xx and 5xx statuses.
+    - [ ] verify non-standard 4xx/5xx status hints use the fixed HTTP Error title.
+    - [ ] verify null and non-error status hints use HTTP 500 and Internal Server Error.
+    - [ ] verify title selection does not consume descriptor message, code, extensions, or request data.
+    - [ ] null, informational, redirection, or unsupported status hints use HTTP 500 fallback.
+    - [ ] exact about:blank type.
+    - [ ] raw message, severity, extensions, and schemaVersion are not forwarded.
+    - [ ] deterministic output and no exception-mapper duplication.
+
 - Contract:
   - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+    - [ ] exact type, title, and status baseline members.
+    - [ ] direct ProblemDetails construction cannot accept an arbitrary public title.
+    - [ ] canonical title is derived exclusively from the accepted status.
+    - [ ] standard, non-standard, and fallback status/title combinations follow one fixed policy.
+    - [ ] no alternative title or arbitrary public text can be injected through ProblemDetails construction.
+    - [ ] no arbitrary detail, instance, or extension members.
+    - [ ] body status matches the actual HTTP response status.
+    - [ ] RFC9457 baseline with RFC7807-compatible fields.
+    - [ ] no secret, PII, diagnostic, or raw Throwable disclosure.
+
   - [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [ ] replace the scaffold placeholder assertion with executable behavior tests.
+    - [ ] adapter and renderer preserve deterministic safe fallback behavior.
+    - [ ] no duplicate error reporter, metrics, spans, logs, or reset hooks.
+    - [ ] no ContextStore writes or mutable registry state.
+
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsModuleComposerMetadataContractTest.php`
+    - [ ] exact package, module ID, namespace, config root, providers, and requirements.
+    - [ ] exact PSR HTTP dependencies.
+    - [ ] platform.errors runtime dependency and no concrete implementation imports.
+    - [ ] no forbidden Kernel or platform/http production-source imports.
+
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
+    - [ ] exact canonical middleware tag and priority.
+    - [ ] tag metadata remains empty unless required by the canonical platform/http-owned schema.
+    - [ ] no package-local owner, path, or mode metadata key is invented.
+    - [ ] middleware ownership and priority match docs/ssot/http-middleware-catalog.md.
+    - [ ] required ErrorHandlerInterface and PSR factory references.
+    - [ ] no closure, service locator, or second exception handler.
+    - [ ] source and compiled definition descriptors match.
+
+  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsConfigRulesContractTest.php`
+    - [ ] exact empty defaults.
+    - [ ] exact strict ruleset shape.
+    - [ ] unknown debug, detail, and renderer keys are rejected.
+    - [ ] canonical config path and root identity are consistent.
+
 - Integration:
-  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsRfc7807Test.php`
-  - [ ] `packages/platform/problem-details/tests/Integration/DetailHiddenInProductionTest.php`
+  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
+    - [ ] successful request delegates unchanged.
+    - [ ] downstream Throwable invokes canonical ErrorHandlerInterface exactly once.
+    - [ ] deterministic status, headers, and response body.
+    - [ ] adapter and renderer failure fallbacks.
+    - [ ] ErrorHandlerInterface failure uses the exact fixed emergency body without retrying handle().
+    - [ ] emergency response status, Content-Type, and Cache-Control match the normative fallback policy.
+    - [ ] response or stream factory failure preserves the original downstream Throwable.
+    - [ ] emergency output never contains exception messages, previous Throwable details, or request payloads.
+    - [ ] no recursive fallback rendering or duplicate error reporting occurs.
+    - [ ] response-factory failure preserves primary exception precedence.
+    - [ ] no duplicate error reporting or additional metrics/spans/logs.
+
+  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
+    - [ ] synthetic descriptor containing sensitive-looking message and extensions.
+    - [ ] no raw message or extension values in public JSON.
+    - [ ] no raw request or exception data in fallback output.
+    - [ ] no public detail or debug mode enabled by default.
+    - [ ] identical safe disclosure policy across repeated requests.
+
+  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
+    - [ ] selected HTTP target resolves canonical ErrorHandlerInterface and problem-details middleware.
+    - [ ] unselected target does not contribute problem-details middleware or tags.
+    - [ ] exact priority-1000 registration.
+    - [ ] source and compiled containers preserve equivalent service definitions.
+    - [ ] reuse existing Foundation/Kernel DI test infrastructure.
+    - [ ] verify full HTTP pipeline behavior only when the compatible HTTP runtime is available.
+
 - Gates/Arch:
-  - [ ] deptrac green (no forbidden deps)
+  - [ ] package identity, manifest, and scaffold gates green.
+  - [ ] package-compliance gate green for the canonical problem_details config path.
+  - [ ] hyphenated runtime package fixtures pass scaffold and compliance gates without duplicate defaults files.
+  - [ ] Composer repository synchronization green.
+  - [ ] package-index generator check green.
+  - [ ] Deptrac generator check green.
+  - [ ] ADR and SSoT indexes consistent.
+  - [ ] installation-catalog generation and check green.
+  - [ ] no forbidden imports or duplicate error/redaction implementations.
+  - [ ] source/compiled DI parity green.
+  - [ ] no new unauthorized metric or span names.
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] Middleware wired via tag `http.middleware.system_pre` priority 1000
-- [ ] Non-owner tag usage stays compliant:
-  - [ ] no public owner-like tag API is introduced in `platform/problem-details`
-  - [ ] runtime wiring prefers a package-local internal mirror constant
-  - [ ] canonical string literal is used only as fallback
-- [ ] Deterministic RFC7807 JSON output (stable order)
-- [ ] No secrets/PII in body/logs (tests prove)
-- [ ] README sections complete and accurate
+- [ ] Spec locked (this epic text reviewed + no open questions).
+- [ ] Implementation complete.
+- [ ] Tests green.
+- [ ] Gates/Arch green.
+- [ ] Docs complete.
+- [ ] Canonical ErrorHandlerInterface remains the only exception normalization owner.
+- [ ] Throwable mapping is invoked exactly once at the HTTP error boundary.
+- [ ] ErrorDescriptor is adapted without changing its contracts-level schema.
+- [ ] RFC9457 application/problem+json output is deterministic and RFC7807-compatible.
+- [ ] Public Problem Details fields follow the exact safe-by-construction schema.
+- [ ] HTTP response status matches body status.
+- [ ] Null, unsupported, or invalid HTTP status hints use a deterministic safe fallback.
+- [ ] No raw exception message, arbitrary extensions, stack trace, payload, or sensitive context is exposed.
+- [ ] No second redactor, serializer, exception mapper, reporter, or renderer registry is introduced.
+- [ ] Middleware uses ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000.
+- [ ] No package-local mirror tag constant or competing tag owner is introduced.
+- [ ] Module selection is explicit and does not implicitly enable HTTP integration.
+- [ ] Source and compiled container definitions are equivalent.
+- [ ] No ContextStore writes, UnitOfWork lifecycle ownership, metrics, spans, logs, or reset hooks are introduced.
+- [ ] Canonical config path config/problem_details.php passes package-scaffold and configuration gates.
+- [ ] Hyphenated runtime package scaffold generation is verified without duplicate config files.
+- [ ] Canonical Composer metadata, ADR-0040, problem-details SSoT, indexes, and generated artifacts are complete.
+- [ ] HTTP pipeline integration is verified against the compatible platform/http owner before final completion.
+- [ ] README sections complete and accurate.
 
 ---
 
@@ -5417,7 +7356,6 @@ Normative:
 - [ ] Files:
   - [ ] `packages/platform/http/config/http.php`
 - [ ] Keys (dot):
-  - [ ] `http.enabled` = true
 
   # auto include tagged middlewares per-slot
   - [ ] `http.middleware.auto.enabled` = true
@@ -7680,7 +9618,6 @@ Tests:
 - [ ] Files:
   - [ ] `packages/platform/routing/config/routing.php`
 - [ ] Keys (dot):
-  - [ ] `routing.enabled` = true
   - [ ] `routing.compile.enabled` = true
   - [ ] `routing.runtime.enabled` = true
   - [ ] `routing.artifacts.path` = 'packages/applications/skeleton/var/cache/<appId>/routes.php'
@@ -8013,7 +9950,6 @@ Framework / E2E:
 - [ ] Files:
   - [ ] `packages/platform/http-app/config/http_app.php`
 - [ ] Keys (dot):
-  - [ ] `http_app.enabled` = true
   - [ ] `http_app.handlers.map` = []  # handlerId => serviceId
   - [ ] `http_app.arguments.allow_request` = true
   - [ ] `http_app.arguments.allow_route_params` = true

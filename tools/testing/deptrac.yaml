@@ -26,6 +26,7 @@ deptrac:
     - '../../packages/platform/errors/src'
     - '../../packages/platform/logging/src'
     - '../../packages/platform/redaction/src'
+    - '../../packages/platform/tracing/src'
     - '../../packages/platform/worker/src'
 
   exclude_files:
@@ -70,6 +71,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Redaction\\.*'
+    - name: 'platform.tracing'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Tracing\\.*'
     - name: 'platform.worker'
       collectors:
         - type: classLike
@@ -95,6 +100,9 @@ deptrac:
       - 'core.contracts'
       - 'core.foundation'
     'platform.redaction':
+      - 'core.contracts'
+      - 'core.foundation'
+    'platform.tracing':
       - 'core.contracts'
       - 'core.foundation'
     'platform.worker':

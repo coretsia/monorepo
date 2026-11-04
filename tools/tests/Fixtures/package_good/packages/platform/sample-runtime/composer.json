@@ -20,7 +20,7 @@
       "providers": [
         "Coretsia\\Platform\\SampleRuntime\\Provider\\SampleRuntimeServiceProvider"
       ],
-      "defaultsConfigPath": "config/sample-runtime.php"
+      "defaultsConfigPath": "config/sample_runtime.php"
     }
   }
 }

@@ -83,6 +83,17 @@ return array(
         2 => 'platform.redaction',
       ),
     ),
+    'platform.metrics' =>
+    array(
+      'composerName' => 'coretsia/platform-metrics',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+      ),
+    ),
     'platform.redaction' =>
     array(
       'composerName' => 'coretsia/platform-redaction',

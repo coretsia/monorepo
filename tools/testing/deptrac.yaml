@@ -25,6 +25,7 @@ deptrac:
     - '../../packages/platform/cli/src'
     - '../../packages/platform/errors/src'
     - '../../packages/platform/logging/src'
+    - '../../packages/platform/metrics/src'
     - '../../packages/platform/redaction/src'
     - '../../packages/platform/tracing/src'
     - '../../packages/platform/worker/src'
@@ -67,6 +68,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Logging\\.*'
+    - name: 'platform.metrics'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Metrics\\.*'
     - name: 'platform.redaction'
       collectors:
         - type: classLike
@@ -97,6 +102,9 @@ deptrac:
       - 'core.contracts'
       - 'core.foundation'
     'platform.logging':
+      - 'core.contracts'
+      - 'core.foundation'
+    'platform.metrics':
       - 'core.contracts'
       - 'core.foundation'
     'platform.redaction':

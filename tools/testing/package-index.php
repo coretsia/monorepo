@@ -161,6 +161,23 @@ return array(
     ),
     8 =>
     array(
+      'composerName' => 'coretsia/platform-metrics',
+      'defaultsConfigPath' => 'config/metrics.php',
+      'id' => 'platform.metrics',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Metrics\\Module\\MetricsModule',
+      'moduleId' => 'platform.metrics',
+      'path' => 'packages/platform/metrics',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Metrics\\Provider\\MetricsServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Metrics\\',
+      'slug' => 'metrics',
+    ),
+    9 =>
+    array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
       'id' => 'platform.redaction',
@@ -176,7 +193,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    9 =>
+    10 =>
     array(
       'composerName' => 'coretsia/platform-tracing',
       'defaultsConfigPath' => 'config/tracing.php',
@@ -193,7 +210,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Tracing\\',
       'slug' => 'tracing',
     ),
-    10 =>
+    11 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

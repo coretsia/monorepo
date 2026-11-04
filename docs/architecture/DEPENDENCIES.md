@@ -301,6 +301,7 @@ The canonical empty dependency marker is:
 | platform/errors           | core/contracts, core/foundation              |       |
 | platform/logging          | core/contracts, core/foundation              |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
+| platform/tracing          | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
 The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`; its existing source dependency permissions remain unchanged.

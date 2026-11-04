@@ -178,6 +178,23 @@ return array(
     ),
     9 =>
     array(
+      'composerName' => 'coretsia/platform-tracing',
+      'defaultsConfigPath' => 'config/tracing.php',
+      'id' => 'platform.tracing',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Tracing\\Module\\TracingModule',
+      'moduleId' => 'platform.tracing',
+      'path' => 'packages/platform/tracing',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Tracing\\Provider\\TracingServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Tracing\\',
+      'slug' => 'tracing',
+    ),
+    10 =>
+    array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',
       'id' => 'platform.worker',

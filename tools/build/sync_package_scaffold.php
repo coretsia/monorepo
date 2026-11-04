@@ -17,6 +17,7 @@ declare(strict_types=1);
  */
 
 use Coretsia\Tools\Support\ComposerJson;
+use Coretsia\Tools\Support\ConfigRootOwnership;
 use Coretsia\Tools\Support\ConsoleOutput;
 use Coretsia\Tools\Support\DeterministicFile;
 use Coretsia\Tools\Support\ErrorCodes;
@@ -29,6 +30,8 @@ require_once __DIR__ . '/../support/DeterministicException.php';
 require_once __DIR__ . '/../support/DeterministicFile.php';
 require_once __DIR__ . '/../support/RepositoryContext.php';
 require_once __DIR__ . '/../support/ComposerJson.php';
+require_once __DIR__ . '/../support/MarkdownSectionReader.php';
+require_once __DIR__ . '/../support/ConfigRootOwnership.php';
 require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
 
 (static function (array $argv): void {
@@ -58,6 +61,7 @@ require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
 
         $diagnostics = coretsia_sync_package_scaffold_run(
             $products,
+            $repository,
             $canonicalPackageFiles,
             $options['check'],
         );
@@ -186,6 +190,7 @@ function coretsia_sync_package_scaffold_resolve_options(array $argv): array
  */
 function coretsia_sync_package_scaffold_run(
     array $products,
+    RepositoryContext $repository,
     array $canonicalPackageFiles,
     bool $check,
 ): array {
@@ -195,6 +200,7 @@ function coretsia_sync_package_scaffold_run(
         foreach (
             coretsia_sync_package_scaffold_sync_package(
                 $product,
+                $repository,
                 $canonicalPackageFiles,
                 $check,
             ) as $diagnostic
@@ -223,6 +229,7 @@ function coretsia_sync_package_scaffold_run(
  */
 function coretsia_sync_package_scaffold_sync_package(
     array $product,
+    RepositoryContext $repository,
     array $canonicalPackageFiles,
     bool $check,
 ): array {
@@ -260,6 +267,23 @@ function coretsia_sync_package_scaffold_sync_package(
     $diagnostics = [];
 
     $kind = coretsia_sync_package_scaffold_package_kind($packageRoot);
+    $configRoot = $kind === 'runtime'
+        ? ConfigRootOwnership::forPackage($repository, $layer . '/' . $slug)
+        : null;
+    $defaultsPath = $configRoot === null ? null : 'config/' . $configRoot . '.php';
+
+    if ($kind === 'runtime') {
+        $composer = ComposerJson::readObject($packageRoot . '/composer.json');
+        $extra = $composer['extra']['coretsia'] ?? null;
+
+        if (
+            !\is_array($extra)
+            || (\array_key_exists('defaultsConfigPath', $extra) !== ($defaultsPath !== null))
+            || ($defaultsPath !== null && $extra['defaultsConfigPath'] !== $defaultsPath)
+        ) {
+            throw new \RuntimeException('package-scaffold-config-root-invalid');
+        }
+    }
 
     $safePaths = [
         'LICENSE',
@@ -277,12 +301,13 @@ function coretsia_sync_package_scaffold_sync_package(
             ...$safePaths,
             'src/Module',
             'src/Provider',
-            'config',
             'src/Module/' . $studlySlug . 'Module.php',
             'src/Provider/' . $studlySlug . 'ServiceProvider.php',
-            'config/' . $slug . '.php',
-            'config/rules.php',
         ];
+
+        if ($defaultsPath !== null) {
+            $safePaths = [...$safePaths, 'config', $defaultsPath, 'config/rules.php'];
+        }
     }
 
     foreach ($safePaths as $relativePath) {
@@ -322,6 +347,7 @@ function coretsia_sync_package_scaffold_sync_package(
                 $relativeRoot,
                 $layer,
                 $slug,
+                $configRoot,
                 $check,
             ) as $diagnostic
         ) {
@@ -558,6 +584,7 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
     string $relativeRoot,
     string $layer,
     string $slug,
+    ?string $configRoot,
     bool $check,
 ): array {
     /** @var list<string> $diagnostics */
@@ -565,9 +592,7 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
 
     $studlySlug = coretsia_sync_package_scaffold_studly($slug);
 
-    $composer = ComposerJson::readObject($packageRoot . '/composer.json');
-    $extra = $composer['extra']['coretsia'] ?? [];
-    $hasConfigRoot = \is_array($extra) && \array_key_exists('defaultsConfigPath', $extra);
+    $hasConfigRoot = $configRoot !== null;
 
     $requiredDirs = [
         'src/Module',
@@ -596,17 +621,17 @@ function coretsia_sync_package_scaffold_sync_runtime_files(
     $runtimeFiles = [
         'src/Module/' . $studlySlug . 'Module.php' => coretsia_sync_package_scaffold_runtime_module_template(
             $layer,
-            $slug
+            $slug,
         ),
         'src/Provider/' . $studlySlug . 'ServiceProvider.php' => coretsia_sync_package_scaffold_runtime_provider_template(
             $layer,
-            $slug
+            $slug,
         ),
     ];
 
     if ($hasConfigRoot) {
-        $runtimeFiles['config/' . $slug . '.php'] = coretsia_sync_package_scaffold_runtime_defaults_config_template();
-        $runtimeFiles['config/rules.php'] = coretsia_sync_package_scaffold_runtime_rules_config_template();
+        $runtimeFiles['config/' . $configRoot . '.php'] = coretsia_sync_package_scaffold_runtime_defaults_config_template();
+        $runtimeFiles['config/rules.php'] = coretsia_sync_package_scaffold_runtime_rules_config_template($configRoot);
     }
 
     foreach ($runtimeFiles as $file => $content) {
@@ -749,7 +774,7 @@ function coretsia_sync_package_scaffold_runtime_defaults_config_template(): stri
         . "];\n";
 }
 
-function coretsia_sync_package_scaffold_runtime_rules_config_template(): string
+function coretsia_sync_package_scaffold_runtime_rules_config_template(string $configRoot): string
 {
     return "<?php\n\n"
         . "declare(strict_types=1);\n\n"
@@ -767,6 +792,10 @@ function coretsia_sync_package_scaffold_runtime_rules_config_template(): string
         . " * See LICENSE and NOTICE in the project root for full license information.\n"
         . " */\n\n"
         . "return [\n"
+        . "    'schemaVersion' => 1,\n"
+        . "    'configRoot' => '" . $configRoot . "',\n"
+        . "    'additionalKeys' => false,\n"
+        . "    'keys' => [],\n"
         . "];\n";
 }
 

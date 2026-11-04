@@ -17,5 +17,8 @@ declare(strict_types=1);
  */
 
 return [
-
+    'schemaVersion' => 1,
+    'configRoot' => 'sample_runtime',
+    'additionalKeys' => false,
+    'keys' => [],
 ];

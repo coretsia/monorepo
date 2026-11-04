@@ -32,6 +32,151 @@ final class PackageComplianceGateAcceptsGoodFixtureTest extends ToolContractTest
         self::assertSame('', $output);
     }
 
+    public function testRegisteredConfigRootRejectsSlugBasedDefaultsPath(): void
+    {
+        $repoRoot = $this->createPackageComplianceSandbox('package_good');
+        $composerPath = $repoRoot . '/packages/platform/sample-runtime/composer.json';
+
+        $composer = \json_decode(
+            $this->readBytes($composerPath),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+
+        self::assertIsArray($composer);
+
+        $composer['extra']['coretsia']['defaultsConfigPath'] = 'config/sample-runtime.php';
+
+        $this->writeBytesExact(
+            $composerPath,
+            \json_encode(
+                $composer,
+                \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR,
+            ) . "\n",
+        );
+
+        [$code, $output] = $this->runPackageComplianceGate($repoRoot);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+            . "packages/platform/sample-runtime/composer.json: invalid-runtime-metadata-defaultsConfigPath\n",
+            $output,
+        );
+    }
+
+    public function testRulesConfigRootMentionedOnlyInCommentIsRejected(): void
+    {
+        $repoRoot = $this->createPackageComplianceSandbox('package_good');
+        $rulesPath = $repoRoot . '/packages/platform/sample-runtime/config/rules.php';
+        $original = $this->readBytes($rulesPath);
+        $malformed = \str_replace(
+            "'configRoot' => 'sample_runtime',",
+            "'configRoot' => 'unowned',\n    // 'configRoot' => 'sample_runtime',",
+            $original,
+        );
+
+        self::assertNotSame($original, $malformed);
+        $this->writeBytesExact($rulesPath, $malformed);
+
+        [$code, $output] = $this->runPackageComplianceGate($repoRoot);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+            . "packages/platform/sample-runtime/config/rules.php: config-rules-root-mismatch\n",
+            $output,
+        );
+    }
+
+    public function testRulesRejectComputedAndUnpackedConfigRootOverrides(): void
+    {
+        $replacements = [
+            "'configRoot' => 'sample_runtime',\n    ...['configRoot' => 'unowned'],",
+            "'configRoot' => 'sample_runtime',\n    'config' . 'Root' => 'unowned',",
+            "'configRoot' => 'sample_runtime' . '_unowned',",
+        ];
+
+        foreach ($replacements as $replacement) {
+            $repoRoot = $this->createPackageComplianceSandbox('package_good');
+            $rulesPath = $repoRoot . '/packages/platform/sample-runtime/config/rules.php';
+            $original = $this->readBytes($rulesPath);
+
+            $malformed = \str_replace(
+                "'configRoot' => 'sample_runtime',",
+                $replacement,
+                $original,
+            );
+
+            self::assertNotSame($original, $malformed);
+            $this->writeBytesExact($rulesPath, $malformed);
+
+            [$code, $output] = $this->runPackageComplianceGate($repoRoot);
+
+            self::assertSame(1, $code);
+            self::assertSame(
+                "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+                . "packages/platform/sample-runtime/config/rules.php: config-rules-root-mismatch\n",
+                $output,
+            );
+        }
+    }
+
+    public function testRulesRejectConditionalReturnBeforeActualRuleset(): void
+    {
+        $repoRoot = $this->createPackageComplianceSandbox('package_good');
+        $rulesPath = $repoRoot . '/packages/platform/sample-runtime/config/rules.php';
+        $original = $this->readBytes($rulesPath);
+
+        $malformed = \str_replace(
+            "return [\n    'schemaVersion' => 1,\n    'configRoot' => 'sample_runtime',",
+            "if (false) {\n"
+            . "    return ['configRoot' => 'sample_runtime'];\n"
+            . "}\n\n"
+            . "return [\n"
+            . "    'schemaVersion' => 1,\n"
+            . "    'configRoot' => 'unowned',",
+            $original,
+        );
+
+        self::assertNotSame($original, $malformed);
+        $this->writeBytesExact($rulesPath, $malformed);
+
+        [$code, $output] = $this->runPackageComplianceGate($repoRoot);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+            . "packages/platform/sample-runtime/config/rules.php: config-rules-not-array\n",
+            $output,
+        );
+    }
+
+    public function testRulesRejectExecutableValueDespiteMatchingConfigRoot(): void
+    {
+        $repoRoot = $this->createPackageComplianceSandbox('package_good');
+        $rulesPath = $repoRoot . '/packages/platform/sample-runtime/config/rules.php';
+        $original = $this->readBytes($rulesPath);
+        $malformed = \str_replace(
+            "'keys' => [],",
+            "'keys' => (static function (): array { return []; })(),",
+            $original,
+        );
+
+        self::assertNotSame($original, $malformed);
+        $this->writeBytesExact($rulesPath, $malformed);
+
+        [$code, $output] = $this->runPackageComplianceGate($repoRoot);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+            . "packages/platform/sample-runtime/config/rules.php: config-rules-non-declarative\n",
+            $output,
+        );
+    }
+
     /**
      * @return array{0:int,1:string}
      */
@@ -59,6 +204,15 @@ final class PackageComplianceGateAcceptsGoodFixtureTest extends ToolContractTest
             $repoRoot,
         );
         $this->ensureDir($repoRoot . '/tools/config');
+        $this->ensureDir($repoRoot . '/docs/ssot');
+
+        $this->writeBytesExact(
+            $repoRoot . '/docs/ssot/config-roots.md',
+            "## Reserved Config Roots (MUST)\n\n"
+            . "| root | owner package_id | defaults file | rules file | notes |\n"
+            . "|---|---|---|---|---|\n"
+            . "| `sample_runtime` | `platform/sample-runtime` | `packages/platform/sample-runtime/config/sample_runtime.php` | `packages/platform/sample-runtime/config/rules.php` | Fixture |\n",
+        );
 
         $this->writeBytesExact(
             $repoRoot . '/composer.json',

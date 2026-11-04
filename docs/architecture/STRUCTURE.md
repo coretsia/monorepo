@@ -28,6 +28,9 @@
   - `docs/architecture/DEPENDENCIES.md`
 - Application installation intent, managed Composer roots, explicit effects, and installed-state verification MUST comply with:
   - `docs/ssot/application-dependency-sync.md`
+- Runtime mode selection and module metadata MUST comply with:
+  - `docs/ssot/modes.md`
+  - `docs/ssot/modules-and-manifests.md`
 
 ### 0.1. Layered package identity and special distributions
 
@@ -41,28 +44,12 @@
 - Slug uniqueness policy (single-choice):
   - slug MUST be unique within one layer
   - slug MAY repeat across layers (uniqueness is ensured by the `<layer>-` prefix in the composer name)
-- Namespace mapping MUST be deterministic (single-choice; core exception):
-  - For `core/*` packages:
-    - `Coretsia\<StudlyCase(slug)>\...` (e.g. `core/kernel` → `Coretsia\Kernel\...`)
-  - For non-core packages (`platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`):
-    - `Coretsia\<StudlyCase(layer)>\<StudlyCase(slug)>\...`
-    - (e.g. `platform/http-client` → `Coretsia\Platform\HttpClient\...`)
-  - `src/` → the corresponding root namespace, `tests/` → `...\Tests\...`
-- Collision safety (MUST):
-  - For `core/*` packages, the value of `Studly(<slug>)` MUST NOT equal any of:
-    - `Core`
-    - `Platform`
-    - `Integrations`
-    - `Enterprise`
-    - `Devtools`
-    - `Presets`
-  - Equivalent forbidden slug values under `core/*` are:
-    - `core`
-    - `platform`
-    - `integrations`
-    - `enterprise`
-    - `devtools`
-    - `presets`
+- Namespace mapping MUST follow the canonical `Studly()` algorithm:
+  - `core/*` → `Coretsia\<Studly(slug)>\...`.
+  - Exception: `core/dto-attribute` → `Coretsia\Dto\Attribute\...` (`src/Attribute/`).
+  - Non-core packages (`platform/*`, `integrations/*`, `enterprise/*`, `devtools/*`, `presets/*`) → `Coretsia\<Studly(layer)>\<Studly(slug)>\...`.
+  - `src/` and `tests/` MUST follow the canonical PSR-4 mappings.
+- For `core/*` packages, reserved slugs `core`, `platform`, `integrations`, `enterprise`, `devtools`, and `presets` MUST NOT be used to prevent namespace collisions.
 - Versioning MUST be monorepo-wide via repo tags `vMAJOR.MINOR.PATCH`; per-package versions MUST NOT be used.
 
 > Note: tooling-only libs that live outside `packages/**` (for example `tools/**`)
@@ -144,6 +131,8 @@ Canonical entrypoints: everything runs from the repo root via `composer setup|te
 
 See the minimal “clean clone → green baseline” scenario in `docs/guides/quickstart.md`.
 
+The following layout is schematic; reserved layer roots may be materialized as packages are introduced.
+
 ```text
 coretsia/
 ├── composer.json
@@ -167,6 +156,8 @@ coretsia/
 │   │       ├── apps/
 │   │       └── var/
 │   ├── core/
+│   │   ├── contracts/
+│   │   ├── dto-attribute/
 │   │   ├── foundation/
 │   │   │   └── src/Filesystem/ScopedFileLock.php
 │   │   └── kernel/
@@ -182,13 +173,10 @@ coretsia/
 │   └── presets/
 │
 ├── tools/
-│   ├── bin/
-│   ├── http/
 │   ├── build/
 │   │   └── installation_catalog.php
 │   ├── release/
 │   ├── gates/
-│   ├── architecture/
 │   ├── testing/
 │   ├── tests/
 │   ├── support/
@@ -227,10 +215,13 @@ packages/<layer>/<slug>/
 ├── database/
 │   └── migrations/                # optional
 ├── tests/
-│   ├── Unit/
 │   ├── Contract/
-│   └── Integration/               # only if the package has its own integration
+│   │   └── CrossCuttingNoopDoesNotThrowTest.php
+│   ├── Unit/                       # optional
+│   └── Integration/                # optional
 ├── README.md
+├── LICENSE
+├── NOTICE
 └── composer.json
 ```
 
@@ -257,56 +248,40 @@ Required conventions inside the package
 
 ---
 
-## 3) “contracts” as the real center: final subfolder structure
+## 3) Core contracts structure
 
 ```txt
 packages/core/contracts/src/
-├── Module/
+├── Cli/
 ├── Config/
-├── Env/
-├── Container/
-├── Bus/
-├── Events/
-├── Observability/
-├── Security/
-├── Storage/
+├── Context/
 ├── Database/          # ports, events contracts (not implementations)
-├── Queue/
-├── Scheduler/
-├── Etl/
-├── Http/              # ports only
-└── Runtime/           # optional (loop/async primitives)
+├── Env/
+├── Filesystem/
+├── HttpApp/
+├── Kernel/
+├── Mail/
+├── Migrations/
+├── Module/
+├── Observability/
+├── RateLimit/
+├── Routing/
+├── Runtime/           # optional (loop/async primitives)
+├── Secrets/
+├── Security/
+├── Validation/
+└── Worker/
 ```
-
-Rule: if something is potentially needed by two or more packages, it has a chance to live in `contracts`.
-Anti-rule: do not pull “concrete things” (PDO/Redis/S3/Prometheus) into `contracts`.
 
 ---
 
 ## 4) Adapter packages (integrations): canonical naming
 
-Formula:
-
-- layer = `integrations`
-- slug = `<capability>-<vendor>` (or `-<driver>`)
-- composer = `coretsia/integrations-<slug>`
-
-where capability ∈ `cache|queue|filesystem|metrics|tracing|mail|runtime|lock`.
-
-Examples (all under `packages/integrations/`):
-
-- `cache-redis` → `coretsia/integrations-cache-redis`
-- `cache-apcu` → `coretsia/integrations-cache-apcu`
-- `queue-redis` → `coretsia/integrations-queue-redis`
-- `queue-rabbitmq` → `coretsia/integrations-queue-rabbitmq`
-- `filesystem-local` → `coretsia/integrations-filesystem-local`
-- `filesystem-s3` → `coretsia/integrations-filesystem-s3`
-- `metrics-prometheus` → `coretsia/integrations-metrics-prometheus`
-- `tracing-otlp` → `coretsia/integrations-tracing-otlp`
-- `mail-smtp` → `coretsia/integrations-mail-smtp`
-- `runtime-roadrunner` → `coretsia/integrations-runtime-roadrunner`
-
-Hard dependency rule: integrations may depend on platform, but platform must never depend on integrations.
+- Package ID: `integrations/<capability>-<vendor>` or `integrations/<capability>-<driver>`.
+- Composer identity: `coretsia/integrations-<slug>`.
+- Canonical integration identities and responsibilities are listed in §10.3.
+- Integration packages MAY depend on Core, Platform, or other Integration packages, subject to the canonical direct dependency matrix.
+- Platform packages MUST NOT depend on concrete Integration implementations.
 
 ---
 
@@ -322,15 +297,11 @@ Hard dependency rule: integrations may depend on platform, but platform must nev
 
 ### 5.2. Preset packages (composer dependency convenience)
 
-- Planned preset-package distributions live under `packages/presets/preset-*/` when they are materialized for a release line.
-- Their role is Composer dependency convenience for the corresponding release line; an unmaterialized preset package is not a current consumer command or installation source.
-- They do not replace mode presets. They only describe dependency convenience when such a package exists.
-- Preset package MUST be phase-consistent with `ROADMAP.md`:
-  - `preset-micro` — `micro` baseline only
-  - `preset-express` — `micro` + required `express` additions
-  - `preset-hybrid` — `express` + `hybrid` additions
-  - `preset-enterprise` — `hybrid` + `enterprise` additions
-- Composer convenience packages MAY offer additional dependencies, but they do not determine runtime roots. `required` lists non-excludable implemented runtime modules; `modules` lists other implemented mode-selected runtime modules that application overrides can exclude. An unimplemented capability is not declared as a current selected root.
+- Composer preset distributions live under `packages/presets/preset-*/`.
+- Each distribution MUST represent the corresponding canonical mode's implemented default package composition from §9.
+- Optional addons MUST NOT be included as additional default dependencies.
+- Composer preset distributions MUST NOT define runtime module roots or activate installed modules.
+- Kernel-owned PHP mode presets remain the authoritative runtime selection policy.
 
 ### 5.3. Mode intent vs physical package planning
 
@@ -351,24 +322,16 @@ explicit application targets
 
 The installation catalog is the only consumer-side mapping from implemented runtime `ModuleId` values to materialized Composer package identities. Planned package names in sections 9–10 do not become DependencySync inputs until the package exists in the validated catalog source set and is emitted into the release installation catalog.
 
-The currently materialized examples include:
-
-```text
-core.foundation -> coretsia/core-foundation
-core.kernel     -> coretsia/core-kernel
-platform.worker -> coretsia/platform-worker
-```
-
 A package installed for the project-wide Composer graph is not automatically enabled for every target. Target-local `exclude` remains runtime policy; it is not a project-global Composer package removal instruction.
 
 ---
 
-## 6) Skeleton: canonical DDD module template (user code)
+## 6) Consumer application DDD module layout
 
-To prevent `modules/` from becoming “a pile of classes”, we fix the bounded context structure:
+Recommended structure for application-owned bounded contexts:
 
 ```txt
-packages/applications/skeleton/modules/<ContextName>/
+modules/<ContextName>/
 ├── src/
 │   ├── Domain/                    # Entities, VOs, Domain Events, Specs
 │   ├── Application/               # Use-cases, Commands/Queries, Handlers
@@ -384,9 +347,11 @@ packages/applications/skeleton/modules/<ContextName>/
 ├── tests/
 │   ├── Unit/
 │   └── Integration/
-├── <Context>Module.php            # implements ModuleInterface (user module)
+├── <Context>Module.php            # optional helper; not a discovery source
 └── README.md
 ```
+
+> Application module directories do not imply runtime registration. Runtime discovery and activation require validated module metadata and Kernel module planning.
 
 Integration channels between modules:
 
@@ -402,314 +367,395 @@ Integration channels between modules:
 > Exact direct package-to-package compile-time dependency permissions are defined only in `docs/architecture/DEPENDENCIES.md`. \
 > This section summarizes layer direction and MUST NOT be used to infer additional package-level edges.
 
-A useful layer-level model:
-
-- Core (`contracts`, `foundation`, `kernel`)
-  → depends on nothing “above” it (except PSR/standards).
-- Platform
-  → depends on Core (+ sometimes on each other, but without cycles).
-- Integrations
-  → depend on Platform + Core, but Platform never depends on Integrations.
-- DevTools
-  → depend on Platform (http/observability/routing/db), but not the other way around.
-- Enterprise
-  → may depend on Platform/Integrations, but it is the “upper layer”.
-
 Conceptual layer-direction matrix:
 
-| From \ To    | Core | Platform |   Integrations |       DevTools | Enterprise |
-|--------------|-----:|---------:|---------------:|---------------:|-----------:|
-| Core         |   ✅ |       ❌ |             ❌ |             ❌ |         ❌ |
-| Platform     |   ✅ |      ✅* |             ❌ |             ❌ |         ❌ |
-| Integrations |   ✅ |       ✅ |             ✅ |             ❌ |         ❌ |
-| DevTools     |   ✅ |       ✅ | ✅ (sometimes) |             ✅ |         ❌ |
-| Enterprise   |   ✅ |       ✅ |             ✅ |             ❌ |         ✅ |
-
-- Platform→Platform is allowed only when dependency-safe (kernel must not pull http/db etc.)
-- Platform never pulls DevTools/Enterprise
-- DevTools may pull Platform (+ sometimes Integrations), but this is one-way
+| From \ To    | Core | Platform |   Integrations | DevTools | Enterprise |
+|--------------|-----:|---------:|---------------:|---------:|-----------:|
+| Core         |   ✅ |       ❌ |             ❌ |       ❌ |         ❌ |
+| Platform     |   ✅ |      ✅* |             ❌ |       ❌ |         ❌ |
+| Integrations |   ✅ |       ✅ |             ✅ |       ❌ |         ❌ |
+| DevTools     |   ✅ |       ✅ | ✅ (sometimes) |       ✅ |         ❌ |
+| Enterprise   |   ✅ |       ✅ |             ✅ |       ❌ |         ✅ |
 
 ---
 
-## 8) Small “finishing touches” so the structure is complete
-
-1. A single place for runtime “build artifacts”
+## 8) Runtime artifact layout
 
 - consumer application: `var/cache`, `var/logs`, `var/tmp`, `var/quarantine`
 - Kernel artifact root: `<applicationRoot>/<artifactsCacheDir>/<appTarget>` (by default, `var/cache/<appTarget>` relative to the application root).
 - Finalized generation: `<artifact-root>/generations/<generation-id>/` containing `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`.
 - Generation selection and coordination: `<artifact-root>/current` and `<artifact-root>/generation.lock`. Runtime boot consumes one validated generation selected through `current`.
 
-2. Unified config rules
-
-- defaults — only runtime packages owning a reserved config root (`packages/<layer>/<slug>/config/<root>.php`, declared through `extra.coretsia.defaultsConfigPath`)
-- template overrides — `packages/applications/skeleton/config`, `packages/applications/skeleton/apps/*/config`, `packages/applications/skeleton/modules/*/config`
-- consumer overrides after `create-project` — `config`, `apps/*/config`, `modules/*/config`
-- validators/metadata — package-owned `config/rules.php` only for runtime packages owning a config root; explain/source tracking remains Kernel-owned
-- application target membership for DependencySync is explicit caller input; neither `apps/*` directories nor `config/app.php.presets` keys implicitly add targets to the installation set
-
-3. Runtime module composition is explicit and metadata-driven
-
-- Runtime module identity, dependency/conflict edges, and provider declarations come from validated installed Composer `extra.coretsia` metadata.
-- Kernel-owned planning determines the selected runtime modules and their providers.
-- Installing a Composer package or constructing its package-local module helper MUST NOT automatically enable the module or apply its providers.
-- Package-local module helpers MUST NOT replace Composer metadata as runtime discovery or provider-planning inputs.
-- Config-free runtime packages require neither default-config metadata nor placeholder configuration files.
-
 ---
 
-## 9) Final mode map — `micro | express | hybrid | enterprise | custom`
+## 9) Final mode map
 
-> Canonical rule: `ROADMAP.md` defines when a capability enters the system; this section describes how capabilities are grouped at the runtime mode level. \
-> The mode map in this document MUST NOT contradict `ROADMAP.md` on the phase availability of a capability.
->
-> Description taxonomy (single-choice):
-> - Required — the minimally required payload of the mode;
-> - Adds — capabilities this mode adds on top of the previous one;
-> - Optional / later addons — not mode-defining minimums and may appear later in the same phase or in later phases.
+> Canonical target composition for `micro`, `express`, `hybrid`, and `enterprise`. Only implemented runtime modules may be selected by executable PHP presets.
 
-The membership catalog below describes **intended capabilities and planned package placement**, not an inventory of already materialized runtime modules or current DependencySync catalog entries. The current canonical PHP resources declare only their implemented runtime-module subset; this does not alter the intended long-term mode membership shown here. Future runtime packages enter the applicable canonical resources only when implemented and backed by an installed runtime descriptor plus validated installation-catalog metadata.
+### 9.0. Composition rules
 
-The `Required` / `Adds` / `Optional` labels in this section are product-structure taxonomy for the intended mode map; they are not a replacement schema for the current `required` / `modules` ModePreset contract.
+- **Direct roots** — top-level `layer/slug` entries represent runtime packages selected by the mode. Executable PHP presets declare their corresponding `ModuleId` values under `required` (non-excludable) or `modules` (excludable).
+- **Transitive dependencies** — nested entries show modules included through `extra.coretsia.requires` rather than direct preset selection. They do not represent the complete dependency graph; validated module metadata remains authoritative.
+- **Composer dependencies** — libraries such as `core/contracts` contribute to the package dependency closure but are not runtime modules. Composer installation MUST NOT imply module activation.
+- **Mode composition** — canonical modes define independent default module selections with shared runtime foundations. Modes do not inherit package roots from one another.
+- **Kernel baseline** — `core.foundation` and `core.kernel` remain explicit `required` roots, regardless of their dependency relationship.
+- **Runtime composition** — Composer installation is project-wide; `ModuleSelection` and `ModulePlan` are application-target-local.
+- **Dependency ownership** — validated module metadata defines the effective runtime graph. Target dependency edges MUST be declared in `extra.coretsia.requires` when implemented.
+- **Cross-mode addons** — packages included by default in one canonical mode MAY be explicitly selected in another mode when their runtime dependencies and conflicts permit. This MUST NOT alter either canonical default composition.
 
-A planned package name such as `coretsia/platform-http`, a conceptual capability such as HTTP, and a runtime ModuleId such as `platform.http` are distinct identifiers. Planned names in this section MUST NOT be used by current consumer DependencySync until the corresponding package manifest and installation-catalog entry exist. `core/contracts` is a Composer library, never a runtime selection root. A selected runtime root must have an actual installed runtime descriptor.
+### 9.1. Micro — production-safe HTTP minimum
 
-For the currently materialized canonical subset, `micro` and `express` may legitimately resolve to the same implemented runtime roots, while `hybrid` and `enterprise` add the currently materialized `platform.worker` root. DependencySync synchronizes only that validated current subset; it does not infer unimplemented packages from this intended mode map.
+**Direct preset roots:**
 
-### Custom
-
-- `custom` — an application-owned mode preset under `<applicationRoot>/<kernel.modes.overrides_path>/*.php` (normally `config/modes/*.php`) that:
-  - uses the same `required` / `modules` schema-version-1 policy as canonical resources and a safe non-canonical name;
-  - MUST declare only implemented runtime-module ids corresponding to actual runtime descriptors, not conceptual capabilities or Composer package names;
-  - MAY assemble narrow scenarios (`api-gateway`, `backoffice`, `worker-only`, `admin-only`, ...);
-  - MUST NOT shadow reserved canonical preset filenames.
-
-### Micro
-
-Required:
-
-- `core/contracts`
 - `core/foundation`
 - `core/kernel`
 - `platform/cli`
+  - `platform/errors`
+    - `platform/redaction`
+  - `platform/redaction`
 - `platform/http`
-- `platform/routing`
-- `platform/errors`
-- `platform/problem-details`
+- `platform/http-app`
 - `platform/logging`
-- `platform/tracing`
-- `platform/metrics`
+  - `platform/redaction`
+- `platform/problem-details`
+  - `platform/errors`
+    - `platform/redaction`
+- `platform/routing`
 
-Runtime baseline (cemented by roadmap):
+**Capabilities:** HTTP runtime, routing, application dispatch, error handling, problem details, maintenance mode, CORS, and structured logging.
 
-- real HTTP runtime
-- router + http-app wiring
-- web app entrypoint
-- fallback router + system endpoints
-- maintenance mode
-- CORS
+### 9.2. Express — web, persistence, and I/O
 
-Optional / later addons inside the same release line:
+**Direct preset roots:**
 
-- request-id policy refinements
-- response hardening
-- method override
-- content negotiation
-- HTML problem-details renderer
-- dev diagnostics endpoints
-
-> `micro` — the first honest production-safe HTTP mode, not “just a transport shell”.
-
-### Express
-
-Adds over `micro`:
-
-- `platform/validation`
-- `platform/filesystem`
-- uploads capability
-- `platform/database`
-- database drivers
-- `platform/migrations`
-- `platform/mail`
-- `integrations/mail-smtp`
-- `platform/view`
-- `platform/session`
+- `core/foundation`
+- `core/kernel`
 - `platform/auth`
+- `platform/cli`
+  - `platform/errors`
+    - `platform/redaction`
+  - `platform/redaction`
+- `platform/database`
+- `platform/database-driver-sqlite`
+- `platform/filesystem`
+- `platform/hashing`
+- `platform/http`
+- `platform/http-app`
+- `platform/logging`
+  - `platform/redaction`
+- `platform/migrations`
+- `platform/problem-details`
+  - `platform/errors`
+    - `platform/redaction`
+- `platform/routing`
+- `platform/secrets`
 - `platform/security`
+- `platform/session`
+- `platform/validation`
+- `platform/view`
+- `integrations/filesystem-local`
 
-Optional / later addons in express line:
+**Capabilities:** HTTP web applications with persistence, validation, filesystem, views, sessions, authentication, password hashing, secret resolution, and web security.
 
-- `platform/http-client`
-- `platform/translation`
-- rate-limit capability
-- encryption capability
-- hashing capability
-- lock capability
-- `platform/cache` (`PSR-16` implementation / manager / reference stores)
+### 9.3. Hybrid — business orchestration and worker workloads
 
-> `express` = “web + persistence + IO”.  
-> `platform/cache` belongs to the express release line, but MUST NOT be considered a required baseline of this mode if it remains `SHOULD` in the roadmap.
+**Direct preset roots:**
 
-### Hybrid
-
-Adds over `express`:
-
-- secrets capability
+- `core/foundation`
+- `core/kernel`
+- `platform/cli`
+  - `platform/errors`
+    - `platform/redaction`
+  - `platform/redaction`
+- `platform/database`
+- `platform/database-driver-sqlite`
 - `platform/events`
-- deferred events semantics
+- `platform/http`
+- `platform/http-app`
+- `platform/logging`
+  - `platform/redaction`
+- `platform/migrations`
+- `platform/problem-details`
+  - `platform/errors`
+    - `platform/redaction`
 - `platform/queue`
-- queue CLI commands
-- command bus capability
-- `platform/scheduler`
-- `platform/cqrs`
+- `platform/routing`
+- `platform/validation`
+- `platform/worker`
 
-Optional / scenario-specific additions:
+**Capabilities:** HTTP/API applications with persistence, workers, events, and queue processing. Background execution requires a configured async-capable driver.
 
-- DB-backed async queue driver
-- stronger authorization engines (RBAC/REBAC), if needed by a specific preset
+### 9.4. Enterprise — operations, observability and governance
 
-> `hybrid` = async/business orchestration mode.  
-> `http-client`, `feature-flags`, advanced observability, rate-limit hardening MUST NOT define this mode if they are introduced in other phases.
+**Direct preset roots:**
 
-### Enterprise
-
-Adds over `hybrid`:
-
+- `core/foundation`
+- `core/kernel`
+- `platform/auth`
+- `platform/cli`
+  - `platform/errors`
+    - `platform/redaction`
+  - `platform/redaction`
+- `platform/database`
+- `platform/database-driver-sqlite`
+- `platform/events`
 - `platform/health`
-- advanced metrics/tracing integrations
-- `platform/observability` glue
-- profiling capability
-- advanced cache/session/lock/queue integrations
-- feature flags / experiments
-- outbox / inbox
-- optional event-sourcing
-- enterprise tenancy / audit / compliance / SSO
-- tooling-only devtools extensions outside the enterprise runtime dependency graph
-- realtime / protocol extensions
-- advanced runtime adapters
-- ETL / preload / performance middleware family
-- enterprise integrations for secrets/search/AI and related extensions
+- `platform/http`
+- `platform/http-app`
+- `platform/logging`
+  - `platform/redaction`
+- `platform/metrics`
+- `platform/migrations`
+- `platform/observability`
+- `platform/problem-details`
+  - `platform/errors`
+    - `platform/redaction`
+- `platform/queue`
+- `platform/routing`
+- `platform/secrets`
+- `platform/tracing`
+- `platform/validation`
+- `platform/worker`
+- `enterprise/audit`
 
-Notes:
+**Capabilities:** HTTP/API and worker workloads with authentication, authorization, health checks, observability instrumentation, secret management, and auditing. Specialized governance and infrastructure integrations are opt-in.
 
-- `enterprise` — an extension-heavy / strict-stack mode, not a baseline condition for HTTP or persistence.
-- `CQRS` is not an enterprise-only capability, because it is added at `hybrid`.
+### 9.5. Opt-in packages and their mode eligibility
 
-### Preset packages vs runtime modes
+Optional packages MAY be enabled in compatible modes after implementation, subject to module dependencies, conflicts, and configuration requirements.
 
-- Runtime mode presets are Kernel-owned canonical resources under `packages/core/kernel/resources/modes/*.php` or application-owned custom files under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`. Presets supply `required`/`modules` policy; `ModuleSelectionFactory` derives effective roots; `ModuleGraphResolver` builds the module plan.
-- A materialized Composer preset package (`packages/presets/preset-*`) defines only a dependency convenience set; planned preset-package identities are not current installation inputs until the package exists.
-- A preset package MUST NOT declare capabilities that do not yet exist in the corresponding roadmap release line.
-- Recommended mapping:
-  - `preset-micro` → required payload `micro`
-  - `preset-express` → `micro` + required payload `express`; MAY add express-line `SHOULD` packages as separate preset variants or extras, but the canonical baseline MUST NOT mix required and later-optional items without an explicit policy note
-  - `preset-hybrid` → `express` + adds `hybrid`
-  - `preset-enterprise` → `hybrid` + adds `enterprise`
+The `micro+`, `express+`, and `hybrid+` labels indicate the earliest intended compatible mode. They do not change canonical default compositions.
 
----
+**Optional runtime modules:**
 
-## 10) Planned full package catalog (DDD-friendly, PSR-first)
+- `platform/ai` — `express+`.
+- `platform/ai-guardrails` — `express+`.
+- `platform/ai-vectorstore` — `express+`.
+- `platform/api-versioning` — `micro+`.
+- `platform/async` — `hybrid+`.
+- `platform/cache` — `micro+`.
+- `platform/cqrs` — `hybrid+`.
+- `platform/encryption` — `micro+`.
+- `platform/etl` — `hybrid+`.
+- `platform/event-sourcing` — `hybrid+`.
+- `platform/features` — `micro+`.
+- `platform/graphql` — `micro+`.
+- `platform/grpc` — `micro+`.
+- `platform/http-client` — `micro+`.
+- `platform/inbox` — `hybrid+`.
+- `platform/lock` — `micro+`.
+- `platform/mail` — `express+`.
+- `platform/orm` — `express+`.
+- `platform/outbox` — `hybrid+`.
+- `platform/reactive` — `micro+`.
+- `platform/scheduler` — `hybrid+`.
+- `platform/search` — `express+`.
+- `platform/streaming` — `micro+`.
+- `platform/translation` — `express+`.
+- `platform/uploads` — `express+`.
+- `platform/webhooks` — `express+`.
+- `platform/websocket` — `micro+`.
 
-Below is the maximally complete **planned** set that gives a “full stack”, while still preserving minimal dependencies through a split into “platform + integrations adapters”.
+**Database drivers:**
 
-This is a structural/product catalog, not a claim that every listed package is already materialized in the current checkout or available to DependencySync. A planned Composer identity becomes a current installation input only after its package manifest exists, its runtime metadata is valid where applicable, and the package is present in the validated release installation catalog source set. Consumer examples and current sync flows MUST use only such materialized identities.
+- `platform/database-driver-mariadb` — `express+`.
+- `platform/database-driver-mysql` — `express+`.
+- `platform/database-driver-pgsql` — `express+`.
+- `platform/database-driver-sqlserver` — `express+`.
 
-### A) Core Runtime / Kernel (indispensable)
+**Infrastructure and runtime adapters:**
 
-1. `coretsia/core-kernel`
-2. `coretsia/core-contracts`
-3. `coretsia/core-foundation`
-4. `coretsia/platform-cli`
+- `integrations/cache-apcu` — `micro+`.
+- `integrations/cache-redis` — `micro+`.
+- `integrations/lock-redis` — `micro+`.
+- `integrations/queue-redis` — `hybrid+`.
+- `integrations/runtime-frankenphp` — `micro+`.
+- `integrations/runtime-roadrunner` — `micro+`.
+- `integrations/runtime-swoole` — `micro+`.
+- `integrations/session-redis` — `express+`.
+- `integrations/tracing-zipkin` — `micro+`.
 
-### B) HTTP / Error Platform
+**Provider and protocol adapters:**
 
-5. `coretsia/platform-http`
-6. `coretsia/platform-routing`
-7. `coretsia/platform-errors`
-8. `coretsia/platform-problem-details`
-9. `coretsia/platform-http-client`
-10. `coretsia/platform-openapi` (optional)
+- `integrations/mail-smtp` — `express+`.
+- `integrations/metrics-prometheus` — `micro+`.
+- `integrations/rate-limit-redis` — `micro+`.
+- `integrations/search-elastic` — `express+`.
+- `integrations/search-meilisearch` — `express+`.
+- `integrations/search-opensearch` — `express+`.
+- `integrations/secrets-aws` — `express+`.
+- `integrations/secrets-gcp` — `express+`.
+- `integrations/secrets-vault` — `express+`.
+- `integrations/tracing-otlp` — `micro+`.
+- `integrations/view-blade` — `express+`.
+- `integrations/view-twig` — `express+`.
+- `integrations/virus-scan-clamav` — `express+`.
 
-### C) Data Platform
+**Enterprise extensions:**
 
-11. `coretsia/platform-database`
-12. `coretsia/platform-migrations` (optional split)
-13. `coretsia/platform-orm` (optional)
-14. `coretsia/platform-cache`
-15. `coretsia/integrations-cache-redis` (adapter)
-16. `coretsia/platform-lock`
-17. `coretsia/integrations-lock-redis` (adapter)
-18. `coretsia/platform-filesystem`
+- `enterprise/compliance` — `enterprise`.
+- `enterprise/policy-engine` — `enterprise`.
+- `enterprise/scim` — `enterprise`.
+- `enterprise/sso-oidc` — `enterprise`.
+- `enterprise/sso-saml` — `enterprise`.
+- `enterprise/tenancy` — `enterprise`.
 
-### D) Auth / Security Platform
+> Addons MUST satisfy their runtime dependencies and conflicts. Driver packages require their owning platform capabilities. Enabling addons MUST NOT modify the canonical default compositions.
 
-19. `coretsia/platform-session`
-20. `coretsia/platform-auth`
-21. `coretsia/platform-security`
-22. `coretsia/platform-redaction`
-23. `coretsia/platform-rate-limit` (optional split)
+### 9.6. Custom — explicit consumer-owned composition
 
-`coretsia/platform-redaction` owns shared generic deterministic sensitive-data redaction, including canonical key/value classification, redaction summaries, and hashing.
+`custom` is an application-owned mode composition defined under `<applicationRoot>/<kernel.modes.overrides_path>/*.php`.
 
-The planned `coretsia/platform-security` package remains a distinct security-capability owner. It MUST NOT introduce a competing generic redaction engine or mutable classifier registry.
+- MUST use a safe, non-canonical preset name.
+- MUST follow the canonical schema-version-1 `required` / `modules` policy.
+- MUST select only implemented runtime modules.
+- MUST pass Kernel module dependency and conflict validation.
+- MUST NOT override the canonical `micro`, `express`, `hybrid`, or `enterprise` presets.
 
-### E) Application Architecture (DDD/CQRS/ES)
-
-24. `coretsia/platform-events`
-25. `coretsia/platform-cqrs`
-26. `coretsia/platform-outbox`
-27. `coretsia/platform-inbox`
-28. `coretsia/platform-event-sourcing`
-
-### F) Async / Scheduling / ETL
-
-29. `coretsia/platform-queue`
-30. `coretsia/integrations-queue-redis` (adapter)
-31. `coretsia/platform-scheduler`
-32. `coretsia/platform-etl`
-
-### G) Observability (properly split)
-
-33. `coretsia/platform-logging`
-34. `coretsia/platform-metrics`
-35. `coretsia/platform-tracing`
-36. `coretsia/platform-health`
-37. `coretsia/platform-profiling` (optional)
-38. `coretsia/platform-observability` (meta/bundle)
-
-### H) UX / Web product layer (optional)
-
-39. `coretsia/platform-view`
-40. `coretsia/platform-translation`
-41. `coretsia/platform-validation`
-42. `coretsia/platform-mail`
-43. `coretsia/integrations-mail-smtp` (adapter)
-
-### I) Feature Management
-
-44. `coretsia/platform-feature-flags`
-
-### J) Reactive / Realtime / Protocols (optional, adapters-first)
-
-45. `coretsia/platform-reactive` (optional)
-46. `coretsia/platform-websocket` (optional)
-47. `coretsia/platform-graphql` (optional)
-48. `coretsia/platform-grpc` (optional)
-
-### K) Enterprise Meta (as a “commercial layer” or “strict stack”)
-
-49. `coretsia/enterprise-bundle` (meta/bundle)
-50. `coretsia/enterprise-audit` (optional split)
-51. `coretsia/enterprise-tenancy`
-52. `coretsia/enterprise-compliance`
-53. `coretsia/enterprise-sso`
+> For the complete package catalog, Composer identities, and package responsibilities, see §10.
 
 ---
 
-## 11) Required references
+## 10) Full package catalog
 
-- `docs/architecture/PACKAGING.md`
-- `docs/architecture/DEPENDENCIES.md`
-- `docs/ssot/application-dependency-sync.md`
-- `docs/ssot/modes.md`
-- `docs/ssot/modules-and-manifests.md`
+> Canonical catalog of Coretsia package identities and ownership. Mode composition and addon eligibility are defined in §9.
+
+- Layered package IDs and Composer naming MUST follow §0.1.
+- Each package MUST have one canonical identity and a clearly defined responsibility.
+- Catalog membership MUST NOT imply Composer installation or runtime module activation.
+- Runtime module selection MUST use validated Composer metadata and Kernel module planning.
+
+### 10.1. Core packages
+
+| Package ID           | Composer identity             | Responsibility                                         |
+|----------------------|-------------------------------|--------------------------------------------------------|
+| `core/contracts`     | `coretsia/core-contracts`     | Cross-package ports and public contracts               |
+| `core/dto-attribute` | `coretsia/core-dto-attribute` | DTO attribute library                                  |
+| `core/foundation`    | `coretsia/core-foundation`    | Container, tags, context, deterministic primitives     |
+| `core/kernel`        | `coretsia/core-kernel`        | Boot, module planning, feature bundles, artifacts, UoW |
+
+### 10.2. Platform packages
+
+| Package ID                           | Composer identity                             | Responsibility                                                 |
+|--------------------------------------|-----------------------------------------------|----------------------------------------------------------------|
+| `platform/ai`                        | `coretsia/platform-ai`                        | AI service capability                                          |
+| `platform/ai-guardrails`             | `coretsia/platform-ai-guardrails`             | AI policy/guardrails extension                                 |
+| `platform/ai-vectorstore`            | `coretsia/platform-ai-vectorstore`            | Vector-store capability for AI                                 |
+| `platform/api-versioning`            | `coretsia/platform-api-versioning`            | API versioning and selection                                   |
+| `platform/async`                     | `coretsia/platform-async`                     | Optional async primitives                                      |
+| `platform/auth`                      | `coretsia/platform-auth`                      | Authentication and RBAC/REBAC authorization                    |
+| `platform/cache`                     | `coretsia/platform-cache`                     | Caching abstraction and reference stores                       |
+| `platform/cli`                       | `coretsia/platform-cli`                       | CLI commands and feature-bundle management                     |
+| `platform/cqrs`                      | `coretsia/platform-cqrs`                      | Command/query orchestration                                    |
+| `platform/database`                  | `coretsia/platform-database`                  | Database abstraction and connection management                 |
+| `platform/database-driver-mariadb`   | `coretsia/platform-database-driver-mariadb`   | Alternative MariaDB SQL driver                                 |
+| `platform/database-driver-mysql`     | `coretsia/platform-database-driver-mysql`     | Alternative MySQL SQL driver                                   |
+| `platform/database-driver-pgsql`     | `coretsia/platform-database-driver-pgsql`     | Alternative PostgreSQL SQL driver                              |
+| `platform/database-driver-sqlite`    | `coretsia/platform-database-driver-sqlite`    | SQLite reference database driver                               |
+| `platform/database-driver-sqlserver` | `coretsia/platform-database-driver-sqlserver` | Alternative SQL Server driver                                  |
+| `platform/encryption`                | `coretsia/platform-encryption`                | Encryption services                                            |
+| `platform/errors`                    | `coretsia/platform-errors`                    | Canonical Throwable normalization and reporting boundary       |
+| `platform/etl`                       | `coretsia/platform-etl`                       | ETL execution facilities                                       |
+| `platform/event-sourcing`            | `coretsia/platform-event-sourcing`            | Event-sourcing persistence model                               |
+| `platform/events`                    | `coretsia/platform-events`                    | Events and deferred dispatch                                   |
+| `platform/features`                  | `coretsia/platform-features`                  | Feature management and experiments                             |
+| `platform/filesystem`                | `coretsia/platform-filesystem`                | Filesystem service and path safety                             |
+| `platform/graphql`                   | `coretsia/platform-graphql`                   | GraphQL transport/integration                                  |
+| `platform/grpc`                      | `coretsia/platform-grpc`                      | gRPC transport/integration                                     |
+| `platform/hashing`                   | `coretsia/platform-hashing`                   | Password/data hashing services                                 |
+| `platform/health`                    | `coretsia/platform-health`                    | Health checks and owned endpoints                              |
+| `platform/http`                      | `coretsia/platform-http`                      | HTTP transport, middleware, rate limiting and caching policies |
+| `platform/http-app`                  | `coretsia/platform-http-app`                  | HTTP application dispatch wiring                               |
+| `platform/http-client`               | `coretsia/platform-http-client`               | Outbound HTTP client                                           |
+| `platform/inbox`                     | `coretsia/platform-inbox`                     | Inbox deduplication and delivery handling                      |
+| `platform/lock`                      | `coretsia/platform-lock`                      | Application locking primitives                                 |
+| `platform/logging`                   | `coretsia/platform-logging`                   | Logging pipeline with redaction                                |
+| `platform/mail`                      | `coretsia/platform-mail`                      | Mail transport abstraction and dispatch                        |
+| `platform/metrics`                   | `coretsia/platform-metrics`                   | Metrics validation, instrumentation and recording              |
+| `platform/migrations`                | `coretsia/platform-migrations`                | Schema migrations and execution                                |
+| `platform/observability`             | `coretsia/platform-observability`             | Observability composition and integration                      |
+| `platform/orm`                       | `coretsia/platform-orm`                       | Object-relational mapping                                      |
+| `platform/outbox`                    | `coretsia/platform-outbox`                    | Transactional outbox integration                               |
+| `platform/problem-details`           | `coretsia/platform-problem-details`           | RFC 9457 JSON and HTML error responses                         |
+| `platform/queue`                     | `coretsia/platform-queue`                     | Queue dispatch and synchronous/asynchronous execution          |
+| `platform/reactive`                  | `coretsia/platform-reactive`                  | Reactive application primitives                                |
+| `platform/redaction`                 | `coretsia/platform-redaction`                 | Shared sensitive-data redaction                                |
+| `platform/routing`                   | `coretsia/platform-routing`                   | Routing and route resolution                                   |
+| `platform/scheduler`                 | `coretsia/platform-scheduler`                 | Local and distributed scheduling                               |
+| `platform/search`                    | `coretsia/platform-search`                    | Search abstraction                                             |
+| `platform/secrets`                   | `coretsia/platform-secrets`                   | Secret resolution and safe access                              |
+| `platform/security`                  | `coretsia/platform-security`                  | CSRF, signing and security policies                            |
+| `platform/session`                   | `coretsia/platform-session`                   | Session state management                                       |
+| `platform/streaming`                 | `coretsia/platform-streaming`                 | Stream-oriented transport primitives                           |
+| `platform/tracing`                   | `coretsia/platform-tracing`                   | Trace context, sampling and instrumentation                    |
+| `platform/translation`               | `coretsia/platform-translation`               | Translations and locale support                                |
+| `platform/uploads`                   | `coretsia/platform-uploads`                   | Multipart upload handling and quarantine                       |
+| `platform/validation`                | `coretsia/platform-validation`                | Validation engine and rule composition                         |
+| `platform/view`                      | `coretsia/platform-view`                      | View rendering abstraction                                     |
+| `platform/webhooks`                  | `coretsia/platform-webhooks`                  | Webhook handling and delivery                                  |
+| `platform/websocket`                 | `coretsia/platform-websocket`                 | WebSocket transport and events                                 |
+| `platform/worker`                    | `coretsia/platform-worker`                    | Long-running worker runtime lifecycle                          |
+
+### 10.3. Integration packages
+
+| Package ID                        | Composer identity                          | Responsibility                    |
+|-----------------------------------|--------------------------------------------|-----------------------------------|
+| `integrations/cache-apcu`         | `coretsia/integrations-cache-apcu`         | APCu cache backend                |
+| `integrations/cache-redis`        | `coretsia/integrations-cache-redis`        | Redis cache backend               |
+| `integrations/filesystem-local`   | `coretsia/integrations-filesystem-local`   | Reference local filesystem driver |
+| `integrations/lock-redis`         | `coretsia/integrations-lock-redis`         | Redis distributed lock backend    |
+| `integrations/mail-smtp`          | `coretsia/integrations-mail-smtp`          | Reference SMTP mail transport     |
+| `integrations/metrics-prometheus` | `coretsia/integrations-metrics-prometheus` | Prometheus exporter/adapter       |
+| `integrations/queue-redis`        | `coretsia/integrations-queue-redis`        | Redis queue backend               |
+| `integrations/rate-limit-redis`   | `coretsia/integrations-rate-limit-redis`   | Redis rate-limit state backend    |
+| `integrations/runtime-frankenphp` | `coretsia/integrations-runtime-frankenphp` | FrankenPHP runtime adapter        |
+| `integrations/runtime-roadrunner` | `coretsia/integrations-runtime-roadrunner` | RoadRunner runtime adapter        |
+| `integrations/runtime-swoole`     | `coretsia/integrations-runtime-swoole`     | Swoole runtime adapter            |
+| `integrations/search-elastic`     | `coretsia/integrations-search-elastic`     | Elasticsearch search provider     |
+| `integrations/search-meilisearch` | `coretsia/integrations-search-meilisearch` | Meilisearch provider              |
+| `integrations/search-opensearch`  | `coretsia/integrations-search-opensearch`  | OpenSearch provider               |
+| `integrations/secrets-aws`        | `coretsia/integrations-secrets-aws`        | AWS secrets provider adapter      |
+| `integrations/secrets-gcp`        | `coretsia/integrations-secrets-gcp`        | GCP secrets provider adapter      |
+| `integrations/secrets-vault`      | `coretsia/integrations-secrets-vault`      | Vault secrets backend             |
+| `integrations/session-redis`      | `coretsia/integrations-session-redis`      | Redis session backend             |
+| `integrations/tracing-otlp`       | `coretsia/integrations-tracing-otlp`       | OTLP tracing exporter/adapter     |
+| `integrations/tracing-zipkin`     | `coretsia/integrations-tracing-zipkin`     | Optional Zipkin tracing adapter   |
+| `integrations/view-blade`         | `coretsia/integrations-view-blade`         | Blade view engine adapter         |
+| `integrations/view-twig`          | `coretsia/integrations-view-twig`          | Twig view engine adapter          |
+| `integrations/virus-scan-clamav`  | `coretsia/integrations-virus-scan-clamav`  | ClamAV upload-scanning adapter    |
+
+### 10.4. Enterprise packages
+
+| Package ID                 | Composer identity                   | Responsibility                        |
+|----------------------------|-------------------------------------|---------------------------------------|
+| `enterprise/audit`         | `coretsia/enterprise-audit`         | Audit logging and trails              |
+| `enterprise/compliance`    | `coretsia/enterprise-compliance`    | Compliance policies and gates         |
+| `enterprise/policy-engine` | `coretsia/enterprise-policy-engine` | Enterprise policy engine              |
+| `enterprise/scim`          | `coretsia/enterprise-scim`          | SCIM user provisioning extension      |
+| `enterprise/sso-oidc`      | `coretsia/enterprise-sso-oidc`      | OIDC single-sign-on extension         |
+| `enterprise/sso-saml`      | `coretsia/enterprise-sso-saml`      | SAML single-sign-on extension         |
+| `enterprise/tenancy`       | `coretsia/enterprise-tenancy`       | Tenant isolation and context policies |
+
+### 10.5. Development tools
+
+| Package ID                  | Composer identity                    | Responsibility                      |
+|-----------------------------|--------------------------------------|-------------------------------------|
+| `devtools/admin-panel`      | `coretsia/devtools-admin-panel`      | Administration tooling              |
+| `devtools/api-docs`         | `coretsia/devtools-api-docs`         | API documentation tooling           |
+| `devtools/dev-tools`        | `coretsia/devtools-dev-tools`        | Developer experience utilities      |
+| `devtools/internal-toolkit` | `coretsia/devtools-internal-toolkit` | Repository development toolkit      |
+| `devtools/preload`          | `coretsia/devtools-preload`          | Preloading and optimization tooling |
+| `devtools/scaffolding`      | `coretsia/devtools-scaffolding`      | Scaffolding and generators          |
+
+### 10.6. Composer distributions
+
+| Composer identity                    | Repository path                       | Responsibility               |
+|--------------------------------------|---------------------------------------|------------------------------|
+| `coretsia/framework`                 | `packages/framework/`                 | Framework metapackage        |
+| `coretsia/presets-preset-enterprise` | `packages/presets/preset-enterprise/` | Enterprise dependency preset |
+| `coretsia/presets-preset-express`    | `packages/presets/preset-express/`    | Express dependency preset    |
+| `coretsia/presets-preset-hybrid`     | `packages/presets/preset-hybrid/`     | Hybrid dependency preset     |
+| `coretsia/presets-preset-micro`      | `packages/presets/preset-micro/`      | Micro dependency preset      |
+| `coretsia/skeleton`                  | `packages/applications/skeleton/`     | Application skeleton         |
+
+> Composer distributions MUST NOT be treated as runtime modules or replace Kernel mode presets.

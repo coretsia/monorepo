@@ -107,6 +107,15 @@ final class PackageComplianceGateRejectsBadFixtureTest extends ToolContractTestC
             $repoRoot,
         );
         $this->ensureDir($repoRoot . '/tools/config');
+        $this->ensureDir($repoRoot . '/docs/ssot');
+
+        $this->writeBytesExact(
+            $repoRoot . '/docs/ssot/config-roots.md',
+            "## Reserved Config Roots (MUST)\n\n"
+            . "| root | owner package_id | defaults file | rules file | notes |\n"
+            . "|---|---|---|---|---|\n"
+            . "| `sample_runtime` | `platform/sample-runtime` | `packages/platform/sample-runtime/config/sample_runtime.php` | `packages/platform/sample-runtime/config/rules.php` | Fixture |\n",
+        );
 
         $this->writeBytesExact(
             $repoRoot . '/composer.json',

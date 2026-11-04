@@ -50,6 +50,7 @@
     "coretsia/platform-errors": "0.11.x-dev",
     "coretsia/platform-logging": "0.11.x-dev",
     "coretsia/platform-redaction": "0.11.x-dev",
+    "coretsia/platform-tracing": "0.11.x-dev",
     "coretsia/platform-worker": "0.11.x-dev",
     "coretsia/skeleton": "0.11.x-dev",
     "deptrac/deptrac": "^4.6",
@@ -198,6 +199,18 @@
         "reference": "config",
         "versions": {
           "coretsia/platform-redaction": "0.11.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/tracing",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-tracing": "0.11.x-dev"
         }
       },
       "coretsia_managed": true

@@ -333,6 +333,18 @@ For every publishable product:
 
 Layered package naming and namespace rules remain governed by §§4–5.
 
+Canonical layered-package generation MUST use the existing `tools/build/new-package.php` generator, exposed through `composer package:new`. Required arguments remain `--layer`, `--slug`, and `--kind`; `--repo-root`, `--description`, and `--keywords` are optional. Arguments accept both `--key=value` and `--key value` forms. Omitting `--repo-root` retains canonical `RepositoryContext` discovery; metadata arguments MUST NOT alter repository-root resolution.
+
+The repository-root `composer.json` is the development-workspace metadata source, not a publishable package. Newly generated layered packages MUST inherit only `authors`, `homepage`, `support`, and `config.platform.php` from that file. The generator MUST reject missing or structurally invalid required shared metadata, including malformed author email/homepage fields and support email/URL fields, before atomic package commit. Package-local Composer `name`, `type`, PSR-4 mappings, `extra.coretsia` identity, `license = Apache-2.0`, `require.php = ^8.4`, and `config.sort-packages = true` remain generated independently. Root dependencies, scripts, distribution metadata, and package identity MUST NOT be inherited.
+
+An explicit `--description=<text>` MUST be preserved verbatim after validation. Without it, the generator MUST use the deterministic neutral description `Coretsia <layer>/<slug> <kind> package.`; package names MUST NOT be used to infer capabilities. Descriptions MUST be nonempty, valid UTF-8, single-line, free of control characters and surrounding whitespace, and at most 240 bytes.
+
+Composer `keywords` MUST always be generated as a nonempty deterministic JSON list. When the optional `--keywords=<comma-separated-tokens>` argument is omitted, the generator MUST emit exactly the canonical baseline `coretsia`, `php`, `framework`, in that order. An explicitly empty `--keywords` value MUST be rejected, not treated as omission. When nonempty keywords are explicitly supplied, the generator MUST emit only the validated caller-provided values without merging baseline keywords or inferring layer, slug, kind, or package capabilities. Explicit tokens MUST follow lowercase ASCII kebab-case grammar, permitting single hyphen separators and numeric components (for example, `psr-11`, `data-transfer-object`, and `unit-of-work`). Empty tokens, repeated separators, surrounding whitespace, control bytes, and malformed values MUST be rejected. Duplicate values MUST be removed while preserving first-occurrence order, and the resulting list MUST contain at most 24 distinct keywords. Root Composer keywords MUST NOT be inherited. No package-specific keyword registry, classifier, or discovery pipeline is permitted.
+
+Raw `--description` and `--keywords` argument values MUST be validated without whitespace normalization. Omitting either metadata argument MUST activate its deterministic fallback; explicitly supplying an empty value MUST fail validation. No leading, trailing, or token-level whitespace trimming is permitted for metadata arguments. Legacy trimming for `--layer`, `--slug`, `--kind`, and `--repo-root` remains unchanged. Repeated metadata options and invalid metadata MUST fail through `CORETSIA_NEW_PACKAGE_FAILED`, without revealing raw values, committing a partial package, or leaving staging artifacts. Serialization MUST reuse `ComposerJson::encodeCanonical()` and preserve UTF-8, LF-only text, the final newline, two-space indentation, and deterministic field/list ordering.
+
+The generator MUST NOT infer extensions, PSR dependencies, Kernel/platform package dependencies, or `extra.coretsia.requires` from layer, slug, or kind. Package-specific Composer requirements and module dependencies are explicit implementation deliverables. The existing generator, scaffold synchronization, and atomic staging/commit pipeline remain the sole owners of new package generation.
+
 ### 9.2. Coretsia package kind (single-choice)
 
 Every layered package MUST declare:
@@ -413,6 +425,12 @@ the metadata MUST follow these rules:
 - A runtime package that owns a reserved config root MUST declare `defaultsConfigPath`.
 - When present, `defaultsConfigPath` MUST equal `config/<root>.php`, where `<root>` is the exact reserved config root owned by that package.
 - The config root MUST follow the canonical config-root naming and ownership rules and MUST NOT be derived blindly from the package slug.
+- Canonical repository tooling MUST resolve runtime config-root ownership directly from `docs/ssot/config-roots.md`; package slug normalization MUST NOT create or imply ownership.
+- The `package:new` generator MUST emit `defaultsConfigPath` only for a runtime package that owns a reserved config root.
+- Canonical scaffold synchronization MUST generate defaults and declarative rules at the exact registered paths, with `configRoot` matching the reserved root.
+- Package compliance checks MUST reject missing, unregistered, or noncanonical default-config declarations and mismatched ruleset root identities.
+- A config-free runtime package MUST remain valid without `defaultsConfigPath`, `config/`, or placeholder configuration files.
+- Missing, malformed, ambiguous, or conflicting registry ownership metadata MUST fail closed without inferring an alternative config root.
 - A config-free runtime package MUST NOT be required to declare `defaultsConfigPath` or create a placeholder defaults file.
 
 Runtime module identity, dependency/conflict edges, provider-planning declarations, and optional default-config declarations remain authoritative under validated `extra.coretsia` metadata. Package-local module helpers MUST NOT replace these metadata sources or be instantiated by Kernel discovery to derive them.

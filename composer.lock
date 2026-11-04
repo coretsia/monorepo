@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "39979488ee34c31abe0c64259315900b",
+    "content-hash": "c4437f60bf71558337048ca6eb1166c3",
     "packages": [],
     "packages-dev": [
         {
@@ -845,6 +845,80 @@
             }
         },
         {
+            "name": "coretsia/platform-tracing",
+            "version": "0.11.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "packages/platform/tracing",
+                "reference": "26b699f0e55fba5b67a38c78336305d5f27a0d2f"
+            },
+            "require": {
+                "coretsia/core-contracts": "^0.11.0",
+                "coretsia/core-foundation": "^0.11.0",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "coretsia": {
+                    "kind": "runtime",
+                    "moduleId": "platform.tracing",
+                    "moduleClass": "Coretsia\\Platform\\Tracing\\Module\\TracingModule",
+                    "providers": [
+                        "Coretsia\\Platform\\Tracing\\Provider\\TracingServiceProvider"
+                    ],
+                    "requires": [
+                        "core.foundation"
+                    ],
+                    "conflicts": [],
+                    "defaultsConfigPath": "config/tracing.php"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Tracing\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coretsia\\Platform\\Tracing\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Vladyslav Mudrichenko",
+                    "email": "vladyslav@coretsia.dev",
+                    "role": "Creator and Lead Developer"
+                }
+            ],
+            "description": "Coretsia tracing runtime package: deterministic W3C traceparent propagation, bounded validation, and Foundation noop fallback.",
+            "homepage": "https://coretsia.dev/",
+            "keywords": [
+                "context-propagation",
+                "coretsia",
+                "deterministic",
+                "framework",
+                "noop",
+                "observability",
+                "php",
+                "runtime",
+                "trace-context",
+                "traceparent",
+                "tracing",
+                "w3c"
+            ],
+            "support": {
+                "issues": "https://github.com/coretsia/monorepo/issues",
+                "source": "https://github.com/coretsia/monorepo"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "coretsia/platform-worker",
             "version": "0.11.x-dev",
             "dist": {
@@ -1600,11 +1674,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.3.4",
+            "version": "2.3.5",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f20ce6f3c82556cfcfc086b152445a12d1d64fff",
-                "reference": "f20ce6f3c82556cfcfc086b152445a12d1d64fff",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/645a1bd6bead15fc1b8474137467961d0fa30a79",
+                "reference": "645a1bd6bead15fc1b8474137467961d0fa30a79",
                 "shasum": ""
             },
             "require": {
@@ -1660,7 +1734,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-28T22:38:53+00:00"
+            "time": "2026-11-03T12:14:22+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -2021,16 +2095,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "12.5.42",
+            "version": "12.5.43",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "1d6dbe748c079e5d2b03bca1be69d0f4cc52a578"
+                "reference": "1d5a4a3c98fa1ca3a51402c74b66c2c8df85e0bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/1d6dbe748c079e5d2b03bca1be69d0f4cc52a578",
-                "reference": "1d6dbe748c079e5d2b03bca1be69d0f4cc52a578",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/1d5a4a3c98fa1ca3a51402c74b66c2c8df85e0bb",
+                "reference": "1d5a4a3c98fa1ca3a51402c74b66c2c8df85e0bb",
                 "shasum": ""
             },
             "require": {
@@ -2099,7 +2173,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.42"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/12.5.43"
             },
             "funding": [
                 {
@@ -2107,7 +2181,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-10-27T04:15:03+00:00"
+            "time": "2026-11-02T07:10:00+00:00"
         },
         {
             "name": "psr/clock",
@@ -4588,16 +4662,16 @@
         },
         {
             "name": "symplify/easy-coding-standard",
-            "version": "13.3.12",
+            "version": "13.3.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ecsphp/ecs.git",
-                "reference": "712df94dba55ddda2a8f360a65c13fa3160f24b2"
+                "reference": "ceb2ac9fd79dc30841dbecb4e259f88ceb9d5600"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/712df94dba55ddda2a8f360a65c13fa3160f24b2",
-                "reference": "712df94dba55ddda2a8f360a65c13fa3160f24b2",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/ceb2ac9fd79dc30841dbecb4e259f88ceb9d5600",
+                "reference": "ceb2ac9fd79dc30841dbecb4e259f88ceb9d5600",
                 "shasum": ""
             },
             "require": {
@@ -4630,9 +4704,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ecsphp/ecs/issues",
-                "source": "https://github.com/ecsphp/ecs/tree/13.3.12"
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.13"
             },
-            "time": "2026-10-29T14:53:28+00:00"
+            "time": "2026-11-02T22:11:38+00:00"
         },
         {
             "name": "theseer/tokenizer",
@@ -4698,6 +4772,7 @@
         "coretsia/platform-errors": 20,
         "coretsia/platform-logging": 20,
         "coretsia/platform-redaction": 20,
+        "coretsia/platform-tracing": 20,
         "coretsia/platform-worker": 20,
         "coretsia/skeleton": 20
     },

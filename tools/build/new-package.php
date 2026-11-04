@@ -18,6 +18,7 @@ declare(strict_types=1);
  */
 
 use Coretsia\Tools\Support\ComposerJson;
+use Coretsia\Tools\Support\ConfigRootOwnership;
 use Coretsia\Tools\Support\ConsoleOutput;
 use Coretsia\Tools\Support\DeterministicFile;
 use Coretsia\Tools\Support\ErrorCodes;
@@ -30,6 +31,8 @@ require_once __DIR__ . '/../support/DeterministicException.php';
 require_once __DIR__ . '/../support/DeterministicFile.php';
 require_once __DIR__ . '/../support/RepositoryContext.php';
 require_once __DIR__ . '/../support/ComposerJson.php';
+require_once __DIR__ . '/../support/MarkdownSectionReader.php';
+require_once __DIR__ . '/../support/ConfigRootOwnership.php';
 require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
 
 final class NewPackage
@@ -78,6 +81,15 @@ final class NewPackage
         if ($slug === 'observability') {
             throw new \RuntimeException('Reserved slug: ' . $slug);
         }
+
+        $description = self::validatedDescription(
+            $opts['description'] ?? 'Coretsia ' . $layer . '/' . $slug . ' ' . $kind . ' package.',
+        );
+        $keywords = self::validatedKeywords($opts['keywords'] ?? null);
+        $sharedMetadata = self::sharedComposerMetadata($repository);
+        $configRoot = $kind === 'runtime'
+            ? ConfigRootOwnership::forPackage($repository, $layer . '/' . $slug)
+            : null;
 
         $repoRoot = $repository->repoRoot();
         $packagesRoot = $repository->packagesRoot();
@@ -140,7 +152,17 @@ final class NewPackage
 
             DeterministicFile::writeTextLf(
                 $stagedPackageDir . '/composer.json',
-                self::composerJson($composerName, $namespaceRoot, $layer, $slug, $kind),
+                self::composerJson(
+                    $composerName,
+                    $namespaceRoot,
+                    $layer,
+                    $slug,
+                    $kind,
+                    $description,
+                    $keywords,
+                    $sharedMetadata,
+                    $configRoot,
+                ),
             );
 
             self::runPackageScaffoldSync($repoRoot, $stagedPackageDir);
@@ -210,6 +232,8 @@ final class NewPackage
             'layer' => true,
             'slug' => true,
             'kind' => true,
+            'description' => true,
+            'keywords' => true,
         ];
 
         /** @var array<string,string> $out */
@@ -217,7 +241,8 @@ final class NewPackage
         $count = \count($argv);
 
         for ($i = 1; $i < $count; $i++) {
-            $arg = \trim((string) $argv[$i]);
+            $rawArg = (string) $argv[$i];
+            $arg = \trim($rawArg);
 
             if ($arg === '' || !\str_starts_with($arg, '--')) {
                 throw new \RuntimeException('new-package-argument-invalid');
@@ -227,26 +252,37 @@ final class NewPackage
 
             if ($separator !== false) {
                 $key = \substr($arg, 2, $separator - 2);
-                $value = \trim(\substr($arg, $separator + 1));
+                $value = \substr($rawArg, \strpos($rawArg, '=') + 1);
             } else {
                 $key = \substr($arg, 2);
-                $value = $i + 1 < $count
-                    ? \trim((string) $argv[$i + 1])
-                    : '';
 
-                if (
-                    $value !== ''
-                    && !\str_starts_with($value, '--')
-                ) {
-                    $i++;
+                if ($i + 1 >= $count) {
+                    throw new \RuntimeException('new-package-argument-invalid');
                 }
+
+                $value = (string) $argv[$i + 1];
+
+                if (\str_starts_with(\trim($value), '--')) {
+                    throw new \RuntimeException('new-package-argument-invalid');
+                }
+
+                $i++;
+            }
+
+            if (!isset($allowed[$key]) || \array_key_exists($key, $out)) {
+                throw new \RuntimeException('new-package-argument-invalid');
+            }
+
+            $isMetadata = $key === 'description' || $key === 'keywords';
+
+            if (!$isMetadata) {
+                $value = \trim($value);
             }
 
             if (
-                !isset($allowed[$key])
-                || $value === ''
-                || \str_starts_with($value, '--')
-                || \array_key_exists($key, $out)
+                $value === ''
+                || ($separator === false && \str_starts_with(\trim($value), '--'))
+                || (!$isMetadata && \str_starts_with($value, '--'))
             ) {
                 throw new \RuntimeException('new-package-argument-invalid');
             }
@@ -271,8 +307,155 @@ final class NewPackage
         return $v;
     }
 
+    private static function validatedDescription(string $description): string
+    {
+        if (
+            $description === ''
+            || \strlen($description) > 240
+            || \preg_match('//u', $description) !== 1
+            || \preg_match('/[\p{Cc}\p{Zl}\p{Zp}]/u', $description) === 1
+            || \preg_match('/\A[\s\p{Z}]|[\s\p{Z}]\z/u', $description) === 1
+        ) {
+            throw new \RuntimeException('new-package-description-invalid');
+        }
+
+        return $description;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function validatedKeywords(?string $raw): array
+    {
+        if ($raw === null) {
+            $raw = 'coretsia,php,framework';
+        }
+
+        if (
+            \preg_match('/[\x00-\x1F\x7F]/', $raw) === 1
+            || \trim($raw) !== $raw
+        ) {
+            throw new \RuntimeException('new-package-keywords-invalid');
+        }
+
+        $keywords = [];
+        $seen = [];
+
+        foreach (\explode(',', $raw) as $token) {
+            if (
+                $token === ''
+                || \trim($token) !== $token
+                || \preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $token) !== 1
+            ) {
+                throw new \RuntimeException('new-package-keywords-invalid');
+            }
+
+            if (isset($seen[$token])) {
+                continue;
+            }
+
+            $seen[$token] = true;
+            $keywords[] = $token;
+
+            if (\count($keywords) > 24) {
+                throw new \RuntimeException('new-package-keywords-invalid');
+            }
+        }
+
+        return $keywords;
+    }
+
+    /**
+     * @return array{
+     *     authors: non-empty-list<array<string,string>>,
+     *     homepage: string,
+     *     support: array<string,string>,
+     *     platformPhp: string
+     * }
+     */
+    private static function sharedComposerMetadata(RepositoryContext $repository): array
+    {
+        $root = ComposerJson::readObject($repository->resolveExistingFile('composer.json'));
+
+        $authors = $root['authors'] ?? null;
+        $homepage = $root['homepage'] ?? null;
+        $support = $root['support'] ?? null;
+        $config = $root['config'] ?? null;
+        $platform = \is_array($config) ? ($config['platform'] ?? null) : null;
+        $platformPhp = \is_array($platform) ? ($platform['php'] ?? null) : null;
+
+        if (
+            !\is_array($authors)
+            || !\array_is_list($authors)
+            || $authors === []
+            || !\is_string($homepage)
+            || \filter_var($homepage, \FILTER_VALIDATE_URL) === false
+            || !\in_array(\parse_url($homepage, \PHP_URL_SCHEME), ['http', 'https'], true)
+            || !\is_array($support)
+            || \array_is_list($support)
+            || !\is_array($config)
+            || !\is_array($platform)
+            || !\is_string($platformPhp)
+            || \preg_match('/\A[0-9]+(?:\.[0-9]+){1,3}(?:-[a-zA-Z0-9.-]+)?\z/D', $platformPhp) !== 1
+        ) {
+            throw new \RuntimeException('new-package-shared-metadata-invalid');
+        }
+
+        foreach ($authors as $author) {
+            if (
+                !\is_array($author)
+                || \array_is_list($author)
+                || !\is_string($author['name'] ?? null)
+            ) {
+                throw new \RuntimeException('new-package-shared-metadata-invalid');
+            }
+
+            foreach ($author as $key => $value) {
+                if (
+                    !\is_string($key)
+                    || !\is_string($value)
+                    || $value === ''
+                    || \trim($value) !== $value
+                    || \preg_match('/[\x00-\x1F\x7F]/', $value) === 1
+                    || ($key === 'email' && \filter_var($value, \FILTER_VALIDATE_EMAIL) === false)
+                    || ($key === 'homepage' && (
+                        \filter_var($value, \FILTER_VALIDATE_URL) === false
+                            || !\in_array(\parse_url($value, \PHP_URL_SCHEME), ['http', 'https'], true)
+                    ))
+                ) {
+                    throw new \RuntimeException('new-package-shared-metadata-invalid');
+                }
+            }
+        }
+
+        foreach ($support as $key => $value) {
+            if (
+                !\is_string($key)
+                || !\is_string($value)
+                || $value === ''
+                || \trim($value) !== $value
+                || \preg_match('/[\x00-\x1F\x7F]/', $value) === 1
+                || ($key === 'email' && \filter_var($value, \FILTER_VALIDATE_EMAIL) === false)
+                || ($key !== 'email' && \filter_var($value, \FILTER_VALIDATE_URL) === false)
+            ) {
+                throw new \RuntimeException('new-package-shared-metadata-invalid');
+            }
+        }
+
+        return [
+            'authors' => $authors,
+            'homepage' => $homepage,
+            'support' => $support,
+            'platformPhp' => $platformPhp,
+        ];
+    }
+
     private static function packageRootNamespace(string $layer, string $slug): string
     {
+        if ($layer === 'core' && $slug === 'dto-attribute') {
+            return 'Coretsia\\Dto\\Attribute\\';
+        }
+
         $studlySlug = self::studly($slug);
 
         if ($layer === 'core') {
@@ -282,14 +465,30 @@ final class NewPackage
         return 'Coretsia\\' . self::studly($layer) . '\\' . $studlySlug . '\\';
     }
 
+    /**
+     * @param list<string> $keywords
+     * @param array{
+     *     authors: non-empty-list<array<string,string>>,
+     *     homepage: string,
+     *     support: array<string,string>,
+     *     platformPhp: string
+     * } $sharedMetadata
+     */
     private static function composerJson(
         string $name,
         string $namespaceRoot,
         string $layer,
         string $slug,
         string $kind,
+        string $description,
+        array $keywords,
+        array $sharedMetadata,
+        ?string $configRoot,
     ): string {
         $studlySlug = self::studly($slug);
+        $sourcePathRoot = $layer === 'core' && $slug === 'dto-attribute'
+            ? 'src/Attribute/'
+            : 'src/';
 
         $coretsiaExtra = [
             'kind' => $kind,
@@ -303,20 +502,26 @@ final class NewPackage
             ];
             $coretsiaExtra['requires'] = [];
             $coretsiaExtra['conflicts'] = [];
-            $coretsiaExtra['defaultsConfigPath'] = 'config/' . $slug . '.php';
+            if ($configRoot !== null) {
+                $coretsiaExtra['defaultsConfigPath'] = 'config/' . $configRoot . '.php';
+            }
         }
 
         $json = [
             'name' => $name,
             'type' => 'library',
-            'description' => 'Coretsia package: ' . $name,
+            'description' => $description,
+            'keywords' => $keywords,
             'license' => 'Apache-2.0',
+            'authors' => $sharedMetadata['authors'],
+            'homepage' => $sharedMetadata['homepage'],
+            'support' => $sharedMetadata['support'],
             'require' => [
                 'php' => '^8.4',
             ],
             'autoload' => [
                 'psr-4' => [
-                    $namespaceRoot => 'src/',
+                    $namespaceRoot => $sourcePathRoot,
                 ],
             ],
             'autoload-dev' => [
@@ -326,6 +531,9 @@ final class NewPackage
             ],
             'config' => [
                 'sort-packages' => true,
+                'platform' => [
+                    'php' => $sharedMetadata['platformPhp'],
+                ],
             ],
             'extra' => [
                 'coretsia' => $coretsiaExtra,

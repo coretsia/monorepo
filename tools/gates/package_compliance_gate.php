@@ -17,6 +17,7 @@ declare(strict_types=1);
  */
 
 use Coretsia\Tools\Support\ComposerJson;
+use Coretsia\Tools\Support\ConfigRootOwnership;
 use Coretsia\Tools\Support\ConsoleOutput;
 use Coretsia\Tools\Support\DeterministicFile;
 use Coretsia\Tools\Support\ErrorCodes;
@@ -29,6 +30,8 @@ require_once __DIR__ . '/../support/DeterministicException.php';
 require_once __DIR__ . '/../support/DeterministicFile.php';
 require_once __DIR__ . '/../support/RepositoryContext.php';
 require_once __DIR__ . '/../support/ComposerJson.php';
+require_once __DIR__ . '/../support/MarkdownSectionReader.php';
+require_once __DIR__ . '/../support/ConfigRootOwnership.php';
 require_once __DIR__ . '/../support/WorkspacePackageCatalog.php';
 
 (static function (array $argv): void {
@@ -499,6 +502,7 @@ function coretsia_package_compliance_gate_validate_package(
     $kind = coretsia_package_compliance_gate_composer_coretsia_kind($composer);
 
     if ($kind === 'runtime') {
+        $configRoot = ConfigRootOwnership::forPackage($repository, $packageId);
         $studlySlug = coretsia_package_compliance_gate_studly($slug);
 
         $runtimeSymlinkDiagnostics = coretsia_package_compliance_gate_validate_symlink_paths(
@@ -510,8 +514,7 @@ function coretsia_package_compliance_gate_validate_package(
                 'config',
                 'src/Module/' . $studlySlug . 'Module.php',
                 'src/Provider/' . $studlySlug . 'ServiceProvider.php',
-                'config/' . $slug . '.php',
-                'config/rules.php',
+                ...($configRoot === null ? [] : ['config/' . $configRoot . '.php', 'config/rules.php']),
             ],
         );
 
@@ -530,6 +533,7 @@ function coretsia_package_compliance_gate_validate_package(
                 $slug,
                 $namespaceRoot,
                 $composer,
+                $configRoot,
             ) as $diagnostic
         ) {
             $diagnostics[] = $diagnostic;
@@ -797,6 +801,7 @@ function coretsia_package_compliance_gate_validate_runtime_package(
     string $slug,
     string $namespaceRoot,
     array $composer,
+    ?string $configRoot,
 ): array {
     /** @var list<string> $diagnostics */
     $diagnostics = [];
@@ -804,14 +809,15 @@ function coretsia_package_compliance_gate_validate_runtime_package(
     $studlySlug = coretsia_package_compliance_gate_studly($slug);
     $moduleFile = 'src/Module/' . $studlySlug . 'Module.php';
     $providerFile = 'src/Provider/' . $studlySlug . 'ServiceProvider.php';
-    $defaultsConfigFile = 'config/' . $slug . '.php';
+    $defaultsConfigFile = $configRoot === null ? null : 'config/' . $configRoot . '.php';
 
     $extra = $composer['extra']['coretsia'] ?? null;
     if (!\is_array($extra)) {
         $extra = [];
     }
 
-    $hasConfigRoot = \array_key_exists('defaultsConfigPath', $extra);
+    $hasConfigRoot = $configRoot !== null;
+    $declaresDefaults = \array_key_exists('defaultsConfigPath', $extra);
 
     $requiredDirs = ['src/Module', 'src/Provider'];
     $requiredFiles = [$moduleFile, $providerFile];
@@ -857,7 +863,9 @@ function coretsia_package_compliance_gate_validate_runtime_package(
         $diagnostics[] = $relativeRoot . '/composer.json: invalid-runtime-metadata-providers';
     }
 
-    if ($hasConfigRoot && $extra['defaultsConfigPath'] !== $defaultsConfigFile) {
+    if ($hasConfigRoot && !$declaresDefaults) {
+        $diagnostics[] = $relativeRoot . '/composer.json: missing-runtime-metadata-defaultsConfigPath';
+    } elseif ($declaresDefaults && $extra['defaultsConfigPath'] !== $defaultsConfigFile) {
         $diagnostics[] = $relativeRoot . '/composer.json: invalid-runtime-metadata-defaultsConfigPath';
     }
 
@@ -867,6 +875,7 @@ function coretsia_package_compliance_gate_validate_runtime_package(
                 $packageRoot . '/' . $defaultsConfigFile,
                 $relativeRoot . '/' . $defaultsConfigFile,
                 $slug,
+                $configRoot,
             ) as $diagnostic
         ) {
             $diagnostics[] = $diagnostic;
@@ -878,6 +887,7 @@ function coretsia_package_compliance_gate_validate_runtime_package(
             coretsia_package_compliance_gate_validate_runtime_rules_config(
                 $packageRoot . '/config/rules.php',
                 $relativeRoot . '/config/rules.php',
+                $configRoot,
             ) as $diagnostic
         ) {
             $diagnostics[] = $diagnostic;
@@ -894,6 +904,7 @@ function coretsia_package_compliance_gate_validate_runtime_defaults_config(
     string $path,
     string $relativePath,
     string $slug,
+    string $configRoot,
 ): array {
     $contents = coretsia_package_compliance_gate_read_file($path);
 
@@ -907,7 +918,7 @@ function coretsia_package_compliance_gate_validate_runtime_defaults_config(
     }
 
     $topLevelKeys = coretsia_package_compliance_gate_extract_php_array_string_keys($arrayBlock);
-    $wrapperCandidates = \array_values(\array_unique([$slug, \str_replace('-', '_', $slug)]));
+    $wrapperCandidates = \array_values(\array_unique([$slug, $configRoot]));
 
     foreach ($wrapperCandidates as $candidate) {
         if (isset($topLevelKeys[$candidate])) {
@@ -921,12 +932,196 @@ function coretsia_package_compliance_gate_validate_runtime_defaults_config(
 /**
  * @return list<string>
  */
-function coretsia_package_compliance_gate_validate_runtime_rules_config(string $path, string $relativePath): array
-{
+function coretsia_package_compliance_gate_validate_runtime_rules_config(
+    string $path,
+    string $relativePath,
+    string $configRoot,
+): array {
     $contents = coretsia_package_compliance_gate_read_file($path);
+    $arrayBlock = coretsia_package_compliance_gate_extract_php_return_array_block($contents);
 
-    if (!coretsia_package_compliance_gate_php_source_has_return_array($contents)) {
+    if ($arrayBlock === null) {
         return [$relativePath . ': config-rules-not-array'];
+    }
+
+    $arrayOffset = coretsia_package_compliance_gate_find_php_return_array_open_offset($contents);
+
+    if ($arrayOffset === null) {
+        return [$relativePath . ': config-rules-not-array'];
+    }
+
+    $prefix = [];
+
+    foreach (\token_get_all(\substr($contents, 0, $arrayOffset)) as $token) {
+        if (
+            \is_array($token)
+            && \in_array($token[0], [T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)
+        ) {
+            continue;
+        }
+
+        $prefix[] = \is_array($token) ? $token[1] : $token;
+    }
+
+    if (!\in_array(\implode('', $prefix), [
+        'return',
+        'returnarray',
+        'declare(strict_types=1);return',
+        'declare(strict_types=1);returnarray',
+    ], true)) {
+        return [$relativePath . ': config-rules-not-array'];
+    }
+
+    $suffix = [];
+
+    foreach (\token_get_all('<?php ' . \substr($contents, $arrayOffset + \strlen($arrayBlock))) as $token) {
+        if (
+            \is_array($token)
+            && \in_array($token[0], [T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)
+        ) {
+            continue;
+        }
+
+        $suffix[] = \is_array($token) ? $token[1] : $token;
+    }
+
+    if ($suffix !== [';']) {
+        return [$relativePath . ': config-rules-not-array'];
+    }
+
+    $tokens = \token_get_all('<?php ' . $arrayBlock);
+    $depth = 0;
+    $expectKey = false;
+    $roots = [];
+
+    foreach ($tokens as $index => $token) {
+        if ($token === '[' || $token === '(') {
+            $depth++;
+
+            if ($depth === 1) {
+                $expectKey = true;
+            }
+
+            continue;
+        }
+
+        if ($token === ']' || $token === ')') {
+            $depth--;
+            continue;
+        }
+
+        if ($depth !== 1) {
+            continue;
+        }
+
+        if ($token === ',') {
+            $expectKey = true;
+            continue;
+        }
+
+        if (
+            \is_array($token)
+            && \in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)
+        ) {
+            continue;
+        }
+
+        if (!$expectKey) {
+            continue;
+        }
+
+        if (!\is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+            return [$relativePath . ': config-rules-root-mismatch'];
+        }
+
+        $key = coretsia_package_compliance_gate_decode_php_string_literal($token[1]);
+        $arrowIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $index + 1);
+
+        if (
+            $arrowIndex === null
+            || !\is_array($tokens[$arrowIndex])
+            || $tokens[$arrowIndex][0] !== T_DOUBLE_ARROW
+        ) {
+            return [$relativePath . ': config-rules-root-mismatch'];
+        }
+
+        if ($key === 'configRoot') {
+            $valueIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $arrowIndex + 1);
+            $value = $valueIndex === null ? null : $tokens[$valueIndex];
+
+            if ($valueIndex === null || !\is_array($value) || $value[0] !== T_CONSTANT_ENCAPSED_STRING) {
+                return [$relativePath . ': config-rules-root-mismatch'];
+            }
+
+            $endIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $valueIndex + 1);
+
+            if (
+                $endIndex === null
+                || !\in_array($tokens[$endIndex], [',', ']', ')'], true)
+            ) {
+                return [$relativePath . ': config-rules-root-mismatch'];
+            }
+
+            $roots[] = coretsia_package_compliance_gate_decode_php_string_literal($value[1]);
+        }
+
+        $expectKey = false;
+    }
+
+    if ($roots !== [$configRoot]) {
+        return [$relativePath . ': config-rules-root-mismatch'];
+    }
+
+    foreach ($tokens as $index => $token) {
+        if (\is_array($token)) {
+            if (\in_array($token[0], [
+                T_OPEN_TAG,
+                T_WHITESPACE,
+                T_COMMENT,
+                T_DOC_COMMENT,
+                T_DOUBLE_ARROW,
+                T_CONSTANT_ENCAPSED_STRING,
+                T_LNUMBER,
+                T_ARRAY,
+            ], true)) {
+                continue;
+            }
+
+            if ($token[0] === T_STRING && \in_array(\strtolower($token[1]), ['true', 'false', 'null'], true)) {
+                continue;
+            }
+        } elseif (\in_array($token, ['[', ']', '(', ')', ','], true)) {
+            continue;
+        } elseif ($token === '-') {
+            $nextIndex = coretsia_package_compliance_gate_next_meaningful_token_index($tokens, $index + 1);
+            $next = $nextIndex === null ? null : $tokens[$nextIndex];
+            $previousIndex = $index - 1;
+
+            while ($previousIndex >= 0) {
+                $previous = $tokens[$previousIndex];
+
+                if (!\is_array($previous) || !\in_array($previous[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                    break;
+                }
+
+                $previousIndex--;
+            }
+
+            $previous = $tokens[$previousIndex] ?? null;
+
+            if (
+                \is_array($next)
+                && $next[0] === T_LNUMBER
+                && (
+                    \in_array($previous, ['[', '(', ','], true)
+                    || (\is_array($previous) && $previous[0] === T_DOUBLE_ARROW)
+                )
+            ) {
+                continue;
+            }
+        }
+
+        return [$relativePath . ': config-rules-non-declarative'];
     }
 
     return [];

@@ -307,7 +307,7 @@ Forbidden:
 
 ---
 
-### 6.20.0 coretsia/metrics (MUST) [IMPL]
+### 6.20.0 Platform metrics recording backend (bounded registry + HTTP endpoint ownership) (MUST) [IMPL]
 
 ---
 type: package
@@ -320,15 +320,14 @@ composer: "coretsia/platform-metrics"
 kind: runtime
 module_id: "platform.metrics"
 
-goal: "When `platform.metrics` is enabled, `/metrics` is owned by metrics middleware and returns deterministic output with safe fallback; exporter is selected via config without coupling `platform/http` to metrics."
+goal: "Розширити існуючий platform/metrics noop baseline до deterministic, bounded recording backend із process-owned metrics registry, metric-specific runtime admission, безпечним snapshot contract та opt-in HTTP /metrics endpoint; зберегти існуючі observability ports, Foundation fallback, global label allowlist і Kernel UoW ownership без дублювання registry, reset або exporter infrastructure."
 provides:
 - "Metrics registry (counters/histograms) with deterministic dump order."
 - "SSoT policy enforcement: metric naming + allowlisted label keys only; deterministic label ordering."
 - "HTTP `/metrics` endpoint ownership via PSR-15 middleware; stable fallback when exporter is missing."
 
 tags_introduced: []
-config_roots_introduced:
-- "metrics"
+config_roots_introduced: []
 
 artifacts_introduced: []
 adr: none
@@ -338,19 +337,43 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
 
-- [ ] update `6.20.0 platform/metrics` to clarify that redaction does not permit arbitrary metric labels or metric dumps.
+### Scope boundary (MUST)
+
+- This epic extends the existing platform/metrics package created by 3.35.0.
+- No second package identity, metrics module, global label allowlist, null renderer, or observability port is introduced.
+- MeterPortInterface and MetricsRendererInterface remain unchanged.
+- Existing DefaultMeter remains the stateless noop implementation provided by the Phase 3 baseline.
+- The selected recording backend replaces the effective MeterPortInterface binding without replacing or modifying DefaultMeter.
+- MetricsRegistry is the single owner of recorded counter/histogram state and MUST NOT create another process-wide metrics store.
+- Recorded metrics MUST satisfy the canonical metric-name, metric-type, global-label, metric-specific-label, and safe-value policies.
+- Recording state is process-owned and bounded; it MUST NOT become Kernel-owned UnitOfWork context.
+- A metrics registry MAY retain admitted aggregates across UnitOfWork boundaries only under an explicit bounded process-lifetime policy.
+- No duplicate reset orchestrator, metric catalog owner, HTTP middleware registry, or exporter discovery mechanism is introduced.
+- Existing Noop/NullMetricsRenderer remains the canonical fallback renderer.
+- The optional Prometheus renderer belongs to epic 6.21.0 and is not implemented here.
+- HTTP exposure is opt-in, transport-owned, and MUST NOT activate merely because the metrics package is installed.
+- Platform/http remains the owner of HTTP middleware slot execution, request handling, and transport lifecycle.
+- Package installation alone MUST NOT enable metric recording, endpoint exposure, or exporter selection in an application target; module selection and the applicable config remain authoritative.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `platform/http` — provides and executes `http.middleware.system_pre` slot/tag (metrics integrates ONLY via tag; no compile-time dep).
-  - `core/contracts` — provides metrics ports (MeterPortInterface + MetricsRendererInterface).
-  - `core/foundation` — provides `DeterministicOrder` + `ContextAccessorInterface`.
+  - [ ] Epic 3.35.0 MUST be completed, including the existing platform/metrics package, DefaultMeter, AllowedLabelSet, NullMetricsRenderer, MetricsModule, MetricsServiceProvider, configuration, ADR-0039, and metrics-policy.md.
+  - [ ] Core contracts already provide MeterPortInterface and MetricsRendererInterface without modification.
+  - [ ] Foundation NoopMeter remains the unselected fallback.
+  - [ ] Kernel declarative container definitions, target-local ModulePlan, and provider ordering are available.
+  - [ ] The canonical observability metrics catalog and global label allowlist already exist.
+  - [ ] The `metrics` config root is already registered with owner platform/metrics.
+  - [ ] Platform/http MUST provide the canonical http.middleware.system_pre slot before the optional HTTP endpoint can execute.
+  - [ ] HTTP endpoint integration MUST NOT introduce a platform/http production-source dependency in platform/metrics.
+  - [ ] Existing deterministic ordering, declarative DI, and configuration validation APIs MUST be reused.
 
 - Required config roots/keys:
-  - `metrics.*` — this epic introduces the root; consumers must read via global config under `metrics` root (config file returns subtree).
+  - `metrics` — existing platform/metrics-owned root, introduced by epic 3.35.0.
+  - This epic extends existing config/metrics.php and config/rules.php.
+  - Existing root ownership and Kernel config-validation behavior MUST remain unchanged.
 
 - Required tags:
   - `http.middleware.system_pre` — must exist and be executed by HTTP stack (metrics does not own this tag).
@@ -379,23 +402,28 @@ Forbidden:
 - `platform/cli`
 - `integrations/*`
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
-- PSR:
+- Contracts:
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
+
+- Foundation:
+  - `Coretsia\Platform\Metrics\Labels\AllowedLabelSet` (existing platform/metrics helper)
+  - canonical declarative container-definition APIs
+  - `Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` (existing reserved tag)
+
+- PSR (HTTP adapter only):
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
-  - `Psr\Log\LoggerInterface`
-- Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-  - `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface`
-- Foundation stable APIs:
-  - `Coretsia\Contracts\Context\ContextKeys`
-  - `Coretsia\Foundation\Serialization\StableJsonEncoder`   # only if JSON is ever emitted (prefer text/plain for /metrics)
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
+
+- No ContextAccessorInterface, ContextKeys, CorrelationIdProviderInterface, TracerPortInterface, LoggerInterface, or platform/http implementation dependency is required for metrics recording.
+- HTTP-related PSR Composer dependencies MUST be explicitly declared when the HTTP adapter is implemented.
+- No vendor-specific metrics SDK or Prometheus renderer dependency is introduced.
 
 ### Entry points / integration points (MUST)
 
@@ -411,82 +439,218 @@ Forbidden:
 
 ### Metrics exporter selection (single-choice, no new tags)
 
-- Selector: `metrics.exporter` (string), default `"null"`.
-- `platform/metrics` MUST always provide a safe fallback binding:
-  - `MetricsRendererInterface` → `NullMetricsRenderer`.
-- Integrations (e.g. `integrations/metrics-prometheus`) MUST implement **conditional override**:
-  - if `metrics.exporter === "prometheus"` and the integration module is enabled → bind `MetricsRendererInterface` to its renderer.
-  - otherwise → do nothing.
-- `platform/metrics` MUST NOT enumerate exporters via tags and MUST NOT introduce `metrics.exporter` tag.
+- [ ] The selected platform.metrics module owns MetricsRegistry recording independently of renderer selection.
+- [ ] The canonical fallback binding remains MetricsRendererInterface → Noop/NullMetricsRenderer.
+- [ ] The existing NullMetricsRenderer implementation from epic 3.35.0 MUST be reused without duplication.
+- [ ] `metrics.exporter` is a string selector with baseline default `null`.
+- [ ] No exporter discovery tag, dynamic exporter registry, or new reserved tag is introduced.
+- [ ] Missing or unselected optional exporter integration preserves the canonical NullMetricsRenderer fallback.
+- [ ] Optional integration modules contribute conditional declarative bindings through the existing Kernel-selected provider order.
+- [ ] Epic 6.21.0 owns the concrete Prometheus renderer and its conditional binding when metrics.exporter selects prometheus.
+- [ ] Module dependencies and provider order MUST ensure the selected optional integration binding is evaluated after platform.metrics.
+- [ ] Platform/metrics MUST NOT import the optional integration renderer class.
+- [ ] MetricsRendererInterface remains the stable rendering port.
+- [ ] Registry snapshots are implementation-owned bounded data, not a new public exporter or HTTP transport contract.
+- [ ] Exporter selection MUST NOT weaken metric label, catalog, cardinality, redaction, or endpoint-exposure policies.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-Platform (`coretsia/metrics`):
-- [ ] `packages/platform/metrics/composer.json` — package manifest
-- [ ] `packages/platform/metrics/src/Module/MetricsModule.php` — runtime module entry
-- [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php` — wiring
-- [ ] `packages/platform/metrics/src/Provider/MetricsServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — (optional) constants for exporter tagging
-- [ ] `packages/platform/metrics/config/metrics.php` — config subtree (root: `metrics`)
-- [ ] `packages/platform/metrics/config/rules.php` — config shape rules
-- [ ] `packages/platform/metrics/README.md` — usage + Observability / Errors / Security-Redaction
-- [ ] `packages/platform/metrics/src/Registry/MetricsRegistry.php` — counters/histograms store + deterministic dump
-- [ ] `packages/platform/metrics/src/Metric/Counter.php` — counter primitive
-- [ ] `packages/platform/metrics/src/Metric/Histogram.php` — histogram/timer primitive
-- [ ] `packages/platform/metrics/src/Labels/LabelSet.php` — allowlist enforcement + deterministic ordering
-- [ ] `packages/platform/metrics/src/Export/NullMetricsRenderer.php` — stable fallback renderer
-- [ ] `packages/platform/metrics/src/Http/Middleware/MetricsEndpointMiddleware.php` — owns `/metrics` (PSR-15)
-- [ ] `packages/platform/metrics/src/Exception/MetricsException.php` — deterministic error codes
+- [ ] `packages/platform/metrics/src/Registry/MetricsRegistry.php`
+  - [ ] final process-owned recording implementation of MeterPortInterface.
+  - [ ] implement the existing increment() and observe() method signatures exactly.
+  - [ ] own all admitted counter and histogram state through one shared DI service instance.
+  - [ ] no additional RecordingMeter wrapper, global singleton, or parallel metrics store.
+  - [ ] reuse existing AllowedLabelSet::accepts() for global label-key admission.
+  - [ ] enforce metric-specific canonical name/type/label admission before recording.
+  - [ ] increment() accepts only registered counter metrics.
+  - [ ] observe() accepts only registered observe metrics.
+  - [ ] apply deterministic label-key ordering before series identity construction.
+  - [ ] enforce bounded-cardinality value policy and bounded series count.
+  - [ ] reject unsafe or over-limit samples deterministically without throwing.
+  - [ ] preserve counter arithmetic safety and prevent integer overflow.
+  - [ ] maintain bounded integer histogram aggregates without retaining raw observation sequences.
+  - [ ] provide a deterministic, bounded, read-only snapshot for compatible renderers.
+  - [ ] snapshot ordering MUST NOT depend on PHP array insertion order.
+  - [ ] snapshots MUST NOT expose raw payloads, identifiers, SQL, credentials, or rejected labels.
+  - [ ] no logging of metric samples or registry snapshots.
+  - [ ] no self-instrumentation or recursive registry recording.
+  - [ ] no implicit ContextStore reads/writes or UnitOfWork identity derivation.
+  - [ ] registry state has explicit process lifetime and does not belong to Kernel UoW state.
+  - [ ] no duplicate reset orchestrator or new reset tag.
+  - [ ] no automatic UoW reset of admitted process-wide aggregates.
+  - [ ] process recycling and bounded memory policy MUST be documented and tested.
+  - [ ] no HTTP transport or exporter-specific serialization.
+  - [ ] Verification: no-throw recording, bounded memory, deterministic snapshots, scalar safety, counter overflow, metric-specific admission, and process-lifetime behavior.
+
+- [ ] `packages/platform/metrics/src/Metric/Counter.php`
+  - [ ] final internal counter aggregate owned by MetricsRegistry.
+  - [ ] accept only validated non-negative integer deltas.
+  - [ ] deterministic integer arithmetic with overflow protection.
+  - [ ] no independent global registry, DI binding, or exporter lifecycle.
+  - [ ] no context access, spans, metrics self-emission, logs, or reset registration.
+  - [ ] no raw metric input is retained outside admitted aggregate state.
+  - [ ] Verification: deterministic increments, zero/negative boundary policy, overflow, and repeated snapshots.
+
+- [ ] `packages/platform/metrics/src/Metric/Histogram.php`
+  - [ ] final internal bounded integer-observation aggregate owned by MetricsRegistry.
+  - [ ] accept only validated non-negative integer observations.
+  - [ ] define one deterministic canonical bucket policy before implementation.
+  - [ ] maintain bounded bucket counts, observation count, and aggregate sum.
+  - [ ] do not retain raw observation samples or create unbounded per-value keys.
+  - [ ] use deterministic bucket and output ordering.
+  - [ ] prevent integer overflow in counters, sums, and bucket totals.
+  - [ ] no independent metrics registry, exporter, context owner, or reset service.
+  - [ ] no spans, metrics self-emission, logs, or unsafe diagnostics.
+  - [ ] Verification: bucket boundaries, aggregate count/sum, ordering, overflow, bounded memory, and repeated snapshots.
+
+- [ ] `packages/platform/metrics/src/Http/Middleware/MetricsEndpointMiddleware.php`
+  - [ ] final PSR-15 middleware implementing MiddlewareInterface.
+  - [ ] exact class: Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware.
+  - [ ] process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface.
+  - [ ] owns only the fixed GET /metrics interception policy.
+  - [ ] nonmatching methods and paths delegate to the original request handler unchanged.
+  - [ ] no platform/http implementation imports.
+  - [ ] consume MetricsRendererInterface through existing DI.
+  - [ ] consume PSR response and stream factories through canonical DI references.
+  - [ ] no direct MetricsRegistry access is needed for rendering.
+  - [ ] when the configured renderer is unavailable, use the existing NullMetricsRenderer binding.
+  - [ ] renderer failure MUST NOT disclose internal metric state or replace an unrelated application exception.
+  - [ ] provide deterministic Content-Type and response-body behavior for successful and fallback rendering.
+  - [ ] do not expose the endpoint unless metrics.http.enabled is explicitly true.
+  - [ ] do not implement authentication, rate limiting, trusted-proxy, or request identity ownership.
+  - [ ] endpoint exposure and access control MUST follow the transport owner's security policy.
+  - [ ] no ContextStore writes, active span ownership, metrics self-emission, or reset registration.
+  - [ ] do not log request headers, response bodies, metric dumps, or exporter exceptions.
+  - [ ] Verification: disabled endpoint, GET /metrics, nonmatching requests, missing renderer, renderer failure, output safety, and exception precedence.
 
 Docs:
 - [ ] `docs/architecture/metrics.md` — endpoint ownership + exporter selection + label policy (base doc, without Prometheus-specific renderer details)
 
-Tests:
-- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `packages/platform/metrics/tests/Contract/LabelSetRejectsForbiddenLabelsContractTest.php`
-- [ ] `packages/platform/metrics/tests/Unit/LabelSetRejectsForbiddenLabelsTest.php`
-- [ ] `packages/platform/metrics/tests/Integration/MetricsEndpointReturnsStableFallbackWhenNoExporterTest.php`
-- [ ] `packages/platform/metrics/tests/Integration/MetricsRegistryDeterministicDumpOrderTest.php`
-- [ ] `packages/platform/metrics/tests/Integration/Http/MetricsOwnedWhenModuleEnabledTest.php`
-
 #### Modifies
 
-- [ ] `docs/ssot/http-middleware-catalog.md` — add entry for MetricsEndpointMiddleware in `http.middleware.system_pre` (priority 590, owner platform/metrics, toggle `metrics.http.enabled`)
-
-#### Package skeleton (if type=package)
-
 - [ ] `packages/platform/metrics/composer.json`
+  - [ ] preserve existing platform/metrics package identity and module metadata.
+  - [ ] add only explicitly required PSR HTTP interface dependencies for the new HTTP adapter.
+  - [ ] preserve existing core/contracts and core/foundation dependencies.
+  - [ ] no direct platform/http or vendor metrics exporter dependency.
+  - [ ] no additional package identity, provider, or module requirement is introduced implicitly.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; package metadata only.
+  - [ ] Verification: Composer dependency, package identity, and architecture gates.
+
 - [ ] `packages/platform/metrics/src/Module/MetricsModule.php`
+  - [ ] preserve MODULE_ID, PACKAGE_ID, COMPOSER_PACKAGE, KIND, and CONFIG_ROOT.
+  - [ ] preserve the single existing MetricsServiceProvider entry.
+  - [ ] no runtime service construction, metrics state, exporter discovery, or HTTP request processing.
+  - [ ] Kernel remains the owner of module selection and lifecycle.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; module metadata only.
+  - [ ] Verification: module and Composer metadata parity.
+
 - [ ] `packages/platform/metrics/src/Provider/MetricsServiceProvider.php`
+  - [ ] extend the existing declarative provider; do not create another provider.
+  - [ ] preserve Foundation NoopMeter fallback for unselected targets.
+  - [ ] replace the selected MeterPortInterface → DefaultMeter binding with MeterPortInterface → MetricsRegistry.
+  - [ ] ensure the same shared MetricsRegistry instance owns recording and snapshot access.
+  - [ ] preserve MetricsRendererInterface → Noop/NullMetricsRenderer as the fallback binding.
+  - [ ] conditionally contribute the existing HTTP middleware slot registration only when metrics.http.enabled is true.
+  - [ ] use ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE with priority 590 and canonical metadata.
+  - [ ] use the existing declarative definition builder and compiled configuration context.
+  - [ ] no imperative parallel service graph, exporter tag, dynamic registry, or mutable provider state.
+  - [ ] preserve target-local module selection and provider ordering.
+  - [ ] no ContextStore reads/writes or duplicate reset registration.
+  - [ ] Verification: source/compiled parity, recording binding, renderer fallback, disabled endpoint, and conditional tag contribution.
+
 - [ ] `packages/platform/metrics/config/metrics.php`
+  - [ ] extend the existing Phase 3 empty defaults subtree.
+  - [ ] define the baseline metrics.exporter selector and HTTP endpoint enablement.
+  - [ ] do not repeat the metrics root key.
+  - [ ] no configurable global label allowlist or duplicate catalog.
+  - [ ] no runtime service instances, metric samples, closures, or environment reads.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; defaults-only configuration.
+  - [ ] Verification: exact merged defaults and source/compiled parity.
+
 - [ ] `packages/platform/metrics/config/rules.php`
+  - [ ] extend the existing Phase 3 schemaVersion = 1 configuration ruleset.
+  - [ ] preserve configRoot = metrics and additionalKeys = false.
+  - [ ] define exact types, required keys, allowed values, and strict nested HTTP shape.
+  - [ ] unknown exporter, HTTP, label, collector, or reserved keys fail existing Kernel validation.
+  - [ ] no duplicate custom config validator, resolver, or schema registry.
+  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; declarative validation only.
+  - [ ] Verification: valid defaults, invalid selectors, unknown keys, and config-validation gates.
+
 - [ ] `packages/platform/metrics/README.md`
-- [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] extend the existing Phase 3 README without replacing package identity or port descriptions.
+  - [ ] distinguish noop baseline from recording backend behavior.
+  - [ ] document bounded registry behavior, process lifetime, snapshot format, and renderer fallback.
+  - [ ] document opt-in HTTP exposure, exact GET /metrics ownership, and security obligations.
+  - [ ] document exporter selection and the future Prometheus integration boundary.
+  - [ ] document the absence of a second global label allowlist and runtime metric catalog authority.
+  - [ ] include canonical Observability, Errors, and Security / Redaction sections.
+  - [ ] use synthetic examples and no private metric values.
+  - [ ] Verification: documentation, SSoT links, and public-capability claims.
+
+- [ ] `docs/ssot/metrics-policy.md`
+  - [ ] extend the existing Phase 3 SSoT instead of introducing another metrics policy file.
+  - [ ] define recording lifecycle, registry ownership, cardinality limits, snapshot schema, and no-throw failure behavior.
+  - [ ] define process-owned aggregate lifetime separately from Kernel UnitOfWork context.
+  - [ ] preserve docs/ssot/observability.md as the owner of canonical metric names, types, and label policy.
+  - [ ] document opt-in HTTP endpoint and null exporter fallback.
+  - [ ] no second global allowlist, metric catalog owner, reset orchestrator, or exporter registry.
+  - [ ] Verification: policy consistency, cardinality, snapshot determinism, and source/compiled behavior.
+
+- [ ] `docs/ssot/observability.md`
+  - [ ] preserve the existing global six-key label allowlist and canonical metrics catalog ownership.
+  - [ ] define or confirm the metric-specific bounded-value domains needed before runtime recording.
+  - [ ] do not authorize arbitrary user-derived label values through length limits, hashing, or redaction alone.
+  - [ ] keep counter/observe method compatibility normative.
+  - [ ] record any justified new canonical metric only through this SSoT.
+  - [ ] no competing runtime catalog authority.
+  - [ ] Verification: existing observability metric catalog gate and new runtime catalog parity tests.
+
+- [ ] `docs/ssot/http-middleware-catalog.md` — add entry for MetricsEndpointMiddleware in `http.middleware.system_pre` (priority 590, owner platform/metrics, toggle `metrics.http.enabled`)
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
   - [ ] `packages/platform/metrics/config/metrics.php`
 - [ ] Keys (dot):
-  - [ ] `metrics.enabled` = true
-  - [ ] `metrics.http.enabled` = true
-  - [ ] `metrics.http.path` = "/metrics"
-  - [ ] `metrics.exporter` = "null"              # "null"|"<integration-provided>"
-  - [ ] `metrics.labels.allowed` = ["method","status","driver","operation","table","outcome"]
+  - [ ] `metrics.http.enabled` = false.
+  - [ ] `metrics.exporter` = 'null'.
+- [ ] Fixed endpoint policy:
+  - [ ] GET /metrics is the canonical path; no configurable metrics.http.path key.
+  - [ ] metrics.http.enabled = false MUST NOT contribute an HTTP middleware tag.
+  - [ ] metrics.http.enabled = true requires an explicitly selected compatible HTTP runtime.
+- [ ] Exporter policy:
+  - [ ] `null` preserves the existing NullMetricsRenderer fallback.
+  - [ ] optional exporter values require an explicitly selected compatible integration.
+  - [ ] no exporter tag, dynamic exporter registry, or implicit integration activation.
+- [ ] Forbidden configuration:
+  - [ ] no metrics.labels.allowed.
+  - [ ] no second global label allowlist.
+  - [ ] no runtime metric-name registry or uncontrolled cardinality configuration.
 - [ ] Rules:
   - [ ] `packages/platform/metrics/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-  - [ ] constant(s): `EXPORTER = 'metrics.exporter'` (optional) (if you choose tag-based selection)
-- [ ] ServiceProvider wiring evidence:
-  - [ ] `platform/metrics` registers: `\Coretsia\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`
-  - [ ] `platform/metrics` adds tag: `http.middleware.system_pre` priority `590` meta `{"owner":"platform/metrics","path":"/metrics"}`
-  - [ ] `platform/metrics` binds default: `Coretsia\Contracts\Observability\Metrics\MetricsRendererInterface` → `\Coretsia\Metrics\Export\NullMetricsRenderer::class` (fallback)
+- Tags introduced:
+  - N/A.
+- [ ] Existing tag reuse:
+  - [ ] use ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
+  - [ ] preserve priority = 590 and owner = platform/metrics.
+  - [ ] no metrics.exporter reserved tag or exporter tag registry.
+- [ ] ServiceProvider wiring:
+  - [ ] extend the existing MetricsServiceProvider only.
+  - [ ] selected platform.metrics binds MeterPortInterface → MetricsRegistry.
+  - [ ] preserve the existing DefaultMeter implementation as the noop baseline.
+  - [ ] preserve MetricsRendererInterface → Noop/NullMetricsRenderer fallback.
+  - [ ] registry recording and snapshot reads use the same shared DI service.
+  - [ ] optional integration modules may contribute later conditional renderer overrides.
+  - [ ] register MetricsEndpointMiddleware only when metrics.http.enabled is true.
+  - [ ] no platform/http implementation import or automatic HTTP module activation.
+  - [ ] no second factory, registry, discovery pipeline, or reset orchestrator.
+  - [ ] source and compiled container binding parity MUST hold.
 
 #### Artifacts / outputs (if applicable)
 
@@ -503,13 +667,24 @@ Tests:
   - [ ] `ContextKeys::CORRELATION_ID`
 - [ ] Context writes (safe only):
   - [ ] none (endpoint must not mutate context)
-- Reset discipline:
-  - N/A (registry is process-wide; determinism is enforced by dump ordering)
+- [ ] Reset discipline:
+  - [ ] MetricsRegistry has explicitly bounded process-owned aggregate state.
+  - [ ] registry state is not Kernel-owned UnitOfWork context.
+  - [ ] metrics do not retain raw request, task, HTTP, or customer payloads.
+  - [ ] admitted aggregates MAY persist across sequential UnitOfWork boundaries within one process.
+  - [ ] the registry MUST enforce finite series and memory bounds.
+  - [ ] no automatic per-UnitOfWork reset of process-wide aggregates.
+  - [ ] no second reset discovery, execution, ordering, or failure-mapping mechanism.
+  - [ ] no new kernel.reset tag without a separate explicit lifecycle decision.
+  - [ ] process recycling clears process-owned registry state through normal process termination.
+  - [ ] any future explicit registry clearing operation MUST have a documented owner and must not be mistaken for Kernel UoW reset.
+  - [ ] tests MUST verify bounded state across repeated UnitOfWork boundaries and long-running worker scenarios.
 
 #### Observability (policy-compliant)
 
 - [ ] Spans:
-  - [ ] `metrics.render` (optional; attrs: exporter, outcome)
+  - [ ] N/A; no new metrics.render span or tracing dependency.
+  - [ ] renderer instrumentation remains deferred until a concrete approved owner exists.
 - [ ] Metrics:
   - [ ] N/A (package must NOT emit high-cardinality labels; `LabelSet` enforces keys at call sites)
 - [ ] Label normalization applied (if needed):
@@ -519,14 +694,21 @@ Tests:
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Metrics\Exception\MetricsException` — errorCodes:
-    - [ ] `CORETSIA_METRICS_LABEL_FORBIDDEN`
-    - [ ] `CORETSIA_METRICS_RENDER_FAILED`
-- [ ] Mapping:
-  - [ ] reuse existing mapper (no dupes)
-- [ ] HTTP status hint policy:
-  - [ ] `/metrics` returns 200 with fallback unless policy says otherwise (avoid coupling to ErrorDescriptor)
+- New exception classes:
+  - N/A.
+- [ ] Runtime failure policy:
+  - [ ] MeterPortInterface calls remain no-throw for valid contract-typed arguments.
+  - [ ] invalid metric names, wrong metric types, forbidden labels, unsafe values, and exceeded cardinality limits fail closed without application exceptions.
+  - [ ] no metrics failure may replace a primary application outcome or exception.
+  - [ ] renderer failures follow deterministic safe fallback behavior.
+  - [ ] no raw metric names, labels, samples, snapshots, or exporter exceptions enter diagnostics.
+  - [ ] no recursive metrics reporting or hidden fallback collector.
+  - [ ] programming errors outside the typed public contracts are not misclassified as metrics admission failures.
+- [ ] HTTP fallback:
+  - [ ] a disabled endpoint does not intercept requests.
+  - [ ] an explicitly enabled endpoint uses the canonical NullMetricsRenderer when no compatible exporter is selected.
+  - [ ] fallback output is deterministic and contains no metric samples or private data.
+  - [ ] nonmatching requests preserve the original handler exception precedence.
 
 #### Security / Redaction
 
@@ -558,13 +740,52 @@ Tests:
 
 - Unit:
   - [ ] `packages/platform/metrics/tests/Unit/LabelSetRejectsForbiddenLabelsTest.php`
+
+  - [ ] `packages/platform/metrics/tests/Unit/MetricsRegistryBoundedRecordingTest.php`
+    - [ ] valid counter and observe metric admission.
+    - [ ] reject unregistered metric names and wrong metric types.
+    - [ ] reject forbidden label keys and invalid label-value types.
+    - [ ] verify metric-specific label restrictions.
+    - [ ] verify deterministic normalized series identity.
+    - [ ] verify fixed upper bounds for recorded series and aggregate state.
+    - [ ] verify overflow-safe counter and histogram arithmetic.
+    - [ ] verify invalid or over-limit samples do not throw or mutate admitted state.
+    - [ ] verify no raw payload, secret, or rejected label is retained.
+    - [ ] no ContextStore reads/writes, spans, logs, or reset registrations.
+
 - Contract:
   - [ ] `packages/platform/metrics/tests/Contract/LabelSetRejectsForbiddenLabelsContractTest.php`
   - [ ] `packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+
+  - [ ] `packages/platform/metrics/tests/Contract/RecordingMetricsCatalogParityContractTest.php`
+    - [ ] canonical metric names, types, and label keys match docs/ssot/observability.md.
+    - [ ] runtime recording cannot introduce an undeclared metric.
+    - [ ] no second global AllowedLabelSet or runtime catalog authority.
+    - [ ] metric-specific bounded-value policy is verified.
+    - [ ] invalid or new metric names require explicit SSoT ownership changes.
+
 - Integration:
   - [ ] `packages/platform/metrics/tests/Integration/MetricsEndpointReturnsStableFallbackWhenNoExporterTest.php`
   - [ ] `packages/platform/metrics/tests/Integration/MetricsRegistryDeterministicDumpOrderTest.php`
   - [ ] `packages/platform/metrics/tests/Integration/Http/MetricsOwnedWhenModuleEnabledTest.php`
+
+  - [ ] `packages/platform/metrics/tests/Integration/MetricsRecordingSelectedModuleParityTest.php`
+    - [ ] Foundation-only target retains NoopMeter.
+    - [ ] selected platform.metrics target resolves MetricsRegistry through MeterPortInterface.
+    - [ ] registry and snapshot consumer use the same shared instance.
+    - [ ] existing NullMetricsRenderer remains the fallback.
+    - [ ] source and compiled container behaviors are equivalent.
+    - [ ] no duplicate stateful service, metrics factory, or reset orchestrator.
+
+  - [ ] `packages/platform/metrics/tests/Integration/MetricsHttpEndpointOptInTest.php`
+    - [ ] endpoint is absent when metrics.http.enabled is false.
+    - [ ] enabled endpoint registers only the existing system_pre priority-590 slot.
+    - [ ] GET /metrics uses MetricsRendererInterface.
+    - [ ] nonmatching requests delegate unchanged.
+    - [ ] missing exporter produces deterministic safe fallback.
+    - [ ] no raw metric dump appears in logs or diagnostics.
+    - [ ] no platform/http implementation source import.
+
 - Gates/Arch:
   - [ ] `tools/gates/observability_naming_gate.php` updated (optional; if enforcing early)
   - [ ] deptrac updated (if needed)
@@ -588,9 +809,14 @@ Tests:
   - [ ] Нові labels поза allowlist (заборонено)
   - [ ] Логування дампу метрик (заборонено)
   - [ ] Prometheus exporter (винесено в окремий integration epic)
-- [ ] Discovery / wiring is via tags:
-  - [ ] `http.middleware.system_pre` (endpoint middleware)
-  - [ ] (optional) `metrics.exporter` (if you choose tag-based exporter selection)
+- [ ] Runtime wiring uses the existing declarative container-definition model.
+- [ ] HTTP endpoint contributes only to the existing http.middleware.system_pre tag when explicitly enabled.
+- [ ] No new exporter tag or reserved tag constant is introduced.
+- [ ] Existing NullMetricsRenderer remains the canonical fallback.
+- [ ] MetricsRegistry is the single process-owned recording implementation resolved through MeterPortInterface.
+- [ ] Bounded registry lifetime, metric-specific admission, series cardinality, and snapshot schema are explicitly tested.
+- [ ] No second global label allowlist, module owner, context owner, or reset orchestrator is introduced.
+- [ ] Source/compiled binding parity and endpoint opt-in behavior are verified.
 - [ ] When exporter module is not installed, then GET `/metrics` returns a stable fallback output without throwing.
 
 ---
@@ -839,8 +1065,7 @@ provides:
 - "Deterministic, int-only sampling policy (no floats)."
 
 tags_introduced: []
-config_roots_introduced:
-- "tracing"
+config_roots_introduced: []
 
 artifacts_introduced: []
 adr: none
@@ -862,7 +1087,9 @@ ssot_refs:
     `platform/tracing` MUST NOT depend on `platform/http` and MUST remain usable without any HTTP package.
 
 - Required config roots/keys:
-  - `tracing.*` — this epic introduces the root; consumers read via global config under `tracing` root (config file returns subtree).
+  - `tracing` is introduced and implemented by epic 3.30.0.
+  - This epic extends the existing package-owned tracing configuration subtree and declarative rules.
+  - No second tracing root, provider registry, module identity, or independent configuration pipeline is introduced.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
@@ -873,7 +1100,14 @@ ssot_refs:
 
 - Constraints / out of scope:
   - No HTTP endpoints in tracing.
-  - No new contracts ports introduced here.
+  - Existing TracerPortInterface, SpanInterface, and SpanExporterInterface MUST remain the canonical cross-package contracts.
+  - Before implementing exporter integrations, this epic MUST establish an immutable, bounded, export-ready recorded-span representation.
+  - The representation MUST expose validated trace_id, span_id, optional parent_span_id, span name, start/end timestamps, duration, status, attributes, and events required by exporters.
+  - Exporters MUST NOT depend on private mutable SdkSpan fields, reflection, serialization of arbitrary objects, or vendor SDK handles.
+  - Any required cross-package contract extension MUST be explicitly owned by core/contracts and reviewed for backward compatibility.
+  - The SDK tracer MUST consume the canonical normalized W3C trace context established by 3.30.0, including both sampled and random-trace-id flags.
+  - The SDK MUST NOT replace or duplicate the established W3C propagation parser.
+  - No competing tracing contract hierarchy or duplicate span storage owner may be introduced.
   - No float-based sampling; only integers (e.g., percent 0..100).
   - Exporter failure must be noop-safe (warn logs; no crash; no secrets/payloads).
   - Does NOT implement OTLP/Zipkin exporters (handled by separate integration epics).
@@ -928,28 +1162,17 @@ Forbidden:
 
 #### Creates
 
-Platform (`coretsia/tracing`):
-- [ ] `packages/platform/tracing/composer.json`
-- [ ] `packages/platform/tracing/src/Module/TracingModule.php`
-- [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php`
-- [ ] `packages/platform/tracing/src/Provider/TracingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — (optional) exporter tag constants
-- [ ] `packages/platform/tracing/config/tracing.php`
-- [ ] `packages/platform/tracing/config/rules.php`
-- [ ] `packages/platform/tracing/README.md`
 - [ ] `packages/platform/tracing/src/Tracer/SdkTracer.php`
 - [ ] `packages/platform/tracing/src/Span/SdkSpan.php`
 - [ ] `packages/platform/tracing/src/Export/NullSpanExporter.php`
 - [ ] `packages/platform/tracing/src/Sampling/AlwaysOnSampler.php`
 - [ ] `packages/platform/tracing/src/Sampling/RatioSampler.php` — int percent (0..100), deterministic
-- [ ] `packages/platform/tracing/src/Propagation/W3CContextPropagation.php` — deterministic W3C extract/inject
 - [ ] `packages/platform/tracing/src/Exception/TracingException.php`
 
 Docs:
 - [ ] `docs/architecture/tracing.md` — base tracing architecture, selection, guarantees (without OTLP/Zipkin implementation details)
 
 Tests:
-- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
 - [ ] `packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php`
 - [ ] `packages/platform/tracing/tests/Contract/NoopNeverThrowsContractTest.php`
 - [ ] `packages/platform/tracing/tests/Unit/SamplingRatePercentDeterministicTest.php`
@@ -957,24 +1180,46 @@ Tests:
 
 #### Modifies
 
-N/A
+- [ ] `packages/platform/tracing/src/W3c/W3cTraceContextPropagation.php`
+  - [ ] preserve the W3C implementation and public context shape established by 3.30.0.
+  - [ ] add no second propagator implementation.
+  - [ ] retain deterministic extract/inject and no-throw malformed-carrier behavior.
+  - [ ] do not assign recording, sampling, or active-span lifecycle responsibility to the propagator.
 
-#### Package skeleton (if type=package)
-
-- [ ] `packages/platform/tracing/composer.json`
-- [ ] `packages/platform/tracing/src/Module/TracingModule.php`
 - [ ] `packages/platform/tracing/src/Provider/TracingServiceProvider.php`
+  - [ ] extend the existing declarative provider rather than registering a second provider for the same module.
+  - [ ] preserve the existing ContextPropagationInterface binding.
+  - [ ] add SDK tracer, sampler, and exporter bindings through canonical Foundation definitions.
+  - [ ] preserve source/compiled parity and explicit module selection.
+
+- [ ] `packages/platform/tracing/src/Provider/TracingServiceFactory.php`
+  - [ ] extend the existing stateless factory.
+  - [ ] preserve propagation.mode behavior.
+  - [ ] add SDK tracer and exporter construction without duplicating config loading or creating another service registry.
+
 - [ ] `packages/platform/tracing/config/tracing.php`
+  - [ ] preserve tracing.propagation.mode.
+  - [ ] extend the existing tracing subtree with recording, sampling, and exporter settings.
+
 - [ ] `packages/platform/tracing/config/rules.php`
+  - [ ] preserve the existing propagation rules.
+  - [ ] extend the declarative schema with the new settings.
+
 - [ ] `packages/platform/tracing/README.md`
-- [ ] `packages/platform/tracing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [ ] replace the propagation-only capability matrix with the actual SDK capability matrix.
+  - [ ] distinguish the null exporter from configured external exporters.
+  - [ ] document how completed spans reach the selected backend.
+
+- [ ] `docs/ssot/tracecontext.md`
+  - [ ] preserve the canonical W3C parsing and injection rules.
+  - [ ] document SDK consumption of validated trace identities.
+  - [ ] do not introduce a competing W3C propagation specification.
 
 #### Configuration (keys + defaults)
 
 - [ ] Files:
   - [ ] `packages/platform/tracing/config/tracing.php`
 - [ ] Keys (dot):
-  - [ ] `tracing.enabled` = true
   - [ ] `tracing.sampling.rate_percent` = 100
   - [ ] `tracing.exporter` = "null"          # "null"|"otlp"|"zipkin"
 - [ ] Rules:
@@ -987,7 +1232,7 @@ N/A
   - [ ] constant(s): `TRACING_EXPORTER = 'tracing.exporter'` (optional)
 - [ ] ServiceProvider wiring evidence:
   - [ ] `platform/tracing` binds `TracerPortInterface` → `SdkTracer` (or noop if disabled)
-  - [ ] `platform/tracing` binds `ContextPropagationInterface` → `W3CContextPropagation`
+  - [ ] `platform/tracing` preserves the existing ContextPropagationInterface binding and `tracing.propagation.mode` selection established by 3.30.0; no second W3C propagator binding or implementation is introduced.
   - [ ] `platform/tracing` binds `SpanExporterInterface` → `NullSpanExporter` (fallback)
   - [ ] `platform/tracing` binds `SamplerInterface` → `RatioSampler` (int-only policy)
 
@@ -1007,7 +1252,16 @@ N/A
 - [ ] Context writes (safe only):
   - [ ] none
 - [ ] Reset discipline:
-  - [ ] N/A (unless buffers are introduced later by exporters)
+  - [ ] SdkTracer MUST define active-span ownership and scope explicitly.
+  - [ ] SdkSpan MUST finalize exactly once; repeated end() is noop-safe.
+  - [ ] active-span state MUST NOT leak between Kernel UnitOfWork boundaries.
+  - [ ] nested span parent relationships MUST be deterministic and correctly restored.
+  - [ ] span state MUST be isolated between concurrent execution contexts.
+  - [ ] any mutable shared runtime tracing state MUST participate in the existing canonical reset discipline.
+  - [ ] existing ResetInterface and Foundation reset orchestration MUST be reused where reset registration is necessary.
+  - [ ] no second reset orchestrator, UnitOfWork manager, or tracing-specific global context store is allowed.
+  - [ ] exporter failures MUST NOT prevent active-span cleanup or replace a primary application exception.
+  - [ ] no mutable span buffer may survive an unrelated UnitOfWork without an explicit bounded lifecycle policy.
 
 #### Observability (policy-compliant)
 
@@ -1090,6 +1344,12 @@ N/A
 - [ ] Discovery / wiring is via tags:
   - [ ] (optional) `tracing.exporter` (if you choose tag-based exporter selection)
 - [ ] Tracing працює як noop-safe SDK; W3C propagation deterministic; exporter failure не крашить runtime.
+- [ ] A recorded span has a complete, immutable, exporter-readable representation.
+- [ ] A deterministic test exporter captures completed spans with trace identity, parent relationship, timestamps, duration, status, and safe attributes.
+- [ ] Tests prove nested spans can be reconstructed into a trace tree.
+- [ ] NullSpanExporter explicitly discards spans and is documented as producing no queryable trace history.
+- [ ] End-user trace viewing requires a configured external exporter/backend introduced by 6.31.0 or 6.32.0.
+- [ ] The README provides a concrete end-to-end example from application TracerPortInterface usage to an exporter-visible recorded span.
 - [ ] When exporter is misconfigured/unreachable, then spans are dropped (or buffered per policy) and only a redacted warning is logged.
 
 ---

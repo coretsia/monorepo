@@ -26,6 +26,7 @@ deptrac:
     - '../../packages/platform/errors/src'
     - '../../packages/platform/logging/src'
     - '../../packages/platform/metrics/src'
+    - '../../packages/platform/problem-details/src'
     - '../../packages/platform/redaction/src'
     - '../../packages/platform/tracing/src'
     - '../../packages/platform/worker/src'
@@ -40,7 +41,7 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Contracts\\.*'
-    - name: 'core.dto-attribute'
+    - name: 'core.dto_2d_attribute'
       collectors:
         - type: classLike
           value: '^Coretsia\\Dto\\Attribute\\.*'
@@ -52,7 +53,7 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Kernel\\.*'
-    - name: 'devtools.internal-toolkit'
+    - name: 'devtools.internal_2d_toolkit'
       collectors:
         - type: classLike
           value: '^Coretsia\\Devtools\\InternalToolkit\\.*'
@@ -72,6 +73,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Metrics\\.*'
+    - name: 'platform.problem_2d_details'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\ProblemDetails\\.*'
     - name: 'platform.redaction'
       collectors:
         - type: classLike
@@ -87,13 +92,13 @@ deptrac:
 
   ruleset:
     'core.contracts': [ ]
-    'core.dto-attribute': [ ]
+    'core.dto_2d_attribute': [ ]
     'core.foundation':
       - 'core.contracts'
     'core.kernel':
       - 'core.contracts'
       - 'core.foundation'
-    'devtools.internal-toolkit': [ ]
+    'devtools.internal_2d_toolkit': [ ]
     'platform.cli':
       - 'core.contracts'
       - 'core.foundation'
@@ -105,6 +110,9 @@ deptrac:
       - 'core.contracts'
       - 'core.foundation'
     'platform.metrics':
+      - 'core.contracts'
+      - 'core.foundation'
+    'platform.problem_2d_details':
       - 'core.contracts'
       - 'core.foundation'
     'platform.redaction':

@@ -65,6 +65,64 @@ final class SyncPackageScaffoldCheckRejectsDriftTest extends ToolContractTestCas
         $this->assertDiagnosticsAreRelativeAndSorted($output);
     }
 
+    public function testHyphenatedRuntimeChecksOnlyCanonicalDefaultsFile(): void
+    {
+        $scanRoot = $this->prepareTempRoot('package-scaffold-config-path');
+        $packageRoot = $scanRoot . '/packages/platform/drifted-runtime';
+
+        $this->createCompleteRuntimePackage($packageRoot, 'platform', 'drifted-runtime', true, true, true);
+
+        [$code, $output] = $this->runSyncPackageScaffoldCheck($scanRoot);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', $output);
+        self::assertFileExists($packageRoot . '/config/drifted_runtime.php');
+        self::assertFileDoesNotExist($packageRoot . '/config/drifted-runtime.php');
+
+        \unlink($packageRoot . '/config/drifted_runtime.php');
+
+        [$code, $output] = $this->runSyncPackageScaffoldCheck($scanRoot);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_SCAFFOLD_OUT_OF_SYNC\n"
+            . "packages/platform/drifted-runtime/config/drifted_runtime.php: missing-runtime-file\n",
+            $output,
+        );
+        self::assertFileDoesNotExist($packageRoot . '/config/drifted_runtime.php');
+    }
+
+    public function testRuntimeRejectsMalformedDefaultsMetadataWithoutWrites(): void
+    {
+        foreach (
+            [
+                'config/drifted-runtime.php',
+                'config/../drifted_runtime.php',
+                '/tmp/drifted_runtime.php',
+            ] as $invalidPath
+        ) {
+            $scanRoot = $this->prepareTempRoot('package-scaffold-invalid-defaults');
+            $packageRoot = $scanRoot . '/packages/platform/drifted-runtime';
+
+            $this->createCompleteRuntimePackage($packageRoot, 'platform', 'drifted-runtime', true, true, true);
+
+            $composerPath = $packageRoot . '/composer.json';
+            $original = $this->readBytes($composerPath);
+            $malformed = \str_replace('config/drifted_runtime.php', $invalidPath, $original);
+
+            self::assertNotSame($original, $malformed);
+            $this->writeBytesExact($composerPath, $malformed);
+
+            [$code, $output] = $this->runSyncPackageScaffoldCheck($scanRoot);
+
+            self::assertSame(1, $code);
+            self::assertSame("CORETSIA_PACKAGE_SCAFFOLD_SYNC_FAILED\n", $output);
+            self::assertSame($malformed, $this->readBytes($composerPath));
+            self::assertFileExists($packageRoot . '/config/drifted_runtime.php');
+            self::assertFileDoesNotExist($packageRoot . '/config/drifted-runtime.php');
+        }
+    }
+
     /**
      * @return array{0:int,1:string}
      */

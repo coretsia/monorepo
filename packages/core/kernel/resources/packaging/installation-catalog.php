@@ -94,6 +94,18 @@ return array(
         0 => 'core.foundation',
       ),
     ),
+    'platform.problem-details' =>
+    array(
+      'composerName' => 'coretsia/platform-problem-details',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+        1 => 'platform.errors',
+      ),
+    ),
     'platform.redaction' =>
     array(
       'composerName' => 'coretsia/platform-redaction',

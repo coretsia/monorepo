@@ -62,6 +62,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Modes SSoT](./modes.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,mode-preset,modes,presets
 - [Modules and manifests SSoT](./modules-and-manifests.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,manifest,module,module-descriptor,module-id
 - [Observability and Errors SSoT](./observability-and-errors.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,error-descriptor,errors,observability,redaction
+- [Problem Details SSoT](./problem-details.md) — owner: platform/problem-details — ssotVersion: 1 — scope: errors,http,problem-details,rfc7807,rfc9457,security
 - [Profiling Ports SSoT](./profiling-ports.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,observability,profiling,redaction,uow
 - [Rate Limit Contracts SSoT](./rate-limit-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,ports,rate-limit,redaction
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md) — owner: core/contracts — ssotVersion: 1 — scope: contracts,http-app,routing,ports,redaction

@@ -394,6 +394,11 @@ final class NewPackageAtomicCreationTest extends ToolContractTestCase
         $composer = ComposerJson::readObject($packageDir . '/composer.json');
 
         self::assertSame(
+            'platform.problem-details',
+            $composer['extra']['coretsia']['moduleId'] ?? null,
+        );
+
+        self::assertSame(
             'config/problem_details.php',
             $composer['extra']['coretsia']['defaultsConfigPath'] ?? null,
         );

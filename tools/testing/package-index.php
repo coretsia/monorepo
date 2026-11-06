@@ -178,6 +178,23 @@ return array(
     ),
     9 =>
     array(
+      'composerName' => 'coretsia/platform-problem-details',
+      'defaultsConfigPath' => 'config/problem_details.php',
+      'id' => 'platform.problem-details',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\ProblemDetails\\Module\\ProblemDetailsModule',
+      'moduleId' => 'platform.problem-details',
+      'path' => 'packages/platform/problem-details',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\ProblemDetails\\Provider\\ProblemDetailsServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\ProblemDetails\\',
+      'slug' => 'problem-details',
+    ),
+    10 =>
+    array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
       'id' => 'platform.redaction',
@@ -193,7 +210,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    10 =>
+    11 =>
     array(
       'composerName' => 'coretsia/platform-tracing',
       'defaultsConfigPath' => 'config/tracing.php',
@@ -210,7 +227,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Tracing\\',
       'slug' => 'tracing',
     ),
-    11 =>
+    12 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

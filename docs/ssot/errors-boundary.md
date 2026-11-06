@@ -142,11 +142,9 @@ This guarantee applies to the successfully constructed runtime handler. Pre-cont
 
 ### `platform/problem-details`
 
-`platform/problem-details` owns HTTP problem-details adaptation.
+`platform/problem-details` owns HTTP Problem Details adaptation and deterministic JSON rendering. RFC9457 is the normative response format, with RFC7807-compatible `type`, `title`, and `status` baseline members.
 
-It MAY adapt `ErrorDescriptor` to RFC7807 or another HTTP-specific representation.
-
-It MUST treat `ErrorDescriptor.httpStatus` as an optional HTTP status hint only.
+It MUST consume the canonical format-neutral `ErrorDescriptor` and treat `ErrorDescriptor.httpStatus` only as a transport status hint. Integer hints in `400..599` are accepted; null or out-of-range hints MUST fall back to HTTP `500`. Public titles MUST be derived exclusively from the resulting status through the fixed canonical status/title mapping.
 
 It MUST NOT require `core/contracts` to depend on:
 
@@ -156,7 +154,7 @@ It MUST NOT require `core/contracts` to depend on:
 - concrete middleware implementations;
 - RFC7807-specific classes.
 
-When installed, `platform/problem-details` is expected to wire `HttpErrorHandlingMiddleware` into:
+Only explicit target-local selection of `platform.problem-details` in a compatible HTTP target activates its `HttpErrorHandlingMiddleware` registration in:
 
 ```text
 http.middleware.system_pre
@@ -167,6 +165,10 @@ with priority:
 ```text
 1000
 ```
+
+Package installation alone MUST NOT activate `HttpErrorHandlingMiddleware`. The selected module contributes one existing `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` tag registration at priority `1000`, with metadata `[]` until `platform/http` defines a normative schema. `platform/http` remains the semantic owner of middleware execution, slot ordering, metadata semantics, and the HTTP pipeline. `platform/problem-details` MUST NOT introduce a competing tag or pipeline owner.
+
+For each caught downstream `Throwable`, `HttpErrorHandlingMiddleware` MUST invoke the canonical `ErrorHandlerInterface::handle()` exactly once and adapt only the returned `ErrorDescriptor`. Generated responses MUST use `application/problem+json` and MUST NOT forward descriptor messages or extensions, raw Throwable data, request payloads, `detail`, `instance`, or runtime diagnostics. Handler, adapter, or renderer failure MUST select the fixed safe HTTP `500` fallback when a response can be constructed; failed response or stream construction MUST preserve the original downstream `Throwable`. No second mapper, reporter, redactor, ContextStore owner, UnitOfWork lifecycle, logs, metrics, spans, or reset hooks may be introduced.
 
 This is runtime policy, not a `core/contracts` dependency.
 
@@ -381,21 +383,13 @@ Runtime packages, adapters, tests, and documentation MUST reference `docs/ssot/e
 
 Runtime adapters MUST preserve the canonical descriptor semantics.
 
+`platform.problem-details` consumes the canonical `ErrorHandlerInterface` only when selected in a compatible HTTP target. Other HTTP integrations and Worker runtimes retain their owner-defined failure boundaries; Worker task settlement MUST continue receiving the original `Throwable`.
+
 ### HTTP adapter policy
 
-HTTP adapters MAY map:
+HTTP adapters MAY render the canonical `ErrorDescriptor` into transport-specific output without introducing another Throwable normalization pipeline.
 
-```text
-ErrorDescriptor → RFC7807/problem-details
-```
-
-HTTP adapters MAY use `httpStatus` when present.
-
-HTTP adapters MUST define safe fallback status behavior when `httpStatus` is null.
-
-HTTP adapters MUST NOT expose unsafe `extensions`.
-
-HTTP adapters MUST NOT emit raw throwable data.
+The selected `platform.problem-details` HTTP adapter MUST follow the RFC9457/RFC7807 compatibility, status-hint, safe fallback, and disclosure policy defined above. No HTTP adapter may expose raw Throwable data or arbitrary descriptor extensions.
 
 ### CLI adapter policy
 
@@ -432,8 +426,6 @@ Internal CLI error.
 This translation is CLI presentation policy, not a second exception mapping pass.
 
 CLI command output buffering, formatting, suggestions, exit codes, and ultra-early bootstrap failure handling remain owned by their existing CLI boundaries.
-
-HTTP and Worker are not wired to `ErrorHandlerInterface` by this epic; they retain their owner-defined failure boundaries. Any adapter consumption of the canonical handler requires an explicit integration contract, and Worker task settlement must continue receiving the original `Throwable`.
 
 CLI output MUST remain safe.
 

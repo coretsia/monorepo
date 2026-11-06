@@ -1623,7 +1623,13 @@ final class DeptracGenerateTool
 
     private static function packageIdToLayerId(string $packageId): string
     {
-        return str_replace('/', '.', $packageId);
+        $escaped = str_replace(
+            ['_', '-', '.'],
+            ['_5f_', '_2d_', '_2e_'],
+            $packageId,
+        );
+
+        return str_replace('/', '.', $escaped);
     }
 
     private static function argFlag(array $argv, string $flag): bool

@@ -399,6 +399,12 @@ final class DeptracGenerationContractTest extends ToolContractTestCase
 
     private function packageIdToLayerName(string $packageId): string
     {
-        return str_replace('/', '.', $packageId);
+        $escaped = str_replace(
+            ['_', '-', '.'],
+            ['_5f_', '_2d_', '_2e_'],
+            $packageId,
+        );
+
+        return str_replace('/', '.', $escaped);
     }
 }

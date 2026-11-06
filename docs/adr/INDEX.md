@@ -74,6 +74,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0037: Platform logging PSR-3 backend and sink safety](./ADR-0037-platform-logging-psr3.md) — owner: platform/logging — adrVersion: 1 — scope: admission,logging,redaction,runtime,serialization
 - [ADR-0038: Platform tracing W3C traceparent propagation](./ADR-0038-platform-tracing-w3c-propagation.md) — owner: platform/tracing — adrVersion: 1 — scope: context,foundation,propagation,security,traceparent,tracing,w3c
 - [ADR-0039: Platform metrics noop baseline](./ADR-0039-platform-metrics-noop-baseline.md) — owner: platform/metrics — adrVersion: 1 — scope: admission,container,di,labels,metrics,noop,runtime
+- [ADR-0040: Platform Problem Details HTTP adaptation](./ADR-0040-platform-problem-details-http-adaptation.md) — owner: platform/problem-details — adrVersion: 1 — scope: errors,http,problem-details,rfc7807,rfc9457,security
 
 ## Cross-references
 

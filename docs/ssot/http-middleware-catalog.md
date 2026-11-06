@@ -306,9 +306,9 @@ Optional packages MAY be documented in this catalog as conditional entries using
 if installed, it SHOULD register itself
 ```
 
-Optional packages are responsible for their own registration, toggles, package config, DI providers, and runtime dependencies.
+Optional packages are responsible for their own registration, toggles, package config, DI providers, and runtime dependencies. The conditional wording above applies only to catalog entries that explicitly adopt it; owner-specific activation requirements MUST take precedence.
 
-The conditional wording presupposes an implemented middleware class and owner-controlled registration. A future-only catalog reservation MUST NOT be registered merely because its package is installed or its module is selected.
+A future-only catalog reservation MUST NOT be registered merely because its package is installed or its module is selected.
 
 ## Noop-safe observability baseline
 
@@ -583,13 +583,13 @@ HTTP problem-details rendering is owned by:
 platform/problem-details
 ```
 
-If `platform/problem-details` is installed, it SHOULD register an outermost HTTP error handling middleware in:
+Only when `platform.problem-details` is explicitly selected in a compatible HTTP target, its provider MUST contribute `HttpErrorHandlingMiddleware` to:
 
 ```text
 http.middleware.system_pre
 ```
 
-with the highest priority.
+with exact priority `1000` and metadata `[]` until `platform/http` defines a normative metadata schema. The tag identifier is `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`. `platform/http` remains the owner of middleware execution, pipeline ordering, and tag metadata semantics. Package installation alone MUST NOT activate `HttpErrorHandlingMiddleware`.
 
 This document does not introduce or require `platform/problem-details`.
 
@@ -729,13 +729,13 @@ System-pre middleware runs before the main system, application, and route middle
 
 Optional package entries MUST NOT be referenced by `platform/http` defaults.
 
-If installed, each optional owner SHOULD register itself, except for future-only catalog reservations, which MUST remain unregistered.
+Each optional owner MUST follow the activation policy in its catalog row. `platform.problem-details` requires explicit target-local selection in a compatible HTTP target; installation alone MUST NOT register its middleware. Future-only catalog reservations MUST remain unregistered.
 
-| priority | owner package_id           | middleware class                                                                       | registration                            |
-|----------|----------------------------|----------------------------------------------------------------------------------------|-----------------------------------------|
-| `1000`   | `platform/problem-details` | `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` | if installed, it SHOULD register itself |
-| `600`    | `platform/health`          | `\Coretsia\Platform\Health\Http\Middleware\HealthEndpointsMiddleware::class`           | if installed, it SHOULD register itself |
-| `590`    | `platform/metrics`         | `\Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`          | reserved; MUST NOT register in baseline |
+| priority | owner package_id           | middleware class                                                                       | registration                                              |
+|----------|----------------------------|----------------------------------------------------------------------------------------|-----------------------------------------------------------|
+| `1000`   | `platform/problem-details` | `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` | only when explicitly selected in a compatible HTTP target |
+| `600`    | `platform/health`          | `\Coretsia\Platform\Health\Http\Middleware\HealthEndpointsMiddleware::class`           | if installed, it SHOULD register itself                   |
+| `590`    | `platform/metrics`         | `\Coretsia\Platform\Metrics\Http\Middleware\MetricsEndpointMiddleware::class`          | reserved; MUST NOT register in baseline                   |
 
 The priority `590` `MetricsEndpointMiddleware` entry is a documentation-only reservation owned by `platform/metrics` for its future recording-capable HTTP integration. That future implementation owns the endpoint, its registration, and its lifecycle; the stateless noop metrics baseline does not implement them.
 
@@ -860,7 +860,7 @@ They MUST NOT be platform HTTP defaults.
 
 Optional package catalog entries are non-binding for `platform/http`.
 
-An optional owner MAY register its implemented middleware when installed. A documentation-only reservation is not sufficient for registration; this includes the inactive `platform/metrics` priority `590` entry.
+An optional owner MAY register its implemented middleware only when the activation policy in its catalog row is satisfied. A documentation-only reservation is not sufficient for registration; this includes the inactive `platform/metrics` priority `590` entry.
 
 An optional owner MUST obey:
 

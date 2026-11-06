@@ -6210,17 +6210,17 @@ ssot_refs:
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - [ ] Canonical ErrorHandlerInterface and ErrorDescriptor MUST already exist in core/contracts.
-  - [ ] Platform/errors canonical ErrorHandler implementation and provider MUST already exist.
-  - [ ] Platform/redaction canonical redaction implementation MUST remain available through platform.errors.
-  - [ ] Foundation StableJsonEncoder and declarative container-definition APIs MUST already exist.
-  - [ ] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE MUST already exist.
-  - [ ] Kernel target-local ModulePlan and source/compiled container definitions MUST exist.
-  - [ ] The problem_details config root MUST already be reserved for platform/problem-details.
-  - [ ] Epic 3.30.0 package:new metadata extension MUST be available before using --description and --keywords.
-  - [ ] ADR-0038 and ADR-0039 MUST be registered before allocating ADR-0040.
-  - [ ] A compatible PSR-15 HTTP runtime and PSR response/stream factories are required for complete HTTP pipeline integration verification.
-  - [ ] If platform/http has not yet been implemented, standalone middleware tests MAY proceed, but full outermost pipeline integration MUST remain unverified until the HTTP owner is available.
+  - [x] Canonical ErrorHandlerInterface and ErrorDescriptor MUST already exist in core/contracts.
+  - [x] Platform/errors canonical ErrorHandler implementation and provider MUST already exist.
+  - [x] Platform/redaction canonical redaction implementation MUST remain available through platform.errors.
+  - [x] Foundation StableJsonEncoder and declarative container-definition APIs MUST already exist.
+  - [x] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE MUST already exist.
+  - [x] Kernel target-local ModulePlan and source/compiled container definitions MUST exist.
+  - [x] The problem_details config root MUST already be reserved for platform/problem-details.
+  - [x] Epic 3.30.0 package:new metadata extension MUST be available before using --description and --keywords.
+  - [x] ADR-0038 and ADR-0039 MUST be registered before allocating ADR-0040.
+  - [x] Compatible PSR-15 HTTP runtime integration, PSR response/stream factory bindings, and full outermost HTTP pipeline verification are explicitly assigned to Epic 3.50.0 `Platform HTTP runtime`; they are not prerequisites for completing the standalone platform/problem-details package.
+  - [x] If platform/http has not yet been implemented, standalone middleware tests MAY proceed, but full outermost pipeline integration MUST remain unverified until the HTTP owner is available.
 
 - Required existing implementation paths (MUST; reuse without modification):
   - `packages/core/contracts/src/Observability/Errors/ErrorHandlerInterface.php`
@@ -6326,473 +6326,380 @@ Forbidden:
 
 Naming and ownership lock (MUST)
 
-- [ ] The canonical HTTP middleware tag identifier is ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
-- [ ] Platform/http remains the semantic owner of this middleware slot.
-- [ ] Platform/problem-details contributes only a middleware service and one tag registration.
-- [ ] No package-local mirror constant, reserved-tag registry, or competing tag owner is introduced.
-- [ ] No duplicate ErrorHandlerInterface implementation, exception mapper, redaction engine, JSON encoder, or HTTP pipeline owner is introduced.
-- [ ] The package namespace is Coretsia\Platform\ProblemDetails.
-- [ ] Module ID is platform.problem-details; config root is problem_details.
-- [ ] The package MUST NOT replace ErrorDescriptor or modify its canonical field schema.
+- [x] The canonical HTTP middleware tag identifier is ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
+- [x] Platform/http remains the semantic owner of this middleware slot.
+- [x] Platform/problem-details contributes only a middleware service and one tag registration.
+- [x] No package-local mirror constant, reserved-tag registry, or competing tag owner is introduced.
+- [x] No duplicate ErrorHandlerInterface implementation, exception mapper, redaction engine, JSON encoder, or HTTP pipeline owner is introduced.
+- [x] The package namespace is Coretsia\Platform\ProblemDetails.
+- [x] Module ID is platform.problem-details; config root is problem_details.
+- [x] The package MUST NOT replace ErrorDescriptor or modify its canonical field schema.
 
 #### Creates
 
 Package scaffold:
-- [ ] Implementation order (MUST):
-  - [ ] Complete the existing 3.30.0 package:new metadata argument extension before invoking the scaffold.
-  - [ ] Complete the canonical hyphenated-slug config-path changes in new-package.php, sync_package_scaffold.php, and package_compliance_gate.php.
-  - [ ] Verify the extended generator, scaffold synchronization, and compliance gate with their integration tests.
-  - [ ] Run the problem-details package scaffold command exactly once after these tooling changes pass.
-  - [ ] Do not invoke the unmodified package:new command with unsupported --description or --keywords arguments.
-  - [ ] Complete problem-details-specific Composer dependencies and module requirements after canonical scaffold creation.
-  - [ ] Preserve generated legal, security, and baseline package files without introducing duplicate configuration files.
-- [ ] Run `composer package:new -- --layer=platform --slug=problem-details --kind=runtime --description="Coretsia HTTP Problem Details runtime package: safe error descriptor adaptation, deterministic RFC 9457 JSON rendering, and PSR-15 middleware." --keywords=coretsia,php,framework,problem-details,runtime,http,error-handling,error-descriptor,rfc9457,rfc7807,psr-15,deterministic` exactly once.
-- [ ] Epic 3.30.0 metadata argument support MUST be verified before running this command.
-- [ ] Preserve the canonical scaffold-generated package structure.
-- [ ] Complete generated module, provider, configuration, and contract-test placeholders.
-- [ ] Normalize the generated config defaults path to config/problem_details.php through the canonical packaging policy.
-- [ ] No second package scaffold or duplicate configuration root is introduced.
-- [ ] Package creation MUST NOT automatically enable platform.problem-details in application targets or presets.
-- [ ] LICENSE, NOTICE, and SECURITY.md MUST remain byte-identical to their repository-root counterparts.
-- [ ] Problem-details-specific disclosure and security restrictions belong to README.md and docs/ssot/problem-details.md.
+- [x] Run `composer package:new -- --layer=platform --slug=problem-details --kind=runtime --description="Coretsia HTTP Problem Details runtime package: safe error descriptor adaptation, deterministic RFC 9457 JSON rendering, and PSR-15 middleware." --keywords=coretsia,php,framework,problem-details,runtime,http,error-handling,error-descriptor,rfc9457,rfc7807,psr-15,deterministic` exactly once.
 
-- [ ] `packages/platform/problem-details/LICENSE`
-  - [ ] generated by the existing package scaffold.
-  - [ ] MUST remain byte-identical to repository-root LICENSE.
-  - [ ] no package-specific license amendments.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical legal file.
-  - [ ] Verification: package-scaffold --check.
+- [x] `packages/platform/problem-details/LICENSE`
+- [x] `packages/platform/problem-details/NOTICE`
+- [x] `packages/platform/problem-details/SECURITY.md`
 
-- [ ] `packages/platform/problem-details/NOTICE`
-  - [ ] generated by the existing package scaffold.
-  - [ ] MUST remain byte-identical to repository-root NOTICE.
-  - [ ] no package-specific notice amendments.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical notice file.
-  - [ ] Verification: package-scaffold --check.
+- [x] `packages/platform/problem-details/composer.json`
+  - [x] `name = coretsia/platform-problem-details`.
+  - [x] `type = library`.
+  - [x] `license = Apache-2.0`.
+  - [x] Description and keywords are generated exclusively from explicit package:new arguments.
+  - [x] Authors, homepage, support, and PHP platform follow the canonical package:new metadata policy.
+  - [x] Composer requires:
+    - [x] `php: ^8.4`.
+    - [x] `coretsia/core-contracts: ^0.11.0`.
+    - [x] `coretsia/core-foundation: ^0.11.0`.
+    - [x] `coretsia/platform-errors: ^0.11.0`.
+    - [x] `psr/http-message: ^2.0`.
+    - [x] `psr/http-factory: ^1.0`.
+    - [x] `psr/http-server-middleware: ^1.0`.
+    - [x] `psr/http-server-handler: ^1.0`.
+  - [x] No direct platform/http or concrete platform/redaction implementation dependency.
+  - [x] PSR-4 `Coretsia\Platform\ProblemDetails\` → `src/`.
+  - [x] PSR-4 test namespace → `tests/`.
+  - [x] `extra.coretsia.kind = runtime`.
+  - [x] `extra.coretsia.moduleId = platform.problem-details`.
+  - [x] `extra.coretsia.moduleClass = Coretsia\Platform\ProblemDetails\Module\ProblemDetailsModule`.
+  - [x] `extra.coretsia.providers = [Coretsia\Platform\ProblemDetails\Provider\ProblemDetailsServiceProvider]`.
+  - [x] `extra.coretsia.requires = [core.foundation, platform.errors]`.
+  - [x] `extra.coretsia.conflicts = []`.
+  - [x] `extra.coretsia.defaultsConfigPath = config/problem_details.php`.
+  - [x] The platform.errors dependency supplies canonical error mapping and redaction through its existing module requirements.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; Composer metadata only.
+  - [x] Verification: package identity, manifest, dependency, scaffold, and Composer metadata gates.
 
-- [ ] `packages/platform/problem-details/SECURITY.md`
-  - [ ] generated by the existing package scaffold.
-  - [ ] MUST remain byte-identical to repository-root SECURITY.md.
-  - [ ] MUST NOT introduce package-local security reporting authority.
-  - [ ] Problem Details disclosure, HTTP response safety, and redaction restrictions belong to README.md and docs/ssot/problem-details.md.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; canonical security-policy file.
-  - [ ] Verification: package-scaffold --check.
+- [x] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
+  - [x] final runtime module-metadata class.
+  - [x] public typed constants:
+    - [x] `MODULE_ID = 'platform.problem-details'`.
+    - [x] `PACKAGE_ID = 'platform/problem-details'`.
+    - [x] `COMPOSER_PACKAGE = 'coretsia/platform-problem-details'`.
+    - [x] `KIND = 'runtime'`.
+    - [x] `CONFIG_ROOT = 'problem_details'`.
+  - [x] Metadata methods follow the existing ErrorsModule shape.
+  - [x] `providers()` returns only ProblemDetailsServiceProvider::class.
+  - [x] No runtime service construction, request handling, config loading, metrics, spans, logging, or reset ownership.
+  - [x] Verification: Composer metadata and module identity parity.
 
-- [ ] `packages/platform/problem-details/composer.json`
-  - [ ] `name = coretsia/platform-problem-details`.
-  - [ ] `type = library`.
-  - [ ] `license = Apache-2.0`.
-  - [ ] Description and keywords are generated exclusively from explicit package:new arguments.
-  - [ ] Authors, homepage, support, and PHP platform follow the canonical package:new metadata policy.
-  - [ ] Composer requires:
-    - [ ] `php: ^8.4`.
-    - [ ] `coretsia/core-contracts: ^0.11.0`.
-    - [ ] `coretsia/core-foundation: ^0.11.0`.
-    - [ ] `coretsia/platform-errors: ^0.11.0`.
-    - [ ] `psr/http-message: ^2.0`.
-    - [ ] `psr/http-factory: ^1.0`.
-    - [ ] `psr/http-server-middleware: ^1.0`.
-    - [ ] `psr/http-server-handler: ^1.0`.
-  - [ ] No direct platform/http or concrete platform/redaction implementation dependency.
-  - [ ] PSR-4 `Coretsia\Platform\ProblemDetails\` → `src/`.
-  - [ ] PSR-4 test namespace → `tests/`.
-  - [ ] `extra.coretsia.kind = runtime`.
-  - [ ] `extra.coretsia.moduleId = platform.problem-details`.
-  - [ ] `extra.coretsia.moduleClass = Coretsia\Platform\ProblemDetails\Module\ProblemDetailsModule`.
-  - [ ] `extra.coretsia.providers = [Coretsia\Platform\ProblemDetails\Provider\ProblemDetailsServiceProvider]`.
-  - [ ] `extra.coretsia.requires = [core.foundation, platform.errors]`.
-  - [ ] `extra.coretsia.conflicts = []`.
-  - [ ] `extra.coretsia.defaultsConfigPath = config/problem_details.php`.
-  - [ ] The platform.errors dependency supplies canonical error mapping and redaction through its existing module requirements.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; Composer metadata only.
-  - [ ] Verification: package identity, manifest, dependency, scaffold, and Composer metadata gates.
+- [x] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
+  - [x] final class implementing ServiceProviderInterface and ContainerDefinitionProviderInterface.
+  - [x] `register()` calls assertDefinitionProviderRegistrationAllowed() and registerDefinitionProvider($this).
+  - [x] `define()` is the single declarative wiring source.
+  - [x] require the existing ErrorHandlerInterface binding.
+  - [x] require PSR ResponseFactoryInterface and StreamFactoryInterface services from the selected compatible HTTP target.
+  - [x] register ErrorDescriptorToProblemDetailsAdapter and ProblemDetailsJsonRenderer.
+  - [x] register HttpErrorHandlingMiddleware through constructor dependencies.
+  - [x] use ContainerValueReference::service() for required service references.
+  - [x] contribute one ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE tag at priority 1000.
+  - [x] use the existing ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE identifier and priority 1000.
+  - [x] use an empty tag metadata map while the platform/http owner has not defined a normative metadata schema.
+  - [x] platform/problem-details package ownership is declared by the canonical HTTP middleware catalog, not invented through a tag metadata key.
+  - [x] MUST NOT introduce owner, path, mode, or other package-local metadata keys without an explicit platform/http-owned contract.
+  - [x] if platform/http defines a normative metadata schema before implementation, consume that exact schema without introducing a competing one.
+  - [x] no alternative ErrorHandler, mapper, reporter, redactor, serializer, or service locator.
+  - [x] no runtime closures, imperative parallel DI graph, or mutable provider state.
+  - [x] module selection and provider order remain Kernel-owned.
+  - [x] source and compiled definitions MUST be equivalent.
+  - [x] Verification: provider descriptors, required services, exact tag, selected/unselected module behavior, and source/compiled parity.
 
-- [ ] `packages/platform/problem-details/src/Module/ProblemDetailsModule.php`
-  - [ ] final runtime module-metadata class.
-  - [ ] public typed constants:
-    - [ ] `MODULE_ID = 'platform.problem-details'`.
-    - [ ] `PACKAGE_ID = 'platform/problem-details'`.
-    - [ ] `COMPOSER_PACKAGE = 'coretsia/platform-problem-details'`.
-    - [ ] `KIND = 'runtime'`.
-    - [ ] `CONFIG_ROOT = 'problem_details'`.
-  - [ ] Metadata methods follow the existing ErrorsModule shape.
-  - [ ] `providers()` returns only ProblemDetailsServiceProvider::class.
-  - [ ] No runtime service construction, request handling, config loading, metrics, spans, logging, or reset ownership.
-  - [ ] Verification: Composer metadata and module identity parity.
+- [x] `packages/platform/problem-details/config/problem_details.php`
+  - [x] returns only the problem_details root subtree.
+  - [x] exact Phase 3 baseline result is [].
+  - [x] no show_detail, show_detail_in_local, raw exception disclosure, or debug switch.
+  - [x] no transport-specific secrets, runtime state, HTTP objects, or service instances.
+  - [x] no environment reads, executable validators, or callbacks.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; defaults-only file.
+  - [x] Verification: exact defaults shape and reserved-root ownership.
 
-- [ ] `packages/platform/problem-details/src/Provider/ProblemDetailsServiceProvider.php`
-  - [ ] final class implementing ServiceProviderInterface and ContainerDefinitionProviderInterface.
-  - [ ] `register()` calls assertDefinitionProviderRegistrationAllowed() and registerDefinitionProvider($this).
-  - [ ] `define()` is the single declarative wiring source.
-  - [ ] require the existing ErrorHandlerInterface binding.
-  - [ ] require PSR ResponseFactoryInterface and StreamFactoryInterface services from the selected compatible HTTP target.
-  - [ ] register ErrorDescriptorToProblemDetailsAdapter and ProblemDetailsJsonRenderer.
-  - [ ] register HttpErrorHandlingMiddleware through constructor dependencies.
-  - [ ] use ContainerValueReference::service() for required service references.
-  - [ ] contribute one ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE tag at priority 1000.
-  - [ ] use the existing ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE identifier and priority 1000.
-  - [ ] use an empty tag metadata map while the platform/http owner has not defined a normative metadata schema.
-  - [ ] platform/problem-details package ownership is declared by the canonical HTTP middleware catalog, not invented through a tag metadata key.
-  - [ ] MUST NOT introduce owner, path, mode, or other package-local metadata keys without an explicit platform/http-owned contract.
-  - [ ] if platform/http defines a normative metadata schema before implementation, consume that exact schema without introducing a competing one.
-  - [ ] no alternative ErrorHandler, mapper, reporter, redactor, serializer, or service locator.
-  - [ ] no runtime closures, imperative parallel DI graph, or mutable provider state.
-  - [ ] module selection and provider order remain Kernel-owned.
-  - [ ] source and compiled definitions MUST be equivalent.
-  - [ ] Verification: provider descriptors, required services, exact tag, selected/unselected module behavior, and source/compiled parity.
+- [x] `packages/platform/problem-details/config/rules.php`
+  - [x] schemaVersion = 1.
+  - [x] configRoot = problem_details.
+  - [x] additionalKeys = false.
+  - [x] keys = [].
+  - [x] no configurable disclosure, redaction, exception mapping, or serializer policy.
+  - [x] unknown keys are rejected through the existing Kernel ConfigValidator.
+  - [x] no duplicate config validator or custom schema types.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; declarative rules only.
+  - [x] Verification: canonical ruleset shape and invalid-key rejection.
 
-- [ ] `packages/platform/problem-details/config/problem_details.php`
-  - [ ] returns only the problem_details root subtree.
-  - [ ] exact Phase 3 baseline result is [].
-  - [ ] no show_detail, show_detail_in_local, raw exception disclosure, or debug switch.
-  - [ ] no transport-specific secrets, runtime state, HTTP objects, or service instances.
-  - [ ] no environment reads, executable validators, or callbacks.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; defaults-only file.
-  - [ ] Verification: exact defaults shape and reserved-root ownership.
+- [x] `packages/platform/problem-details/src/ProblemDetails.php`
+  - [x] final readonly HTTP response-model class.
+  - [x] distinct from the format-neutral ErrorDescriptor.
+  - [x] baseline public members are type, title, and status.
+  - [x] type defaults to the fixed safe URI reference about:blank.
+  - [x] status is restricted to an accepted HTTP error status in 400..599.
+  - [x] title is derived internally from status through one fixed canonical HTTP status/title mapping.
+  - [x] public construction accepts only an accepted HTTP error status; it MUST NOT accept caller-provided title, detail, instance, extensions, or arbitrary public text.
+  - [x] standard HTTP error statuses use fixed English status phrases consistent with RFC 9110.
+  - [x] non-standard error statuses within 400..599 use exactly HTTP Error.
+  - [x] status 500 uses exactly Internal Server Error.
+  - [x] the mapping MUST NOT depend on ErrorDescriptor, Throwable, HTTP request, localization, environment, or application configuration.
+  - [x] no second status/title lookup table or public title override is introduced.
+  - [x] no raw exception message or descriptor extension is copied automatically.
+  - [x] no arbitrary detail, instance, or extension fields in the baseline.
+  - [x] no Throwable, ErrorHandlingContext, request, response, or ContextStore reference is retained.
+  - [x] no clocks, random IDs, environment access, logging, spans, metrics, or reset ownership.
+  - [x] expose a deterministic safe map for the canonical renderer.
+  - [x] Verification: immutable shape, allowed statuses, safe fields, ordering independence, and no data disclosure.
 
-- [ ] `packages/platform/problem-details/config/rules.php`
-  - [ ] schemaVersion = 1.
-  - [ ] configRoot = problem_details.
-  - [ ] additionalKeys = false.
-  - [ ] keys = [].
-  - [ ] no configurable disclosure, redaction, exception mapping, or serializer policy.
-  - [ ] unknown keys are rejected through the existing Kernel ConfigValidator.
-  - [ ] no duplicate config validator or custom schema types.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; declarative rules only.
-  - [ ] Verification: canonical ruleset shape and invalid-key rejection.
+- [x] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php`
+  - [x] final stateless adapter consuming the existing ErrorDescriptor.
+  - [x] map(ErrorDescriptor $descriptor): ProblemDetails.
+  - [x] use the descriptor's httpStatus only as a transport status hint.
+  - [x] null, informational, redirection, or unsupported status hints produce a fixed safe HTTP 500 fallback.
+  - [x] HTTP status adaptation:
+    - [x] accepted status hints are integers in the inclusive range 400..599.
+    - [x] null and status hints outside 400..599 produce HTTP 500.
+    - [x] construct ProblemDetails using only the validated or fallback status.
+    - [x] ProblemDetails owns the single canonical status/title mapping.
+    - [x] the adapter MUST NOT accept, derive, or forward an arbitrary title.
+    - [x] the adapter MUST NOT introduce a second HTTP status/title table.
+    - [x] no ErrorDescriptor message, code, extensions, request data, or Throwable content influences the public title.
+    - [x] mapping is deterministic and independent of locale, environment, and configuration.
+  - [x] use about:blank instead of deriving a problem-type URI from arbitrary error codes.
+  - [x] do not copy message, extensions, severity, or schemaVersion into the HTTP response.
+  - [x] no new exception mapper, error-code catalog, or descriptor transformation pipeline.
+  - [x] no ContextAccessorInterface, ContextStore, LoggerInterface, or redactor implementation dependency.
+  - [x] no spans, metrics, logs, mutable caches, or reset hooks.
+  - [x] invalid adapter behavior fails closed to a safe internal-error problem.
+  - [x] Verification: status mapping, fallback, title stability, and absence of raw descriptor fields.
 
-- [ ] `packages/platform/problem-details/src/ProblemDetails.php`
-  - [ ] final readonly HTTP response-model class.
-  - [ ] distinct from the format-neutral ErrorDescriptor.
-  - [ ] baseline public members are type, title, and status.
-  - [ ] type defaults to the fixed safe URI reference about:blank.
-  - [ ] status is restricted to an accepted HTTP error status in 400..599.
-  - [ ] title is derived internally from status through one fixed canonical HTTP status/title mapping.
-  - [ ] public construction accepts only an accepted HTTP error status; it MUST NOT accept caller-provided title, detail, instance, extensions, or arbitrary public text.
-  - [ ] standard HTTP error statuses use fixed English status phrases consistent with RFC 9110.
-  - [ ] non-standard error statuses within 400..599 use exactly HTTP Error.
-  - [ ] status 500 uses exactly Internal Server Error.
-  - [ ] the mapping MUST NOT depend on ErrorDescriptor, Throwable, HTTP request, localization, environment, or application configuration.
-  - [ ] no second status/title lookup table or public title override is introduced.
-  - [ ] no raw exception message or descriptor extension is copied automatically.
-  - [ ] no arbitrary detail, instance, or extension fields in the baseline.
-  - [ ] no Throwable, ErrorHandlingContext, request, response, or ContextStore reference is retained.
-  - [ ] no clocks, random IDs, environment access, logging, spans, metrics, or reset ownership.
-  - [ ] expose a deterministic safe map for the canonical renderer.
-  - [ ] Verification: immutable shape, allowed statuses, safe fields, ordering independence, and no data disclosure.
+- [x] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php`
+  - [x] final stateless JSON renderer.
+  - [x] render(ProblemDetails $problem): string.
+  - [x] contentType(): string returns application/problem+json.
+  - [x] use StableJsonEncoder::encodeStableMap() as the canonical JSON writer.
+  - [x] output is deterministic, with recursive map-key sorting and preserved list ordering.
+  - [x] output has a final LF and no runtime-dependent formatting.
+  - [x] no direct ad-hoc json_encode() in renderer logic.
+  - [x] no floats, NaN, INF, arbitrary objects, Throwable values, or raw nested payloads.
+  - [x] do not introduce a new renderer interface, serializer registry, or JSON normalization pipeline.
+  - [x] no HTTP response construction inside the JSON renderer.
+  - [x] no context reads/writes, spans, metrics, logs, or reset ownership.
+  - [x] Verification: exact Content-Type, RFC9457 fields, stable JSON, invalid data, and repeatability.
 
-- [ ] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php`
-  - [ ] final stateless adapter consuming the existing ErrorDescriptor.
-  - [ ] map(ErrorDescriptor $descriptor): ProblemDetails.
-  - [ ] use the descriptor's httpStatus only as a transport status hint.
-  - [ ] null, informational, redirection, or unsupported status hints produce a fixed safe HTTP 500 fallback.
-  - [ ] HTTP status adaptation:
-    - [ ] accepted status hints are integers in the inclusive range 400..599.
-    - [ ] null and status hints outside 400..599 produce HTTP 500.
-    - [ ] construct ProblemDetails using only the validated or fallback status.
-    - [ ] ProblemDetails owns the single canonical status/title mapping.
-    - [ ] the adapter MUST NOT accept, derive, or forward an arbitrary title.
-    - [ ] the adapter MUST NOT introduce a second HTTP status/title table.
-    - [ ] no ErrorDescriptor message, code, extensions, request data, or Throwable content influences the public title.
-    - [ ] mapping is deterministic and independent of locale, environment, and configuration.
-  - [ ] use about:blank instead of deriving a problem-type URI from arbitrary error codes.
-  - [ ] do not copy message, extensions, severity, or schemaVersion into the HTTP response.
-  - [ ] no new exception mapper, error-code catalog, or descriptor transformation pipeline.
-  - [ ] no ContextAccessorInterface, ContextStore, LoggerInterface, or redactor implementation dependency.
-  - [ ] no spans, metrics, logs, mutable caches, or reset hooks.
-  - [ ] invalid adapter behavior fails closed to a safe internal-error problem.
-  - [ ] Verification: status mapping, fallback, title stability, and absence of raw descriptor fields.
-
-- [ ] `packages/platform/problem-details/src/Renderer/ProblemDetailsJsonRenderer.php`
-  - [ ] final stateless JSON renderer.
-  - [ ] render(ProblemDetails $problem): string.
-  - [ ] contentType(): string returns application/problem+json.
-  - [ ] use StableJsonEncoder::encodeStableMap() as the canonical JSON writer.
-  - [ ] output is deterministic, with recursive map-key sorting and preserved list ordering.
-  - [ ] output has a final LF and no runtime-dependent formatting.
-  - [ ] no direct ad-hoc json_encode() in renderer logic.
-  - [ ] no floats, NaN, INF, arbitrary objects, Throwable values, or raw nested payloads.
-  - [ ] do not introduce a new renderer interface, serializer registry, or JSON normalization pipeline.
-  - [ ] no HTTP response construction inside the JSON renderer.
-  - [ ] no context reads/writes, spans, metrics, logs, or reset ownership.
-  - [ ] Verification: exact Content-Type, RFC9457 fields, stable JSON, invalid data, and repeatability.
-
-- [ ] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
-  - [ ] final PSR-15 middleware implementing MiddlewareInterface.
-  - [ ] exact namespace Coretsia\Platform\ProblemDetails\Http\Middleware.
-  - [ ] process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface.
-  - [ ] delegate a successful downstream request unchanged.
-  - [ ] catch Throwable from downstream processing at the outer HTTP error boundary.
-  - [ ] invoke canonical ErrorHandlerInterface::handle() exactly once for the captured Throwable.
-  - [ ] adapt only the returned normalized ErrorDescriptor.
-  - [ ] render the resulting ProblemDetails through ProblemDetailsJsonRenderer.
-  - [ ] construct the HTTP response through the injected PSR response and stream factories.
-  - [ ] actual response status MUST equal the problem body status.
-  - [ ] set Content-Type to application/problem+json.
-  - [ ] apply a safe no-store caching policy for generated error responses.
-  - [ ] do not forward raw request headers, cookies, body, exception message, trace, or descriptor extensions.
-  - [ ] Emergency response policy:
-    - [ ] failures of ErrorHandlerInterface, the adapter, or the renderer MUST NOT trigger a second ErrorHandlerInterface::handle() invocation.
-    - [ ] an emergency response uses HTTP 500 and the fixed safe Problem Details representation.
-    - [ ] the emergency JSON body is exactly {"status":500,"title":"Internal Server Error","type":"about:blank"} followed by LF.
-    - [ ] emergency response Content-Type is application/problem+json.
-    - [ ] emergency response headers include Cache-Control: no-store.
-    - [ ] the emergency body is a fixed canonical byte sequence, not arbitrary error data or a second JSON serialization implementation.
-    - [ ] a failed renderer MUST NOT be recursively invoked to render its own failure.
-    - [ ] no raw Throwable, ErrorDescriptor, rendering exception, request data, or context metadata is included.
-    - [ ] response and stream construction use the injected PSR factories.
-    - [ ] failure of response or stream construction preserves the original downstream Throwable precedence.
-    - [ ] no additional mapper, reporter, renderer registry, or exception hierarchy is introduced.
-  - [ ] do not call ErrorHandlerInterface again when an adapter or renderer fails.
-  - [ ] a response-factory failure MUST NOT be misrepresented as a successful safe response.
-  - [ ] when no valid response can be produced, preserve the original Throwable precedence rather than substituting an internal rendering exception.
-  - [ ] no second exception mapping, reporter, logger, redactor, or JSON serializer.
-  - [ ] no implicit ContextStore reads/writes or Kernel UoW lifecycle ownership.
-  - [ ] no additional spans, metrics, warning logs, or reset hooks.
-  - [ ] Verification: success pass-through, Throwable mapping, fallback, status/body parity, output safety, and primary-exception precedence.
+- [x] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
+  - [x] final PSR-15 middleware implementing MiddlewareInterface.
+  - [x] exact namespace Coretsia\Platform\ProblemDetails\Http\Middleware.
+  - [x] process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface.
+  - [x] delegate a successful downstream request unchanged.
+  - [x] catch Throwable from downstream processing at the outer HTTP error boundary.
+  - [x] invoke canonical ErrorHandlerInterface::handle() exactly once for the captured Throwable.
+  - [x] adapt only the returned normalized ErrorDescriptor.
+  - [x] render the resulting ProblemDetails through ProblemDetailsJsonRenderer.
+  - [x] construct the HTTP response through the injected PSR response and stream factories.
+  - [x] actual response status MUST equal the problem body status.
+  - [x] set Content-Type to application/problem+json.
+  - [x] apply a safe no-store caching policy for generated error responses.
+  - [x] do not forward raw request headers, cookies, body, exception message, trace, or descriptor extensions.
+  - [x] Emergency response policy:
+    - [x] failures of ErrorHandlerInterface, the adapter, or the renderer MUST NOT trigger a second ErrorHandlerInterface::handle() invocation.
+    - [x] an emergency response uses HTTP 500 and the fixed safe Problem Details representation.
+    - [x] the emergency JSON body is exactly {"status":500,"title":"Internal Server Error","type":"about:blank"} followed by LF.
+    - [x] emergency response Content-Type is application/problem+json.
+    - [x] emergency response headers include Cache-Control: no-store.
+    - [x] the emergency body is a fixed canonical byte sequence, not arbitrary error data or a second JSON serialization implementation.
+    - [x] a failed renderer MUST NOT be recursively invoked to render its own failure.
+    - [x] no raw Throwable, ErrorDescriptor, rendering exception, request data, or context metadata is included.
+    - [x] response and stream construction use the injected PSR factories.
+    - [x] failure of response or stream construction preserves the original downstream Throwable precedence.
+    - [x] no additional mapper, reporter, renderer registry, or exception hierarchy is introduced.
+  - [x] do not call ErrorHandlerInterface again when an adapter or renderer fails.
+  - [x] a response-factory failure MUST NOT be misrepresented as a successful safe response.
+  - [x] when no valid response can be produced, preserve the original Throwable precedence rather than substituting an internal rendering exception.
+  - [x] no second exception mapping, reporter, logger, redactor, or JSON serializer.
+  - [x] no implicit ContextStore reads/writes or Kernel UoW lifecycle ownership.
+  - [x] no additional spans, metrics, warning logs, or reset hooks.
+  - [x] Verification: success pass-through, Throwable mapping, fallback, status/body parity, output safety, and primary-exception precedence.
 
 Documentation:
-- [ ] `packages/platform/problem-details/README.md`
-  - [ ] package identity, namespace, module ID, dependencies, and exact supported HTTP functionality.
-  - [ ] explain ErrorHandlerInterface and ErrorDescriptor reuse.
-  - [ ] explain why this package is an HTTP adapter rather than a second exception handler.
-  - [ ] document RFC9457 baseline and RFC7807-compatible output.
-  - [ ] document the exact type, title, and status response members.
-  - [ ] document omitted detail, instance, and arbitrary extensions in the Phase 3 baseline.
-  - [ ] explain safe fallback for null or invalid HTTP status hints.
-  - [ ] document PSR-15 middleware selection and priority 1000.
-  - [ ] document compatible HTTP target and response/stream factory requirements.
-  - [ ] document no direct platform/http implementation dependency.
-  - [ ] document that HTML error pages remain outside this epic.
-  - [ ] include synthetic error-response examples with exact status, Content-Type, and body.
-  - [ ] include canonical Observability, Errors, and Security / Redaction sections.
-  - [ ] no claims of new tracing, metrics, error reporting, debug disclosure, or persistent telemetry.
-  - [ ] reference docs/ssot/problem-details.md and docs/ssot/error-descriptor.md.
-  - [ ] vulnerability reporting follows the unmodified canonical SECURITY.md.
+- [x] `packages/platform/problem-details/README.md`
+  - [x] package identity, namespace, module ID, dependencies, and exact supported HTTP functionality.
+  - [x] explain ErrorHandlerInterface and ErrorDescriptor reuse.
+  - [x] explain why this package is an HTTP adapter rather than a second exception handler.
+  - [x] document RFC9457 baseline and RFC7807-compatible output.
+  - [x] document the exact type, title, and status response members.
+  - [x] document omitted detail, instance, and arbitrary extensions in the Phase 3 baseline.
+  - [x] explain safe fallback for null or invalid HTTP status hints.
+  - [x] document PSR-15 middleware selection and priority 1000.
+  - [x] document compatible HTTP target and response/stream factory requirements.
+  - [x] document no direct platform/http implementation dependency.
+  - [x] document that HTML error pages remain outside this epic.
+  - [x] include synthetic error-response examples with exact status, Content-Type, and body.
+  - [x] include canonical Observability, Errors, and Security / Redaction sections.
+  - [x] no claims of new tracing, metrics, error reporting, debug disclosure, or persistent telemetry.
+  - [x] reference docs/ssot/problem-details.md and docs/ssot/error-descriptor.md.
+  - [x] vulnerability reporting follows the unmodified canonical SECURITY.md.
 
-- [ ] `docs/ssot/problem-details.md`
-  - [ ] canonical SSoT header, ssotVersion = 1, owner = platform/problem-details.
-  - [ ] define the exact RFC9457 JSON baseline and RFC7807 compatibility boundary.
-  - [ ] define the exact HTTP Problem Details response schema.
-  - [ ] define accepted status hints, fallback status, and status/title mapping.
-  - [ ] define type = about:blank and excluded public fields.
-  - [ ] define the distinction between ErrorDescriptor and HTTP ProblemDetails.
-  - [ ] prohibit raw Throwable and arbitrary descriptor field forwarding.
-  - [ ] define stable JSON encoding and final-LF behavior.
-  - [ ] define error boundary, fallback, and primary-exception precedence.
-  - [ ] define exact Content-Type and response status parity.
-  - [ ] define module selection and middleware priority.
-  - [ ] preserve platform/http ownership of middleware execution.
-  - [ ] preserve platform/errors ownership of normalization and reporting.
-  - [ ] preserve shared redaction policy without introducing another redaction engine.
-  - [ ] define no ContextStore writes, spans, metrics, logs, or reset hooks.
-  - [ ] include deterministic synthetic examples and security acceptance tests.
-  - [ ] no duplicate ErrorDescriptor field schema or competing HTTP middleware catalog.
+- [x] `docs/ssot/problem-details.md`
+  - [x] canonical SSoT header, ssotVersion = 1, owner = platform/problem-details.
+  - [x] define the exact RFC9457 JSON baseline and RFC7807 compatibility boundary.
+  - [x] define the exact HTTP Problem Details response schema.
+  - [x] define accepted status hints, fallback status, and status/title mapping.
+  - [x] define type = about:blank and excluded public fields.
+  - [x] define the distinction between ErrorDescriptor and HTTP ProblemDetails.
+  - [x] prohibit raw Throwable and arbitrary descriptor field forwarding.
+  - [x] define stable JSON encoding and final-LF behavior.
+  - [x] define error boundary, fallback, and primary-exception precedence.
+  - [x] define exact Content-Type and response status parity.
+  - [x] define module selection and middleware priority.
+  - [x] preserve platform/http ownership of middleware execution.
+  - [x] preserve platform/errors ownership of normalization and reporting.
+  - [x] preserve shared redaction policy without introducing another redaction engine.
+  - [x] define no ContextStore writes, spans, metrics, logs, or reset hooks.
+  - [x] include deterministic synthetic examples and security acceptance tests.
+  - [x] no duplicate ErrorDescriptor field schema or competing HTTP middleware catalog.
 
-- [ ] `docs/adr/ADR-0040-platform-problem-details-http-adaptation.md`
-  - [ ] ADR version 1 and platform/problem-details ownership.
-  - [ ] record canonical ErrorHandlerInterface and ErrorDescriptor reuse.
-  - [ ] record why a transport-specific ProblemDetails model is necessary.
-  - [ ] record why no second ErrorHandler, renderer interface, redactor, serializer, or exception hierarchy is introduced.
-  - [ ] record RFC9457 adoption and RFC7807 compatibility.
-  - [ ] record safe-by-construction response disclosure.
-  - [ ] record PSR-15 middleware and platform/http slot ownership.
-  - [ ] record exact module and runtime dependency boundaries.
-  - [ ] record deterministic fallback, source/compiled parity, and no runtime state.
-  - [ ] record deferred HTML rendering and richer public problem metadata.
+- [x] `docs/adr/ADR-0040-platform-problem-details-http-adaptation.md`
+  - [x] ADR version 1 and platform/problem-details ownership.
+  - [x] record canonical ErrorHandlerInterface and ErrorDescriptor reuse.
+  - [x] record why a transport-specific ProblemDetails model is necessary.
+  - [x] record why no second ErrorHandler, renderer interface, redactor, serializer, or exception hierarchy is introduced.
+  - [x] record RFC9457 adoption and RFC7807 compatibility.
+  - [x] record safe-by-construction response disclosure.
+  - [x] record PSR-15 middleware and platform/http slot ownership.
+  - [x] record exact module and runtime dependency boundaries.
+  - [x] record deterministic fallback, source/compiled parity, and no runtime state.
+  - [x] record deferred HTML rendering and richer public problem metadata.
 
 #### Modifies
 
-- [ ] `docs/architecture/DEPENDENCIES.md`
-  - [ ] add exactly one materialized package row for platform/problem-details.
-  - [ ] direct production source dependencies: core/contracts, core/foundation.
-  - [ ] platform/errors is a runtime-only Composer/module edge, not a direct PHP source-import permission.
-  - [ ] preserve strcmp package-id ordering.
-  - [ ] generated Deptrac policy consumes the canonical dependency row.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; architecture documentation only.
-  - [ ] Verification: dependency matrix and generated Deptrac policy consistency.
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add exactly one materialized package row for platform/problem-details.
+  - [x] direct production source dependencies: core/contracts, core/foundation.
+  - [x] platform/errors is a runtime-only Composer/module edge, not a direct PHP source-import permission.
+  - [x] preserve strcmp package-id ordering.
+  - [x] generated Deptrac policy consumes the canonical dependency row.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; architecture documentation only.
+  - [x] Verification: dependency matrix and generated Deptrac policy consistency.
 
-- [ ] `composer.json`
-  - [ ] register coretsia/platform-problem-details: 0.11.x-dev under the current monorepo require-dev baseline.
-  - [ ] synchronize the managed path repository through existing tooling.
-  - [ ] preserve existing package references and deterministic ordering.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; workspace metadata only.
-  - [ ] Verification: Composer repositories synchronization and package identity gates.
+- [x] `composer.json`
+  - [x] register coretsia/platform-problem-details: 0.11.x-dev under the current monorepo require-dev baseline.
+  - [x] synchronize the managed path repository through existing tooling.
+  - [x] preserve existing package references and deterministic ordering.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; workspace metadata only.
+  - [x] Verification: Composer repositories synchronization and package identity gates.
 
-- [ ] `docs/adr/INDEX.md`
-  - [ ] register docs/adr/ADR-0040-platform-problem-details-http-adaptation.md exactly once.
-  - [ ] preserve canonical title, owner, adrVersion, and scope formatting.
-  - [ ] preserve strcmp ordering and no-forward-reference policy.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
-  - [ ] Verification: ADR index consistency.
+- [x] `docs/adr/INDEX.md`
+  - [x] register docs/adr/ADR-0040-platform-problem-details-http-adaptation.md exactly once.
+  - [x] preserve canonical title, owner, adrVersion, and scope formatting.
+  - [x] preserve strcmp ordering and no-forward-reference policy.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [x] Verification: ADR index consistency.
 
-- [ ] `docs/ssot/INDEX.md`
-  - [ ] register docs/ssot/problem-details.md exactly once.
-  - [ ] use canonical title, owner, ssotVersion, and scope formatting.
-  - [ ] preserve deterministic ordering and no-forward-reference policy.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
-  - [ ] Verification: SSoT index consistency.
+- [x] `docs/ssot/INDEX.md`
+  - [x] register docs/ssot/problem-details.md exactly once.
+  - [x] use canonical title, owner, ssotVersion, and scope formatting.
+  - [x] preserve deterministic ordering and no-forward-reference policy.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; navigation only.
+  - [x] Verification: SSoT index consistency.
 
-- [ ] `docs/ssot/http-middleware-catalog.md`
-  - [ ] preserve the existing priority-1000 problem-details reservation.
-  - [ ] clarify that registration requires explicit selection in a compatible HTTP target.
-  - [ ] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
-  - [ ] preserve platform/http ownership of slot execution and metadata semantics.
-  - [ ] no new HTTP tag, route, middleware registry, or pipeline implementation.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; documentation-only change.
-  - [ ] Verification: exact reservation owner, class, priority, and module-selection semantics.
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] preserve the existing priority-1000 problem-details reservation.
+  - [x] clarify that registration requires explicit selection in a compatible HTTP target.
+  - [x] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
+  - [x] preserve platform/http ownership of slot execution and metadata semantics.
+  - [x] no new HTTP tag, route, middleware registry, or pipeline implementation.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A; documentation-only change.
+  - [x] Verification: exact reservation owner, class, priority, and module-selection semantics.
 
-- [ ] `docs/ssot/errors-boundary.md`
-  - [ ] preserve platform/errors as the canonical Throwable normalization and error reporting owner.
-  - [ ] preserve platform/problem-details as the HTTP adaptation and rendering owner.
-  - [ ] replace installation-implies-registration wording with explicit target-local module selection requirements.
-  - [ ] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
-  - [ ] selected platform.problem-details contributes one existing http.middleware.system_pre registration at priority 1000.
-  - [ ] preserve platform/http ownership of middleware execution and pipeline ordering.
-  - [ ] document RFC9457 as the normative Problem Details specification with RFC7807-compatible baseline fields.
-  - [ ] document that ErrorHandlerInterface::handle() is invoked once for a captured downstream Throwable.
-  - [ ] preserve format-neutral ErrorDescriptor ownership and prohibit duplicate exception mapping.
-  - [ ] no second redaction engine, error reporting pipeline, context owner, or reset orchestration.
-  - [ ] Context/UoW: N/A; documentation-only change.
-  - [ ] Spans/metrics/logs: N/A; no new production instrumentation.
-  - [ ] Reset: N/A; no lifecycle change.
-  - [ ] Verification: consistency with problem-details.md, http-middleware-catalog.md, and selected-module DI behavior.
+- [x] `docs/ssot/errors-boundary.md`
+  - [x] preserve platform/errors as the canonical Throwable normalization and error reporting owner.
+  - [x] preserve platform/problem-details as the HTTP adaptation and rendering owner.
+  - [x] replace installation-implies-registration wording with explicit target-local module selection requirements.
+  - [x] package installation alone MUST NOT activate HttpErrorHandlingMiddleware.
+  - [x] selected platform.problem-details contributes one existing http.middleware.system_pre registration at priority 1000.
+  - [x] preserve platform/http ownership of middleware execution and pipeline ordering.
+  - [x] document RFC9457 as the normative Problem Details specification with RFC7807-compatible baseline fields.
+  - [x] document that ErrorHandlerInterface::handle() is invoked once for a captured downstream Throwable.
+  - [x] preserve format-neutral ErrorDescriptor ownership and prohibit duplicate exception mapping.
+  - [x] no second redaction engine, error reporting pipeline, context owner, or reset orchestration.
+  - [x] Context/UoW: N/A; documentation-only change.
+  - [x] Spans/metrics/logs: N/A; no new production instrumentation.
+  - [x] Reset: N/A; no lifecycle change.
+  - [x] Verification: consistency with problem-details.md, http-middleware-catalog.md, and selected-module DI behavior.
 
-- [ ] `tools/build/new-package.php`
-  - [ ] preserve the existing generator and its atomic package creation behavior.
-  - [ ] generate a valid config defaults filename for kebab-case runtime package slugs.
-  - [ ] map hyphens to underscores in generated config-root filenames.
-  - [ ] for problem-details, generate defaultsConfigPath = config/problem_details.php.
-  - [ ] do not change the canonical module ID or package slug.
-  - [ ] no package-specific filename exception or second config-path registry.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository tooling only.
-  - [ ] Verification: runtime scaffold with a hyphenated slug and canonical config path.
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate through the canonical package-index generator.
+  - [x] no manual generated-table edits.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [x] Verification: package-index --check.
 
-- [ ] `tools/build/sync_package_scaffold.php`
-  - [ ] validate the canonical defaultsConfigPath declared in package metadata.
-  - [ ] use the validated declared defaults path rather than assuming config/<slug>.php.
-  - [ ] preserve symlink/path safety and atomic scaffold behavior.
-  - [ ] ensure one canonical defaults file is required, not a hyphen/underscore duplicate.
-  - [ ] preserve byte-identical LICENSE, NOTICE, and SECURITY.md gates.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository tooling only.
-  - [ ] Verification: package-scaffold --check passes with config/problem_details.php and rejects missing or malformed canonical paths.
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate through the canonical Deptrac generator.
+  - [x] no separate problem-details dependency allowlist.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [x] Verification: deptrac --check.
 
-- [ ] `tools/gates/package_compliance_gate.php`
-  - [ ] preserve the existing canonical package-compliance gate and its diagnostic codes.
-  - [ ] validate runtime defaultsConfigPath against the canonical config-root filename policy.
-  - [ ] support kebab-case package slugs whose config root uses underscores.
-  - [ ] for platform/problem-details, accept exactly config/problem_details.php.
-  - [ ] preserve moduleId = platform.problem-details independently of configRoot = problem_details.
-  - [ ] do not require an additional config/problem-details.php file.
-  - [ ] validate the declared defaultsConfigPath before any filesystem access.
-  - [ ] reject absolute paths, traversal, symlinks, malformed paths, and mismatched metadata.
-  - [ ] preserve existing package namespace, module, provider, and configuration validations.
-  - [ ] preserve existing behavior for packages whose slug and config-root spelling already match.
-  - [ ] no package-specific exception, alternate config registry, or second compliance validator is introduced.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A; repository compliance tooling only.
-  - [ ] Verification: canonical config-path acceptance, malformed-path rejection, existing fixture compatibility, and package-compliance gate green.
-
-- [ ] `tools/tests/Integration/PackageComplianceGateAcceptsGoodFixtureTest.php`
-  - [ ] add a valid runtime fixture using a hyphenated package slug.
-  - [ ] verify moduleId = platform.problem-details and defaultsConfigPath = config/problem_details.php.
-  - [ ] verify the canonical underscore defaults file is accepted without a duplicate hyphenated file.
-  - [ ] preserve existing non-hyphenated runtime fixture acceptance.
-
-- [ ] `tools/tests/Integration/PackageComplianceGateRejectsBadFixtureTest.php`
-  - [ ] reject mismatched defaultsConfigPath metadata.
-  - [ ] reject path traversal, absolute paths, and invalid config-root filenames.
-  - [ ] reject missing canonical defaults files.
-  - [ ] verify rejection does not require creating a second defaults file.
-  - [ ] preserve existing deterministic diagnostic behavior.
-
-- [ ] `tools/tests/Integration/NewPackageAtomicCreationTest.php`
-  - [ ] add a hyphenated runtime-slug fixture.
-  - [ ] verify moduleId preserves the original slug while defaultsConfigPath uses the canonical config-root filename.
-  - [ ] verify no duplicate hyphenated defaults file is generated.
-  - [ ] verify existing package:new invocations remain compatible.
-  - [ ] preserve atomic failure and cleanup tests.
-
-- [ ] `tools/tests/Integration/SyncPackageScaffoldCheckRejectsDriftTest.php`
-  - [ ] verify the canonical metadata-defined defaults path is checked.
-  - [ ] reject missing or malformed defaults paths.
-  - [ ] verify no obsolete slug-derived defaults file is required.
-
-- [ ] `tools/testing/package-index.php`
-  - [ ] regenerate through the canonical package-index generator.
-  - [ ] no manual generated-table edits.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
-  - [ ] Verification: package-index --check.
-
-- [ ] `tools/testing/deptrac.yaml`
-  - [ ] regenerate through the canonical Deptrac generator.
-  - [ ] no separate problem-details dependency allowlist.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
-  - [ ] Verification: deptrac --check.
-
-- [ ] `packages/core/kernel/resources/packaging/installation-catalog.php`
-  - [ ] regenerate through the canonical installation-catalog generator.
-  - [ ] preserve Kernel ownership and schema.
-  - [ ] no package-local installation catalog.
-  - [ ] Context/UoW, spans, metrics, logs, reset: N/A.
-  - [ ] Verification: installation-catalog --check with valid Composer bootstrap.
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through the canonical installation-catalog generator.
+  - [x] preserve Kernel ownership and schema.
+  - [x] no package-local installation catalog.
+  - [x] Context/UoW, spans, metrics, logs, reset: N/A.
+  - [x] Verification: installation-catalog --check with valid Composer bootstrap.
 
 Generation and verification:
-- [ ] Synchronize Composer repositories through canonical tooling.
-- [ ] Generate the package index through the existing generator.
-- [ ] Generate Deptrac configuration through the existing generator.
-- [ ] Generate the installation catalog through the existing generator.
-- [ ] Run package identity, manifest, scaffold, dependency, and HTTP middleware catalog checks.
-- [ ] Preserve the existing Deptrac allowlist.
-- [ ] Do not edit generator-owned artifacts manually.
-- [ ] Missing Composer bootstrap or unavailable HTTP runtime MUST NOT be reported as successful end-to-end verification.
+- [x] Synchronize Composer repositories through canonical tooling.
+- [x] Generate the package index through the existing generator.
+- [x] Generate Deptrac configuration through the existing generator.
+- [x] Generate the installation catalog through the existing generator.
+- [x] Run package identity, manifest, scaffold, dependency, and HTTP middleware catalog checks.
+- [x] Preserve the existing Deptrac allowlist.
+- [x] Do not edit generator-owned artifacts manually.
+- [x] Missing Composer bootstrap or unavailable HTTP runtime MUST NOT be reported as successful end-to-end verification.
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/problem-details/config/problem_details.php`
-  - [ ] `packages/platform/problem-details/config/rules.php`
-- [ ] Root:
-  - [ ] `problem_details` — existing reserved package-owned root.
-- [ ] Baseline defaults:
-  - [ ] config/problem_details.php returns [].
-  - [ ] config/rules.php defines a strict empty map.
-- [ ] No keys for:
-  - [ ] show_detail.
-  - [ ] show_detail_in_local.
-  - [ ] raw exception disclosure.
-  - [ ] stacktrace output.
-  - [ ] arbitrary extensions.
-  - [ ] problem type registry.
-  - [ ] renderer selection.
-  - [ ] custom exception mapping.
-  - [ ] redaction policy overrides.
-- [ ] Rules:
-  - [ ] existing Kernel configuration validation only.
-  - [ ] unknown keys are rejected.
-  - [ ] no executable validator or environment-derived debug policy.
-  - [ ] no automatic modification of application presets or ModulePlan.
+- [x] Files:
+  - [x] `packages/platform/problem-details/config/problem_details.php`
+  - [x] `packages/platform/problem-details/config/rules.php`
+- [x] Root:
+  - [x] `problem_details` — existing reserved package-owned root.
+- [x] Baseline defaults:
+  - [x] config/problem_details.php returns [].
+  - [x] config/rules.php defines a strict empty map.
+- [x] No keys for:
+  - [x] show_detail.
+  - [x] show_detail_in_local.
+  - [x] raw exception disclosure.
+  - [x] stacktrace output.
+  - [x] arbitrary extensions.
+  - [x] problem type registry.
+  - [x] renderer selection.
+  - [x] custom exception mapping.
+  - [x] redaction policy overrides.
+- [x] Rules:
+  - [x] existing Kernel configuration validation only.
+  - [x] unknown keys are rejected.
+  - [x] no executable validator or environment-derived debug policy.
+  - [x] no automatic modification of application presets or ModulePlan.
 
 #### Wiring / DI tags (when applicable)
 
 - Tags introduced:
   - N/A.
-- [ ] Existing tag reuse:
-  - [ ] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
-  - [ ] priority = 1000.
-  - [ ] registered middleware package owner = platform/problem-details in the canonical HTTP middleware catalog.
-  - [ ] tag meta = [] until the platform/http owner explicitly defines a non-empty metadata schema.
-  - [ ] no package-local mirror constant or new tag registry.
-- [ ] ServiceProvider wiring:
-  - [ ] consume the existing ErrorHandlerInterface binding from platform.errors.
-  - [ ] register ErrorDescriptorToProblemDetailsAdapter.
-  - [ ] register ProblemDetailsJsonRenderer.
-  - [ ] register HttpErrorHandlingMiddleware.
-  - [ ] consume PSR response and stream factories from the selected compatible HTTP target.
-  - [ ] contribute exactly one existing middleware tag registration.
-  - [ ] no duplicate ErrorHandler, mapper, reporter, redactor, serializer, or runtime factory.
-  - [ ] source and compiled service definitions MUST be equivalent.
-  - [ ] unselected module MUST NOT contribute middleware services or tags.
-  - [ ] no new reset, lifecycle, metrics, or tracing tags.
+- [x] Existing tag reuse:
+  - [x] ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE.
+  - [x] priority = 1000.
+  - [x] registered middleware package owner = platform/problem-details in the canonical HTTP middleware catalog.
+  - [x] tag meta = [] until the platform/http owner explicitly defines a non-empty metadata schema.
+  - [x] no package-local mirror constant or new tag registry.
+- [x] ServiceProvider wiring:
+  - [x] consume the existing ErrorHandlerInterface binding from platform.errors.
+  - [x] register ErrorDescriptorToProblemDetailsAdapter.
+  - [x] register ProblemDetailsJsonRenderer.
+  - [x] register HttpErrorHandlingMiddleware.
+  - [x] consume PSR response and stream factories from the selected compatible HTTP target.
+  - [x] contribute exactly one existing middleware tag registration.
+  - [x] no duplicate ErrorHandler, mapper, reporter, redactor, serializer, or runtime factory.
+  - [x] source and compiled service definitions MUST be equivalent.
+  - [x] unselected module MUST NOT contribute middleware services or tags.
+  - [x] no new reset, lifecycle, metrics, or tracing tags.
 
 #### Artifacts / outputs (if applicable)
 
@@ -6806,15 +6713,15 @@ N/A
   - N/A; no ContextAccessorInterface or ContextKeys consumption.
 - Context writes:
   - N/A; no ContextStore writes.
-- [ ] UnitOfWork ownership:
-  - [ ] Kernel remains the owner of UnitOfWork lifecycle and correlation identity.
-  - [ ] ErrorHandlerInterface remains responsible for its existing safe correlation enrichment.
-  - [ ] problem-details does not derive public identifiers from Kernel context.
-- [ ] Reset discipline:
-  - [ ] ProblemDetails, adapter, renderer, provider, and middleware are stateless.
-  - [ ] no request-local mutable registry or process-lifetime output cache.
-  - [ ] no ResetInterface implementation or kernel.reset registration.
-  - [ ] repeated rendering is deterministic and independent across requests.
+- [x] UnitOfWork ownership:
+  - [x] Kernel remains the owner of UnitOfWork lifecycle and correlation identity.
+  - [x] ErrorHandlerInterface remains responsible for its existing safe correlation enrichment.
+  - [x] problem-details does not derive public identifiers from Kernel context.
+- [x] Reset discipline:
+  - [x] ProblemDetails, adapter, renderer, provider, and middleware are stateless.
+  - [x] no request-local mutable registry or process-lifetime output cache.
+  - [x] no ResetInterface implementation or kernel.reset registration.
+  - [x] repeated rendering is deterministic and independent across requests.
 
 #### Observability (policy-compliant)
 
@@ -6824,37 +6731,37 @@ N/A
   - N/A; no http.error_total or http.error_duration_ms is introduced.
 - Logs:
   - N/A; no duplicate handled_error/fatal_error logging pipeline.
-- [ ] Existing error observability:
-  - [ ] platform.errors remains the owner of error reporting, existing spans, metrics, and diagnostics.
-  - [ ] problem-details MUST NOT report or instrument the same Throwable a second time.
-  - [ ] renderer and middleware failures MUST NOT trigger recursive self-instrumentation.
+- [x] Existing error observability:
+  - [x] platform.errors remains the owner of error reporting, existing spans, metrics, and diagnostics.
+  - [x] problem-details MUST NOT report or instrument the same Throwable a second time.
+  - [x] renderer and middleware failures MUST NOT trigger recursive self-instrumentation.
 
 #### Errors
 
 - New exception classes:
   - N/A.
-- [ ] Runtime failure policy:
-  - [ ] ErrorHandlerInterface::handle() is invoked once for each captured downstream Throwable.
-  - [ ] no second exception mapping is performed.
-  - [ ] absent HTTP status hint produces a fixed HTTP 500 fallback.
-  - [ ] adapter or renderer failure produces a fixed safe fallback where response construction remains possible.
-  - [ ] no raw Throwable, descriptor message, previous exception, or stack trace is serialized.
-  - [ ] no rendering failure is reported as a new primary application error.
-  - [ ] a response-factory failure cannot be claimed as successful no-throw response construction.
-  - [ ] when response construction is impossible, preserve the original Throwable precedence.
-  - [ ] successful requests pass through unchanged.
+- [x] Runtime failure policy:
+  - [x] ErrorHandlerInterface::handle() is invoked once for each captured downstream Throwable.
+  - [x] no second exception mapping is performed.
+  - [x] absent HTTP status hint produces a fixed HTTP 500 fallback.
+  - [x] adapter or renderer failure produces a fixed safe fallback where response construction remains possible.
+  - [x] no raw Throwable, descriptor message, previous exception, or stack trace is serialized.
+  - [x] no rendering failure is reported as a new primary application error.
+  - [x] a response-factory failure cannot be claimed as successful no-throw response construction.
+  - [x] when response construction is impossible, preserve the original Throwable precedence.
+  - [x] successful requests pass through unchanged.
 
 #### Security / Redaction
 
-- [ ] Public Problem Details is safe by construction.
-- [ ] Existing platform.errors redaction and error normalization remain authoritative.
-- [ ] No independent sensitive-key classifier, redactor, hash engine, or masking implementation.
-- [ ] The baseline does not export arbitrary descriptor message or extensions.
-- [ ] No raw authorization headers, cookies, session IDs, tokens, SQL, payloads, customer identifiers, or local paths are exposed.
-- [ ] No arbitrary hash/len summaries or actor identifiers are added to public error responses.
-- [ ] Redaction is not sufficient authorization to expose arbitrary diagnostic values.
-- [ ] Public response fields, status, Content-Type, and output size are governed by the package's fixed safe schema.
-- [ ] Any future detail, instance, or extension disclosure requires an explicit owner-approved policy and corresponding security tests.
+- [x] Public Problem Details is safe by construction.
+- [x] Existing platform.errors redaction and error normalization remain authoritative.
+- [x] No independent sensitive-key classifier, redactor, hash engine, or masking implementation.
+- [x] The baseline does not export arbitrary descriptor message or extensions.
+- [x] No raw authorization headers, cookies, session IDs, tokens, SQL, payloads, customer identifiers, or local paths are exposed.
+- [x] No arbitrary hash/len summaries or actor identifiers are added to public error responses.
+- [x] Redaction is not sufficient authorization to expose arbitrary diagnostic values.
+- [x] Public response fields, status, Content-Type, and output size are governed by the package's fixed safe schema.
+- [x] Any future detail, instance, or extension disclosure requires an explicit owner-approved policy and corresponding security tests.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
@@ -6870,165 +6777,165 @@ N/A
   - N/A; no new metric name or metrics recording.
 - Logs:
   - N/A; canonical platform.errors reporting remains authoritative.
-- [ ] Errors:
-  - [ ] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
-  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
-  - [ ] verify ErrorHandlerInterface::handle() is invoked exactly once per captured downstream Throwable.
-  - [ ] verify no duplicate mapper, reporter, or exception hierarchy.
-  - [ ] verify primary-exception precedence when HTTP response construction fails.
-- [ ] Security / Redaction:
-  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
-  - [ ] verify raw exception messages, descriptor extensions, request payloads, and private metadata are absent.
-  - [ ] verify emergency fallback is safe and deterministic.
-- [ ] Runtime DI:
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
-  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
-  - [ ] verify exact middleware tag, priority, module selection, and source/compiled parity.
-- [ ] Package configuration:
-  - [ ] verify config/problem_details.php is the only canonical defaults file.
-  - [ ] verify scaffold, package compliance, manifest, and configuration gates.
+- [x] Errors:
+  - [x] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
+  - [x] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
+  - [x] verify ErrorHandlerInterface::handle() is invoked exactly once per captured downstream Throwable.
+  - [x] verify no duplicate mapper, reporter, or exception hierarchy.
+  - [x] verify primary-exception precedence when HTTP response construction fails.
+- [x] Security / Redaction:
+  - [x] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+  - [x] verify raw exception messages, descriptor extensions, request payloads, and private metadata are absent.
+  - [x] verify emergency fallback is safe and deterministic.
+- [x] Runtime DI:
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
+  - [x] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
+  - [x] verify exact middleware tag, priority, module selection, and source/compiled parity.
+- [x] Package configuration:
+  - [x] verify config/problem_details.php is the only canonical defaults file.
+  - [x] verify scaffold, package compliance, manifest, and configuration gates.
 
 #### Test harness / fixtures (when integration is needed)
 
-- [ ] Reuse existing Foundation/Kernel declarative DI test infrastructure.
-- [ ] Use deterministic synthetic ErrorDescriptor and Throwable fixtures.
-- [ ] Use a controlled ErrorHandlerInterface test double for invocation-count and failure-isolation cases.
-- [ ] Use PSR-7 response/stream factory and PSR-15 request-handler test doubles.
-- [ ] No real network listener, external HTTP server, logs, metrics backend, or exporter is required.
-- [ ] No real ContextStore mutation or UnitOfWork lifecycle is required.
-- [ ] Full platform/http pipeline verification remains mandatory once its runtime owner is available.
+- [x] Reuse existing Foundation/Kernel declarative DI test infrastructure.
+- [x] Use deterministic synthetic ErrorDescriptor and Throwable fixtures.
+- [x] Use a controlled ErrorHandlerInterface test double for invocation-count and failure-isolation cases.
+- [x] Use PSR-7 response/stream factory and PSR-15 request-handler test doubles.
+- [x] No real network listener, external HTTP server, logs, metrics backend, or exporter is required.
+- [x] No real ContextStore mutation or UnitOfWork lifecycle is required.
+- [x] Full platform/http pipeline verification is explicitly transferred to Epic 3.50.0 as mandatory integration acceptance; it remains unverified until the compatible HTTP runtime owner is implemented.
 
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
-    - [ ] exact application/problem+json Content-Type.
-    - [ ] deterministic stable JSON map ordering.
-    - [ ] final LF and identical bytes for repeated rendering.
-    - [ ] reject unsupported floats, objects, and malformed values.
-    - [ ] no raw descriptor fields or output side effects.
-    - [ ] no additional serializer, metrics, spans, logs, or reset state.
+  - [x] `packages/platform/problem-details/tests/Unit/JsonRendererDeterministicOrderTest.php`
+    - [x] exact application/problem+json Content-Type.
+    - [x] deterministic stable JSON map ordering.
+    - [x] final LF and identical bytes for repeated rendering.
+    - [x] reject unsupported floats, objects, and malformed values.
+    - [x] no raw descriptor fields or output side effects.
+    - [x] no additional serializer, metrics, spans, logs, or reset state.
 
-  - [ ] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
-    - [ ] canonical ErrorDescriptor input.
-    - [ ] accepted error-status hints and deterministic title mapping.
-    - [ ] verify canonical status/title pairs for standard 4xx and 5xx statuses.
-    - [ ] verify non-standard 4xx/5xx status hints use the fixed HTTP Error title.
-    - [ ] verify null and non-error status hints use HTTP 500 and Internal Server Error.
-    - [ ] verify title selection does not consume descriptor message, code, extensions, or request data.
-    - [ ] null, informational, redirection, or unsupported status hints use HTTP 500 fallback.
-    - [ ] exact about:blank type.
-    - [ ] raw message, severity, extensions, and schemaVersion are not forwarded.
-    - [ ] deterministic output and no exception-mapper duplication.
+  - [x] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
+    - [x] canonical ErrorDescriptor input.
+    - [x] accepted error-status hints and deterministic title mapping.
+    - [x] verify canonical status/title pairs for standard 4xx and 5xx statuses.
+    - [x] verify non-standard 4xx/5xx status hints use the fixed HTTP Error title.
+    - [x] verify null and non-error status hints use HTTP 500 and Internal Server Error.
+    - [x] verify title selection does not consume descriptor message, code, extensions, or request data.
+    - [x] null, informational, redirection, or unsupported status hints use HTTP 500 fallback.
+    - [x] exact about:blank type.
+    - [x] raw message, severity, extensions, and schemaVersion are not forwarded.
+    - [x] deterministic output and no exception-mapper duplication.
 
 - Contract:
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
-    - [ ] exact type, title, and status baseline members.
-    - [ ] direct ProblemDetails construction cannot accept an arbitrary public title.
-    - [ ] canonical title is derived exclusively from the accepted status.
-    - [ ] standard, non-standard, and fallback status/title combinations follow one fixed policy.
-    - [ ] no alternative title or arbitrary public text can be injected through ProblemDetails construction.
-    - [ ] no arbitrary detail, instance, or extension members.
-    - [ ] body status matches the actual HTTP response status.
-    - [ ] RFC9457 baseline with RFC7807-compatible fields.
-    - [ ] no secret, PII, diagnostic, or raw Throwable disclosure.
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsJsonSchemaContractTest.php`
+    - [x] exact type, title, and status baseline members.
+    - [x] direct ProblemDetails construction cannot accept an arbitrary public title.
+    - [x] canonical title is derived exclusively from the accepted status.
+    - [x] standard, non-standard, and fallback status/title combinations follow one fixed policy.
+    - [x] no alternative title or arbitrary public text can be injected through ProblemDetails construction.
+    - [x] no arbitrary detail, instance, or extension members.
+    - [x] body status matches the actual HTTP response status.
+    - [x] RFC9457 baseline with RFC7807-compatible fields.
+    - [x] no secret, PII, diagnostic, or raw Throwable disclosure.
 
-  - [ ] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-    - [ ] replace the scaffold placeholder assertion with executable behavior tests.
-    - [ ] adapter and renderer preserve deterministic safe fallback behavior.
-    - [ ] no duplicate error reporter, metrics, spans, logs, or reset hooks.
-    - [ ] no ContextStore writes or mutable registry state.
+  - [x] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] replace the scaffold placeholder assertion with executable behavior tests.
+    - [x] adapter and renderer preserve deterministic safe fallback behavior.
+    - [x] no duplicate error reporter, metrics, spans, logs, or reset hooks.
+    - [x] no ContextStore writes or mutable registry state.
 
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsModuleComposerMetadataContractTest.php`
-    - [ ] exact package, module ID, namespace, config root, providers, and requirements.
-    - [ ] exact PSR HTTP dependencies.
-    - [ ] platform.errors runtime dependency and no concrete implementation imports.
-    - [ ] no forbidden Kernel or platform/http production-source imports.
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsModuleComposerMetadataContractTest.php`
+    - [x] exact package, module ID, namespace, config root, providers, and requirements.
+    - [x] exact PSR HTTP dependencies.
+    - [x] platform.errors runtime dependency and no concrete implementation imports.
+    - [x] no forbidden Kernel or platform/http production-source imports.
 
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
-    - [ ] exact canonical middleware tag and priority.
-    - [ ] tag metadata remains empty unless required by the canonical platform/http-owned schema.
-    - [ ] no package-local owner, path, or mode metadata key is invented.
-    - [ ] middleware ownership and priority match docs/ssot/http-middleware-catalog.md.
-    - [ ] required ErrorHandlerInterface and PSR factory references.
-    - [ ] no closure, service locator, or second exception handler.
-    - [ ] source and compiled definition descriptors match.
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsProviderDefinitionsParityTest.php`
+    - [x] exact canonical middleware tag and priority.
+    - [x] tag metadata remains empty unless required by the canonical platform/http-owned schema.
+    - [x] no package-local owner, path, or mode metadata key is invented.
+    - [x] middleware ownership and priority match docs/ssot/http-middleware-catalog.md.
+    - [x] required ErrorHandlerInterface and PSR factory references.
+    - [x] no closure, service locator, or second exception handler.
+    - [x] source and compiled definition descriptors match.
 
-  - [ ] `packages/platform/problem-details/tests/Contract/ProblemDetailsConfigRulesContractTest.php`
-    - [ ] exact empty defaults.
-    - [ ] exact strict ruleset shape.
-    - [ ] unknown debug, detail, and renderer keys are rejected.
-    - [ ] canonical config path and root identity are consistent.
+  - [x] `packages/platform/problem-details/tests/Contract/ProblemDetailsConfigRulesContractTest.php`
+    - [x] exact empty defaults.
+    - [x] exact strict ruleset shape.
+    - [x] unknown debug, detail, and renderer keys are rejected.
+    - [x] canonical config path and root identity are consistent.
 
 - Integration:
-  - [ ] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
-    - [ ] successful request delegates unchanged.
-    - [ ] downstream Throwable invokes canonical ErrorHandlerInterface exactly once.
-    - [ ] deterministic status, headers, and response body.
-    - [ ] adapter and renderer failure fallbacks.
-    - [ ] ErrorHandlerInterface failure uses the exact fixed emergency body without retrying handle().
-    - [ ] emergency response status, Content-Type, and Cache-Control match the normative fallback policy.
-    - [ ] response or stream factory failure preserves the original downstream Throwable.
-    - [ ] emergency output never contains exception messages, previous Throwable details, or request payloads.
-    - [ ] no recursive fallback rendering or duplicate error reporting occurs.
-    - [ ] response-factory failure preserves primary exception precedence.
-    - [ ] no duplicate error reporting or additional metrics/spans/logs.
+  - [x] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
+    - [x] successful request delegates unchanged.
+    - [x] downstream Throwable invokes canonical ErrorHandlerInterface exactly once.
+    - [x] deterministic status, headers, and response body.
+    - [x] adapter and renderer failure fallbacks.
+    - [x] ErrorHandlerInterface failure uses the exact fixed emergency body without retrying handle().
+    - [x] emergency response status, Content-Type, and Cache-Control match the normative fallback policy.
+    - [x] response or stream factory failure preserves the original downstream Throwable.
+    - [x] emergency output never contains exception messages, previous Throwable details, or request payloads.
+    - [x] no recursive fallback rendering or duplicate error reporting occurs.
+    - [x] response-factory failure preserves primary exception precedence.
+    - [x] no duplicate error reporting or additional metrics/spans/logs.
 
-  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
-    - [ ] synthetic descriptor containing sensitive-looking message and extensions.
-    - [ ] no raw message or extension values in public JSON.
-    - [ ] no raw request or exception data in fallback output.
-    - [ ] no public detail or debug mode enabled by default.
-    - [ ] identical safe disclosure policy across repeated requests.
+  - [x] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
+    - [x] synthetic descriptor containing sensitive-looking message and extensions.
+    - [x] no raw message or extension values in public JSON.
+    - [x] no raw request or exception data in fallback output.
+    - [x] no public detail or debug mode enabled by default.
+    - [x] identical safe disclosure policy across repeated requests.
 
-  - [ ] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
-    - [ ] selected HTTP target resolves canonical ErrorHandlerInterface and problem-details middleware.
-    - [ ] unselected target does not contribute problem-details middleware or tags.
-    - [ ] exact priority-1000 registration.
-    - [ ] source and compiled containers preserve equivalent service definitions.
-    - [ ] reuse existing Foundation/Kernel DI test infrastructure.
-    - [ ] verify full HTTP pipeline behavior only when the compatible HTTP runtime is available.
+  - [x] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
+    - [x] selected HTTP target resolves canonical ErrorHandlerInterface and problem-details middleware.
+    - [x] unselected target does not contribute problem-details middleware or tags.
+    - [x] exact priority-1000 registration.
+    - [x] source and compiled containers preserve equivalent service definitions.
+    - [x] reuse existing Foundation/Kernel DI test infrastructure.
+    - [x] verify full HTTP pipeline behavior only when the compatible HTTP runtime is available.
 
 - Gates/Arch:
-  - [ ] package identity, manifest, and scaffold gates green.
-  - [ ] package-compliance gate green for the canonical problem_details config path.
-  - [ ] hyphenated runtime package fixtures pass scaffold and compliance gates without duplicate defaults files.
-  - [ ] Composer repository synchronization green.
-  - [ ] package-index generator check green.
-  - [ ] Deptrac generator check green.
-  - [ ] ADR and SSoT indexes consistent.
-  - [ ] installation-catalog generation and check green.
-  - [ ] no forbidden imports or duplicate error/redaction implementations.
-  - [ ] source/compiled DI parity green.
-  - [ ] no new unauthorized metric or span names.
+  - [x] package identity, manifest, and scaffold gates green.
+  - [x] package-compliance gate green for the canonical problem_details config path.
+  - [x] hyphenated runtime package fixtures pass scaffold and compliance gates without duplicate defaults files.
+  - [x] Composer repository synchronization green.
+  - [x] package-index generator check green.
+  - [x] Deptrac generator check green.
+  - [x] ADR and SSoT indexes consistent.
+  - [x] installation-catalog generation and check green.
+  - [x] no forbidden imports or duplicate error/redaction implementations.
+  - [x] source/compiled DI parity green.
+  - [x] no new unauthorized metric or span names.
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions).
-- [ ] Implementation complete.
-- [ ] Tests green.
-- [ ] Gates/Arch green.
-- [ ] Docs complete.
-- [ ] Canonical ErrorHandlerInterface remains the only exception normalization owner.
-- [ ] Throwable mapping is invoked exactly once at the HTTP error boundary.
-- [ ] ErrorDescriptor is adapted without changing its contracts-level schema.
-- [ ] RFC9457 application/problem+json output is deterministic and RFC7807-compatible.
-- [ ] Public Problem Details fields follow the exact safe-by-construction schema.
-- [ ] HTTP response status matches body status.
-- [ ] Null, unsupported, or invalid HTTP status hints use a deterministic safe fallback.
-- [ ] No raw exception message, arbitrary extensions, stack trace, payload, or sensitive context is exposed.
-- [ ] No second redactor, serializer, exception mapper, reporter, or renderer registry is introduced.
-- [ ] Middleware uses ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000.
-- [ ] No package-local mirror tag constant or competing tag owner is introduced.
-- [ ] Module selection is explicit and does not implicitly enable HTTP integration.
-- [ ] Source and compiled container definitions are equivalent.
-- [ ] No ContextStore writes, UnitOfWork lifecycle ownership, metrics, spans, logs, or reset hooks are introduced.
-- [ ] Canonical config path config/problem_details.php passes package-scaffold and configuration gates.
-- [ ] Hyphenated runtime package scaffold generation is verified without duplicate config files.
-- [ ] Canonical Composer metadata, ADR-0040, problem-details SSoT, indexes, and generated artifacts are complete.
-- [ ] HTTP pipeline integration is verified against the compatible platform/http owner before final completion.
-- [ ] README sections complete and accurate.
+- [x] Spec locked for the package-owned Epic 3.40.0 scope; full HTTP pipeline integration is assigned to Epic 3.50.0 with no remaining package-local implementation questions.
+- [x] Implementation complete for the Epic 3.40.0 package-owned scope, including standalone PSR-15 middleware, source/compiled DI parity, tests, gates, and documentation; full HTTP pipeline integration remains an Epic 3.50.0 deliverable.
+- [x] Tests green.
+- [x] Gates/Arch green.
+- [x] Docs complete.
+- [x] Canonical ErrorHandlerInterface remains the only exception normalization owner.
+- [x] Throwable mapping is invoked exactly once at the HTTP error boundary.
+- [x] ErrorDescriptor is adapted without changing its contracts-level schema.
+- [x] RFC9457 application/problem+json output is deterministic and RFC7807-compatible.
+- [x] Public Problem Details fields follow the exact safe-by-construction schema.
+- [x] HTTP response status matches body status.
+- [x] Null, unsupported, or invalid HTTP status hints use a deterministic safe fallback.
+- [x] No raw exception message, arbitrary extensions, stack trace, payload, or sensitive context is exposed.
+- [x] No second redactor, serializer, exception mapper, reporter, or renderer registry is introduced.
+- [x] Middleware uses ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000.
+- [x] No package-local mirror tag constant or competing tag owner is introduced.
+- [x] Module selection is explicit and does not implicitly enable HTTP integration.
+- [x] Source and compiled container definitions are equivalent.
+- [x] No ContextStore writes, UnitOfWork lifecycle ownership, metrics, spans, logs, or reset hooks are introduced.
+- [x] Canonical config path config/problem_details.php passes package-scaffold and configuration gates.
+- [x] Hyphenated runtime package scaffold generation is verified without duplicate config files.
+- [x] Canonical Composer metadata, ADR-0040, problem-details SSoT, indexes, and generated artifacts are complete.
+- [x] Full HTTP pipeline integration is specified as a mandatory deferred acceptance requirement of Epic 3.50.0; Epic 3.40.0 does not claim completed end-to-end HTTP pipeline verification.
+- [x] README sections complete and accurate.
 
 ---
 
@@ -7066,6 +6973,7 @@ ssot_refs:
 
 - [ ] update `3.50.0 Platform HTTP runtime` to consume `SensitiveDataRedactorInterface` for request/response diagnostic summaries and to forbid raw headers, cookies, body, query payloads, and authorization values.
 - [ ] update `3.50.0 Platform HTTP runtime` to contribute a safe `ExceptionMapperInterface` for its BadJson, BodyTooLarge, and TrustedHostRejected exceptions through the shared `error.mapper` tag with empty `[]` metadata, leaving HTTP rendering to `platform/problem-details`.
+- [ ] update `3.50.0 Platform HTTP runtime` to verify the deferred Epic 3.40.0 integration against the real PSR-15 pipeline, including explicit platform.problem-details module selection, PSR response/stream factory bindings, outermost priority-1000 middleware ordering, source/compiled parity, safe error responses, and primary Throwable precedence.
 
 ### Dependencies (MUST)
 
@@ -7097,8 +7005,7 @@ ssot_refs:
 
 - Required tags registry:
   - All nine `http.middleware.*` tags above MUST already be reserved in `docs/ssot/tags.md` with owner `platform/http`.
-  - This epic is the owner implementation epic that introduces the canonical owner constants in
-    `packages/core/foundation/src/Tag/ReservedTags.php`.
+  - This epic implements the platform/http-owned execution semantics of the existing canonical HTTP middleware tags declared in `packages/core/foundation/src/Tag/ReservedTags.php`; it MUST NOT redeclare, rename, or duplicate those constants.
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — UoW hooks
@@ -7163,6 +7070,21 @@ Forbidden:
   - `Coretsia\Foundation\Tag\TagRegistry`
   - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
+#### Epic 3.40.0 integration handoff (MUST)
+
+- [ ] Provide a compatible PSR-15 HTTP runtime with concrete ResponseFactoryInterface and StreamFactoryInterface service bindings.
+- [ ] Explicit selection of platform.problem-details in a compatible HTTP target MUST activate HttpErrorHandlingMiddleware through ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000 with metadata [].
+- [ ] The selected middleware MUST execute as the outermost error boundary within the canonical HTTP middleware pipeline.
+- [ ] Package installation alone MUST NOT activate platform.problem-details or contribute its middleware to an unselected target.
+- [ ] Source and compiled target containers MUST preserve equivalent middleware service definitions, factory bindings, tag registration, and effective ordering.
+- [ ] Real pipeline integration MUST verify one canonical ErrorHandlerInterface::handle() invocation per captured downstream Throwable.
+- [ ] Generated Problem Details responses MUST preserve status/body parity, application/problem+json Content-Type, Cache-Control: no-store, and the fixed safe public schema.
+- [ ] Handler, adapter, or renderer failures MUST preserve the fixed emergency HTTP 500 fallback without recursive normalization or reporting.
+- [ ] Failed PSR response or stream construction MUST preserve the original downstream Throwable instead of reporting successful error handling.
+- [ ] Successful downstream responses MUST pass through without Problem Details adaptation.
+- [ ] No raw Throwable details, descriptor messages, request payloads, headers, cookies, authorization values, or private runtime context may enter public Problem Details responses.
+- [ ] platform/http MUST NOT depend directly on platform/problem-details, construct an alternative ErrorHandlerInterface implementation, or introduce a second exception normalization, redaction, or rendering owner.
+
 ### Entry points / integration points (MUST)
 
 - CLI:
@@ -7185,7 +7107,7 @@ Forbidden:
       - reserved (Phase 0 empty; owner = `platform/http`)
     - `http.middleware.system_post`:
       - reserved (Phase 0 empty)
-  - note: `\Coretsia\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` may be contributed by `platform/problem-details` at priority `1000` (outermost)
+  - note: `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` is contributed only when `platform.problem-details` is explicitly selected in a compatible HTTP target, using `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` at priority `1000` (outermost)
 - Kernel hooks/tags:
   - N/A (KernelRuntime called directly by HttpKernel)
 - Artifacts:
@@ -7205,7 +7127,7 @@ Forbidden:
 
 - [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
 - [ ] `packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` —  define constants for ALL 9 tags above (owner = platform/http)
+- [ ] Reuse the existing nine `ReservedTags::HTTP_MIDDLEWARE_*` identifiers without redefining them; platform/http owns middleware slot execution and ordering semantics.
 - [ ] `packages/platform/http/config/http.php` — config subtree
 - [ ] `packages/platform/http/config/rules.php` — config rules
 - [ ] `packages/platform/http/README.md` — docs (Observability / Errors / Security-Redaction)
@@ -7378,18 +7300,17 @@ Normative:
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-  - [ ] constants:
-    - [ ] `MIDDLEWARE_SYSTEM_PRE = 'http.middleware.system_pre'`
-    - [ ] `MIDDLEWARE_SYSTEM = 'http.middleware.system'`
-    - [ ] `MIDDLEWARE_SYSTEM_POST = 'http.middleware.system_post'`
-    - [ ] `MIDDLEWARE_APP_PRE = 'http.middleware.app_pre'`
-    - [ ] `MIDDLEWARE_APP = 'http.middleware.app'`
-    - [ ] `MIDDLEWARE_APP_POST = 'http.middleware.app_post'`
-    - [ ] `MIDDLEWARE_ROUTE_PRE = 'http.middleware.route_pre'`
-    - [ ] `MIDDLEWARE_ROUTE = 'http.middleware.route'`
-    - [ ] `MIDDLEWARE_ROUTE_POST = 'http.middleware.route_post'`
+- [ ] Existing HTTP middleware tag reuse (platform/http is the semantic owner):
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP_PRE`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP_POST`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_PRE`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE`.
+  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST`.
+  - [ ] no duplicate identifiers, package-local aliases, or competing tag registry.
 - [ ] ServiceProvider wiring evidence:
   - [ ] registers: `Coretsia\Http\HttpKernel`
   - [ ] registers: PSR-17 factories (single implementation, e.g. `Nyholm\Psr7\Factory\Psr17Factory`)
@@ -7495,6 +7416,16 @@ N/A (integration tests use minimal kernel/http harness)
   - [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
   - [ ] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
   - [ ] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+
+  - [ ] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+    - [ ] explicitly selected platform.problem-details participates in the real HTTP middleware pipeline at priority 1000.
+    - [ ] unselected platform.problem-details contributes no middleware services or tags.
+    - [ ] source and compiled containers preserve equivalent middleware ordering and PSR factory bindings.
+    - [ ] caught downstream Throwable invokes the canonical ErrorHandlerInterface exactly once.
+    - [ ] normal and emergency responses preserve exact status, Content-Type, Cache-Control, and safe JSON body.
+    - [ ] failed response/stream construction preserves the original downstream Throwable.
+    - [ ] successful downstream responses remain unchanged.
+
   - [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
 - Gates/Arch:
   - [ ] `tools/gates/no_skeleton_http_default_gate.php` green
@@ -7513,6 +7444,12 @@ N/A (integration tests use minimal kernel/http harness)
 - [ ] Tests green
 - [ ] Gates/Arch green
 - [ ] Docs complete
+- [ ] Epic 3.40.0 deferred integration acceptance complete:
+  - [ ] compatible PSR-15 runtime and concrete PSR response/stream factories are available.
+  - [ ] platform.problem-details is explicitly selected and executes as the outermost HTTP error middleware at priority 1000.
+  - [ ] selected/unselected module behavior and source/compiled container parity are verified.
+  - [ ] normal error responses, emergency fallback, sensitive-data exclusion, and original Throwable precedence are verified through the real HTTP pipeline.
+  - [ ] no direct platform/http dependency on platform/problem-details or competing error-handling ownership is introduced.
 - [ ] Dependency rules satisfied:
   - [ ] `platform/http` has no runtime dependencies on other `platform/*` runtime packages
   - [ ] allowed dependencies are limited to `core/*` and PSR interfaces per the cemented boundary

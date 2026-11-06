@@ -1,0 +1,74 @@
+{
+  "name": "coretsia/platform-problem-details",
+  "type": "library",
+  "description": "Coretsia HTTP Problem Details runtime package: safe error descriptor adaptation, deterministic RFC 9457 JSON rendering, and PSR-15 middleware.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "problem-details",
+    "runtime",
+    "http",
+    "error-handling",
+    "error-descriptor",
+    "rfc9457",
+    "rfc7807",
+    "psr-15",
+    "deterministic"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.11.0",
+    "coretsia/core-foundation": "^0.11.0",
+    "coretsia/platform-errors": "^0.11.0",
+    "psr/http-message": "^2.0",
+    "psr/http-factory": "^1.0",
+    "psr/http-server-middleware": "^1.0",
+    "psr/http-server-handler": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\ProblemDetails\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\ProblemDetails\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.problem-details",
+      "moduleClass": "Coretsia\\Platform\\ProblemDetails\\Module\\ProblemDetailsModule",
+      "providers": [
+        "Coretsia\\Platform\\ProblemDetails\\Provider\\ProblemDetailsServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "platform.errors"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/problem_details.php"
+    }
+  }
+}

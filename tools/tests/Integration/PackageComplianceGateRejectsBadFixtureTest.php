@@ -73,6 +73,82 @@ final class PackageComplianceGateRejectsBadFixtureTest extends ToolContractTestC
         $this->assertDiagnosticsAreRelativeAndSorted($output);
     }
 
+    public function testUnsafeRuntimeDefaultsMetadataIsRejectedDeterministically(): void
+    {
+        foreach (
+            [
+                'config/sample-runtime.php',
+                'config/../sample_runtime.php',
+                '/tmp/sample_runtime.php',
+                'C:/tmp/sample_runtime.php',
+                'config/another.php',
+            ] as $invalidPath
+        ) {
+            [$repoRoot, $allowlistPath] = $this->createRuntimeDefaultsSandbox();
+            $composerPath = $repoRoot . '/packages/platform/sample-runtime/composer.json';
+            $composer = \json_decode($this->readBytes($composerPath), true, 512, \JSON_THROW_ON_ERROR);
+
+            self::assertIsArray($composer);
+            $composer['extra']['coretsia']['defaultsConfigPath'] = $invalidPath;
+            $this->writeBytesExact(
+                $composerPath,
+                \json_encode($composer, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR) . "\n",
+            );
+
+            [$code, $output] = $this->runPackageComplianceGate($repoRoot, $allowlistPath);
+
+            self::assertSame(1, $code);
+            self::assertSame(
+                "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+                . "packages/platform/sample-runtime/composer.json: invalid-runtime-metadata-defaultsConfigPath\n",
+                $output,
+            );
+            self::assertFileExists($repoRoot . '/packages/platform/sample-runtime/config/sample_runtime.php');
+            self::assertFileDoesNotExist($repoRoot . '/packages/platform/sample-runtime/config/sample-runtime.php');
+        }
+    }
+
+    public function testMissingCanonicalDefaultsCannotBeReplacedBySlugDerivedFile(): void
+    {
+        [$repoRoot, $allowlistPath] = $this->createRuntimeDefaultsSandbox();
+        $configDir = $repoRoot . '/packages/platform/sample-runtime/config';
+        $canonical = $configDir . '/sample_runtime.php';
+        $legacy = $configDir . '/sample-runtime.php';
+
+        $this->writeBytesExact($legacy, $this->readBytes($canonical));
+        \unlink($canonical);
+
+        [$code, $output] = $this->runPackageComplianceGate($repoRoot, $allowlistPath);
+
+        self::assertSame(1, $code);
+        self::assertSame(
+            "CORETSIA_PACKAGE_COMPLIANCE_VIOLATION\n"
+            . "packages/platform/sample-runtime/config/sample_runtime.php: missing-runtime-file\n",
+            $output,
+        );
+        self::assertFileDoesNotExist($canonical);
+        self::assertFileExists($legacy);
+    }
+
+    /**
+     * @return array{0:string,1:string}
+     */
+    private function createRuntimeDefaultsSandbox(): array
+    {
+        $repoRoot = $this->createPackageComplianceSandbox('package_bad');
+        $this->copyDir(
+            $this->fixturePath('package_good/packages/platform/sample-runtime'),
+            $repoRoot . '/packages/platform/sample-runtime',
+        );
+
+        $allowlistPath = $this->writeTemporaryAllowlist(
+            $repoRoot,
+            ['core/broken-library', 'platform/broken-runtime'],
+        );
+
+        return [$repoRoot, $allowlistPath];
+    }
+
     /**
      * @return array{0:int,1:string}
      */

@@ -26,6 +26,20 @@ final class PackageComplianceGateAcceptsGoodFixtureTest extends ToolContractTest
     {
         $repoRoot = $this->createPackageComplianceSandbox('package_good');
 
+        $runtimeRoot = $repoRoot . '/packages/platform/sample-runtime';
+        $composer = \json_decode(
+            $this->readBytes($runtimeRoot . '/composer.json'),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+
+        self::assertIsArray($composer);
+        self::assertSame('platform.sample-runtime', $composer['extra']['coretsia']['moduleId']);
+        self::assertSame('config/sample_runtime.php', $composer['extra']['coretsia']['defaultsConfigPath']);
+        self::assertFileExists($runtimeRoot . '/config/sample_runtime.php');
+        self::assertFileDoesNotExist($runtimeRoot . '/config/sample-runtime.php');
+
         [$code, $output] = $this->runPackageComplianceGate($repoRoot);
 
         self::assertSame(0, $code);

@@ -32,6 +32,7 @@ use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
 use Coretsia\Kernel\DependencySync\Process\DependencySyncProcessRunner;
 use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
 use Coretsia\Kernel\DependencySync\ProjectDependencySync;
+use Coretsia\Kernel\DependencySync\ProjectDependencySyncResult;
 use Coretsia\Kernel\DependencySync\ProjectInstallationIntent;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlan;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlanner;
@@ -332,7 +333,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -390,6 +392,15 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 $originalManifest = (string) \file_get_contents($root . '/composer.json');
                 $lockBytes = self::writeLock($root);
 
+                $configPath = $root . '/config/app.php';
+                $configBytes = (string) \file_get_contents($configPath);
+
+                $dotenvBytes = "CORETSIA_BOOT_PRESET=micro\n";
+                $localDotenvBytes = "CORETSIA_BOOT_PRESETS={\"web\":\"micro\"}\n";
+
+                \file_put_contents($root . '/.env', $dotenvBytes);
+                \file_put_contents($root . '/.env.local', $localDotenvBytes);
+
                 self::writeControl(
                     $root,
                     [
@@ -402,7 +413,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 );
 
                 try {
-                    $coordinator->synchronize(
+                    self::synchronizeWithApprovedReplan(
+                        $coordinator,
                         $root,
                         $intent,
                         $plan,
@@ -425,6 +437,10 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                         ['causeCode'] ?? null,
                     );
                 }
+
+                self::assertSame($configBytes, \file_get_contents($configPath));
+                self::assertSame($dotenvBytes, \file_get_contents($root . '/.env'));
+                self::assertSame($localDotenvBytes, \file_get_contents($root . '/.env.local'));
 
                 $receipt = self::receiptPath($root);
 
@@ -485,7 +501,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
             );
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -539,7 +556,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 );
 
                 try {
-                    $coordinator->synchronize(
+                    self::synchronizeWithApprovedReplan(
+                        $coordinator,
                         $root,
                         $intent,
                         $plan,
@@ -566,41 +584,6 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 self::remove($root);
             }
         }
-    }
-
-    private static function coordinator(
-        string $projectRoot,
-        IdGeneratorInterface $idGenerator,
-    ): ComposerSyncCoordinator {
-        $composer = self::writeFakeComposer($projectRoot);
-        $kernelRoot = self::writeFakeVerifier($projectRoot);
-        $facade = ProjectDependencySync::create($composer);
-        $base = self::privateValue($facade, 'syncCoordinator');
-
-        self::assertInstanceOf(ComposerSyncCoordinator::class, $base);
-
-        $planner = self::privateValue($base, 'planner');
-        $rootReconciler = self::privateValue($base, 'rootReconciler');
-        $manifestStore = self::privateValue($base, 'manifestStore');
-        $installedProjectVerifier = self::privateValue($base, 'installedProjectVerifier');
-        $fileLock = self::privateValue($base, 'fileLock');
-
-        self::assertInstanceOf(ProjectPackagePlanner::class, $planner);
-        self::assertInstanceOf(ComposerRootReconciler::class, $rootReconciler);
-        self::assertInstanceOf(ComposerManifestStore::class, $manifestStore);
-        self::assertInstanceOf(InstalledProjectVerifier::class, $installedProjectVerifier);
-        self::assertInstanceOf(ScopedFileLock::class, $fileLock);
-
-        return new ComposerSyncCoordinator(
-            planner: $planner,
-            rootReconciler: $rootReconciler,
-            manifestStore: $manifestStore,
-            processRunner: new DependencySyncProcessRunner($composer),
-            installedProjectVerifier: $installedProjectVerifier,
-            fileLock: $fileLock,
-            idGenerator: $idGenerator,
-            kernelPackageRoot: $kernelRoot,
-        );
     }
 
     public function testRecoverySnapshotFailureStopsBeforeComposerEffect(): void
@@ -632,7 +615,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
             );
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -706,7 +690,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
             self::assertTrue(\unlink($verifier));
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -769,7 +754,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
             );
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -916,7 +902,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
 
             if ($writeFailureExpected) {
                 try {
-                    $coordinator->synchronize(
+                    self::synchronizeWithApprovedReplan(
+                        $coordinator,
                         $root,
                         $intent,
                         $plan,
@@ -959,7 +946,8 @@ final class DependencySyncFailureRecoveryTest extends TestCase
                 return;
             }
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -1199,6 +1187,59 @@ final class DependencySyncFailureRecoveryTest extends TestCase
         );
 
         return $root;
+    }
+
+    private static function synchronizeWithApprovedReplan(
+        ComposerSyncCoordinator $coordinator,
+        string $root,
+        ProjectInstallationIntent $intent,
+        ProjectPackagePlan $plan,
+        DependencySyncExecutionPolicy $policy,
+    ): ProjectDependencySyncResult {
+        return $coordinator->synchronize(
+            $root,
+            $intent,
+            $plan,
+            $policy,
+            $policy->apply()
+                ? static fn (): ProjectPackagePlan => $plan
+                : null,
+        );
+    }
+
+    private static function coordinator(
+        string $projectRoot,
+        IdGeneratorInterface $idGenerator,
+    ): ComposerSyncCoordinator {
+        $composer = self::writeFakeComposer($projectRoot);
+        $kernelRoot = self::writeFakeVerifier($projectRoot);
+        $facade = ProjectDependencySync::create($composer);
+        $base = self::privateValue($facade, 'syncCoordinator');
+
+        self::assertInstanceOf(ComposerSyncCoordinator::class, $base);
+
+        $planner = self::privateValue($base, 'planner');
+        $rootReconciler = self::privateValue($base, 'rootReconciler');
+        $manifestStore = self::privateValue($base, 'manifestStore');
+        $installedProjectVerifier = self::privateValue($base, 'installedProjectVerifier');
+        $fileLock = self::privateValue($base, 'fileLock');
+
+        self::assertInstanceOf(ProjectPackagePlanner::class, $planner);
+        self::assertInstanceOf(ComposerRootReconciler::class, $rootReconciler);
+        self::assertInstanceOf(ComposerManifestStore::class, $manifestStore);
+        self::assertInstanceOf(InstalledProjectVerifier::class, $installedProjectVerifier);
+        self::assertInstanceOf(ScopedFileLock::class, $fileLock);
+
+        return new ComposerSyncCoordinator(
+            planner: $planner,
+            rootReconciler: $rootReconciler,
+            manifestStore: $manifestStore,
+            processRunner: new DependencySyncProcessRunner($composer),
+            installedProjectVerifier: $installedProjectVerifier,
+            fileLock: $fileLock,
+            idGenerator: $idGenerator,
+            kernelPackageRoot: $kernelRoot,
+        );
     }
 
     /**

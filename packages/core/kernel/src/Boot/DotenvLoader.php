@@ -60,44 +60,199 @@ final readonly class DotenvLoader
      *
      * @return array{
      *     values: array<string,string>,
-     *     sources: array<string,ConfigValueSource>
+     *     sources: array<string,ConfigValueSource>,
      * }
      */
     public function load(
         BootstrapConfig $config,
         array $kernelConfig,
     ): array {
+        return self::flattenLayers(
+            $this->loadLayers(
+                $config->applicationRoot(),
+                $config->appEnv(),
+                $kernelConfig,
+            ),
+        );
+    }
+
+    /**
+     * Returns per-file ordered layers without flattening source provenance.
+     *
+     * @param array<string,mixed> $kernelConfig
+     *
+     * @return list<array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }>
+     */
+    public function loadLayers(
+        string $applicationRoot,
+        string $appEnv,
+        array $kernelConfig,
+    ): array {
+        return self::readLayers($applicationRoot, $appEnv, $kernelConfig, null);
+    }
+
+    /**
+     * Loads env-independent layers before appEnv is frozen. A caller can then
+     * load only environment-specific layers, without rereading these files.
+     *
+     * @param array<string,mixed> $kernelConfig
+     * @param null|callable(non-empty-string,string):void $validateEntry
+     *
+     * @return list<array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }>
+     */
+    public function loadBaseLayers(
+        string $applicationRoot,
+        array $kernelConfig,
+        ?callable $validateEntry = null,
+    ): array {
+        return self::readLayers(
+            $applicationRoot,
+            null,
+            $kernelConfig,
+            false,
+            [],
+            $validateEntry,
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $kernelConfig
+     * @param array<string, array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }> $preloadedLayers
+     * @param null|callable(non-empty-string,string):void $validateEntry
+     *
+     * @return list<array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }>
+     */
+    public function loadEnvironmentLayers(
+        string $applicationRoot,
+        string $appEnv,
+        array $kernelConfig,
+        array $preloadedLayers = [],
+        ?callable $validateEntry = null,
+    ): array {
+        return self::readLayers(
+            $applicationRoot,
+            $appEnv,
+            $kernelConfig,
+            true,
+            $preloadedLayers,
+            $validateEntry,
+        );
+    }
+
+    /**
+     * @param list<array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }> $layers
+     *
+     * @return array{
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }
+     */
+    public static function flattenLayers(array $layers): array
+    {
         $values = [];
         $sources = [];
 
-        foreach (self::dotenvFileNames($kernelConfig, $config->appEnv()) as $fileName) {
-            $file = self::joinPath($config->applicationRoot(), $fileName);
-
-            if (!\file_exists($file)) {
-                continue;
-            }
-
-            if (!\is_file($file) || !\is_readable($file)) {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_DOTENV_LOAD_FAILED,
-                );
-            }
-
-            $parsed = self::parseFile($file);
-
-            foreach ($parsed as $name => $value) {
+        foreach ($layers as $layer) {
+            foreach ($layer['values'] as $name => $value) {
                 $values[$name] = $value;
-                $sources[$name] = self::sourceFor($fileName, $name);
+                $sources[$name] = $layer['sources'][$name];
             }
         }
 
         \ksort($values, \SORT_STRING);
         \ksort($sources, \SORT_STRING);
 
-        return [
-            'values' => $values,
-            'sources' => $sources,
-        ];
+        return ['values' => $values, 'sources' => $sources];
+    }
+
+    /**
+     * @param array<string,mixed> $kernelConfig
+     * @param array<string, array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }> $preloadedLayers
+     * @param null|callable(non-empty-string,string):void $validateEntry
+     *
+     * @return list<array{
+     *     fileName:string,
+     *     values:array<string,string>,
+     *     sources:array<string,ConfigValueSource>,
+     * }>
+     */
+    private static function readLayers(
+        string $applicationRoot,
+        ?string $appEnv,
+        array $kernelConfig,
+        ?bool $environmentSpecific,
+        array $preloadedLayers = [],
+        ?callable $validateEntry = null,
+    ): array {
+        if (!self::isNonEmptySafeSingleLineString($applicationRoot)) {
+            throw BootstrapException::withReason(BootstrapException::REASON_INVALID_APPLICATION_ROOT);
+        }
+
+        if ($appEnv !== null && !self::isNonEmptySafeSingleLineString($appEnv)) {
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
+        }
+
+        $layers = [];
+
+        foreach (self::dotenvFileNames($kernelConfig, $appEnv, $environmentSpecific) as $fileName) {
+            if (isset($preloadedLayers[$fileName])) {
+                $layers[] = $preloadedLayers[$fileName];
+                continue;
+            }
+
+            $file = self::joinPath($applicationRoot, $fileName);
+
+            if (!\file_exists($file)) {
+                if (\is_link($file)) {
+                    throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_LOAD_FAILED);
+                }
+
+                continue;
+            }
+
+            if (!\is_file($file) || !\is_readable($file)) {
+                throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_LOAD_FAILED);
+            }
+
+            $values = self::parseFile($file, $validateEntry);
+            $sources = [];
+
+            foreach ($values as $name => $value) {
+                $sources[$name] = self::sourceFor($fileName, $name);
+            }
+
+            $layers[] = [
+                'fileName' => $fileName,
+                'values' => $values,
+                'sources' => $sources,
+            ];
+        }
+
+        return $layers;
     }
 
     /**
@@ -105,28 +260,38 @@ final readonly class DotenvLoader
      *
      * @return list<non-empty-string>
      */
-    private static function dotenvFileNames(array $kernelConfig, string $appEnv): array
-    {
+    private static function dotenvFileNames(
+        array $kernelConfig,
+        ?string $appEnv,
+        ?bool $environmentSpecific,
+    ): array {
         $files = $kernelConfig[self::KEY_ENV][self::KEY_DOTENV][self::KEY_FILES] ?? null;
 
         if (!\is_array($files) || !\array_is_list($files)) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         $out = [];
 
         foreach ($files as $template) {
             if (!\is_string($template)) {
-                throw BootstrapException::withReason(
-                    BootstrapException::REASON_DOTENV_FILE_INVALID,
-                );
+                throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
             }
 
             self::assertSafeDotenvFileNameTemplate($template);
+            $requiresEnv = \str_contains($template, self::ENV_TEMPLATE);
 
-            $fileName = \str_replace(self::ENV_TEMPLATE, $appEnv, $template);
+            if ($environmentSpecific !== null && $requiresEnv !== $environmentSpecific) {
+                continue;
+            }
+
+            if ($requiresEnv && $appEnv === null) {
+                throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
+            }
+
+            $fileName = $requiresEnv
+                ? \str_replace(self::ENV_TEMPLATE, $appEnv, $template)
+                : $template;
 
             self::assertSafeDotenvFileName($fileName);
 
@@ -138,19 +303,22 @@ final readonly class DotenvLoader
 
     private static function joinPath(string $root, string $fileName): string
     {
+        $originalRoot = $root;
         $root = \rtrim($root, '/\\');
 
         if ($root === '') {
-            return $fileName;
+            return $originalRoot === '' ? $fileName : $originalRoot[0] . $fileName;
         }
 
         return $root . '/' . $fileName;
     }
 
     /**
+     * @param null|callable(non-empty-string,string):void $validateEntry
+     *
      * @return array<string,string>
      */
-    private static function parseFile(string $file): array
+    private static function parseFile(string $file, ?callable $validateEntry = null): array
     {
         \set_error_handler(
             static function (): never {
@@ -161,17 +329,13 @@ final readonly class DotenvLoader
         try {
             $lines = \file($file, \FILE_IGNORE_NEW_LINES);
         } catch (\Throwable) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_LOAD_FAILED,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_LOAD_FAILED);
         } finally {
             \restore_error_handler();
         }
 
         if ($lines === false) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_LOAD_FAILED,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_LOAD_FAILED);
         }
 
         $out = [];
@@ -183,6 +347,10 @@ final readonly class DotenvLoader
                 continue;
             }
 
+            if ($validateEntry !== null) {
+                $validateEntry($entry['name'], $entry['value']);
+            }
+
             $out[$entry['name']] = $entry['value'];
         }
 
@@ -192,7 +360,10 @@ final readonly class DotenvLoader
     }
 
     /**
-     * @return array{name: non-empty-string, value: string}|null
+     * @return array{
+     *     name: non-empty-string,
+     *     value: string,
+     * }|null
      */
     private static function parseLine(string $line): ?array
     {
@@ -210,9 +381,7 @@ final readonly class DotenvLoader
         $equalsPosition = \strpos($trimmed, '=');
 
         if ($equalsPosition === false) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         $name = \trim(\substr($trimmed, 0, $equalsPosition));
@@ -248,9 +417,7 @@ final readonly class DotenvLoader
         $length = \strlen($value);
 
         if ($length < 2) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         $escaped = false;
@@ -283,9 +450,7 @@ final readonly class DotenvLoader
                 $tail = \trim(\substr($value, $index + 1));
 
                 if ($tail !== '' && !\str_starts_with($tail, '#')) {
-                    throw BootstrapException::withReason(
-                        BootstrapException::REASON_DOTENV_FILE_INVALID,
-                    );
+                    throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
                 }
 
                 return $buffer;
@@ -294,9 +459,7 @@ final readonly class DotenvLoader
             $buffer .= $char;
         }
 
-        throw BootstrapException::withReason(
-            BootstrapException::REASON_DOTENV_FILE_INVALID,
-        );
+        throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
     }
 
     private static function parseSingleQuotedValue(string $value): string
@@ -304,25 +467,19 @@ final readonly class DotenvLoader
         $length = \strlen($value);
 
         if ($length < 2) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         $end = \strpos($value, "'", 1);
 
         if ($end === false) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         $tail = \trim(\substr($value, $end + 1));
 
         if ($tail !== '' && !\str_starts_with($tail, '#')) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         return \substr($value, 1, $end - 1);
@@ -354,6 +511,15 @@ final readonly class DotenvLoader
         return $line;
     }
 
+    private static function isNonEmptySafeSingleLineString(string $value): bool
+    {
+        return $value !== ''
+            && \trim($value) === $value
+            && !\str_contains($value, "\r")
+            && !\str_contains($value, "\n")
+            && \preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) !== 1;
+    }
+
     private static function sourceFor(string $fileName, string $name): ConfigValueSource
     {
         return new ConfigValueSource(
@@ -373,9 +539,7 @@ final readonly class DotenvLoader
     private static function assertSafeDotenvFileNameTemplate(string $fileName): void
     {
         if ($fileName === '') {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\str_contains($fileName, self::ENV_TEMPLATE)) {
@@ -391,45 +555,31 @@ final readonly class DotenvLoader
     private static function assertSafeDotenvFileName(string $fileName): void
     {
         if ($fileName === '') {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\preg_match('/^\s|\s$/', $fileName) === 1) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\str_contains($fileName, "\0")) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\str_contains($fileName, '/') || \str_contains($fileName, '\\')) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\str_contains($fileName, '..')) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\preg_match('/^[A-Za-z]:/', $fileName) === 1) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\str_contains($fileName, '://') || \str_contains($fileName, ':')) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
     }
 
@@ -439,15 +589,11 @@ final readonly class DotenvLoader
     private static function assertValidEnvName(string $name): void
     {
         if ($name === '') {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
 
         if (\preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $name) !== 1) {
-            throw BootstrapException::withReason(
-                BootstrapException::REASON_DOTENV_FILE_INVALID,
-            );
+            throw BootstrapException::withReason(BootstrapException::REASON_DOTENV_FILE_INVALID);
         }
     }
 }

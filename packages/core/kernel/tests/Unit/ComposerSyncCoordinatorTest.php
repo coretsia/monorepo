@@ -22,6 +22,7 @@ use Composer\InstalledVersions;
 use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\DependencySync\Composer\ComposerManifestStore;
 use Coretsia\Kernel\DependencySync\Composer\ComposerRootReconciler;
 use Coretsia\Kernel\DependencySync\Composer\ComposerSyncCoordinator;
@@ -32,6 +33,7 @@ use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
 use Coretsia\Kernel\DependencySync\Process\DependencySyncProcessRunner;
 use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
 use Coretsia\Kernel\DependencySync\ProjectDependencySync;
+use Coretsia\Kernel\DependencySync\ProjectDependencySyncResult;
 use Coretsia\Kernel\DependencySync\ProjectInstallationIntent;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlan;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlanner;
@@ -68,7 +70,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
 
             self::assertIsString($beforeManifest);
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -107,7 +110,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -159,7 +163,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
             );
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -210,7 +215,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -264,7 +270,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 );
 
                 try {
-                    $coordinator->synchronize(
+                    self::synchronizeWithApprovedReplan(
+                        $coordinator,
                         $root,
                         $intent,
                         $plan,
@@ -536,7 +543,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
 
                 self::writeControl($root, $control);
 
-                $result = $coordinator->synchronize(
+                $result = self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -597,7 +605,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -658,7 +667,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,
@@ -716,7 +726,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
             );
 
             try {
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -796,7 +807,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                     ],
                 );
 
-                $coordinator->synchronize(
+                self::synchronizeWithApprovedReplan(
+                    $coordinator,
                     $root,
                     $intent,
                     $plan,
@@ -910,7 +922,8 @@ final class ComposerSyncCoordinatorTest extends TestCase
                 ],
             );
 
-            $result = $coordinator->synchronize(
+            $result = self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $noOp,
                 $intent,
                 $plan,
@@ -985,6 +998,273 @@ final class ComposerSyncCoordinatorTest extends TestCase
         } finally {
             self::remove($effect);
         }
+    }
+
+    public function testConfigurationReplanRunsUnderProjectLockAndPreservesEquivalentInstallationState(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            $coordinator = self::coordinator($root);
+            $intent = self::intent();
+            $plan = self::plan($coordinator, $root, $intent);
+
+            self::writeManagedManifest($root, $plan);
+            self::writeLock($root);
+            self::writeControl($root, [
+                'lockCurrent' => [true],
+                'verification' => ['ok'],
+            ]);
+
+            $replans = 0;
+
+            $result = $coordinator->synchronize(
+                $root,
+                $intent,
+                $plan,
+                new DependencySyncExecutionPolicy(apply: true),
+                static function () use ($root, $coordinator, $intent, &$replans): ProjectPackagePlan {
+                    $replans++;
+
+                    $lockPath = $root . '/var/locks/dependency-sync.lock';
+                    self::assertFileExists($lockPath);
+
+                    $handle = \fopen($lockPath, 'c+');
+                    self::assertIsResource($handle);
+
+                    try {
+                        self::assertFalse(\flock($handle, \LOCK_EX | \LOCK_NB));
+                    } finally {
+                        \fclose($handle);
+                    }
+
+                    \file_put_contents(
+                        $root . '/config/app.php',
+                        '<?php return ["debug" => true, "presets" => ["worker" => "hybrid"]];',
+                    );
+
+                    return self::plan($coordinator, $root, $intent);
+                },
+            );
+
+            self::assertSame(1, $replans);
+            self::assertFalse($result->changed());
+
+            $calls = self::composerCalls($root);
+
+            self::assertSame(1, self::commandCount($calls, 'validate'));
+            self::assertSame(0, self::commandCount($calls, 'update'));
+            self::assertSame(0, self::commandCount($calls, 'install'));
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testChangedConfigurationMembershipFailsBeforeComposerEffects(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            $coordinator = self::coordinator($root);
+            $intent = self::intent();
+            $plan = self::plan($coordinator, $root, $intent);
+            $before = self::composerState($root);
+            $called = 0;
+
+            try {
+                $coordinator->synchronize(
+                    $root,
+                    $intent,
+                    $plan,
+                    new DependencySyncExecutionPolicy(apply: true),
+                    static function () use ($coordinator, $root, &$called): ProjectPackagePlan {
+                        $called++;
+
+                        \file_put_contents(
+                            $root . '/config/app.php',
+                            '<?php return ["activeTargets" => ["worker", "web"]];',
+                        );
+
+                        return self::plan(
+                            $coordinator,
+                            $root,
+                            new ProjectInstallationIntent(
+                                new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+                            ),
+                        );
+                    },
+                );
+
+                self::fail('Changed application membership must reject the approved plan.');
+            } catch (DependencySyncException $exception) {
+                self::assertSame(
+                    DependencySyncErrorCodes::PROJECT_STATE_CHANGED,
+                    $exception->errorCode(),
+                );
+            }
+
+            self::assertSame(1, $called);
+            self::assertSame([], self::composerCalls($root));
+            self::assertComposerStateUnchanged($root, $before);
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testMalformedBootstrapSourceDuringLockedReplanFailsBeforeComposerEffects(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            $coordinator = self::coordinator($root);
+            $intent = self::intent();
+            $plan = self::plan($coordinator, $root, $intent);
+            $manifest = (string) \file_get_contents($root . '/composer.json');
+
+            try {
+                $coordinator->synchronize(
+                    $root,
+                    $intent,
+                    $plan,
+                    new DependencySyncExecutionPolicy(apply: true),
+                    static function () use ($root, $coordinator, $intent): ProjectPackagePlan {
+                        \file_put_contents(
+                            $root . '/config/app.php',
+                            '<?php return ["activeTargets" => ["sensitive-invalid-target"]];',
+                        );
+
+                        return self::plan($coordinator, $root, $intent);
+                    },
+                );
+
+                self::fail('Malformed Phase A source must invalidate locked replan.');
+            } catch (DependencySyncException $exception) {
+                self::assertSame(
+                    DependencySyncErrorCodes::PROJECT_STATE_CHANGED,
+                    $exception->errorCode(),
+                );
+                self::assertSame(
+                    BootstrapException::ERROR_CODE,
+                    $exception->context()['sourceErrorCode'] ?? null,
+                );
+                self::assertSame(
+                    BootstrapException::REASON_OVERRIDES_INVALID,
+                    $exception->context()['sourceReason'] ?? null,
+                );
+                self::assertStringNotContainsString(
+                    'sensitive-invalid-target',
+                    $exception->getMessage(),
+                );
+                self::assertStringNotContainsString($root, $exception->getMessage());
+            }
+
+            self::assertSame([], self::composerCalls($root));
+            self::assertSame($manifest, \file_get_contents($root . '/composer.json'));
+            self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testBootstrapSourceFailureDuringLockedReplanMapsOnlyCanonicalSourceErrors(): void
+    {
+        foreach ([true, false] as $bootstrapSourceFailure) {
+            $root = self::projectRoot();
+
+            try {
+                $coordinator = self::coordinator($root);
+                $intent = self::intent();
+                $plan = self::plan($coordinator, $root, $intent);
+                $safeContext = [
+                    'sourceErrorCode' => BootstrapException::ERROR_CODE,
+                    'sourceReason' => BootstrapException::REASON_OVERRIDES_INVALID,
+                ];
+
+                try {
+                    $coordinator->synchronize(
+                        $root,
+                        $intent,
+                        $plan,
+                        new DependencySyncExecutionPolicy(apply: true),
+                        static function () use ($bootstrapSourceFailure, $safeContext): ProjectPackagePlan {
+                            throw DependencySyncException::forCode(
+                                DependencySyncErrorCodes::PRESET_POLICY_INVALID,
+                                $bootstrapSourceFailure ? $safeContext : [],
+                            );
+                        },
+                    );
+
+                    self::fail('Replan failure must stop before Composer effects.');
+                } catch (DependencySyncException $exception) {
+                    self::assertSame(
+                        $bootstrapSourceFailure
+                            ? DependencySyncErrorCodes::PROJECT_STATE_CHANGED
+                            : DependencySyncErrorCodes::PRESET_POLICY_INVALID,
+                        $exception->errorCode(),
+                    );
+                    self::assertSame(
+                        $bootstrapSourceFailure ? $safeContext : [],
+                        $exception->context(),
+                    );
+                    self::assertStringNotContainsString($root, $exception->getMessage());
+                }
+
+                self::assertSame([], self::composerCalls($root));
+                self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+            } finally {
+                self::remove($root);
+            }
+        }
+    }
+
+    public function testApplyWithoutLockedReplanCallbackIsRejectedBeforeFileEffects(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            $coordinator = self::coordinator($root);
+            $intent = self::intent();
+            $plan = self::plan($coordinator, $root, $intent);
+
+            try {
+                $coordinator->synchronize(
+                    $root,
+                    $intent,
+                    $plan,
+                    new DependencySyncExecutionPolicy(apply: true),
+                );
+
+                self::fail('Effectful synchronization requires a locked replan callback.');
+            } catch (DependencySyncException $exception) {
+                self::assertSame(
+                    DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID,
+                    $exception->errorCode(),
+                );
+            }
+
+            self::assertSame([], self::composerCalls($root));
+            self::assertDirectoryDoesNotExist($root . '/var');
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    private static function synchronizeWithApprovedReplan(
+        ComposerSyncCoordinator $coordinator,
+        string $root,
+        ProjectInstallationIntent $intent,
+        ProjectPackagePlan $plan,
+        DependencySyncExecutionPolicy $policy,
+    ): ProjectDependencySyncResult {
+        return $coordinator->synchronize(
+            $root,
+            $intent,
+            $plan,
+            $policy,
+            $policy->apply()
+                ? static fn (): ProjectPackagePlan => $plan
+                : null,
+        );
     }
 
     private static function coordinator(
@@ -1499,7 +1779,8 @@ PHP,
         DependencySyncExecutionPolicy $policy,
     ): void {
         try {
-            $coordinator->synchronize(
+            self::synchronizeWithApprovedReplan(
+                $coordinator,
                 $root,
                 $intent,
                 $plan,

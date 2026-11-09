@@ -40,7 +40,7 @@ packages/platform/logging/src/Logger/StreamLogger.php
 
 This SSoT defines logging sink policy.
 
-It does not replace the producer-owned safe-by-construction constraints of Kernel, Foundation, CLI, Errors, Worker, or future consumers; the shared redaction policy in `docs/ssot/sensitive-data-redaction.md`; Foundation stable JSON rules; or Kernel module and container lifecycle policy.
+This SSoT defines only Logging sink policy. Producer-side validation, runtime module selection, Composer dependency synchronization, and Kernel lifecycle orchestration remain outside this contract.
 
 ## Normative language
 
@@ -48,31 +48,19 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Module selection and binding (MUST)
 
-`coretsia/framework` includes `coretsia/platform-logging` as a baseline Composer dependency.
+`platform.logging` participates in provider registration only when enabled in the resolved target-local ModulePlan. Physical Composer installation alone does not activate the logging provider.
 
-The canonical `micro`, `express`, `hybrid`, and `enterprise` presets select `platform.logging` in their excludable `modules` lists, never in `required`.
+The logging module declares runtime dependencies on `core.foundation`, `core.kernel`, and `platform.redaction`. It does not implement module discovery, graph resolution, or Composer reconciliation.
 
-The default Kernel preset remains `micro`.
+When the logging provider is selected, its validated `logging.driver` determines the logger binding:
 
-Physical package installation does not activate a runtime module.
+- `null`: `LoggingServiceFactory` returns `Coretsia\Foundation\Logging\NoopLogger` after complete configuration validation.
+- `stream`: `LoggingServiceFactory` returns `StreamLogger` configured for the fixed internal `php://stderr` destination.
+- `file`: `LoggingServiceFactory` returns `StreamLogger` configured for automatic daily UTC local-file output.
 
-The effective target-local Kernel `ModulePlan` determines whether `platform.logging` participates in provider registration.
+The string `null` is not PHP `null`.
 
-The module requires `core.foundation`, `core.kernel`, and `platform.redaction` and does not implement its own discovery, dependency closure, or selection rules.
-
-- Without the selected logging module, including a target-local `moduleOverrides.exclude`, the existing Foundation `Psr\Log\LoggerInterface` binding resolves to `Coretsia\Foundation\Logging\NoopLogger`.
-- With the module selected and `logging.driver='null'`, the factory returns the same Foundation `NoopLogger`, after validating the complete configuration. The string `null` is not PHP `null`.
-- With the module selected and `logging.driver='stream'`, the later logging provider binding resolves to `StreamLogger` using only the internal `php://stderr` destination.
-- With the module selected and `logging.driver='file'`, the same `StreamLogger` implements the daily local-file backend.
-- A selected but physically missing module, or a conflicting required redaction module exclusion, fails through existing Kernel module-planning semantics. It MUST NOT be silently converted to a NoopLogger.
-
-`moduleOverrides.exclude` disables module participation; `logging.driver='null'` disables output from an otherwise selected logging module.
-
-They are distinct mechanisms.
-
-The real backend becomes available only after successful module and container composition.
-
-Ultra-early and pre-container diagnostics are not guaranteed to use this backend.
+The real logging backend becomes available only after successful provider and container composition. Ultra-early and pre-container diagnostics are not guaranteed to use this backend.
 
 ## Configuration and ownership (MUST)
 
@@ -93,7 +81,7 @@ In particular, `logging.stream`, `logging.redaction`, redaction enable/disable s
 
 Mandatory redaction is never controlled by logging configuration.
 
-The canonical Kernel `ConfigValidator` owns declarative scalar, enum, nested-map, and `reset-group-id` validation through `config/rules.php`.
+The Logging package declares its configuration validation rules in `config/rules.php`. `LoggingServiceFactory` independently validates its inputs when called directly.
 
 Invalid `service_name` and malformed declarative settings fail during canonical config validation, before lazy `LoggerInterface` construction.
 
@@ -123,7 +111,7 @@ No destination URI, file path, filename, open handle, selected UTC day, or runti
 
 ## Service identity (MUST)
 
-`AppTargetProviderInterface::app()` reads the already selected Kernel `ModulePlan` app target: exactly `web`, `api`, `console`, or `worker`.
+`platform.logging` obtains the selected application target through `AppTargetProviderInterface::app()`: exactly `web`, `api`, `console`, or `worker`.
 
 The logging package MUST NOT infer the target from event names, context, paths, process arguments, or environment variables.
 
@@ -144,8 +132,6 @@ debug, info, notice, warning, error, critical, alert, emergency
 `StreamLogger` validates the PSR-3 level first.
 
 Unknown, non-string, or otherwise invalid levels raise `Psr\Log\InvalidArgumentException`; this caller API error is not treated as an internal logging failure.
-
-Foundation `NoopLogger` retains its own existing no-op contract and does not gain this validation.
 
 Records below the configured minimum level are discarded before admission, context reads, clock access, redaction, formatting, or I/O.
 
@@ -278,23 +264,17 @@ Classifier contract failures reject the complete log record, not merely a contex
 
 The same instance-bound checks apply to canonical pre-redaction records and post-redaction output.
 
-The shared classifier's fixed sensitive-key alias vocabulary is owned exclusively by `platform.redaction`; neither `platform.logging` nor `core/contracts` duplicates that vocabulary or the Kernel's existing sensitive-key/SQL-like producer filters.
+The Logging sink consumes the shared sensitive-key classifier through its contracts-level interface. It does not duplicate the shared classifier vocabulary or implement producer-specific sensitive-data filters.
 
-An unclassified result (`null`) is not a safe-output verdict.
-
-Kernel and other producers MUST retain their own key-path semantic restrictions, and a producer-rejected path MUST NOT be resubmitted merely because shared classification returned `null`.
+An unclassified result (`null`) does not bypass the sink's own lexical, shape, and type validation.
 
 The sink is producer-neutral: its allowlist does not branch on source package, runtime lifecycle phase, command name, event name, or business identity.
-
-Producers own safe-by-construction semantics, including the provenance of values and safe derivations.
 
 New producers SHOULD reuse existing field families; extending the sink schema requires deliberate SSoT review, not package-specific exceptions.
 
 ## Mandatory shared redaction and forbidden data (MUST)
 
 `LogRecordPolicy` depends on both `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` as contracts-level ports.
-
-The selected `platform.redaction` module supplies their shared runtime implementation.
 
 Redaction of the *complete assembled canonical record* is mandatory through `SensitiveDataRedactorInterface::redactJsonLike()` and immutable `RedactionContext('logging.record', RedactionMode::Placeholder)`; no config flag, mode switch, new generic classifier, or duplicate redaction walker may disable or replace it.
 
@@ -460,15 +440,11 @@ ClockInterface
 AppTargetProviderInterface
 ```
 
-The shared classifier is bound by the selected redaction provider through a declarative alias to the existing shared `SensitiveKeyClassifier` instance also used by `DefaultSensitiveDataRedactor`.
-
-The classifier alias vocabulary remains owned by `platform.redaction`, not by contracts or logging.
-
 Source and compiled DI definitions contain only deterministic declarative references; no resource, service instance, destination URI, file path, runtime date, closure, extra module, or reset tag is embedded.
 
 Format and destination are selected from the validated runtime repository only during factory construction and eligible emissions respectively.
 
-`ContextStore` alone owns mutable UoW context and its Kernel-managed reset cycle.
+Logging does not own mutable UnitOfWork context state or its reset lifecycle.
 
 `ContextBagProcessor` reads current canonical values on each admitted record.
 
@@ -483,8 +459,6 @@ The verification boundary includes:
 - `packages/platform/logging/tests/Unit/` for severity, canonical admission, both deterministic formatters, clock, serialized byte limits, stream/file writes, and UTC filename selection.
 - `packages/platform/logging/tests/Contract/` for declarative config/DI safety, mandatory redaction, secret suppression, metadata, and Foundation noop behavior.
 - `packages/platform/logging/tests/Integration/` for explicit Foundation/Logging provider precedence, fixed STDERR and file output, and ContextStore UoW/reset isolation.
-- Existing Kernel-owned module planning, compiled-container, mode preset, and CLI integration tests for selected-module dependencies, default `micro` behavior, and source/compiled parity.
-- Repository architecture and dependency gates for source-layer boundaries and deterministic generated artifacts.
 
 These tests do not authorize runtime stream injection or arbitrary destination configuration.
 

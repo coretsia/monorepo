@@ -1,14 +1,14 @@
 {
   "name": "coretsia/framework",
   "type": "metapackage",
-  "description": "Coretsia framework metapackage: baseline Kernel, CLI and Logging runtime installation dependencies.",
+  "description": "Coretsia framework bootstrap metapackage: minimal PHP and Kernel dependency baseline for configuration-driven installations.",
   "keywords": [
     "coretsia",
     "php",
     "framework",
-    "runtime",
+    "bootstrap",
     "kernel",
-    "cli",
+    "dependency-sync",
     "modular",
     "psr",
     "ddd"
@@ -28,8 +28,6 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-kernel": "^0.11.0",
-    "coretsia/platform-cli": "^0.11.0",
-    "coretsia/platform-logging": "^0.11.0"
+    "coretsia/core-kernel": "^0.12.0"
   }
 }

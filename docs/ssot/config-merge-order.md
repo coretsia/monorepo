@@ -22,7 +22,7 @@ owner: core/kernel
 
 ## Scope
 
-This document is the canonical narrative for the active Phase B config merge order.
+This document is the canonical narrative for the active ConfigKernel Phase B merge order. It also records the separate Bootstrap Phase A logical-source merge contract, which runs before Phase B and does not participate in its config-root precedence.
 
 It defines the deterministic order in which normalized config value sources are folded into the final global config by:
 
@@ -54,8 +54,7 @@ The merge pipeline must make it clear:
 - when directives are applied;
 - when env overlays are generated;
 - when semantic validation runs;
-- which behaviors are active Phase B behavior;
-- which behaviors are reserved for later epics.
+- which behaviors are active Phase B behavior.
 
 ## Canonical authority
 
@@ -103,6 +102,7 @@ docs/ssot/config-directives.md
 
 This document owns:
 
+- the Bootstrap Phase A logical-key merge contract, but not its implementation;
 - the active Phase B merge-order narrative;
 - aggregate `roots.php` versus split `<root>.php` behavior;
 - application-root shared versus application-root environment versus app-target shared versus app-target environment precedence;
@@ -111,8 +111,7 @@ This document owns:
 - validation timing relative to final merge;
 - Phase B safe provenance handoff points needed by downstream artifact fingerprinting:
   - `envOverlayMappings`;
-  - `configSourceFiles`;
-- reserved/future status for CLI/runtime overrides.
+  - `configSourceFiles`.
 
 This document does not own:
 
@@ -150,6 +149,162 @@ Loaders MUST NOT invent source precedence.
 
 `ConfigExplainer` MUST NOT invent source precedence.
 
+## Bootstrap Phase A logical-source merge
+
+Bootstrap Phase A and ConfigKernel Phase B have separate owners and independent merge contracts.
+
+`BootstrapSourceResolver` owns bootstrap-only logical-source merging. `BootstrapOverridesLoader` owns canonical PHP bootstrap override validation, including shared normalization of decoded dotenv bootstrap values. `DotenvLoader` owns per-file dotenv parsing, not bootstrap-map merging.
+
+The Phase A source merge MUST finish before target-local `BootstrapConfig` construction and before ConfigKernel Phase B begins.
+
+### Source layer processing
+
+The canonical dotenv file order, from weaker to stronger, is:
+
+```text
+.env
+.env.local
+.env.<appEnv>
+.env.<appEnv>.local
+```
+
+The base layers are read before appEnv selection is finalized. Environment-specific layers are loaded after appEnv is frozen.
+
+`config/app.php` is the weaker application-owned bootstrap source. Permitted process environment values are stronger than all dotenv layers under `allow_system`; `strict_dotenv` ignores process values.
+
+Every permitted source layer MUST be independently decoded and validated before merging. Invalid ModuleIds, malformed JSON, unknown bootstrap keys, and invalid values in lower-priority layers MUST NOT be concealed by higher-priority entries.
+
+Bootstrap map merging applies to normalized logical keys before ordinary dotenv values are flattened for the immutable environment repository.
+
+### activeTargets: absent versus explicit list
+
+`activeTargets` is an optional, non-empty list of canonical AppTarget values.
+
+| Input | Meaning |
+|------------------------------|-----------------------------------------------------|
+| Absent | No membership override; retain lower-priority value |
+| `["web","worker"]` | Replace the entire previous list |
+| `["web"]` | Replace the entire previous list with `web` |
+| `[]` | Invalid |
+| Duplicate or unknown targets | Invalid |
+
+An absent `activeTargets` after source resolution remains absent in `BootstrapSourceSnapshot`. Only DependencySync may then apply the fallback `['web']`.
+
+The snapshot MUST NOT invent this fallback or use activeTargets to select a runtime AppTarget.
+
+### presets: target-keyed replacement
+
+`presets` is a partial map of canonical AppTarget to validated preset name.
+
+| Input | Meaning |
+|----------------------------|--------------------------------------|
+| Absent | Retain lower-priority target entries |
+| `{}` | No-op |
+| `{"web":"micro"}` | Replace only `presets.web` |
+| `{"worker":"hybrid"}` | Replace only `presets.worker` |
+| JSON list or nested object | Invalid |
+
+The global scalar `preset` is separate from `presets[target]`.
+
+A merged target-specific preset takes priority over a merged global preset. `BootstrapConfigResolver` applies any explicit target-local `BootstrapInput::preset()` above both.
+
+### moduleOverrides: independent per-field replacement
+
+The PHP bootstrap source uses:
+
+```php
+'moduleOverrides' => [
+    'web' => [
+        'include' => ['platform.logging'],
+        'exclude' => ['platform.worker'],
+    ],
+]
+```
+
+The dotenv representation uses two distinct JSON object-to-list maps:
+
+```dotenv
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={"web":["platform.logging"]}
+CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={"web":["platform.worker"]}
+```
+
+The normalized logical keys are:
+
+```text
+moduleOverrides.web.include
+moduleOverrides.web.exclude
+```
+
+For each target and field:
+
+| Input | Meaning |
+|-------|---------|
+| Field absent | Retain lower-priority field |
+| Whole map `{}` | No-op |
+| `{"web":["platform.logging"]}` | Replace only the selected target's corresponding list |
+| `{"web":[]}` | Explicitly clear only the selected target's corresponding list |
+| `{"web":{}}` | Invalid nested JSON shape |
+
+`include` and `exclude` are independently replaced, never automatically concatenated or jointly cleared.
+
+For example, the following sources:
+
+```dotenv
+# .env
+CORETSIA_BOOT_PRESETS={"web":"micro","worker":"hybrid"}
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={"web":["platform.logging"],"worker":["platform.worker"]}
+CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={"web":["platform.worker"]}
+
+# .env.local
+CORETSIA_BOOT_PRESETS={"web":"express"}
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={"web":[]}
+```
+
+produce the following completed normalized values:
+
+```php
+[
+    'presets' => [
+        'web' => 'express',
+        'worker' => 'hybrid',
+    ],
+    'moduleOverrides' => [
+        'web' => [
+            'include' => [],
+            'exclude' => ['platform.worker'],
+        ],
+        'worker' => [
+            'include' => ['platform.worker'],
+            'exclude' => [],
+        ],
+    ],
+]
+```
+
+The `worker` preset and include list survive the higher-priority `web` changes. The `web.exclude` list also survives clearing `web.include`.
+
+### Partial normalization and validation
+
+During source merging, an absent `include` or `exclude` remains absent. It MUST NOT be converted into `[]` before all source layers have been merged.
+
+After merging, `BootstrapOverridesLoader::completeModuleOverrides()` supplies the final complete `include` and `exclude` shape required by target-local resolution.
+
+All provided ModuleId lists MUST be validated lexically through the canonical ModuleId policy, including entries for inactive targets. Invalid, noncanonical, or duplicate ModuleIds are rejected before they can be hidden by higher-priority source values.
+
+Selected-target include/exclude conflicts and module dependency-graph policy remain with their existing Kernel owners. Phase A source merging MUST NOT construct `ModulePlan`, load mode presets, or resolve dependency closures for inactive targets.
+
+The resulting snapshot retains safe per-target/per-field source provenance. It does not serialize raw dotenv JSON, source values, secrets, or application-root identity into an installation verification payload.
+
+### Separation from Phase B
+
+The above merge is bootstrap-only and MUST NOT be implemented by `ConfigKernel`, `ConfigMerger`, `DirectiveProcessor`, or `EnvironmentOverlayLoader`.
+
+`config/app.php` is not a Phase B config root.
+
+Phase B consumes the already frozen `BootstrapConfig`, immutable environment repository, and resolved module-selection inputs provided by the canonical compile-host pipeline. It continues to use the active rank order below.
+
+Package config-root ownership, root naming, package defaults, aggregate/split-root precedence, directives, environment overlays, and semantic validation remain unchanged.
+
 ## Active Phase B rank order
 
 The active Phase B order is:
@@ -167,19 +322,13 @@ The active Phase B order is:
 |  401 | App-target environment split root       | `apps/<appTarget>/config/environments/<appEnv>/<root>.php` |
 |  500 | Env overlays                            | ruleset-derived or explicit env overlay mappings           |
 
-The rank numbers are intentionally spaced to leave room for future explicitly introduced layers.
-
-A future layer MUST NOT become active by implication.
-
-A future layer becomes active only when its owner epic updates this SSoT, the precedence matrix, runtime code, and tests.
-
 ## Phase B pipeline narrative
 
 The active Phase B pipeline is:
 
 ```text
 1. Load package-owned config rulesets.
-2. Load optional explicit rulesets supplied by a future user/module mechanism.
+2. Load explicitly supplied rulesets, when present.
 3. Build the effective ruleset list.
 4. Load package defaults.
 5. Load application-root/app-target config files and safe config source-file metadata.
@@ -199,7 +348,6 @@ The active Phase B invariant is:
 directives before merge
 env overlays after file config
 validation after final merge
-CLI/runtime overrides reserved/future
 ```
 
 Rulesets are validation and env-overlay metadata.
@@ -270,14 +418,11 @@ enabled ModuleResolution metadata
 Canonical package source identity is:
 
 ```text
-packageId
-= <module-layer>/<module-slug>
+packageId = <module-layer>/<module-slug>
 
-path
-= package-relative config/<root>.php
+path = package-relative config/<root>.php
 
-filesystemPath
-= local physical path used only for source reading
+filesystemPath = local physical path used only for source reading
 ```
 
 Composer package name is used only for exact physical install-root lookup; it is not the config ownership `packageId`.
@@ -887,30 +1032,15 @@ Returned artifacts and explain output MUST NOT include:
 - absolute filesystem paths;
 - nondeterministic exception text.
 
-## Reserved/future behavior
+## Phase B input boundaries
 
-CLI/runtime overrides are reserved for a later epic.
+ConfigKernel Phase B does not apply CLI/runtime configuration overrides as independent merge sources.
 
-CLI/runtime overrides are NOT active Phase 1 behavior.
+Automatic Phase B environment overlays use supported ruleset-derived scalar mappings. Explicit environment mappings are accepted through the canonical configuration-source contract.
 
-Runtime overrides MUST NOT be silently added to the active Phase B pipeline.
+The `CORETSIA_BOOT_*` JSON-list and JSON-map inputs are resolved exclusively during Bootstrap Phase A and do not become Phase B map/list overlays.
 
-A future CLI/runtime override epic MUST update:
-
-```text
-docs/ssot/config-merge-order.md
-docs/ssot/config-precedence-matrix.md
-runtime implementation
-integration tests
-```
-
-before those overrides become active.
-
-Map/list env overlay syntax is reserved for a later typed env syntax epic.
-
-Preset/mode overlays are reserved unless explicitly activated by a future owner epic.
-
-Runtime feature flags for enabling or disabling `ConfigKernel` or config explain are forbidden for this baseline.
+ConfigKernel validation and config explain are not controlled by runtime enable/disable feature flags.
 
 ## Invalid behavior examples
 
@@ -974,7 +1104,7 @@ Invalid behavior:
 CLI --config kernel.boot.default_env=dev automatically becomes active Phase B source
 ```
 
-CLI/runtime overrides are reserved/future and are not active Phase 1 behavior.
+No CLI/runtime override source is part of the Phase B rank order.
 
 ## Enforcement rails
 
@@ -1017,11 +1147,10 @@ This document does not define:
 - directive type validation details;
 - env value coercion details;
 - package/module discovery implementation;
-- bootstrap Phase A config;
+- execution of Bootstrap Phase A source resolution (its logical merge contract is documented above and implemented exclusively by the Kernel bootstrap owners);
 - service provider wiring;
 - generated artifact schemas;
-- CLI command behavior;
-- future runtime override semantics.
+- CLI command behavior.
 
 ## Cross-references
 

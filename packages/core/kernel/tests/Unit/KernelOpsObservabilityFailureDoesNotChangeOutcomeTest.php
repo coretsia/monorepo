@@ -31,13 +31,13 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Ops\KernelOpsFacade;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use ReflectionClass;
@@ -174,7 +174,6 @@ final class KernelOpsObservabilityFailureDoesNotChangeOutcomeTest extends TestCa
         return new KernelOpsFacade(
             hostInput: new KernelOpsHostInput(self::absolutePathFixture()),
             bootstrapConfigResolver: self::uninitialized(BootstrapConfigResolver::class),
-            envRepositoryBuilder: self::uninitialized(EnvRepositoryBuilder::class),
             moduleResolutionOrchestrator: self::uninitialized(ModuleResolutionOrchestrator::class),
             configKernel: self::uninitialized(ConfigKernel::class),
             runtimeContainerGraphCompiler: self::uninitialized(RuntimeContainerGraphCompiler::class),
@@ -204,6 +203,7 @@ final class KernelOpsObservabilityFailureDoesNotChangeOutcomeTest extends TestCa
             meter: $meter,
             logger: $logger,
             stopwatch: new Stopwatch(),
+            bootstrapSourceResolver: ModeInfrastructureTestSupport::bootstrapSourceResolver(),
         );
     }
 

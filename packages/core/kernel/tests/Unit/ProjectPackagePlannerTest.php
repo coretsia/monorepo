@@ -19,9 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Unit;
 
 use Coretsia\Kernel\Boot\AppTarget;
-use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\DependencySync\Catalog\ReleaseInstallationCatalogLoader;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
@@ -190,11 +188,7 @@ final class ProjectPackagePlannerTest extends TestCase
 
             $kernelRoot = \dirname(__DIR__, 2);
             $kernelConfig = require $kernelRoot . '/config/kernel.php';
-            $normalizer = new ModuleIdSetNormalizer();
-            $runtimeConfig = new BootstrapConfigResolver(
-                new BootstrapOverridesLoader(),
-                $normalizer,
-            )->resolve(
+            $runtimeConfig = ModeInfrastructureTestSupport::bootstrapConfigResolver()->resolve(
                 new BootstrapInput(
                     applicationRoot: $root,
                     appTarget: AppTarget::Web,
@@ -723,15 +717,164 @@ final class ProjectPackagePlannerTest extends TestCase
         }
     }
 
+    public function testPreResolvedSnapshotIsReusedForEveryTargetAndTemporaryPreset(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            self::writeAppConfig($root, [
+                'activeTargets' => ['web', 'worker'],
+                'presets' => ['web' => 'micro', 'worker' => 'enterprise'],
+            ]);
+            file_put_contents($root . '/.env', "CORETSIA_BOOT_PRESET=micro\n");
+
+            $config = require dirname(__DIR__, 2) . '/config/kernel.php';
+            $sourceResolver = ModeInfrastructureTestSupport::bootstrapSourceResolver();
+            $snapshot = $sourceResolver->resolveApplicationRoot($root, $config);
+            $intent = new ProjectInstallationIntent(
+                new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+            );
+
+            file_put_contents(
+                $root . '/config/app.php',
+                '<?php throw new RuntimeException("unexpected-source-reload");',
+            );
+            file_put_contents($root . '/.env', "CORETSIA_BOOT_PRESET=INVALID\n");
+
+            $plan = self::planner()->plan($root, $intent, $snapshot);
+            self::assertSame(['web', 'worker'], $plan->applications());
+            self::assertSame(['web' => 'micro', 'worker' => 'enterprise'], $plan->effectivePresetsByTarget());
+            self::assertContains('platform.worker', $plan->enabledModuleIdsByTarget()['worker']);
+            self::assertNotContains('platform.worker', $plan->enabledModuleIdsByTarget()['web']);
+
+            $preview = self::planner()->plan(
+                $root,
+                new ProjectInstallationIntent(
+                    new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+                    ['worker' => 'micro'],
+                ),
+                $snapshot,
+            );
+
+            self::assertSame('micro', $preview->effectivePresetsByTarget()['web']);
+            self::assertSame('micro', $preview->effectivePresetsByTarget()['worker']);
+            self::assertSame($plan->enabledModuleIdsByTarget()['web'], $preview->enabledModuleIdsByTarget()['web']);
+            self::assertNotContains('platform.worker', $preview->unionModuleIds());
+            self::assertSame(['worker' => 'micro'], $preview->fixedPresetByTarget());
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testCanonicalJsonMapKeyOrderCannotChangeInstallationIdentityOrUnion(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            self::writeAppConfig($root, ['activeTargets' => ['worker', 'web']]);
+            $intent = new ProjectInstallationIntent(
+                new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+            );
+            $planner = self::planner();
+
+            file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_PRESETS={\"web\":\"micro\",\"worker\":\"enterprise\"}\n"
+                . "CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={\"web\":[],\"worker\":[\"platform.worker\"]}\n",
+            );
+            $first = $planner->plan($root, $intent);
+
+            file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_PRESETS={\"worker\":\"enterprise\",\"web\":\"micro\"}\n"
+                . "CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={\"worker\":[\"platform.worker\"],\"web\":[]}\n",
+            );
+            $second = $planner->plan($root, $intent);
+
+            self::assertTrue($first->equals($second));
+            self::assertSame($first->bootstrapInstallationIdentity(), $second->bootstrapInstallationIdentity());
+            self::assertSame($first->desiredRootRequirements(), $second->desiredRootRequirements());
+            self::assertSame($first->unionModuleIds(), $second->unionModuleIds());
+            self::assertSame(
+                ['worker' => ['include' => ['platform.worker'], 'exclude' => []]],
+                $first->bootstrapInstallationIdentity()['moduleOverrides'],
+            );
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testConfigAppPhpIsReadOncePerMultiTargetPlanningAttempt(): void
+    {
+        $root = self::projectRoot();
+        $counter = 'coretsia_project_package_planner_source_reads';
+        unset($GLOBALS[$counter]);
+
+        try {
+            file_put_contents(
+                $root . '/config/app.php',
+                '<?php $GLOBALS["' . $counter . '"] = ($GLOBALS["' . $counter
+                . '"] ?? 0) + 1; return ["presets" => ["web" => "micro", "worker" => "enterprise"]];',
+            );
+            $plan = self::planner()->plan(
+                $root,
+                new ProjectInstallationIntent(
+                    new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+                ),
+            );
+
+            self::assertSame(1, $GLOBALS[$counter]);
+            self::assertSame(['web', 'worker'], $plan->applications());
+            self::assertSame(['web' => 'micro', 'worker' => 'enterprise'], $plan->effectivePresetsByTarget());
+        } finally {
+            unset($GLOBALS[$counter]);
+            self::remove($root);
+        }
+    }
+
+    public function testInactiveTargetAndNonInstallationBootstrapChangesDoNotAlterPlanIdentity(): void
+    {
+        $root = self::projectRoot();
+
+        try {
+            self::writeAppConfig($root, [
+                'activeTargets' => ['web'],
+                'preset' => 'micro',
+                'presets' => ['worker' => 'enterprise'],
+                'debug' => false,
+                'artifactsCacheDir' => 'var/cache_first',
+            ]);
+            $intent = new ProjectInstallationIntent(
+                new ProjectApplicationSet([AppTarget::Web]),
+            );
+            $planner = self::planner();
+            $first = $planner->plan($root, $intent);
+
+            self::writeAppConfig($root, [
+                'activeTargets' => ['web'],
+                'preset' => 'micro',
+                'presets' => ['worker' => 'hybrid'],
+                'debug' => true,
+                'artifactsCacheDir' => 'var/cache_second',
+            ]);
+            $second = $planner->plan($root, $intent);
+
+            self::assertTrue($first->equals($second));
+            self::assertSame($first->bootstrapInstallationIdentity(), $second->bootstrapInstallationIdentity());
+            self::assertSame(['web' => 'micro'], $second->bootstrapInstallationIdentity()['presets']);
+            self::assertSame([], $second->bootstrapInstallationIdentity()['moduleOverrides']);
+            self::assertSame($first->desiredRootRequirements(), $second->desiredRootRequirements());
+        } finally {
+            self::remove($root);
+        }
+    }
+
     private static function planner(): ProjectPackagePlanner
     {
         $kernelRoot = \dirname(__DIR__, 2);
         $kernelConfig = require $kernelRoot . '/config/kernel.php';
         $normalizer = new ModuleIdSetNormalizer();
-        $bootstrapConfigResolver = new BootstrapConfigResolver(
-            new BootstrapOverridesLoader(),
-            $normalizer,
-        );
+        $bootstrapConfigResolver = ModeInfrastructureTestSupport::bootstrapConfigResolver();
         $graphResolver = new ModuleGraphResolver(new TopologicalSorter());
         $orchestrator = ModeInfrastructureTestSupport::orchestrator(
             $kernelRoot,
@@ -745,6 +888,7 @@ final class ProjectPackagePlannerTest extends TestCase
             $normalizer,
             new ReleaseInstallationCatalogLoader(),
             $kernelConfig,
+            $bootstrapConfigResolver->sourceResolver(),
         );
     }
 

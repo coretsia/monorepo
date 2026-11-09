@@ -26,6 +26,151 @@ use PHPUnit\Framework\TestCase;
 #[Group('slow')]
 final class DependencySyncRealComposerMetadataTest extends TestCase
 {
+    public function testKernelOnlyComposerBootstrapPlansCatalogDerivedMicroWithoutInstallingCli(): void
+    {
+        $repoRoot = \dirname(__DIR__, 5);
+        $publicConstraint = self::kernelPublicConstraint();
+
+        $root = self::consumer(kernelOnly: true);
+
+        try {
+            $script = $root . '/bin/read-micro-installation-plan.php';
+
+            \file_put_contents(
+                $script,
+                <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+use Composer\InstalledVersions;
+use Coretsia\Kernel\DependencySync\ProjectDependencySync;
+
+$plan = ProjectDependencySync::create()->planConfigured(dirname(__DIR__));
+
+echo json_encode(
+    [
+        'frameworkInstalled' => InstalledVersions::isInstalled('coretsia/framework'),
+        'cliInstalled' => InstalledVersions::isInstalled('coretsia/platform-cli'),
+        'loggingInstalled' => InstalledVersions::isInstalled('coretsia/platform-logging'),
+        'applications' => $plan->applications(),
+        'presets' => $plan->effectivePresetsByTarget(),
+        'modules' => $plan->unionModuleIds(),
+        'requirements' => $plan->desiredRootRequirements(),
+    ],
+    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES,
+);
+PHP,
+            );
+
+            $result = new DependencySyncProcessRunner()->runPhpScript($root, $script, [], 60);
+            self::assertSame(0, $result['exitCode'], $result['stderr']);
+            self::assertFalse($result['timedOut']);
+
+            $decoded = \json_decode($result['stdout'], true, 512, \JSON_THROW_ON_ERROR);
+            self::assertIsArray($decoded);
+            self::assertTrue($decoded['frameworkInstalled']);
+            self::assertFalse($decoded['cliInstalled']);
+            self::assertFalse($decoded['loggingInstalled']);
+            self::assertSame(['web'], $decoded['applications']);
+            self::assertSame(['web' => 'micro'], $decoded['presets']);
+            self::assertSame(
+                [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.cli',
+                    'platform.errors',
+                    'platform.logging',
+                    'platform.redaction',
+                ],
+                $decoded['modules'],
+            );
+            self::assertSame(
+                [
+                    'coretsia/core-foundation' => $publicConstraint,
+                    'coretsia/core-kernel' => $publicConstraint,
+                    'coretsia/platform-cli' => $publicConstraint,
+                    'coretsia/platform-errors' => $publicConstraint,
+                    'coretsia/platform-logging' => $publicConstraint,
+                    'coretsia/platform-redaction' => $publicConstraint,
+                ],
+                $decoded['requirements'],
+            );
+            self::assertFileDoesNotExist($root . '/config/app.php');
+            self::assertFileDoesNotExist($root . '/.env');
+
+            $launcher = \file_get_contents($repoRoot . '/packages/applications/skeleton/coretsia');
+            $adapter = \file_get_contents($repoRoot . '/packages/applications/skeleton/bin/dependency-sync.php');
+
+            self::assertIsString($launcher);
+            self::assertIsString($adapter);
+            self::assertSame(\strlen($launcher), \file_put_contents($root . '/coretsia', $launcher));
+            self::assertSame(\strlen($adapter), \file_put_contents($root . '/bin/dependency-sync.php', $adapter));
+
+            $runner = new DependencySyncProcessRunner();
+
+            $unavailable = $runner->runPhpScript($root, $root . '/coretsia', ['list'], 60);
+
+            self::assertSame(1, $unavailable['exitCode']);
+            self::assertFalse($unavailable['timedOut']);
+            self::assertSame('', $unavailable['stdout']);
+            self::assertSame(
+                "CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable\n",
+                $unavailable['stderr'],
+            );
+
+            $preApplyPlan = $runner->runPhpScript($root, $root . '/coretsia', ['plan'], 60);
+
+            self::assertSame(0, $preApplyPlan['exitCode'], $preApplyPlan['stderr']);
+            self::assertFalse($preApplyPlan['timedOut']);
+            self::assertSame('', $preApplyPlan['stderr']);
+
+            $planResponse = \json_decode($preApplyPlan['stdout'], true, 512, \JSON_THROW_ON_ERROR);
+
+            self::assertSame(1, $planResponse['schemaVersion']);
+            self::assertSame('ok', $planResponse['status']);
+            self::assertSame('plan', $planResponse['operation']);
+            self::assertSame($decoded['applications'], $planResponse['result']['applications']);
+            self::assertSame($decoded['presets'], $planResponse['result']['effectivePresetsByTarget']);
+            self::assertSame($decoded['modules'], $planResponse['result']['unionModuleIds']);
+            self::assertSame($decoded['requirements'], $planResponse['result']['desiredRootRequirements']);
+
+            $applied = $runner->runPhpScript($root, $root . '/coretsia', ['apply'], 300);
+
+            self::assertSame(0, $applied['exitCode'], $applied['stderr']);
+            self::assertFalse($applied['timedOut']);
+
+            $applyResponse = \json_decode($applied['stdout'], true, 512, \JSON_THROW_ON_ERROR);
+
+            self::assertSame('ok', $applyResponse['status']);
+            self::assertSame('apply', $applyResponse['operation']);
+            self::assertTrue($applyResponse['result']['changed']);
+
+            $afterApply = $runner->runPhpScript($root, $script, [], 60);
+
+            self::assertSame(0, $afterApply['exitCode'], $afterApply['stderr']);
+
+            $installed = \json_decode($afterApply['stdout'], true, 512, \JSON_THROW_ON_ERROR);
+
+            self::assertTrue($installed['cliInstalled']);
+            self::assertTrue($installed['loggingInstalled']);
+            self::assertSame($decoded['modules'], $installed['modules']);
+
+            $cli = $runner->runPhpScript($root, $root . '/coretsia', ['list', '--format=json'], 60);
+
+            self::assertSame(0, $cli['exitCode'], $cli['stderr']);
+            self::assertFalse($cli['timedOut']);
+
+            $cliOutput = \json_decode($cli['stdout'], true, 512, \JSON_THROW_ON_ERROR);
+
+            self::assertSame('coretsia.cli-output@1', $cliOutput['schema']);
+        } finally {
+            self::remove($root);
+        }
+    }
+
     public function testIsolatedComposerInstallProvidesRuntimeMetadataBeforeGraphResolution(): void
     {
         $root = self::consumer();
@@ -148,7 +293,7 @@ PHP,
         }
     }
 
-    private static function consumer(): string
+    private static function consumer(bool $kernelOnly = false): string
     {
         self::requireComposer();
 
@@ -162,20 +307,7 @@ PHP,
         \mkdir($repositoryRoot, 0777, true);
         \mkdir($root . '/bin', 0777, true);
 
-        $kernelManifest = \json_decode(
-            (string) \file_get_contents($repoRoot . '/packages/core/kernel/composer.json'),
-            true,
-            512,
-            \JSON_THROW_ON_ERROR,
-        );
-        self::assertIsArray($kernelManifest);
-
-        $publicConstraint = $kernelManifest['require']['coretsia/core-contracts'] ?? null;
-        self::assertIsString($publicConstraint);
-        self::assertMatchesRegularExpression(
-            '/\A\^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.0\z/D',
-            $publicConstraint,
-        );
+        $publicConstraint = self::kernelPublicConstraint();
         $releaseVersion = \substr($publicConstraint, 1);
 
         $repositories = [];
@@ -198,10 +330,16 @@ PHP,
                     $releaseVersion,
                 ],
                 [
-                    'coretsia/platform-worker',
-                    $repoRoot . '/packages/platform/worker',
+                    $kernelOnly ? 'coretsia/framework' : 'coretsia/platform-worker',
+                    $repoRoot . ($kernelOnly ? '/packages/framework' : '/packages/platform/worker'),
                     $releaseVersion,
                 ],
+                ...($kernelOnly ? [
+                    ['coretsia/platform-cli', $repoRoot . '/packages/platform/cli', $releaseVersion],
+                    ['coretsia/platform-errors', $repoRoot . '/packages/platform/errors', $releaseVersion],
+                    ['coretsia/platform-logging', $repoRoot . '/packages/platform/logging', $releaseVersion],
+                    ['coretsia/platform-redaction', $repoRoot . '/packages/platform/redaction', $releaseVersion],
+                ] : []),
             ] as [$name, $source, $version]
         ) {
             $repositories[] = self::copyPackageRepository(
@@ -244,7 +382,7 @@ PHP,
                     'repositories' => $repositories,
                     'require' => [
                         'php' => '^8.4',
-                        'coretsia/platform-worker' => $publicConstraint,
+                        ($kernelOnly ? 'coretsia/framework' : 'coretsia/platform-worker') => $publicConstraint,
                     ],
                     'config' => [
                         'sort-packages' => true,
@@ -279,6 +417,27 @@ PHP,
         self::assertFileExists($root . '/vendor/composer/installed.json');
 
         return $root;
+    }
+
+    private static function kernelPublicConstraint(): string
+    {
+        $repoRoot = \dirname(__DIR__, 5);
+        $kernelManifest = \json_decode(
+            (string) \file_get_contents($repoRoot . '/packages/core/kernel/composer.json'),
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($kernelManifest);
+
+        $publicConstraint = $kernelManifest['require']['coretsia/core-contracts'] ?? null;
+        self::assertIsString($publicConstraint);
+        self::assertMatchesRegularExpression(
+            '/\A\^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.0\z/D',
+            $publicConstraint,
+        );
+
+        return $publicConstraint;
     }
 
     /** @return array<string, mixed> */

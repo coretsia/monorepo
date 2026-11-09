@@ -20,10 +20,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
-use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
-use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapDoesNotScanAppsTest extends TestCase
@@ -121,10 +119,7 @@ final class BootstrapDoesNotScanAppsTest extends TestCase
 
     private static function resolveBootstrapConfig(BootstrapInput $input): BootstrapConfig
     {
-        return new BootstrapConfigResolver(
-            overridesLoader: new BootstrapOverridesLoader(),
-            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
-        )->resolve(
+        return ModeInfrastructureTestSupport::bootstrapConfigResolver()->resolve(
             input: $input,
             kernelConfig: self::kernelConfig(),
         );

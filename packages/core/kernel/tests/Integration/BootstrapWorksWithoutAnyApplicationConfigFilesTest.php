@@ -25,9 +25,11 @@ use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapWorksWithoutAnyApplicationConfigFilesTest extends TestCase
@@ -96,6 +98,50 @@ final class BootstrapWorksWithoutAnyApplicationConfigFilesTest extends TestCase
         }
     }
 
+    public function testProjectWideSourceSnapshotDoesNotRequireApplicationConfigFiles(): void
+    {
+        $applicationRoot = self::createBareApplicationRoot('source-snapshot-defaults');
+
+        try {
+            $dotenvLoader = new DotenvLoader();
+            $sourceResolver = new BootstrapSourceResolver(
+                new BootstrapOverridesLoader(),
+                $dotenvLoader,
+                new EnvRepositoryBuilder($dotenvLoader),
+            );
+            $snapshot = $sourceResolver->resolveApplicationRoot($applicationRoot, self::kernelConfig());
+            $configResolver = new BootstrapConfigResolver(
+                new ModuleIdSetNormalizer(),
+                $sourceResolver,
+            );
+
+            self::assertNull($snapshot->activeTargets());
+            self::assertSame('local', $snapshot->appEnv());
+            self::assertSame(BootstrapEnvSourcePolicy::StrictDotenv, $snapshot->envSourcePolicy());
+            self::assertSame(['appEnv' => 'local'], $snapshot->overrides());
+            self::assertSame([], $snapshot->envRepository()->all());
+
+            foreach ([AppTarget::Web, AppTarget::Worker] as $target) {
+                $resolved = $configResolver->resolve(
+                    new BootstrapInput($applicationRoot, $target),
+                    self::kernelConfig(),
+                    $snapshot,
+                );
+
+                self::assertSame($target, $resolved->appTarget());
+                self::assertSame('micro', $resolved->preset());
+                self::assertSame('local', $resolved->appEnv());
+            }
+
+            self::assertDirectoryDoesNotExist($applicationRoot . '/config');
+            self::assertDirectoryDoesNotExist($applicationRoot . '/apps');
+            self::assertFileDoesNotExist($applicationRoot . '/.env');
+            self::assertFileDoesNotExist($applicationRoot . '/.env.local');
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
     public function testExplicitInputStillWinsWithoutApplicationConfigFiles(): void
     {
         $applicationRoot = self::createBareApplicationRoot('explicit-input-wins');
@@ -128,10 +174,7 @@ final class BootstrapWorksWithoutAnyApplicationConfigFilesTest extends TestCase
 
     private static function resolveBootstrapConfig(BootstrapInput $input): BootstrapConfig
     {
-        return new BootstrapConfigResolver(
-            overridesLoader: new BootstrapOverridesLoader(),
-            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
-        )->resolve(
+        return ModeInfrastructureTestSupport::bootstrapConfigResolver()->resolve(
             input: $input,
             kernelConfig: self::kernelConfig(),
         );

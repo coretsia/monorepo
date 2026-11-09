@@ -35,27 +35,26 @@ PHP ^8.4
 coretsia/framework
 ```
 
-`coretsia/framework` is the only project-owned Coretsia baseline root requirement. As a dependency-only Composer metapackage, it installs Kernel, CLI, Logging, and their transitive dependencies:
+`coretsia/framework` is the only project-owned Coretsia baseline root requirement. It is a dependency-only Kernel bootstrap metapackage with exactly `php` and `coretsia/core-kernel` as direct requirements.
+
+The initial Composer bootstrap graph is:
 
 ```text
 coretsia/skeleton
     -> coretsia/framework
         -> coretsia/core-kernel
-        -> coretsia/platform-cli
-            -> coretsia/core-kernel
-            -> coretsia/platform-errors
-                -> coretsia/core-foundation
-                -> coretsia/platform-redaction
-            -> coretsia/platform-redaction
-        -> coretsia/platform-logging
-            -> coretsia/core-kernel
+            -> coretsia/core-contracts
             -> coretsia/core-foundation
-            -> coretsia/platform-redaction
+                -> coretsia/core-contracts
 ```
 
-Composer also installs Coretsia Contracts and the remaining transitive dependencies.
+Composer also installs the external transitive dependencies required by the Kernel/Foundation baseline.
 
-The default Kernel preset is `micro` (`kernel.boot.default_preset`). It requires the non-excludable `core.foundation` and `core.kernel` modules and selects `platform.cli` and `platform.logging` as excludable runtime roots. Their transitive runtime dependencies are resolved into the effective Console `ModulePlan`:
+The initial installation does not require `coretsia/platform-cli`, `coretsia/platform-logging`, or an installed Micro runtime. These mode-selected packages become part of the physical installation only through the applicable dependency closure and authorized Composer synchronization, unless already present through independently owned requirements.
+
+The default Kernel preset is `micro` (`kernel.boot.default_preset`). It requires the non-excludable `core.foundation` and `core.kernel` modules and selects `platform.cli` and `platform.logging` as excludable runtime roots.
+
+This is mode-selection policy, not the initial Composer bootstrap graph. After the required packages have been installed and verified, the normal Micro runtime resolves the following transitive enabled-module closure:
 
 ```text
 core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
@@ -63,9 +62,7 @@ core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, p
 
 Errors and Redaction are transitive module dependencies, not additional preset roots. Missing selected `platform.logging` or required `platform.errors`, or excluding required `platform.redaction`, fails closed during module composition.
 
-The intended capabilities described by a mode do not automatically materialize unimplemented runtime modules. The current canonical `micro` preset selects only its implemented module roots; future HTTP or other capabilities require their own implemented descriptors and explicit selection policy.
-
-Composer installation establishes the physical package graph; it does not enable runtime modules. The Kernel independently resolves a target-local `ModulePlan` from the effective preset and module overrides. An explicit `moduleOverrides.exclude` for `platform.logging` disables Logging only for the specified target while preserving its installed package and any Redaction requirement of another selected module. The separate string setting `logging.driver='null'` retains the Logging module but resolves `LoggerInterface` to Foundation `NoopLogger`. The normal CLI host requires an enabled `platform.cli` in its Console plan and fails closed when it is excluded.
+Composer installation establishes the physical package graph; it does not enable runtime modules. The Kernel independently resolves a target-local `ModulePlan` from the effective preset and module overrides. An explicit `moduleOverrides.exclude` for `platform.logging` disables Logging for that target only. A subsequent authorized DependencySync apply may remove its managed Composer requirement if no selected target needs the package; Redaction requirements of other selected modules remain in the project-wide union. The separate string setting `logging.driver='null'` retains the Logging module but resolves `LoggerInterface` to Foundation `NoopLogger`. The normal CLI host requires an enabled `platform.cli` in its Console plan and fails closed when it is excluded.
 
 The project `composer.json` defines the application's runtime and application-specific dependencies.
 
@@ -73,7 +70,19 @@ Composer records the resolved dependency graph in `composer.lock` and installs d
 
 ## Command-line interface
 
-After baseline Composer installation, run the canonical CLI from the Skeleton project root:
+The Skeleton project-root `coretsia` launcher has two distinct execution paths.
+
+Immediately after the initial Kernel-only Composer installation, the project-owned dependency synchronization operations are available:
+
+```bash
+php coretsia plan
+php coretsia review
+php coretsia apply
+```
+
+These operations route directly to `bin/dependency-sync.php` before normal CLI host boot. They use Kernel-owned DependencySync and do not require an installed `platform.cli` package.
+
+Normal CLI commands require the selected CLI runtime packages to have been installed and verified through DependencySync. After the canonical Micro installation, run from the Skeleton application root:
 
 ```bash
 php coretsia list
@@ -86,52 +95,79 @@ php coretsia config:compile --target=web
 php coretsia cache:verify --target=web
 ```
 
-The project-root `coretsia` launcher delegates normal CLI commands to the Composer-installed `vendor/bin/coretsia` binary. Running `php vendor/bin/coretsia <command>` from the same project root invokes the packaged CLI implementation directly, bypassing the Skeleton-specific dependency synchronization routes. No additional CLI package installation, shell alias, or CLI configuration step is required after the baseline Composer installation.
+The project-root launcher delegates normal CLI commands to the Composer-installed `vendor/bin/coretsia` binary. Running `php vendor/bin/coretsia <command>` invokes the packaged CLI implementation directly and bypasses the Skeleton-specific DependencySync routes.
 
-If `vendor/bin/coretsia` is missing or unreadable, the Skeleton wrapper writes exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` followed by one LF to stderr and exits with code `1`, without exposing paths, PHP warnings, or exception traces.
+If the packaged CLI binary is not installed or readable, the Skeleton launcher writes exactly `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` followed by one LF to stderr and exits `1`, without exposing paths or exception details. This does not prevent Kernel-only DependencySync operations when the baseline Composer autoloader is available.
 
-Normal CLI commands bootstrap the Kernel-owned Console operations host using the resolved Console `ModulePlan`. Target-scoped Kernel Ops commands require an explicit `--target=web|api|console|worker`; the requested operation target does not change the CLI host's Console target. Built-in `list`, `help`, and `doctor` commands do not require `--target`. The `doctor` command remains the ultra-early diagnostic path and does not require Kernel host boot or generated artifacts.
+Normal commands bootstrap the Kernel-owned Console operations host using the resolved Console `ModulePlan`. Target-scoped Kernel Ops commands still require an explicit `--target=web|api|console|worker`; this operation target does not change the CLI host's Console target.
+
+Built-in `list`, `help`, and `doctor` commands do not require `--target`. The exact `doctor` command remains the ultra-early CLI diagnostic path and does not require Kernel host boot or generated artifacts, but its packaged CLI executable must still be installed.
 
 ## Application dependency synchronization
 
-Dependency synchronization is an explicit consumer operation. It is never triggered implicitly by `composer create-project`, preset selection, normal CLI command invocation, or application/runtime boot.
+Dependency synchronization is a project-owned consumer operation. It is never triggered implicitly by `composer create-project`, preset selection, ordinary CLI execution, or runtime boot.
 
-Canonical workflow:
+The canonical initial consumer workflow is:
+
+```bash
+composer create-project coretsia/skeleton my-app
+cd my-app
+php coretsia plan
+php coretsia review
+php coretsia apply
+```
+
+The commands run from the Skeleton application root after its Kernel-only Composer baseline has been installed.
+
+The canonical dependency synchronization flow is:
 
 ```text
-baseline Composer install
-    -> explicit application targets
-    -> per-target preset and module policy
-    -> plan/review
-    -> explicit apply
-    -> composer.lock/vendor validation
-    -> fresh per-target ModulePlan verification
+create-project / Kernel-only Composer installation
+    -> BootstrapSourceResolver / one project-wide source snapshot
+    -> configuration-owned activeTargets
+    -> independent target-local effective presets and module policy
+    -> plan / review
+    -> explicitly authorized apply
+    -> Composer lock/vendor validation
+    -> fresh configuration and installed ModulePlan verification
 ```
 
-The Skeleton project-root `coretsia` launcher exposes three explicit dependency synchronization operations:
+Project-wide application membership is defined by `activeTargets` in `config/app.php` or permitted `CORETSIA_BOOT_ACTIVE_TARGETS` environment sources.
+
+An absent `activeTargets` uses the DependencySync-owned fallback `['web']`. An explicitly empty list is invalid. Application directories, preset-map keys, and installed packages do not select additional targets.
+
+The default target-local preset is `micro` unless a higher-priority global or target-specific bootstrap value applies.
+
+The three operations are:
+
+- `plan`: resolve the effective configured installation plan without Composer effects;
+- `review`: perform read-only managed-root reconciliation without intentional Composer changes;
+- `apply`: reconcile the configuration-owned project-wide package union under the existing authorization, lock, verification, and recovery policies.
+
+The project-root launcher delegates these operations to the canonical `bin/dependency-sync.php` adapter before normal `platform.cli` host boot. They preserve the existing machine JSON success/error envelopes, `schemaVersion=1`, stable error codes, bounded context, and exit codes.
+
+The direct adapter equivalents are:
 
 ```bash
-php coretsia plan --target=web
-php coretsia review --target=web --target=worker
-php coretsia apply --target=web --target=worker
+php bin/dependency-sync.php plan
+php bin/dependency-sync.php review
+php bin/dependency-sync.php apply
 ```
 
-`plan` calculates installation intent without applying changes. `review` verifies the relevant state without intentionally modifying Composer-managed dependencies. `apply` is the only operation authorized to perform Composer effects, subject to its explicit execution policy.
+DependencySync does not accept a `--target` option. Targets are selected through persistent bootstrap configuration, not per-command arguments.
 
-These operations delegate directly to the canonical project-owned adapter, before normal CLI host boot. They preserve the adapter's argument validation, safety policy, JSON result schema, and exit codes. They are not registered `cli.command` services and do not participate in the normal CLI command catalog or UnitOfWork lifecycle.
-
-The canonical adapter also supports direct invocation as `php bin/dependency-sync.php <operation> [options]`.
-
-A fixed installation preset can be supplied only for a selected target:
+For read-only analysis, `plan` and `review` support a temporary target-qualified preset override:
 
 ```bash
-php bin/dependency-sync.php review \
-  --target=web \
-  --target=worker \
-  --preset=worker=enterprise
+php coretsia plan --preset=web=enterprise
+php coretsia review --preset=web=enterprise
 ```
 
-Apply-only effect authorization flags are:
+The syntax is `--preset=<target>=<preset>`. The target must already belong to the effective `activeTargets` set. The override affects only the specified target's read-only plan and is never persisted.
+
+`apply` rejects every `--preset` argument, including values equal to persistent configuration. To change the applied preset, update the supported bootstrap configuration source before applying.
+
+The four existing apply-only effect authorization flags are:
 
 ```text
 --allow-composer-scripts
@@ -140,28 +176,53 @@ Apply-only effect authorization flags are:
 --allow-repair
 ```
 
+Composer scripts and plugins remain disabled unless separately authorized. Broad updates and installed-vendor repair retain their existing explicit policy gates. The flags are rejected for plan/review.
+
 DependencySync records the Coretsia root requirements it owns under `extra.coretsia.dependencySync` using `managedRequire` and `lastAppliedRequire`. An untracked root remains project-owned and is never silently claimed.
 
-Every explicit non-Coretsia root in `require` or `require-dev` is protected for a synchronization. Its root constraint, locked identity, and installed identity must remain unchanged. If the requested Coretsia solve requires changing that package, the synchronization fails visibly instead of widening the update scope.
+Every explicit non-Coretsia root in `require` or `require-dev` remains protected. Its root constraint, locked identity, and installed identity MUST remain unchanged during synchronization.
 
-Composer effects are not transactionally atomic across `composer.json`, `composer.lock`, and `vendor/`. When an effectful process has started and a later Composer or verification failure occurs, the adapter reports `RECOVERY_REQUIRED` with a recovery receipt. Recovery material is stored under:
-
-```text
-var/dependency-sync/recovery/<recoveryReceiptId>/
-```
-
-Effectful synchronization uses:
+Effectful apply acquires the existing project lock:
 
 ```text
 var/locks/dependency-sync.lock
 ```
 
-A stable repeated synchronization starts from a fresh PHP process and is a no-op when manifest, lock, vendor state, and all selected target plans already match.
+Under the lock, it re-resolves current configuration-owned application membership and installation-relevant bootstrap values before Composer effects. A changed approved installation plan fails before mutation.
 
-Canonical multi-target example with explicitly selected `web` and `worker` targets, the default `micro` preset for `web`, and a target-qualified `enterprise` preset for `worker`:
+Composer effects are not transactionally atomic across `composer.json`, `composer.lock`, and `vendor/`. After effects begin, subsequent Composer or verification failures may return `RECOVERY_REQUIRED` with a recovery receipt stored under:
 
 ```text
-explicit targets: web, worker
+var/dependency-sync/recovery/<recoveryReceiptId>/
+```
+
+Fresh verification resolves a new source snapshot and actual `activeTargets` and independently verifies the installed `ModulePlan` of every selected target. It does not trust only the approved verification envelope or reuse temporary preset overrides.
+
+A repeated apply is a stable no-op when effective configuration, managed Composer requirements, lock/vendor state, and target-local installed plans already match.
+
+For example, the following persistent `config/app.php` selects two applications:
+
+```php
+return [
+    'activeTargets' => ['web', 'worker'],
+    'preset' => 'micro',
+    'presets' => [
+        'worker' => 'enterprise',
+    ],
+];
+```
+
+The equivalent bootstrap environment selection may be represented as:
+
+```dotenv
+CORETSIA_BOOT_ACTIVE_TARGETS=["web","worker"]
+CORETSIA_BOOT_PRESET=micro
+CORETSIA_BOOT_PRESETS={"worker":"enterprise"}
+```
+
+With these sources selected under their respective source precedence rules, the resulting module closures are:
+
+```text
 web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
 worker -> enterprise -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 
@@ -169,9 +230,11 @@ project-wide physical module union:
 core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction, platform.worker
 ```
 
-Both target-local closures include `platform.errors` through CLI and `platform.redaction` through CLI and Logging. The project-wide union determines physical Composer installation intent, not global runtime enablement: `platform.worker` remains disabled in `ModulePlan(web)` even though it is installed for `worker`. Excluding `platform.logging` for one target does not remove its Composer package or disable Redaction still required by CLI. Only explicitly selected targets participate in dependency planning, and adding mode-required packages still requires an explicit DependencySync `apply`.
+Target-local exclusions do not imply project-wide package removal. Physical installation for another target does not automatically enable that module in the current target's `ModulePlan`.
 
-See `docs/ssot/application-dependency-sync.md` in the Coretsia monorepo for the normative ownership, execution, verification, and recovery contract.
+DependencySync is Kernel-owned and is not registered in the normal `platform.cli` command catalog or UnitOfWork lifecycle.
+
+See [Application Dependency Sync SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/application-dependency-sync.md) in the Coretsia monorepo for the normative planning, ownership, execution, verification, and recovery contract.
 
 ## Project structure
 
@@ -211,7 +274,7 @@ The initial project structure is:
 
 Application targets live under `apps/<appTarget>/`. The initial `web` target provides `apps/web/config/` for target-specific configuration and `apps/web/public/` as its public directory.
 
-Add additional app-target directories under `apps/` as the application requires. Directory presence does not select a target for DependencySync; installation target membership is explicit caller input.
+Add additional app-target directories under `apps/` as the application requires. Directory presence does not select a target for DependencySync; installation membership comes exclusively from the effective configuration-owned `activeTargets`, with `['web']` used only when that value is absent. Runtime entrypoints continue to select their AppTarget explicitly and independently.
 
 ## Runtime directories
 
@@ -231,7 +294,7 @@ The application provides:
 config/app.php
 ```
 
-This file controls early application bootstrap and accepts only `appEnv`, `preset`, `presets`, `moduleOverrides`, `debug`, and `artifactsCacheDir`.
+This file controls early application bootstrap and accepts only `appEnv`, `activeTargets`, `preset`, `presets`, `moduleOverrides`, `debug`, and `artifactsCacheDir`.
 
 The initial file returns an empty array:
 
@@ -244,6 +307,7 @@ An empty initial config uses the canonical bootstrap defaults. Applications may 
 ```php
 return [
     'appEnv' => 'local', // Examples: local, staging, prod, production.
+    'activeTargets' => ['web', 'worker'], // Project-wide installation membership.
     'preset' => 'micro', // micro|express|hybrid|enterprise.
 
     'presets' => [
@@ -267,7 +331,11 @@ return [
 
 The `appEnv` value is a validated non-empty environment name, not a fixed enumeration. The documented presets are the four canonical built-in presets; preset overrides may select other valid, explicitly provided presets.
 
-A target-specific `presets` entry takes precedence over the global `preset` fallback. Explicit bootstrap input may take precedence over both. Only the selected application target is evaluated; configuring a target does not install or activate additional packages.
+`activeTargets` defines project-wide DependencySync installation membership. It is a non-empty list of unique canonical targets: `api`, `console`, `web`, or `worker`. Absence uses the DependencySync-owned `['web']` fallback; an explicit empty list is invalid.
+
+A target-specific `presets` entry takes precedence over the global `preset` fallback. Explicit target-local `BootstrapInput::preset()` may take precedence over both. Preset-map entries and module-override entries do not add application membership.
+
+`BootstrapSourceResolver` resolves one project-wide immutable source snapshot. `BootstrapConfigResolver` then constructs independent target-local configurations for explicit AppTargets. Neither reading bootstrap configuration nor resolving a preset installs or activates additional packages.
 
 `moduleOverrides.include` and `moduleOverrides.exclude` are target-local ModuleId lists. Required modules and active transitive dependencies cannot be excluded. A physically missing selected module causes bootstrap failure.
 
@@ -464,9 +532,9 @@ return [
 ];
 ```
 
-The active configuration example includes the package-owned roots available through the baseline framework distribution. The commented `worker` block documents the optional Worker package and must only be activated when that package participates in the selected runtime module graph.
+The configuration example includes package-owned roots used by the canonical Micro runtime after the corresponding packages have been installed and selected. These CLI, Errors, Logging, and Redaction capabilities are not guaranteed by the initial Kernel-only Composer baseline. The commented `worker` block documents the optional Worker package and must only be activated when that package participates in the selected runtime module graph.
 
-`kernel.boot.*` documents package fallback defaults. To change effective early-bootstrap settings, use the corresponding top-level keys in `config/app.php`; application configuration is not loaded early enough to replace Phase A bootstrap input.
+`kernel.boot.*` documents package fallback defaults. To change effective early-bootstrap settings, use the corresponding top-level keys in `config/app.php`, permitted `CORETSIA_BOOT_*` environment sources, or explicit `BootstrapInput` where supported. Phase B application configuration is not loaded early enough to replace frozen Phase A bootstrap values.
 
 `cli.commands.overrides` and `cli.workflows.definitions` accept dynamic maps whose entries have additional CLI-owned validation rules. The example uses their valid empty defaults.
 
@@ -519,7 +587,7 @@ The application includes:
 .env.example
 ```
 
-The initial `.env.example` contains commented, non-sensitive examples of all package configuration keys supported by automatic environment overlays. No environment variable is required by every Coretsia application.
+The initial `.env.example` contains commented, non-sensitive examples of the canonical Bootstrap Phase A `CORETSIA_BOOT_*` inputs and the supported ConfigKernel Phase B package environment overlays. No environment variable is required by every Coretsia application.
 
 Create a local `.env` file when overrides are needed. Copy `.env.example` and uncomment only the required entries:
 
@@ -535,7 +603,13 @@ Automatic overlays support only scalar ruleset types: `string`, `non-empty-strin
 
 Lists, maps, relative-safe paths, and bounded `reset-group-id` fields must be configured through PHP configuration files unless an explicit supported environment mapping is provided. For example, `FOUNDATION_RESET_GROUP_DEFAULT` is not an automatic overlay even though `foundation.reset.group.default` is a valid PHP configuration key.
 
-Environment overlays do not control the current Bootstrap Phase A selection. Configure `appEnv`, `preset`, `presets`, `moduleOverrides`, `debug`, and `artifactsCacheDir` through `config/app.php` or explicit `BootstrapInput`. A `KERNEL_BOOT_DEFAULT_ENV` overlay changes the merged configuration value but does not reselect the current environment or reload dotenv files.
+Bootstrap Phase A consumes only the canonical `CORETSIA_BOOT_*` allowlist for bootstrap environment overrides. It supports `CORETSIA_BOOT_APP_ENV`, `CORETSIA_BOOT_ACTIVE_TARGETS`, `CORETSIA_BOOT_PRESET`, `CORETSIA_BOOT_PRESETS`, `CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE`, `CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE`, `CORETSIA_BOOT_DEBUG`, and `CORETSIA_BOOT_ARTIFACTS_CACHE_DIR`.
+
+`activeTargets` is a non-empty JSON list. `presets` and each module override field use JSON object maps keyed by canonical AppTarget; `{}` is a no-op, and `{"web":[]}` explicitly clears only the corresponding include or exclude list.
+
+Bootstrap source resolution validates and merges these values independently of ConfigKernel Phase B. Target-specific presets override the merged global preset; module override lists are replaced independently per target and field.
+
+Phase B environment overlays do not reselect Phase A appEnv, presets, activeTargets, module overrides, debug, or the artifact cache directory. For example, `KERNEL_BOOT_DEFAULT_ENV` changes the merged Phase B configuration value only; it does not restart Phase A or reload dotenv files.
 
 By default, Kernel reads these dotenv files in order, skipping missing files:
 
@@ -546,7 +620,13 @@ By default, Kernel reads these dotenv files in order, skipping missing files:
 .env.<appEnv>.local
 ```
 
-Later files override earlier dotenv values. Local and other non-production environments use the default `strict_dotenv` policy, which does not fall back to system environment variables. Production-like `prod` and `production` environments default to `allow_system`, where system environment variables take precedence over dotenv values.
+Phase A initially selects appEnv using explicit `BootstrapInput::appEnv()`, process `CORETSIA_BOOT_APP_ENV` only under explicitly requested `AllowSystem`, `.env.local`, `.env`, `config/app.php`, and `kernel.boot.default_env`, in descending precedence.
+
+The selected appEnv is frozen before environment-specific dotenv layers are loaded. `CORETSIA_BOOT_APP_ENV` in an environment-specific layer MUST match the frozen value and MUST NOT initiate another selection.
+
+Other bootstrap values use permitted process environment, `.env.<appEnv>.local`, `.env.<appEnv>`, `.env.local`, `.env`, `config/app.php`, and Kernel defaults in descending precedence. Structured bootstrap maps merge by target and field before ordinary dotenv values are flattened.
+
+Local and other non-production environments use the default `strict_dotenv` policy, which ignores process environment values. `prod` and `production` default to `allow_system`, where permitted process values take precedence over dotenv. The production-like default does not retroactively reselect appEnv from process environment.
 
 Kernel captures an immutable environment repository during bootstrap. Only recognized environment mappings contribute to the validated runtime configuration.
 

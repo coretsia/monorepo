@@ -140,7 +140,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.11.0',
-  'releaseLine' => '0.11',
+  'publicConstraint' => '^0.12.0',
+  'releaseLine' => '0.12',
   'schemaVersion' => 1,
 );

@@ -20,11 +20,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
-use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
-use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
@@ -32,32 +29,6 @@ use PHPUnit\Framework\TestCase;
 final class BootstrapConfigResolverResolvesModuleOverridesTest extends TestCase
 {
     private string $root;
-
-    protected function setUp(): void
-    {
-        $this->root = ModeInfrastructureTestSupport::root();
-    }
-
-    protected function tearDown(): void
-    {
-        ModeInfrastructureTestSupport::remove($this->root);
-    }
-
-    private function resolve(AppTarget $target = AppTarget::Web): BootstrapConfig
-    {
-        return new BootstrapConfigResolver(new BootstrapOverridesLoader(), new ModuleIdSetNormalizer())->resolve(
-            new BootstrapInput($this->root, $target),
-            require \dirname(__DIR__, 2) . '/config/kernel.php',
-        );
-    }
-
-    private function source(array $overrides): void
-    {
-        ModeInfrastructureTestSupport::write(
-            $this->root . '/config/app.php',
-            '<?php return ' . \var_export(['moduleOverrides' => $overrides], true) . ';',
-        );
-    }
 
     public function testOnlyTheSelectedAppTargetIsResolvedAndMissingTargetIsEmpty(): void
     {
@@ -70,6 +41,74 @@ final class BootstrapConfigResolverResolvesModuleOverridesTest extends TestCase
         self::assertSame(['core.kernel', 'platform.worker'], ModeInfrastructureTestSupport::values($worker->include()));
         self::assertSame(['platform.http'], ModeInfrastructureTestSupport::values($worker->exclude()));
         self::assertTrue(new \ReflectionClass($worker)->isReadOnly());
+    }
+
+    public function testAbsentAndExplicitlyEmptyModuleOverrideListsRemainDistinctUntilSourceMerge(): void
+    {
+        $this->source([
+            'web' => ['include' => ['platform.logging'], 'exclude' => ['platform.worker']],
+            'worker' => ['include' => ['platform.worker']],
+        ]);
+        ModeInfrastructureTestSupport::write(
+            $this->root . '/.env',
+            "CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={\"web\":[]}\n",
+        );
+
+        $web = $this->resolve(AppTarget::Web)->moduleOverrides();
+        self::assertSame([], ModeInfrastructureTestSupport::values($web->include()));
+        self::assertSame(['platform.worker'], ModeInfrastructureTestSupport::values($web->exclude()));
+
+        $worker = $this->resolve(AppTarget::Worker)->moduleOverrides();
+        self::assertSame(['platform.worker'], ModeInfrastructureTestSupport::values($worker->include()));
+        self::assertSame([], ModeInfrastructureTestSupport::values($worker->exclude()));
+    }
+
+    public function testExplicitEmptyExcludeClearsOnlyTheSelectedTargetField(): void
+    {
+        $this->source([
+            'web' => ['include' => ['platform.logging'], 'exclude' => ['platform.worker']],
+            'worker' => ['exclude' => ['platform.logging']],
+        ]);
+        ModeInfrastructureTestSupport::write(
+            $this->root . '/.env',
+            "CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={\"web\":[]}\n",
+        );
+
+        $web = $this->resolve(AppTarget::Web)->moduleOverrides();
+        self::assertSame(['platform.logging'], ModeInfrastructureTestSupport::values($web->include()));
+        self::assertSame([], ModeInfrastructureTestSupport::values($web->exclude()));
+
+        $worker = $this->resolve(AppTarget::Worker)->moduleOverrides();
+        self::assertSame([], ModeInfrastructureTestSupport::values($worker->include()));
+        self::assertSame(['platform.logging'], ModeInfrastructureTestSupport::values($worker->exclude()));
+    }
+
+    public function testSourceMergeCannotHideTargetLocalIncludeExcludeConflict(): void
+    {
+        $this->source(['web' => ['include' => ['core.kernel']]]);
+        ModeInfrastructureTestSupport::write(
+            $this->root . '/.env',
+            "CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={\"web\":[\"core.kernel\"]}\n",
+        );
+
+        try {
+            $this->resolve();
+            self::fail('A merged include/exclude conflict must fail in Phase A.');
+        } catch (BootstrapException $exception) {
+            self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
+        }
+    }
+
+    public function testMalformedModuleIdForInactiveTargetIsRejectedBeforeTargetResolution(): void
+    {
+        $this->source(['worker' => ['include' => ['INVALID.MODULE']]]);
+
+        try {
+            $this->resolve(AppTarget::Web);
+            self::fail('Inactive target module ids must be lexically validated.');
+        } catch (BootstrapException $exception) {
+            self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
+        }
     }
 
     public function testRejectsDuplicateNonCanonicalAndOverlappingIdsBeforeSetNormalization(): void
@@ -90,5 +129,31 @@ final class BootstrapConfigResolverResolvesModuleOverridesTest extends TestCase
                 self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
             }
         }
+    }
+
+    protected function setUp(): void
+    {
+        $this->root = ModeInfrastructureTestSupport::root();
+    }
+
+    protected function tearDown(): void
+    {
+        ModeInfrastructureTestSupport::remove($this->root);
+    }
+
+    private function resolve(AppTarget $target = AppTarget::Web): BootstrapConfig
+    {
+        return ModeInfrastructureTestSupport::bootstrapConfigResolver()->resolve(
+            new BootstrapInput($this->root, $target),
+            require \dirname(__DIR__, 2) . '/config/kernel.php',
+        );
+    }
+
+    private function source(array $overrides): void
+    {
+        ModeInfrastructureTestSupport::write(
+            $this->root . '/config/app.php',
+            '<?php return ' . \var_export(['moduleOverrides' => $overrides], true) . ';',
+        );
     }
 }

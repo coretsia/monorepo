@@ -32,7 +32,6 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigDirectiveMixedLevelException;
@@ -45,6 +44,7 @@ use Coretsia\Kernel\Module\Exception\ModePresetNotFoundException;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Ops\KernelOpsFacade;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use ReflectionClass;
@@ -278,7 +278,6 @@ final class KernelOpsHandledErrorsPreserveCanonicalKernelReasonsTest extends Tes
         return new KernelOpsFacade(
             hostInput: new KernelOpsHostInput('/fixture/application'),
             bootstrapConfigResolver: self::uninitialized(BootstrapConfigResolver::class),
-            envRepositoryBuilder: self::uninitialized(EnvRepositoryBuilder::class),
             moduleResolutionOrchestrator: self::uninitialized(ModuleResolutionOrchestrator::class),
             configKernel: self::uninitialized(ConfigKernel::class),
             runtimeContainerGraphCompiler: self::uninitialized(RuntimeContainerGraphCompiler::class),
@@ -308,6 +307,7 @@ final class KernelOpsHandledErrorsPreserveCanonicalKernelReasonsTest extends Tes
             meter: $meter,
             logger: $logger,
             stopwatch: new Stopwatch(),
+            bootstrapSourceResolver: ModeInfrastructureTestSupport::bootstrapSourceResolver(),
         );
     }
 

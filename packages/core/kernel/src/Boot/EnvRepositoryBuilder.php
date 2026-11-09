@@ -67,44 +67,67 @@ final readonly class EnvRepositoryBuilder
         $dotenv = $this->dotenvLoader->load($config, $kernelConfig);
         $system = self::snapshotSystemEnv();
 
-        if ($config->envSourcePolicy() === BootstrapEnvSourcePolicy::StrictDotenv) {
+        return $this->buildFromSnapshots(
+            dotenvValues: $dotenv['values'],
+            dotenvSources: $dotenv['sources'],
+            systemValues: $system['values'],
+            systemSources: $system['sources'],
+            policy: $config->envSourcePolicy(),
+        );
+    }
+
+    /**
+     * Builds one immutable repository from a previously captured source snapshot.
+     * Callers retain this object in their resolution-local BootstrapSourceSnapshot.
+     *
+     * @param array<string,string> $dotenvValues
+     * @param array<string,ConfigValueSource> $dotenvSources
+     * @param array<string,string> $systemValues
+     * @param array<string,ConfigValueSource> $systemSources
+     */
+    public function buildFromSnapshots(
+        array $dotenvValues,
+        array $dotenvSources,
+        array $systemValues,
+        array $systemSources,
+        BootstrapEnvSourcePolicy $policy,
+    ): EnvRepositoryInterface {
+        if ($policy === BootstrapEnvSourcePolicy::StrictDotenv) {
             return new ArrayEnvRepository(
-                values: $dotenv['values'],
-                sources: $dotenv['sources'],
+                values: $dotenvValues,
+                sources: $dotenvSources,
             );
         }
 
         return new ArrayEnvRepository(
-            values: self::mergeAllowSystemValues(
-                dotenvValues: $dotenv['values'],
-                systemValues: $system['values'],
-            ),
-            sources: self::mergeAllowSystemSources(
-                dotenvSources: $dotenv['sources'],
-                systemSources: $system['sources'],
-            ),
+            values: self::mergeAllowSystemValues($dotenvValues, $systemValues),
+            sources: self::mergeAllowSystemSources($dotenvSources, $systemSources),
         );
     }
 
     /**
      * Snapshots system/process env exactly once for this build operation.
      *
+     * @param null|callable(string,string):void $validateEntry
+     *
      * @return array{
      *     values: array<string,string>,
      *     sources: array<string,ConfigValueSource>
      * }
      */
-    private static function snapshotSystemEnv(): array
-    {
+    public static function snapshotSystemEnv(
+        ?callable $onInvalidName = null,
+        ?callable $validateEntry = null,
+    ): array {
         $values = [];
 
-        self::mergeSystemEnvMap($values, $_ENV);
-        self::mergeSystemEnvMap($values, $_SERVER);
+        self::mergeSystemEnvMap($values, $_ENV, $onInvalidName, $validateEntry);
+        self::mergeSystemEnvMap($values, $_SERVER, $onInvalidName, $validateEntry);
 
         $getenv = \getenv();
 
         if (\is_array($getenv)) {
-            self::mergeSystemEnvMap($values, $getenv);
+            self::mergeSystemEnvMap($values, $getenv, $onInvalidName, $validateEntry);
         }
 
         \ksort($values, \SORT_STRING);
@@ -126,16 +149,37 @@ final readonly class EnvRepositoryBuilder
     /**
      * @param array<string,string> $target
      * @param array<mixed> $source
+     * @param null|callable(string,string):void $validateEntry
      */
-    private static function mergeSystemEnvMap(array &$target, array $source): void
-    {
+    private static function mergeSystemEnvMap(
+        array &$target,
+        array $source,
+        ?callable $onInvalidName = null,
+        ?callable $validateEntry = null,
+    ): void {
         foreach ($source as $name => $value) {
-            if (!\is_string($name) || !self::isSafeEnvName($name)) {
+            if (!\is_string($name)) {
+                continue;
+            }
+
+            if (!self::isSafeEnvName($name)) {
+                if ($onInvalidName !== null) {
+                    $onInvalidName($name);
+                }
+
                 continue;
             }
 
             if (!\is_string($value)) {
+                if ($onInvalidName !== null) {
+                    $onInvalidName($name);
+                }
+
                 continue;
+            }
+
+            if ($validateEntry !== null) {
+                $validateEntry($name, $value);
             }
 
             $target[$name] = $value;
@@ -144,8 +188,7 @@ final readonly class EnvRepositoryBuilder
 
     private static function isSafeEnvName(string $name): bool
     {
-        return $name !== ''
-            && \preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $name) === 1;
+        return $name !== '' && \preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $name) === 1;
     }
 
     /**

@@ -22,7 +22,7 @@ use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
@@ -45,7 +45,6 @@ final readonly class KernelOpsExecutionServices
     public function __construct(
         private array $kernelConfig,
         private BootstrapConfigResolver $bootstrapConfigResolver,
-        private EnvRepositoryBuilder $envRepositoryBuilder,
         private ModuleResolutionOrchestrator $moduleResolutionOrchestrator,
         private ConfigKernel $configKernel,
         private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
@@ -53,6 +52,7 @@ final readonly class KernelOpsExecutionServices
         private FingerprintCalculator $fingerprintCalculator,
         private ConfigSourceLocationBuilder $configSourceLocationBuilder,
         private KernelArtifactOperation $kernelArtifactOperation,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
     ) {
         if (!self::isStringMap($this->kernelConfig)) {
             throw new \InvalidArgumentException('kernel-ops-execution-kernel-config-invalid');
@@ -72,9 +72,9 @@ final readonly class KernelOpsExecutionServices
         return $this->bootstrapConfigResolver;
     }
 
-    public function envRepositoryBuilder(): EnvRepositoryBuilder
+    public function bootstrapSourceResolver(): BootstrapSourceResolver
     {
-        return $this->envRepositoryBuilder;
+        return $this->bootstrapSourceResolver;
     }
 
     public function moduleResolutionOrchestrator(): ModuleResolutionOrchestrator

@@ -30,6 +30,7 @@ Bootstrap Phase A exists to resolve only the minimal boot input required by earl
 
 ```text
 applicationRoot
+project-wide activeTargets (BootstrapSourceSnapshot only)
 appTarget
 appEnv
 preset
@@ -40,6 +41,8 @@ appRoot
 moduleOverrides: ResolvedModuleOverrides
 immutable EnvRepositoryInterface snapshot
 ```
+
+Project-wide source resolution does not select a runtime AppTarget. `BootstrapConfigResolver` subsequently constructs one target-local `BootstrapConfig` for an explicitly selected AppTarget, reusing the approved source snapshot.
 
 Phase A must not become a full configuration merge phase.
 
@@ -124,8 +127,10 @@ Internal implementation helpers remain `@internal` and are not part of the publi
 The internal Phase A implementation helpers are:
 
 ```text
-Coretsia\Kernel\Boot\BootstrapConfigResolver
 Coretsia\Kernel\Boot\BootstrapArtifactsCacheDir
+Coretsia\Kernel\Boot\BootstrapConfigResolver
+Coretsia\Kernel\Boot\BootstrapSourceResolver
+Coretsia\Kernel\Boot\BootstrapSourceSnapshot
 Coretsia\Kernel\Boot\BootstrapOverridesLoader
 Coretsia\Kernel\Boot\DotenvLoader
 Coretsia\Kernel\Boot\EnvRepositoryBuilder
@@ -138,6 +143,7 @@ Bootstrap Phase A resolves only:
 
 ```text
 applicationRoot
+project-wide activeTargets (BootstrapSourceSnapshot only)
 appTarget
 appEnv
 preset
@@ -148,6 +154,8 @@ appRoot
 moduleOverrides: ResolvedModuleOverrides
 immutable EnvRepositoryInterface snapshot
 ```
+
+Project-wide source resolution does not select a runtime AppTarget. `BootstrapConfigResolver` subsequently constructs one target-local `BootstrapConfig` for an explicitly selected AppTarget, reusing the approved source snapshot.
 
 Phase A must not read full application configuration files.
 
@@ -215,21 +223,36 @@ Phase A must not choose an application by scanning sibling app directories.
 
 ## Installation-planning boundary
 
-Bootstrap Phase A resolves policy for one explicit `AppTarget`; it does not own a project-wide installation set.
+Bootstrap Phase A separates project-wide source resolution from target-local runtime configuration.
 
-`ProjectApplicationSet` is the separate DependencySync input that names every target participating in one consumer installation operation. DependencySync reuses the existing Phase A path independently for each selected target. Application directories and per-target configuration keys do not add targets implicitly.
+`BootstrapSourceResolver::resolveApplicationRoot()` resolves one immutable `BootstrapSourceSnapshot` without creating an `AppTarget` or a synthetic `BootstrapInput`. The snapshot contains optional `activeTargets`, normalized bootstrap source overrides, frozen appEnv and source policy, safe provenance, and one immutable environment repository.
 
-`ProjectInstallationIntent::fixedPresetByTarget()` may intentionally provide the explicit `BootstrapInput::preset()` value for a selected target. When no fixed preset is declared for that target, DependencySync leaves `BootstrapInput::preset()` unset so the normal Phase A precedence remains authoritative:
+DependencySync derives its effective `ProjectApplicationSet` from the approved snapshot:
+
+- configured non-empty `activeTargets` is authoritative;
+- absent `activeTargets` uses the DependencySync-owned fallback `['web']`;
+- target-specific `presets` and `moduleOverrides` never add application membership implicitly;
+- application directories do not determine installed application membership.
+
+The same snapshot is reused to resolve independent target-local `BootstrapConfig` values for all selected applications. `BootstrapConfigResolver` never reads the source layers again when an approved snapshot is supplied.
+
+`ProjectInstallationIntent::fixedPresetByTarget()` is allowed for temporary read-only `plan` and `review` operations. Its target-specific values use the existing explicit `BootstrapInput::preset()` precedence without changing persistent configuration.
+
+Effectful synchronization uses configuration-owned application membership and persistent effective presets. It rejects a non-empty temporary fixed-preset map and rejects an explicit application set that disagrees with the current configured application set.
+
+The canonical Skeleton entrypoints are:
 
 ```text
-config/app.php presets[appTarget]
-config/app.php preset
-kernel.boot.default_preset
+php coretsia plan
+php coretsia review
+php coretsia apply
 ```
 
-The installation-only fixed preset is therefore an explicit caller decision through the existing precedence seam, not another persistent preset source. It does not mutate `config/app.php`.
+They use the Skeleton application root and do not accept DependencySync `--target`. A temporary `--preset=<target>=<preset>` is supported only for plan and review, never apply.
 
-Phase A itself remains non-effectful: it does not edit `composer.json`, execute Composer, or inspect the DependencySync installation catalog during runtime boot.
+The initial Composer bootstrap requires the Framework's Kernel-only baseline, not an already installed `platform.cli` runtime. DependencySync planning, review, synchronization, Composer reconciliation, and fresh-process verification remain Kernel-owned.
+
+Bootstrap Phase A is non-effectful. It does not modify user configuration, execute Composer, read the installation catalog, or create `ModulePlan`.
 
 ## Decision 3: BootstrapInput is entrypoint-owned input only
 
@@ -307,131 +330,120 @@ The object derives only `appRoot` from already resolved `applicationRoot` and `a
 
 `BootstrapConfig` does not derive this value from Phase B config and does not read compiled runtime config.
 
-## Decision 5: BootstrapConfigResolver owns Phase A config resolution
+## Decision 5: BootstrapSourceResolver owns source resolution; BootstrapConfigResolver owns target-local configuration
 
-`Coretsia\Kernel\Boot\BootstrapConfigResolver` is the canonical internal owner of Phase A config resolution.
+`Coretsia\Kernel\Boot\BootstrapSourceResolver` is the canonical internal owner of Bootstrap Phase A source orchestration.
 
-General resolution order is:
+It is independent of `BootstrapConfigResolver` and does not construct a target-local `BootstrapConfig`.
 
-1. explicit `BootstrapInput` values;
-2. bootstrap-only overrides from `config/app.php`;
-3. package defaults from `kernel.boot.*` and `kernel.env.*`.
+For one resolution attempt, it:
 
-The resolver resolves:
+1. validates the application-root identity;
+2. captures one process environment snapshot;
+3. reads and validates the optional bootstrap-only `config/app.php`;
+4. reads and validates the base dotenv layers;
+5. selects and freezes appEnv;
+6. selects the effective `BootstrapEnvSourcePolicy` exactly once;
+7. loads and validates the environment-specific dotenv layers;
+8. merges normalized bootstrap logical keys in canonical source order;
+9. applies permitted process bootstrap overrides only under `allow_system`;
+10. builds one immutable `EnvRepositoryInterface` from the already captured dotenv and system values;
+11. returns one immutable `BootstrapSourceSnapshot`.
+
+`BootstrapSourceResolver` MUST NOT create `BootstrapConfig`, `ConfigKernel`, `ModulePlan`, `ProjectApplicationSet`, or Composer installation state.
+
+### appEnv freeze and source policy
+
+The initial appEnv precedence is:
 
 ```text
-appEnv
-preset
-debug
-artifactsCacheDir
-envSourcePolicy
-moduleOverrides: ResolvedModuleOverrides
+explicit BootstrapInput::appEnv()
+explicit AllowSystem process CORETSIA_BOOT_APP_ENV
+.env.local CORETSIA_BOOT_APP_ENV
+.env CORETSIA_BOOT_APP_ENV
+config/app.php appEnv
+kernel.boot.default_env
 ```
 
-Artifact cache directory resolution has this deterministic precedence:
+Process environment can select appEnv only when `BootstrapEnvSourcePolicy::AllowSystem` is explicitly requested.
 
-1. explicit `BootstrapInput::artifactsCacheDir()`;
-2. bootstrap-only `config/app.php` `artifactsCacheDir`;
-3. package fallback `kernel.boot.default_artifacts_cache_dir`.
+Explicit appEnv wins over a different process appEnv without a false mismatch.
 
-The result is stored in:
+Environment-specific dotenv layers do not reselect appEnv. If they contain `CORETSIA_BOOT_APP_ENV`, its value MUST match the frozen environment exactly.
+
+After appEnv selection, the source policy is determined from explicit `BootstrapInput::envSourcePolicy()` or the canonical Kernel defaults.
+
+`prod` and `production` default to `allow_system`. All other environments, including `staging`, default to `strict_dotenv`.
+
+The production-like default MUST NOT trigger another appEnv selection from process environment.
+
+### Normalized source merge
+
+For ordinary bootstrap source overrides, precedence from strongest to weakest is:
+
+```text
+permitted process environment
+.env.<appEnv>.local
+.env.<appEnv>
+.env.local
+.env
+config/app.php
+Kernel defaults
+```
+
+Each permitted source layer MUST be validated before merging.
+
+`activeTargets` is replaced as one complete non-empty list.
+
+`presets[target]` is merged per target. An empty map is a no-op.
+
+`moduleOverrides[target].include` and `moduleOverrides[target].exclude` are merged independently. An absent field preserves the lower layer; an explicit empty list clears only the corresponding field.
+
+The canonical structured bootstrap environment inputs are:
+
+```dotenv
+CORETSIA_BOOT_ACTIVE_TARGETS=["web","worker"]
+CORETSIA_BOOT_PRESETS={"web":"micro","worker":"hybrid"}
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={"web":["platform.logging"]}
+CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={"web":[]}
+```
+
+`CORETSIA_BOOT_ACTIVE_TARGETS` is a non-empty JSON list. `CORETSIA_BOOT_PRESETS` is a JSON object mapping AppTarget to preset string; `CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE` and `CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE` are separate JSON objects mapping AppTarget to ModuleId string lists. JSON object keys MUST be unique. An empty map `{}` is a no-op, while `{"web":[]}` explicitly clears only the named target's corresponding include or exclude field. The complete reserved-key allowlist and input limits are defined in `docs/ssot/config-and-env.md`.
+
+The final normalized shape is completed only after source merging. The snapshot stores safe source provenance for each logical key and one immutable environment repository.
+
+### Target-local BootstrapConfig
+
+`Coretsia\Kernel\Boot\BootstrapConfigResolver` consumes the approved `BootstrapSourceSnapshot` and the explicit `BootstrapInput` for one AppTarget.
+
+Its canonical preset precedence is:
+
+```text
+explicit BootstrapInput::preset()
+merged presets[appTarget]
+merged global preset
+kernel.boot.default_preset
+```
+
+Explicit `BootstrapInput::debug()` and `BootstrapInput::artifactsCacheDir()` similarly take precedence over merged source values and Kernel defaults.
+
+The canonical resolved artifact directory remains:
 
 ```text
 BootstrapConfig::artifactsCacheDir()
 ```
 
-After resolution, artifact path consumers must use only this `BootstrapConfig` value.
+Artifact path consumers MUST NOT re-resolve it through Phase B or compiled configuration.
 
-They must not re-read:
+`BootstrapConfigResolver` validates and normalizes the selected target's module overrides, including include/exclude conflicts. Module graph policy and dependency closure remain the responsibility of existing Kernel orchestration.
 
-```text
-kernel.boot.default_artifacts_cache_dir
-Phase B merged config
-compiled config@1
-```
+The resolver MUST NOT resolve preset files, read Composer metadata, build the environment repository, parse dotenv, discover applications, or execute lifecycle behavior.
 
-Preset resolution has a dedicated deterministic precedence:
+A pre-resolved snapshot MUST be bound to the same `applicationRoot`. Conflicting explicit appEnv or envSourcePolicy MUST fail without attempting another source resolution.
 
-1. explicit `BootstrapInput::preset()`;
-2. `config/app.php` `presets[appTarget]`;
-3. `config/app.php` global `preset`;
-4. `kernel.boot.default_preset`.
+The same snapshot MAY be reused for different explicit AppTargets of the same project.
 
-The `presets[appTarget]` lookup is evaluated only for the already selected `BootstrapInput::appTarget()`.
-
-The `presets` map must not:
-
-- select app target;
-- infer app target;
-- modify app target;
-- scan `apps/*`;
-- determine effective module-selection roots; the separately validated selected-target `moduleOverrides` value is handled by `BootstrapConfigResolver`.
-
-If `presets` exists but does not contain the selected app target, the resolver falls back to the global `preset` override.
-
-If the global `preset` override is absent, the resolver falls back to:
-
-```text
-kernel.boot.default_preset
-```
-
-Phase A validates only preset value shape.
-
-Phase A must not validate preset file existence.
-
-Phase A must not validate preset schema.
-
-Preset file existence and schema validation are owned by the compile-host `ModuleResolutionOrchestrator` and its namespace-bound preset loader, not Bootstrap Phase A.
-
-The resolver returns a resolved `BootstrapConfig`.
-
-The resolver must not:
-
-- build `EnvRepositoryInterface`;
-- parse dotenv files;
-- read system env;
-- scan `apps/*`;
-- require `appRoot` to exist;
-- read `kernel.modes.defaults_path`;
-- read `kernel.modes.overrides_path`;
-- load `resources/modes/*.php`;
-- load `config/modes/*.php`;
-- expose raw override values in diagnostics.
-
-`envSourcePolicy` is resolved after final `appEnv` is selected.
-
-Production-like env names are exactly:
-
-```text
-prod
-production
-```
-
-Production-like env names default to:
-
-```text
-allow_system
-```
-
-Every other env name defaults to:
-
-```text
-strict_dotenv
-```
-
-`staging` is intentionally default-strict and therefore defaults to:
-
-```text
-strict_dotenv
-```
-
-Non-production env names that need system env precedence must pass explicit:
-
-```text
-BootstrapEnvSourcePolicy::AllowSystem
-```
-
-through `BootstrapInput`.
+The snapshot MUST NOT infer installation membership, determine runtime AppTarget, or construct an independent installation identity.
 
 ## Decision 6: BootstrapOverridesLoader reads only config/app.php
 
@@ -453,6 +465,7 @@ Allowed override keys are exactly:
 appEnv
 preset
 presets
+activeTargets
 debug
 artifactsCacheDir
 moduleOverrides
@@ -470,6 +483,7 @@ Allowed values are:
 appEnv: non-empty safe string
 preset: non-empty safe string
 presets: string-keyed map of appTarget => non-empty safe preset string
+activeTargets: non-empty list of unique canonical AppTarget strings
 debug: bool
 artifactsCacheDir: portable applicationRoot-relative artifact output directory
 moduleOverrides: partial map<appTarget, {include?: list<string>, exclude?: list<string>}>
@@ -511,6 +525,7 @@ return [
         'console' => 'hybrid',
         'worker' => 'enterprise',
     ],
+    'activeTargets' => ['web', 'worker'],
     'moduleOverrides' => [
         'web' => [
             'include' => ['integrations.foo'],
@@ -571,15 +586,19 @@ Phase A validates selected-app-target include/exclude override input but does no
 
 `BootstrapConfigResolver` validates selected-app-target `moduleOverrides` in Phase A. For installed runtime resolution, the compile-host orchestrator combines them with namespace-owned preset policy into `ModuleSelection`, then resolves that selection against installed module metadata.
 
-For explicit DependencySync installation planning, the same Phase A result is produced independently per selected target and the resulting `ModuleSelection` is resolved against the versioned installation catalog before Composer. Phase A itself does not know or read that catalog.
+For DependencySync installation planning, one project-wide `BootstrapSourceSnapshot` is reused for independent target-local configurations. Each selected target receives its own `ModuleSelection`, which is resolved against the versioned installation catalog before Composer. Bootstrap Phase A itself does not know or read that catalog.
 
 Override values must not appear in exception messages.
 
 ### Bootstrap app-target module overrides
 
-`config/app.php` MAY contain a partial `moduleOverrides` map keyed only by `api`, `console`, `web`, and `worker`, each with optional `include` and `exclude` **list<string>** fields. The loader validates the raw shape for every provided target, rejects unknown keys/invalid list items and preserves source duplicates without sorting or constructing module ids. Missing list keys default to empty lists.
+`config/app.php` MAY contain a partial `moduleOverrides` map keyed only by `api`, `console`, `web`, and `worker`, each with optional `include` and `exclude` lists of canonical ModuleIds.
 
-For the already selected app target, `BootstrapConfigResolver` validates each external id against its exact canonical `ModuleId::value()` and rejects duplicates within either source list and `include ∩ exclude`. It normalizes valid lists using `ModuleIdSetNormalizer` and constructs one immutable `ResolvedModuleOverrides`; an absent selected target yields empty `include` and `exclude`. Invalid raw or canonical id input fails with `BootstrapException::REASON_OVERRIDES_INVALID` and path-safe diagnostics. Phase A does **not** load a preset, read `ModuleManifest`, construct `ModuleSelection`, or resolve dependency closure. `BootstrapConfig` keeps the already resolved preset name alongside this immutable override value.
+`BootstrapOverridesLoader` validates the shape and canonical ModuleId syntax of every provided target, including inactive targets. It rejects duplicate, noncanonical, and invalid ModuleIds before source merging. Missing `include` or `exclude` fields remain absent during the merge; they are normalized to empty lists only after source merging finishes.
+
+`BootstrapConfigResolver` validates selected-target include/exclude conflicts, normalizes the lists through `ModuleIdSetNormalizer`, and constructs an immutable `ResolvedModuleOverrides`. The selected target's absence produces empty include and exclude lists.
+
+Phase A MUST NOT load preset files, read `ModuleManifest`, construct `ModuleSelection`, or resolve dependency closure. Those operations remain with their existing Kernel owners. Invalid source configuration fails through bounded `BootstrapException` diagnostics without exposing raw values.
 
 ## Decision 7: BootstrapEnvSourcePolicy is source precedence only
 
@@ -608,34 +627,19 @@ defaulted
 
 It does not control dotenv/system env source precedence.
 
-## Decision 8: DotenvLoader consumes resolved BootstrapConfig
+## Decision 8: DotenvLoader owns ordered dotenv loading only
 
-`Coretsia\Kernel\Boot\DotenvLoader` parses configured dotenv files safely.
+`Coretsia\Kernel\Boot\DotenvLoader` is the canonical dotenv parser.
 
-It consumes a resolved `BootstrapConfig`.
+It exposes ordered per-file dotenv layers without flattening away source provenance. `BootstrapSourceResolver` uses this capability to load base layers before appEnv selection and environment-specific layers after appEnv is frozen.
 
-It must not:
-
-- resolve `appEnv`;
-- read `BootstrapInput`;
-- read `config/app.php`;
-- apply package boot defaults;
-- apply system env precedence;
-- use `Coretsia\Contracts\Env\EnvPolicy`.
-
-Dotenv template expansion uses the already selected:
-
-```text
-BootstrapConfig::appEnv()
-```
-
-The default dotenv file templates are read from:
+The canonical templates are supplied by:
 
 ```text
 kernel.env.dotenv.files
 ```
 
-The canonical default templates are:
+Their default order is:
 
 ```text
 .env
@@ -644,76 +648,37 @@ The canonical default templates are:
 .env.<env>.local
 ```
 
-If `appEnv` is absent from explicit `BootstrapInput` and `config/app.php`, the package default:
+`DotenvLoader::loadBaseLayers()` loads the environment-independent layers.
 
-```text
-kernel.boot.default_env
-```
+`DotenvLoader::loadEnvironmentLayers()` loads the environment-specific layers using frozen appEnv and reuses preloaded layers where applicable.
 
-is resolved by `BootstrapConfigResolver` before dotenv template expansion.
+`DotenvLoader::flattenLayers()` preserves the existing ordinary dotenv snapshot behavior after the bootstrap-specific source merge has completed.
 
-Dotenv entries must be filesystem-safe file names.
+The existing `load(BootstrapConfig, kernelConfig)` entrypoint remains available for existing consumers.
 
-Configured dotenv file entries must reject:
+`DotenvLoader` MUST NOT independently select appEnv, apply process source precedence, merge bootstrap JSON maps, resolve presets, load application configuration, or construct Composer installation state.
 
-```text
-/
-\
-..
-NUL
-drive letters
-stream wrappers
-```
+Configured dotenv names remain subject to existing safe filename validation. Invalid or unreadable files fail through safe `BootstrapException` mapping without raw dotenv values or absolute filesystem paths.
 
-Dotenv loading returns:
+## Decision 9: EnvRepositoryBuilder owns immutable environment snapshot construction
 
-```text
-values: array<string,string>
-sources: array<string,ConfigValueSource>
-```
+`Coretsia\Kernel\Boot\EnvRepositoryBuilder` constructs the canonical immutable `EnvRepositoryInterface`.
 
-Raw dotenv values must not appear in diagnostics.
+For Bootstrap Phase A source orchestration, it consumes already loaded dotenv values and safe sources, one captured system environment snapshot, and the frozen `BootstrapEnvSourcePolicy`.
 
-## Decision 9: EnvRepositoryBuilder owns env snapshot construction only
+The internal snapshot-construction entrypoint MUST NOT require a target-local `BootstrapConfig`, reload dotenv files, capture a second independent process environment snapshot, reselect appEnv, or merge bootstrap presets and module overrides.
 
-`Coretsia\Kernel\Boot\EnvRepositoryBuilder` builds immutable
-`EnvRepositoryInterface` snapshots.
+The existing `build(BootstrapConfig, kernelConfig)` entrypoint remains available for compatible existing consumers and delegates to the same scalar source-precedence behavior.
 
-It consumes a resolved `BootstrapConfig`.
+`strict_dotenv` excludes process values and process fallback from the resulting repository.
 
-It must not:
+`allow_system` gives present process values precedence over dotenv values and preserves dotenv values where the corresponding process key is absent.
 
-- resolve `BootstrapConfig`;
-- read `BootstrapInput` optional values;
-- read `config/app.php`;
-- apply package boot defaults;
-- use `Coretsia\Contracts\Env\EnvPolicy`;
-- create a mutable repository;
-- expose raw env values in diagnostics.
+Presence and empty strings are distinct. The immutable repository retains all permitted environment keys needed by ordinary Phase B package overlays, not only `CORETSIA_BOOT_*`.
 
-`EnvRepositoryBuilder` owns env repository construction only.
+One source resolution attempt produces one immutable repository, which is retained by `BootstrapSourceSnapshot` and reused by all its target-local consumers.
 
-It does not own Phase A config resolution.
-
-It does not own dotenv parsing policy beyond invoking `DotenvLoader`.
-
-It does not own missing-value policy.
-
-The canonical env snapshot order is:
-
-1. resolved `BootstrapConfig` is consumed;
-2. dotenv files are loaded using resolved `BootstrapConfig::appEnv()`;
-3. system env is snapshotted once;
-4. dotenv/system precedence is applied according to resolved `BootstrapConfig::envSourcePolicy()`;
-5. immutable `EnvRepositoryInterface` snapshot is returned.
-
-After repository construction, the returned repository must not read from:
-
-```text
-$_ENV
-$_SERVER
-getenv()
-```
+The builder MUST NOT implement application membership, preset selection, config validation, module graph policy, Composer reconciliation, or Phase B environment projection.
 
 ## Decision 10: ArrayEnvRepository is the internal immutable repository
 
@@ -849,9 +814,12 @@ The message must not contain:
 ```text
 BootstrapOverridesLoader
 BootstrapConfigResolver
+BootstrapSourceResolver
 DotenvLoader
 EnvRepositoryBuilder
 ```
+
+`BootstrapSourceSnapshot` is a resolution-local immutable value, not a container service. Service registration MUST NOT create snapshots, read bootstrap source files, or execute environment resolution.
 
 Provider registration must not execute Bootstrap Phase A.
 
@@ -880,66 +848,25 @@ in this ADR.
 
 This is intentional.
 
-`BootstrapConfigResolver` exists, but it is not a Bootstrapper.
+`BootstrapSourceResolver` is the canonical internal Phase A source orchestrator. It creates one `BootstrapSourceSnapshot` for the application root, frozen environment, source policy, and resolution attempt.
 
-`BootstrapConfigResolver` is an internal, narrow resolver. It owns only Phase A config resolution:
+`BootstrapConfigResolver` is the internal target-local configuration resolver. It accepts explicit `BootstrapInput` and the approved source snapshot and returns one `BootstrapConfig`. It does not load bootstrap sources or construct the environment repository.
 
-```text
-BootstrapInput
-bootstrap-only overrides from config/app.php
-kernel.boot.* defaults
-kernel.env.* defaults
-```
+Both resolvers are internal. Neither introduces a public `Bootstrapper` or public `BootstrapResult`.
 
-and returns only:
+The existing public values remain narrowly scoped:
 
-```text
-BootstrapConfig
-```
+- `BootstrapInput` carries entrypoint-owned target-local inputs;
+- `BootstrapConfig` carries resolved target-local configuration;
+- `EnvRepositoryInterface` provides runtime access to the immutable environment snapshot.
 
-It must not:
+`BootstrapSourceSnapshot` is an internal value object, not a public aggregate result, runtime singleton, or verification envelope.
 
-- build `EnvRepositoryInterface`;
-- invoke `EnvRepositoryBuilder`;
-- parse dotenv files;
-- read system env;
-- execute lifecycle behavior;
-- hide full Phase A orchestration behind a public API.
+The canonical Kernel source and compile-host owners reuse these values without creating a second ConfigKernel, preset registry, or environment-loading pipeline.
 
-A public `Bootstrapper` would be a different abstraction. It would likely orchestrate at least:
+`KernelArtifactOperation` remains the canonical internal compile/verify preparation owner.
 
-```text
-BootstrapInput
-BootstrapConfigResolver
-DotenvLoader
-EnvRepositoryBuilder
-BootstrapConfig
-EnvRepositoryInterface
-```
-
-and would freeze a public one-call Phase A orchestration contract before platform entrypoints and CLI commands own their concrete invocation contracts.
-
-A public `BootstrapResult` would also be a different abstraction. It would aggregate at least:
-
-```text
-BootstrapConfig
-EnvRepositoryInterface
-```
-
-This ADR rejects introducing that aggregate result because the canonical result objects already exist and have clear ownership:
-
-```text
-BootstrapConfig
-EnvRepositoryInterface
-```
-
-The design keeps the public API stable and minimal:
-
-- entrypoints that own narrow Phase A composition may construct `BootstrapInput`;
-- internal resolver returns `BootstrapConfig`;
-- internal builder returns `EnvRepositoryInterface`;
-- `KernelArtifactOperation` remains the internal canonical compile/verify input-preparation owner;
-- `platform/cli` invokes Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
+`platform/cli` invokes Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`.
 
 For CLI-owned Kernel operations, `platform/cli` MUST NOT construct the compile-host pipeline or call `KernelArtifactOperation` directly.
 
@@ -961,8 +888,9 @@ validateConfig() / debugConfig() / hashConfig() / debugModules()
 
 compileConfig() / verifyCache()
   -> internal KernelArtifactOperation
-  -> BootstrapConfigResolver
-  -> EnvRepositoryBuilder
+  -> BootstrapSourceResolver
+  -> one BootstrapSourceSnapshot / EnvRepositoryInterface
+  -> BootstrapConfigResolver (same snapshot)
   -> ModuleResolutionOrchestrator::resolve()
   -> ConfigSourceLocationBuilder
   -> ArtifactCompiler / CacheVerifier
@@ -1013,6 +941,7 @@ The exclusion applies to:
 ```text
 BootstrapOverridesLoader
 BootstrapConfigResolver
+BootstrapSourceResolver
 DotenvLoader
 EnvRepositoryBuilder
 Composer metadata readers
@@ -1037,6 +966,8 @@ KernelArtifactOperation
 artifact readers and writers
 ContainerCompiler
 ```
+
+The same canonical source-host service wiring MUST be available when constructing source and compiled artifacts. `BootstrapSourceResolver` and its resolution-local snapshots MUST NOT be contributed to the compiled runtime definition graph or registered as runtime singleton state.
 
 `ConfigSourceSet` is not a compile-host service.
 
@@ -1192,7 +1123,7 @@ Artifact cache location is resolved before artifact lookup without depending on 
 
 Applications may relocate Kernel artifacts within the application root through a bootstrap-only override while preserving deterministic precedence.
 
-Per-app preset selection and selected-target module overrides are represented separately in bootstrap-only `config/app.php`; Phase A resolves the preset name and validates the immutable `ResolvedModuleOverrides` without traversing the installed module graph.
+Per-app preset selection and target-specific module overrides are resolved from the merged bootstrap sources (`config/app.php`, permitted dotenv layers, and permitted process environment values). Phase A resolves the selected preset name and validates immutable `ResolvedModuleOverrides` without traversing the installed module graph.
 
 The selected app target remains explicit even when `presets` contains entries for multiple app targets.
 
@@ -1200,8 +1131,8 @@ Preset selection remains deterministic:
 
 ```text
 BootstrapInput::preset()
-config/app.php presets[appTarget]
-config/app.php preset
+merged presets[appTarget]
+merged global preset
 kernel.boot.default_preset
 ```
 
@@ -1209,7 +1140,7 @@ Phase A still does not load mode preset files or validate preset existence.
 
 `BootstrapConfig` remains a clean resolved VO.
 
-`BootstrapConfigResolver` owns Phase A config resolution.
+`BootstrapSourceResolver` owns project-wide Phase A source resolution and the immutable environment snapshot. `BootstrapConfigResolver` owns target-local `BootstrapConfig` resolution from that snapshot.
 
 `EnvRepositoryBuilder` owns env snapshot construction only.
 
@@ -1235,11 +1166,11 @@ The public API remains small.
 
 There is no one-call public bootstrap facade.
 
-Entrypoints that own only narrow Phase A composition may use `BootstrapConfigResolver` and `EnvRepositoryBuilder` through their existing Kernel wiring. `platform/cli` MUST instead resolve `KernelOpsInterface` through the dedicated Kernel source-operations host and MUST NOT call `KernelArtifactOperation` directly. Internal `KernelOpsFacade` preserves `KernelArtifactOperation` as the canonical compile/verify preparation owner for `compileConfig()` and `verifyCache()`.
+Entrypoints that own narrow Phase A composition use the canonical `BootstrapSourceResolver` and `BootstrapConfigResolver` through existing Kernel wiring, reusing one approved snapshot and environment repository per operation attempt. `platform/cli` MUST instead resolve `KernelOpsInterface` through the dedicated Kernel source-operations host and MUST NOT call `KernelArtifactOperation` directly. Internal `KernelOpsFacade` preserves `KernelArtifactOperation` as the canonical compile/verify preparation owner for `compileConfig()` and `verifyCache()`.
 
 `staging` defaults to `strict_dotenv`, so deployments that want system env precedence for staging must pass explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
-`BootstrapOverridesLoader` supports only `appEnv`, `preset`, `presets`, `debug`, `artifactsCacheDir`, and `moduleOverrides`.
+`BootstrapOverridesLoader` supports only `appEnv`, `activeTargets`, `preset`, `presets`, `debug`, `artifactsCacheDir`, and `moduleOverrides`. The separate bootstrap environment allowlist and strict JSON-map validation are owned by `BootstrapSourceResolver`.
 
 Other bootstrap inputs require explicit entrypoint input or an explicit extension of the Bootstrap Phase A contract.
 
@@ -1467,21 +1398,23 @@ This ADR does not introduce:
 Expected verification includes:
 
 ```text
+packages/core/kernel/tests/Unit/BootstrapArtifactsCacheDirValidationTest.php
+packages/core/kernel/tests/Unit/BootstrapSourceSnapshotTest.php
+packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php
+packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
 packages/core/kernel/tests/Contract/KernelBootstrapDoesNotUseRuntimeLifecycleTest.php
 packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php
 packages/core/kernel/tests/Contract/KernelDoesNotWriteToStdoutTest.php
+packages/core/kernel/tests/Integration/BootstrapSourceResolverPrecedenceTest.php
 packages/core/kernel/tests/Integration/BootstrapSelectsExplicitAppTargetTest.php
 packages/core/kernel/tests/Integration/BootstrapDoesNotScanAppsTest.php
 packages/core/kernel/tests/Integration/BootstrapOverridesLoaderReadsOnlyAppPhpTest.php
 packages/core/kernel/tests/Integration/BootstrapPresetResolutionPrecedenceTest.php
-packages/core/kernel/tests/Unit/BootstrapArtifactsCacheDirValidationTest.php
-packages/core/kernel/tests/Unit/ArtifactPathResolverUsesBootstrapAppTargetTest.php
 packages/core/kernel/tests/Integration/ArtifactPipelineUsesConfiguredCacheDirTest.php
 packages/core/kernel/tests/Integration/FingerprintDoesNotDependOnArtifactsCacheDirTest.php
 packages/core/kernel/tests/Integration/BootstrapWorksWithoutAnyApplicationConfigFilesTest.php
 packages/core/kernel/tests/Integration/BootstrapDotenvRespectedUnderStrictPolicyTest.php
 packages/core/kernel/tests/Integration/BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest.php
-packages/core/kernel/tests/Contract/ModulePlanArtifactHydratorContractTest.php
 packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php
 packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php
 packages/core/kernel/tests/Integration/ArtifactRuntimeBootRejectsMixedGenerationTest.php
@@ -1502,7 +1435,8 @@ Verification must prove:
 - `BootstrapOverridesLoader` does not read `config/modules.php`;
 - unknown override keys fail deterministically;
 - moduleOverrides accepts only known app targets and per-target include/exclude list keys;
-- duplicate and non-canonical selected-target module ids, include/exclude overlap and invalid override input fail with `BootstrapException::REASON_OVERRIDES_INVALID`;
+- duplicate, noncanonical, and invalid ModuleIds in every permitted source layer, including inactive targets, fail before source merging with `BootstrapException::REASON_OVERRIDES_INVALID`;
+- selected-target include/exclude conflicts fail with `BootstrapException::REASON_OVERRIDES_INVALID`;
 - missing selected-target moduleOverrides produce empty immutable `ResolvedModuleOverrides`;
 - raw override values do not leak in exception messages;
 - bare application boot works without any application config files;
@@ -1527,6 +1461,18 @@ Verification must prove:
 - Phase B config and compiled config are not used to re-resolve artifact location;
 - strict dotenv policy ignores system env values;
 - strict dotenv policy forbids system env fallback;
+- strict dotenv policy ignores unknown process `CORETSIA_BOOT_*` keys;
+- appEnv selection is frozen before environment-specific dotenv layers are loaded;
+- explicit BootstrapInput appEnv wins over a different lower-priority process appEnv without false mismatch;
+- process appEnv selects the environment only under explicitly requested AllowSystem;
+- environment-specific dotenv appEnv mismatch fails closed;
+- `activeTargets` is project-wide, validated, and never selects a runtime AppTarget;
+- normalized presets and module overrides merge independently per target and field;
+- `{}` is a bootstrap JSON-map no-op and `{"web":[]}` explicitly clears the corresponding module list;
+- duplicate JSON object keys, malformed JSON, unsupported aliases, and noncanonical values fail closed;
+- a supplied source snapshot is reused across target-local resolution without repeated source reads;
+- a snapshot with another application root or conflicting explicit appEnv/source policy is rejected;
+- source provenance and raw environment values do not enter installation verification identity;
 - allow-system policy lets system env values override dotenv values;
 - allow-system policy uses dotenv values only when system env keys are absent;
 - present empty string remains present;
@@ -1557,6 +1503,8 @@ Verification must prove:
 
 - `docs/ssot/application-dependency-sync.md`
 - `docs/ssot/config-and-env.md`
+- `docs/ssot/config-precedence-matrix.md`
+- `docs/ssot/config-merge-order.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/uow-and-reset-contracts.md`
 - `docs/ssot/observability.md`

@@ -390,6 +390,63 @@ final class ComposerRootReconcilerTest extends TestCase
         }
     }
 
+    public function testBootstrapIdentityChangesDoNotRewriteComposerRequirements(): void
+    {
+        $manifest = (object) [
+            'require' => (object) [
+                'php' => '^8.4',
+                'coretsia/framework' => '^0.7.0',
+                'acme/project-owned' => '^1.2',
+            ],
+            'require-dev' => (object) [
+                'phpunit/phpunit' => '^12.0',
+            ],
+        ];
+        $baselinePlan = self::plan();
+        $changed = self::planWithBootstrapIdentity('production', 'allow_system');
+
+        self::assertFalse($baselinePlan->equals($changed));
+        self::assertSame($baselinePlan->desiredRootRequirements(), $changed->desiredRootRequirements());
+
+        $reconciler = new ComposerRootReconciler();
+        $baseline = $reconciler->reconcile($manifest, self::copy($manifest), $baselinePlan);
+        $different = $reconciler->reconcile($manifest, self::copy($manifest), $changed);
+
+        self::assertSame($baseline['manifestChanged'], $different['manifestChanged']);
+        self::assertSame($baseline['managedRequireWrites'], $different['managedRequireWrites']);
+        self::assertSame($baseline['managedRequireRemovals'], $different['managedRequireRemovals']);
+        self::assertSame($baseline['protectedThirdPartyRoots'], $different['protectedThirdPartyRoots']);
+        self::assertEquals($baseline['candidateDocument'], $different['candidateDocument']);
+        self::assertSame('^1.2', $different['candidateDocument']->require->{'acme/project-owned'});
+        self::assertSame('^12.0', $different['candidateDocument']->{'require-dev'}->{'phpunit/phpunit'});
+        self::assertFalse(
+            \property_exists(
+                $different['candidateDocument']->extra->coretsia->dependencySync,
+                'bootstrapInstallationIdentity',
+            ),
+        );
+    }
+
+    private static function planWithBootstrapIdentity(string $appEnv, string $policy): ProjectPackagePlan
+    {
+        $plan = self::plan();
+        $identity = $plan->bootstrapInstallationIdentity();
+        $identity['appEnv'] = $appEnv;
+        $identity['envSourcePolicy'] = $policy;
+
+        return new ProjectPackagePlan(
+            applications: $plan->applications(),
+            effectivePresetsByTarget: $plan->effectivePresetsByTarget(),
+            fixedPresetByTarget: $plan->fixedPresetByTarget(),
+            enabledModuleIdsByTarget: $plan->enabledModuleIdsByTarget(),
+            excludedModuleIdsByTarget: $plan->excludedModuleIdsByTarget(),
+            unionModuleIds: $plan->unionModuleIds(),
+            expectedModuleMetadataById: $plan->expectedModuleMetadataById(),
+            desiredRootRequirements: $plan->desiredRootRequirements(),
+            bootstrapInstallationIdentity: $identity,
+        );
+    }
+
     private static function plan(): ProjectPackagePlan
     {
         return new ProjectPackagePlan(
@@ -416,6 +473,12 @@ final class ComposerRootReconcilerTest extends TestCase
             desiredRootRequirements: [
                 'coretsia/core-foundation' => '^0.7.0',
                 'coretsia/core-kernel' => '^0.7.0',
+            ],
+            bootstrapInstallationIdentity: [
+                'appEnv' => 'local',
+                'envSourcePolicy' => 'strict_dotenv',
+                'presets' => ['web' => 'micro'],
+                'moduleOverrides' => [],
             ],
         );
     }

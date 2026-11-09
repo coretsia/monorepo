@@ -24,7 +24,9 @@ owner: core/contracts
 
 This document is the Single Source of Truth for Coretsia config/env contracts, env lookup semantics, config directive invariants, source tracking, safe explain traces, config validation result shapes, and declarative config ruleset policy.
 
-This document governs contracts introduced by epic `1.80.0` under:
+It also defines the Kernel-owned Bootstrap Phase A environment input contract consumed before ConfigKernel Phase B. This does not transfer source parsing, precedence resolution, or configuration merge ownership to `core/contracts`.
+
+The governed contract sources are:
 
 ```text
 packages/core/contracts/src/Config/
@@ -86,7 +88,7 @@ docs/ssot/dto-policy.md
 
 Config/env contract classes are not DTO-marker classes by default.
 
-A future owner epic MAY explicitly opt a class into DTO policy. Until such an epic exists, config/env VOs, result objects, and shape wrappers are governed by this SSoT and contracts shape rules, not DTO gate rules.
+Config/env VOs, result objects, and shape wrappers are governed by this SSoT and the contracts shape rules. They are not DTO-marker classes unless explicitly classified by their own contract.
 
 ## Env repository port
 
@@ -176,6 +178,101 @@ A missing env value MAY use a default only when the policy is `defaulted`.
 A missing env value MUST fail validation when the policy is `required`.
 
 A missing env value MUST remain missing when the policy is `optional`.
+
+## Kernel Bootstrap Phase A environment inputs
+
+Bootstrap Phase A is owned by `core/kernel`. It resolves bootstrap-only inputs before target-local `BootstrapConfig` construction, module planning, artifact preparation, or ConfigKernel Phase B.
+
+`BootstrapSourceResolver` is the sole Kernel owner of bootstrap source orchestration. It consumes the optional `config/app.php`, ordered dotenv layers, permitted process environment values, and Kernel package defaults. It returns one immutable `BootstrapSourceSnapshot` for the application root and resolution attempt.
+
+### Canonical environment key allowlist
+
+The reserved `CORETSIA_BOOT_*` namespace accepts exactly these eight keys:
+
+| Environment key | Required value format | Bootstrap field |
+|------------------------------------------|--------------------------------------------------------|-----------------------------------|
+| `CORETSIA_BOOT_APP_ENV` | Non-empty safe single-line string | `appEnv` |
+| `CORETSIA_BOOT_ACTIVE_TARGETS` | JSON array of unique canonical AppTarget strings | `activeTargets` |
+| `CORETSIA_BOOT_PRESET` | Non-empty safe single-line string | Global `preset` |
+| `CORETSIA_BOOT_PRESETS` | JSON object mapping AppTarget to preset string | `presets` |
+| `CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE` | JSON object mapping AppTarget to ModuleId string array | `moduleOverrides[target].include` |
+| `CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE` | JSON object mapping AppTarget to ModuleId string array | `moduleOverrides[target].exclude` |
+| `CORETSIA_BOOT_DEBUG` | Exactly `true`, `false`, `1`, or `0` | `debug` |
+| `CORETSIA_BOOT_ARTIFACTS_CACHE_DIR` | Portable application-root-relative artifact directory | `artifactsCacheDir` |
+
+For example, a dotenv source may contain:
+
+```dotenv
+CORETSIA_BOOT_APP_ENV=local
+CORETSIA_BOOT_ACTIVE_TARGETS=["web","worker"]
+CORETSIA_BOOT_PRESET=micro
+CORETSIA_BOOT_PRESETS={"worker":"hybrid"}
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={"worker":["platform.worker"]}
+CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE={"web":[]}
+CORETSIA_BOOT_DEBUG=false
+CORETSIA_BOOT_ARTIFACTS_CACHE_DIR=var/cache
+```
+
+The canonical AppTarget values are `api`, `console`, `web`, and `worker`.
+
+`CORETSIA_BOOT_ACTIVE_TARGETS` MUST be a non-empty JSON list with unique valid targets. Its values are normalized into canonical sorted order. An absent list does not select an application; DependencySync alone applies the installation-membership fallback `['web']`. An explicit empty list is invalid.
+
+`CORETSIA_BOOT_PRESETS` MUST be a JSON object with canonical AppTarget keys and non-empty safe string values. `{}` is a no-op. JSON arrays, assignment-string lists, null values, nested objects, and duplicate object keys are invalid.
+
+The module override variables MUST each be a JSON object mapping canonical AppTarget keys to arrays of canonical ModuleId strings. `{}` is a no-op. `{"web":[]}` explicitly replaces the corresponding `web` include or exclude list with an empty list. A nested object such as `{"web":{}}` is invalid.
+
+ModuleId lexical validation applies to every permitted source layer, including entries for inactive targets and entries subsequently overridden by a higher-priority source. It does not require an installed runtime, `ModulePlan`, or Composer dependency resolution.
+
+For `CORETSIA_BOOT_DEBUG`, `true` and `1` mean true; `false` and `0` mean false. Case variants such as `TRUE`, and aliases such as `yes`, `no`, `on`, and `off`, are invalid.
+
+After canonical dotenv parsing, Bootstrap Phase A MUST NOT implicitly trim values, convert unsupported types, or treat explicitly empty values as absent. Environment scalar input is bounded to 4,096 bytes and JSON input to 65,536 bytes, with additional strict JSON depth, key-count, shape, and duplicate-key validation.
+
+Unknown names within `CORETSIA_BOOT_*`, including `CORETSIA_BOOT_PRESET_WEB` and `CORETSIA_BOOT_MODULE_OVERRIDES_WEB_INCLUDE`, MUST fail closed when their source is permitted by the effective source policy. They MUST NOT become ordinary package environment keys. Parser and validation failures use bounded `BootstrapException` diagnostics without raw input values.
+
+### PHP bootstrap source
+
+The sole application-owned PHP bootstrap source is:
+
+```text
+<applicationRoot>/config/app.php
+```
+
+Its allowed fields are `appEnv`, `activeTargets`, `preset`, `presets`, `moduleOverrides`, `debug`, and `artifactsCacheDir`.
+
+It returns a PHP array. The `presets` map is indexed by AppTarget; `moduleOverrides` is indexed by AppTarget and may contain independent `include` and `exclude` lists. PHP and dotenv bootstrap sources share canonical AppTarget, preset-string, ModuleId, and artifact-directory validation rules. The 4,096-byte scalar and 65,536-byte JSON input limits apply specifically to environment values before shared normalized-shape validation; `config/app.php` supplies PHP arrays rather than JSON text.
+
+The loader MUST reject unexpected top-level keys, invalid values, PHP output, and invalid include behavior without exporting source contents into diagnostics. `config/app.php` is not a ConfigKernel config root and does not participate in Phase B file merging.
+
+### Environment selection and target-local configuration
+
+`appEnv` is selected and frozen before environment-specific dotenv files are read. Explicit `BootstrapInput::appEnv()` takes precedence. Process `CORETSIA_BOOT_APP_ENV` may select the environment only when `BootstrapEnvSourcePolicy::AllowSystem` was explicitly requested.
+
+Otherwise, initial selection uses `.env.local`, `.env`, `config/app.php`, and `kernel.boot.default_env`, in that order. `CORETSIA_BOOT_APP_ENV` in an environment-specific dotenv layer is validation-only and MUST exactly match the frozen appEnv. It MUST NOT initiate another environment selection.
+
+The default source policy is `allow_system` for `prod` and `production`, and `strict_dotenv` for all other environments, including `staging`. Selecting the production default policy MUST NOT initiate a second appEnv selection from process environment.
+
+`activeTargets` is project-wide installation membership metadata. It does not change `BootstrapInput::appTarget()`, select runtime application targets, or appear in target-local `BootstrapConfig`.
+
+`BootstrapConfigResolver` applies target-local explicit `BootstrapInput` values to the approved snapshot. Preset selection follows:
+
+```text
+explicit BootstrapInput::preset()
+merged presets[appTarget]
+merged global preset
+kernel.boot.default_preset
+```
+
+The same snapshot and immutable `EnvRepositoryInterface` can be reused for different explicit AppTargets of one application root. A snapshot from another application root, or with conflicting explicit appEnv or envSourcePolicy, MUST be rejected without re-reading sources.
+
+### Phase A versus Phase B environment keys
+
+`CORETSIA_BOOT_*` keys control Bootstrap Phase A source resolution. They are not general-purpose ConfigKernel environment overlays.
+
+Phase B environment overlays are generated only for known scalar config paths through ruleset-derived or explicitly approved mappings. For example, `KERNEL_BOOT_DEFAULT_ENV` corresponds to the Phase B config path `kernel.boot.default_env` only when that overlay mapping exists.
+
+Such `KERNEL_BOOT_DEFAULT_*` environment keys MUST NOT retroactively select Phase A appEnv, preset, debug, or artifact location. Phase B consumes the already constructed immutable environment repository; it does not independently re-read the process environment.
+
+`BootstrapSourceSnapshot` retains normalized bootstrap values, frozen appEnv and source policy, safe source provenance, and the immutable environment repository. It does not create a separate project-wide installation identity or infer application membership. Installation verification uses only approved normalized installation-relevant values for the selected application set, never raw dotenv JSON, secrets, arbitrary environment keys, source provenance, or absolute application-root paths.
 
 ## Config repository port
 
@@ -592,8 +689,6 @@ The following values MUST NOT appear in exported config/env contract shapes:
 - service instances
 - runtime wiring objects
 - executable validators
-
-If a future owner needs decimal values, they MUST be represented as strings with a documented format.
 
 ## Config source type
 
@@ -1036,8 +1131,6 @@ Contracts define only:
 
 ## Config artifact ownership
 
-A future config artifact MAY be written by the Kernel owner package.
-
 Config artifacts are not owned by `core/contracts`.
 
 This SSoT does not define config artifact schema.
@@ -1106,10 +1199,10 @@ This SSoT does not define:
 - env loading implementation;
 - filesystem scanning;
 - `.env` parsing;
-- concrete config source paths;
+- Phase B config source discovery paths (the sole Phase A PHP bootstrap path `config/app.php` is fixed above);
 - concrete config artifact schema;
 - DI tags;
 - runtime service registration;
 - CLI command behavior;
-- package-specific validation logic;
+- package-specific validation implementations (the Phase A accepted input shapes and validation rules are defined above);
 - executable validators.

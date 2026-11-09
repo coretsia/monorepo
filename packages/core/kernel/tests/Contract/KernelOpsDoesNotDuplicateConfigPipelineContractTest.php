@@ -59,7 +59,7 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
                 ] as $interface
             ) {
                 self::assertDoesNotMatchRegularExpression(
-                    '/\bimplements\s+[^\{;]*\b' . \preg_quote($interface, '/') . '\b/s',
+                    '/\bimplements\s+[^{;]*\b' . \preg_quote($interface, '/') . '\b/s',
                     $code,
                     $relativePath . ' must not implement ' . $interface . ' inside Kernel Ops.',
                 );
@@ -213,7 +213,6 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
         foreach (
             [
                 'BootstrapConfigResolver',
-                'EnvRepositoryBuilder',
                 'ModuleResolutionOrchestrator',
                 'ConfigKernel',
                 'RuntimeContainerGraphCompiler',
@@ -229,13 +228,13 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
         self::assertSame(
             [
                 'bootstrapConfigResolver::resolve',
+                'bootstrapSourceResolver::resolve',
                 'configFingerprintInputBuilder::build',
                 'configKernel::compile',
                 'configSourceLocationBuilder::build',
                 'contextAccessor::get',
                 'contextAccessor::has',
                 'correlationIdProvider::correlationId',
-                'envRepositoryBuilder::build',
                 'fingerprintCalculator::calculate',
                 'hostInput::applicationRoot',
                 'kernelArtifactOperation::compile',
@@ -255,6 +254,7 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
 
         foreach (
             [
+                'EnvRepositoryBuilder',
                 'ConfigMerger',
                 'ConfigRulesLoader',
                 'DirectiveProcessor',
@@ -285,6 +285,37 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
         self::assertStringNotContainsString('new ArrayConfigRepository(', $source);
     }
 
+    public function testKernelOpsReusesCanonicalBootstrapSourceResolverWithoutLocalReconstruction(): void
+    {
+        $facade = self::phpCodeWithoutCommentsAndStrings(self::opsSource('KernelOpsFacade.php'));
+        $services = self::phpCodeWithoutCommentsAndStrings(self::opsSource('KernelOpsExecutionServices.php'));
+        $host = self::phpCodeWithoutCommentsAndStrings(self::opsSource('KernelOpsHostBooter.php'));
+        $factory = \file_get_contents(self::kernelRoot() . '/src/Provider/KernelServiceFactory.php');
+
+        self::assertIsString($factory);
+        self::assertStringContainsString('BootstrapSourceResolver', $facade);
+        self::assertStringContainsString('BootstrapSourceResolver', $services);
+        self::assertStringContainsString('BootstrapSourceResolver::class', $host);
+        self::assertStringContainsString(
+            'bootstrapSourceResolver: $executionServices->bootstrapSourceResolver()',
+            $factory,
+        );
+
+        foreach (self::opsSources() as $relativePath => $source) {
+            $code = self::phpCodeWithoutCommentsAndStrings($source);
+
+            foreach (self::directCompositionClasses($code) as $constructedClass) {
+                $segments = \explode('\\', $constructedClass);
+
+                self::assertNotContains(
+                    \array_pop($segments),
+                    ['BootstrapSourceResolver', 'EnvRepositoryBuilder', 'DotenvLoader'],
+                    $relativePath . ' must reuse Kernel-owned Phase A services.',
+                );
+            }
+        }
+    }
+
     public function testKernelOpsHostBooterUsesOnlyTheAllowedAdditionalCompositionBoundary(): void
     {
         $source = self::phpCodeWithoutCommentsAndStrings(
@@ -310,10 +341,10 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
         self::assertSame(
             [
                 'BootstrapConfigResolver',
+                'BootstrapSourceResolver',
                 'ConfigKernel',
                 'ConfigSourceLocationBuilder',
                 'ContainerProviderPlanResolver',
-                'EnvRepositoryBuilder',
                 'ModuleResolutionOrchestrator',
             ],
             self::hostBooterServiceIds($source),
@@ -417,7 +448,7 @@ final class KernelOpsDoesNotDuplicateConfigPipelineContractTest extends TestCase
     private static function containerGetArguments(string $source): array
     {
         \preg_match_all(
-            '/->get\s*\(\s*([^\)\r\n]+?)\s*\)/',
+            '/->get\s*\(\s*([^)\r\n]+?)\s*\)/',
             $source,
             $matches,
         );

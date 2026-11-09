@@ -23,7 +23,11 @@ use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Module\FoundationModule;
+use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
+use Coretsia\Kernel\Boot\BootstrapSourceSnapshot;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\DependencySync\Catalog\ReleaseInstallationCatalogLoader;
 use Coretsia\Kernel\DependencySync\Composer\ComposerManifestStore;
 use Coretsia\Kernel\DependencySync\Composer\ComposerRootReconciler;
@@ -49,11 +53,14 @@ final readonly class ProjectDependencySync
         'config/kernel.php' => true,
     ];
 
+    /** @param array<string, mixed> $kernelConfig */
     private function __construct(
         private ProjectPackagePlanner $planner,
         private ComposerManifestStore $manifestStore,
         private ComposerSyncCoordinator $syncCoordinator,
         private InstalledProjectVerifier $installedProjectVerifier,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
+        private array $kernelConfig,
     ) {
     }
 
@@ -86,6 +93,7 @@ final readonly class ProjectDependencySync
             $container = $builder->build();
 
             $bootstrapConfigResolver = $container->get(BootstrapConfigResolver::class);
+            $bootstrapSourceResolver = $container->get(BootstrapSourceResolver::class);
             $moduleResolutionOrchestrator = $container->get(ModuleResolutionOrchestrator::class);
             $moduleIdSetNormalizer = $container->get(ModuleIdSetNormalizer::class);
             $moduleGraphResolver = $container->get(ModuleGraphResolver::class);
@@ -93,6 +101,7 @@ final readonly class ProjectDependencySync
 
             if (
                 !$bootstrapConfigResolver instanceof BootstrapConfigResolver
+                || !$bootstrapSourceResolver instanceof BootstrapSourceResolver
                 || !$moduleResolutionOrchestrator instanceof ModuleResolutionOrchestrator
                 || !$moduleIdSetNormalizer instanceof ModuleIdSetNormalizer
                 || !$moduleGraphResolver instanceof ModuleGraphResolver
@@ -109,6 +118,7 @@ final readonly class ProjectDependencySync
                 $moduleIdSetNormalizer,
                 $catalogLoader,
                 $kernelConfig,
+                $bootstrapSourceResolver,
             );
             $manifestStore = new ComposerManifestStore();
             $installedProjectVerifier = new InstalledProjectVerifier(
@@ -117,6 +127,7 @@ final readonly class ProjectDependencySync
                 $manifestStore,
                 $installPathResolver,
                 $kernelConfig,
+                $bootstrapSourceResolver,
             );
             $syncCoordinator = new ComposerSyncCoordinator(
                 $planner,
@@ -134,6 +145,8 @@ final readonly class ProjectDependencySync
                 $manifestStore,
                 $syncCoordinator,
                 $installedProjectVerifier,
+                $bootstrapSourceResolver,
+                $kernelConfig,
             );
         } catch (DependencySyncException $exception) {
             throw $exception;
@@ -152,22 +165,78 @@ final readonly class ProjectDependencySync
         );
     }
 
+    /** @param array<string, string> $fixedPresetByTarget */
+    public function planConfigured(
+        string $projectRoot,
+        array $fixedPresetByTarget = [],
+    ): ProjectPackagePlan {
+        $projectRoot = $this->requireActiveConsumerProjectRoot($projectRoot);
+        [$snapshot, $intent] = $this->configurationIntent($projectRoot, $fixedPresetByTarget);
+
+        return $this->planner->plan($projectRoot, $intent, $snapshot);
+    }
+
     public function synchronize(
         string $projectRoot,
         ProjectInstallationIntent $intent,
         DependencySyncExecutionPolicy $executionPolicy,
     ): ProjectDependencySyncResult {
         $projectRoot = $this->requireActiveConsumerProjectRoot($projectRoot);
-        $approvedPlan = $this->planner->plan(
+
+        if (!$executionPolicy->apply()) {
+            $approvedPlan = $this->planner->plan($projectRoot, $intent);
+
+            return $this->syncCoordinator->synchronize(
+                $projectRoot,
+                $intent,
+                $approvedPlan,
+                $executionPolicy,
+            );
+        }
+
+        if ($intent->fixedPresetByTarget() !== []) {
+            throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
+        }
+
+        [$snapshot, $configurationIntent] = $this->configurationIntent($projectRoot);
+
+        if ($intent->applications()->targets() !== $configurationIntent->applications()->targets()) {
+            throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
+        }
+
+        $approvedPlan = $this->planner->plan($projectRoot, $configurationIntent, $snapshot);
+
+        return $this->syncCoordinator->synchronize(
             $projectRoot,
-            $intent,
+            $configurationIntent,
+            $approvedPlan,
+            $executionPolicy,
+            fn (): ProjectPackagePlan => $this->planFromCurrentConfiguration($projectRoot),
         );
+    }
+
+    /** @param array<string, string> $fixedPresetByTarget */
+    public function synchronizeConfigured(
+        string $projectRoot,
+        DependencySyncExecutionPolicy $executionPolicy,
+        array $fixedPresetByTarget = [],
+    ): ProjectDependencySyncResult {
+        if ($executionPolicy->apply() && $fixedPresetByTarget !== []) {
+            throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
+        }
+
+        $projectRoot = $this->requireActiveConsumerProjectRoot($projectRoot);
+        [$snapshot, $intent] = $this->configurationIntent($projectRoot, $fixedPresetByTarget);
+        $approvedPlan = $this->planner->plan($projectRoot, $intent, $snapshot);
 
         return $this->syncCoordinator->synchronize(
             $projectRoot,
             $intent,
             $approvedPlan,
             $executionPolicy,
+            $executionPolicy->apply()
+                ? fn (): ProjectPackagePlan => $this->planFromCurrentConfiguration($projectRoot)
+                : null,
         );
     }
 
@@ -190,6 +259,44 @@ final readonly class ProjectDependencySync
             $decoded['composerLockIdentity'],
             $decoded['protectedThirdPartyRootState'],
         );
+    }
+
+    private function planFromCurrentConfiguration(string $projectRoot): ProjectPackagePlan
+    {
+        [$snapshot, $intent] = $this->configurationIntent($projectRoot);
+
+        return $this->planner->plan($projectRoot, $intent, $snapshot);
+    }
+
+    /**
+     * @param array<string, string> $fixedPresetByTarget
+     * @return array{BootstrapSourceSnapshot, ProjectInstallationIntent}
+     */
+    private function configurationIntent(
+        string $projectRoot,
+        array $fixedPresetByTarget = [],
+    ): array {
+        try {
+            $snapshot = $this->bootstrapSourceResolver->resolveApplicationRoot(
+                $projectRoot,
+                $this->kernelConfig,
+            );
+            $activeTargets = $snapshot->activeTargets() ?? [AppTarget::Web->value];
+            $targets = [];
+
+            foreach ($activeTargets as $target) {
+                $targets[] = AppTarget::fromString($target);
+            }
+        } catch (BootstrapException $exception) {
+            throw DependencySyncException::fromBootstrapException($exception);
+        }
+
+        $intent = new ProjectInstallationIntent(
+            new ProjectApplicationSet($targets),
+            $fixedPresetByTarget,
+        );
+
+        return [$snapshot, $intent];
     }
 
     private function requireActiveConsumerProjectRoot(

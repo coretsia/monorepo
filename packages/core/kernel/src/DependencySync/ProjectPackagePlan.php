@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\DependencySync;
 
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 
 final readonly class ProjectPackagePlan
@@ -37,6 +38,7 @@ final readonly class ProjectPackagePlan
      *     conflicts: list<string>,
      * }> $expectedModuleMetadataById
      * @param array<string, non-empty-string> $desiredRootRequirements
+     * @param array<string,mixed> $bootstrapInstallationIdentity
      */
     public function __construct(
         private array $applications,
@@ -47,6 +49,7 @@ final readonly class ProjectPackagePlan
         private array $unionModuleIds,
         private array $expectedModuleMetadataById,
         private array $desiredRootRequirements,
+        private array $bootstrapInstallationIdentity,
     ) {
         $this->validate();
     }
@@ -105,6 +108,12 @@ final readonly class ProjectPackagePlan
         return $this->expectedModuleMetadataById;
     }
 
+    /** @return array<string,mixed> */
+    public function bootstrapInstallationIdentity(): array
+    {
+        return $this->bootstrapInstallationIdentity;
+    }
+
     public function equals(self $other): bool
     {
         return $this->applications === $other->applications
@@ -114,7 +123,8 @@ final readonly class ProjectPackagePlan
             && $this->excludedModuleIdsByTarget === $other->excludedModuleIdsByTarget
             && $this->unionModuleIds === $other->unionModuleIds
             && $this->expectedModuleMetadataById === $other->expectedModuleMetadataById
-            && $this->desiredRootRequirements === $other->desiredRootRequirements;
+            && $this->desiredRootRequirements === $other->desiredRootRequirements
+            && $this->bootstrapInstallationIdentity === $other->bootstrapInstallationIdentity;
     }
 
     private function validate(): void
@@ -273,6 +283,59 @@ final readonly class ProjectPackagePlan
 
         foreach ($this->desiredRootRequirements as $constraint) {
             self::assertSafeToken($constraint, 'project-package-plan-requirements-invalid');
+        }
+
+        $this->validateBootstrapInstallationIdentity();
+    }
+
+    private function validateBootstrapInstallationIdentity(): void
+    {
+        $identity = $this->bootstrapInstallationIdentity;
+
+        // Legacy programmatic plan fixtures do not carry approved Phase A identity.
+        if ($identity === []) {
+            return;
+        }
+
+        $reason = 'project-package-plan-bootstrap-identity-invalid';
+
+        if (\array_keys($identity) !== ['appEnv', 'envSourcePolicy', 'presets', 'moduleOverrides']) {
+            throw new \InvalidArgumentException($reason);
+        }
+
+        self::assertSafeToken($identity['appEnv'], $reason);
+
+        if (
+            !\is_string($identity['envSourcePolicy'])
+            || !BootstrapEnvSourcePolicy::isKnown($identity['envSourcePolicy'])
+            || !\is_array($identity['presets'])
+            || $identity['presets'] !== $this->effectivePresetsByTarget
+            || !\is_array($identity['moduleOverrides'])
+        ) {
+            throw new \InvalidArgumentException($reason);
+        }
+
+        self::assertCanonicalMap($identity['moduleOverrides'], $reason);
+        $applicationMap = \array_fill_keys($this->applications, true);
+
+        foreach ($identity['moduleOverrides'] as $target => $overrides) {
+            if (
+                !isset($applicationMap[$target])
+                || !\is_array($overrides)
+                || \array_keys($overrides) !== ['include', 'exclude']
+                || !\is_array($overrides['include'])
+                || !\is_array($overrides['exclude'])
+                || ($overrides['include'] === [] && $overrides['exclude'] === [])
+            ) {
+                throw new \InvalidArgumentException($reason);
+            }
+
+            $include = self::canonicalModuleIdStrings($overrides['include'], $reason);
+            $exclude = self::canonicalModuleIdStrings($overrides['exclude'], $reason);
+
+            if (\array_intersect($include, $exclude) !== []) {
+                throw new \InvalidArgumentException($reason);
+            }
         }
     }
 

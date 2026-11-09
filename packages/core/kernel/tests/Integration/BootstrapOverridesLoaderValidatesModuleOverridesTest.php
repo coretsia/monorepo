@@ -29,21 +29,11 @@ final class BootstrapOverridesLoaderValidatesModuleOverridesTest extends TestCas
 {
     private string $root;
 
-    protected function setUp(): void
-    {
-        $this->root = ModeInfrastructureTestSupport::root();
-    }
-
-    protected function tearDown(): void
-    {
-        ModeInfrastructureTestSupport::remove($this->root);
-    }
-
-    public function testReadsAllKnownTargetsAndPreservesSourceDuplicatesForPhaseA(): void
+    public function testReadsAllKnownTargetsWithCanonicalModuleIds(): void
     {
         $value = [
             'worker' => [
-                'include' => ['core.kernel', 'core.kernel'],
+                'include' => ['core.kernel'],
                 'exclude' => ['platform.http'],
             ],
             'web' => [
@@ -59,7 +49,7 @@ final class BootstrapOverridesLoaderValidatesModuleOverridesTest extends TestCas
         );
         $result = new BootstrapOverridesLoader()->load(new BootstrapInput($this->root, AppTarget::Worker));
         self::assertSame(['api', 'console', 'web', 'worker'], \array_keys($result['moduleOverrides']));
-        self::assertSame(['core.kernel', 'core.kernel'], $result['moduleOverrides']['worker']['include']);
+        self::assertSame(['core.kernel'], $result['moduleOverrides']['worker']['include']);
         self::assertSame(['platform.http'], $result['moduleOverrides']['worker']['exclude']);
         self::assertSame(['include' => [], 'exclude' => []], $result['moduleOverrides']['api']);
     }
@@ -75,6 +65,9 @@ final class BootstrapOverridesLoaderValidatesModuleOverridesTest extends TestCas
                 ['web' => ['include' => [new \stdClass()]]],
                 ['web' => ['include' => ["core.kernel\n"]]],
                 ['web' => [['core.kernel']]],
+                ['worker' => ['include' => ['core.kernel', 'core.kernel']]],
+                ['worker' => ['include' => ['Core.Kernel']]],
+                ['worker' => ['exclude' => ['invalid.module.id']]],
             ] as $invalid
         ) {
             ModeInfrastructureTestSupport::write(
@@ -88,5 +81,15 @@ final class BootstrapOverridesLoaderValidatesModuleOverridesTest extends TestCas
                 self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
             }
         }
+    }
+
+    protected function setUp(): void
+    {
+        $this->root = ModeInfrastructureTestSupport::root();
+    }
+
+    protected function tearDown(): void
+    {
+        ModeInfrastructureTestSupport::remove($this->root);
     }
 }

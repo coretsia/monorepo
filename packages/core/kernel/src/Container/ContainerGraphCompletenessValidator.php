@@ -50,6 +50,7 @@ use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
@@ -102,6 +103,7 @@ final class ContainerGraphCompletenessValidator
     private const array COMPILE_HOST_SERVICE_IDS = [
         BootstrapOverridesLoader::class,
         BootstrapConfigResolver::class,
+        BootstrapSourceResolver::class,
         DotenvLoader::class,
         EnvRepositoryBuilder::class,
         ModePresetSchemaValidator::class,

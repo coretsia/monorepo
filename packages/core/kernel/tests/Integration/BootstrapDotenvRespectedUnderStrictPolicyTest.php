@@ -23,8 +23,11 @@ use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
@@ -173,6 +176,111 @@ final class BootstrapDotenvRespectedUnderStrictPolicyTest extends TestCase
         } finally {
             self::removeDirectory($applicationRoot);
         }
+    }
+
+    public function testStrictPhaseAFreezesAppEnvAndIgnoresSystemBootstrapOverrides(): void
+    {
+        $applicationRoot = self::createApplicationRoot('strict-phase-a');
+
+        try {
+            self::writeDotenvFile($applicationRoot . '/.env', [
+                'CORETSIA_BOOT_APP_ENV=test',
+                'CORETSIA_BOOT_PRESET=micro',
+                'CORETSIA_BOOT_ACTIVE_TARGETS=["web","worker"]',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.test.local', [
+                'CORETSIA_BOOT_PRESETS={"worker":"enterprise"}',
+                'CORETSIA_BOOT_DEBUG=false',
+            ]);
+
+            self::withSystemEnv(
+                [
+                    'CORETSIA_BOOT_APP_ENV' => 'production',
+                    'CORETSIA_BOOT_PRESET' => 'hybrid',
+                    'CORETSIA_BOOT_UNKNOWN_SECRET' => 'sensitive-system-value',
+                ],
+                static function () use ($applicationRoot): void {
+                    $snapshot = self::sourceResolver()->resolveApplicationRoot(
+                        $applicationRoot,
+                        self::kernelConfig(),
+                    );
+
+                    self::assertSame('test', $snapshot->appEnv());
+                    self::assertSame(BootstrapEnvSourcePolicy::StrictDotenv, $snapshot->envSourcePolicy());
+                    self::assertSame(['web', 'worker'], $snapshot->activeTargets());
+                    self::assertSame('micro', $snapshot->overrides()['preset']);
+                    self::assertSame('enterprise', $snapshot->overrides()['presets']['worker']);
+                    self::assertFalse($snapshot->envRepository()->has('CORETSIA_BOOT_UNKNOWN_SECRET'));
+                },
+            );
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testStrictPhaseASelectsAppEnvFromHighestPriorityBaseDotenvLayer(): void
+    {
+        $applicationRoot = self::createApplicationRoot('strict-base-layer-selection');
+
+        try {
+            self::writeDotenvFile($applicationRoot . '/.env', [
+                'CORETSIA_BOOT_APP_ENV=staging',
+                'CORETSIA_BOOT_PRESET=micro',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.local', [
+                'CORETSIA_BOOT_APP_ENV=test',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.test', [
+                'CORETSIA_BOOT_PRESET=hybrid',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.test.local', [
+                'CORETSIA_BOOT_PRESET=enterprise',
+            ]);
+
+            $snapshot = self::sourceResolver()->resolveApplicationRoot(
+                $applicationRoot,
+                self::kernelConfig(),
+            );
+
+            self::assertSame('test', $snapshot->appEnv());
+            self::assertSame(BootstrapEnvSourcePolicy::StrictDotenv, $snapshot->envSourcePolicy());
+            self::assertSame('enterprise', $snapshot->overrides()['preset']);
+            self::assertSame('dotenv/.env.local', $snapshot->sourceProvenance()['appEnv']->sourceId());
+            self::assertSame('dotenv/.env.test.local', $snapshot->sourceProvenance()['preset']->sourceId());
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testStrictPhaseARejectsEnvironmentSpecificAppEnvMismatch(): void
+    {
+        $applicationRoot = self::createApplicationRoot('strict-app-env-mismatch');
+
+        try {
+            self::writeDotenvFile($applicationRoot . '/.env', ['CORETSIA_BOOT_APP_ENV=test']);
+            self::writeDotenvFile($applicationRoot . '/.env.test', ['CORETSIA_BOOT_APP_ENV=production']);
+
+            try {
+                self::sourceResolver()->resolveApplicationRoot($applicationRoot, self::kernelConfig());
+                self::fail('Environment-specific dotenv must not reselect the frozen appEnv.');
+            } catch (BootstrapException $exception) {
+                self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
+                self::assertStringNotContainsString($applicationRoot, $exception->getMessage());
+            }
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    private static function sourceResolver(): BootstrapSourceResolver
+    {
+        $dotenvLoader = new DotenvLoader();
+
+        return new BootstrapSourceResolver(
+            new BootstrapOverridesLoader(),
+            $dotenvLoader,
+            new EnvRepositoryBuilder($dotenvLoader),
+        );
     }
 
     private static function buildStrictDotenvRepository(string $applicationRoot): EnvRepositoryInterface

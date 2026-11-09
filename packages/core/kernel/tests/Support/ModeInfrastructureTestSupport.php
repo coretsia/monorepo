@@ -27,7 +27,12 @@ use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
+use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
+use Coretsia\Kernel\Boot\DotenvLoader;
+use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
 use Coretsia\Kernel\Module\ModuleGraphResolver;
@@ -47,6 +52,21 @@ use Psr\Log\NullLogger;
  */
 final class ModeInfrastructureTestSupport
 {
+    public static function bootstrapSourceResolver(): BootstrapSourceResolver
+    {
+        return self::newBootstrapSourceResolver(new BootstrapOverridesLoader());
+    }
+
+    public static function bootstrapConfigResolver(): BootstrapConfigResolver
+    {
+        $overridesLoader = new BootstrapOverridesLoader();
+
+        return new BootstrapConfigResolver(
+            new ModuleIdSetNormalizer(),
+            self::newBootstrapSourceResolver($overridesLoader),
+        );
+    }
+
     public static function root(): string
     {
         $root = \sys_get_temp_dir() . '/coretsia-mode-infrastructure-' . \bin2hex(\random_bytes(8));
@@ -124,10 +144,10 @@ final class ModeInfrastructureTestSupport
         return new ModePresetLoaderFactory(
             $packageRoot,
             $modesConfig ?: [
-            'schema_version' => 1,
-            'defaults_path' => 'resources/modes',
-            'overrides_path' => 'config/modes',
-        ],
+                'schema_version' => 1,
+                'defaults_path' => 'resources/modes',
+                'overrides_path' => 'config/modes',
+            ],
             new ModePresetSchemaValidator(),
         );
     }
@@ -190,6 +210,18 @@ final class ModeInfrastructureTestSupport
             stopwatch: new Stopwatch(),
             logger: new NullLogger(),
             modulesConfig: ['discovery' => ['source' => 'composer', 'allowed_sources' => ['composer']]],
+        );
+    }
+
+    private static function newBootstrapSourceResolver(
+        BootstrapOverridesLoader $overridesLoader,
+    ): BootstrapSourceResolver {
+        $dotenvLoader = new DotenvLoader();
+
+        return new BootstrapSourceResolver(
+            $overridesLoader,
+            $dotenvLoader,
+            new EnvRepositoryBuilder($dotenvLoader),
         );
     }
 }

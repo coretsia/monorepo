@@ -24,7 +24,7 @@ use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Config\Source\ConfigSourceSet;
 use Coretsia\Kernel\Module\ModuleResolution;
@@ -42,12 +42,12 @@ final readonly class KernelArtifactOperation
      */
     public function __construct(
         private BootstrapConfigResolver $bootstrapConfigResolver,
-        private EnvRepositoryBuilder $envRepositoryBuilder,
         private ModuleResolutionOrchestrator $moduleResolutionOrchestrator,
         private ConfigSourceLocationBuilder $configSourceLocationBuilder,
         private ArtifactCompiler $artifactCompiler,
         private CacheVerifier $cacheVerifier,
         private array $kernelConfig,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
     ) {
     }
 
@@ -104,15 +104,14 @@ final readonly class KernelArtifactOperation
     private function prepare(
         BootstrapInput $input,
     ): array {
+        $snapshot = $this->bootstrapSourceResolver->resolve($input, $this->kernelConfig);
         $bootstrapConfig = $this->bootstrapConfigResolver->resolve(
             $input,
             $this->kernelConfig,
+            $snapshot,
         );
 
-        $env = $this->envRepositoryBuilder->build(
-            $bootstrapConfig,
-            $this->kernelConfig,
-        );
+        $env = $snapshot->envRepository();
 
         $moduleResolution = $this->moduleResolutionOrchestrator->resolve(
             $bootstrapConfig,

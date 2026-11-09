@@ -29,7 +29,7 @@ use Psr\Log\LoggerInterface;
 
 final class CliDefaultMicroCreateProjectBootTest extends CliIntegrationTestCase
 {
-    public function testShippedSkeletonBaselineSelectsMicroAndBootsWithoutGeneratedArtifacts(): void
+    public function testShippedSkeletonBootstrapRequiresOnlyKernelBeforeMicroInstallation(): void
     {
         $skeleton = \json_decode(
             (string) \file_get_contents(self::repositoryRoot() . '/packages/applications/skeleton/composer.json'),
@@ -41,15 +41,37 @@ final class CliDefaultMicroCreateProjectBootTest extends CliIntegrationTestCase
             true,
             flags: JSON_THROW_ON_ERROR,
         );
+        $release = \json_decode(
+            (string) \file_get_contents(self::repositoryRoot() . '/tools/release/release-line.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        self::assertSame(
+            ['php' => '^8.4', 'coretsia/framework' => $release['publicConstraint']],
+            $skeleton['require'],
+        );
+        self::assertSame(
+            ['php' => '^8.4', 'coretsia/core-kernel' => $release['publicConstraint']],
+            $framework['require'],
+        );
+        self::assertArrayNotHasKey('coretsia/platform-cli', $framework['require']);
+        self::assertArrayNotHasKey('coretsia/platform-logging', $framework['require']);
+
+        $launcher = (string) \file_get_contents(
+            self::repositoryRoot() . '/packages/applications/skeleton/coretsia',
+        );
+        self::assertStringContainsString("['plan', 'review', 'apply']", $launcher);
+        self::assertStringContainsString("__DIR__ . '/bin/dependency-sync.php'", $launcher);
+    }
+
+    public function testInstalledMicroCliBootsWithoutGeneratedArtifacts(): void
+    {
         $cli = \json_decode(
             (string) \file_get_contents(self::packageRoot() . '/composer.json'),
             true,
             flags: JSON_THROW_ON_ERROR,
         );
-        self::assertArrayHasKey('coretsia/framework', $skeleton['require']);
-        self::assertArrayHasKey('coretsia/platform-cli', $framework['require']);
-        self::assertArrayHasKey('coretsia/core-kernel', $framework['require']);
-        self::assertArrayHasKey('coretsia/platform-logging', $framework['require']);
         self::assertArrayHasKey('coretsia/platform-redaction', $cli['require']);
         self::assertArrayHasKey('coretsia/platform-errors', $cli['require']);
         $errors = \json_decode(

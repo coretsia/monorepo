@@ -52,45 +52,24 @@ final class ProblemDetailsJsonSchemaContractTest extends TestCase
             \array_map(
                 static fn (\ReflectionProperty $property): string => $property->getName(),
                 $reflection->getProperties(),
-            )
+            ),
         );
         self::assertSame(['status', 'title', 'type'], \array_keys(new ProblemDetails(404)->toArray()));
         self::assertSame(
             ['status' => 404, 'title' => 'Not Found', 'type' => 'about:blank'],
-            new ProblemDetails(404)->toArray()
+            new ProblemDetails(404)->toArray(),
         );
     }
 
     public function testCallerCannotInjectArbitraryTitleThroughNamedConstructorArgument(): void
     {
         $this->expectException(\Error::class);
+        $this->expectExceptionMessage('Unknown named parameter $title');
 
-        new ProblemDetails(
-            status: 403,
-            title: 'SYNTHETIC_PRIVATE_TITLE',
-        );
-    }
-
-    /**
-     * @return iterable<string, array{?int, int, string}>
-     */
-    public static function canonicalStatusCases(): iterable
-    {
-        yield '400' => [400, 400, 'Bad Request'];
-        yield '401' => [401, 401, 'Unauthorized'];
-        yield '404' => [404, 404, 'Not Found'];
-        yield '413' => [413, 413, 'Content Too Large'];
-        yield '422' => [422, 422, 'Unprocessable Content'];
-        yield '429' => [429, 429, 'Too Many Requests'];
-        yield '500' => [500, 500, 'Internal Server Error'];
-        yield '503' => [503, 503, 'Service Unavailable'];
-        yield '511' => [511, 511, 'Network Authentication Required'];
-        yield 'nonstandard 4xx' => [430, 430, 'HTTP Error'];
-        yield 'nonstandard 5xx' => [599, 599, 'HTTP Error'];
-        yield 'null status' => [null, 500, 'Internal Server Error'];
-        yield 'informational status' => [101, 500, 'Internal Server Error'];
-        yield 'redirect status' => [302, 500, 'Internal Server Error'];
-        yield 'highest non-error status' => [399, 500, 'Internal Server Error'];
+        new ReflectionClass(ProblemDetails::class)->newInstanceArgs([
+            'status' => 403,
+            'title' => 'SYNTHETIC_PRIVATE_TITLE',
+        ]);
     }
 
     #[DataProvider('canonicalStatusCases')]
@@ -119,17 +98,6 @@ final class ProblemDetailsJsonSchemaContractTest extends TestCase
         foreach (['detail', 'instance', 'extensions', 'message', 'code', 'severity', 'schemaVersion'] as $forbidden) {
             self::assertArrayNotHasKey($forbidden, $problem->toArray());
         }
-    }
-
-    /**
-     * @return iterable<string, array{int}>
-     */
-    public static function invalidDirectStatuses(): iterable
-    {
-        yield 'informational' => [100];
-        yield 'redirect' => [302];
-        yield 'below errors' => [399];
-        yield 'above errors' => [600];
     }
 
     #[DataProvider('invalidDirectStatuses')]
@@ -172,7 +140,13 @@ final class ProblemDetailsJsonSchemaContractTest extends TestCase
             function (string $content) use (&$body): StreamInterface {
                 $body = $content;
 
-                return $this->createStub(StreamInterface::class);
+                $stream = $this->createStub(StreamInterface::class);
+
+                if (!$stream instanceof StreamInterface) {
+                    throw new \LogicException('Stream stub must implement StreamInterface.');
+                }
+
+                return $stream;
             },
         );
 
@@ -191,5 +165,38 @@ final class ProblemDetailsJsonSchemaContractTest extends TestCase
         self::assertSame("{\"status\":429,\"title\":\"Too Many Requests\",\"type\":\"about:blank\"}\n", $body);
         self::assertSame('application/problem+json', new ProblemDetailsJsonRenderer()->contentType());
         self::assertStringNotContainsString('SYNTHETIC_', $body);
+    }
+
+    /**
+     * @return iterable<string, array{?int, int, string}>
+     */
+    public static function canonicalStatusCases(): iterable
+    {
+        yield '400' => [400, 400, 'Bad Request'];
+        yield '401' => [401, 401, 'Unauthorized'];
+        yield '404' => [404, 404, 'Not Found'];
+        yield '413' => [413, 413, 'Content Too Large'];
+        yield '422' => [422, 422, 'Unprocessable Content'];
+        yield '429' => [429, 429, 'Too Many Requests'];
+        yield '500' => [500, 500, 'Internal Server Error'];
+        yield '503' => [503, 503, 'Service Unavailable'];
+        yield '511' => [511, 511, 'Network Authentication Required'];
+        yield 'nonstandard 4xx' => [430, 430, 'HTTP Error'];
+        yield 'nonstandard 5xx' => [599, 599, 'HTTP Error'];
+        yield 'null status' => [null, 500, 'Internal Server Error'];
+        yield 'informational status' => [101, 500, 'Internal Server Error'];
+        yield 'redirect status' => [302, 500, 'Internal Server Error'];
+        yield 'highest non-error status' => [399, 500, 'Internal Server Error'];
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function invalidDirectStatuses(): iterable
+    {
+        yield 'informational' => [100];
+        yield 'redirect' => [302];
+        yield 'below errors' => [399];
+        yield 'above errors' => [600];
     }
 }

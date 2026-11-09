@@ -132,6 +132,7 @@ final class ProjectPackagePlanTest extends TestCase
                 desiredRootRequirements: [
                     'coretsia/core-kernel' => '^0.7.0',
                 ],
+                bootstrapInstallationIdentity: [],
             ),
             static fn (): ProjectPackagePlan => new ProjectPackagePlan(
                 applications: ['web'],
@@ -142,6 +143,7 @@ final class ProjectPackagePlanTest extends TestCase
                 unionModuleIds: [],
                 expectedModuleMetadataById: [],
                 desiredRootRequirements: [],
+                bootstrapInstallationIdentity: [],
             ),
             static fn (): ProjectPackagePlan => new ProjectPackagePlan(
                 applications: ['web'],
@@ -160,6 +162,7 @@ final class ProjectPackagePlanTest extends TestCase
                 desiredRootRequirements: [
                     'coretsia/core-kernel' => '^0.7.0',
                 ],
+                bootstrapInstallationIdentity: [],
             ),
         ];
 
@@ -169,6 +172,89 @@ final class ProjectPackagePlanTest extends TestCase
                 self::fail('Expected invalid project package plan.');
             } catch (\InvalidArgumentException) {
                 self::addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function testApprovedBootstrapIdentityTracksInstallationRelevantValuesAndMembership(): void
+    {
+        $plan = self::plan();
+        $identity = $plan->bootstrapInstallationIdentity();
+
+        self::assertSame(
+            ['appEnv', 'envSourcePolicy', 'presets', 'moduleOverrides'],
+            \array_keys($identity),
+        );
+        self::assertSame('local', $identity['appEnv']);
+        self::assertSame('strict_dotenv', $identity['envSourcePolicy']);
+        self::assertSame($plan->effectivePresetsByTarget(), $identity['presets']);
+        self::assertSame(
+            ['worker' => ['include' => ['platform.worker'], 'exclude' => []]],
+            $identity['moduleOverrides'],
+        );
+
+        $differentAppEnv = $identity;
+        $differentAppEnv['appEnv'] = 'production';
+        $differentPolicy = $identity;
+        $differentPolicy['envSourcePolicy'] = 'allow_system';
+        $differentOverrides = $identity;
+        $differentOverrides['moduleOverrides']['worker']['include'] = ['platform.logging'];
+
+        foreach ([$differentAppEnv, $differentPolicy, $differentOverrides] as $variant) {
+            self::assertFalse($plan->equals(self::copyPlan($plan, bootstrapInstallationIdentity: $variant)));
+        }
+
+        $returned = $plan->bootstrapInstallationIdentity();
+        $returned['presets']['web'] = 'hybrid';
+        self::assertSame($identity, $plan->bootstrapInstallationIdentity());
+
+        $workerOnly = new ProjectPackagePlan(
+            applications: ['worker'],
+            effectivePresetsByTarget: ['worker' => 'enterprise'],
+            fixedPresetByTarget: ['worker' => 'enterprise'],
+            enabledModuleIdsByTarget: ['worker' => $plan->unionModuleIds()],
+            excludedModuleIdsByTarget: ['worker' => []],
+            unionModuleIds: $plan->unionModuleIds(),
+            expectedModuleMetadataById: $plan->expectedModuleMetadataById(),
+            desiredRootRequirements: $plan->desiredRootRequirements(),
+            bootstrapInstallationIdentity: [
+                'appEnv' => 'local',
+                'envSourcePolicy' => 'strict_dotenv',
+                'presets' => ['worker' => 'enterprise'],
+                'moduleOverrides' => [],
+            ],
+        );
+
+        self::assertSame($plan->unionModuleIds(), $workerOnly->unionModuleIds());
+        self::assertSame($plan->desiredRootRequirements(), $workerOnly->desiredRootRequirements());
+        self::assertFalse($plan->equals($workerOnly));
+    }
+
+    public function testBootstrapIdentityRejectsInactiveTargetsAndUnrelatedSourceFields(): void
+    {
+        $plan = self::plan();
+        $identity = $plan->bootstrapInstallationIdentity();
+        $inactive = $identity;
+        $inactive['moduleOverrides']['api'] = [
+            'include' => ['platform.logging'],
+            'exclude' => [],
+        ];
+        \ksort($inactive['moduleOverrides'], \SORT_STRING);
+        $debug = $identity;
+        $debug['debug'] = true;
+        $cache = $identity;
+        $cache['artifactsCacheDir'] = '/tmp/private-cache';
+        $provenance = $identity;
+        $provenance['sourceProvenance'] = ['appEnv' => 'dotenv/.env'];
+        $wrongPreset = $identity;
+        $wrongPreset['presets']['worker'] = 'micro';
+
+        foreach ([$inactive, $debug, $cache, $provenance, $wrongPreset] as $invalidIdentity) {
+            try {
+                self::copyPlan($plan, bootstrapInstallationIdentity: $invalidIdentity);
+                self::fail('Expected noncanonical bootstrap installation identity.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame('project-package-plan-bootstrap-identity-invalid', $exception->getMessage());
             }
         }
     }
@@ -184,6 +270,7 @@ final class ProjectPackagePlanTest extends TestCase
      *     conflicts: list<string>,
      * }>|null $expectedModuleMetadataById
      * @param array<string, non-empty-string>|null $desiredRootRequirements
+     * @param array<string,mixed>|null $bootstrapInstallationIdentity
      */
     private static function copyPlan(
         ProjectPackagePlan $plan,
@@ -193,7 +280,14 @@ final class ProjectPackagePlanTest extends TestCase
         ?array $excludedModuleIdsByTarget = null,
         ?array $expectedModuleMetadataById = null,
         ?array $desiredRootRequirements = null,
+        ?array $bootstrapInstallationIdentity = null,
     ): ProjectPackagePlan {
+        $identity = $bootstrapInstallationIdentity ?? $plan->bootstrapInstallationIdentity();
+
+        if ($effectivePresetsByTarget !== null && $bootstrapInstallationIdentity === null && $identity !== []) {
+            $identity['presets'] = $effectivePresetsByTarget;
+        }
+
         return new ProjectPackagePlan(
             applications: $plan->applications(),
             effectivePresetsByTarget: $effectivePresetsByTarget ?? $plan->effectivePresetsByTarget(),
@@ -203,6 +297,7 @@ final class ProjectPackagePlanTest extends TestCase
             unionModuleIds: $plan->unionModuleIds(),
             expectedModuleMetadataById: $expectedModuleMetadataById ?? $plan->expectedModuleMetadataById(),
             desiredRootRequirements: $desiredRootRequirements ?? $plan->desiredRootRequirements(),
+            bootstrapInstallationIdentity: $identity,
         );
     }
 
@@ -255,6 +350,20 @@ final class ProjectPackagePlanTest extends TestCase
                 'coretsia/core-foundation' => '^0.7.0',
                 'coretsia/core-kernel' => '^0.7.0',
                 'coretsia/platform-worker' => '^0.7.0',
+            ],
+            bootstrapInstallationIdentity: [
+                'appEnv' => 'local',
+                'envSourcePolicy' => 'strict_dotenv',
+                'presets' => [
+                    'web' => 'micro',
+                    'worker' => 'enterprise',
+                ],
+                'moduleOverrides' => [
+                    'worker' => [
+                        'include' => ['platform.worker'],
+                        'exclude' => [],
+                    ],
+                ],
             ],
         );
     }

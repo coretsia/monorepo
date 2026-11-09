@@ -31,11 +31,11 @@ final class SkeletonDependencySyncLauncherRoutingTest extends CliIntegrationTest
         try {
             foreach (
                 [
-                    ['plan', '--target=web'],
-                    ['review', '--target=web', '--target=worker'],
-                    ['apply', '--target=web', '--allow-repair'],
                     ['plan'],
-                    ['plan', '--target=web', '--target=worker', '--target=web'],
+                    ['review', '--preset=worker=hybrid'],
+                    ['apply', '--allow-repair'],
+                    ['plan', '--target=web'],
+                    ['apply', '--preset=web=hybrid'],
                 ] as $arguments
             ) {
                 $result = self::execute($root . '/coretsia', $arguments);
@@ -114,7 +114,7 @@ final class SkeletonDependencySyncLauncherRoutingTest extends CliIntegrationTest
 
                 $result = self::execute(
                     $root . '/coretsia',
-                    ['apply', '--target=web'],
+                    ['apply', '--allow-repair'],
                 );
 
                 self::assertSame($exitCode, $result['exit']);
@@ -122,7 +122,7 @@ final class SkeletonDependencySyncLauncherRoutingTest extends CliIntegrationTest
                 self::assertSame(
                     [
                         'source' => 'adapter',
-                        'argv' => [$root . '/coretsia', 'apply', '--target=web'],
+                        'argv' => [$root . '/coretsia', 'apply', '--allow-repair'],
                     ],
                     \json_decode($result['stdout'], true, flags: \JSON_THROW_ON_ERROR),
                 );

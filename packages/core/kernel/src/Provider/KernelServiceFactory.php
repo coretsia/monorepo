@@ -63,6 +63,7 @@ use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
@@ -158,16 +159,31 @@ final class KernelServiceFactory
      */
     public static function bootstrapConfigResolver(ContainerInterface $container): BootstrapConfigResolver
     {
-        $overridesLoader = self::bootService($container, BootstrapOverridesLoader::class);
+        return new BootstrapConfigResolver(
+            moduleIdSetNormalizer: self::moduleIdSetNormalizer(),
+            sourceResolver: self::sourceResolverService($container),
+        );
+    }
 
-        if (!$overridesLoader instanceof BootstrapOverridesLoader) {
+    /**
+     * Creates the canonical Bootstrap Phase A source resolver from registered
+     * boot dependencies without performing source resolution.
+     */
+    public static function bootstrapSourceResolver(ContainerInterface $container): BootstrapSourceResolver
+    {
+        $overridesLoader = self::bootService($container, BootstrapOverridesLoader::class);
+        $dotenvLoader = self::bootService($container, DotenvLoader::class);
+        $envRepositoryBuilder = self::bootService($container, EnvRepositoryBuilder::class);
+
+        if (
+            !$overridesLoader instanceof BootstrapOverridesLoader
+            || !$dotenvLoader instanceof DotenvLoader
+            || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
+        ) {
             throw new ContainerException('kernel-boot-dependency-invalid');
         }
 
-        return new BootstrapConfigResolver(
-            overridesLoader: $overridesLoader,
-            moduleIdSetNormalizer: self::moduleIdSetNormalizer(),
-        );
+        return new BootstrapSourceResolver($overridesLoader, $dotenvLoader, $envRepositoryBuilder);
     }
 
     /**
@@ -1425,10 +1441,6 @@ final class KernelServiceFactory
             $container,
             BootstrapConfigResolver::class,
         );
-        $envRepositoryBuilder = self::bootService(
-            $container,
-            EnvRepositoryBuilder::class,
-        );
         $moduleResolutionOrchestrator = self::modulePlanService($container, ModuleResolutionOrchestrator::class);
         $configSourceLocationBuilder = self::configService(
             $container,
@@ -1445,7 +1457,6 @@ final class KernelServiceFactory
 
         if (
             !$bootstrapConfigResolver instanceof BootstrapConfigResolver
-            || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
             || !$moduleResolutionOrchestrator instanceof ModuleResolutionOrchestrator
             || !$configSourceLocationBuilder instanceof ConfigSourceLocationBuilder
             || !$artifactCompiler instanceof ArtifactCompiler
@@ -1456,12 +1467,12 @@ final class KernelServiceFactory
 
         return new KernelArtifactOperation(
             bootstrapConfigResolver: $bootstrapConfigResolver,
-            envRepositoryBuilder: $envRepositoryBuilder,
             moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
             configSourceLocationBuilder: $configSourceLocationBuilder,
             artifactCompiler: $artifactCompiler,
             cacheVerifier: $cacheVerifier,
             kernelConfig: self::kernelConfig($container),
+            bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
         );
     }
 
@@ -1517,10 +1528,6 @@ final class KernelServiceFactory
             $container,
             BootstrapConfigResolver::class,
         );
-        $envRepositoryBuilder = self::bootService(
-            $container,
-            EnvRepositoryBuilder::class,
-        );
         $moduleResolutionOrchestrator = self::modulePlanService(
             $container,
             ModuleResolutionOrchestrator::class,
@@ -1552,7 +1559,6 @@ final class KernelServiceFactory
 
         if (
             !$bootstrapConfigResolver instanceof BootstrapConfigResolver
-            || !$envRepositoryBuilder instanceof EnvRepositoryBuilder
             || !$moduleResolutionOrchestrator instanceof ModuleResolutionOrchestrator
             || !$configKernel instanceof ConfigKernel
             || !$runtimeContainerGraphCompiler instanceof RuntimeContainerGraphCompiler
@@ -1571,7 +1577,6 @@ final class KernelServiceFactory
                 reason: 'kernel-ops-execution-kernel-config-invalid',
             ),
             bootstrapConfigResolver: $bootstrapConfigResolver,
-            envRepositoryBuilder: $envRepositoryBuilder,
             moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
             configKernel: $configKernel,
             runtimeContainerGraphCompiler: $runtimeContainerGraphCompiler,
@@ -1579,6 +1584,7 @@ final class KernelServiceFactory
             fingerprintCalculator: $fingerprintCalculator,
             configSourceLocationBuilder: $configSourceLocationBuilder,
             kernelArtifactOperation: $kernelArtifactOperation,
+            bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
         );
     }
 
@@ -1617,7 +1623,6 @@ final class KernelServiceFactory
         return new KernelOpsFacade(
             hostInput: $hostInput,
             bootstrapConfigResolver: $executionServices->bootstrapConfigResolver(),
-            envRepositoryBuilder: $executionServices->envRepositoryBuilder(),
             moduleResolutionOrchestrator: $executionServices->moduleResolutionOrchestrator(),
             configKernel: $executionServices->configKernel(),
             runtimeContainerGraphCompiler: $executionServices->runtimeContainerGraphCompiler(),
@@ -1632,6 +1637,7 @@ final class KernelServiceFactory
             meter: self::meter($container),
             logger: self::logger($container),
             stopwatch: self::stopwatch($container),
+            bootstrapSourceResolver: $executionServices->bootstrapSourceResolver(),
         );
     }
 
@@ -1937,6 +1943,25 @@ final class KernelServiceFactory
         }
 
         return $service;
+    }
+
+    /**
+     * Reuses the registered source-host resolver when available. The fallback
+     * preserves construction before the dedicated provider binding is added.
+     */
+    private static function sourceResolverService(ContainerInterface $container): BootstrapSourceResolver
+    {
+        if (!$container->has(BootstrapSourceResolver::class)) {
+            return self::bootstrapSourceResolver($container);
+        }
+
+        $resolver = self::bootService($container, BootstrapSourceResolver::class);
+
+        if (!$resolver instanceof BootstrapSourceResolver) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return $resolver;
     }
 
     private static function bootService(

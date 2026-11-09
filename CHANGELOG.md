@@ -47,6 +47,59 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.12.0
+
+### Added
+
+- Introduced the `coretsia/platform-tracing` runtime package with deterministic, bounded, transport-neutral W3C `traceparent` extraction and injection through the existing `ContextPropagationInterface`.
+- Added strict W3C version-00 validation, bounded forward-version compatibility, canonical trace-flag handling, and conditional same-carrier `tracestate` preservation without introducing additional tracing lifecycle state.
+- Introduced the `coretsia/platform-metrics` runtime package with noop-safe `DefaultMeter` and `NullMetricsRenderer` implementations, explicit module selection, and a fixed six-key global label allowlist.
+- Added an empty, strictly validated `metrics` configuration root without recording backends, exporters, collectors, or runtime storage.
+- Introduced the `coretsia/platform-problem-details` runtime package with deterministic RFC 9457 JSON error rendering, RFC 7807-compatible response fields, and PSR-15 HTTP error-handling middleware.
+- Added declarative Problem Details middleware registration through the existing `http.middleware.system_pre` tag at priority `1000`, without changing HTTP pipeline ownership.
+- Introduced a unified Kernel-owned Bootstrap Phase A source resolver with immutable per-attempt snapshots, frozen application environment and source policy, deterministic precedence, and shared environment repository construction.
+- Added configuration-defined `activeTargets`, target-local presets, and module overrides through `config/app.php` and strictly validated dotenv JSON lists and maps.
+- Added canonical bootstrap installation identity for DependencySync planning, locked replanning, source drift detection, and fresh-process installed-state verification.
+- Expanded unit, contract, integration, architecture, and consumer-project regression coverage for tracing propagation, metrics validation, HTTP error rendering, bootstrap configuration, dependency synchronization, source/compiled DI parity, and failure isolation.
+
+### Changed
+
+- Reduced `coretsia/framework` to a Kernel-only Composer bootstrap requiring only PHP and `coretsia/core-kernel`, while preserving canonical Micro runtime module selection through DependencySync.
+- Moved application installation membership to configuration-owned `activeTargets`, with a deterministic `web` fallback when no explicit application set is configured.
+- Updated the Skeleton launcher to expose `php coretsia plan`, `php coretsia review`, and `php coretsia apply` before the normal CLI runtime is installed.
+- Restricted temporary `--preset=<target>=<preset>` overrides to read-only planning and review. Effectful synchronization uses only configuration-owned application membership and effective presets.
+- Extended DependencySync to recompute configuration-owned installation intent under the project lock, validate canonical installation identity, and independently verify effective configuration in a fresh PHP process.
+- Preserved Composer requirement ownership, protected third-party roots, deterministic reconciliation, recovery behavior, and existing machine-readable JSON response contracts.
+- Reused canonical Foundation noop tracing and metrics fallbacks, existing runtime contracts, declarative container bindings, and Kernel-owned lifecycle boundaries without introducing additional runtime state or reset services.
+- Updated Composer workspace metadata, package discovery, canonical dependency declarations, generated package indexes, Deptrac configuration, and the release installation catalog for the new runtime packages.
+- Updated configuration, architecture, observability, HTTP integration, dependency synchronization, command, and package documentation to reflect the implemented runtime boundaries.
+- Aligned Composer workspace versions and public internal package constraints with the `0.12` release line.
+
+### Removed
+
+- Removed direct `coretsia/platform-cli` and `coretsia/platform-logging` Composer requirements from the `coretsia/framework` metapackage.
+- Removed `--target` selection from the Skeleton dependency synchronization commands. Application membership is now determined exclusively by effective project configuration.
+- Removed support for temporary `--preset` overrides during effectful DependencySync `apply`, while retaining target-specific preset selection through persistent configuration.
+
+### Fixed
+
+- Corrected Deptrac layer identifier generation for hyphenated package names.
+- Aligned package scaffold generation and compliance validation with canonical snake_case configuration-root naming.
+- Hardened Bootstrap Phase A source validation, PHP configuration inclusion, output-buffer cleanup, error-handler restoration, and safe failure mapping.
+- Preserved partial module override shapes until source merging completes, preventing absent fields from unintentionally clearing lower-priority configuration values.
+- Ensured invalid lower-priority bootstrap source layers cannot be silently accepted through later overrides.
+
+### Security
+
+- Enforced bounded, fail-closed W3C trace-context validation, rejecting malformed headers, duplicate tracing fields, unsupported value types, invalid identifiers, and unsafe trace flags without exposing raw carrier values.
+- Restricted `tracestate` preservation to byte-identical `traceparent` propagation within the same carrier, preventing implicit forwarding of opaque vendor state across independent carriers.
+- Enforced strict metrics label admission, rejecting unsupported keys and invalid scalar values without recording sensitive or unbounded metric dimensions.
+- Added safe-by-construction HTTP Problem Details responses with fixed public status titles, deterministic HTTP 500 fallbacks, no-store caching, and exclusion of exception messages, stack traces, request payloads, and sensitive diagnostic metadata.
+- Preserved original Throwable precedence when HTTP error-response construction fails.
+- Strengthened bootstrap environment validation with exact supported-key allowlists, bounded JSON decoding, duplicate-object-key rejection, canonical ModuleId validation, and deterministic source precedence.
+- Enforced configuration-owned DependencySync installation intent, detecting application membership and installation-relevant bootstrap changes before Composer effects.
+- Preserved isolation of bootstrap, tracing, metrics, HTTP error handling, and DependencySync from unrelated runtime lifecycle state, unsafe diagnostics, and optional observability failures.
+
 ## v0.11.0
 
 ### Added

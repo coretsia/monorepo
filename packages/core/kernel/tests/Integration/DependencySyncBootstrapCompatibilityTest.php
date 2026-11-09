@@ -18,12 +18,41 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\DependencySync\ProjectDependencySync;
 use Coretsia\Kernel\Provider\KernelServiceFactory;
+use Coretsia\Kernel\Provider\KernelServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DependencySyncBootstrapCompatibilityTest extends TestCase
 {
+    public function testFoundationKernelBootstrapSharesOneResolverWithoutPlatformCliProviders(): void
+    {
+        $providers = new \ReflectionMethod(ProjectDependencySync::class, 'baselineSourceProviders')->invoke(null);
+
+        self::assertSame(
+            [FoundationServiceProvider::class, KernelServiceProvider::class],
+            \array_map(static fn (object $provider): string => $provider::class, $providers),
+        );
+
+        $sync = ProjectDependencySync::create();
+        $reflection = new \ReflectionClass($sync);
+        $resolver = $reflection->getProperty('bootstrapSourceResolver')->getValue($sync);
+        $planner = $reflection->getProperty('planner')->getValue($sync);
+        $verifier = $reflection->getProperty('installedProjectVerifier')->getValue($sync);
+
+        self::assertInstanceOf(BootstrapSourceResolver::class, $resolver);
+        self::assertSame(
+            $resolver,
+            new \ReflectionClass($planner)->getProperty('bootstrapSourceResolver')->getValue($planner),
+        );
+        self::assertSame(
+            $resolver,
+            new \ReflectionClass($verifier)->getProperty('bootstrapSourceResolver')->getValue($verifier),
+        );
+    }
+
     public function testFacadeReusesKernelCompositionRootInsteadOfReconstructingPhaseAGraph(): void
     {
         $sync = ProjectDependencySync::create();

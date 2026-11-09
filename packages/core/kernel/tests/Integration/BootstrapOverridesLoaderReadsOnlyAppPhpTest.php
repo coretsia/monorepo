@@ -372,6 +372,212 @@ final class BootstrapOverridesLoaderReadsOnlyAppPhpTest extends TestCase
         }
     }
 
+    public function testProjectWideActiveTargetsAreCanonicalWithoutSelectingARuntimeTarget(): void
+    {
+        $applicationRoot = self::createApplicationRoot('active-targets');
+
+        try {
+            self::writePhpArrayFile($applicationRoot . '/config/app.php', [
+                'activeTargets' => ['worker', 'web'],
+                'presets' => ['worker' => 'enterprise'],
+            ]);
+            self::writeThrowingPhpFile(
+                $applicationRoot . '/config/modules.php',
+                'modules-php-must-not-be-read',
+            );
+
+            $expected = [
+                'activeTargets' => ['web', 'worker'],
+                'presets' => ['worker' => 'enterprise'],
+            ];
+
+            self::assertSame($expected, self::loader()->loadPartialFromApplicationRoot($applicationRoot));
+            self::assertSame(
+                $expected,
+                self::loader()->load(new BootstrapInput($applicationRoot, AppTarget::Api)),
+            );
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testRejectsMalformedActiveTargetsWithoutLeakingValues(): void
+    {
+        foreach (
+            [
+                [],
+                ['web', 'web'],
+                ['admin'],
+                ['web' => 'worker'],
+                ['web', 42],
+            ] as $index => $targets
+        ) {
+            $applicationRoot = self::createApplicationRoot('invalid-targets-' . $index);
+
+            try {
+                self::writePhpArrayFile($applicationRoot . '/config/app.php', [
+                    'activeTargets' => $targets,
+                ]);
+
+                self::assertInvalidOverridesWithoutLeaking(
+                    applicationRoot: $applicationRoot,
+                    appTarget: AppTarget::Web,
+                    forbiddenFragments: [$applicationRoot, 'admin'],
+                );
+            } finally {
+                self::removeDirectory($applicationRoot);
+            }
+        }
+    }
+
+    public function testRejectsEchoPrintAndFlushedOutputWithoutLeakingOrDamagingCallerBuffers(): void
+    {
+        $sources = [
+            "echo 'secret-echo';",
+            "print 'secret-print';",
+            "echo 'secret-flush'; ob_flush();",
+        ];
+
+        foreach ($sources as $index => $source) {
+            $applicationRoot = self::createApplicationRoot('source-output-' . $index);
+            $initialLevel = \ob_get_level();
+            \ob_start();
+
+            try {
+                self::writePhpSourceFile($applicationRoot . '/config/app.php', $source . "\nreturn [];\n");
+                self::assertInvalidOverridesWithoutLeaking(
+                    applicationRoot: $applicationRoot,
+                    appTarget: AppTarget::Web,
+                    forbiddenFragments: ['secret-echo', 'secret-print', 'secret-flush', $applicationRoot],
+                );
+                self::assertSame('', \ob_get_contents());
+                self::assertSame($initialLevel + 1, \ob_get_level());
+            } finally {
+                while (\ob_get_level() > $initialLevel) {
+                    \ob_end_clean();
+                }
+
+                self::removeDirectory($applicationRoot);
+            }
+        }
+    }
+
+    public function testRestoresOutputBufferAndErrorHandlerAfterSuccessfulAndFailedIncludes(): void
+    {
+        $applicationRoot = self::createApplicationRoot('buffer-handler-discipline');
+        $initialLevel = \ob_get_level();
+        $sentinel = static fn (): bool => false;
+        $previous = \set_error_handler($sentinel);
+
+        try {
+            self::writePhpArrayFile($applicationRoot . '/config/app.php', []);
+            self::assertSame([], self::loader()->loadPartialFromApplicationRoot($applicationRoot));
+            self::assertSame($initialLevel, \ob_get_level());
+            self::assertSame($sentinel, self::currentErrorHandler());
+
+            self::writePhpSourceFile(
+                $applicationRoot . '/config/app.php',
+                "trigger_error('secret-warning', E_USER_WARNING);\nreturn [];\n",
+            );
+            self::assertInvalidOverridesWithoutLeaking(
+                applicationRoot: $applicationRoot,
+                appTarget: AppTarget::Web,
+                forbiddenFragments: ['secret-warning', $applicationRoot],
+            );
+            self::assertSame($initialLevel, \ob_get_level());
+            self::assertSame($sentinel, self::currentErrorHandler());
+        } finally {
+            \restore_error_handler();
+            self::assertSame($previous, self::currentErrorHandler());
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testRestoresCallerBuffersAfterNestedOutputHandlerFailure(): void
+    {
+        $applicationRoot = self::createApplicationRoot('nested-output-handler-failure');
+        $initialLevel = \ob_get_level();
+        \ob_start();
+
+        try {
+            self::writePhpSourceFile(
+                $applicationRoot . '/config/app.php',
+                "ob_start(static function (string \$chunk): string {\n"
+                . "    throw new \\RuntimeException('secret-output-handler');\n"
+                . "});\n"
+                . "echo 'secret-output';\n"
+                . "return [];\n",
+            );
+
+            self::assertInvalidOverridesWithoutLeaking(
+                applicationRoot: $applicationRoot,
+                appTarget: AppTarget::Web,
+                forbiddenFragments: ['secret-output-handler', 'secret-output', $applicationRoot],
+            );
+            self::assertSame($initialLevel + 1, \ob_get_level());
+            self::assertSame('', \ob_get_contents());
+        } finally {
+            while (\ob_get_level() > $initialLevel) {
+                \ob_end_clean();
+            }
+
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testRestoresCallerErrorHandlerStackAfterOverrideHandlerChanges(): void
+    {
+        $applicationRoot = self::createApplicationRoot('handler-stack-restoration');
+        $outerHandler = static fn (): bool => false;
+        $innerHandler = static fn (): bool => false;
+        $previous = \set_error_handler($outerHandler);
+
+        try {
+            \set_error_handler($innerHandler);
+
+            try {
+                foreach (
+                    [
+                        "restore_error_handler();\nreturn [];\n",
+                        "for (\$i = 0; \$i < 40; \$i++) {\n"
+                        . "    set_error_handler(static fn (): bool => true);\n"
+                        . "}\nreturn [];\n",
+                    ] as $body
+                ) {
+                    self::writePhpSourceFile($applicationRoot . '/config/app.php', $body);
+                    self::assertInvalidOverridesWithoutLeaking(
+                        applicationRoot: $applicationRoot,
+                        appTarget: AppTarget::Web,
+                        forbiddenFragments: [$applicationRoot],
+                    );
+                    self::assertSame($innerHandler, self::currentErrorHandler());
+                }
+            } finally {
+                \restore_error_handler();
+            }
+
+            self::assertSame($outerHandler, self::currentErrorHandler());
+        } finally {
+            \restore_error_handler();
+            self::assertSame($previous, self::currentErrorHandler());
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    private static function writePhpSourceFile(string $file, string $body): void
+    {
+        self::ensureDirectory(\dirname($file));
+        self::assertIsInt(\file_put_contents($file, "<?php\n\ndeclare(strict_types=1);\n\n" . $body));
+    }
+
+    private static function currentErrorHandler(): ?callable
+    {
+        $previous = \set_error_handler(static fn (): bool => false);
+        \restore_error_handler();
+
+        return $previous;
+    }
+
     /**
      * @param list<string> $forbiddenFragments
      */

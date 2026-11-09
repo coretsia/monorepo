@@ -25,12 +25,8 @@ use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\AppTarget;
-use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
-use Coretsia\Kernel\Boot\DotenvLoader;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
 use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
@@ -46,6 +42,7 @@ use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Module\ModuleSelectionFactory;
 use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -266,18 +263,17 @@ final class KernelArtifactOperationUsesCanonicalCompileInputsTest extends TestCa
             presetNamespaceResolver: new PresetNamespaceResolver(),
         );
 
+        $bootstrapConfigResolver = ModeInfrastructureTestSupport::bootstrapConfigResolver();
+
         return [
             'operation' => new KernelArtifactOperation(
-                bootstrapConfigResolver: new BootstrapConfigResolver(
-                    new BootstrapOverridesLoader(),
-                    new ModuleIdSetNormalizer(),
-                ),
-                envRepositoryBuilder: new EnvRepositoryBuilder(new DotenvLoader()),
+                bootstrapConfigResolver: $bootstrapConfigResolver,
                 moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $sourceBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
                 kernelConfig: $this->kernelConfig(),
+                bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
             ),
             'manifestReader' => $manifestReader,
         ];

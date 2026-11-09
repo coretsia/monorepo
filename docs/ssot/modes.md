@@ -179,7 +179,7 @@ The Kernel-owned canonical preset resources under `packages/core/kernel/resource
 
 All four canonical presets select `platform.cli` and `platform.logging` by default through `modules`, not `required`.
 
-An explicit per-target exclusion MAY remove either selectable root without changing the `required` modules or Composer installation.
+An explicit per-target exclusion MAY remove either selectable root from that target's effective selection without changing the non-excludable `required` roots. Physical Composer requirements are reconciled only by a subsequent explicitly authorized DependencySync apply.
 
 `platform.worker` is selectable by default only for `hybrid` and `enterprise`; these selectable modules do not become non-excludable merely because a preset selects them.
 
@@ -204,9 +204,13 @@ Module availability and exclusions are validated per selected application target
 
 Canonical presets are runtime selection policies, not Composer package distributions, independently versioned preset packages, or implicit installation instructions.
 
-`coretsia/framework` owns the baseline Composer dependency graph, including `coretsia/core-kernel`, `coretsia/platform-cli`, and `coretsia/platform-logging`; Composer installs `coretsia/platform-errors` through CLI and `coretsia/platform-redaction` transitively through both CLI and Logging. Physical installation alone does not select a runtime module.
+`coretsia/framework` is the Kernel-only Composer bootstrap metapackage. Its direct requirements are limited to `php` and `coretsia/core-kernel`. The initial consumer installation provides the Kernel/Foundation baseline without requiring `coretsia/platform-cli`, `coretsia/platform-logging`, or an already installed Micro runtime.
 
-Any additional physical packages required for a selected target remain subject to explicit DependencySync `plan` / `review` / `apply` operations.
+The canonical `micro` preset still selects `platform.cli` and `platform.logging` as excludable runtime module roots. DependencySync resolves their required physical Composer packages through the Kernel-owned release installation catalog and the selected targets' dependency closures.
+
+The initial Kernel-only Composer baseline and the installed Micro runtime are distinct states. The former makes the project-owned Skeleton `plan`, `review`, and `apply` operations available; the latter becomes available only after the required packages have been installed and successfully verified.
+
+Physical package installation alone does not select a runtime module. Every target's runtime module graph remains governed by its effective `ModulePlan`.
 
 Neither preset loading nor application boot performs implicit Composer reconciliation.
 
@@ -244,28 +248,38 @@ Precedence is source identity metadata, not fallback order. An invalid existing 
 
 ## Per-target effective preset
 
-`AppTarget` membership is explicit caller input; application directories and `config/app.php` keys do not infer the selected application set.
+DependencySync installation membership is configuration-owned. `BootstrapSourceResolver` resolves one project-wide `BootstrapSourceSnapshot` containing the effective `activeTargets` from `config/app.php` and permitted `CORETSIA_BOOT_*` environment sources.
+
+An absent `activeTargets` uses the DependencySync-owned fallback `['web']`. An explicitly empty list is invalid. Preset-map keys, application directories, installed packages, and runtime metadata MUST NOT add targets implicitly.
+
+The project-wide application set is separate from runtime AppTarget selection. Each runtime entrypoint continues to supply its explicit `BootstrapInput::appTarget()`; `activeTargets` MUST NOT select or activate multiple runtime targets.
 
 For one selected target, normal Phase A preset precedence is:
 
 ```text
 BootstrapInput::preset()
-    -> config/app.php presets[target]
-    -> config/app.php preset
+    -> merged presets[appTarget]
+    -> merged global preset
     -> kernel.boot.default_preset
 ```
 
-The global `preset` is a fallback for each explicitly selected target. It does not add other targets to the installation set.
+The merged values are supplied by `BootstrapSourceResolver` using canonical Bootstrap Phase A source precedence. The target-specific preset takes priority over the global preset independently of which permitted source supplied the global fallback.
 
-DependencySync MAY intentionally provide an installation-only fixed preset for one selected target through the existing explicit `BootstrapInput::preset()` seam.
+`BootstrapConfigResolver` constructs one immutable target-local `BootstrapConfig` from the approved source snapshot and the explicit AppTarget. Different selected targets MAY resolve different presets without duplicating bootstrap source reads.
 
-This does not create a third persistent preset source, does not introduce Composer configuration as a preset source, and does not mutate `config/app.php`.
+The global `preset` provides a fallback for targets without a target-specific preset. Neither global nor target-specific preset configuration changes the project-wide application set.
+
+DependencySync MAY intentionally supply a temporary target-qualified fixed preset through the existing explicit `BootstrapInput::preset()` seam for read-only `plan` and `review` operations.
+
+An effectful `apply` MUST use only the persistent effective bootstrap configuration and MUST NOT accept temporary fixed presets, even when their values match the configured presets.
+
+Temporary preset selection does not create another persistent source, introduce Composer configuration as a preset source, or mutate `config/app.php` or dotenv files.
 
 ## Effective runtime selection
 
 For the selected app target, `BootstrapConfig::moduleOverrides()` holds immutable `ResolvedModuleOverrides` (`include`/`exclude` lists of canonical `ModuleId` objects); missing input is the empty value.
 
-The Phase A bootstrap loader validates all raw per-target shapes, preserves source duplicates, and the resolver rejects malformed/non-canonical ids, duplicates and include/exclude overlap using safe `BootstrapException::REASON_OVERRIDES_INVALID`.
+`BootstrapOverridesLoader` validates canonical ModuleId syntax and per-target override shapes in every permitted source layer before merging, including entries for inactive targets. Malformed, noncanonical, or duplicate ModuleIds fail closed through `BootstrapException::REASON_OVERRIDES_INVALID`. `BootstrapConfigResolver` validates selected-target include/exclude conflicts after source merging. Missing fields are completed to empty lists only after the merge.
 
 `ModuleSelectionFactory` takes the loaded `ModePreset` plus resolved overrides.
 
@@ -294,23 +308,14 @@ It MUST NOT be interpreted as a project-wide Composer package removal request.
 For installation planning, these boundaries remain distinct:
 
 ```text
-ModePreset
-    = source policy for one preset name
-
-ModuleSelection
-    = effective target-local runtime selection intent
-
-ProjectPackagePlan
-    = explicit multi-target physical installation plan
-
-ModuleManifest
-    = installed runtime module metadata snapshot
-
-ModulePlan
-    = resolved enabled runtime graph for one target
+ModePreset = source policy for one preset name
+ModuleSelection = effective target-local runtime selection intent
+ProjectPackagePlan = configuration-owned multi-target physical installation plan (explicit intent remains read-only)
+ModuleManifest = installed runtime module metadata snapshot
+ModulePlan = resolved enabled runtime graph for one target
 ```
 
-DependencySync consumes one `ModuleSelection` per explicitly selected target, resolves each selection through the versioned installation catalog, retains target-local closures, and forms one project-wide physical package union.
+DependencySync consumes one `ModuleSelection` per selected target, resolves each selection through the versioned installation catalog, retains target-local closures, and forms one project-wide physical package union. For configuration-driven operations, the selected targets are the complete effective `activeTargets` set; programmatic explicit intent remains available for read-only planning.
 
 Composer resolves one project `composer.lock` / `vendor` graph only after explicit apply authorization.
 
@@ -322,6 +327,7 @@ Given:
 
 ```php
 return [
+    'activeTargets' => ['web', 'worker'],
     'preset' => 'micro',
     'presets' => [
         'worker' => 'enterprise',
@@ -335,7 +341,7 @@ return [
 ];
 ```
 
-and an explicit installation set containing `web` and `worker` (with the selected module graph physically installed):
+With configuration-owned `activeTargets` selecting `web` and `worker`, and the required module graph physically installed:
 
 ```text
 web    -> micro      -> core.foundation, core.kernel, platform.cli, platform.errors, platform.logging, platform.redaction
@@ -353,7 +359,7 @@ The physical union includes `platform.worker`, but `ModulePlan(web)` does not en
 
 The project-wide Composer graph may therefore contain packages that are not enabled for a particular target.
 
-The `worker` preset key alone does not select `worker`, and target-local exclusion does not mean project-global package removal.
+The `worker` target participates because it is present in `activeTargets`, not because a `worker` preset entry exists. Removing `worker` from the effective application set triggers recomputation of the complete installation union; target-local exclusions do not independently authorize project-wide package removal.
 
 Adding or reconciling packages for the physical union requires explicit DependencySync authorization; resolving either runtime `ModulePlan` never performs package synchronization.
 
@@ -429,7 +435,7 @@ They MUST NOT depend on:
 This SSoT does not define:
 
 - Composer solver internals, managed-root reconciliation, recovery mechanics, or dependency-sync process execution;
-- future runtime package implementation or independent runtime-module descriptors;
+- runtime package implementation or independent runtime-module descriptors;
 - provider/DI graph compilation or HTTP middleware behavior;
 - consumer DependencySync CLI syntax beyond the mode-policy boundary described here;
 - runtime service registration;

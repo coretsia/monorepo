@@ -114,6 +114,47 @@ final class ComposerManifestStoreTest extends TestCase
         }
     }
 
+    public function testComposerLockRejectsDuplicateKeysAndUnsafeNumbersWithExistingErrorMapping(): void
+    {
+        $root = self::root();
+
+        try {
+            $store = new ComposerManifestStore();
+
+            foreach (
+                [
+                    '{"packages":[],"packages":[]}',
+                    '{"packages":[],"pack\u0061ges":[]}',
+                    '{"packages":[],"extra":{"secret":1,"secret":2}}',
+                    '{"packages":[],"extra":{"secret":1,"secr\u0065t":2}}',
+                    '{"packages":[],"extra":{"unsafe":1e400}}',
+                    '{"packages":[],"extra":{"unsafe":9223372036854775808}}',
+                    '{"packages":',
+                    '[{"packages":[]}]',
+                ] as $bytes
+            ) {
+                \file_put_contents($root . '/composer.lock', $bytes);
+
+                try {
+                    $store->readLockState($root);
+                    self::fail('Invalid Composer lock must fail closed.');
+                } catch (DependencySyncException $exception) {
+                    self::assertSame(DependencySyncErrorCodes::COMPOSER_LOCK_STALE, $exception->errorCode());
+                    self::assertStringNotContainsString('secret', $exception->getMessage());
+                }
+            }
+
+            \file_put_contents($root . '/composer.lock', '{"packages":[],"extra":{"float":1.25,"empty":{}}}');
+            $valid = $store->readLockState($root);
+
+            self::assertIsArray($valid);
+            self::assertSame(1.25, $valid['document']->extra->float);
+            self::assertInstanceOf(\stdClass::class, $valid['document']->extra->empty);
+        } finally {
+            self::remove($root);
+        }
+    }
+
     public function testRejectsComposerJsonSymlinkSwitch(): void
     {
         $root = self::root();

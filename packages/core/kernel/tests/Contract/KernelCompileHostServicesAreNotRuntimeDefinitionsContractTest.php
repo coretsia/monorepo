@@ -65,6 +65,8 @@ use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
+use Coretsia\Kernel\Boot\BootstrapSourceSnapshot;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
@@ -119,6 +121,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
     private const array COMPILE_HOST_SERVICE_IDS = [
         BootstrapOverridesLoader::class,
         BootstrapConfigResolver::class,
+        BootstrapSourceResolver::class,
         DotenvLoader::class,
         EnvRepositoryBuilder::class,
         ModePresetSchemaValidator::class,
@@ -218,6 +221,35 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
         }
     }
 
+    public function testCanonicalSourceHostSharesBootstrapSourceResolverWithoutRuntimeLeakage(): void
+    {
+        $config = self::validConfig();
+        $builder = new ContainerBuilder(config: $config);
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+
+        $container = $builder->build();
+        $sourceResolver = $container->get(BootstrapSourceResolver::class);
+        $configResolver = $container->get(BootstrapConfigResolver::class);
+
+        self::assertInstanceOf(BootstrapSourceResolver::class, $sourceResolver);
+        self::assertInstanceOf(BootstrapConfigResolver::class, $configResolver);
+        self::assertSame($sourceResolver, $configResolver->sourceResolver());
+        self::assertSame($sourceResolver, $container->get(BootstrapSourceResolver::class));
+
+        $runtimeDefinitions = self::completeRuntimeDefinitionSet($config);
+
+        foreach ([BootstrapSourceResolver::class, BootstrapConfigResolver::class] as $sourceOnlyId) {
+            self::assertNotContains(
+                $sourceOnlyId,
+                self::bindingIds($runtimeDefinitions->toDescriptorStream()),
+            );
+            self::assertNotContains($sourceOnlyId, $runtimeDefinitions->requiredServiceIds());
+        }
+    }
+
     public function testCompileHostOnlyValueObjectsAndSourcesNeverBecomeRuntimeBindings(): void
     {
         $definitions = self::completeRuntimeDefinitionSet(self::validConfig());
@@ -226,6 +258,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
             [
                 ModuleSelection::class,
                 ResolvedModuleOverrides::class,
+                BootstrapSourceSnapshot::class,
                 CanonicalPresetSource::class,
                 CustomPresetSource::class,
             ] as $forbidden

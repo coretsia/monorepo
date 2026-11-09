@@ -32,7 +32,16 @@
       "package_id": "platform/logging"
     },
     {
+      "package_id": "platform/metrics"
+    },
+    {
+      "package_id": "platform/problem-details"
+    },
+    {
       "package_id": "platform/redaction"
+    },
+    {
+      "package_id": "platform/tracing"
     },
     {
       "package_id": "platform/worker"

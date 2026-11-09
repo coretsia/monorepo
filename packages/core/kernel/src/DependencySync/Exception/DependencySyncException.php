@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\DependencySync\Exception;
 
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
+
 final class DependencySyncException extends \RuntimeException
 {
     private const int MAX_CONTEXT_VALUE_BYTES = 256;
@@ -60,6 +62,24 @@ final class DependencySyncException extends \RuntimeException
             reason: self::reasonForCode($errorCode),
             context: self::normalizeContext($context),
         );
+    }
+
+    /**
+     * Maps Phase A source failures to the canonical DependencySync taxonomy.
+     * Safe source metadata is validated through forCode() context normalization.
+     */
+    public static function fromBootstrapException(BootstrapException $exception): self
+    {
+        $code = match ($exception->reason()) {
+            BootstrapException::REASON_INVALID_APPLICATION_ROOT => DependencySyncErrorCodes::PROJECT_ROOT_INVALID,
+            BootstrapException::REASON_INVALID_APP_TARGET => DependencySyncErrorCodes::APPLICATION_SET_INVALID,
+            default => DependencySyncErrorCodes::PRESET_POLICY_INVALID,
+        };
+
+        return self::forCode($code, [
+            'sourceErrorCode' => $exception->errorCode(),
+            'sourceReason' => $exception->reason(),
+        ]);
     }
 
     public function errorCode(): string

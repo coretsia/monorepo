@@ -48,10 +48,10 @@ Coretsia does not eliminate application complexity. It makes framework-owned dec
 Coretsia's framework composition model is based on explicit inputs:
 
 ```text
-explicit application target set
-+ per-target mode preset / module overrides
+configuration-owned activeTargets (absent -> ['web'])
++ target-local mode preset / module overrides
         ↓
-per-target ModuleSelection
+independent target-local ModuleSelection
         ↓
 release installation catalog
         ↓
@@ -68,7 +68,11 @@ ordered provider planning and runtime artifacts
 runtime
 ```
 
-Runtime module discovery uses Composer installed metadata only. It does not scan package directories or source trees to infer application composition. Physical mode-dependent package requirements are planned separately from an explicit application target set through the Kernel installation catalog and are applied only by explicit dependency synchronization.
+Runtime module discovery uses Composer installed metadata only. It does not scan package directories or source trees to infer application composition.
+
+The initial `coretsia/framework` Composer installation provides only the Kernel/Foundation bootstrap baseline. Kernel-owned DependencySync derives the complete installation application set from effective `activeTargets` and resolves independent target-local presets through the release installation catalog.
+
+DependencySync-managed mode-dependent Composer requirements are reconciled only through explicitly authorized apply; independently owned root or transitive Composer requirements may also install runtime packages. The initial bootstrap baseline is not equivalent to an installed Micro runtime.
 
 ## Progressive capability modes
 
@@ -208,7 +212,7 @@ Development status by capability track:
 - contracts, foundation, and Kernel package baseline;
 - deterministic mode-preset and module-plan contracts;
 - Composer-metadata module discovery;
-- explicit multi-target application dependency planning and managed Composer root synchronization;
+- configuration-owned multi-target application dependency planning, managed Composer root synchronization, and fresh installed-state verification;
 - package-distributed installation catalog and fresh installed per-target verification;
 - module dependency and conflict resolution;
 - deterministic topological ordering;
@@ -231,7 +235,9 @@ Development status by capability track:
 - structured command input validation and safe output rendering;
 - Kernel-owned dependency synchronization with managed Composer root requirements, protected project dependencies, fresh installed verification, and recovery reporting.
 
-The Skeleton project-root `coretsia` launcher exposes `plan`, `review`, and `apply` as explicit adapter operations before normal CLI host boot. These operations are not registered `cli.command` services and are not exposed through the packaged CLI command catalog.
+The Skeleton project-root `coretsia` launcher exposes `plan`, `review`, and `apply` after Kernel-only Composer bootstrap, before installation of the ordinary `platform.cli` runtime. These operations derive installation membership from configuration-owned `activeTargets` rather than CLI `--target`.
+
+They are routed to the project-owned DependencySync adapter and are not registered `cli.command` services or exposed through the packaged CLI command catalog. Ordinary CLI commands become available after the required mode-selected runtime packages have been installed.
 
 ### Logging, errors, redaction, and workers
 
@@ -258,7 +264,19 @@ The Skeleton project-root `coretsia` launcher exposes `plan`, `review`, and `app
 
 ## Explore the current CLI
 
-The Skeleton project-root launcher provides access to the Composer-installed CLI and its own explicit dependency synchronization operations.
+The Skeleton project-root launcher provides two distinct capabilities.
+
+After the initial Kernel-only Composer installation, it supports project-owned dependency synchronization:
+
+```bash
+php coretsia plan
+php coretsia review
+php coretsia apply
+```
+
+These operations use configuration-owned `activeTargets`, defaulting to `['web']` when absent. They do not accept `--target`; temporary `--preset=<target>=<preset>` is supported only for plan/review.
+
+After an authorized apply installs the required Micro runtime packages, the same launcher also provides access to the Composer-installed CLI. Normal target-scoped Kernel Ops commands retain their explicit `--target` syntax.
 
 Together, these entrypoints support the following framework inspection, verification, and maintenance tasks:
 
@@ -345,16 +363,21 @@ packages/framework/              → coretsia/framework
 packages/applications/skeleton/ → coretsia/skeleton
 ```
 
-The current `coretsia/framework` distribution directly requires the baseline Kernel, CLI, and Logging packages:
+The `coretsia/framework` distribution directly requires only PHP and the Kernel package:
 
 ```text
 coretsia/framework
-├── coretsia/core-kernel
-├── coretsia/platform-cli
-└── coretsia/platform-logging
+└── coretsia/core-kernel
+    ├── coretsia/core-contracts
+    └── coretsia/core-foundation
+        └── coretsia/core-contracts
 ```
 
-Additional Coretsia dependencies, including Foundation, Contracts, Errors, and Redaction, are installed transitively according to package metadata. A Composer-installed package is not automatically an enabled runtime module; effective runtime selection remains target-local and governed by Kernel policy.
+The Contracts and Foundation packages belong to the transitive Kernel-only Composer bootstrap closure. The framework metapackage does not directly require CLI, Logging, Errors, or Redaction.
+
+The default `micro` preset selects `platform.cli` and `platform.logging` as excludable runtime roots. Kernel DependencySync derives their required physical Composer dependencies from the effective configuration-owned application set and the release installation catalog.
+
+These mode-selected packages are reconciled only through explicit apply authorization. A Composer-installed package is not automatically an enabled runtime module; effective runtime selection remains target-local and governed by Kernel policy.
 
 All Coretsia packages use one monorepo-wide release train:
 

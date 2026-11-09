@@ -270,6 +270,30 @@ final class InstalledProjectVerifierTest extends TestCase
         }
     }
 
+    public function testFreshVerifierUsesConfigurationOwnedTargetsAndNoTemporaryPresetOverride(): void
+    {
+        $source = self::methodSource(InstalledProjectVerifier::class, 'verify');
+
+        foreach (
+            [
+                'resolveApplicationRoot($projectRoot, $this->kernelConfig)',
+                '$snapshot->activeTargets() ?? [AppTarget::Web->value]',
+                '$actualTargets !== $approvedPlan->applications()',
+                '$this->bootstrapConfigResolver->resolve(',
+                '$snapshot->installationOverridesForTargets($actualTargets)',
+                '$actualIdentity[\'presets\'] = $actualPresetsByTarget',
+                '$actualIdentity !== $approvedPlan->bootstrapInstallationIdentity()',
+            ] as $required
+        ) {
+            self::assertStringContainsString($required, $source);
+        }
+
+        self::assertStringNotContainsString('fixedPresetByTarget(', $source);
+        self::assertStringNotContainsString('preset: ', $source);
+        self::assertStringContainsString('catch (BootstrapException)', $source);
+        self::assertStringContainsString('self::planMismatch()', $source);
+    }
+
     private static function verifier(): InstalledProjectVerifier
     {
         $facade = ProjectDependencySync::create();

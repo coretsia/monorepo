@@ -30,12 +30,8 @@ use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\ArtifactRuntimeBooter;
 use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
-use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
-use Coretsia\Kernel\Boot\DotenvLoader;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Module\ComposerInstalledMetadataProvider;
@@ -57,6 +53,7 @@ use Coretsia\Kernel\Tests\Fixtures\LifecycleFixturePackage\LifecycleFailingObser
 use Coretsia\Kernel\Tests\Fixtures\LifecycleFixturePackage\LifecycleFixtureServiceProvider;
 use Coretsia\Kernel\Tests\Fixtures\LifecycleFixturePackage\LifecycleGraphVariantProvider;
 use Coretsia\Kernel\Tests\Fixtures\LifecycleFixturePackage\LifecycleStatefulService;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -222,21 +219,15 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 logger: new NullLogger(),
                 modulesConfig: $modulesConfig,
             );
-            $bootstrapConfigResolver = new BootstrapConfigResolver(
-                new BootstrapOverridesLoader(),
-                new ModuleIdSetNormalizer(),
-            );
-            $envRepositoryBuilder = new EnvRepositoryBuilder(
-                new DotenvLoader(),
-            );
+            $bootstrapConfigResolver = ModeInfrastructureTestSupport::bootstrapConfigResolver();
             $operation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
-                envRepositoryBuilder: $envRepositoryBuilder,
                 moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
                 kernelConfig: $kernelConfig,
+                bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
             );
 
             $compileResult = $operation->compile($bootstrapInput);
@@ -830,21 +821,15 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 logger: new NullLogger(),
                 modulesConfig: $modulesConfig,
             );
-            $bootstrapConfigResolver = new BootstrapConfigResolver(
-                new BootstrapOverridesLoader(),
-                new ModuleIdSetNormalizer(),
-            );
-            $envRepositoryBuilder = new EnvRepositoryBuilder(
-                new DotenvLoader(),
-            );
+            $bootstrapConfigResolver = ModeInfrastructureTestSupport::bootstrapConfigResolver();
             $operation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
-                envRepositoryBuilder: $envRepositoryBuilder,
                 moduleResolutionOrchestrator: $moduleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
                 kernelConfig: $kernelConfig,
+                bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
             );
 
             $baselineCompileResult = $operation->compile($bootstrapInput);
@@ -959,12 +944,12 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
 
             $variantOperation = new KernelArtifactOperation(
                 bootstrapConfigResolver: $bootstrapConfigResolver,
-                envRepositoryBuilder: $envRepositoryBuilder,
                 moduleResolutionOrchestrator: $variantModuleResolutionOrchestrator,
                 configSourceLocationBuilder: $configSourceLocationBuilder,
                 artifactCompiler: ArtifactPipelineTestSupport::artifactCompiler($this),
                 cacheVerifier: ArtifactPipelineTestSupport::cacheVerifier($this),
                 kernelConfig: $kernelConfig,
+                bootstrapSourceResolver: $bootstrapConfigResolver->sourceResolver(),
             );
 
             self::assertSame(

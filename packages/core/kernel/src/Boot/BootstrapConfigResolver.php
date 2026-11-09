@@ -26,21 +26,18 @@ use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 /**
  * Resolves immutable Bootstrap Phase A configuration.
  *
- * Resolution order:
+ * The canonical BootstrapSourceResolver freezes appEnv, env source policy, and
+ * source-layer overrides once per resolution attempt. This resolver applies
+ * explicit target-local BootstrapInput overrides to that immutable snapshot.
  *
- * 1. explicit BootstrapInput values;
- * 2. bootstrap-only overrides from config/app.php;
- * 3. package defaults from kernel config.
- *
- * Preset resolution order is intentionally more specific:
+ * Preset resolution order:
  *
  * 1. explicit BootstrapInput::preset();
- * 2. config/app.php presets[BootstrapInput::appTarget()];
- * 3. config/app.php preset;
+ * 2. merged presets[BootstrapInput::appTarget()];
+ * 3. merged global preset;
  * 4. kernel.boot.default_preset.
  *
- * The `presets` map is evaluated only for the already selected explicit app
- * target. It must not select, infer, or modify app target.
+ * Project-wide activeTargets never selects a runtime AppTarget.
  *
  * Phase A validates the preset name and canonical per-target module overrides.
  * Preset file existence and schema validation belong to orchestration.
@@ -63,36 +60,29 @@ use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 final readonly class BootstrapConfigResolver
 {
     private const string KEY_BOOT = 'boot';
-    private const string KEY_ENV = 'env';
 
-    private const string KEY_DEFAULT_ENV = 'default_env';
     private const string KEY_DEFAULT_PRESET = 'default_preset';
     private const string KEY_DEFAULT_DEBUG = 'default_debug';
     private const string KEY_DEFAULT_ARTIFACTS_CACHE_DIR = 'default_artifacts_cache_dir';
 
-    private const string KEY_SOURCE_POLICY = 'source_policy';
-    private const string KEY_DEFAULT_LOCAL = 'default_local';
-    private const string KEY_DEFAULT_PRODUCTION = 'default_production';
-
-    private const string OVERRIDE_APP_ENV = 'appEnv';
     private const string OVERRIDE_PRESET = 'preset';
     private const string OVERRIDE_PRESETS = 'presets';
     private const string OVERRIDE_MODULE_OVERRIDES = 'moduleOverrides';
     private const string OVERRIDE_DEBUG = 'debug';
     private const string OVERRIDE_ARTIFACTS_CACHE_DIR = 'artifactsCacheDir';
 
-    /**
-     * @var array<string, true>
-     */
-    private const array PRODUCTION_LIKE_ENVS = [
-        'prod' => true,
-        'production' => true,
-    ];
+    private BootstrapSourceResolver $sourceResolver;
 
     public function __construct(
-        private BootstrapOverridesLoader $overridesLoader,
         private ModuleIdSetNormalizer $moduleIdSetNormalizer,
+        BootstrapSourceResolver $sourceResolver,
     ) {
+        $this->sourceResolver = $sourceResolver;
+    }
+
+    public function sourceResolver(): BootstrapSourceResolver
+    {
+        return $this->sourceResolver;
     }
 
     /**
@@ -107,13 +97,23 @@ final readonly class BootstrapConfigResolver
     public function resolve(
         BootstrapInput $input,
         array $kernelConfig,
+        ?BootstrapSourceSnapshot $snapshot = null,
     ): BootstrapConfig {
-        $overrides = $this->overridesLoader->load($input);
+        $snapshot ??= $this->sourceResolver->resolve($input, $kernelConfig);
+        $snapshot->assertApplicationRoot($input->applicationRoot());
 
-        $appEnv = $input->appEnv()
-            ?? $overrides[self::OVERRIDE_APP_ENV]
-            ?? self::defaultAppEnv($kernelConfig);
+        if ($input->appEnv() !== null && $input->appEnv() !== $snapshot->appEnv()) {
+            throw BootstrapException::withReason(BootstrapException::REASON_OVERRIDES_INVALID);
+        }
 
+        if (
+            $input->envSourcePolicy() !== null
+            && $input->envSourcePolicy() !== $snapshot->envSourcePolicy()
+        ) {
+            throw BootstrapException::withReason(BootstrapException::REASON_ENV_SOURCE_POLICY_INVALID);
+        }
+
+        $overrides = $snapshot->overrides();
         $preset = self::resolvePreset(
             input: $input,
             overrides: $overrides,
@@ -128,15 +128,12 @@ final readonly class BootstrapConfigResolver
             ?? $overrides[self::OVERRIDE_ARTIFACTS_CACHE_DIR]
             ?? self::defaultArtifactsCacheDir($kernelConfig);
 
-        $envSourcePolicy = $input->envSourcePolicy()
-            ?? self::defaultEnvSourcePolicy($kernelConfig, $appEnv);
-
         return new BootstrapConfig(
-            appEnv: $appEnv,
+            appEnv: $snapshot->appEnv(),
             preset: $preset,
             debug: $debug,
             artifactsCacheDir: $artifactsCacheDir,
-            envSourcePolicy: $envSourcePolicy,
+            envSourcePolicy: $snapshot->envSourcePolicy(),
             appTarget: $input->appTarget(),
             applicationRoot: $input->applicationRoot(),
             moduleOverrides: $this->resolveModuleOverrides(
@@ -191,8 +188,8 @@ final readonly class BootstrapConfigResolver
      * Preset resolution order:
      *
      * 1. explicit BootstrapInput::preset();
-     * 2. config/app.php presets[BootstrapInput::appTarget()];
-     * 3. config/app.php preset;
+     * 2. merged presets[BootstrapInput::appTarget()];
+     * 3. merged global preset;
      * 4. kernel.boot.default_preset.
      *
      * @param array{
@@ -280,22 +277,6 @@ final readonly class BootstrapConfigResolver
      *
      * @return non-empty-string
      */
-    private static function defaultAppEnv(array $kernelConfig): string
-    {
-        $value = $kernelConfig[self::KEY_BOOT][self::KEY_DEFAULT_ENV] ?? null;
-
-        if (!\is_string($value) || !self::isNonEmptySafeSingleLineString($value)) {
-            throw new \InvalidArgumentException('bootstrap-config-default-env-invalid');
-        }
-
-        return $value;
-    }
-
-    /**
-     * @param array<string,mixed> $kernelConfig
-     *
-     * @return non-empty-string
-     */
     private static function defaultPreset(array $kernelConfig): string
     {
         $value = $kernelConfig[self::KEY_BOOT][self::KEY_DEFAULT_PRESET] ?? null;
@@ -336,29 +317,6 @@ final readonly class BootstrapConfigResolver
 
         /** @var non-empty-string $value */
         return $value;
-    }
-
-    /**
-     * @param array<string,mixed> $kernelConfig
-     */
-    private static function defaultEnvSourcePolicy(
-        array $kernelConfig,
-        string $appEnv,
-    ): BootstrapEnvSourcePolicy {
-        $policy = self::isProductionLikeEnv($appEnv)
-            ? ($kernelConfig[self::KEY_ENV][self::KEY_SOURCE_POLICY][self::KEY_DEFAULT_PRODUCTION] ?? null)
-            : ($kernelConfig[self::KEY_ENV][self::KEY_SOURCE_POLICY][self::KEY_DEFAULT_LOCAL] ?? null);
-
-        if (!\is_string($policy) || !self::isNonEmptySafeSingleLineString($policy)) {
-            throw new \InvalidArgumentException('bootstrap-config-default-env-source-policy-invalid');
-        }
-
-        return BootstrapEnvSourcePolicy::fromString($policy);
-    }
-
-    private static function isProductionLikeEnv(string $appEnv): bool
-    {
-        return isset(self::PRODUCTION_LIKE_ENVS[\strtolower($appEnv)]);
     }
 
     private static function isNonEmptySafeSingleLineString(string $value): bool

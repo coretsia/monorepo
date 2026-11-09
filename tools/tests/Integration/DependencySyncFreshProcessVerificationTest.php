@@ -92,7 +92,7 @@ final class DependencySyncFreshProcessVerificationTest extends TestCase
         self::assertStringContainsString('VERIFICATION_EXECUTION_FAILED', $methodSource);
     }
 
-    public function testBufferedConsumerOutputIsDiscardedBeforeCanonicalProtocolEmission(): void
+    public function testBufferedPhpOutputIsRejectedWithoutContaminatingVerificationProtocol(): void
     {
         $root = self::consumer();
 
@@ -102,7 +102,7 @@ final class DependencySyncFreshProcessVerificationTest extends TestCase
                 true,
                 flags: \JSON_THROW_ON_ERROR,
             );
-            self::assertArrayNotHasKey('coretsia/platform-errors', $manifest['require']);
+            self::assertArrayHasKey('coretsia/platform-errors', $manifest['require']);
 
             $cli = \json_decode(
                 (string) \file_get_contents($root . '/repository/coretsia-platform-cli/composer.json'),
@@ -147,9 +147,13 @@ final class DependencySyncFreshProcessVerificationTest extends TestCase
 
             $result = self::runInstalledVerifier($root, $input);
 
-            self::assertSame(0, $result['exitCode']);
+            self::assertSame(2, $result['exitCode']);
             self::assertFalse($result['timedOut']);
-            self::assertSame('{"schemaVersion":1,"status":"ok"}', $result['stdout']);
+            self::assertSame(
+                '{"schemaVersion":1,"status":"error","code":"INSTALLED_PLAN_MISMATCH"}',
+                $result['stdout'],
+            );
+            self::assertStringNotContainsString('buffered-noise', $result['stdout']);
         } finally {
             self::remove($root);
         }
@@ -412,10 +416,192 @@ PHP,
                 DependencySyncErrorCodes::VERIFICATION_EXECUTION_FAILED,
                 self::parentVerifierErrorCode($root, $input),
             );
-            self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+            self::assertNoRecoveryReceipts($root);
         } finally {
             self::remove($root);
         }
+    }
+
+    public function testChangedActiveTargetsAreRejectedFromFreshConfiguration(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $input = self::verificationInput($root);
+
+            \file_put_contents(
+                $root . '/config/app.php',
+                '<?php return ["activeTargets" => ["web", "worker"]];',
+            );
+
+            self::assertSame(
+                DependencySyncErrorCodes::INSTALLED_PLAN_MISMATCH,
+                self::directVerifierErrorCode($root, $input),
+            );
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testChangedActiveTargetModuleOverridesAreRejectedEvenWithSameComposerUnion(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $input = self::verificationInput($root);
+
+            \file_put_contents(
+                $root . '/config/app.php',
+                '<?php return ["moduleOverrides" => ["web" => ["include" => ["platform.logging"]]]];',
+            );
+
+            self::assertSame(
+                DependencySyncErrorCodes::INSTALLED_PLAN_MISMATCH,
+                self::directVerifierErrorCode($root, $input),
+            );
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testMalformedBootstrapSourceMapsToPlanMismatchWithoutProtocolLeakage(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $input = self::verificationInput($root);
+
+            \file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_ACTIVE_TARGETS=[\"invalid-secret-target\"]\n",
+            );
+
+            $result = self::runInstalledVerifier($root, $input);
+
+            self::assertSame(2, $result['exitCode']);
+            self::assertFalse($result['timedOut']);
+            self::assertSame(
+                '{"schemaVersion":1,"status":"error","code":"INSTALLED_PLAN_MISMATCH"}',
+                $result['stdout'],
+            );
+            self::assertStringNotContainsString('invalid-secret-target', $result['stdout']);
+            self::assertStringNotContainsString($root, $result['stdout']);
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testNonInstallationBootstrapFieldsAndJsonObjectKeyOrderDoNotCauseFalseDrift(): void
+    {
+        $root = self::consumer();
+
+        try {
+            \file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_PRESETS={\"web\":\"micro\",\"worker\":\"hybrid\"}\n"
+                . "CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={\"web\":[],\"worker\":[\"platform.worker\"]}\n",
+            );
+
+            $input = self::verificationInput($root);
+
+            \file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_PRESETS={\"worker\":\"hybrid\",\"web\":\"micro\"}\n"
+                . "CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE={\"worker\":[\"platform.worker\"],\"web\":[]}\n",
+            );
+            \file_put_contents(
+                $root . '/config/app.php',
+                '<?php return ["debug" => true, "artifactsCacheDir" => "var/cache-alt"];',
+            );
+
+            $result = self::runInstalledVerifier($root, $input);
+
+            self::assertSame(0, $result['exitCode'], $result['stderr']);
+            self::assertSame(
+                '{"schemaVersion":1,"status":"ok"}',
+                $result['stdout'],
+            );
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testConfigurationMembershipDriftUnderProjectLockStopsBeforeComposerEffects(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $beforeManifest = (string) \file_get_contents($root . '/composer.json');
+            $beforeLock = (string) \file_get_contents($root . '/composer.lock');
+
+            \file_put_contents(
+                $root . '/config/app.php',
+                <<<'PHP'
+<?php
+
+$marker = dirname(__DIR__) . '/bootstrap-read-count';
+$reads = is_file($marker)
+    ? (int) file_get_contents($marker)
+    : 0;
+
+file_put_contents($marker, (string) ($reads + 1));
+
+return [
+    'activeTargets' => $reads === 0 ? ['web'] : ['web', 'worker'],
+];
+PHP,
+            );
+
+            $result = new DependencySyncProcessRunner()->runPhpScript(
+                $root,
+                $root . '/bin/dependency-sync.php',
+                ['apply'],
+                300,
+            );
+
+            self::assertSame(1, $result['exitCode'], $result['stderr']);
+            self::assertFalse($result['timedOut']);
+
+            $decoded = \json_decode(
+                $result['stdout'],
+                true,
+                512,
+                \JSON_THROW_ON_ERROR,
+            );
+
+            self::assertSame('error', $decoded['status'] ?? null);
+            self::assertSame(
+                DependencySyncErrorCodes::PROJECT_STATE_CHANGED,
+                $decoded['code'] ?? null,
+            );
+            self::assertSame('2', \file_get_contents($root . '/bootstrap-read-count'));
+            self::assertSame($beforeManifest, \file_get_contents($root . '/composer.json'));
+            self::assertSame($beforeLock, \file_get_contents($root . '/composer.lock'));
+            self::assertNoRecoveryReceipts($root);
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    private static function assertNoRecoveryReceipts(string $root): void
+    {
+        $recovery = $root . '/var/dependency-sync/recovery';
+
+        self::assertFalse(\is_link($recovery));
+
+        if (!\is_dir($recovery)) {
+            self::assertFileDoesNotExist($recovery);
+
+            return;
+        }
+
+        $entries = \scandir($recovery);
+
+        self::assertIsArray($entries);
+        self::assertSame(
+            [],
+            \array_values(\array_diff($entries, ['.', '..'])),
+        );
     }
 
     private static function verificationInput(
@@ -440,14 +626,7 @@ use Coretsia\Kernel\DependencySync\Verification\DependencySyncVerificationCodec;
 
 $root = dirname(__DIR__);
 
-$plan = ProjectDependencySync::create()->plan(
-    $root,
-    new ProjectInstallationIntent(
-        new ProjectApplicationSet([
-            AppTarget::Web,
-        ]),
-    ),
-);
+$plan = ProjectDependencySync::create()->planConfigured($root);
 
 $manifest = (string) file_get_contents($root . '/composer.json');
 $lock = (string) file_get_contents($root . '/composer.lock');
@@ -778,6 +957,39 @@ PHP,
             $install['stdout'] . $install['stderr'],
         );
         self::assertFalse($install['timedOut']);
+
+        $adapter = \file_get_contents(
+            $repoRoot . '/packages/applications/skeleton/bin/dependency-sync.php',
+        );
+        self::assertIsString($adapter);
+
+        self::assertIsInt(
+            \file_put_contents($root . '/bin/dependency-sync.php', $adapter),
+        );
+
+        $apply = new DependencySyncProcessRunner()->runPhpScript(
+            $root,
+            $root . '/bin/dependency-sync.php',
+            ['apply'],
+            300,
+        );
+
+        self::assertSame(
+            0,
+            $apply['exitCode'],
+            $apply['stdout'] . $apply['stderr'],
+        );
+        self::assertFalse($apply['timedOut']);
+
+        $payload = \json_decode(
+            $apply['stdout'],
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+
+        self::assertSame('ok', $payload['status'] ?? null);
+        self::assertSame(['web'], $payload['result']['plan']['applications'] ?? null);
 
         return $root;
     }

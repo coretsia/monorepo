@@ -22,7 +22,9 @@ owner: core/kernel
 
 ## Scope
 
-This document is the canonical precedence matrix for ConfigKernel Phase B.
+This document defines two independent precedence contracts: Bootstrap Phase A source resolution and ConfigKernel Phase B configuration merging.
+
+The Phase A source matrix is owned by `BootstrapSourceResolver` and does not use ConfigKernel ranks. The existing Phase B rank matrix remains owned by `ConfigKernel`.
 
 It is the matrix form of the merge-order narrative owned by:
 
@@ -47,7 +49,6 @@ It defines:
 - source category;
 - source type;
 - priority/rank;
-- active versus reserved/future status;
 - file shape;
 - override behavior;
 - user-owned/custom root behavior;
@@ -94,12 +95,83 @@ Runtime code MUST NOT infer precedence from source type alone.
 
 Concrete precedence is recorded on each `ConfigValueSource`.
 
-## Active and reserved rank matrix
+## Bootstrap Phase A source precedence
+
+Bootstrap Phase A has its own logical-key source precedence. It is resolved before the ConfigKernel Phase B rank matrix below and MUST NOT be implemented as additional Phase B merge ranks.
+
+### Frozen appEnv selection
+
+Initial `appEnv` selection uses the following order, strongest first:
+
+| Priority | Source | Condition |
+|---------:|--------------------------------------|-------------------------------------------------------|
+| 1 | Explicit `BootstrapInput::appEnv()` | Present and valid |
+| 2 | Process `CORETSIA_BOOT_APP_ENV` | Explicit `BootstrapEnvSourcePolicy::AllowSystem` only |
+| 3 | `.env.local` `CORETSIA_BOOT_APP_ENV` | Present and valid |
+| 4 | `.env` `CORETSIA_BOOT_APP_ENV` | Present and valid |
+| 5 | `config/app.php` `appEnv` | Present and valid |
+| 6 | `kernel.boot.default_env` | Package fallback |
+
+The process environment MUST NOT select appEnv merely because the subsequently selected production-like environment defaults to `allow_system`.
+
+Explicit `BootstrapInput::appEnv()` wins over a different lower-priority process value without reporting a false mismatch.
+
+After selecting appEnv, Phase A freezes that value. It then loads `.env.<appEnv>` and `.env.<appEnv>.local`. Their `CORETSIA_BOOT_APP_ENV` values are validation-only and MUST exactly match the frozen value. They MUST NOT trigger another environment selection.
+
+### Source policy selection
+
+The effective `BootstrapEnvSourcePolicy` is selected exactly once, after appEnv selection:
+
+1. Explicit `BootstrapInput::envSourcePolicy()`.
+2. `kernel.env.source_policy.default_production` for `prod` and `production`.
+3. `kernel.env.source_policy.default_local` for every other appEnv.
+
+`strict_dotenv` ignores all process environment values, including unknown `CORETSIA_BOOT_*` keys. It does not use process fallback.
+
+`allow_system` permits process bootstrap overrides and gives process environment values precedence over dotenv. Under this policy, unknown or invalid process `CORETSIA_BOOT_*` entries are rejected. Both policies retain ordinary dotenv values in the immutable environment repository according to their respective precedence rules.
+
+### Normal bootstrap source precedence
+
+For normalized bootstrap override values other than the frozen appEnv and source policy, the effective source order is:
+
+| Priority | Source | Behavior |
+|---------:|----------------------------------------|---------------------------------------------------------------------|
+| 1 | Explicit target-local `BootstrapInput` | Only applicable explicit `preset`, `debug`, and `artifactsCacheDir` |
+| 2 | Process `CORETSIA_BOOT_*` | Permitted only under `allow_system` |
+| 3 | `.env.<appEnv>.local` | Environment-specific highest dotenv layer |
+| 4 | `.env.<appEnv>` | Environment-specific dotenv layer |
+| 5 | `.env.local` | Base local dotenv layer |
+| 6 | `.env` | Base dotenv layer |
+| 7 | `config/app.php` | Bootstrap-only PHP source |
+| 8 | `kernel.boot.*` | Applicable package defaults |
+
+Every permitted layer MUST be parsed and validated before it is merged. A valid higher-priority value MUST NOT conceal invalid data in a lower-priority layer.
+
+For `activeTargets`, the higher-priority non-empty list completely replaces the lower-priority list. Absence retains the previous value; explicit `[]` is invalid. The project-wide `['web']` fallback is applied only by DependencySync when no configured membership exists.
+
+For `presets`, priority applies separately to each `presets[target]` entry. A higher-priority entry replaces only the same target. A target-specific preset takes precedence over a merged global `preset`, irrespective of which source supplied the global fallback.
+
+For module overrides, priority applies independently to `moduleOverrides[target].include` and `moduleOverrides[target].exclude`. Replacing `web.include` MUST NOT replace `web.exclude` or either field of `worker`. An explicit `[]` clears only the corresponding list. An empty JSON object `{}` contributes no entries.
+
+`debug` and `artifactsCacheDir` use scalar replacement. They are project-wide source values; explicit target-local `BootstrapInput` values are applied only when constructing the target-local `BootstrapConfig`.
+
+`BootstrapSourceSnapshot` retains the winning safe provenance for each logical scalar, `presets[target]`, and `moduleOverrides[target].include/exclude`. Provenance, raw JSON bytes, absolute application-root identity, inactive target-specific values, and unrelated environment keys MUST NOT enter the canonical installation verification identity.
+
+This precedence contract is implemented by:
+
+```text
+packages/core/kernel/src/Boot/BootstrapSourceResolver.php
+packages/core/kernel/src/Boot/BootstrapConfigResolver.php
+packages/core/kernel/src/Boot/BootstrapOverridesLoader.php
+```
+
+The Phase B ranks below are unchanged and MUST NOT be applied to bootstrap-only fields.
+
+## Active Phase B rank matrix
 
 | Rank | Active | Source category                         | Source type                           | Source path / mechanism                                    | Notes                                                                                               |
 |-----:|--------|-----------------------------------------|---------------------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
 |   10 | yes    | Package defaults                        | `ConfigSourceType::PackageDefault`    | package `config/<root>.php`                                | Weakest active config value source. Package defaults MUST NOT use `config/roots.php`.               |
-|   50 | no     | Preset/mode overlays                    | reserved/future                       | reserved/future                                            | Reserved for future explicit preset/mode overlay epic. Not active Phase 1 behavior.                 |
 |  100 | yes    | Application-root shared aggregate       | `ConfigSourceType::ApplicationConfig` | `config/roots.php`                                         | Aggregate root-map file for shared application-root config.                                         |
 |  101 | yes    | Application-root shared split root      | `ConfigSourceType::ApplicationConfig` | `config/<root>.php`                                        | Split root-subtree file; stronger than same-layer aggregate.                                        |
 |  200 | yes    | Application-root environment aggregate  | `ConfigSourceType::ApplicationConfig` | `config/environments/<appEnv>/roots.php`                   | Aggregate root-map file for environment-specific application-root config.                           |
@@ -204,27 +276,6 @@ config/roots.php
 
 Package defaults are weaker than all application-root, app-target, and env overlay sources.
 
-## Preset/mode overlays
-
-Preset/mode overlays are reserved at rank `50`.
-
-They are listed in this matrix for forward compatibility and documentation continuity.
-
-They are NOT active Phase 1 ConfigKernel behavior.
-
-A future preset/mode overlay epic MUST update:
-
-```text
-docs/ssot/config-merge-order.md
-docs/ssot/config-precedence-matrix.md
-runtime implementation
-integration tests
-```
-
-before preset/mode overlays become active.
-
-No runtime code may treat rank `50` as active until that future epic explicitly introduces it.
-
 ## Application-root shared aggregate/root
 
 Application-root shared aggregate config is active at rank `100`.
@@ -326,7 +377,7 @@ ConfigSourceType::Env
 Env overlays are generated only from:
 
 - ruleset-derived mappings for env-overlay-capable scalar rule types;
-- optional explicit env overlay mappings supplied by a future user/module mapping mechanism.
+- explicitly supplied env overlay mappings.
 
 A valid ruleset leaf does not imply an env overlay mapping. Validation-only rule types that are not env-overlay-capable do not participate in automatic env overlay generation.
 
@@ -530,7 +581,7 @@ A user-owned/custom root without a ruleset MUST NOT receive env overlays automat
 A user-owned/custom root MAY receive env overlays only when one of the following exists:
 
 - a matching loaded ruleset;
-- an explicit env overlay mapping supplied by a future user/module mechanism.
+- an explicitly supplied env overlay mapping.
 
 ## Explain source implications
 
@@ -665,16 +716,6 @@ SOME_RANDOM_ENV_VAR creates some.random.env.var
 
 Unknown env vars MUST NOT create config keys.
 
-### Invalid: preset/mode overlays active by convention
-
-Invalid behavior:
-
-```text
-rank 50 preset/mode overlays are active because they are listed in this matrix
-```
-
-Rank `50` is reserved/future and inactive until a future epic explicitly activates it.
-
 ### Invalid: source type alone decides precedence
 
 Invalid behavior:
@@ -706,7 +747,6 @@ Tests SHOULD verify:
 
 - the active rank matrix;
 - package defaults are weaker than application-root/app-target/env sources;
-- preset/mode overlays are listed but inactive;
 - aggregate `roots.php` is weaker than same-layer split `<root>.php`;
 - application-root shared is weaker than application-root environment;
 - application-root environment is weaker than app-target shared;
@@ -731,8 +771,7 @@ This document does not define:
 - env value coercion internals;
 - config explain output schema;
 - generated artifact schemas;
-- CLI command behavior;
-- future runtime override semantics.
+- CLI command behavior.
 
 ## Cross-references
 

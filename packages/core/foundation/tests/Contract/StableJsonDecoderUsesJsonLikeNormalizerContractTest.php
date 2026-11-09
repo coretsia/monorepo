@@ -184,6 +184,174 @@ final class StableJsonDecoderUsesJsonLikeNormalizerContractTest extends TestCase
         );
     }
 
+    public function testStrictStringMapsRejectDuplicateAndEscapedEquivalentObjectKeys(): void
+    {
+        foreach (
+            [
+                '{"web":"micro","web":"express"}',
+                '{"web":"micro","w\\u0065b":"express"}',
+                '{"web":["core.kernel"],"web":[]}',
+            ] as $json
+        ) {
+            $operation = \str_contains($json, '[')
+                ? static fn (): array => StableJsonDecoder::decodeStrictStringListMap($json)
+                : static fn (): array => StableJsonDecoder::decodeStrictStringMap($json);
+
+            self::assertStrictJsonFailure($operation, 'stable-json-duplicate-object-key');
+        }
+    }
+
+    public function testStrictMapsRejectNestedDuplicateObjectKeysBeforeValueShapeValidation(): void
+    {
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap(
+                '{"web":{"hidden":"secret","hidden":"replaced"}}',
+            ),
+            'stable-json-duplicate-object-key',
+        );
+
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringMap(
+                '{"web":{"hidden":1,"h\\u0069dden":2}}',
+            ),
+            'stable-json-duplicate-object-key',
+        );
+    }
+
+    public function testStrictMapsPreserveRootAndNestedJsonShapes(): void
+    {
+        self::assertSame([], StableJsonDecoder::decodeStrictStringMap('{}'));
+        self::assertSame([], StableJsonDecoder::decodeStrictStringListMap('{}'));
+        self::assertSame(['web' => []], StableJsonDecoder::decodeStrictStringListMap('{"web":[]}'));
+        self::assertSame(
+            ['api' => 'express', 'web' => 'micro'],
+            StableJsonDecoder::decodeStrictStringMap('{"web":"micro","api":"express"}'),
+        );
+
+        foreach (['[]', '["web"]', 'null'] as $json) {
+            self::assertStrictJsonFailure(
+                static fn (): array => StableJsonDecoder::decodeStrictStringMap($json),
+                'stable-json-root-map-required',
+            );
+        }
+
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap('{"web":{}}'),
+            'stable-json-string-list-required',
+        );
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringMap('{"web":[]}'),
+            'stable-json-string-value-required',
+        );
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap('{"web":[1]}'),
+            'stable-json-string-list-required',
+        );
+    }
+
+    public function testStrictJsonMapsEnforceInputDepthAndObjectKeyBudgets(): void
+    {
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringMap(
+                '{"web":"' . \str_repeat('x', 65_536) . '"}',
+            ),
+            'stable-json-bounds-invalid',
+        );
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringMap(
+                '{"web":' . \str_repeat('[', 65) . '"x"' . \str_repeat(']', 65) . '}',
+            ),
+            'stable-json-decode-failed',
+        );
+
+        $pairs = [];
+
+        for ($index = 0; $index < 4_097; $index++) {
+            $pairs[] = '"key' . $index . '":"x"';
+        }
+
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringMap('{' . \implode(',', $pairs) . '}'),
+            'stable-json-key-count-invalid',
+        );
+    }
+
+    public function testStrictStringListMapsPreserveValuesAndEnforceSharedBounds(): void
+    {
+        self::assertSame(
+            ['web' => ['platform.worker', 'core.kernel']],
+            StableJsonDecoder::decodeStrictStringListMap(
+                '{"web":["platform.worker","core.kernel"]}',
+            ),
+        );
+
+        foreach (['[]', '["web"]', 'null'] as $json) {
+            self::assertStrictJsonFailure(
+                static fn (): array => StableJsonDecoder::decodeStrictStringListMap($json),
+                'stable-json-root-map-required',
+            );
+        }
+
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap(
+                '{"web":["core.kernel"],"w\\u0065b":[]}',
+            ),
+            'stable-json-duplicate-object-key',
+        );
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap(
+                '{"web":["' . \str_repeat('x', 65_536) . '"]}',
+            ),
+            'stable-json-bounds-invalid',
+        );
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap(
+                '{"web":' . \str_repeat('[', 65) . '"x"' . \str_repeat(']', 65) . '}',
+            ),
+            'stable-json-decode-failed',
+        );
+
+        $pairs = [];
+
+        for ($index = 0; $index < 4_097; $index++) {
+            $pairs[] = '"key' . $index . '":[]';
+        }
+
+        self::assertStrictJsonFailure(
+            static fn (): array => StableJsonDecoder::decodeStrictStringListMap('{' . \implode(',', $pairs) . '}'),
+            'stable-json-key-count-invalid',
+        );
+    }
+
+    public function testStrictJsonOptInDoesNotChangeGenericDecodingContracts(): void
+    {
+        self::assertSame([], StableJsonDecoder::decodeStable('{}'));
+        self::assertSame([], StableJsonDecoder::decodeStable('[]'));
+        self::assertSame([], StableJsonDecoder::decodeStableMap('{}'));
+        self::assertSame([], StableJsonDecoder::decodeStableList('[]'));
+        self::assertSame(
+            ['web' => []],
+            StableJsonDecoder::decodeStableMap('{"web":{}}'),
+        );
+        self::assertSame(
+            ['web' => 'express'],
+            StableJsonDecoder::decodeStableMap('{"web":"micro","web":"express"}'),
+        );
+    }
+
+    /** @param callable(): mixed $operation */
+    private static function assertStrictJsonFailure(callable $operation, string $expectedReason): void
+    {
+        try {
+            $operation();
+            self::fail('Expected strict JSON-map validation to reject the input.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame($expectedReason, $exception->getMessage());
+            self::assertStringNotContainsString('secret', $exception->getMessage());
+            self::assertStringNotContainsString('replaced', $exception->getMessage());
+        }
+    }
+
     /**
      * @param callable(): mixed $operation
      * @param list<string> $forbiddenDiagnosticsNeedles

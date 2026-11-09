@@ -35,7 +35,7 @@ use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
@@ -93,9 +93,9 @@ final class KernelOpsHostBooter
                 $seedContainer,
                 BootstrapConfigResolver::class,
             );
-            $envRepositoryBuilder = self::service(
+            $bootstrapSourceResolver = self::service(
                 $seedContainer,
-                EnvRepositoryBuilder::class,
+                BootstrapSourceResolver::class,
             );
             $moduleResolutionOrchestrator = self::service(
                 $seedContainer,
@@ -119,14 +119,13 @@ final class KernelOpsHostBooter
                 appTarget: AppTarget::Console,
                 preset: null,
             );
+            $consoleSnapshot = $bootstrapSourceResolver->resolve($consoleInput, $kernelConfig);
             $consoleBootstrapConfig = $bootstrapConfigResolver->resolve(
                 $consoleInput,
                 $kernelConfig,
+                $consoleSnapshot,
             );
-            $consoleEnv = $envRepositoryBuilder->build(
-                $consoleBootstrapConfig,
-                $kernelConfig,
-            );
+            $consoleEnv = $consoleSnapshot->envRepository();
             $consoleModuleResolution = $moduleResolutionOrchestrator->resolve($consoleBootstrapConfig);
             $consoleConfigSources = $configSourceLocationBuilder->build(
                 $consoleBootstrapConfig,

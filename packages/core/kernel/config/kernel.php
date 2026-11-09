@@ -86,23 +86,17 @@ return [
      * These values are used only as deterministic fallback defaults for
      * BootstrapConfig resolution.
      *
-     * General resolution order is:
+     * Phase A resolves and freezes appEnv and source policy, then merges the
+     * permitted bootstrap-only inputs from config/app.php, ordered dotenv
+     * layers and (only under allow_system) system environment. Source-specific
+     * precedence and per-target/per-field merge are owned by the Kernel
+     * BootstrapSourceResolver; BootstrapConfigResolver applies explicit
+     * target-local BootstrapInput values after source resolution.
      *
-     * - explicit BootstrapInput values;
-     * - bootstrap-only overrides from config/app.php;
-     * - these package defaults.
-     *
-     * Preset resolution has a dedicated deterministic precedence:
-     *
-     * - explicit BootstrapInput::preset();
-     * - config/app.php presets[appTarget];
-     * - config/app.php preset;
-     * - kernel.boot.default_preset.
-     *
-     * `default_preset` is the only package-level preset fallback.
-     *
-     * Per-app preset overrides are application-local bootstrap-only policy and may be
-     * defined in config/app.php under the `presets` key.
+     * Preset precedence is explicit target preset, merged presets[appTarget],
+     * merged global preset, then kernel.boot.default_preset. The latter is the
+     * only package-level fallback; activeTargets membership is DependencySync
+     * policy and does not select the runtime AppTarget.
      *
      * The Kernel package intentionally does not define package-level per-app
      * preset defaults.

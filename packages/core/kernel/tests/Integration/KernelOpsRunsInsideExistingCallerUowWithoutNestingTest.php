@@ -32,13 +32,13 @@ use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Source\ConfigSourceLocationBuilder;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Ops\KernelOpsFacade;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -77,7 +77,6 @@ final class KernelOpsRunsInsideExistingCallerUowWithoutNestingTest extends TestC
         $facade = new KernelOpsFacade(
             hostInput: new KernelOpsHostInput('/fixture/application'),
             bootstrapConfigResolver: self::u(BootstrapConfigResolver::class),
-            envRepositoryBuilder: self::u(EnvRepositoryBuilder::class),
             moduleResolutionOrchestrator: self::u(ModuleResolutionOrchestrator::class),
             configKernel: self::u(ConfigKernel::class),
             runtimeContainerGraphCompiler: self::u(RuntimeContainerGraphCompiler::class),
@@ -97,6 +96,7 @@ final class KernelOpsRunsInsideExistingCallerUowWithoutNestingTest extends TestC
             meter: new NoopMeter(),
             logger: new NoopLogger(),
             stopwatch: new Stopwatch(),
+            bootstrapSourceResolver: ModeInfrastructureTestSupport::bootstrapSourceResolver(),
         );
 
         $execute = new ReflectionMethod(KernelOpsFacade::class, 'execute');

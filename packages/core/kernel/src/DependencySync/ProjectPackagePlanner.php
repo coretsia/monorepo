@@ -21,6 +21,8 @@ namespace Coretsia\Kernel\DependencySync;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
+use Coretsia\Kernel\Boot\BootstrapSourceSnapshot;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\DependencySync\Catalog\ReleaseInstallationCatalogLoader;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
@@ -50,13 +52,22 @@ final readonly class ProjectPackagePlanner
         private ModuleIdSetNormalizer $moduleIdSetNormalizer,
         private ReleaseInstallationCatalogLoader $catalogLoader,
         private array $kernelConfig,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
     ) {
     }
 
     public function plan(
         string $projectRoot,
         ProjectInstallationIntent $intent,
+        ?BootstrapSourceSnapshot $snapshot = null,
     ): ProjectPackagePlan {
+        try {
+            $snapshot ??= $this->bootstrapSourceResolver->resolveApplicationRoot($projectRoot, $this->kernelConfig);
+            $snapshot->assertApplicationRoot($projectRoot);
+        } catch (BootstrapException $exception) {
+            throw DependencySyncException::fromBootstrapException($exception);
+        }
+
         $catalog = null;
         $applications = [];
         $effectivePresetsByTarget = [];
@@ -79,10 +90,11 @@ final readonly class ProjectPackagePlanner
                 $planningConfig = $this->bootstrapConfigResolver->resolve(
                     $planningInput,
                     $this->kernelConfig,
+                    $snapshot,
                 );
                 $selection = $this->moduleResolutionOrchestrator->resolveSelection($planningConfig);
             } catch (BootstrapException $exception) {
-                throw $this->translateBootstrapException($exception);
+                throw DependencySyncException::fromBootstrapException($exception);
             } catch (
                 ModePresetNotFoundException
                 |ModePresetInvalidException
@@ -152,6 +164,14 @@ final readonly class ProjectPackagePlanner
         \ksort($expectedModuleMetadataById, \SORT_STRING);
         \ksort($desiredRootRequirements, \SORT_STRING);
 
+        try {
+            $bootstrapIdentity = $snapshot->installationOverridesForTargets($applications);
+        } catch (BootstrapException $exception) {
+            throw DependencySyncException::fromBootstrapException($exception);
+        }
+
+        $bootstrapIdentity['presets'] = $effectivePresetsByTarget;
+
         return new ProjectPackagePlan(
             $applications,
             $effectivePresetsByTarget,
@@ -161,20 +181,7 @@ final readonly class ProjectPackagePlanner
             $unionModuleIds,
             $expectedModuleMetadataById,
             $desiredRootRequirements,
-        );
-    }
-
-    private function translateBootstrapException(BootstrapException $exception): DependencySyncException
-    {
-        $code = match ($exception->reason()) {
-            BootstrapException::REASON_INVALID_APPLICATION_ROOT => DependencySyncErrorCodes::PROJECT_ROOT_INVALID,
-            BootstrapException::REASON_INVALID_APP_TARGET => DependencySyncErrorCodes::APPLICATION_SET_INVALID,
-            default => DependencySyncErrorCodes::PRESET_POLICY_INVALID,
-        };
-
-        return DependencySyncException::forCode(
-            $code,
-            self::sourceContext($exception),
+            $bootstrapIdentity,
         );
     }
 

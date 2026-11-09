@@ -65,6 +65,7 @@ use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
 use Coretsia\Kernel\Config\ConfigKernel;
@@ -203,6 +204,15 @@ final class KernelServiceProvider implements
             static fn (
                 Container $_container,
             ): BootstrapOverridesLoader => KernelServiceFactory::bootstrapOverridesLoader(),
+        );
+
+        $builder->factory(
+            BootstrapSourceResolver::class,
+            static fn (
+                Container $container,
+            ): BootstrapSourceResolver => KernelServiceFactory::bootstrapSourceResolver(
+                container: $container,
+            ),
         );
 
         $builder->factory(

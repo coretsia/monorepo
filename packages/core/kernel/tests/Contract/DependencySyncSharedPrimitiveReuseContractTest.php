@@ -87,8 +87,8 @@ final class DependencySyncSharedPrimitiveReuseContractTest extends TestCase
         $manifestStore = self::source(ComposerManifestStore::class);
 
         self::assertStringContainsString('json_decode(', $manifestStore);
-        self::assertStringNotContainsString(
-            'StableJsonDecoder',
+        self::assertStringContainsString(
+            'StableJsonDecoder::assertNoDuplicateObjectKeys(',
             $manifestStore,
         );
     }

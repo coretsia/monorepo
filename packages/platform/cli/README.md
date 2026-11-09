@@ -63,7 +63,7 @@ This package is a Kernel-integrated source-host CLI runtime.
 
 `platform.errors` and `platform.redaction` are required by the `platform.cli` runtime module dependency closure and direct Composer requirements. CLI consumes canonical Throwable normalization through `Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface` and redaction through `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`; it does not import concrete Errors or Redaction implementations.
 
-`platform.cli` declares its own direct Composer and PHP source dependencies above; it has no direct Composer or PHP source dependency on `platform/logging`. CLI consumers continue to depend only on `Psr\Log\LoggerInterface` for logging without selecting a concrete backend. Physical Composer installation does not enable runtime modules: Kernel resolves the enabled modules for each application target from the effective preset, overrides, and declared module dependencies. Additional mode-required physical packages are handled only by explicit Kernel DependencySync `plan` / `review` / `apply` operations; application boot performs no implicit dependency synchronization.
+`platform.cli` has no direct Composer or PHP source dependency on `platform/logging`. CLI consumes `Psr\Log\LoggerInterface` without selecting a concrete logging backend. The package does not implement Composer dependency synchronization or runtime module-selection policy.
 
 ## Runtime responsibilities
 
@@ -85,6 +85,14 @@ This package is a Kernel-integrated source-host CLI runtime.
 
 Normal CLI execution reuses the Kernel-owned source operations host and its validated configuration, module/provider plan, context, UnitOfWork, and observability ports. CLI does not create a second configuration or module-resolution pipeline, and normal operations-host boot does not require generated runtime artifacts.
 
+## CLI availability
+
+The packaged CLI is available only when `coretsia/platform-cli` and its required Composer dependencies are installed.
+
+The `platform.cli` command catalog does not contain `plan`, `review`, or `apply` commands and does not implement dependency synchronization.
+
+Target-scoped Kernel Ops commands exposed by CLI retain the explicit `--target=web|api|console|worker` option. The CLI source host remains bound to the Console target.
+
 ## Canonical CLI invocation
 
 `coretsia` is the single canonical public CLI executable name.
@@ -98,7 +106,7 @@ php coretsia doctor
 php coretsia config:validate --target=web
 ```
 
-From a Composer-installed Coretsia Skeleton project root:
+From a Coretsia Skeleton project root after the required `platform.cli` runtime packages have been installed:
 
 ```bash
 php coretsia list
@@ -119,14 +127,9 @@ On supported Unix environments, when the Composer binary is directly executable:
 vendor/bin/coretsia <command>
 ```
 
-These normal CLI invocations reach the same packaged CLI implementation at `packages/platform/cli/bin/coretsia` (installed as the `coretsia/platform-cli` Composer binary). The Skeleton project-root launcher additionally exposes explicit dependency synchronization routes that bypass this packaged CLI implementation. The entrypoint layouts have distinct responsibilities:
+These invocations execute the `bin/coretsia` executable distributed by `coretsia/platform-cli`.
 
-- Monorepo-root `coretsia` wrapper: delegates by a fixed repository-relative path to the packaged CLI executable; it is not a command dispatcher and does not depend on the current working directory.
-- Skeleton project-root `coretsia` launcher: routes only the exact `plan`, `review`, and `apply` operations to `__DIR__ . '/bin/dependency-sync.php'` before normal CLI host boot. All other invocations delegate to `__DIR__ . '/vendor/bin/coretsia'`, preserving the Composer proxy's consumer application-root semantics and original argv. The launcher does not parse operation flags, load application configuration, boot an additional CLI host, or render command output.
-- Composer binary proxy (`vendor/bin/coretsia`): provides the installed package executable and Composer proxy context used to identify the consuming application root.
-- Packaged CLI executable (`bin/coretsia`): loads the selected Composer autoloader and invokes the package-owned composition root `src/Bootstrap/Entrypoint/cli.php`, which selects the ultra-early doctor path or the normal Console source host.
-
-The Skeleton wrapper emits `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` followed by one LF to stderr and exits `1` if the installed Composer binary is missing or unreadable. No additional CLI package installation, executable alias, or CLI-specific setup is required after a successful baseline Composer installation.
+The packaged entrypoint loads the selected Composer autoloader and invokes `src/Bootstrap/Entrypoint/cli.php`. Project-owned launchers and Composer binary proxies do not belong to the `platform.cli` command-dispatch implementation.
 
 ## Boot paths and Kernel operations
 
@@ -160,7 +163,7 @@ bin/coretsia
     -> ConsoleOutputWriter
 ```
 
-The normal source host MUST resolve `ModulePlan` for `AppTarget::Console` and require `platform.cli` to be enabled. An absent or explicitly excluded CLI module fails closed with a fixed safe bootstrap diagnostic. Selecting `platform.cli` brings `core.kernel`, `platform.errors`, and `platform.redaction` into the enabled module dependency closure; a missing or excluded required Errors module fails closed during module composition. A Composer-installed but unselected module does not contribute its runtime services.
+The normal CLI source host MUST obtain a Console ModulePlan with `platform.cli` enabled. An unavailable or invalid CLI host fails closed through the fixed CLI bootstrap error boundary. The CLI package MUST NOT independently discover modules, resolve dependency graphs, or construct a second module-planning pipeline.
 
 Built-in Kernel operation commands include:
 
@@ -477,7 +480,7 @@ The main CLI error code families are:
 - `CORETSIA_CLI_RENDER_FAILURE`: unsafe/unavailable diagnostics, formatter, redactor, or output fallback.
 - `CORETSIA_CLI_UNCAUGHT_EXCEPTION`: uncaught post-autoload entrypoint failure.
 
-The packaged CLI and Skeleton wrapper use the fixed pre-autoload/bootstrap fallback `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` when their required Composer autoload/binary path is not available. Console source-host failure emits `CORETSIA_CLI_HOST_BOOT_FAILED: host-boot-failed`. A final rendering failure emits `CORETSIA_CLI_RENDER_FAILURE: render-failure`. These diagnostics do not disclose Throwable details or paths.
+The packaged CLI emits the fixed pre-autoload/bootstrap fallback `CORETSIA_CLI_BOOTSTRAP_FAILED: autoload-unavailable` when its required Composer autoloader is unavailable. Console source-host failure emits `CORETSIA_CLI_HOST_BOOT_FAILED: host-boot-failed`. A final rendering failure emits `CORETSIA_CLI_RENDER_FAILURE: render-failure`. These diagnostics do not disclose Throwable details or paths.
 
 Command exit codes are integers in `0..255`. The built-in Kernel operation mapping is:
 

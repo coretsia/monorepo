@@ -23,11 +23,13 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\Config\Exception\ConfigInvalidException;
 use Coretsia\Kernel\Config\Source\ComposerPackageInstallPathResolver;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
+use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlan;
 use Coretsia\Kernel\Module\Exception\ModuleManifestInvalidException;
 use Coretsia\Kernel\Module\Exception\ModuleResolutionException;
@@ -43,6 +45,7 @@ final readonly class InstalledProjectVerifier
         private ComposerManifestStore $manifestStore,
         private ComposerPackageInstallPathResolver $installPathResolver,
         private array $kernelConfig,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
     ) {
     }
 
@@ -166,23 +169,51 @@ final readonly class InstalledProjectVerifier
             }
         }
 
-        foreach ($approvedPlan->applications() as $targetName) {
+        try {
+            $snapshot = $this->bootstrapSourceResolver->resolveApplicationRoot($projectRoot, $this->kernelConfig);
+            $targetNames = $snapshot->activeTargets() ?? [AppTarget::Web->value];
+            $applicationSet = new ProjectApplicationSet(
+                \array_map(
+                    static fn (string $target): AppTarget => AppTarget::fromString($target),
+                    $targetNames,
+                ),
+            );
+            $actualTargets = \array_map(
+                static fn (AppTarget $target): string => $target->value,
+                $applicationSet->targets(),
+            );
+        } catch (BootstrapException|DependencySyncException) {
+            self::planMismatch();
+        }
+
+        if (
+            $actualTargets !== $approvedPlan->applications()
+            || $approvedPlan->bootstrapInstallationIdentity() === []
+        ) {
+            self::planMismatch();
+        }
+
+        $actualPresetsByTarget = [];
+
+        foreach ($applicationSet->targets() as $target) {
+            $targetName = $target->value;
+
             try {
-                $target = AppTarget::fromString($targetName);
                 $verificationInput = new BootstrapInput(
                     applicationRoot: $projectRoot,
                     appTarget: $target,
-                    preset: $approvedPlan->fixedPresetByTarget()[$targetName] ?? null,
                 );
                 $verificationConfig = $this->bootstrapConfigResolver->resolve(
                     $verificationInput,
                     $this->kernelConfig,
+                    $snapshot,
                 );
 
                 if ($verificationConfig->preset() !== $approvedPlan->effectivePresetsByTarget()[$targetName]) {
                     self::planMismatch();
                 }
 
+                $actualPresetsByTarget[$targetName] = $verificationConfig->preset();
                 $resolution = $this->moduleResolutionOrchestrator->resolve($verificationConfig);
                 $installedManifest = $resolution->manifest();
                 $installedPlan = $resolution->plan();
@@ -234,6 +265,18 @@ final readonly class InstalledProjectVerifier
                     self::planMismatch();
                 }
             }
+        }
+
+        try {
+            $actualIdentity = $snapshot->installationOverridesForTargets($actualTargets);
+        } catch (BootstrapException) {
+            self::planMismatch();
+        }
+
+        $actualIdentity['presets'] = $actualPresetsByTarget;
+
+        if ($actualIdentity !== $approvedPlan->bootstrapInstallationIdentity()) {
+            self::planMismatch();
         }
 
         $this->assertComposerRuntimeState(

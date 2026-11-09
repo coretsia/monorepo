@@ -45,12 +45,18 @@ final class ConfigPrecedenceMatrixTest extends TestCase
 
         self::assertStringContainsString('directives before merge', $mergeOrder);
         self::assertStringContainsString('validation after final merge', $mergeOrder);
-        self::assertStringContainsString('CLI/runtime overrides are reserved/future', $mergeOrder);
+        self::assertStringContainsString(
+            'No CLI/runtime override source is part of the Phase B rank order.',
+            $mergeOrder,
+        );
         self::assertStringContainsString('roots.php', $mergeOrder);
         self::assertStringContainsString('<root>.php', $mergeOrder);
 
         self::assertStringContainsString('rank `10`', $matrix);
-        self::assertStringContainsString('rank `50`', $matrix);
+        self::assertStringContainsString(
+            'The Phase A source matrix is owned by `BootstrapSourceResolver` and does not use ConfigKernel ranks.',
+            $matrix,
+        );
         self::assertStringContainsString('rank `100`', $matrix);
         self::assertStringContainsString('rank `101`', $matrix);
         self::assertStringContainsString('rank `200`', $matrix);
@@ -63,16 +69,25 @@ final class ConfigPrecedenceMatrixTest extends TestCase
 
         self::assertAppearsInOrder($matrix, [
             'Package defaults',
-            'Preset/mode overlays',
-            'Application-root shared aggregate/root',
-            'Application-root environment aggregate/root',
-            'App-target shared aggregate/root',
-            'App-target environment aggregate/root',
+            'Application-root shared aggregate',
+            'Application-root shared split root',
+            'Application-root environment aggregate',
+            'Application-root environment split root',
+            'App-target shared aggregate',
+            'App-target shared split root',
+            'App-target environment aggregate',
+            'App-target environment split root',
             'Env overlays',
         ]);
 
-        self::assertStringContainsString('Preset/mode overlays are reserved', $matrix);
-        self::assertStringContainsString('NOT active Phase 1 ConfigKernel behavior', $matrix);
+        self::assertStringContainsString(
+            'The Phase B ranks below are unchanged and MUST NOT be applied to bootstrap-only fields.',
+            $matrix,
+        );
+        self::assertStringContainsString(
+            'The active Phase B order is:',
+            $matrix,
+        );
         self::assertStringContainsString('ConfigSourceType::PackageDefault', $matrix);
         self::assertStringContainsString('ConfigSourceType::ApplicationConfig', $matrix);
         self::assertStringContainsString('ConfigSourceType::AppConfig', $matrix);

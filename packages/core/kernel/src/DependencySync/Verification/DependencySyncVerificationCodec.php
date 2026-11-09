@@ -62,6 +62,9 @@ final class DependencySyncVerificationCodec
         $payload->desiredRootRequirements = self::stringMapObject(
             $plan->desiredRootRequirements(),
         );
+        $payload->bootstrapInstallationIdentity = self::bootstrapIdentityObject(
+            $plan->bootstrapInstallationIdentity(),
+        );
         $payload->composerJsonCandidateIdentity = $composerJsonCandidateIdentity;
 
         return self::encodeCanonical($payload);
@@ -162,6 +165,7 @@ final class DependencySyncVerificationCodec
                     'unionModuleIds',
                     'expectedModuleMetadataById',
                     'desiredRootRequirements',
+                    'bootstrapInstallationIdentity',
                     'composerJsonCandidateIdentity',
                 ],
             );
@@ -176,6 +180,7 @@ final class DependencySyncVerificationCodec
                 || !\is_array($planning['unionModuleIds'])
                 || !\is_array($planning['expectedModuleMetadataById'])
                 || !\is_array($planning['desiredRootRequirements'])
+                || !\is_array($planning['bootstrapInstallationIdentity'])
                 || !\is_string($planning['composerJsonCandidateIdentity'])
             ) {
                 self::invalid();
@@ -192,6 +197,7 @@ final class DependencySyncVerificationCodec
                 self::stringList($planning['unionModuleIds']),
                 self::metadataMap($planning['expectedModuleMetadataById']),
                 self::stringMap($planning['desiredRootRequirements']),
+                self::bootstrapIdentityFromDecoded($planning['bootstrapInstallationIdentity']),
             );
 
             $protectedState = self::protectedStateFromDecoded(
@@ -247,6 +253,72 @@ final class DependencySyncVerificationCodec
         } catch (\JsonException) {
             self::invalid();
         }
+    }
+
+    /** @param array<string,mixed> $identity */
+    private static function bootstrapIdentityObject(array $identity): \stdClass
+    {
+        if ($identity === []) {
+            self::invalid();
+        }
+
+        $object = new \stdClass();
+        $object->appEnv = $identity['appEnv'];
+        $object->envSourcePolicy = $identity['envSourcePolicy'];
+        $object->presets = self::stringMapObject($identity['presets']);
+        $moduleOverrides = new \stdClass();
+
+        foreach ($identity['moduleOverrides'] as $target => $lists) {
+            $entry = new \stdClass();
+            $entry->include = $lists['include'];
+            $entry->exclude = $lists['exclude'];
+            $moduleOverrides->{$target} = $entry;
+        }
+
+        $object->moduleOverrides = $moduleOverrides;
+
+        return $object;
+    }
+
+    /** @param array<string,mixed> $identity @return array<string,mixed> */
+    private static function bootstrapIdentityFromDecoded(array $identity): array
+    {
+        self::assertExactKeys($identity, ['appEnv', 'envSourcePolicy', 'presets', 'moduleOverrides']);
+
+        if (
+            !\is_string($identity['appEnv'])
+            || !\is_string($identity['envSourcePolicy'])
+            || !\is_array($identity['presets'])
+            || !\is_array($identity['moduleOverrides'])
+        ) {
+            self::invalid();
+        }
+
+        $moduleOverrides = [];
+
+        foreach ($identity['moduleOverrides'] as $target => $entry) {
+            if (!\is_string($target) || !\is_array($entry)) {
+                self::invalid();
+            }
+
+            self::assertExactKeys($entry, ['include', 'exclude']);
+
+            if (!\is_array($entry['include']) || !\is_array($entry['exclude'])) {
+                self::invalid();
+            }
+
+            $moduleOverrides[$target] = [
+                'include' => self::stringList($entry['include']),
+                'exclude' => self::stringList($entry['exclude']),
+            ];
+        }
+
+        return [
+            'appEnv' => $identity['appEnv'],
+            'envSourcePolicy' => $identity['envSourcePolicy'],
+            'presets' => self::stringMap($identity['presets']),
+            'moduleOverrides' => $moduleOverrides,
+        ];
     }
 
     /** @param array<string, non-empty-string> $map */

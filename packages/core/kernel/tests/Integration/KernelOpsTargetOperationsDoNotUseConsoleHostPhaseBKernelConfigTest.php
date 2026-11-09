@@ -144,7 +144,6 @@ final class KernelOpsTargetOperationsDoNotUseConsoleHostPhaseBKernelConfigTest e
         foreach (
             [
                 'bootstrapConfigResolver' => $execution->bootstrapConfigResolver(),
-                'envRepositoryBuilder' => $execution->envRepositoryBuilder(),
                 'moduleResolutionOrchestrator' => $execution->moduleResolutionOrchestrator(),
                 'configKernel' => $execution->configKernel(),
                 'runtimeContainerGraphCompiler' => $execution->runtimeContainerGraphCompiler(),

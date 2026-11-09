@@ -48,9 +48,9 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  * Callers that require a root JSON object must use decodeMap/decodeStableMap.
  * Callers that require a root JSON array must use decodeList/decodeStableList.
  *
- * Nested empty object/list distinction is not preserved by the baseline
- * json-like model. Schema-specific formats must not rely on that distinction
- * unless a shape-preserving decoder is introduced.
+ * Generic normalization intentionally collapses nested empty objects/lists.
+ * The opt-in strict string-map decoders validate native JSON shapes first,
+ * reject duplicate object keys at every depth, and enforce resource bounds.
  *
  * Baseline json-like value validation and deterministic recursive
  * normalization are delegated to JsonLikeNormalizer.
@@ -72,6 +72,10 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  */
 final class StableJsonDecoder
 {
+    private const int STRICT_MAX_BYTES = 65_536;
+    private const int STRICT_MAX_DEPTH = 64;
+    private const int STRICT_MAX_OBJECT_KEYS = 4_096;
+
     /**
      * Decodes stable JSON bytes into a normalized json-like runtime value.
      *
@@ -154,13 +158,202 @@ final class StableJsonDecoder
         return self::convertAndNormalizeList($decoded);
     }
 
-    private static function decodeJson(string $json): mixed
+    /**
+     * Opt-in bounded JSON object -> map of string lists.
+     * JSON object values are checked before stdClass/list normalization.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function decodeStrictStringListMap(string $json): array
+    {
+        $decoded = self::decodeStrictObject($json);
+        $result = [];
+
+        foreach (\get_object_vars($decoded) as $key => $items) {
+            if (!\is_string($key) || self::isAmbiguousPhpArrayKey($key)) {
+                throw new \InvalidArgumentException('stable-json-map-key-must-be-string');
+            }
+
+            if (!\is_array($items) || !\array_is_list($items)) {
+                throw new \InvalidArgumentException('stable-json-string-list-required');
+            }
+
+            foreach ($items as $item) {
+                if (!\is_string($item)) {
+                    throw new \InvalidArgumentException('stable-json-string-list-required');
+                }
+            }
+
+            $result[$key] = $items;
+        }
+
+        \ksort($result, \SORT_STRING);
+
+        return $result;
+    }
+
+    /** @return array<string, string> */
+    public static function decodeStrictStringMap(string $json): array
+    {
+        $decoded = self::decodeStrictObject($json);
+        $result = [];
+
+        foreach (\get_object_vars($decoded) as $key => $value) {
+            if (!\is_string($key) || self::isAmbiguousPhpArrayKey($key)) {
+                throw new \InvalidArgumentException('stable-json-map-key-must-be-string');
+            }
+
+            if (!\is_string($value)) {
+                throw new \InvalidArgumentException('stable-json-string-value-required');
+            }
+
+            $result[$key] = $value;
+        }
+
+        \ksort($result, \SORT_STRING);
+
+        return $result;
+    }
+
+    /**
+     * Shared duplicate-object-key guard for already syntactically validated JSON.
+     * Scans only object-key tokens; native json_decode remains the JSON parser.
+     * Escaped-equivalent keys are compared after JSON string decoding.
+     *
+     * @throws \InvalidArgumentException with a payload-free reason
+     */
+    public static function assertNoDuplicateObjectKeys(
+        string $json,
+        int $maxBytes = self::STRICT_MAX_BYTES,
+        int $maxDepth = self::STRICT_MAX_DEPTH,
+        int $maxKeys = self::STRICT_MAX_OBJECT_KEYS,
+    ): void {
+        $length = \strlen($json);
+
+        if (
+            $maxBytes < 1 || $maxDepth < 1 || $maxDepth > 512 || $maxKeys < 1
+            || $length > $maxBytes
+        ) {
+            throw new \InvalidArgumentException('stable-json-bounds-invalid');
+        }
+
+        $stack = [];
+        $keyCount = 0;
+
+        for ($index = 0; $index < $length; $index++) {
+            $char = $json[$index];
+
+            if ($char === '{' || $char === '[') {
+                if (\count($stack) >= $maxDepth) {
+                    throw new \InvalidArgumentException('stable-json-depth-invalid');
+                }
+
+                $stack[] = ['object' => $char === '{', 'seen' => []];
+                continue;
+            }
+
+            if ($char === '}' || $char === ']') {
+                if ($stack === []) {
+                    throw new \InvalidArgumentException('stable-json-structure-invalid');
+                }
+
+                \array_pop($stack);
+                continue;
+            }
+
+            if ($char !== '"') {
+                continue;
+            }
+
+            $start = $index;
+            $escaped = false;
+
+            for ($index++; $index < $length; $index++) {
+                if ($escaped) {
+                    $escaped = false;
+                    continue;
+                }
+
+                if ($json[$index] === '\\') {
+                    $escaped = true;
+                    continue;
+                }
+
+                if ($json[$index] === '"') {
+                    break;
+                }
+            }
+
+            if ($index >= $length) {
+                throw new \InvalidArgumentException('stable-json-string-invalid');
+            }
+
+            $next = $index + 1;
+
+            while ($next < $length && \str_contains(" \t\r\n", $json[$next])) {
+                $next++;
+            }
+
+            if (
+                $next >= $length || $json[$next] !== ':' || $stack === []
+                || !$stack[\array_key_last($stack)]['object']
+            ) {
+                continue;
+            }
+
+            if (++$keyCount > $maxKeys) {
+                throw new \InvalidArgumentException('stable-json-key-count-invalid');
+            }
+
+            try {
+                $key = \json_decode(
+                    \substr($json, $start, $index - $start + 1),
+                    false,
+                    2,
+                    \JSON_THROW_ON_ERROR,
+                );
+            } catch (\JsonException) {
+                throw new \InvalidArgumentException('stable-json-object-key-invalid');
+            }
+
+            if (!\is_string($key)) {
+                throw new \InvalidArgumentException('stable-json-object-key-invalid');
+            }
+
+            $frame = \array_key_last($stack);
+
+            if (isset($stack[$frame]['seen'][$key])) {
+                throw new \InvalidArgumentException('stable-json-duplicate-object-key');
+            }
+
+            $stack[$frame]['seen'][$key] = true;
+        }
+    }
+
+    private static function decodeStrictObject(string $json): \stdClass
+    {
+        if (\strlen($json) > self::STRICT_MAX_BYTES) {
+            throw new \InvalidArgumentException('stable-json-bounds-invalid');
+        }
+
+        $decoded = self::decodeJson($json, self::STRICT_MAX_DEPTH);
+
+        if (!$decoded instanceof \stdClass) {
+            throw new \InvalidArgumentException('stable-json-root-map-required');
+        }
+
+        self::assertNoDuplicateObjectKeys($json);
+
+        return $decoded;
+    }
+
+    private static function decodeJson(string $json, int $depth = 512): mixed
     {
         try {
             return \json_decode(
                 json: $json,
                 associative: false,
-                depth: 512,
+                depth: $depth,
                 flags: \JSON_THROW_ON_ERROR,
             );
         } catch (\JsonException $exception) {
@@ -287,7 +480,7 @@ final class StableJsonDecoder
         $converted = [];
 
         /** @var array<int|string, mixed> $properties */
-        $properties = (array)$value;
+        $properties = (array) $value;
 
         foreach ($properties as $key => $item) {
             if (!\is_string($key) || self::isAmbiguousPhpArrayKey($key)) {

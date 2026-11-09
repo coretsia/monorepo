@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\DependencySync\Composer;
 
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Foundation\Serialization\StableJsonDecoder;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
 use Coretsia\Kernel\Module\ModulePlanEntry;
@@ -370,7 +371,16 @@ final readonly class ComposerManifestStore
         string $documentKind,
     ): \stdClass {
         try {
-            self::assertNoDuplicateObjectKeys($bytes);
+            $maximumBytes = $documentKind === self::JSON_DOCUMENT_LOCK
+                ? self::MAX_COMPOSER_LOCK_BYTES
+                : self::MAX_COMPOSER_JSON_BYTES;
+
+            StableJsonDecoder::assertNoDuplicateObjectKeys(
+                $bytes,
+                $maximumBytes,
+                self::MAX_JSON_DEPTH,
+                $maximumBytes,
+            );
 
             $decoded = \json_decode(
                 $bytes,
@@ -390,112 +400,11 @@ final readonly class ComposerManifestStore
             }
 
             self::assertNativeJsonNumericSafety($decoded, $bigIntegerAware);
-        } catch (\JsonException|\UnexpectedValueException) {
+        } catch (\InvalidArgumentException|\JsonException|\UnexpectedValueException) {
             throw self::invalidJsonDocument($documentKind);
         }
 
         return $decoded;
-    }
-
-    private static function assertNoDuplicateObjectKeys(string $bytes): void
-    {
-        $length = \strlen($bytes);
-        $stack = [];
-
-        for ($index = 0; $index < $length; $index++) {
-            $char = $bytes[$index];
-
-            if ($char === '{') {
-                if (\count($stack) >= self::MAX_JSON_DEPTH) {
-                    throw new \UnexpectedValueException('dependency-sync-json-depth-invalid');
-                }
-
-                $stack[] = ['type' => 'object', 'seen' => []];
-                continue;
-            }
-
-            if ($char === '[') {
-                if (\count($stack) >= self::MAX_JSON_DEPTH) {
-                    throw new \UnexpectedValueException('dependency-sync-json-depth-invalid');
-                }
-
-                $stack[] = ['type' => 'array', 'seen' => []];
-                continue;
-            }
-
-            if ($char === '}' || $char === ']') {
-                if ($stack === []) {
-                    throw new \UnexpectedValueException('dependency-sync-json-structure-invalid');
-                }
-
-                \array_pop($stack);
-                continue;
-            }
-
-            if ($char !== '"') {
-                continue;
-            }
-
-            $start = $index;
-            $escaped = false;
-
-            for ($index++; $index < $length; $index++) {
-                $current = $bytes[$index];
-
-                if ($escaped) {
-                    $escaped = false;
-                    continue;
-                }
-
-                if ($current === '\\') {
-                    $escaped = true;
-                    continue;
-                }
-
-                if ($current === '"') {
-                    break;
-                }
-            }
-
-            if ($index >= $length) {
-                throw new \UnexpectedValueException('dependency-sync-json-string-invalid');
-            }
-
-            $next = $index + 1;
-
-            while ($next < $length && \str_contains(" \t\r\n", $bytes[$next])) {
-                $next++;
-            }
-
-            if (
-                $next >= $length
-                || $bytes[$next] !== ':'
-                || $stack === []
-                || $stack[\array_key_last($stack)]['type'] !== 'object'
-            ) {
-                continue;
-            }
-
-            $token = \substr($bytes, $start, $index - $start + 1);
-
-            try {
-                $key = \json_decode($token, false, self::MAX_JSON_DEPTH, \JSON_THROW_ON_ERROR);
-            } catch (\JsonException) {
-                throw new \UnexpectedValueException('dependency-sync-json-key-invalid');
-            }
-
-            if (!\is_string($key)) {
-                throw new \UnexpectedValueException('dependency-sync-json-key-invalid');
-            }
-
-            $frameIndex = \array_key_last($stack);
-
-            if (isset($stack[$frameIndex]['seen'][$key])) {
-                throw new \UnexpectedValueException('dependency-sync-json-duplicate-key');
-            }
-
-            $stack[$frameIndex]['seen'][$key] = true;
-        }
     }
 
     private static function assertNativeJsonNumericSafety(

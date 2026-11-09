@@ -23,8 +23,11 @@ use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapEnvSourcePolicy;
+use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\DotenvLoader;
 use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\Module\ResolvedModuleOverrides;
 use PHPUnit\Framework\TestCase;
 
@@ -217,6 +220,120 @@ final class BootstrapSystemEnvOverridesDotenvUnderAllowSystemPolicyTest extends 
         } finally {
             self::removeDirectory($applicationRoot);
         }
+    }
+
+    public function testAllowSystemPhaseAUsesSystemAppEnvAndCanonicalMapPrecedence(): void
+    {
+        $applicationRoot = self::createApplicationRoot('system-phase-a');
+
+        try {
+            self::writeDotenvFile($applicationRoot . '/.env', [
+                'CORETSIA_BOOT_PRESET=express',
+                'CORETSIA_BOOT_PRESETS={"web":"micro","worker":"enterprise"}',
+                'CORETSIA_BOOT_ACTIVE_TARGETS=["web"]',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.production.local', [
+                'CORETSIA_BOOT_PRESETS={"worker":"hybrid"}',
+            ]);
+
+            self::withSystemEnv(
+                values: [
+                    'CORETSIA_BOOT_APP_ENV' => 'production',
+                    'CORETSIA_BOOT_PRESETS' => '{"web":"enterprise"}',
+                    'CORETSIA_BOOT_ACTIVE_TARGETS' => '["worker","web"]',
+                ],
+                unsetNames: [],
+                callback: static function () use ($applicationRoot): void {
+                    $snapshot = self::sourceResolver()->resolveApplicationRoot(
+                        $applicationRoot,
+                        self::kernelConfig(),
+                        explicitPolicy: BootstrapEnvSourcePolicy::AllowSystem,
+                    );
+
+                    self::assertSame('production', $snapshot->appEnv());
+                    self::assertSame(BootstrapEnvSourcePolicy::AllowSystem, $snapshot->envSourcePolicy());
+                    self::assertSame(['web', 'worker'], $snapshot->activeTargets());
+                    self::assertSame('enterprise', $snapshot->overrides()['presets']['web']);
+                    self::assertSame('hybrid', $snapshot->overrides()['presets']['worker']);
+                    self::assertSame('system_env', $snapshot->sourceProvenance()['presets.web']->sourceId());
+                    self::assertSame(
+                        'dotenv/.env.production.local',
+                        $snapshot->sourceProvenance()['presets.worker']->sourceId(),
+                    );
+                },
+            );
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testExplicitAppEnvWinsOverLowerPrioritySystemSelection(): void
+    {
+        $applicationRoot = self::createApplicationRoot('explicit-env-selection');
+
+        try {
+            self::writeDotenvFile($applicationRoot . '/.env.staging', [
+                'CORETSIA_BOOT_APP_ENV=staging',
+                'CORETSIA_BOOT_PRESET=hybrid',
+            ]);
+
+            self::withSystemEnv(
+                values: ['CORETSIA_BOOT_APP_ENV' => 'production'],
+                unsetNames: [],
+                callback: static function () use ($applicationRoot): void {
+                    $snapshot = self::sourceResolver()->resolveApplicationRoot(
+                        $applicationRoot,
+                        self::kernelConfig(),
+                        explicitAppEnv: 'staging',
+                        explicitPolicy: BootstrapEnvSourcePolicy::AllowSystem,
+                    );
+
+                    self::assertSame('staging', $snapshot->appEnv());
+                    self::assertSame('hybrid', $snapshot->overrides()['preset']);
+                },
+            );
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    public function testAllowSystemRejectsUnknownReservedBootstrapKeysSafely(): void
+    {
+        $applicationRoot = self::createApplicationRoot('invalid-system-bootstrap-key');
+
+        try {
+            self::withSystemEnv(
+                values: ['CORETSIA_BOOT_UNKNOWN_SECRET' => 'sensitive-value'],
+                unsetNames: [],
+                callback: static function () use ($applicationRoot): void {
+                    try {
+                        self::sourceResolver()->resolveApplicationRoot(
+                            $applicationRoot,
+                            self::kernelConfig(),
+                            explicitPolicy: BootstrapEnvSourcePolicy::AllowSystem,
+                        );
+                        self::fail('Unknown reserved system bootstrap keys must fail closed.');
+                    } catch (BootstrapException $exception) {
+                        self::assertSame(BootstrapException::REASON_OVERRIDES_INVALID, $exception->reason());
+                        self::assertStringNotContainsString('sensitive-value', $exception->getMessage());
+                        self::assertStringNotContainsString('CORETSIA_BOOT_UNKNOWN_SECRET', $exception->getMessage());
+                    }
+                },
+            );
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    private static function sourceResolver(): BootstrapSourceResolver
+    {
+        $dotenvLoader = new DotenvLoader();
+
+        return new BootstrapSourceResolver(
+            new BootstrapOverridesLoader(),
+            $dotenvLoader,
+            new EnvRepositoryBuilder($dotenvLoader),
+        );
     }
 
     private static function buildAllowSystemRepository(string $applicationRoot): EnvRepositoryInterface

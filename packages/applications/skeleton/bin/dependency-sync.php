@@ -17,15 +17,11 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-use Coretsia\Kernel\Boot\AppTarget;
-use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
-use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
 use Coretsia\Kernel\DependencySync\ProjectDependencySync;
 use Coretsia\Kernel\DependencySync\ProjectDependencySyncResult;
-use Coretsia\Kernel\DependencySync\ProjectInstallationIntent;
 use Coretsia\Kernel\DependencySync\ProjectPackagePlan;
 
 $projectRoot = \dirname(__DIR__);
@@ -43,27 +39,13 @@ require $autoload;
 
 try {
     $request = parseRequest($argv);
-    $targets = [];
-
-    foreach ($request['targets'] as $targetName) {
-        try {
-            $targets[] = AppTarget::fromString($targetName);
-        } catch (BootstrapException) {
-            throw DependencySyncException::forCode(DependencySyncErrorCodes::APPLICATION_SET_INVALID);
-        }
-    }
-
-    $intent = new ProjectInstallationIntent(
-        new ProjectApplicationSet($targets),
-        $request['presets'],
-    );
     $sync = ProjectDependencySync::create();
 
     if ($request['operation'] === 'plan') {
         emitSuccess(
             'plan',
             planPayload(
-                $sync->plan($projectRoot, $intent),
+                $sync->planConfigured($projectRoot, $request['presets']),
             ),
         );
     }
@@ -75,10 +57,10 @@ try {
         allowBroadUpdate: $request['allowBroadUpdate'],
         allowRepair: $request['allowRepair'],
     );
-    $result = $sync->synchronize(
+    $result = $sync->synchronizeConfigured(
         $projectRoot,
-        $intent,
         $policy,
+        $request['presets'],
     );
 
     emitSuccess(
@@ -99,7 +81,6 @@ try {
  *
  * @return array{
  *     operation: 'plan'|'review'|'apply',
- *     targets: non-empty-list<non-empty-string>,
  *     presets: array<string, non-empty-string>,
  *     allowComposerScripts: bool,
  *     allowComposerPlugins: bool,
@@ -115,8 +96,6 @@ function parseRequest(array $argv): array
         throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
     }
 
-    $targets = [];
-    $targetSet = [];
     $presets = [];
     $flags = [
         '--allow-composer-scripts' => false,
@@ -126,22 +105,11 @@ function parseRequest(array $argv): array
     ];
 
     foreach (\array_slice($argv, 2) as $argument) {
-        if (\str_starts_with($argument, '--target=')) {
-            $target = \substr($argument, \strlen('--target='));
-
-            if (
-                !isSafeToken($target)
-                || isset($targetSet[$target])
-            ) {
-                throw DependencySyncException::forCode(DependencySyncErrorCodes::APPLICATION_SET_INVALID);
+        if (\str_starts_with($argument, '--preset=')) {
+            if ($operation === 'apply') {
+                throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
             }
 
-            $targetSet[$target] = true;
-            $targets[] = $target;
-            continue;
-        }
-
-        if (\str_starts_with($argument, '--preset=')) {
             $value = \substr($argument, \strlen('--preset='));
             $separator = \strpos($value, '=');
 
@@ -176,27 +144,14 @@ function parseRequest(array $argv): array
         throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
     }
 
-    if ($targets === []) {
-        throw DependencySyncException::forCode(DependencySyncErrorCodes::APPLICATION_SET_INVALID);
-    }
-
-    foreach (\array_keys($presets) as $target) {
-        if (!isset($targetSet[$target])) {
-            throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
-        }
-    }
-
-    \sort($targets, \SORT_STRING);
     \ksort($presets, \SORT_STRING);
 
     if ($operation !== 'apply' && \in_array(true, $flags, true)) {
         throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
     }
 
-    /** @var non-empty-list<non-empty-string> $targets */
     return [
         'operation' => $operation,
-        'targets' => $targets,
         'presets' => $presets,
         'allowComposerScripts' => $flags['--allow-composer-scripts'],
         'allowComposerPlugins' => $flags['--allow-composer-plugins'],

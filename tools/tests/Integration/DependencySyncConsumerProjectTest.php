@@ -42,16 +42,18 @@ final class DependencySyncConsumerProjectTest extends TestCase
         self::$consumerTemplates = [];
     }
 
-    public function testConsumerAdapterSupportsExplicitPlanReviewApplyTargetsAndNoImplicitAppScan(): void
+    public function testConsumerAdapterDelegatesConfigurationOwnedIntentWithoutTargetCliParsing(): void
     {
         $repoRoot = \dirname(__DIR__, 3);
         $source = \file_get_contents($repoRoot . '/packages/applications/skeleton/bin/dependency-sync.php');
 
         self::assertIsString($source);
         self::assertStringContainsString("['plan', 'review', 'apply']", $source);
-        self::assertStringContainsString("'--target='", $source);
+        self::assertStringNotContainsString("'--target='", $source);
         self::assertStringContainsString("'--preset='", $source);
-        self::assertStringContainsString('new ProjectApplicationSet($targets)', $source);
+        self::assertStringNotContainsString('new ProjectApplicationSet($targets)', $source);
+        self::assertStringContainsString('->planConfigured(', $source);
+        self::assertStringContainsString('->synchronizeConfigured(', $source);
         self::assertStringContainsString('$sync = ProjectDependencySync::create();', $source);
         self::assertStringNotContainsString('glob(', $source);
         self::assertStringNotContainsString('scandir(', $source);
@@ -75,11 +77,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 self::publicConstraint(),
                 $cli['require']['coretsia/platform-errors'] ?? null,
             );
-            self::assertSame(
-                self::releaseVersion(),
-                self::lockPackage($root, 'coretsia/platform-errors')['version'],
-            );
-            self::assertTrue(
+            self::assertFalse(
                 self::installedState($root, 'coretsia/platform-errors')['installed'],
             );
 
@@ -89,10 +87,13 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
                 ],
             );
 
+            self::assertSame(
+                self::releaseVersion(),
+                self::lockPackage($root, 'coretsia/platform-errors')['version'],
+            );
             self::assertSame(
                 ['web'],
                 $payload['result']['plan']['applications'] ?? null,
@@ -142,12 +143,11 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer();
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $payload = self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -163,19 +163,16 @@ final class DependencySyncConsumerProjectTest extends TestCase
         }
     }
 
-    public function testTwoExplicitTargetsShareOneComposerGraphButRetainSeparatePlans(): void
+    public function testTwoConfiguredTargetsShareOneComposerGraphButRetainSeparatePlans(): void
     {
         $root = self::consumer();
 
         try {
+            self::writeBootstrapConfig($root, ['web', 'worker'], ['worker' => 'hybrid']);
             $payload = self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--target=worker',
-                    '--preset=web=micro',
-                    '--preset=worker=hybrid',
                 ],
             );
             $plan = $payload['result']['plan'] ?? [];
@@ -203,23 +200,22 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('plain');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
             $before = self::manifest($root);
 
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'micro']);
+
             $micro = self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=micro',
                 ],
             );
 
@@ -271,6 +267,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('transitive-worker');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $beforeProtected = self::installedState($root, 'acme/protected');
 
             self::assertTrue(
@@ -281,8 +278,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -295,12 +290,12 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 ['dependencySync']['managedRequire'] ?? [],
             );
 
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'micro']);
+
             $micro = self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=micro',
                 ],
             );
             $microManifest = self::manifest($root);
@@ -332,12 +327,11 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('conflict');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $payload = self::failedAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -363,7 +357,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
                 ],
             );
 
@@ -371,7 +364,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
                 ],
             );
 
@@ -387,13 +379,12 @@ final class DependencySyncConsumerProjectTest extends TestCase
 
         try {
             self::writeFreshProcessPreset($root);
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'fresh-check']);
 
             self::successfulAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=fresh-check',
                 ],
             );
 
@@ -437,7 +428,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
                     '--allow-broad-update',
                 ],
             );
@@ -484,7 +474,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
                 ],
             );
 
@@ -510,12 +499,11 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('conflict');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $payload = self::failedAdapter(
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -534,21 +522,20 @@ final class DependencySyncConsumerProjectTest extends TestCase
         }
     }
 
-    public function testFixedPresetAppliesOnlyToItsDeclaredTarget(): void
+    public function testTemporaryPlanningPresetAppliesOnlyToItsDeclaredTarget(): void
     {
         $root = self::consumer();
 
         try {
+            self::writeBootstrapConfig($root, ['web', 'worker']);
             $payload = self::successfulAdapter(
                 $root,
                 [
-                    'apply',
-                    '--target=web',
-                    '--target=worker',
+                    'plan',
                     '--preset=worker=hybrid',
                 ],
             );
-            $plan = $payload['result']['plan'] ?? [];
+            $plan = $payload['result'] ?? [];
 
             self::assertSame(
                 [
@@ -571,6 +558,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('plain');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $beforeLock = self::lockPackage($root, 'acme/protected');
             $beforeInstalled = self::installedState($root, 'acme/protected');
 
@@ -578,8 +566,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -601,6 +587,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('plain', true);
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $beforeManifest = self::manifest($root);
             $beforeLock = self::lockPackage($root, 'acme/protected');
             $beforeInstalled = self::installedState($root, 'acme/protected');
@@ -617,8 +604,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -646,6 +631,7 @@ final class DependencySyncConsumerProjectTest extends TestCase
         $root = self::consumer('conflict');
 
         try {
+            self::writeBootstrapConfig($root, ['web'], ['web' => 'hybrid']);
             $beforeLock = self::lockPackage($root, 'acme/protected');
             $beforeInstalled = self::installedState($root, 'acme/protected');
 
@@ -659,8 +645,6 @@ final class DependencySyncConsumerProjectTest extends TestCase
                 $root,
                 [
                     'apply',
-                    '--target=web',
-                    '--preset=web=hybrid',
                 ],
             );
 
@@ -683,6 +667,261 @@ final class DependencySyncConsumerProjectTest extends TestCase
         } finally {
             self::remove($root);
         }
+    }
+
+    public function testPhpAndDotenvBootstrapMapsProduceEquivalentConfiguredInstallationPlans(): void
+    {
+        $root = self::consumer();
+
+        try {
+            self::writeBootstrapConfig(
+                $root,
+                ['web', 'worker'],
+                ['worker' => 'hybrid'],
+            );
+
+            $fromPhp = self::successfulAdapter($root, ['plan']);
+
+            \file_put_contents($root . '/config/app.php', "<?php return [];\n");
+            \file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_ACTIVE_TARGETS=[\"web\",\"worker\"]\n"
+                . "CORETSIA_BOOT_PRESETS={\"worker\":\"hybrid\"}\n",
+            );
+
+            $fromDotenv = self::successfulAdapter($root, ['plan']);
+
+            self::assertSame($fromPhp['result'], $fromDotenv['result']);
+            self::assertSame(['web', 'worker'], $fromDotenv['result']['applications']);
+            self::assertContains('platform.worker', $fromDotenv['result']['unionModuleIds']);
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testChangingOneTargetInHigherDotenvLayerPreservesAllActiveTargets(): void
+    {
+        $root = self::consumer();
+
+        try {
+            self::writeBootstrapConfig($root, ['web', 'worker']);
+
+            \file_put_contents($root . '/.env', "CORETSIA_BOOT_PRESET=micro\n");
+            \file_put_contents(
+                $root . '/.env.local',
+                "CORETSIA_BOOT_PRESETS={\"worker\":\"micro\"}\n",
+            );
+
+            $before = self::successfulAdapter($root, ['plan']);
+
+            \file_put_contents(
+                $root . '/.env.local',
+                "CORETSIA_BOOT_PRESETS={\"worker\":\"hybrid\"}\n",
+            );
+
+            $after = self::successfulAdapter($root, ['plan']);
+
+            self::assertSame(['web', 'worker'], $before['result']['applications']);
+            self::assertSame(['web', 'worker'], $after['result']['applications']);
+            self::assertSame('micro', $before['result']['effectivePresetsByTarget']['web']);
+            self::assertSame('micro', $after['result']['effectivePresetsByTarget']['web']);
+            self::assertSame('hybrid', $after['result']['effectivePresetsByTarget']['worker']);
+            self::assertContains('platform.worker', $after['result']['unionModuleIds']);
+            self::assertContains('core.kernel', $after['result']['enabledModuleIdsByTarget']['web']);
+
+            $applied = self::successfulAdapter($root, ['apply']);
+
+            self::assertSame(['web', 'worker'], $applied['result']['plan']['applications']);
+            self::assertTrue(
+                self::installedState($root, 'coretsia/platform-worker')['installed'],
+            );
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testTargetFlagsAndApplyPresetsAreRejectedBeforeComposerEffects(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $before = (string) \file_get_contents($root . '/composer.json');
+
+            foreach (
+                [
+                    ['apply', '--target=web'],
+                    ['apply', '--preset=web=hybrid'],
+                ] as $arguments
+            ) {
+                $failure = self::failedAdapter($root, $arguments);
+
+                self::assertSame(
+                    DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID,
+                    $failure['code'],
+                );
+                self::assertSame($before, \file_get_contents($root . '/composer.json'));
+            }
+
+            self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testInvalidBootstrapSourceFailsSafelyBeforeAnyComposerEffects(): void
+    {
+        $root = self::consumer();
+
+        try {
+            $beforeManifest = (string) \file_get_contents($root . '/composer.json');
+            $beforeLock = (string) \file_get_contents($root . '/composer.lock');
+
+            \file_put_contents(
+                $root . '/.env',
+                "CORETSIA_BOOT_ACTIVE_TARGETS=[\"private-invalid-target\"]\n",
+            );
+
+            $failure = self::failedAdapter($root, ['apply']);
+
+            self::assertSame(
+                DependencySyncErrorCodes::PRESET_POLICY_INVALID,
+                $failure['code'],
+            );
+            self::assertStringNotContainsString(
+                'private-invalid-target',
+                \json_encode($failure, \JSON_THROW_ON_ERROR),
+            );
+            self::assertSame($beforeManifest, \file_get_contents($root . '/composer.json'));
+            self::assertSame($beforeLock, \file_get_contents($root . '/composer.lock'));
+            self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    public function testProgrammaticEffectfulIntentCannotOverrideConfigurationOwnedMembership(): void
+    {
+        $root = self::consumer();
+
+        try {
+            self::writeBootstrapConfig($root, ['web', 'worker']);
+
+            $beforeManifest = (string) \file_get_contents($root . '/composer.json');
+            $beforeLock = (string) \file_get_contents($root . '/composer.lock');
+            $script = $root . '/bin/assert-programmatic-intent.php';
+
+            \file_put_contents(
+                $script,
+                <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+use Coretsia\Kernel\Boot\AppTarget;
+use Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy;
+use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
+use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
+use Coretsia\Kernel\DependencySync\ProjectDependencySync;
+use Coretsia\Kernel\DependencySync\ProjectInstallationIntent;
+
+$root = dirname(__DIR__);
+$sync = ProjectDependencySync::create();
+
+$webOnly = new ProjectInstallationIntent(
+    new ProjectApplicationSet([AppTarget::Web]),
+);
+
+$readOnlyPlan = $sync->plan($root, $webOnly);
+$errors = [];
+
+foreach (
+    [
+        $webOnly,
+        new ProjectInstallationIntent(
+            new ProjectApplicationSet([AppTarget::Web, AppTarget::Worker]),
+            ['worker' => 'hybrid'],
+        ),
+    ] as $intent
+) {
+    try {
+        $sync->synchronize(
+            $root,
+            $intent,
+            new DependencySyncExecutionPolicy(apply: true),
+        );
+
+        $errors[] = 'unexpected-success';
+    } catch (DependencySyncException $exception) {
+        $errors[] = $exception->errorCode();
+    }
+}
+
+echo json_encode(
+    [
+        'readOnlyApplications' => $readOnlyPlan->applications(),
+        'errors' => $errors,
+    ],
+    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES,
+);
+PHP,
+            );
+
+            $result = new DependencySyncProcessRunner()->runPhpScript(
+                $root,
+                $script,
+                [],
+                60,
+            );
+
+            self::assertSame(0, $result['exitCode'], $result['stderr']);
+            self::assertFalse($result['timedOut']);
+
+            $decoded = \json_decode(
+                $result['stdout'],
+                true,
+                512,
+                \JSON_THROW_ON_ERROR,
+            );
+
+            self::assertSame(['web'], $decoded['readOnlyApplications']);
+            self::assertSame(
+                [
+                    DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID,
+                    DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID,
+                ],
+                $decoded['errors'],
+            );
+            self::assertSame($beforeManifest, \file_get_contents($root . '/composer.json'));
+            self::assertSame($beforeLock, \file_get_contents($root . '/composer.lock'));
+            self::assertDirectoryDoesNotExist($root . '/var/dependency-sync/recovery');
+        } finally {
+            self::remove($root);
+        }
+    }
+
+    /**
+     * @param list<string> $activeTargets
+     * @param array<string, non-empty-string> $presets
+     */
+    private static function writeBootstrapConfig(
+        string $root,
+        array $activeTargets,
+        array $presets = [],
+    ): void {
+        $values = ['activeTargets' => $activeTargets];
+
+        if ($presets !== []) {
+            $values['presets'] = $presets;
+        }
+
+        self::assertIsInt(
+            \file_put_contents(
+                $root . '/config/app.php',
+                "<?php\n\nreturn " . \var_export($values, true) . ";\n",
+            ),
+        );
     }
 
     private static function publicConstraint(): string

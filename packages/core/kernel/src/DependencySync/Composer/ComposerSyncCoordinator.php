@@ -24,6 +24,7 @@ use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\Exception\IdGenerationFailedException;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Serialization\StableJsonDecoder;
+use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\DependencySync\DependencySyncExecutionPolicy;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncErrorCodes;
 use Coretsia\Kernel\DependencySync\Exception\DependencySyncException;
@@ -60,7 +61,12 @@ final readonly class ComposerSyncCoordinator
         ProjectInstallationIntent $intent,
         ProjectPackagePlan $approvedPlan,
         DependencySyncExecutionPolicy $executionPolicy,
+        ?Closure $replanCallback = null,
     ): ProjectDependencySyncResult {
+        if ($executionPolicy->apply() && $replanCallback === null) {
+            throw DependencySyncException::forCode(DependencySyncErrorCodes::INSTALLATION_INTENT_INVALID);
+        }
+
         $originalManifest = $this->manifestStore->readManifest($projectRoot);
         $originalLock = $this->manifestStore->readLockState($projectRoot);
         $candidateDocument = $this->manifestStore->copyManifestDocument($originalManifest['document']);
@@ -91,6 +97,7 @@ final readonly class ComposerSyncCoordinator
                 $intent,
                 $approvedPlan,
                 $executionPolicy,
+                $replanCallback,
                 $originalManifest,
                 $originalLock,
                 $expectedLockIdentity,
@@ -105,10 +112,20 @@ final readonly class ComposerSyncCoordinator
                     $expectedLockIdentity,
                 );
 
-                $replanned = $this->planner->plan(
-                    $projectRoot,
-                    $intent,
-                );
+                try {
+                    $replanned = $replanCallback !== null
+                        ? $replanCallback()
+                        : $this->planner->plan($projectRoot, $intent);
+                } catch (DependencySyncException $exception) {
+                    if (($exception->context()['sourceErrorCode'] ?? null) === BootstrapException::ERROR_CODE) {
+                        throw DependencySyncException::forCode(
+                            DependencySyncErrorCodes::PROJECT_STATE_CHANGED,
+                            $exception->context(),
+                        );
+                    }
+
+                    throw $exception;
+                }
 
                 if (!$replanned->equals($approvedPlan)) {
                     throw DependencySyncException::forCode(DependencySyncErrorCodes::PROJECT_STATE_CHANGED);

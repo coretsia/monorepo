@@ -103,6 +103,67 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.11.0 to v0.12.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- Framework Composer requirements, Bootstrap Phase A source resolution, and application dependency synchronization have changed.
+- Review applications relying on Framework-installed CLI or Logging packages, explicit DependencySync `--target` arguments, or temporary apply-time preset overrides.
+- Existing Kernel UnitOfWork, Context, reset, runtime ModulePlan, and deterministic CLI output contracts remain independent of Composer synchronization.
+
+#### Framework installation and configuration
+
+`coretsia/framework` now requires only PHP and `coretsia/core-kernel`. CLI, Logging, and other runtime packages are installed through explicit DependencySync operations according to effective module selection.
+
+Canonical presets continue to select their configured runtime modules, including CLI and Logging in `micro`. Composer installation alone does not activate runtime modules.
+
+Application membership is now configuration-owned through `activeTargets` in `config/app.php` or `CORETSIA_BOOT_ACTIVE_TARGETS` in dotenv.
+
+- Absent `activeTargets` defaults to `['web']`; an explicit empty list is invalid.
+- Target-local presets and module overrides support canonical dotenv JSON maps.
+- Structured maps merge per target and per field; explicit empty lists clear individual overrides.
+- Application environment selection is frozen per resolution attempt.
+- Invalid bootstrap keys, malformed values, duplicate JSON keys, and invalid ModuleIds fail closed.
+
+Review existing bootstrap configuration and environment overlays before upgrading.
+
+#### Dependency synchronization
+
+The canonical Skeleton commands are:
+
+```bash
+php coretsia plan
+php coretsia review
+php coretsia apply
+```
+
+These operations work before the normal CLI runtime is installed.
+
+DependencySync no longer accepts `--target`. Temporary `--preset=<target>=<preset>` overrides are supported only by `plan` and `review`, not `apply`.
+
+Effectful synchronization uses configuration-owned application membership and presets. Locked replanning and fresh-process verification detect installation-relevant configuration changes before accepting an approved installation state.
+
+Existing Composer ownership, authorization, recovery, and deterministic JSON output contracts remain unchanged.
+
+#### New runtime packages
+
+- **Tracing:** `coretsia/platform-tracing` provides explicit W3C `traceparent` propagation. It does not automatically record spans, generate identifiers, export traces, or provide HTTP tracing middleware. `tracestate` preservation is limited to byte-identical propagation within the same carrier.
+- **Metrics:** `coretsia/platform-metrics` provides a noop-safe meter and renderer with strict label validation. It does not record, aggregate, export, or expose metrics.
+- **Problem Details:** `coretsia/platform-problem-details` provides deterministic RFC 9457 rendering and PSR-15 error middleware. Integration requires a compatible HTTP runtime and response factories; package installation does not activate an HTTP pipeline.
+
+All three packages require explicit runtime module selection. Review custom presets, module dependencies, and DI integrations before enabling them.
+
+#### Migration steps
+
+1. Update Coretsia Composer dependencies to the `0.12` release line and refresh application lockfiles intentionally.
+2. Review Framework installation assumptions, custom presets, and physical runtime package requirements.
+3. Configure `activeTargets` and target-local overrides through `config/app.php` or canonical dotenv inputs.
+4. Remove DependencySync `--target` arguments and apply-time `--preset` overrides.
+5. Run `php coretsia plan` and `php coretsia review` before authorizing `php coretsia apply`.
+6. Review tracing, metrics, and Problem Details integrations without assuming automatic recording, exporting, or HTTP middleware activation.
+7. Run the applicable configuration, architecture, quality, security, and regression checks.
+
 ### From v0.10.0 to v0.11.0
 
 #### Compatibility

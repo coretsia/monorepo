@@ -21,9 +21,8 @@ namespace Coretsia\Kernel\Tests\Integration;
 use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
-use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
+use Coretsia\Kernel\Tests\Support\ModeInfrastructureTestSupport;
 use PHPUnit\Framework\TestCase;
 
 final class BootstrapPresetResolutionPrecedenceTest extends TestCase
@@ -443,12 +442,63 @@ final class BootstrapPresetResolutionPrecedenceTest extends TestCase
         }
     }
 
+    public function testMergedDotenvPresetsOverridePhpByTargetWithoutChangingOtherTargets(): void
+    {
+        $applicationRoot = self::createApplicationRoot('merged-dotenv-presets');
+
+        try {
+            self::writePhpArrayFile($applicationRoot . '/config/app.php', [
+                'preset' => 'express',
+                'presets' => ['web' => 'hybrid', 'worker' => 'enterprise'],
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env', [
+                'CORETSIA_BOOT_APP_ENV=test',
+                'CORETSIA_BOOT_PRESET=micro',
+                'CORETSIA_BOOT_PRESETS={"web":"express"}',
+            ]);
+            self::writeDotenvFile($applicationRoot . '/.env.test.local', [
+                'CORETSIA_BOOT_PRESETS={"worker":"hybrid"}',
+            ]);
+
+            $config = require \dirname(__DIR__, 2) . '/config/kernel.php';
+            self::assertIsArray($config);
+
+            foreach (
+                [
+                    [AppTarget::Web, 'express'],
+                    [AppTarget::Worker, 'hybrid'],
+                    [AppTarget::Api, 'micro'],
+                ] as [$target, $expectedPreset]
+            ) {
+                $resolved = self::resolver()->resolve(
+                    new BootstrapInput($applicationRoot, $target),
+                    $config,
+                );
+
+                self::assertSame($expectedPreset, $resolved->preset());
+                self::assertSame($target, $resolved->appTarget());
+                self::assertSame('test', $resolved->appEnv());
+            }
+
+            $explicit = self::resolver()->resolve(
+                new BootstrapInput($applicationRoot, AppTarget::Web, preset: 'enterprise'),
+                $config,
+            );
+            self::assertSame('enterprise', $explicit->preset());
+        } finally {
+            self::removeDirectory($applicationRoot);
+        }
+    }
+
+    private static function writeDotenvFile(string $file, array $lines): void
+    {
+        self::ensureDirectory(\dirname($file));
+        self::assertIsInt(\file_put_contents($file, \implode("\n", $lines) . "\n"));
+    }
+
     private static function resolver(): BootstrapConfigResolver
     {
-        return new BootstrapConfigResolver(
-            overridesLoader: new BootstrapOverridesLoader(),
-            moduleIdSetNormalizer: new ModuleIdSetNormalizer(),
-        );
+        return ModeInfrastructureTestSupport::bootstrapConfigResolver();
     }
 
     /**

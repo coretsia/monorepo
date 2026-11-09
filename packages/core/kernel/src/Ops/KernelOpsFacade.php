@@ -39,7 +39,7 @@ use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
-use Coretsia\Kernel\Boot\EnvRepositoryBuilder;
+use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\Exception\BootstrapException;
 use Coretsia\Kernel\Config\ConfigKernel;
 use Coretsia\Kernel\Config\Exception\ConfigDirectiveMixedLevelException;
@@ -127,7 +127,6 @@ final readonly class KernelOpsFacade implements KernelOpsInterface
     public function __construct(
         private KernelOpsHostInput $hostInput,
         private BootstrapConfigResolver $bootstrapConfigResolver,
-        private EnvRepositoryBuilder $envRepositoryBuilder,
         private ModuleResolutionOrchestrator $moduleResolutionOrchestrator,
         private ConfigKernel $configKernel,
         private RuntimeContainerGraphCompiler $runtimeContainerGraphCompiler,
@@ -142,6 +141,7 @@ final readonly class KernelOpsFacade implements KernelOpsInterface
         private MeterPortInterface $meter,
         private LoggerInterface $logger,
         private Stopwatch $stopwatch,
+        private BootstrapSourceResolver $bootstrapSourceResolver,
     ) {
         if (!self::isStringMap($this->kernelConfig)) {
             throw new \InvalidArgumentException('kernel-ops-kernel-config-invalid');
@@ -387,9 +387,11 @@ final readonly class KernelOpsFacade implements KernelOpsInterface
                 string $appTarget,
                 callable $markPreset,
             ): OpsResult {
+                $snapshot = $this->bootstrapSourceResolver->resolve($input, $this->kernelConfig);
                 $bootstrapConfig = $this->bootstrapConfigResolver->resolve(
                     $input,
                     $this->kernelConfig,
+                    $snapshot,
                 );
 
                 $moduleResolution = $this->moduleResolutionOrchestrator->resolve($bootstrapConfig);
@@ -506,15 +508,14 @@ final readonly class KernelOpsFacade implements KernelOpsInterface
         BootstrapInput $input,
         callable $markPreset,
     ): array {
+        $snapshot = $this->bootstrapSourceResolver->resolve($input, $this->kernelConfig);
         $bootstrapConfig = $this->bootstrapConfigResolver->resolve(
             $input,
             $this->kernelConfig,
+            $snapshot,
         );
 
-        $env = $this->envRepositoryBuilder->build(
-            $bootstrapConfig,
-            $this->kernelConfig,
-        );
+        $env = $snapshot->envRepository();
 
         $moduleResolution = $this->moduleResolutionOrchestrator->resolve($bootstrapConfig);
 

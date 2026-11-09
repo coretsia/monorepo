@@ -117,6 +117,7 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\DependencySync\ProjectDependencySyncResult`
   - stable error contract through `DependencySyncErrorCodes` and `DependencySyncException`
 - Bootstrap Phase A internal implementation services registered through DI:
+  - `Coretsia\Kernel\Boot\BootstrapSourceResolver`
   - `Coretsia\Kernel\Boot\BootstrapConfigResolver`
   - `Coretsia\Kernel\Boot\BootstrapOverridesLoader`
   - `Coretsia\Kernel\Boot\DotenvLoader`
@@ -248,46 +249,105 @@ Platform packages own transport adapters.
 
 ## Bootstrap Phase A — minimal boot-input resolution
 
-Bootstrap Phase A is the minimal deterministic Kernel boot-input stage.
+Bootstrap Phase A is the deterministic Kernel-owned source-resolution stage preceding ConfigKernel Phase B, module planning, artifact compilation, and dependency synchronization.
 
-It resolves only:
+The canonical internal owners are:
+
+- `BootstrapSourceResolver`: application-root source orchestration, early appEnv selection, source policy, source validation, logical-key merge, and immutable snapshot construction;
+- `BootstrapSourceSnapshot`: resolution-local immutable source state, safe provenance, frozen appEnv and source policy, application-root identity, and one immutable environment repository;
+- `BootstrapConfigResolver`: explicit target-local `BootstrapInput` precedence and construction of immutable `BootstrapConfig`;
+- `BootstrapOverridesLoader`: the sole permitted PHP bootstrap source, shared canonical shape validation, and ModuleId lexical validation;
+- `DotenvLoader`: canonical ordered dotenv loading;
+- `EnvRepositoryBuilder`: immutable environment repository construction using approved source snapshots.
+
+The canonical sequence is:
 
 ```text
-applicationRoot
-appTarget
+applicationRoot / optional explicit BootstrapInput
+  -> BootstrapSourceResolver
+  -> capture one process environment snapshot (policy-gated)
+  -> config/app.php + base dotenv layers
+  -> frozen appEnv and envSourcePolicy
+  -> environment-specific dotenv layers
+  -> merge normalized values (permitted process values take precedence)
+  -> BootstrapSourceSnapshot + immutable EnvRepositoryInterface
+  -> BootstrapConfigResolver for explicit AppTarget
+  -> target-local BootstrapConfig
+```
+
+The source resolver does not depend on `BootstrapConfigResolver` and does not create `BootstrapConfig`, `ModulePlan`, `ConfigKernel`, or Composer installation state.
+
+For multi-target operations, one snapshot is reused across independent target-local configurations. No config/app.php, dotenv, or process environment loading is repeated for each target.
+
+### Bootstrap sources
+
+The only permitted application-owned PHP bootstrap source is:
+
+```text
+<applicationRoot>/config/app.php
+```
+
+Allowed fields are:
+
+```text
 appEnv
+activeTargets
 preset
+presets
+moduleOverrides
 debug
 artifactsCacheDir
-envSourcePolicy
-appRoot
-immutable EnvRepositoryInterface snapshot
 ```
 
-Phase A is not a full config merge phase.
+`config/app.php` MUST NOT participate in ConfigKernel Phase B merge.
 
-Package config-source locations are constructed by `ConfigSourceLocationBuilder`. `ConfigKernel` Phase B owns config loading from those prepared locations, application-root/app-target config loading, merge orchestration, directives, validation, explain output, and environment overlays.
-
-Phase A MAY read only one bootstrap-only application config file:
+The supported environment inputs are exactly:
 
 ```text
-config/app.php
+CORETSIA_BOOT_APP_ENV
+CORETSIA_BOOT_ACTIVE_TARGETS
+CORETSIA_BOOT_PRESET
+CORETSIA_BOOT_PRESETS
+CORETSIA_BOOT_MODULE_OVERRIDES_INCLUDE
+CORETSIA_BOOT_MODULE_OVERRIDES_EXCLUDE
+CORETSIA_BOOT_DEBUG
+CORETSIA_BOOT_ARTIFACTS_CACHE_DIR
 ```
 
-This file is not a config root and MUST NOT participate in ConfigKernel Phase B merge.
+`CORETSIA_BOOT_ACTIVE_TARGETS` uses a non-empty JSON list of canonical AppTarget values.
 
-Phase A MUST NOT read:
+`CORETSIA_BOOT_PRESETS` uses a JSON object mapping AppTarget to preset name.
+
+The include and exclude variables use separate JSON object-to-ModuleId-list maps. `{}` is a no-op and `{"web":[]}` explicitly clears only the corresponding field.
+
+Unknown reserved bootstrap environment keys, malformed JSON, duplicate keys, invalid ModuleIds, invalid scalar values, and invalid source shapes fail closed without raw-value diagnostics.
+
+The canonical dotenv order is:
 
 ```text
-config/roots.php
-config/<root>.php
-config/environments/**
-apps/<appTarget>/config/**
+.env
+.env.local
+.env.<appEnv>
+.env.<appEnv>.local
 ```
 
-Application target selection is explicit and entrypoint-owned.
+appEnv is selected and frozen before environment-specific layers are loaded. Process appEnv may participate in initial selection only under explicit `BootstrapEnvSourcePolicy::AllowSystem`.
 
-Canonical app targets are:
+The default source policy is `allow_system` for `prod` and `production`; all other appEnv values default to `strict_dotenv`.
+
+`strict_dotenv` ignores process bootstrap keys. `allow_system` gives permitted process values precedence over dotenv without changing the frozen appEnv.
+
+Full source precedence, supported formats, and merge semantics are defined by:
+
+```text
+docs/ssot/config-and-env.md
+docs/ssot/config-precedence-matrix.md
+docs/ssot/config-merge-order.md
+```
+
+### Project-wide and target-local boundaries
+
+The canonical AppTarget values are:
 
 ```text
 web
@@ -296,70 +356,58 @@ console
 worker
 ```
 
-The selected app root is derived deterministically as:
+For runtime Kernel operations, the AppTarget is explicit in `BootstrapInput`. It MUST NOT be inferred from `apps/*` or from `activeTargets`.
+
+The selected application root is derived as:
 
 ```text
 applicationRoot/apps/<appTarget>
 ```
 
-Phase A MUST NOT scan `apps/*` to infer the selected app.
+`BootstrapSourceSnapshot::activeTargets()` is project-wide installation membership metadata, not runtime configuration.
 
-`BootstrapConfig` is a resolved immutable value object only. It MUST NOT resolve defaults, read `config/app.php`, parse dotenv files, read system env, or build an env repository.
+DependencySync determines its effective application set from the snapshot. A missing `activeTargets` uses the DependencySync-owned fallback `['web']`; explicit empty membership is invalid.
 
-`BootstrapConfigResolver` is internal and owns only Phase A config resolution:
-
-```text
-explicit BootstrapInput
-→ bootstrap-only overrides from config/app.php
-→ package defaults from kernel.boot.* and kernel.env.*
-→ BootstrapConfig
-```
-
-Artifact cache directory resolution uses:
+`BootstrapConfigResolver` resolves the preset for each explicit target in this order:
 
 ```text
-BootstrapInput::artifactsCacheDir()
-→ config/app.php artifactsCacheDir
-→ kernel.boot.default_artifacts_cache_dir
-→ BootstrapConfig::artifactsCacheDir()
+BootstrapInput::preset()
+merged presets[appTarget]
+merged global preset
+kernel.boot.default_preset
 ```
 
-`BootstrapConfig::artifactsCacheDir()` is the only resolved artifact location source used by `ArtifactPathResolver`, `ArtifactCompiler`, and `CacheVerifier`.
+Explicit `BootstrapInput::debug()` and `BootstrapInput::artifactsCacheDir()` take precedence over normalized source values and package defaults.
 
-ConfigKernel Phase B and compiled `config@1` do not re-resolve artifact location.
+Only the selected target's module overrides become its immutable `ResolvedModuleOverrides`. Module graph resolution remains with existing Kernel orchestration.
 
-`EnvRepositoryBuilder` is internal and owns only immutable env repository snapshot construction.
+`BootstrapConfig` does not contain project-wide activeTargets or the full source-provenance map. It is a resolved, immutable target-local value object.
 
-`BootstrapEnvSourcePolicy` controls dotenv/system env source precedence:
+The canonical artifact cache directory is:
 
 ```text
-strict_dotenv
-allow_system
+BootstrapConfig::artifactsCacheDir()
 ```
 
-It is intentionally separate from `Coretsia\Contracts\Env\EnvPolicy`, which remains a missing-value policy only.
+`ArtifactPathResolver`, `ArtifactCompiler`, and `CacheVerifier` consume this resolved directory without re-reading Phase B or compiled configuration.
 
-Kernel does not expose a public `Bootstrapper` or public `BootstrapResult` from this package.
+A pre-resolved snapshot is bound to its applicationRoot and frozen environment. It cannot be reused for another root or for conflicting explicit appEnv or source policy.
 
-Transport and CLI owners MUST NOT invoke internal compile-host services directly for Kernel operations.
+### Phase B and runtime boundaries
 
-`platform/cli` invokes Kernel operations through the contracts-owned port:
+ConfigKernel Phase B consumes the immutable environment snapshot produced by Phase A.
 
-```text
-Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
-```
+Phase B owns package/application config-root loading, directives, deterministic global configuration merge, allowlisted environment overlays, semantic validation, and safe explain output.
 
-The dedicated Kernel source-operations host is booted through `Coretsia\Kernel\Ops\KernelOpsHostBooter` using `Coretsia\Kernel\Ops\KernelOpsHostInput`.
+Phase B `KERNEL_BOOT_DEFAULT_*` environment overlays MUST NOT reselect the already frozen Phase A bootstrap configuration.
 
-`KernelOpsFacade` remains the internal implementation of `KernelOpsInterface`.
+The canonical package config-root ownership model is unchanged.
 
-For `compileConfig()` and `verifyCache()`, the façade delegates to internal:
+Bootstrap Phase A compile-host services MUST NOT become compiled runtime container definitions. Runtime artifact-only boot does not rerun Bootstrap Phase A or ConfigKernel Phase B.
 
-```text
-Coretsia\Kernel\Artifacts\Operation\KernelArtifactOperation
-```
+Kernel does not expose a public `Bootstrapper` or public `BootstrapResult`. `BootstrapSourceResolver`, `BootstrapSourceSnapshot`, `BootstrapConfigResolver`, and their supporting implementations remain internal.
 
-`KernelArtifactOperation` remains the canonical internal `BootstrapInput` → Bootstrap → env → `ModuleResolution` → `ConfigSourceSet` preparation and routing owner for compile and verify. It is not a public Phase A facade or aggregate Phase A result.
+`KernelArtifactOperation` remains the internal canonical compile/verify preparation owner.
 
 ## ConfigKernel Phase B — full configuration pipeline
 
@@ -1028,7 +1076,7 @@ The resolved `ModulePlan` is distinct from policy `ModePreset`, effective intent
 
 ## Application dependency synchronization
 
-Kernel owns explicit consumer dependency synchronization under `Coretsia\Kernel\DependencySync`.
+Kernel owns configuration-driven consumer dependency synchronization under `Coretsia\Kernel\DependencySync`.
 
 The public facade is:
 
@@ -1036,31 +1084,45 @@ The public facade is:
 Coretsia\Kernel\DependencySync\ProjectDependencySync
 ```
 
-Failures are fail-closed through the public `DependencySyncErrorCodes` / `DependencySyncException` boundary. Invalid application intent/catalog/managed state, unsupported Composer policy, stale project state, protected-root changes, lock/recovery failures, installed-state divergence, and verifier protocol failures are never converted into clean success.
+Failures are fail-closed through the public `DependencySyncErrorCodes` and `DependencySyncException` boundary.
 
-Public installation inputs/results are immutable values. `ProjectApplicationSet` identifies one explicit non-empty target set; `ProjectInstallationIntent` optionally fixes an installation preset for selected targets; `ProjectPackagePlan` records per-target planning expectations and the project-wide desired Coretsia root requirements.
+`ProjectApplicationSet` represents the canonical non-empty application set. For configuration-driven synchronization, it is derived from effective `activeTargets` in one `BootstrapSourceSnapshot`, with `['web']` used only when activeTargets is absent.
 
-The package-distributed planning catalog is:
+`ProjectInstallationIntent` retains an optional temporary `fixedPresetByTarget` for read-only plan/review. Effectful synchronization rejects non-empty fixed presets and requires configuration-owned application membership.
+
+`ProjectPackagePlan` records the independent target-local selections, deterministic project-wide Composer requirements union, and canonical installation-relevant bootstrap identity.
+
+The package-distributed installation catalog is:
 
 ```text
 resources/packaging/installation-catalog.php
 ```
 
-Its schema maps canonical module ids to Composer package names plus validated module dependency/conflict edges and release-line constraints. Repository source topology is not part of the catalog.
+The catalog maps canonical module ids to Composer package names, validated dependency/conflict edges, and release-line constraints. Repository source topology is not part of the catalog.
 
-The planning flow reuses the existing Phase A selection path for each explicit target, resolves the target against catalog entries, retains one target-local module closure, and forms one project-wide physical union. `ModuleSelection` remains Kernel-internal.
+One planning attempt uses one approved project-wide `BootstrapSourceSnapshot` and independently resolves target-local `BootstrapConfig` and `ModuleSelection` for each active target.
 
-Composer root reconciliation is ownership-aware. DependencySync may rewrite/remove only Coretsia root requirements recorded in `extra.coretsia.dependencySync`. Untracked roots remain project-owned. Explicit non-Coretsia `require`/`require-dev` roots are protected across synchronization; their root constraints, locked identities, and installed identities cannot be changed by a Coretsia solve.
+The resulting target-local closures are combined into one deterministic physical Composer installation union. A change affecting only one target MUST NOT remove requirements still needed by another active target.
 
-Effects occur only for an explicit apply policy. Scripts/plugins are disabled by default, broad update and vendor repair require separate authorization, and Composer executes through exact argv without shell fallback. Runtime boot never invokes Composer synchronization.
+Effectful synchronization performs a configuration-owned replan under the existing project lock before Composer effects. It re-resolves the full application set and the installation-relevant normalized bootstrap identity instead of trusting an old intent or a raw dotenv snapshot.
 
-Effectful synchronization uses Foundation `ScopedFileLock` at `var/locks/dependency-sync.lock`. Durable recovery material is written under `var/dependency-sync/recovery/<recoveryReceiptId>/`. Once an effectful Composer process has started, later Composer or verification failures expose `RECOVERY_REQUIRED`; the coordinator does not claim transactional rollback of `composer.json`, `composer.lock`, and `vendor/`.
+Changes to effective activeTargets, presets, or module overrides are detected as configuration drift. Changes affecting only debug, artifact cache directory, unrelated environment values, source provenance, or inactive target overrides do not independently change installation identity.
 
-Post-install verification runs through the package-local `bin/dependency-sync-verify.php` in a fresh PHP process using current consumer autoload metadata. Each explicit target is independently resolved to one installed `ModulePlan` and compared with the approved `ProjectPackagePlan`.
+Composer root reconciliation is ownership-aware. DependencySync may rewrite or remove only Coretsia requirements recorded in `extra.coretsia.dependencySync`. Untracked roots remain project-owned. Explicit non-Coretsia requirements remain protected.
 
-DependencySync has no direct implementation dependency on Kernel Artifact or Runtime subsystems. Artifact/Runtime implementations likewise do not depend on DependencySync. Shared lower-level Foundation primitives do not transfer subsystem ownership.
+Effects occur only under an explicit apply policy. Scripts/plugins are disabled by default; broad update and vendor repair require separate authorization. Composer runs through exact argv without shell fallback.
 
-Normative behavior is defined by:
+Effectful synchronization uses Foundation `ScopedFileLock` at `var/locks/dependency-sync.lock`. Durable recovery material is stored under `var/dependency-sync/recovery/<recoveryReceiptId>/`.
+
+Once effectful Composer execution has started, later Composer or verification failures expose `RECOVERY_REQUIRED`; the coordinator does not claim transactional rollback of composer.json, composer.lock, and vendor.
+
+Fresh-process verification resolves a new BootstrapSourceSnapshot from the current consumer project, rederives actual activeTargets, and checks the approved application set, installation identity, target-local ModulePlans, and Composer installed state.
+
+The fresh verifier never trusts only the verification envelope and never applies temporary fixed presets.
+
+DependencySync remains independent of Kernel Artifact and Runtime implementation subsystems. Runtime boot never executes Composer synchronization.
+
+The canonical contract is defined by:
 
 ```text
 docs/ssot/application-dependency-sync.md
@@ -2223,11 +2285,7 @@ It is not a DI service.
 
 It is not a transport extension point.
 
-It MUST NOT be exposed through:
-
-```text
-PUBLIC_API.md
-```
+It MUST remain excluded from the public Kernel API.
 
 It provides:
 
@@ -2656,6 +2714,8 @@ Callers depend on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`, not on `Ke
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 
 ```text
+Coretsia\Kernel\Boot\BootstrapSourceResolver
+Coretsia\Kernel\Boot\BootstrapSourceSnapshot
 Coretsia\Kernel\Boot\BootstrapConfigResolver
 Coretsia\Kernel\Boot\BootstrapOverridesLoader
 Coretsia\Kernel\Boot\DotenvLoader
@@ -2686,7 +2746,7 @@ The concrete implementation is resolved through DI binding in `core/kernel`.
 ## References
 
 - [Application Dependency Sync SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/application-dependency-sync.md)
-- [ADR-0033: Application dependency synchronization from explicit installation intent](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
+- [ADR-0033: Application Dependency Synchronization from Configuration-Owned Installation Intent](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
 - [Kernel package source](https://github.com/coretsia/monorepo/tree/main/packages/core/kernel)
 - [Packaging strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)

@@ -38,9 +38,30 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required()),
             );
             self::assertSame(
-                \in_array($name, ['hybrid', 'enterprise'], true)
-                    ? ['platform.cli', 'platform.logging', 'platform.worker']
-                    : ['platform.cli', 'platform.logging'],
+                match ($name) {
+                    'enterprise' => [
+                        'platform.cli',
+                        'platform.http',
+                        'platform.logging',
+                        'platform.metrics',
+                        'platform.problem-details',
+                        'platform.tracing',
+                        'platform.worker',
+                    ],
+                    'hybrid' => [
+                        'platform.cli',
+                        'platform.http',
+                        'platform.logging',
+                        'platform.problem-details',
+                        'platform.worker',
+                    ],
+                    default => [
+                        'platform.cli',
+                        'platform.http',
+                        'platform.logging',
+                        'platform.problem-details',
+                    ],
+                },
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
             );
             $required = \array_map(static fn (ModuleId $id): string => $id->value(), $preset->required());
@@ -71,7 +92,10 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
             require \dirname(__DIR__, 2) . '/resources/modes/express.php',
         );
         self::assertSame($micro->toArray()['required'], $express->toArray()['required']);
-        self::assertSame(['platform.cli', 'platform.logging'], $micro->toArray()['modules']);
+        self::assertSame(
+            ['platform.cli', 'platform.http', 'platform.logging', 'platform.problem-details'],
+            $micro->toArray()['modules'],
+        );
         self::assertSame($micro->toArray()['modules'], $express->toArray()['modules']);
         self::assertNotContains('platform.http', $express->toArray()['required']);
     }

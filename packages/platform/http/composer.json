@@ -1,0 +1,78 @@
+{
+  "name": "coretsia/platform-http",
+  "type": "library",
+  "description": "Coretsia HTTP runtime package: deterministic PSR-15 middleware pipeline, Kernel UnitOfWork lifecycle, and safe request processing.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "http",
+    "runtime",
+    "psr-7",
+    "psr-15",
+    "psr-17",
+    "middleware",
+    "pipeline",
+    "unit-of-work",
+    "request-safety",
+    "observability",
+    "deterministic"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.13.0",
+    "coretsia/core-foundation": "^0.13.0",
+    "coretsia/core-kernel": "^0.13.0",
+    "psr/container": "^2.0",
+    "psr/http-factory": "^1.0",
+    "psr/http-message": "^2.0",
+    "psr/http-server-middleware": "^1.0",
+    "psr/http-server-handler": "^1.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Http\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Http\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.http",
+      "moduleClass": "Coretsia\\Platform\\Http\\Module\\HttpModule",
+      "providers": [
+        "Coretsia\\Platform\\Http\\Provider\\HttpServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "core.kernel"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/http.php"
+    }
+  }
+}

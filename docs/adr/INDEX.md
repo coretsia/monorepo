@@ -75,6 +75,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0038: Platform tracing W3C traceparent propagation](./ADR-0038-platform-tracing-w3c-propagation.md) — owner: platform/tracing — adrVersion: 1 — scope: context,foundation,propagation,security,traceparent,tracing,w3c
 - [ADR-0039: Platform metrics noop baseline](./ADR-0039-platform-metrics-noop-baseline.md) — owner: platform/metrics — adrVersion: 1 — scope: admission,container,di,labels,metrics,noop,runtime
 - [ADR-0040: Platform Problem Details HTTP adaptation](./ADR-0040-platform-problem-details-http-adaptation.md) — owner: platform/problem-details — adrVersion: 1 — scope: errors,http,problem-details,rfc7807,rfc9457,security
+- [ADR-0041: Platform HTTP runtime pipeline and wiring](./ADR-0041-platform-http-runtime-pipeline-wiring.md) — owner: platform/http — adrVersion: 1 — scope: container,di,http,middleware,pipeline,psr-17,runtime
 
 ## Cross-references
 

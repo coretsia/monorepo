@@ -503,7 +503,6 @@ This may include config key namespaces owned by packages outside `core/kernel`, 
 
 ```text
 http.middleware.*
-http.middleware.auto.*
 ```
 
 `core/kernel` MUST preserve these values when they are present in the merged config payload.

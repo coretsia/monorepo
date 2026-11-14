@@ -54,6 +54,14 @@ final class ModuleGraphResolverRejectsMissingSelectedRootTest extends TestCase
                 'core.foundation',
                 'platform.redaction',
             ]),
+            ModeInfrastructureTestSupport::descriptor('platform.http', [
+                'core.foundation',
+                'core.kernel',
+            ]),
+            ModeInfrastructureTestSupport::descriptor('platform.problem-details', [
+                'core.foundation',
+                'platform.errors',
+            ]),
             ModeInfrastructureTestSupport::descriptor('platform.redaction', ['core.foundation']),
         ]);
 

@@ -67,6 +67,7 @@ final class AppBuilder
     private const string MODULE_PLATFORM_ERRORS = 'platform.errors';
     private const string MODULE_PLATFORM_LOGGING = 'platform.logging';
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
+    private const string MODULE_PLATFORM_PROBLEM_DETAILS = 'platform.problem-details';
     private const string MODULE_PLATFORM_REDACTION = 'platform.redaction';
 
     private function __construct()
@@ -282,7 +283,9 @@ final class AppBuilder
                 'coretsia/core-kernel' => self::packageRoot(),
                 'coretsia/platform-cli' => self::cliPackageRoot(),
                 'coretsia/platform-errors' => self::errorsPackageRoot(),
+                'coretsia/platform-http' => self::httpPackageRoot(),
                 'coretsia/platform-logging' => self::loggingPackageRoot(),
+                'coretsia/platform-problem-details' => self::problemDetailsPackageRoot(),
                 'coretsia/platform-redaction' => self::redactionPackageRoot(),
             ]),
             modePresetLoaderFactory: $modePresetLoaderFactory,
@@ -405,7 +408,9 @@ final class AppBuilder
                 self::MODULE_CORE_KERNEL,
                 self::MODULE_PLATFORM_CLI,
                 self::MODULE_PLATFORM_ERRORS,
+                self::MODULE_PLATFORM_HTTP,
                 self::MODULE_PLATFORM_LOGGING,
+                self::MODULE_PLATFORM_PROBLEM_DETAILS,
                 self::MODULE_PLATFORM_REDACTION,
             ],
         );
@@ -455,9 +460,10 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'config/kernel.php',
             self::MODULE_PLATFORM_CLI => 'config/cli.php',
             self::MODULE_PLATFORM_ERRORS => 'config/errors.php',
+            self::MODULE_PLATFORM_HTTP => 'config/http.php',
             self::MODULE_PLATFORM_LOGGING => 'config/logging.php',
-            self::MODULE_PLATFORM_REDACTION,
-            self::MODULE_PLATFORM_HTTP => null,
+            self::MODULE_PLATFORM_PROBLEM_DETAILS => 'config/problem_details.php',
+            self::MODULE_PLATFORM_REDACTION => null,
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }
@@ -469,9 +475,10 @@ final class AppBuilder
             self::MODULE_CORE_KERNEL => 'coretsia/core-kernel',
             self::MODULE_PLATFORM_CLI => 'coretsia/platform-cli',
             self::MODULE_PLATFORM_ERRORS => 'coretsia/platform-errors',
-            self::MODULE_PLATFORM_LOGGING => 'coretsia/platform-logging',
-            self::MODULE_PLATFORM_REDACTION => 'coretsia/platform-redaction',
             self::MODULE_PLATFORM_HTTP => 'coretsia/platform-http',
+            self::MODULE_PLATFORM_LOGGING => 'coretsia/platform-logging',
+            self::MODULE_PLATFORM_PROBLEM_DETAILS => 'coretsia/platform-problem-details',
+            self::MODULE_PLATFORM_REDACTION => 'coretsia/platform-redaction',
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }
@@ -500,7 +507,8 @@ final class AppBuilder
             self::MODULE_PLATFORM_REDACTION => [
                 RedactionServiceProvider::class,
             ],
-            self::MODULE_PLATFORM_HTTP => [],
+            self::MODULE_PLATFORM_HTTP,
+            self::MODULE_PLATFORM_PROBLEM_DETAILS => [],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }
@@ -533,7 +541,12 @@ final class AppBuilder
                 self::MODULE_CORE_FOUNDATION,
             ],
             self::MODULE_PLATFORM_HTTP => [
+                self::MODULE_CORE_FOUNDATION,
                 self::MODULE_CORE_KERNEL,
+            ],
+            self::MODULE_PLATFORM_PROBLEM_DETAILS => [
+                self::MODULE_CORE_FOUNDATION,
+                self::MODULE_PLATFORM_ERRORS,
             ],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
@@ -604,9 +617,19 @@ final class AppBuilder
         return \dirname(self::packageRoot(), 2) . '/platform/errors';
     }
 
+    private static function httpPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/http';
+    }
+
     private static function loggingPackageRoot(): string
     {
         return \dirname(self::packageRoot(), 2) . '/platform/logging';
+    }
+
+    private static function problemDetailsPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/problem-details';
     }
 
     private static function redactionPackageRoot(): string

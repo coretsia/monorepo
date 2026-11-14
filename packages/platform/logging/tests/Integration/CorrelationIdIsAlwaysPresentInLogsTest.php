@@ -31,6 +31,7 @@ use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Observability\CorrelationIdProvider;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Platform\Logging\Formatter\JsonLineFormatter;
+use Coretsia\Platform\Logging\Formatter\LogfmtLineFormatter;
 use Coretsia\Platform\Logging\Logger\StreamLogger;
 use Coretsia\Platform\Logging\Processor\ContextBagProcessor;
 use Coretsia\Platform\Logging\Record\LogRecordPolicy;
@@ -282,7 +283,7 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
         $processor = new ContextBagProcessor($store, new CorrelationIdProvider($store));
         self::assertSame(
             ['correlation_id' => null, 'uow_id' => null, 'uow_type' => null, 'context' => null],
-            $processor->process(null)
+            $processor->process(null),
         );
         $store->set(ContextKeys::CORRELATION_ID, self::FIRST_CORRELATION);
         $store->set(ContextKeys::UOW_TYPE, 'scheduler');
@@ -291,10 +292,459 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
         $store->reset();
         self::assertSame(
             ['correlation_id' => null, 'uow_id' => null, 'uow_type' => null, 'context' => null],
-            $processor->process(null)
+            $processor->process(null),
         );
         self::assertFalse(new \ReflectionClass(ContextBagProcessor::class)->hasMethod('reset'));
         self::assertFalse(new \ReflectionClass(StreamLogger::class)->hasMethod('reset'));
+    }
+
+    public function testHttpCompletionRecordsPreserveBoundedValuesAcrossContextReset(): void
+    {
+        $directory = self::directory();
+        try {
+            $store = new ContextStore();
+            $redactor = self::redactor();
+            $logger = self::logger($store, new CorrelationIdProvider($store), $redactor, $directory);
+            $context = [
+                'method' => 'GET',
+                'status' => 200,
+                'outcome' => 'success',
+                'duration_ms' => 7,
+                'route_template' => 'unknown',
+                'correlation_id' => self::NEXT_CORRELATION,
+            ];
+            $logger->info('http.request.completed', $context);
+
+            $store->set(ContextKeys::CORRELATION_ID, self::FIRST_CORRELATION);
+            $store->set(ContextKeys::UOW_ID, 'request-001');
+            $store->set(ContextKeys::UOW_TYPE, 'http');
+            $store->set(ContextKeys::PATH_TEMPLATE, '/users/{user_id}');
+            $logger->info('http.request.completed', [
+                ...$context,
+                'status' => 503,
+                'outcome' => 'handled_error',
+                'duration_ms' => 4_294_967_295,
+            ]);
+
+            $store->reset();
+            $logger->info('http.request.completed', [
+                ...$context,
+                'status' => 'unknown',
+                'outcome' => 'fatal_error',
+            ]);
+            $store->set(ContextKeys::CORRELATION_ID, self::NEXT_CORRELATION);
+            $store->set(ContextKeys::UOW_ID, 'request-002');
+            $store->set(ContextKeys::UOW_TYPE, 'http');
+            $logger->info('http.request.completed', [
+                ...$context,
+                'status' => 399,
+            ]);
+            $logger->info('worker.iteration', ['status' => 'ready', 'outcome' => 'success']);
+
+            $records = self::records($directory);
+            self::assertCount(5, $records);
+            self::assertSame(5, $redactor->calls);
+            foreach ($records as $record) {
+                self::assertSame('web', $record['service_name']);
+                self::assertSame('web', $record['app_target']);
+                self::assertTrue(LogRecordPolicy::isValidCanonicalRecord($record));
+            }
+            foreach ([0, 2] as $index) {
+                self::assertNull($records[$index]['correlation_id']);
+                self::assertNull($records[$index]['uow_id']);
+                self::assertNull($records[$index]['uow_type']);
+            }
+            self::assertSame(self::FIRST_CORRELATION, $records[1]['correlation_id']);
+            self::assertSame('request-001', $records[1]['uow_id']);
+            self::assertSame('http', $records[1]['uow_type']);
+            self::assertSame(self::NEXT_CORRELATION, $records[3]['correlation_id']);
+            self::assertSame('request-002', $records[3]['uow_id']);
+            self::assertSame('http', $records[3]['uow_type']);
+
+            foreach ([0, 1, 2, 3] as $index) {
+                self::assertSame('http.request.completed', $records[$index]['message']);
+                self::assertSame('GET', $records[$index]['context']['method']);
+                self::assertSame('unknown', $records[$index]['context']['route_template']);
+                self::assertSame(self::NEXT_CORRELATION, $records[$index]['context']['correlation_id']);
+            }
+            self::assertSame(200, $records[0]['context']['status']);
+            self::assertSame('success', $records[0]['context']['outcome']);
+            self::assertSame(7, $records[0]['context']['duration_ms']);
+            self::assertSame(503, $records[1]['context']['status']);
+            self::assertSame('handled_error', $records[1]['context']['outcome']);
+            self::assertSame(4_294_967_295, $records[1]['context']['duration_ms']);
+            self::assertSame('/users/{user_id}', $records[1]['context']['path_template']);
+            self::assertSame('unknown', $records[2]['context']['status']);
+            self::assertSame('fatal_error', $records[2]['context']['outcome']);
+            self::assertArrayNotHasKey('path_template', $records[2]['context']);
+            self::assertSame(399, $records[3]['context']['status']);
+            self::assertArrayNotHasKey('path_template', $records[3]['context']);
+            self::assertSame('ready', $records[4]['context']['status']);
+            self::assertSame('worker.iteration', $records[4]['message']);
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    public function testCanonicalHttpCompletionContextHasEquivalentJsonlAndLogfmtSemantics(): void
+    {
+        $directory = self::directory();
+        try {
+            $store = new ContextStore();
+            $store->set(ContextKeys::CORRELATION_ID, self::FIRST_CORRELATION);
+            $store->set(ContextKeys::UOW_ID, 'request-001');
+            $store->set(ContextKeys::UOW_TYPE, 'http');
+            $store->set(ContextKeys::PATH_TEMPLATE, '/users/{user_id}');
+            $correlations = new CorrelationIdProvider($store);
+            $context = [
+                'method' => 'PATCH',
+                'status' => 418,
+                'outcome' => 'handled_error',
+                'duration_ms' => 123,
+                'route_template' => 'unknown',
+                'correlation_id' => self::NEXT_CORRELATION,
+            ];
+
+            foreach ([new JsonLineFormatter(), new LogfmtLineFormatter()] as $formatter) {
+                self::logger($store, $correlations, self::redactor(), $directory, $formatter)->info(
+                    'http.request.completed',
+                    $context,
+                );
+            }
+
+            $jsonl = self::records($directory);
+            self::assertCount(1, $jsonl);
+            $expected = $jsonl[0]['context'];
+            self::assertSame(418, $expected['status']);
+            self::assertSame(123, $expected['duration_ms']);
+            self::assertSame('PATCH', $expected['method']);
+            self::assertSame('unknown', $expected['route_template']);
+            self::assertSame('/users/{user_id}', $expected['path_template']);
+            self::assertSame(self::NEXT_CORRELATION, $expected['correlation_id']);
+
+            $logfmt = \file_get_contents(self::file($directory, 'logfmt'));
+            self::assertIsString($logfmt);
+            self::assertSame(1, \substr_count($logfmt, "\n"));
+            self::assertSame(1, \substr_count($logfmt, ' context='));
+            self::assertStringContainsString('message="http.request.completed"', $logfmt);
+            self::assertStringContainsString('correlation_id="' . self::FIRST_CORRELATION . '"', $logfmt);
+            self::assertStringContainsString('uow_id="request-001"', $logfmt);
+            self::assertSame($expected, self::logfmtContext($logfmt));
+            self::assertStringNotContainsString('password', $logfmt);
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    public function testGenericLoggingSinkDoesNotDeriveHttpCompletionOutcomes(): void
+    {
+        $directory = self::directory();
+        try {
+            $store = new ContextStore();
+            $logger = self::logger($store, new CorrelationIdProvider($store), self::redactor(), $directory);
+            $logger->info('logging.operational_status', [
+                'method' => 'GET',
+                'status' => 500,
+                'outcome' => 'success',
+                'route_template' => 'unknown',
+            ]);
+            $logger->info('logging.operational_status', [
+                'method' => 'POST',
+                'status' => 200,
+                'outcome' => 'fatal_error',
+                'route_template' => 'unknown',
+            ]);
+
+            $logger->info('http.request.completed', [
+                'method' => 'GET',
+                'status' => 500,
+                'outcome' => 'success',
+                'duration_ms' => 4,
+                'route_template' => 'unknown',
+            ]);
+
+            $logger->info('http.request.completed', [
+                'method' => 'POST',
+                'status' => 200,
+                'outcome' => 'fatal_error',
+                'duration_ms' => 4,
+                'route_template' => 'unknown',
+            ]);
+
+            $logger->info('http.request.completed', [
+                'method' => 'OTHER',
+                'status' => 'ready',
+                'outcome' => 'success',
+                'duration_ms' => 4,
+                'route_template' => 'unknown',
+            ]);
+
+            $records = self::records($directory);
+            self::assertCount(5, $records);
+
+            self::assertSame(500, $records[0]['context']['status']);
+            self::assertSame('success', $records[0]['context']['outcome']);
+            self::assertSame(200, $records[1]['context']['status']);
+            self::assertSame('fatal_error', $records[1]['context']['outcome']);
+
+            self::assertSame('http.request.completed', $records[2]['message']);
+            self::assertSame(500, $records[2]['context']['status']);
+            self::assertSame('success', $records[2]['context']['outcome']);
+
+            self::assertSame('http.request.completed', $records[3]['message']);
+            self::assertSame(200, $records[3]['context']['status']);
+            self::assertSame('fatal_error', $records[3]['context']['outcome']);
+
+            self::assertSame('http.request.completed', $records[4]['message']);
+            self::assertSame('ready', $records[4]['context']['status']);
+            self::assertSame('success', $records[4]['context']['outcome']);
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    public function testCallerContextCardinalityAndEnrichmentHaveDistinctFailurePaths(): void
+    {
+        $directory = self::directory();
+        try {
+            $store = new ContextStore();
+            $redactor = self::redactor();
+            $logger = self::logger($store, new CorrelationIdProvider($store), $redactor, $directory);
+            $context = self::saturatedContext();
+            self::assertCount(48, $context);
+
+            $logger->info('logging.context_full', $context);
+            $logger->info('logging.caller_oversized', [...$context, 'unknown' => 'ignored']);
+            $records = self::records($directory);
+            self::assertCount(2, $records);
+            self::assertCount(48, $records[0]['context']);
+            self::assertNull($records[1]['context']);
+            self::assertSame(2, $redactor->calls);
+            $before = \file_get_contents(self::file($directory));
+
+            $store->set(ContextKeys::PATH_TEMPLATE, '/users/{user_id}');
+            $logger->info('logging.enrichment_oversized', $context);
+            self::assertSame(2, $redactor->calls);
+            self::assertSame($before, \file_get_contents(self::file($directory)));
+
+            $logger->info('logging.after_oversized', [
+                'method' => 'GET',
+                'status' => 200,
+                'route_template' => 'unknown',
+            ]);
+            $records = self::records($directory);
+            self::assertCount(3, $records);
+            self::assertSame(3, $redactor->calls);
+            self::assertSame('/users/{user_id}', $records[2]['context']['path_template']);
+            self::assertSame('unknown', $records[2]['context']['route_template']);
+            self::assertStringNotContainsString(
+                'logging.enrichment_oversized',
+                (string) \file_get_contents(self::file($directory)),
+            );
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    public function testRejectedCanonicalRecordsCannotReachTheFormatter(): void
+    {
+        $method = new \ReflectionMethod(StreamLogger::class, 'log');
+        $path = $method->getFileName();
+        self::assertIsString($path);
+        $lines = \file($path);
+        self::assertIsArray($lines);
+        $body = \implode(
+            '',
+            \array_slice(
+                $lines,
+                $method->getStartLine() - 1,
+                $method->getEndLine() - $method->getStartLine() + 1,
+            ),
+        );
+
+        $redaction = \strpos($body, '$redacted = $this->policy->redactRecord($record);');
+        $rejection = \strpos($body, 'if ($redacted === null) {');
+        $formatting = \strpos($body, '$serialized = $this->formatter->format($redacted);');
+        self::assertNotFalse($redaction);
+        self::assertNotFalse($rejection);
+        self::assertNotFalse($formatting);
+        self::assertTrue($redaction < $rejection && $rejection < $formatting);
+        self::assertSame(1, \substr_count($body, '$this->formatter->format('));
+    }
+
+    public function testHttpRejectedFieldsNeverReappearThroughRedactionOrFallback(): void
+    {
+        $directory = self::directory();
+        try {
+            $redactor = new class() implements SensitiveDataRedactorInterface {
+                public int $calls = 0;
+
+                public function redactValue(
+                    string $value,
+                    RedactionKind $kind,
+                    RedactionContext $context,
+                ): RedactedValue {
+                    throw new \LogicException('unused');
+                }
+
+                public function redactJsonLike(mixed $value, RedactionContext $context): mixed
+                {
+                    ++$this->calls;
+                    $value['context']['method'] = '/private/method';
+                    $value['context']['route_template'] = '/private/route';
+                    return $value;
+                }
+            };
+            foreach ([new JsonLineFormatter(), new LogfmtLineFormatter()] as $formatter) {
+                $store = new ContextStore();
+                $logger = self::logger($store, new CorrelationIdProvider($store), $redactor, $directory, $formatter);
+                $logger->info('http.request.completed', [
+                    'method' => 'get',
+                    'status' => 200,
+                    'outcome' => 'success',
+                    'duration_ms' => 4,
+                    'route_template' => '/unsafe/route',
+                ]);
+                $extension = $formatter instanceof JsonLineFormatter ? 'jsonl' : 'logfmt';
+                $bytes = \file_get_contents(self::file($directory, $extension));
+                self::assertIsString($bytes);
+                self::assertSame(1, \substr_count($bytes, "\n"));
+                self::assertStringNotContainsString('/unsafe/route', $bytes);
+                self::assertStringNotContainsString('/private/method', $bytes);
+                self::assertStringNotContainsString('/private/route', $bytes);
+                self::assertStringNotContainsString('"method"', $bytes);
+                self::assertStringNotContainsString('"route_template"', $bytes);
+            }
+            self::assertSame(2, $redactor->calls);
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    public function testMalformedRedactedHttpRecordAndRecordByteLimitFailClosed(): void
+    {
+        $directory = self::directory();
+        try {
+            $redactor = new class() implements SensitiveDataRedactorInterface {
+                public int $calls = 0;
+
+                public function redactValue(
+                    string $value,
+                    RedactionKind $kind,
+                    RedactionContext $context,
+                ): RedactedValue {
+                    throw new \LogicException('unused');
+                }
+
+                public function redactJsonLike(mixed $value, RedactionContext $context): mixed
+                {
+                    ++$this->calls;
+                    $value['context'] = 'private-invalid-container';
+                    return $value;
+                }
+            };
+            foreach ([new JsonLineFormatter(), new LogfmtLineFormatter()] as $formatter) {
+                $store = new ContextStore();
+                self::logger($store, new CorrelationIdProvider($store), $redactor, $directory, $formatter)->info(
+                    'http.request.completed',
+                    ['method' => 'GET', 'status' => 200, 'outcome' => 'success', 'route_template' => 'unknown'],
+                );
+            }
+            self::assertSame(2, $redactor->calls);
+            self::assertSame([], \glob($directory . '/*'));
+
+            $store = new ContextStore();
+            $sizeRedactor = self::redactor();
+            $logger = self::logger(
+                $store,
+                new CorrelationIdProvider($store),
+                $sizeRedactor,
+                $directory,
+                new JsonLineFormatter(),
+                1024,
+            );
+            $logger->info('logging.large_record', self::saturatedContext());
+            self::assertSame(1, $sizeRedactor->calls);
+            self::assertSame([], \glob($directory . '/*'));
+        } finally {
+            self::clean($directory);
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private static function saturatedContext(): array
+    {
+        $context = [
+            'operation' => 'boot',
+            'outcome' => 'success',
+            'event' => 'ready',
+            'reason' => 'available',
+            'driver' => 'process',
+            'control_transport' => 'stdio',
+            'presetName' => 'micro',
+            'preset' => 'micro',
+            'artifact_paths' => ['var/cache/app.php'],
+            'artifact_reasons' => ['app.php:ready'],
+            'bucket_names' => ['runtime'],
+            'directive_names' => ['modules'],
+            'moduleIds' => ['core.kernel'],
+            'source_kinds' => ['source'],
+            'source_layers' => ['core'],
+            'source_paths' => ['src/app.php'],
+            'source_types' => ['config'],
+            'method' => 'GET',
+            'status' => 200,
+            'route_template' => 'unknown',
+            'duration_ms' => 12,
+            'exit_code' => 0,
+            'pid' => 1,
+            'artifact_basename' => 'app.php',
+            'artifact_path' => 'var/cache/app.php',
+            'endpoint_hash' => \str_repeat('a', 64),
+        ];
+        foreach (
+            [
+                'artifact_count',
+                'bucket_count',
+                'byte_count',
+                'dirty_artifact_count',
+                'env_overlay_mapping_count',
+                'env_overlay_metadata_count',
+                'existing_artifact_count',
+                'expected_artifact_count',
+                'groups_count',
+                'invalid_artifact_count',
+                'missing_artifact_count',
+                'missing_source_candidate_count',
+                'ready_worker_count',
+                'ruleset_count',
+                'services_count',
+                'source_candidate_count',
+                'source_entry_count',
+                'unvalidated_root_count',
+                'validated_root_count',
+                'validation_subject_unvalidated_count',
+                'validation_subject_validated_count',
+                'worker_count',
+            ] as $field
+        ) {
+            $context[$field] = 1;
+        }
+        return $context;
+    }
+
+    /** @return array<string, mixed>|null */
+    private static function logfmtContext(string $line): ?array
+    {
+        $offset = \strrpos($line, ' context=');
+        self::assertNotFalse($offset);
+        $quoted = \substr($line, $offset + \strlen(' context='), -1);
+        if ($quoted === 'null') {
+            return null;
+        }
+        $json = \json_decode($quoted, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsString($json);
+        return \json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
     }
 
     private static function logger(
@@ -302,6 +752,8 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
         CorrelationIdProviderInterface $correlations,
         SensitiveDataRedactorInterface $redactor,
         string $directory,
+        JsonLineFormatter|LogfmtLineFormatter $formatter = new JsonLineFormatter(),
+        int $maxRecordBytes = 65536,
     ): StreamLogger {
         return new StreamLogger(
             new LogRecordPolicy(
@@ -314,7 +766,7 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
                 },
             ),
             new ContextBagProcessor($context, $correlations),
-            new JsonLineFormatter(),
+            $formatter,
             new class() implements ClockInterface {
                 public function now(): \DateTimeImmutable
                 {
@@ -322,7 +774,7 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
                 }
             },
             'debug',
-            65536,
+            $maxRecordBytes,
             'web',
             'web',
             'file',
@@ -357,9 +809,9 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
         return $directory;
     }
 
-    private static function file(string $directory): string
+    private static function file(string $directory, string $extension = 'jsonl'): string
     {
-        return $directory . \DIRECTORY_SEPARATOR . 'web-app-2026-10-31.jsonl';
+        return $directory . \DIRECTORY_SEPARATOR . 'web-app-2026-10-31.' . $extension;
     }
 
     /** @return list<array<string,mixed>> */
@@ -371,7 +823,7 @@ final class CorrelationIdIsAlwaysPresentInLogsTest extends TestCase
         $lines = \explode("\n", \substr($contents, 0, -1));
         return \array_map(
             static fn (string $line): array => \json_decode($line, true, 512, \JSON_THROW_ON_ERROR),
-            $lines
+            $lines,
         );
     }
 

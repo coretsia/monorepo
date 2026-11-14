@@ -57,7 +57,9 @@ final class BootExpressPresetTest extends TestCase
                     'core.kernel',
                     'platform.cli',
                     'platform.errors',
+                    'platform.http',
                     'platform.logging',
+                    'platform.problem-details',
                     'platform.redaction',
                 ],
                 \array_map(
@@ -69,17 +71,18 @@ final class BootExpressPresetTest extends TestCase
                 [
                     'core.foundation',
                     'core.kernel',
+                    'platform.http',
                     'platform.redaction',
                     'platform.errors',
                     'platform.cli',
                     'platform.logging',
+                    'platform.problem-details',
                 ],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),
                     $plan->topologicalOrder(),
                 ),
             );
-            self::assertNotContains('platform.http', $plan->toArray()['enabled']);
             foreach (['module-manifest.php', 'config.php', 'container.php', 'generation-manifest.php'] as $name) {
                 self::assertArrayHasKey($name, $result->artifactPaths());
                 self::assertFileExists($result->artifactPaths()[$name]);

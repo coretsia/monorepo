@@ -137,14 +137,14 @@ final class LogRecordPolicyTest extends TestCase
         [$policy] = self::fixture();
         self::assertSame(
             [
-            'control_transport' => 'stdio',
-            'driver' => 'process',
-            'endpoint_hash' => \str_repeat('a', 64),
-            'pid' => 3456,
-            'ready_worker_count' => 2,
-            'status' => 'ready',
-            'worker_count' => 4,
-        ],
+                'control_transport' => 'stdio',
+                'driver' => 'process',
+                'endpoint_hash' => \str_repeat('a', 64),
+                'pid' => 3456,
+                'ready_worker_count' => 2,
+                'status' => 'ready',
+                'worker_count' => 4,
+            ],
             $policy->admitContext([
                 'status' => 'ready',
                 'driver' => 'process',
@@ -153,10 +153,230 @@ final class LogRecordPolicyTest extends TestCase
                 'worker_count' => 4,
                 'ready_worker_count' => 2,
                 'endpoint_hash' => \str_repeat('a', 64),
-            ])
+            ]),
         );
         self::assertNull($policy->admitContext(['pid' => 0, 'endpoint_hash' => \str_repeat('g', 64)]));
         self::assertNull($policy->admitContext(['worker_count' => -1, 'exit_code' => 256]));
+    }
+
+    public function testHttpMethodAdmissionUsesOnlyCanonicalUppercaseValues(): void
+    {
+        [$policy] = self::fixture();
+        foreach (['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE', 'CONNECT', 'OTHER'] as $method) {
+            self::assertSame(['method' => $method], $policy->admitContext(['method' => $method]));
+            self::assertTrue(LogRecordPolicy::isValidCanonicalRecord(self::record([
+                'context' => ['method' => $method],
+            ])));
+        }
+
+        foreach (
+            [
+                'get',
+                'Get',
+                'BREW',
+                'OTHER ',
+                '',
+                'GET/POST',
+                "GET\n",
+                \str_repeat('G', 129),
+                200,
+                true,
+                1.0,
+                new \stdClass(),
+            ] as $method
+        ) {
+            self::assertNull($policy->admitContext(['method' => $method]));
+            self::assertFalse(LogRecordPolicy::isValidCanonicalRecord(self::record([
+                'context' => ['method' => $method],
+            ])));
+        }
+    }
+
+    public function testHttpStatusHasStrictIntegerAndUnchangedCategoryAdmission(): void
+    {
+        [$policy] = self::fixture();
+        foreach (
+            [100, 200, 399, 400, 599, 'ready', 'unknown', 'fatal_error', 'phase:ready', \str_repeat('a', 96)] as $status
+        ) {
+            self::assertSame(['status' => $status], $policy->admitContext(['status' => $status]));
+            self::assertTrue(LogRecordPolicy::isValidCanonicalRecord(self::record([
+                'context' => ['status' => $status],
+            ])));
+        }
+
+        foreach (
+            [
+                99,
+                600,
+                -1,
+                0,
+                200.0,
+                200.5,
+                true,
+                false,
+                null,
+                '100',
+                '200',
+                '599',
+                '2xx',
+                'Ready',
+                'a..b',
+                'a:',
+                \str_repeat('a', 97),
+                [],
+                new \stdClass(),
+            ] as $status
+        ) {
+            self::assertNull($policy->admitContext(['status' => $status]));
+            self::assertFalse(LogRecordPolicy::isValidCanonicalRecord(self::record([
+                'context' => ['status' => $status],
+            ])));
+        }
+
+        self::assertSame(['operation' => 'phase:ready', 'outcome' => 'fatal_error'], $policy->admitContext([
+            'operation' => 'phase:ready',
+            'outcome' => 'fatal_error',
+        ]));
+        self::assertSame(['outcome' => 'success'], $policy->admitContext([
+            'operation' => 'Ready',
+            'outcome' => 'success',
+        ]));
+
+        foreach ([[200, 'fatal_error'], [500, 'success'], ['unknown', 'handled_error']] as [$status, $outcome]) {
+            $context = ['status' => $status, 'outcome' => $outcome];
+            self::assertSame(['outcome' => $outcome, 'status' => $status], $policy->admitContext($context));
+            self::assertTrue(LogRecordPolicy::isValidCanonicalRecord(self::record(['context' => $context])));
+        }
+    }
+
+    public function testHttpRouteTemplateIsFixedAndIndependentOfPathTemplate(): void
+    {
+        [$policy] = self::fixture();
+        self::assertSame(['route_template' => 'unknown'], $policy->admitContext([
+            'route_template' => 'unknown',
+        ]));
+        foreach (['/', '/users/{id}', '/users/123', 'ready', 'Unknown', '', 0, true, [], new \stdClass()] as $route) {
+            self::assertNull($policy->admitContext(['route_template' => $route]));
+            self::assertFalse(LogRecordPolicy::isValidCanonicalRecord(self::record([
+                'context' => ['route_template' => $route],
+            ])));
+        }
+
+        foreach (['/', '/users/{user_id}', '/account/settings'] as $path) {
+            self::assertSame(['path_template' => $path], $policy->admitContext(['path_template' => $path]));
+        }
+        foreach (['/users/42', '../users', '/users/{bad-id}', \str_repeat('/a', 129)] as $path) {
+            self::assertNull($policy->admitContext(['path_template' => $path]));
+        }
+        self::assertSame(
+            ['path_template' => '/users/{user_id}', 'route_template' => 'unknown'],
+            $policy->admitContext(['route_template' => 'unknown', 'path_template' => '/users/{user_id}']),
+        );
+        self::assertSame(['path_template' => '/users/{user_id}'], $policy->admitContext([
+            'path_template' => '/users/{user_id}',
+        ]));
+    }
+
+    public function testHttpCompletionFieldsSurviveOneSharedRedactionWithoutTypeCoercion(): void
+    {
+        [$policy, $redactor] = self::fixture();
+        $context = [
+            'route_template' => 'unknown',
+            'duration_ms' => 4_294_967_295,
+            'outcome' => 'handled_error',
+            'status' => 503,
+            'method' => 'PATCH',
+            'correlation_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ];
+        $admitted = $policy->admitContext($context);
+        self::assertSame([
+            'correlation_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            'duration_ms' => 4_294_967_295,
+            'method' => 'PATCH',
+            'outcome' => 'handled_error',
+            'route_template' => 'unknown',
+            'status' => 503,
+        ], $admitted);
+        $input = self::record(['message' => 'http.request.completed', 'context' => $admitted]);
+        $redacted = $policy->redactRecord($input);
+        self::assertIsArray($redacted);
+        self::assertSame($input, $redacted);
+        self::assertSame(503, $redacted['context']['status']);
+        self::assertSame([$input], $redactor->inputs);
+        self::assertSame(1, $redactor->calls);
+    }
+
+    public function testHttpPostRedactionOmissionNeverRestoresCallerValues(): void
+    {
+        [$policy, $redactor] = self::fixture(transform: static function (array $record): array {
+            $record['context']['method'] = ['redacted' => true];
+            $record['context']['status'] = 600;
+            $record['context']['route_template'] = '/private/path';
+            return $record;
+        });
+        $record = self::record([
+            'context' => [
+                'method' => 'GET',
+                'status' => 200,
+                'outcome' => 'success',
+                'duration_ms' => 12,
+                'route_template' => 'unknown',
+            ],
+        ]);
+        $redacted = $policy->redactRecord($record);
+        self::assertIsArray($redacted);
+        self::assertSame(['duration_ms' => 12, 'outcome' => 'success'], $redacted['context']);
+        self::assertSame(1, $redactor->calls);
+        self::assertSame([$record], $redactor->inputs);
+    }
+
+    public function testPostRedactionOversizedContextIsOmittedButSensitivePathsStillReject(): void
+    {
+        $fields = self::validOversizedContext();
+        [$admissionPolicy] = self::fixture();
+        self::assertCount(49, $fields);
+        $valid48 = $admissionPolicy->admitContext(\array_slice($fields, 0, 48, true));
+        self::assertIsArray($valid48);
+        self::assertCount(48, $valid48);
+        [$policy, $redactor] = self::fixture(transform: static function (array $record) use ($fields): array {
+            $record['context'] = $fields;
+            return $record;
+        });
+        $result = $policy->redactRecord(self::record(['context' => ['status' => 200]]));
+        self::assertIsArray($result);
+        self::assertNull($result['context']);
+        self::assertSame(1, $redactor->calls);
+
+        [$sensitive, $sensitiveRedactor] = self::fixture(
+            transform: static function (array $record) use ($fields): array {
+                $record['context'] = \array_slice($fields, 0, 48, true);
+                $record['context']['key_paths'] = ['db.password'];
+                return $record;
+            },
+            classify: static fn (string $key): ?RedactionKind => $key === 'password' ? RedactionKind::Secret : null,
+        );
+        self::assertNull($sensitive->redactRecord(self::record(['context' => ['status' => 200]])));
+        self::assertSame(1, $sensitiveRedactor->calls);
+    }
+
+    public function testInvalidPreRedactionCanonicalHttpRecordDoesNotReachRedactor(): void
+    {
+        [$policy, $redactor] = self::fixture();
+        foreach (
+            [
+                self::record(['context' => ['method' => 'get']]),
+                self::record(['context' => ['status' => '200']]),
+                self::record(['context' => ['route_template' => '/users/{id}']]),
+                self::record(['context' => ['duration_ms' => 0.5]]),
+                self::record(['context' => ['unknown_field' => 'unsafe']]),
+                self::record(['service_name' => 'invalid.name']),
+                self::record(['context' => self::validOversizedContext()]),
+            ] as $record
+        ) {
+            self::assertFalse(LogRecordPolicy::isValidCanonicalRecord($record));
+            self::assertNull($policy->redactRecord($record));
+        }
+        self::assertSame(0, $redactor->calls);
     }
 
     public function testUnknownRawAndUnsupportedValuesAreOmittedWithoutEvaluatingObjects(): void
@@ -287,8 +507,8 @@ final class LogRecordPolicyTest extends TestCase
         [$policy] = self::fixture();
         self::assertSame(
             [
-            'key_paths' => ['db.rows[0].<column>', 'logging.driver', 'user.<name>', 'worker.output.format'],
-        ],
+                'key_paths' => ['db.rows[0].<column>', 'logging.driver', 'user.<name>', 'worker.output.format'],
+            ],
             $policy->admitContext([
                 'key_paths' => [
                     'worker.output.format',
@@ -297,7 +517,7 @@ final class LogRecordPolicyTest extends TestCase
                     'user.<name>',
                     'logging.driver',
                 ],
-            ])
+            ]),
         );
         foreach (
             [
@@ -391,6 +611,10 @@ final class LogRecordPolicyTest extends TestCase
                 'private-credential',
                 ['message' => 'partial'],
                 self::record(['message' => 'unsafe text']),
+                self::record(['context' => 'private-credential']),
+                self::record(['context' => 42]),
+                self::record(['context' => false]),
+                self::record(['context' => new \stdClass()]),
             ] as $unsafe
         ) {
             [$instance, $spy] = self::fixture(transform: static fn (): mixed => $unsafe);
@@ -422,6 +646,22 @@ final class LogRecordPolicyTest extends TestCase
         );
         self::assertNull($policy->redactRecord(self::record(['context' => ['key_paths' => ['db.table']]])));
         self::assertSame(1, $redactor->calls);
+    }
+
+    public function testMalformedPostRedactionKeyPathsRejectTheCompleteRecord(): void
+    {
+        foreach ([['db..broken'], ['db.table', 'db..broken'], ['db.table', 42], 'db.table'] as $keyPaths) {
+            [$policy, $redactor] = self::fixture(transform: static function (array $record) use ($keyPaths): array {
+                $record['context']['key_paths'] = $keyPaths;
+                return $record;
+            });
+
+            $record = self::record(['context' => ['status' => 200, 'key_paths' => ['db.table']]]);
+
+            self::assertTrue(LogRecordPolicy::isValidCanonicalRecord($record));
+            self::assertNull($policy->redactRecord($record));
+            self::assertSame(1, $redactor->calls);
+        }
     }
 
     public function testPostRedactionValidationRejectsInvalidServiceIdentity(): void
@@ -859,6 +1099,78 @@ PHP;
                 }
             },
         );
+    }
+
+    /** @return array<string, mixed> */
+    private static function validOversizedContext(): array
+    {
+        $context = [
+            'method' => 'GET',
+            'status' => 200,
+            'route_template' => 'unknown',
+            'duration_ms' => 7,
+            'exit_code' => 0,
+            'pid' => 1,
+            'app_target' => 'web',
+            'correlation_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            'uow_id' => 'uow-1',
+            'uow_type' => 'http',
+            'path_template' => '/users/{id}',
+            'code' => 'READY',
+            'artifact_basename' => 'app.php',
+            'artifact_path' => 'var/cache/app.php',
+            'endpoint_hash' => \str_repeat('a', 64),
+            'bucket_names' => ['runtime'],
+            'directive_names' => ['providers'],
+            'moduleIds' => ['core.kernel'],
+            'source_kinds' => ['source'],
+        ];
+
+        foreach (
+            [
+                'operation',
+                'outcome',
+                'event',
+                'reason',
+                'driver',
+                'control_transport',
+                'presetName',
+                'preset',
+            ] as $key
+        ) {
+            $context[$key] = 'ready';
+        }
+
+        foreach (
+            [
+                'artifact_count',
+                'bucket_count',
+                'byte_count',
+                'dirty_artifact_count',
+                'env_overlay_mapping_count',
+                'env_overlay_metadata_count',
+                'existing_artifact_count',
+                'expected_artifact_count',
+                'groups_count',
+                'invalid_artifact_count',
+                'missing_artifact_count',
+                'missing_source_candidate_count',
+                'ready_worker_count',
+                'ruleset_count',
+                'services_count',
+                'source_candidate_count',
+                'source_entry_count',
+                'unvalidated_root_count',
+                'validated_root_count',
+                'validation_subject_unvalidated_count',
+                'validation_subject_validated_count',
+                'worker_count',
+            ] as $key
+        ) {
+            $context[$key] = 1;
+        }
+
+        return $context;
     }
 
     /**

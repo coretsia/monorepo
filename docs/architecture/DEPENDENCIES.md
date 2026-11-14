@@ -183,6 +183,30 @@ and external requirements whose Composer package identity does not belong to ano
 
 Development and test dependencies MUST NOT be used to widen production package dependency permissions.
 
+#### 2.3.1. Platform HTTP PSR contracts and factory boundary (MUST)
+
+`platform/http` declares direct production Composer dependencies on the PSR-7, PSR-15, and PSR-17 interface packages:
+
+- `psr/http-message` — PSR-7;
+- `psr/http-server-middleware` and `psr/http-server-handler` — PSR-15;
+- `psr/http-factory` — PSR-17.
+
+These external interface dependencies do not introduce additional Coretsia package-level source permissions.
+
+Concrete PSR-7/17 implementation packages MUST NOT be mandatory production Composer dependencies of `platform/http`. Installation of a compatible concrete implementation belongs to the consuming application or distribution.
+
+`platform/http` owns deterministic declarative PSR-17 factory bindings through the target-local `http.factory` selector, with supported values `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`.
+
+For built-in selections, `platform/http` contributes `ResponseFactoryInterface` and `StreamFactoryInterface` definitions and aliases through the existing Foundation declarative DI model, using fixed package-owned implementation class-string mappings.
+
+These class strings are declarative service-definition descriptors. They MUST NOT introduce direct PHP source imports of concrete PSR-7/17 implementations, mandatory implementation-specific Composer dependencies, or exceptions to the canonical Coretsia package dependency matrix.
+
+When `http.factory=external`, `platform/http` MUST NOT contribute concrete factory definitions or aliases. The consuming application or distribution owns the effective PSR-17 interface bindings through canonical declarative DI.
+
+The canonical matrix remains the sole authority for direct Coretsia PHP source dependencies. PSR-17 factory selection and binding ownership MUST NOT authorize direct `platform/http` source dependencies on other `platform/*` packages.
+
+External Composer version constraints and HTTP service wiring semantics remain owned by their respective package manifests and HTTP contracts, not by this dependency matrix.
+
 ### 2.4. No dependency truth from filesystem proximity
 
 Filesystem placement does not create a dependency permission.
@@ -291,7 +315,7 @@ The canonical empty dependency marker is:
 ## 4) Canonical direct dependency matrix (MUST)
 
 | package_id                | depends_on                                   | notes |
-| ------------------------- | -------------------------------------------- | ----- |
+|---------------------------|----------------------------------------------|-------|
 | core/contracts            | —                                            |       |
 | core/dto-attribute        | —                                            |       |
 | core/foundation           | core/contracts                               |       |
@@ -299,6 +323,7 @@ The canonical empty dependency marker is:
 | devtools/internal-toolkit | —                                            |       |
 | platform/cli              | core/contracts, core/foundation, core/kernel |       |
 | platform/errors           | core/contracts, core/foundation              |       |
+| platform/http             | core/contracts, core/foundation, core/kernel |       |
 | platform/logging          | core/contracts, core/foundation              |       |
 | platform/metrics          | core/contracts, core/foundation              |       |
 | platform/problem-details  | core/contracts, core/foundation              |       |

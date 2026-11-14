@@ -144,6 +144,7 @@ PSR-3 level validation
 → current UoW correlation/context enrichment
 → ClockInterface UTC timestamp capture (nullable on failure)
 → assembly of all nine canonical root fields
+→ pre-redaction canonical record and sensitive key-path validation
 → one mandatory shared record redaction
 → complete post-redaction structural and sensitive-key admission
 → selected jsonl or logfmt serialization
@@ -208,17 +209,20 @@ The processor and logger do not own ContextStore, UoW snapshots, caches, or rese
 
 ## Context sink-field admission (MUST)
 
-`LogRecordPolicy` owns the single canonical context allowlist.
+`LogRecordPolicy` owns the single producer-neutral canonical context allowlist. Each field is admitted by its own name, exact type, grammar, and bounds, independently of the producer package, event identifier, and runtime mode. HTTP completion status/outcome consistency belongs to the producer, not the Logging sink.
 
 Every listed bound is measured using `strlen()` for strings and exact PHP types for numeric fields.
 
-No unlisted field, list, object, float, resource, `Throwable`, arbitrary nested map, or raw request value is permitted.
+No unlisted field, unsupported list, object, float, resource, `Throwable`, arbitrary nested map, or raw request value is permitted.
 
-Invalid branches are omitted; a wholly omitted context becomes `null`.
+During initial `admitContext()` admission, individual invalid caller fields are omitted; a wholly omitted context becomes `null`. A caller-supplied context containing more than 48 entries is omitted as a whole before enrichment, without necessarily suppressing the event. After `ContextBagProcessor` optionally enriches `context.path_template`, canonical validation rejects the entire assembled record if the context has more than 48 fields; no redaction, formatting, or alternate write is attempted. A redactor-produced context exceeding 48 fields is instead omitted as a whole during post-redaction admission, leaving `context=null` when the root fields remain valid and independent `key_paths` checks succeed.
 
 The exact allowed field families are:
 
-- Category strings: `operation`, `outcome`, `event`, `reason`, `status`, `driver`, `control_transport`, `presetName`, `preset`. Each is 1..96 bytes and matches `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`.
+- Category strings: `operation`, `outcome`, `event`, `reason`, `driver`, `control_transport`, `presetName`, `preset`. Each is 1..96 ASCII bytes and matches `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`.
+- `status`: either a strict PHP integer in `100..599`, or a 1..96 ASCII-byte category string matching `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z` (for example, `ready` or `unknown`). Numeric strings such as `"200"`, integers outside `100..599`, booleans, floats, and unsupported types are rejected without coercion.
+- `method`: exactly one of `GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE|CONNECT|OTHER`, with byte-for-byte uppercase matching; all other types and values are rejected.
+- `route_template`: exactly the string `unknown`; every other type or value, including a structural path template, is rejected.
 - `code`: 1..128 bytes, matching `\A[A-Za-z][A-Za-z0-9_:-]*\z`.
 - Non-negative count integers, each at most `1000000000`: `artifact_count`, `bucket_count`, `byte_count`, `dirty_artifact_count`, `env_overlay_mapping_count`, `env_overlay_metadata_count`, `existing_artifact_count`, `expected_artifact_count`, `groups_count`, `invalid_artifact_count`, `missing_artifact_count`, `missing_source_candidate_count`, `ready_worker_count`, `ruleset_count`, `services_count`, `source_candidate_count`, `source_entry_count`, `unvalidated_root_count`, `validated_root_count`, `validation_subject_unvalidated_count`, `validation_subject_validated_count`, `worker_count`.
 - `duration_ms`: integer `0..4294967295`; `exit_code`: integer `0..255`; `pid`: integer `1..2147483647`.
@@ -227,7 +231,9 @@ The exact allowed field families are:
 - `endpoint_hash`: exactly 64 lowercase hexadecimal characters; only an owner-approved safe derivation is admissible.
 - `app_target`: one of `web`, `api`, `console`, `worker`, when present as a *nested*, non-authoritative context field.
 - `correlation_id`, `uow_id`, `uow_type`: nested caller values using the same non-null validation as their respective root fields; their admission never overrides canonical root values.
-- `path_template`: `/` or a structural route template of at most 256 bytes with static lowercase path components (`[a-z_-][a-z0-9_-]*`) or named `{placeholder}` components (`[A-Za-z_][A-Za-z0-9_]*`); never a raw request path or route parameter value.
+- `path_template`: `/` or a structural route template of at most 256 bytes with static lowercase path components (`[a-z_-][a-z0-9_-]*`) or named `{placeholder}` components (`[A-Za-z_][A-Za-z0-9_]*`); never a raw request path or route parameter value. It is independent of `route_template` and MAY be enriched from the existing `ContextKeys::PATH_TEMPLATE` through `ContextBagProcessor` and `ContextAccessorInterface`.
+
+The HTTP completion producer `HttpAccessLogWriter` emits `http.request.completed` through `Psr\Log\LoggerInterface`, supplying bounded `method`, `status`, `outcome`, `duration_ms`, `route_template='unknown'`, and an optional structurally valid nested `correlation_id`. For a finalized response, the producer selects `outcome=success` with an integer status below `400`, or `outcome=handled_error` for integer statuses `400..599`. When no finalized response exists, it supplies `status=unknown` and `outcome=fatal_error`. These relationships are producer obligations: `LogRecordPolicy` validates `status`, `outcome`, and the other fields independently, even when a syntactically valid combination is inconsistent with HTTP completion semantics. Neither the sink nor `ContextBagProcessor` derives `route_template` from `path_template` or from requests.
 
 The following are the *only* admitted flat list fields.
 
@@ -266,7 +272,7 @@ The same instance-bound checks apply to canonical pre-redaction records and post
 
 The Logging sink consumes the shared sensitive-key classifier through its contracts-level interface. It does not duplicate the shared classifier vocabulary or implement producer-specific sensitive-data filters.
 
-An unclassified result (`null`) does not bypass the sink's own lexical, shape, and type validation.
+An unclassified result (`null`) does not bypass the sink's own lexical, shape, and type validation. A syntactically admitted string does not prove its provenance: each producer MUST prevent raw URI paths, route values/parameters, queries, headers, cookies, bodies, credentials, tokens, personal data, exception text, or unchecked ContextStore values from being supplied as operational fields.
 
 The sink is producer-neutral: its allowlist does not branch on source package, runtime lifecycle phase, command name, event name, or business identity.
 
@@ -278,17 +284,13 @@ New producers SHOULD reuse existing field families; extending the sink schema re
 
 Redaction of the *complete assembled canonical record* is mandatory through `SensitiveDataRedactorInterface::redactJsonLike()` and immutable `RedactionContext('logging.record', RedactionMode::Placeholder)`; no config flag, mode switch, new generic classifier, or duplicate redaction walker may disable or replace it.
 
-Initial admission rejects unknown or unsafe field shapes and classified key paths before redaction.
+Initial admission omits unknown or invalid caller field shapes and classified `key_paths` branches. Pre-redaction validation rejects malformed assembled root fields, invalid remaining canonical context values, oversized enriched context, and invalid or classified `key_paths` before invoking the redactor.
 
-The complete assembled record includes `ts_utc`, `level`, `message`, `service_name`, `app_target`, current UoW identifiers, and admitted context before it reaches the redactor.
+The complete assembled record includes `ts_utc`, `level`, `message`, `service_name`, `app_target`, current UoW identifiers, and admitted context. Each complete canonical record passing structural and instance-bound sensitive-key checks reaches `redactJsonLike()` exactly once.
 
-The post-redaction record is validated again for exact root fields, allowed values, and sensitive key paths.
+After redaction, the result MUST retain the exact nine root fields and valid root values. Ordinary context fields no longer satisfying sink admission are omitted individually without restoring their original unredacted values or coercing types. A non-null context container other than an array, invalid root, sensitive/invalid post-redaction `key_paths`, classifier failure, or redaction exception rejects the *entire* emission. A context of more than 48 redactor-produced fields becomes `null` as a whole only after independent `key_paths` checks; otherwise valid roots remain eligible for emission.
 
-Invalid root fields, unexpected redactor result types, classifier failures, and redaction exceptions discard the *entire* emission.
-
-An invalid redacted context branch can be omitted, but raw original values may never be restored.
-
-There is no second redaction attempt or fallback sink.
+No failed redaction is retried; no rejected data is serialized through a secondary, partial, or raw fallback sink.
 
 The following raw categories MUST NOT enter emitted records: Authorization, Cookie and Set-Cookie values, session identifiers, credentials, tokens, arbitrary headers, query strings, request/response bodies, provider payloads, raw SQL, environment/config secrets or references, absolute local paths, raw request path, host, user-agent, client IP, customer email/phone/username/name/PII, arbitrary exception messages, traces, previous Throwables, and arbitrary runtime objects.
 
@@ -298,9 +300,9 @@ A string looking like an approved category does not prove that its original prod
 
 ## Deterministic serialization (MUST)
 
-Both formatters receive the same final admitted, redacted canonical nine-field map and call `LogRecordPolicy::isValidCanonicalRecord()` for structural validation.
+Both formatters receive the same final admitted, redacted canonical nine-field map and call `LogRecordPolicy::isValidCanonicalRecord()` for structural validation, without formatter-specific status handling, value coercion, or additional admission rules.
 
-This static check is defense in depth, not a replacement for instance-bound classification/redaction in `StreamLogger`.
+This static check is defense in depth, not a replacement for instance-bound classification/redaction in `StreamLogger`. Both formats preserve the exact integer and string types of final post-redaction admitted context values: JSONL carries native JSON numbers and strings, while logfmt contains those same JSON types inside its escaped, quoted `context` JSON value.
 
 - `jsonl` uses `Coretsia\Foundation\Serialization\StableJsonEncoder::encodeStableMap()` for deterministic recursive map ordering, preserved list order, JSON object framing, and the single final LF. Null context becomes JSON `null`; non-empty context becomes a JSON object.
 - `logfmt` emits a single space-separated line of canonical `key=value` fields in exactly this order: `ts_utc`, `level`, `message`, `service_name`, `app_target`, `correlation_id`, `uow_id`, `uow_type`, `context`. All non-null strings are double quoted with deterministic escaping of backslash, quote, LF, CR, tab, and other control bytes. Nullable fields are the unquoted token `null`; a string with contents `null` is still quoted.

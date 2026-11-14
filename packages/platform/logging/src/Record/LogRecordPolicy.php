@@ -77,7 +77,6 @@ final readonly class LogRecordPolicy
         'outcome' => true,
         'event' => true,
         'reason' => true,
-        'status' => true,
         'driver' => true,
         'control_transport' => true,
         'presetName' => true,
@@ -319,6 +318,11 @@ final readonly class LogRecordPolicy
 
     private static function isAdmittedValue(string $key, mixed $value): bool
     {
+        if ($key === 'status') {
+            return (\is_int($value) && $value >= 100 && $value <= 599)
+                || self::isCategory($value);
+        }
+
         if (isset(self::CATEGORY_FIELDS[$key])) {
             return self::isCategory($value);
         }
@@ -344,6 +348,19 @@ final readonly class LogRecordPolicy
             'uow_id' => self::isNullableUowId($value) && $value !== null,
             'uow_type' => self::isNullableUowType($value) && $value !== null,
             'path_template' => self::isRouteTemplate($value),
+            'method' => \is_string($value) && \in_array($value, [
+                'GET',
+                'HEAD',
+                'POST',
+                'PUT',
+                'PATCH',
+                'DELETE',
+                'OPTIONS',
+                'TRACE',
+                'CONNECT',
+                'OTHER',
+            ], true),
+            'route_template' => $value === 'unknown',
             default => false,
         };
     }

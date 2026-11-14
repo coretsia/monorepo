@@ -220,7 +220,7 @@ function coretsia_cross_cutting_contract_gate_extract_string_constants(string $p
 
         foreach (
             coretsia_cross_cutting_contract_gate_extract_string_constants_from_declaration(
-                $declarationTokens
+                $declarationTokens,
             ) as $name => $value
         ) {
             $constants[$name] = $value;
@@ -1121,6 +1121,146 @@ function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_con
         return true;
     }
 
+    if (\str_ends_with($path, '/packages/platform/http/src/Provider/HttpServiceProvider.php')) {
+        return coretsia_cross_cutting_contract_gate_is_http_provider_context_store_di_reference($tokens, $tokenIndex);
+    }
+
+    if (\str_ends_with($path, '/packages/platform/http/src/Middleware/RequestContextMiddleware.php')) {
+        return coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency($tokens, $tokenIndex);
+    }
+
+    return false;
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_is_http_provider_context_store_di_reference(
+    array $tokens,
+    int $tokenIndex,
+): bool {
+    if (!coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex)) {
+        return false;
+    }
+
+    $scopeIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $tokenIndex + 1);
+    if ($scopeIndex === null) {
+        return false;
+    }
+
+    $classIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $scopeIndex + 1);
+    if ($classIndex === null) {
+        return false;
+    }
+
+    $closeIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $classIndex + 1);
+    if ($closeIndex === null || $tokens[$closeIndex] !== ')') {
+        return false;
+    }
+
+    $openIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $tokenIndex - 1);
+    if ($openIndex === null || $tokens[$openIndex] !== '(') {
+        return false;
+    }
+
+    $methodIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $openIndex - 1);
+    if ($methodIndex === null) {
+        return false;
+    }
+
+    $method = $tokens[$methodIndex];
+    if (!\is_array($method) || $method[0] !== T_STRING) {
+        return false;
+    }
+
+    $operatorIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $methodIndex - 1);
+    if ($operatorIndex === null) {
+        return false;
+    }
+
+    $operator = $tokens[$operatorIndex];
+
+    if ($method[1] === 'ref') {
+        if (!\is_array($operator) || $operator[0] !== T_DOUBLE_COLON) {
+            return false;
+        }
+
+        $receiverIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index(
+            $tokens,
+            $operatorIndex - 1,
+        );
+        $receiver = $receiverIndex === null ? null : $tokens[$receiverIndex];
+
+        return \is_array($receiver) && $receiver[0] === T_STRING && \strtolower($receiver[1]) === 'self';
+    }
+
+    if ($method[1] !== 'requireService' || !\is_array($operator) || $operator[0] !== T_OBJECT_OPERATOR) {
+        return false;
+    }
+
+    // A chained requireService() call must originate from the canonical $definitions builder.
+    for ($i = $operatorIndex - 1; $i >= 0; $i--) {
+        if ($tokens[$i] !== ';' && $tokens[$i] !== '{' && $tokens[$i] !== '}') {
+            continue;
+        }
+
+        $startIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $i + 1);
+        $start = $startIndex === null ? null : $tokens[$startIndex];
+
+        return \is_array($start) && $start[0] === T_VARIABLE && $start[1] === '$definitions';
+    }
+
+    return false;
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency(
+    array $tokens,
+    int $tokenIndex,
+): bool {
+    if (coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $tokenIndex - 1) !== T_PRIVATE) {
+        return false;
+    }
+
+    $variableIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $tokenIndex + 1);
+    if ($variableIndex === null) {
+        return false;
+    }
+
+    $variable = $tokens[$variableIndex];
+    if (!\is_array($variable) || $variable[0] !== T_VARIABLE || $variable[1] !== '$context') {
+        return false;
+    }
+
+    $afterIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $variableIndex + 1);
+    if ($afterIndex === null || ($tokens[$afterIndex] !== ',' && $tokens[$afterIndex] !== ')')) {
+        return false;
+    }
+
+    for ($i = $tokenIndex - 1; $i >= 0; $i--) {
+        if ($tokens[$i] === '{' || $tokens[$i] === '}' || $tokens[$i] === ';') {
+            return false;
+        }
+
+        if ($tokens[$i] !== '(') {
+            continue;
+        }
+
+        $nameIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $i - 1);
+        if ($nameIndex === null) {
+            return false;
+        }
+
+        $name = $tokens[$nameIndex];
+        if (!\is_array($name) || $name[0] !== T_STRING || $name[1] !== '__construct') {
+            return false;
+        }
+
+        return coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $nameIndex - 1) === T_FUNCTION;
+    }
+
     return false;
 }
 
@@ -1200,7 +1340,7 @@ function coretsia_cross_cutting_contract_gate_parse_php_context(string $source):
 
             foreach (
                 coretsia_cross_cutting_contract_gate_extract_imports_from_use_statement(
-                    $useStatement
+                    $useStatement,
                 ) as $alias => $fqcn
             ) {
                 $imports[$alias] = $fqcn;
@@ -1432,6 +1572,24 @@ function coretsia_cross_cutting_contract_gate_next_meaningful_token_index(array 
 
 /**
  * @param list<array{0:int, 1:string, 2:int}|string> $tokens
+ */
+function coretsia_cross_cutting_contract_gate_previous_meaningful_token_index(array $tokens, int $start): ?int
+{
+    for ($i = $start; $i >= 0; $i--) {
+        $token = $tokens[$i];
+
+        if (!\is_array(
+            $token,
+        ) || ($token[0] !== T_WHITESPACE && $token[0] !== T_COMMENT && $token[0] !== T_DOC_COMMENT)) {
+            return $i;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param list<array{0:int, 1:string, 2:int}|string> $tokens
  *
  * @return int|string|null
  */
@@ -1565,7 +1723,7 @@ function coretsia_cross_cutting_contract_gate_extract_foundation_reset_tag_from_
         ) === 1
     ) {
         return coretsia_cross_cutting_contract_gate_decode_php_string_literal(
-            $tagMatch[2] . $tagMatch[3] . $tagMatch[2]
+            $tagMatch[2] . $tagMatch[3] . $tagMatch[2],
         );
     }
 

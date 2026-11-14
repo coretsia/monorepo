@@ -604,19 +604,6 @@ Runtime package source MUST use `ReservedTags::*` for these identifiers.
 
 These names are TagRegistry tag names.
 
-The config namespace:
-
-```text
-http.middleware.auto
-http.middleware.auto.*
-```
-
-is not a tag namespace.
-
-`http.middleware.auto` and `http.middleware.auto.*` MUST NOT be used as TagRegistry tag names.
-
-Rationale: the `http.middleware.auto.*` namespace is a configuration-key namespace under the `http.*` config subtree. It must not collide with the `http.middleware.*` tag namespace.
-
 ## Examples
 
 ### Example A: valid HTTP request UoW

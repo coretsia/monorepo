@@ -2037,10 +2037,11 @@ Forbidden direct source dependencies:
   - N/A (used implicitly by commands elsewhere)
 - HTTP:
   - `platform/http` MAY consume the PSR-3 LoggerInterface binding.
-  - Canonical future owner:
-    - `\Coretsia\Platform\Http\Middleware\AccessLogMiddleware::class`
-    - slot: `http.middleware.system_pre`
-    - priority: `910`
+  - Canonical HTTP access-log integration:
+    - `\Coretsia\Platform\Http\Observability\HttpAccessLogWriter::class`
+    - invoked by `HttpKernel` after the final HTTP response is known
+    - consumes the existing PSR-3 LoggerInterface binding
+    - does not participate in HTTP middleware slots
   - middleware ownership, tags, request classification, and safe access-log fields remain platform/http responsibilities.
   - this epic MUST NOT introduce, register, instantiate, or test HTTP middleware implementations.
 - Kernel hooks/tags:
@@ -6952,38 +6953,50 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "HTTP runtime збирає deterministic middleware stack без skeleton defaults і стабільно обробляє базові системні маршрути Phase 0."
+goal: "HTTP runtime забезпечує PSR-15 pipeline, deterministic middleware stack, Kernel-owned UnitOfWork lifecycle, declarative DI wiring і безпечний terminal fallback без skeleton defaults; concrete system endpoints належать epic 3.110.0."
 provides:
-- "Inbound HTTP runtime: PSR-7/15 pipeline + deterministic stack builder + terminal handler (Phase 0 pre-routing)"
+- "Inbound HTTP runtime: PSR-7/15 pipeline + deterministic stack builder + terminal handler (pre-routing)"
 - "UoW envelope: кожен request обгорнутий KernelRuntimeInterface begin/after + reset discipline"
 - "SSoT модель middleware wiring через DI tags + optional manual overrides (no skeleton defaults)"
-- "Baseline system middlewares (correlation/trace/metrics/access log + safety hardening toggles)"
+- "HttpKernel owns HTTP request lifecycle and finalization orchestration; dedicated stateless HTTP services implement response correlation headers, request metrics, access logging, and span lifecycle through existing Foundation ports."
+- "PSR-15 middleware owns inbound trace-context propagation and request safety; final-response observability remains outside the middleware pipeline."
 - "Cutline impact: blocks Phase 3 platform/runtime cutline"
-- "Kernel/platform HTTP compatibility boundary finalized: remove the temporary direct `platform.http` module-id knowledge from RuntimeDriverGuard."
-- "Introduce and declare the canonical HTTP runtime provider contract used by RuntimeEntrypointGuard."
+- "HTTP-owned runtime entrypoint compatibility guard reuses Kernel RuntimeDriverResolver without modifying Kernel driver matrix or introducing a second runtime capability registry."
+- "PSR-15 middleware response-decorator ordering preserves applicable post-slot execution for early short-circuit responses."
+- "Terminal fallback provides a safe pre-routing boundary; system endpoint behavior remains deferred to epic 3.110.0."
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-http-runtime-pipeline-wiring.md"
+adr: "docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md"
 ssot_refs:
 - "docs/ssot/http-middleware-wiring.md"
 - "docs/ssot/http-middleware-catalog.md"
 ---
-
-- [ ] update `3.50.0 Platform HTTP runtime` to consume `SensitiveDataRedactorInterface` for request/response diagnostic summaries and to forbid raw headers, cookies, body, query payloads, and authorization values.
-- [ ] update `3.50.0 Platform HTTP runtime` to contribute a safe `ExceptionMapperInterface` for its BadJson, BodyTooLarge, and TrustedHostRejected exceptions through the shared `error.mapper` tag with empty `[]` metadata, leaving HTTP rendering to `platform/problem-details`.
-- [ ] update `3.50.0 Platform HTTP runtime` to verify the deferred Epic 3.40.0 integration against the real PSR-15 pipeline, including explicit platform.problem-details module selection, PSR response/stream factory bindings, outermost priority-1000 middleware ordering, source/compiled parity, safe error responses, and primary Throwable precedence.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - 3.10.0 — canonical platform/errors and shared `error.mapper` registry exist.
+  - 3.40.0 — platform/problem-details is available for deferred real-pipeline integration verification.
+  - Existing KernelRuntimeInterface, ModulePlan, RuntimeDriverResolver, Foundation declarative DI, TagRegistry, ContextStore, Stopwatch, and noop observability implementations are required.
 
 - Required deliverables (exact paths):
-  - N/A
+  - `packages/core/contracts/src/Runtime/KernelRuntimeInterface.php`
+  - `packages/core/kernel/src/Module/ModulePlan.php`
+  - `packages/core/kernel/src/Runtime/Driver/RuntimeDriverResolver.php`
+  - `packages/core/kernel/src/Runtime/Driver/RuntimeDriverContributions.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/core/foundation/src/Tag/TagRegistry.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Time/Stopwatch.php`
+  - `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
+  - `tools/build/new-package.php`
+  - `tools/build/package_index.php`
+  - `tools/build/installation_catalog.php`
+  - `tools/build/deptrac_generate.php`
 
 - Required config roots/keys:
   - `http.*` — config root used by runtime + middleware toggles
@@ -7009,22 +7022,28 @@ ssot_refs:
 
 - Required contracts / ports:
   - `Coretsia\Contracts\Runtime\KernelRuntimeInterface` — UoW hooks
+  - `Coretsia\Contracts\Runtime\UnitOfWorkHandle` — canonical opaque low-level lifecycle handle
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — config source
   - `Coretsia\Contracts\Observability\CorrelationIdProviderInterface` — correlation id provider
   - `Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Tracing\SpanInterface` — request-local span handle returned by the existing tracing port
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-  - `Psr\Log\LoggerInterface` — optional access logging only (noop-safe / nullable wiring allowed)
+  - `Psr\Log\LoggerInterface` — canonical required DI binding with Foundation noop fallback; HTTP access-log emission is controlled by `http.access_log.enabled`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Http\Server\MiddlewareInterface`
   - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
+  - `Psr\Container\ContainerInterface` — canonical service-id resolution for middleware stack assembly
 
-- Existing temporary Kernel compatibility check:
-  - `RuntimeDriverGuard` currently checks enabled module id `platform.http`.
-  - The check MUST remain active until this epic supplies and wires its replacement.
+- Existing Kernel runtime-driver boundary:
+  - `RuntimeDriverResolver` owns only Kernel HTTP driver selection and canonical driver matrix validation.
+  - `RuntimeDriverContributions` contains already-selected driver values, without package/module availability information.
+  - `RuntimeDriverGuard`, generic `RuntimeEntrypointGuard`, and `RuntimeCapability::HTTP` do not exist in the current baseline.
+  - HTTP module participation and entrypoint readiness MUST be verified by a `platform/http`-owned guard using the existing `ModulePlan` and `RuntimeDriverResolver`.
+  - This epic MUST NOT introduce another Kernel runtime-driver guard, capability registry, or provider-discovery mechanism.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -7032,6 +7051,22 @@ Depends on:
 - `core/contracts`
 - `core/foundation`
 - `core/kernel`
+
+- The `core/kernel` dependency is used only for existing runtime-driver matrix validation and the owner-local entrypoint guard; UnitOfWork orchestration is consumed through the contracts-level `KernelRuntimeInterface`.
+- PSR-7/15/17 interfaces MUST be declared as direct Composer dependencies.
+- `platform/http` MUST declare PSR-7/15/17 interfaces as direct Composer dependencies without requiring any concrete PSR-7/17 implementation.
+- The consuming HTTP application or distribution MUST install a compatible PSR-7/17 implementation through Composer; platform/http MUST NOT install Composer packages during bootstrap or container compilation.
+- `http.factory` is the canonical explicit PSR-17 implementation selector with allowed values `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`; default is `external`.
+- For the four built-in selections, platform/http MUST contribute deterministic `ResponseFactoryInterface` and `StreamFactoryInterface` definitions through its existing ContainerDefinitionProviderInterface using fixed, package-owned class-string mappings.
+- `external` MUST contribute no concrete factory definitions or aliases; both required PSR-17 interfaces MUST be supplied by the consuming application or distribution through canonical declarative DI.
+- Both factory interfaces MAY resolve to one shared implementation or separate compatible implementations according to the selected provider's factory classes.
+- Only the explicitly configured implementation MUST participate in HTTP factory wiring, independently of other installed compatible packages.
+- Missing selected implementations, invalid effective PSR-17 factory contracts, missing external bindings, and effective factory identities inconsistent with an explicit built-in `http.factory` selection MUST fail deterministically before HTTP request execution.
+- No Composer discovery, vendor scanning, arbitrary configured class names, `auto` selection, reflection-based fallback construction, or second DI container is permitted.
+- Kernel MUST remain independent of concrete PSR-7/17 package selection and factory wiring.
+- `platform/http` MUST NOT import concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, or `platform/metrics` implementations.
+- HTTP exception mapping MAY contribute `ExceptionMapperInterface` through the existing `error.mapper` tag without depending on concrete `platform/errors` classes.
+- HTTP diagnostics MUST be safe by construction. Existing PSR-3 Logging owns mandatory shared redaction of emitted records; `platform/http` MUST NOT instantiate a second redactor or introduce a mandatory `platform.redaction` module dependency.
 
 Forbidden:
 - `platform/problem-details`
@@ -7068,45 +7103,63 @@ Forbidden:
   - `Coretsia\Foundation\Context\ContextStore`
   - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Tag\TagRegistry`
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
 #### Epic 3.40.0 integration handoff (MUST)
 
-- [ ] Provide a compatible PSR-15 HTTP runtime with concrete ResponseFactoryInterface and StreamFactoryInterface service bindings.
-- [ ] Explicit selection of platform.problem-details in a compatible HTTP target MUST activate HttpErrorHandlingMiddleware through ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000 with metadata [].
-- [ ] The selected middleware MUST execute as the outermost error boundary within the canonical HTTP middleware pipeline.
-- [ ] Package installation alone MUST NOT activate platform.problem-details or contribute its middleware to an unselected target.
-- [ ] Source and compiled target containers MUST preserve equivalent middleware service definitions, factory bindings, tag registration, and effective ordering.
-- [ ] Real pipeline integration MUST verify one canonical ErrorHandlerInterface::handle() invocation per captured downstream Throwable.
-- [ ] Generated Problem Details responses MUST preserve status/body parity, application/problem+json Content-Type, Cache-Control: no-store, and the fixed safe public schema.
-- [ ] Handler, adapter, or renderer failures MUST preserve the fixed emergency HTTP 500 fallback without recursive normalization or reporting.
-- [ ] Failed PSR response or stream construction MUST preserve the original downstream Throwable instead of reporting successful error handling.
-- [ ] Successful downstream responses MUST pass through without Problem Details adaptation.
-- [ ] No raw Throwable details, descriptor messages, request payloads, headers, cookies, authorization values, or private runtime context may enter public Problem Details responses.
-- [ ] platform/http MUST NOT depend directly on platform/problem-details, construct an alternative ErrorHandlerInterface implementation, or introduce a second exception normalization, redaction, or rendering owner.
+- [x] Provide a compatible PSR-15 HTTP runtime that consumes canonical `ResponseFactoryInterface` and `StreamFactoryInterface` bindings generated from explicit `http.factory` selection or supplied externally when `http.factory=external`.
+- [x] Built-in selections MUST use fixed declarative factory class-string mappings without mandatory concrete Composer dependencies, runtime auto-discovery, or fallback implementations.
+- [x] Selected HTTP targets MUST fail deterministically before request execution when the chosen implementation is unavailable, incompatible, missing required bindings, or differs from the final effective PSR-17 bindings required by the configured built-in selection.
+- [x] Explicit selection of platform.problem-details in a compatible HTTP target MUST activate HttpErrorHandlingMiddleware through ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE at priority 1000 with metadata [].
+- [x] The selected middleware MUST execute as the outermost error boundary within the canonical HTTP middleware pipeline.
+- [x] Priority `1000` is a reserved system-pre error-boundary position; other HTTP middleware registrations MUST NOT displace or duplicate it.
+- [x] The HTTP stack builder MUST recognize this position through the existing tag priority and service identity, without importing `platform/problem-details` implementation classes.
+- [x] Post-decorator middleware MUST preserve ordinary returned short-circuit responses; exceptions converted by the outermost error boundary are a distinct completion path.
+- [x] The HTTP adapter MUST preserve the configured canonical correlation response header on successfully constructed Problem Details responses.
+- [x] Tests MUST separately distinguish normal HTTP status-based `handled_error` outcomes from uncaught Throwable-based `fatal_error` outcomes.
+- [x] Package installation alone MUST NOT activate platform.problem-details or contribute its middleware to an unselected target.
+- [x] Source and compiled target containers MUST preserve equivalent middleware service definitions, factory bindings, tag registration, and effective ordering.
+- [x] Real pipeline integration MUST verify one canonical ErrorHandlerInterface::handle() invocation per captured downstream Throwable.
+- [x] Generated Problem Details responses MUST preserve status/body parity, application/problem+json Content-Type, Cache-Control: no-store, and the fixed safe public schema.
+- [x] Handler, adapter, or renderer failures MUST preserve the fixed emergency HTTP 500 fallback without recursive normalization or reporting.
+- [x] Failed PSR response or stream construction MUST preserve the original downstream Throwable instead of reporting successful error handling.
+- [x] Successful downstream responses MUST pass through without Problem Details adaptation.
+- [x] No raw Throwable details, descriptor messages, request payloads, headers, cookies, authorization values, or private runtime context may enter public Problem Details responses.
+- [x] platform/http MUST NOT depend directly on platform/problem-details, construct an alternative ErrorHandlerInterface implementation, or introduce a second exception normalization, redaction, or rendering owner.
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A (maintenance commands are owned by epic 3.80.0; not part of this epic)
 - HTTP:
-  - terminal routes (owner = FallbackRouter 3.110.0):
-    - `/`, `/ping`, `/_alive`, `/error`, reserved `/health*`, `/metrics`
-  - middleware tags/slots/priorities (default auto wiring):
+  - [x] request body boundary — HTTP runtime contract implemented and verified; consuming SAPI entrypoint integration delegated to epics 3.143.0 and 3.145.0:
+    - [x] consuming HTTP entrypoints MUST provide complete unread non-seekable PSR-7 request body streams; implementation delegated to the consumer-owned transport boundary in 3.143.0 and real HTTP bootstrap in 3.145.0
+    - [x] platform/http MUST NOT attempt to recover bytes consumed before the request entered the HTTP runtime
+    - [x] seekable request bodies MAY have a nonzero initial cursor because HTTP body verification owns rewind and cursor restoration
+    - [x] transport-specific stream construction and request-from-globals behavior remain outside platform/http
+  - [x] runtime readiness — `HttpRuntimeEntrypointGuard` implemented and integration-tested; production entrypoint invocation delegated to epic 3.145.0 through the shared HTTP bootstrap boundary defined by 3.143.0:
+    - [x] the owning HTTP entrypoint MUST invoke HttpRuntimeEntrypointGuard after canonical container composition but before resolving HttpKernelInterface or constructing the executable HTTP middleware pipeline; production integration delegated to 3.145.0
+    - [x] readiness validation MAY resolve the required PSR-17 factory services through the existing canonical container without starting an HTTP UnitOfWork
+    - [x] failed readiness MUST prevent HTTP runtime construction and request execution without attempting fallback factory selection; production enforcement delegated to 3.145.0
+    - [x] pass the selected target's ModulePlan, canonical ConfigRepositoryInterface, effective PSR-17 bindings through the canonical container, and explicit owner-supplied RuntimeDriverContributions; production handoff delegated to 3.145.0
+    - [x] a successful HTTP module selection or Kernel driver matrix check alone MUST NOT imply that PSR-17 factories or transport adapters are executable
+    - [x] the 3.50.0 integration harness MUST exercise this readiness boundary without introducing a production SAPI front controller
+    - [x] concrete SAPI and transport-specific readiness integration remains owned by epics 3.143.0 and 3.145.0
+  - terminal fallback:
+    - unmatched requests receive a deterministic safe fallback response before routing integration
+    - concrete `/`, `/ping`, `/_alive`, `/error`, `/health*`, and `/metrics` behavior is deferred to epic 3.110.0
+    - route matching and reserved-path authority MUST NOT be reimplemented in this epic
+  - middleware tags/slots/priorities (canonical tag registration + validated feature-specific toggles):
     - `http.middleware.system_pre`:
-      - `\Coretsia\Http\Middleware\CorrelationIdMiddleware::class` priority `950`
-      - `\Coretsia\Http\Middleware\TraceContextMiddleware::class` priority `930`
-      - `\Coretsia\Http\Middleware\HttpMetricsMiddleware::class` priority `920`
-      - `\Coretsia\Http\Middleware\AccessLogMiddleware::class` priority `910`
-      - `\Coretsia\Http\Middleware\TrustedProxyMiddleware::class` priority `880` (auto if enabled)
-      - `\Coretsia\Http\Middleware\RequestContextMiddleware::class` priority `870` (auto if enabled)
-      - `\Coretsia\Http\Middleware\TrustedHostMiddleware::class` priority `860` (auto if enabled)
-      - `\Coretsia\Http\Middleware\RequestBodySizeLimitMiddleware::class` priority `830`
-      - `\Coretsia\Http\Middleware\JsonBodyParserMiddleware::class` priority `800` (auto if enabled)
+      - `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class` priority `930` (conditional: `http.tracing.enabled`)
+      - `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class` priority `880` (conditional: `http.proxy.enabled`)
+      - `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class` priority `870` (conditional: `http.context.enrich.enabled`)
+      - `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class` priority `860` (conditional: `http.hosts.enabled`)
+      - `\Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware::class` priority `830`
+      - `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class` priority `800` (conditional: `http.request.json.enabled`)
     - `http.middleware.system`:
-      - reserved (Phase 0 empty; owner = `platform/http`)
+      - reserved (owner = `platform/http`)
     - `http.middleware.system_post`:
-      - reserved (Phase 0 empty)
+      - reserved
   - note: `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` is contributed only when `platform.problem-details` is explicitly selected in a compatible HTTP target, using `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` at priority `1000` (outermost)
 - Kernel hooks/tags:
   - N/A (KernelRuntime called directly by HttpKernel)
@@ -7118,213 +7171,921 @@ Forbidden:
 
 #### Creates
 
-- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+- [x] Run `composer package:new -- --layer=platform --slug=http --kind=runtime --description="Coretsia HTTP runtime package: deterministic PSR-15 middleware pipeline, Kernel UnitOfWork lifecycle, and safe request processing." --keywords=coretsia,php,framework,http,runtime,psr-7,psr-15,psr-17,middleware,pipeline,unit-of-work,request-safety,observability,deterministic` exactly once.
 
-- [ ] `packages/platform/http/src/Module/HttpModule.php` — module entry
-  - [ ] MUST declare canonical provided capability `runtime.http`
-  - [ ] MUST use `RuntimeCapability::HTTP->value` or prove exact equality to that canonical id
-  - [ ] MUST NOT rely on package id inference such as `platform.http -> runtime.http`
+- [x] `packages/platform/http/LICENSE`
+- [x] `packages/platform/http/NOTICE`
+- [x] `packages/platform/http/SECURITY.md`
 
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — DI wiring
-- [ ] `packages/platform/http/src/Provider/HttpServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] Reuse the existing nine `ReservedTags::HTTP_MIDDLEWARE_*` identifiers without redefining them; platform/http owns middleware slot execution and ordering semantics.
-- [ ] `packages/platform/http/config/http.php` — config subtree
-- [ ] `packages/platform/http/config/rules.php` — config rules
-- [ ] `packages/platform/http/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/platform/http/composer.json`
+  - [x] canonical package identity `coretsia/platform-http`, type `library`, PHP `^8.4`
+  - [x] use canonical release-line public constraints for internal Coretsia dependencies
+  - [x] declare `coretsia/core-contracts`, `coretsia/core-foundation`, and `coretsia/core-kernel`
+  - [x] declare `psr/http-message: ^2.0`
+  - [x] declare `psr/http-factory: ^1.0`
+  - [x] declare `psr/http-server-middleware: ^1.0`
+  - [x] declare `psr/http-server-handler: ^1.0`
+  - [x] declare `psr/container: ^2.0` for canonical middleware service resolution
+  - [x] declare `psr/log: ^3.0`
+  - [x] declare the required PSR interface packages in production `require`, without requiring `nyholm/psr7`, `guzzlehttp/psr7`, `laminas/laminas-diactoros`, or `slim/psr7`
+  - [x] keep concrete PSR-7/17 implementation installation owned by the consuming application or distribution
+  - [x] allow compatible concrete PSR-7/17 packages only as test dependencies in the owning test workspace when real implementation integration coverage requires them
+  - [x] support the canonical `http.factory` selection contract without Composer-level implementation selection or mandatory provider dependencies
+  - [x] do not declare concrete PSR-7/17 factory implementations in Composer autoload mappings or package metadata
+  - [x] do not implement competing PSR message, stream, response factory, request factory, or emitter classes
+  - [x] use `Coretsia\Platform\Http\` as the canonical production PSR-4 namespace
+  - [x] use `Coretsia\Platform\Http\Tests\` as the canonical test PSR-4 namespace
+  - [x] declare `extra.coretsia.kind=runtime`, `moduleId=platform.http`, the exact HttpModule class, and the ordered HttpServiceProvider list
+  - [x] declare canonical module requirements `core.foundation` and `core.kernel`
+  - [x] declare `defaultsConfigPath=config/http.php` and an empty conflicts list
+  - [x] do not declare direct runtime module requirements on optional Logging, Tracing, Metrics, Problem Details, or Redaction modules
+  - [x] do not add custom capabilities metadata, package-local versioning, replacement registries, or implicit module activation
+
+- [x] `packages/platform/http/src/Module/HttpModule.php` — runtime module metadata
+  - [x] final metadata-only class with `MODULE_ID = 'platform.http'`, `PACKAGE_ID = 'platform/http'`, `COMPOSER_PACKAGE = 'coretsia/platform-http'`, `KIND = 'runtime'`, and `CONFIG_ROOT = 'http'`
+  - [x] expose canonical `id()`, `packageId()`, `composerPackage()`, `kind()`, `configRoot()`, and ordered `providers()` methods, matching existing runtime package conventions
+  - [x] declare only `HttpServiceProvider::class` in the provider list
+  - [x] module participation is resolved through existing Composer metadata and `ModulePlan`
+  - [x] MUST NOT invent `RuntimeCapability::HTTP`, capability-marker inference, another module registry, or additional runtime selection state
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php` — canonical declarative DI wiring
+  - [x] implement existing `ServiceProviderInterface` and `ContainerDefinitionProviderInterface`
+  - [x] register definitions through Foundation `ContainerDefinitionBuilder`, preserving source/compiled container parity
+  - [x] bind `HttpKernelInterface`, `HttpKernel`, `Pipeline`, `HttpMiddlewareStackBuilder`, `HttpRuntimeEntrypointGuard`, terminal handler, middleware services, and their required policies
+  - [x] register `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` as HTTP-owned stateless services through existing declarative DI
+  - [x] inject the four dedicated services into `HttpKernel` through canonical container definitions
+  - [x] bind `HttpResponseFinalizer` to the existing `CorrelationIdProviderInterface` and validated HTTP correlation configuration
+  - [x] bind `HttpRequestMetricsRecorder` to the existing `MeterPortInterface`
+  - [x] bind `HttpAccessLogWriter` to the existing PSR-3 `LoggerInterface`
+  - [x] bind `HttpRequestSpanRecorder` to the existing `TracerPortInterface`
+  - [x] use existing Foundation noop implementations when optional observability modules are not selected
+  - [x] do not register these four services as PSR-15 middleware or introduce new observability tags, registries, lifecycle hooks, or reset orchestration
+  - [x] preserve identical service definitions, dependencies, and construction semantics in source and compiled containers
+  - [x] read the validated `http.factory` value exclusively from `ContainerDefinitionContext::configRoot('http')` during declarative definition production
+  - [x] use one fixed package-owned mapping from `http.factory` values to PSR-17 factory class strings:
+    - [x] `nyholm`: `Nyholm\Psr7\Factory\Psr17Factory` for both `ResponseFactoryInterface` and `StreamFactoryInterface`
+    - [x] `guzzlehttp`: `GuzzleHttp\Psr7\HttpFactory` for both `ResponseFactoryInterface` and `StreamFactoryInterface`
+    - [x] `laminas`: `Laminas\Diactoros\ResponseFactory` and `Laminas\Diactoros\StreamFactory`
+    - [x] `slim`: `Slim\Psr7\Factory\ResponseFactory` and `Slim\Psr7\Factory\StreamFactory`
+    - [x] `external`: no concrete factory definitions or aliases contributed
+  - [x] for built-in selections, register only the selected concrete factory classes through existing `ContainerDefinitionBuilder::classService()` operations
+  - [x] register one shared factory service when both PSR-17 interfaces use the same implementation class; otherwise register the two distinct factory services
+  - [x] bind `ResponseFactoryInterface::class` and `StreamFactoryInterface::class` to the selected services through existing `ContainerDefinitionBuilder::alias()` operations
+  - [x] require both PSR-17 interface services through `ContainerDefinitionBuilder::requireService()` for every selection, including `external`
+  - [x] for `external`, preserve application/distribution-owned factory definitions and aliases without registering replacements
+  - [x] preserve the existing Foundation later-binding-wins policy for service definitions and aliases without introducing package-local collision rejection
+  - [x] contribute the selected built-in factory definitions in canonical provider order; do not inspect or mutate other providers' definition sets
+  - [x] require the final effective factory bindings to satisfy the explicit `http.factory` selection during HTTP bootstrap readiness validation
+  - [x] do not assume that registering an alias proves its final target identity or PSR-17 interface compatibility
+  - [x] preserve identical selected factory definitions, aliases, and service identities in source and compiled containers
+  - [x] keep `define()` declarative and deterministic: no Composer execution, filesystem scanning, `class_exists()` probing, service instantiation, or vendor-dependent selection
+  - [x] use concrete implementation names only as fixed class-string descriptors; do not import concrete PSR-7/17 implementation classes into platform/http source dependencies
+  - [x] do not introduce another factory registry, implementation resolver, DI container, runtime cache, or fallback factory
+  - [x] require existing `ContainerInterface`, `ConfigRepositoryInterface`, `TagRegistry`, `KernelRuntimeInterface`, and observability port bindings before constructing dependent HTTP services
+  - [x] use only existing Foundation `classService`, `classMethodFactory`, `serviceMethodFactory`, `alias`, `tag`, and `requireService` operations
+  - [x] do not instantiate response factories independently in middleware constructors or create runtime-only closure definitions that compiled containers cannot reproduce
+  - [x] register only implemented middleware through the existing nine `ReservedTags::HTTP_MIDDLEWARE_*` identifiers
+  - [x] register the HTTP-owned exception mapper through `ReservedTags::ERROR_MAPPER`, with priority `100` and metadata `[]`
+  - [x] do not register `HttpErrorHandlingMiddleware`; its registration remains exclusively owned by `platform/problem-details`
+  - [x] do not create another TagRegistry, module resolver, error handler, redactor, context store, or reset orchestrator
+
+- [x] `packages/platform/http/src/Provider/HttpServiceFactory.php` — stateless construction helper
+  - [x] construct HTTP services from explicit dependencies and the canonical compiled configuration
+  - [x] construct the effective middleware chain from the canonical ordered service ids supplied by HttpMiddlewareStackBuilder
+  - [x] resolve those service ids only through the existing Psr\Container\ContainerInterface
+  - [x] accept both explicitly defined middleware services and concrete middleware classes resolved through Foundation-permitted autowiring
+  - [x] preserve canonical Foundation autowiring configuration and failure semantics without independently checking explicit service registration
+  - [x] verify every resolved service implements MiddlewareInterface before adding it to Pipeline
+  - [x] use the selected terminal RequestHandlerInterface as the final pipeline handler
+  - [x] do not introduce an independent middleware resolver, alternate container, reflection fallback constructor, or mutable runtime service catalog
+  - [x] reject missing middleware services, unresolved service references, and resolved services that do not implement MiddlewareInterface
+  - [x] consume the final effective service bindings produced by the canonical container without implementing independent definition-conflict detection
+  - [x] preserve Foundation service and alias precedence semantics without modifying provider definition order
+  - [x] do not retain request data, mutable caches, buffers, context, or lifecycle state
+  - [x] preserve equivalent construction inputs for source and compiled containers
+
+- [x] `packages/platform/http/src/Runtime/HttpRuntimeEntrypointGuard.php` — HTTP-owned entrypoint compatibility guard
+  - [x] validate explicit `platform.http` participation through `ModulePlan::hasEnabledModule(HttpModule::MODULE_ID)`
+  - [x] accept explicit `RuntimeDriverContributions` from the owning HTTP entrypoint as the canonical already-selected driver input
+  - [x] delegate Kernel-owned matrix validation to `RuntimeDriverResolver::resolve($config, $contributions)` without changing or reinterpreting contributed drivers
+  - [x] permit `RuntimeDriverContributions::fromDrivers([], [])` only when the owning entrypoint has no additional driver contributions
+  - [x] preserve Worker-owned HTTP driver contributions when provided; never silently replace them with an empty contribution set
+  - [x] do not discover packages, infer driver contributions from ModulePlan, or implement another driver composition policy
+  - [x] preserve canonical `RuntimeDriverConflictException` and `RuntimeDriverInvalidConfigException` failure semantics
+  - [x] module participation, Kernel driver matrix validity, selected PSR-17 factory readiness, and transport adapter readiness are distinct checks
+  - [x] validate the final effective PSR-17 factory bindings after canonical provider composition and before the first HTTP UnitOfWork begins
+  - [x] resolve `ResponseFactoryInterface::class` and `StreamFactoryInterface::class` through the existing canonical ContainerInterface
+  - [x] for built-in selections, require the selected implementation classes to be Composer-autoloadable and the resolved factory services to use the exact configured implementation classes
+  - [x] verify the resolved services implement their respective PSR-17 interfaces
+  - [x] for `external`, accept any compatible application/distribution-owned factory services without enforcing built-in class identities
+  - [x] treat a later overriding binding that changes a built-in selection's effective implementation as a deterministic HTTP readiness failure
+  - [x] reject missing, incompatible, or incorrectly selected effective factories before request execution without falling back to another installed implementation
+  - [x] reuse canonical container completeness validation for missing service references; do not duplicate the definition graph validator
+  - [x] preserve the existing later-binding-wins rule and do not introduce another definition-collision policy
+  - [x] do not interpret an installed Composer package as implicit HTTP module selection or runtime driver availability
+  - [x] keep transport-specific executable, extension, and adapter readiness checks with their owning entrypoints/integrations
+  - [x] do not infer module availability from `RuntimeDriverContributions`, container service probing, or `runtime.http` capability strings
+  - [x] do not modify Kernel's `RuntimeDriverResolver` or create a competing driver matrix
+
+- [x] Reuse the existing nine `ReservedTags::HTTP_MIDDLEWARE_*` identifiers without redefining them; `platform/http` owns middleware slot execution, metadata validation, and ordering semantics.
+
+- [x] `packages/platform/http/config/http.php` — canonical HTTP configuration subtree
+  - [x] return only the `http` subtree without a repeated root wrapper
+  - [x] define `http.factory='external'` as the canonical default PSR-17 implementation selection
+  - [x] support exact values `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`
+  - [x] keep the factory selector target-local through the existing Phase B configuration precedence and compiled config snapshot
+  - [x] do not define implementation class names, Composer package paths, automatic detection switches, or runtime fallback settings in configuration
+  - [x] define nine empty `http.middleware.<slot>` manual append lists
+  - [x] define `http.correlation.enabled=true` and `http.correlation.header_name='X-Correlation-Id'`
+  - [x] define `http.tracing.enabled=true`, `http.metrics.enabled=true`, and `http.access_log.enabled=true`
+  - [x] define `http.proxy.enabled=false` and `http.proxy.trusted_proxies=[]`
+  - [x] define `http.context.enrich.enabled=true`
+  - [x] define `http.hosts.enabled=false` and `http.hosts.allowed=[]`
+  - [x] define `http.request.max_body_bytes=1048576`
+  - [x] define `http.request.json.enabled=true` and `http.request.json.max_depth=32`
+  - [x] do not define `http.middleware.auto.*` keys or a global module activation selector
+  - [x] do not define future-only request-id, maintenance, security-header, CORS, rate-limit, endpoint, upload, or routing configuration in this epic
+  - [x] do not reference optional package middleware class strings in defaults
+  - [x] do not introduce environment-specific secret disclosure or disable-redaction switches
+
+- [x] `packages/platform/http/config/rules.php` — strict declarative HTTP configuration rules
+  - [x] use the existing `schemaVersion=1`, `configRoot='http'`, and `additionalKeys=false` ruleset structure
+  - [x] validate `http.factory` as a required string with exact `allowedValues=['external', 'nyholm', 'guzzlehttp', 'laminas', 'slim']` using the existing ConfigValidator rules
+  - [x] validate all declared middleware slot lists and their string entries using existing supported rule types
+  - [x] validate bounded canonical header-name, proxy, host, and JSON-depth configuration through their respective configuration owners
+  - [x] validate the body-size limit as a positive bounded integer
+  - [x] reject unknown keys, invalid booleans, malformed lists, and reserved `@*` directives
+  - [x] reject unsupported, empty, malformed, differently cased, or `auto` factory selections before container-definition production
+  - [x] validate only the declared factory selector value; Composer package availability and PSR-17 interface compatibility remain outside the configuration ruleset
+  - [x] use existing ConfigKernel validation types; do not invent a second rules DSL or generic config validator
+  - [x] leave semantic IP/CIDR, host, and header-policy checks to the corresponding HTTP-owned policy classes
 
 Core runtime:
-- [ ] `packages/platform/http/src/HttpKernelInterface.php`
-- [ ] `packages/platform/http/src/HttpKernel.php`
-- [ ] `packages/platform/http/src/Middleware/Pipeline.php`
-- [ ] `packages/platform/http/src/Middleware/MiddlewareResolver.php`
-- [ ] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
-- [ ] `packages/platform/http/src/Middleware/Dedupe.php`
+- [x] `packages/platform/http/src/HttpKernelInterface.php`
+  - [x] extend the existing PSR-15 `RequestHandlerInterface` without redefining its `handle(ServerRequestInterface $request): ResponseInterface` signature
+  - [x] provide the stable HTTP runtime entrypoint identity without introducing another request/response abstraction
 
-PSR-7 glue (no superglobals inside):
-- [ ] `packages/platform/http/src/Psr7/ServerRequestFactory.php`
-- [ ] `packages/platform/http/src/Response/ResponseEmitter.php`
+- [x] `packages/platform/http/src/HttpKernel.php`
+  - [x] implement `HttpKernelInterface` and handle exactly one inbound PSR-7 request per invocation
+  - [x] own HTTP request lifecycle coordination without implementing a second UnitOfWork, middleware pipeline, or reset lifecycle
+  - [x] consume `KernelRuntimeInterface`, Foundation `Stopwatch`, `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` through canonical DI
+  - [x] call `KernelRuntimeInterface::beginUnitOfWork('http')` before executing the PSR-15 pipeline
+  - [x] attempt exactly one matching `afterUnitOfWork()` with the exact returned handle for every successful begin
+  - [x] attempt request-local duration measurement through Foundation Stopwatch after successful UnitOfWork begin
+  - [x] isolate Stopwatch start failure as an optional observability failure without skipping PSR-15 pipeline execution
+  - [x] retain a valid Stopwatch token only in invocation-local state; never attempt Stopwatch::stop() without a successfully obtained token
+  - [x] normalize the inbound HTTP method once to an uppercase bounded request-level value from `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, or `CONNECT`; use fixed `OTHER` for unsupported methods
+  - [x] pass only the normalized method to request-level metrics, access logging, and span services; never export an arbitrary raw request method as an observability value
+  - [x] request the optional `http.request` span from `HttpRequestSpanRecorder` before executing the pipeline
+  - [x] execute the complete PSR-15 pipeline exactly once and preserve its final `ResponseInterface` or primary `Throwable`
+  - [x] include the outermost Problem Details error boundary in the observed pipeline execution
+  - [x] delegate completed-response correlation header handling exclusively to `HttpResponseFinalizer`
+  - [x] derive the canonical final HTTP status from the completed response after response finalization
+  - [x] classify `success` only after a final ResponseInterface has been returned by the pipeline and successfully processed by HttpResponseFinalizer, with status below `400`
+  - [x] classify `handled_error` only for successfully finalized HTTP responses with status `400..599`
+  - [x] classify `fatal_error` for any uncaught pipeline or response-finalization Throwable
+  - [x] use fixed `unknown` observability status whenever no successfully finalized response is available, even if the pipeline produced an intermediate ResponseInterface
+  - [x] pass the original fatal Throwable to KernelRuntimeInterface::afterUnitOfWork() using the existing canonical error argument
+  - [x] never return an intermediate response after response finalization has failed
+  - [x] attempt Foundation Stopwatch::stop() exactly once for a valid request-local start token before observability completion
+  - [x] isolate Stopwatch stop failure without changing the completed response, primary Throwable, or Kernel completion
+  - [x] use fixed non-negative integer duration `0` when timing is unavailable; never emit Stopwatch tokens or error details
+  - [x] use the same canonical bounded method, final status, outcome, and duration values for all request-level observability services
+  - [x] delegate metric recording exclusively to `HttpRequestMetricsRecorder`
+  - [x] delegate access-log emission exclusively to `HttpAccessLogWriter`
+  - [x] delegate request-span completion exclusively to `HttpRequestSpanRecorder`
+  - [x] invoke each enabled observability service at most once per request completion path, including handled errors and uncaught Throwables
+  - [x] complete response finalization and request observability before Kernel-owned `afterUnitOfWork()` resets request context
+  - [x] attempt span completion even when pipeline execution or another optional observability operation fails
+  - [x] isolate optional observability failures independently so one recorder failure does not suppress the other enabled recorders
+  - [x] preserve the primary pipeline or response-finalization Throwable when observability or Kernel completion also fails
+  - [x] preserve the canonical Kernel completion failure when no earlier primary Throwable exists
+  - [x] preserve the returned response identity and HTTP status when optional observability fails
+  - [x] retain Stopwatch tokens, SpanInterface handles, response references, and per-request outcome data only in method-local state
+  - [x] do not retain request-specific mutable state in HttpKernel properties or shared DI services
+  - [x] do not format access logs, normalize metric labels, construct tracing attributes, or implement HTTP header mutation policies directly
+  - [x] do not create another correlation id, UnitOfWork id, runtime clock, ContextStore, reset cycle, or observability registry
+  - [x] do not read superglobals, emit SAPI responses, or own routing artifact compilation
 
-System payload helpers:
-- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php`
+HTTP request finalization and observability services:
+- [x] `packages/platform/http/src/Response/HttpResponseFinalizer.php`
+  - [x] implement stateless final-response handling outside the PSR-15 middleware pipeline
+  - [x] consume `CorrelationIdProviderInterface` and validated `http.correlation.enabled` / `http.correlation.header_name` configuration
+  - [x] receive the completed `ResponseInterface` and return the resulting immutable PSR-7 response
+  - [x] when `http.correlation.enabled=true`, obtain the canonical Kernel-owned correlation id during the active HTTP UnitOfWork
+  - [x] apply the configured correlation response header through `ResponseInterface::withHeader()` without creating another correlation identity
+  - [x] ensure final responses produced by the outermost Problem Details middleware receive the same correlation header policy as successful and short-circuit responses
+  - [x] when `http.correlation.enabled=false`, preserve the response without automatically adding the correlation header
+  - [x] never accept an unvalidated incoming request header as authoritative Kernel correlation identity
+  - [x] do not modify HTTP status, body, Content-Type, Cache-Control, or unrelated response headers
+  - [x] propagate response-finalization failures without replacing them with fallback responses or performing UnitOfWork completion
+  - [x] leave primary Throwable selection and Kernel after/reset completion exclusively to HttpKernel
+  - [x] do not perform exception normalization, Problem Details rendering, access logging, metrics, or tracing
+  - [x] do not introduce another response middleware pipeline, response policy registry, or arbitrary post-processing hook mechanism
+  - [x] reserve future explicit final-response policy integration for epic 3.70.0 without implementing security headers, request-id propagation, or maintenance behavior in this epic
+  - [x] do not retain ResponseInterface, correlation ids, or other request-specific state between invocations
 
-Core middlewares (Phase 0 baseline):
-- [ ] `packages/platform/http/src/Middleware/CorrelationIdMiddleware.php`
-- [ ] `packages/platform/http/src/Middleware/TraceContextMiddleware.php`
-- [ ] `packages/platform/http/src/Middleware/HttpMetricsMiddleware.php`
-- [ ] `packages/platform/http/src/Middleware/AccessLogMiddleware.php`
+- [x] `packages/platform/http/src/Observability/HttpRequestMetricsRecorder.php`
+  - [x] implement stateless HTTP request metric recording through the existing `MeterPortInterface`
+  - [x] consume the canonical final method, status, outcome, and integer-millisecond duration provided by HttpKernel
+  - [x] emit only catalog-registered `http.request_total` and `http.request_duration_ms`
+  - [x] call `MeterPortInterface::increment()` once for `http.request_total` on each enabled completion path
+  - [x] call `MeterPortInterface::observe()` once for `http.request_duration_ms` on each enabled completion path
+  - [x] use exact metric labels `method`, `status`, and `outcome`
+  - [x] validate the canonical bounded method, final status, and outcome supplied by HttpKernel before constructing metric labels
+  - [x] preserve the shared canonical method meaning without independently reinterpreting the original PSR-7 request method
+  - [x] convert only to catalog-approved bounded metric label representations; use fixed `unknown` status when no finalized response exists
+  - [x] never inspect ServerRequestInterface, ResponseInterface, or raw request context to reconstruct metric labels
+  - [x] use final response status for completed requests, including short-circuit and Problem Details responses
+  - [x] use fixed `unknown` status and `fatal_error` outcome for uncaught Throwables without a completed response
+  - [x] never emit raw paths, route parameters, exception reasons, correlation ids, request ids, headers, cookies, or payload values as metric labels
+  - [x] preserve non-negative integer-millisecond duration semantics without introducing another clock or Stopwatch
+  - [x] isolate increment and observe failures independently without throwing into the primary HTTP lifecycle
+  - [x] do not implement metric aggregation, buffering, exporters, registries, recording backends, or middleware-specific metrics
+  - [x] do not retain request labels, measurements, or mutable state between invocations
 
-Request normalization/safety (Phase 0, config-driven):
-- [ ] `packages/platform/http/src/Middleware/TrustedProxyMiddleware.php`
-- [ ] `packages/platform/http/src/Proxy/TrustedProxyPolicy.php`
-- [ ] `packages/platform/http/src/Middleware/RequestContextMiddleware.php`
-- [ ] `packages/platform/http/src/Middleware/TrustedHostMiddleware.php`
-- [ ] `packages/platform/http/src/Host/TrustedHostPolicy.php`
-- [ ] `packages/platform/http/src/Middleware/RequestBodySizeLimitMiddleware.php`
-- [ ] `packages/platform/http/src/Middleware/JsonBodyParserMiddleware.php`
+- [x] `packages/platform/http/src/Observability/HttpAccessLogWriter.php`
+  - [x] implement stateless HTTP request completion logging through the existing PSR-3 `LoggerInterface`
+  - [x] consume the canonical final method, status, outcome, duration, and optional Kernel-owned correlation id provided by HttpKernel
+  - [x] emit at most one safe-by-construction access-log record for each enabled HTTP request completion
+  - [x] include only bounded operational fields: method, status, outcome, duration_ms, permitted correlation_id, and fixed `route_template='unknown'` in this baseline
+  - [x] do not consume route templates, route parameters, raw paths, or route metadata from application requests or ContextStore in this epic
+  - [x] leave future route-template integration outside the baseline HTTP request completion contract
+  - [x] do not infer route templates from raw URLs, request attributes on the original immutable PSR-7 request, route parameters, or arbitrary application context
+  - [x] never log raw URI paths, query strings, request/response headers, cookies, authorization values, bodies, tokens, session identifiers, exception messages, or private context
+  - [x] use the existing Logging redaction boundary when the Logging module is selected; do not construct an independent redactor
+  - [x] preserve Foundation noop-safe logging behavior when optional Logging is not selected
+  - [x] isolate logging failures without changing the HTTP response, UnitOfWork outcome, or primary Throwable
+  - [x] do not introduce another logger implementation, diagnostic serializer, access-log middleware, buffer, or reporting registry
+  - [x] do not retain request data or mutable log context between invocations
+
+- [x] `packages/platform/http/src/Observability/HttpRequestSpanRecorder.php`
+  - [x] implement stateless HTTP request span start and completion through the existing `TracerPortInterface` and `SpanInterface`
+  - [x] use only canonical span name `http.request`
+  - [x] start the request span before pipeline execution when `http.tracing.enabled=true`
+  - [x] return the request-local `SpanInterface` handle to HttpKernel without retaining it in service properties
+  - [x] finish the exact request-local span once after the final response status or uncaught Throwable outcome is known
+  - [x] use only bounded safe `method`, `status`, and `outcome` span attributes
+  - [x] set final status and outcome attributes before ending the span
+  - [x] use fixed `unknown` status with `fatal_error` when no completed response exists
+  - [x] isolate span start, attribute update, and end failures independently without changing the primary HTTP result
+  - [x] never invoke `SpanInterface::recordException()` with the original HTTP Throwable or expose exception messages, previous Throwables, stack traces, or request-derived data through span attributes or events
+  - [x] represent handled and fatal HTTP outcomes exclusively through the bounded canonical `status` and `outcome` attributes
+  - [x] attempt `SpanInterface::end()` exactly once for every successfully started request span, including error paths
+  - [x] consume Foundation noop tracing implementations without introducing a recording tracer, exporter, sampler, or span registry
+  - [x] do not claim automatic inbound parent-child trace linkage: the existing TracerPortInterface does not accept an explicit parent context
+  - [x] keep inbound W3C traceparent extraction owned by TraceContextMiddleware; do not introduce another traceparent parser or propagation context store
+  - [x] preserve future parent-context integration without modifying Kernel UnitOfWork or adding a second tracing lifecycle
+  - [x] do not retain SpanInterface handles, active span state, or request data between invocations
+
+- [x] `packages/platform/http/src/Middleware/Pipeline.php`
+  - [x] implement the minimal PSR-15 middleware execution chain using existing `MiddlewareInterface` and `RequestHandlerInterface`
+  - [x] retain only the immutable construction-time middleware sequence and terminal handler as Pipeline instance state
+  - [x] keep middleware traversal position and request execution state local to each handle() invocation
+  - [x] support repeated and reentrant handle() invocations without sharing a mutable middleware cursor between requests
+  - [x] preserve request and response propagation, middleware short-circuit behavior, and original Throwable identity
+  - [x] do not retain request, response, Throwable, traversal cursor, or partially completed execution state between invocations
+  - [x] do not discover services, read configuration, sort tags, deduplicate services, or perform UnitOfWork lifecycle operations
+  - [x] do not introduce an alternative middleware contract or another runtime lifecycle layer
+
+- [x] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - [x] enumerate registered services exclusively through `TagRegistry::all(ReservedTags::HTTP_MIDDLEWARE_*)`
+  - [x] preserve the canonical priority-descending and service-id-ascending order already provided by TagRegistry
+  - [x] append manual middleware service ids after the tagged portion of each slot
+  - [x] treat each configured manual middleware class-string as an exact canonical DI service id
+  - [x] preserve configured manual service ids without checking whether they have explicit container definitions or are eligible for Foundation concrete-class autowiring
+  - [x] defer all manual middleware service resolution to HttpServiceFactory through the existing ContainerInterface
+  - [x] preserve deterministic failure when the canonical container cannot resolve a configured manual middleware service id
+  - [x] do not instantiate middleware, invoke reflection, inspect container definitions, or implement a package-local autowiring policy
+  - [x] validate tagged service ids, exact `[]` or `toggle` metadata, and configured manual middleware class-string lists
+  - [x] preserve tagged service identity and ordering without resolving concrete middleware during declarative definition production
+  - [x] reject unknown toggle keys, unsupported metadata, duplicate cross-slot participation, and invalid service identifiers deterministically
+  - [x] leave actual MiddlewareInterface instance validation to the canonical HttpServiceFactory/container construction boundary
+  - [x] preserve first occurrence within each slot; reject invalid duplicate participation across semantically different slots
+  - [x] assemble the canonical request-phase and response-decorator topology without a second sorting or registry layer
+  - [x] preserve the outermost priority-1000 error boundary when explicitly selected
+  - [x] do not instantiate middleware through reflection, filesystem discovery, or an independent service locator
+
+Core middlewares:
+- [x] `packages/platform/http/src/Middleware/TraceContextMiddleware.php`
+  - [x] activate only when `http.tracing.enabled=true`
+  - [x] consume the existing `ContextPropagationInterface`, including Foundation noop fallback
+  - [x] extract only bounded W3C tracing fields from an explicitly constructed PSR-7 carrier
+  - [x] pass only relevant trace headers to the canonical propagation port; never copy all request headers into a tracing carrier
+  - [x] reuse canonical `traceparent` validation without implementing another W3C parser
+  - [x] expose accepted `trace_id`, `parent_id`, and `trace_flags` through one request-local PSR-7 attribute with a fixed package-owned attribute name
+  - [x] omit the request attribute when propagation returns an empty or invalid context
+  - [x] preserve unrelated request headers and downstream Throwable identity
+  - [x] do not overwrite Kernel correlation or UnitOfWork context keys
+  - [x] do not introduce a tracer, span recorder, sampling policy, exporter, tracing ContextStore, or reset registration
+
+Request normalization/safety (config-driven):
+- [x] `packages/platform/http/src/Middleware/TrustedProxyMiddleware.php`
+  - [x] activate only when `http.proxy.enabled=true`
+  - [x] use `TrustedProxyPolicy` to validate the immediate peer before accepting forwarded metadata
+  - [x] obtain the immediate peer address only from the owning HTTP entrypoint's PSR-7 server parameters without reading superglobals
+  - [x] accept forwarded metadata only after TrustedProxyPolicy validates the immediate peer against the configured trusted proxy set
+  - [x] treat absent or invalid immediate peer information as untrusted; never infer proxy trust from forwarded headers alone
+  - [x] reject or ignore malformed, ambiguous, or untrusted forwarded values according to the fixed policy
+  - [x] reserve the fixed request-local PSR-7 attribute name `coretsia.http.trusted_proxy` for validated proxy metadata
+  - [x] remove any pre-existing value of this reserved attribute before evaluating the incoming request
+  - [x] after successful proxy validation, publish only available bounded canonical `client_ip`, `scheme`, and `host` values through ServerRequestInterface::withAttribute()
+  - [x] use only canonical IP addresses, `http` or `https` schemes, and syntactically validated host values in the published attribute
+  - [x] omit unavailable fields and omit the entire attribute when no trusted forwarded metadata is accepted
+  - [x] never publish raw forwarded headers, proxy chains, arbitrary request values, or trust-policy implementation state
+  - [x] pass the resulting immutable PSR-7 request to downstream middleware without another context store or process-global state
+
+- [x] `packages/platform/http/src/Proxy/TrustedProxyPolicy.php`
+  - [x] validate `http.proxy.trusted_proxies` as a bounded deterministic list of canonical IP/CIDR entries
+  - [x] use one explicit trust policy for forwarded header interpretation
+  - [x] distinguish trusted immediate peers from user-supplied forwarding chains
+  - [x] apply deterministic parsing, normalization, and rejection of malformed or conflicting forwarded fields
+  - [x] do not introduce DNS lookups, mutable caches, process-global proxy state, or a second request context owner
+
+- [x] `packages/platform/http/src/Middleware/RequestContextMiddleware.php`
+  - [x] activate only when `http.context.enrich.enabled=true`
+  - [x] use the existing Foundation `ContextStore` and contracts-level `ContextKeys`
+  - [x] consume validated proxy-derived `client_ip`, `scheme`, and `host` only from the package-owned `coretsia.http.trusted_proxy` request attribute when `http.proxy.enabled=true`
+  - [x] use directly supplied PSR-7 request and server metadata as the fallback source, subject to owner-approved validation
+  - [x] never independently parse or trust Forwarded or X-Forwarded-* headers
+  - [x] never treat a pre-existing or unverified proxy attribute as authoritative when proxy validation is disabled or unsuccessful
+  - [x] preserve the existing ContextStore and ContextKeys ownership without introducing another request metadata registry
+  - [x] write only bounded, validated request-safe values to `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` when admissible
+  - [x] treat raw request-derived values as in-process context only; never automatically forward them to logs, metrics, spans, artifacts, or public errors
+  - [x] do not overwrite Kernel-owned `CORRELATION_ID`, `UOW_ID`, or `UOW_TYPE`
+  - [x] omit invalid optional enrichment rather than weakening ContextStore validation
+  - [x] do not implement independent context storage or reset logic
+
+- [x] `packages/platform/http/src/Middleware/TrustedHostMiddleware.php`
+  - [x] activate only when `http.hosts.enabled=true`
+  - [x] validate the effective request host using `TrustedHostPolicy`
+  - [x] use a validated forwarded host only when supplied through the package-owned trusted proxy request attribute after successful proxy validation
+  - [x] otherwise validate the direct PSR-7 request authority without independently accepting forwarded host headers
+  - [x] never reinterpret raw Forwarded or X-Forwarded-Host values after TrustedProxyMiddleware
+  - [x] reject untrusted hosts through `TrustedHostRejectedException`
+  - [x] preserve fixed safe error diagnostics without disclosing the rejected host
+  - [x] do not perform exception normalization or construct Problem Details responses locally
+
+- [x] `packages/platform/http/src/Host/TrustedHostPolicy.php`
+  - [x] validate `http.hosts.allowed` using one bounded canonical host allowlist grammar
+  - [x] normalize host syntax deterministically, including ASCII case and supported port handling
+  - [x] reject malformed, ambiguous, or noncanonical host inputs
+  - [x] do not trust forwarded host information unless validated by the existing trusted-proxy boundary
+  - [x] avoid wildcard behavior, DNS lookups, filesystem state, or environment-specific host inference unless explicitly specified by policy
+
+- [x] `packages/platform/http/src/Middleware/RequestBodySizeLimitMiddleware.php`
+  - [x] enforce `http.request.max_body_bytes` before JSON body parsing
+  - [x] validate Content-Length as an unambiguous bounded decimal value when present; reject malformed, conflicting, or oversized declarations without disclosing header contents
+  - [x] never use Content-Length alone as proof that the actual stream satisfies the body-size limit
+  - [x] read at most `http.request.max_body_bytes + 1` bytes to enforce the limit for both known-length and unknown-length streams
+  - [x] reject oversized bodies using `BodyTooLargeException` with fixed safe reason and error code
+  - [x] for seekable request streams, capture the original cursor position and rewind to the beginning before bounded body-size verification
+  - [x] enforce the complete seekable stream body-size limit by reading no more than `http.request.max_body_bytes + 1` bytes from the beginning
+  - [x] restore the exact original cursor position for accepted seekable streams before passing the request downstream
+  - [x] never treat a partially consumed seekable stream as smaller merely because its initial cursor was nonzero
+  - [x] reconstruct an accepted non-seekable stream through the existing StreamFactoryInterface using only the bounded buffered bytes
+  - [x] treat the complete unread non-seekable body supplied at the HTTP runtime boundary as the only recoverable byte sequence
+  - [x] do not assume that a non-seekable stream can be rewound or that previously consumed bytes can be recovered
+  - [x] reject a detectable nonzero initial non-seekable stream position with fixed safe diagnostics rather than silently treating a truncated body as complete
+  - [x] pass the resulting request to downstream middleware through PSR-7 `withBody()` when reconstruction is necessary
+  - [x] do not introduce an unbounded buffering layer, local spool directory, shared body cache, or request-state registry
+  - [x] do not expose request contents, raw size-header values, partial payload fragments, or implementation-specific stream errors
+  - [x] preserve byte-equivalent downstream body consumption for accepted requests
+
+- [x] `packages/platform/http/src/Middleware/JsonBodyParserMiddleware.php`
+  - [x] activate only when `http.request.json.enabled=true`
+  - [x] enforce `http.request.json.max_depth` and the existing request body-size budget
+  - [x] parse only `application/json` and valid `application/*+json` media types with explicitly supported UTF-8 encoding; leave non-JSON requests unchanged
+  - [x] use PHP's native `json_decode()` with `JSON_THROW_ON_ERROR`, the configured maximum depth, and a bounded body already verified by RequestBodySizeLimitMiddleware
+  - [x] accept JSON object and array roots for PSR-7 parsed-body representation; reject unsupported scalar roots through `BadJsonException`
+  - [x] publish successfully decoded data only through `ServerRequestInterface::withParsedBody()`
+  - [x] do not create an additional global decoded-body registry, ContextStore key, or package-specific request payload holder
+  - [x] preserve byte-equivalent raw request body availability for downstream consumers after successful parsing
+  - [x] for seekable streams, read the complete bounded body from the beginning and restore the original readable cursor position before downstream dispatch
+  - [x] for non-seekable streams, reconstruct the accepted bounded body through the existing StreamFactoryInterface and pass the resulting request through ServerRequestInterface::withBody()
+  - [x] publish parsed data through withParsedBody() on the resulting request without discarding its preserved raw body
+  - [x] do not assume that a concrete PSR-17 implementation always produces seekable streams
+  - [x] never introduce unbounded body buffering, filesystem spooling, shared request-body caches, or another stream implementation
+  - [x] do not use Foundation StableJsonDecoder as the general HTTP request-body parser: its strict safe-json policies and resource limits serve diagnostics/artifacts, not arbitrary application JSON payloads
+  - [x] reject malformed JSON using fixed BadJsonException semantics without exposing parser messages or payload fragments
+  - [x] never copy parsed request data into logs, metrics, spans, ErrorDescriptor extensions, or generated artifacts
+  - [x] do not log payload fragments, expose parser exception text, or introduce multipart parsing
+  - [x] multipart uploads and quarantine remain owned by Phase 4 epic 4.60.0
 
 Terminal handler:
-- [ ] `packages/platform/http/src/Routing/FallbackRouterHandler.php`
+- [x] `packages/platform/http/src/Routing/FallbackRouterHandler.php`
+  - [x] implement the canonical PSR-15 terminal `RequestHandlerInterface`
+  - [x] provide exactly one safe HTTP 404 terminal response with an empty body for unmatched requests before routing is installed
+  - [x] construct the response through the existing ResponseFactoryInterface; do not introduce SystemEndpointPayload solely for this fallback
+  - [x] emit no request reflection, raw path, query, headers, cookies, or internal diagnostics
+  - [x] preserve the later 3.110.0 delegation seam without adding another terminal dispatch chain
+  - [x] consume the existing PSR response and stream factory interfaces
+  - [x] do not implement `/`, `/ping`, `/_alive`, `/error`, `/health*`, `/metrics`, or debug endpoint dispatch in this epic
+  - [x] reserve future integration with `SystemRouteTable` and `ReservedPathMatcher` without creating duplicate route-matching policy
+  - [x] actual system endpoint behavior remains owned by epic 3.110.0
 
-Errors (exceptions, mapped by `platform/errors`):
-- [ ] `packages/platform/http/src/Exception/BadJsonException.php` — `CORETSIA_HTTP_BAD_JSON`
-- [ ] `packages/platform/http/src/Exception/BodyTooLargeException.php` — `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
-- [ ] `packages/platform/http/src/Exception/TrustedHostRejectedException.php` — `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
+Errors (canonical format-neutral mapping):
+- [x] `packages/platform/http/src/Exception/BadJsonException.php`
+  - [x] fixed safe error code `CORETSIA_HTTP_BAD_JSON`
+  - [x] no raw JSON, parser diagnostics, payload fragments, or previous Throwable disclosure
 
-Tests:
-- [ ] `packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
-- [ ] `packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
-- [ ] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
-- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — locks the canonical `platform/http` middleware slot/priority projection against `docs/ssot/http-middleware-catalog.md`; later `platform/http` middleware epics extend this shared contract
-- [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
-- [ ] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
-- [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
-- [ ] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
-- [ ] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
-- [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
-- [ ] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
-  - [ ] MUST fail if `config/http.php` repeats root (`['http'=>...]` is forbidden; subtree only)
-  - [ ] MUST fail if any key starting with `@` exists under returned subtree (any depth)
+- [x] `packages/platform/http/src/Exception/BodyTooLargeException.php`
+  - [x] fixed safe error code `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
+  - [x] no raw request body, untrusted Content-Length value, or request-specific diagnostic text
+
+- [x] `packages/platform/http/src/Exception/TrustedHostRejectedException.php`
+  - [x] fixed safe error code `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
+  - [x] no rejected host, forwarded header, authority value, or private request metadata disclosure
+
+- [x] `packages/platform/http/src/Error/HttpExceptionMapper.php`
+  - [x] implement the existing contracts-level `ExceptionMapperInterface`
+  - [x] map only the three HTTP-owned exceptions above
+  - [x] use fixed safe `ErrorDescriptor` codes, messages, and HTTP status hints
+  - [x] map `BadJsonException` to HTTP `400`, `BodyTooLargeException` to HTTP `413`, and `TrustedHostRejectedException` to HTTP `400`
+  - [x] return `null` for unrelated Throwables
+  - [x] contribute the mapper through `ReservedTags::ERROR_MAPPER` with priority `100` and metadata `[]`
+  - [x] do not introduce a second ErrorHandler, mapper registry, redactor, reporter, or HTTP renderer
+  - [x] actual HTTP responses remain owned by explicitly selected `platform/problem-details`
 
 Docs:
-- [ ] `docs/ssot/http-middleware-wiring.md` — tags/slots/dedupe/deterministic order/override recipe
-- [ ] `docs/ssot/http-middleware-catalog.md` — canonical middleware catalog + priority bands
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] define the existing nine-slot HTTP middleware taxonomy without introducing new tag identifiers
+  - [x] define the exact canonical PSR-15 request and response-decorator topology
+  - [x] define priority-1000 outermost error-boundary reservation and its selection semantics
+  - [x] define `TagRegistry::all()` ordering, manual append lists, first-occurrence deduplication, and cross-slot validation
+  - [x] define HTTP tag metadata as `[]` or an exact `toggle` map
+  - [x] document conditional middleware participation without `http.middleware.auto.*` flags
+  - [x] document short-circuit, Throwable propagation, response decoration, and source/compiled container invariants
+  - [x] document HttpKernel consumption of KernelRuntimeInterface begin/after hooks without restating Kernel lifecycle or reset implementation
+  - [x] document HTTP-owned middleware composition and Throwable propagation without redefining exception normalization or HTTP error-rendering implementations
+  - [x] distinguish PSR-15 middleware execution from HttpKernel-owned final-response completion
+  - [x] document the four dedicated HTTP finalization/observability services and their absence from all nine middleware slots
+  - [x] document HttpKernel final-response completion ordering after the full PSR-15 pipeline, including responses returned by an outermost error boundary
+  - [x] clarify that final-response metrics and logging consume the completed HTTP result rather than an intermediate middleware result
+  - [x] preserve all existing middleware tags, priority rules, and response-decorator semantics without another observer pipeline
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] record the selected PSR-15 pipeline composition and response-decorator topology
+  - [x] record HttpKernel as the sole HTTP request lifecycle and finalization coordinator
+  - [x] record HttpResponseFinalizer, HttpRequestMetricsRecorder, HttpAccessLogWriter, and HttpRequestSpanRecorder as separate stateless HTTP-owned services
+  - [x] define the fixed request completion order: Kernel UnitOfWork begin, request-local timing/span start, PSR-15 pipeline, final response mutation, status/outcome derivation, metrics/logging/span completion, Kernel UnitOfWork after/reset
+  - [x] explain why HTTP request-level observability uses the final ResponseInterface after the complete PSR-15 pipeline rather than intermediate middleware responses
+  - [x] document direct declarative DI composition without custom observer interfaces, hooks, tags, registries, or another middleware pipeline
+  - [x] document request-local SpanInterface and Stopwatch token ownership without shared mutable request state
+  - [x] document the current lack of automatic inbound traceparent parent-child linkage and defer future tracing-context contract changes
+  - [x] document fixed `route_template='unknown'` access-log behavior in the routing-free HTTP baseline without route-template inference or a separate metadata handoff
+  - [x] document the absence of route matching, route metadata extraction, and route-template inference in this HTTP runtime baseline
+  - [x] record reuse of Foundation TagRegistry and declarative container definitions
+  - [x] record HTTP-owned entrypoint validation without changing Kernel driver resolution
+  - [x] record PSR-7/15/17 interface-only production dependencies and external PSR-7/17 implementation ownership
+  - [x] record the canonical config-driven PSR-17 factory selection contract `http.factory=external|nyholm|guzzlehttp|laminas|slim`, with default `external`
+  - [x] document consumption of the validated Phase B `http` config subtree through ContainerDefinitionContext and HTTP-owned interpretation of `http.factory`
+  - [x] document the fixed mapping from built-in selection values to their exact PSR-17 implementation classes
+  - [x] document reuse of existing ContainerDefinitionContext, ContainerDefinitionBuilder, and canonical container validation without another factory registry or DI layer
+  - [x] document HTTP factory readiness against effective canonical DI bindings after provider composition and before executable HttpKernel/pipeline construction, without implementing an independent service-definition precedence policy
+  - [x] distinguish declarative factory selection from runtime class availability and PSR-17 interface compatibility checks
+  - [x] document that an overwritten built-in factory binding is rejected only when its final effective implementation violates the configured http.factory selection
+  - [x] document explicit owner-supplied RuntimeDriverContributions instead of permanently replacing contributions with an empty set
+  - [x] document HttpRuntimeEntrypointGuard delegation to the existing RuntimeDriverResolver with caller-supplied RuntimeDriverContributions, without defining driver matrix rules locally
+  - [x] document `external` as the explicit application/distribution-owned factory binding mode
+  - [x] document deterministic HTTP readiness failure for unavailable selected implementations, missing effective factory bindings, incompatible PSR-17 services, and built-in selection identity mismatches
+  - [x] document source/compiled container parity and configuration-driven artifact invalidation when `http.factory` changes
+  - [x] record that installation of multiple compatible implementations never affects the explicit selection
+  - [x] retain concrete Composer package installation ownership outside platform/http while keeping production dependencies limited to PSR contracts
+  - [x] document that a built-in selection may use one shared PSR-17 factory service or two distinct factory services
+  - [x] document `http.factory=external` as an HTTP-owned contract requiring two compatible effective PSR-17 interface bindings without defining how consuming applications register their providers
+  - [x] reject mandatory concrete PSR-7/17 dependencies, arbitrary configurable factory class names, Composer discovery, vendor scanning, implicit fallback selection, package-local PSR message implementations, and Kernel-owned provider selection
+  - [x] document rejected alternatives: generic RuntimeEntrypointGuard, new capability registry, separate middleware registry, duplicate dedupe layer, and duplicate UnitOfWork/reset orchestration
+  - [x] document HttpAccessLogWriter as the producer of bounded HTTP completion events through the canonical PSR-3 LoggerInterface and the producer-neutral sink contract defined by docs/ssot/logging-policy.md, without introducing a second logging pipeline, redaction owner, or direct platform/logging source dependency
+
+- [x] `packages/platform/http/README.md`
+  - [x] document package identity, Composer dependencies, and explicit target-local module selection
+  - [x] document PSR-7/15/17 interface-only production dependencies and package-owned config-driven PSR-17 factory selection
+  - [x] document `http.factory` with default `external` and exact values `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`
+  - [x] document the fixed supported factory mappings:
+    - [x] `nyholm` — `nyholm/psr7`, `Nyholm\Psr7\Factory\Psr17Factory`
+    - [x] `guzzlehttp` — `guzzlehttp/psr7`, `GuzzleHttp\Psr7\HttpFactory`
+    - [x] `laminas` — `laminas/laminas-diactoros`, `Laminas\Diactoros\ResponseFactory` and `Laminas\Diactoros\StreamFactory`
+    - [x] `slim` — `slim/psr7`, `Slim\Psr7\Factory\ResponseFactory` and `Slim\Psr7\Factory\StreamFactory`
+    - [x] `external` — arbitrary compatible PSR-17 implementation supplied through application/distribution-owned declarative DI bindings
+  - [x] document automatic canonical DI definition and alias generation for explicitly selected built-in implementations
+  - [x] document that one shared or two separate factory services are supported according to the selected implementation
+  - [x] document that package installation remains a consumer responsibility and is never performed during HTTP bootstrap
+  - [x] document deterministic selected HTTP target readiness failure when a configured implementation is unavailable, its effective PSR-17 services are incompatible, or the effective built-in factory identity does not match `http.factory`
+  - [x] document that `external` requires explicit application-owned `ResponseFactoryInterface` and `StreamFactoryInterface` bindings
+  - [x] document that multiple installed PSR-7/17 implementations do not affect the explicitly configured selection
+  - [x] document source/compiled container parity and the absence of runtime auto-discovery or fallback factory selection
+  - [x] clarify that PSR-17 factory selection does not imply ownership of SAPI request creation or HTTP response emission
+  - [x] keep Composer installation commands, application configuration examples, consumer provider registration, and target setup procedures outside this package README
+  - [x] document PSR-15 request handling, terminal fallback, middleware tags, ordering, and configuration
+  - [x] document manual middleware class-string entries as canonical DI service ids resolved through explicit definitions or Foundation-permitted concrete-class autowiring
+  - [x] document deterministic failure for unresolvable or incompatible manual middleware services without defining a separate HTTP autowiring policy
+  - [x] document the HttpKernel begin/after UnitOfWork integration contract, HTTP outcome mapping, and prohibition on package-local reset orchestration
+  - [x] document HttpKernel as the HTTP request lifecycle coordinator responsible for exactly-once pipeline execution and completion ordering
+  - [x] document HttpResponseFinalizer as the owner of final response correlation headers through CorrelationIdProviderInterface
+  - [x] document HttpRequestMetricsRecorder as the owner of `http.request_total` and `http.request_duration_ms` through MeterPortInterface
+  - [x] document HttpAccessLogWriter as the owner of safe request completion logging through PSR-3 LoggerInterface
+  - [x] document HttpRequestSpanRecorder as the owner of `http.request` span start/completion through TracerPortInterface and SpanInterface
+  - [x] document that all four services are stateless, explicitly injected, and do not form another middleware or reset pipeline
+  - [x] document `http.correlation.enabled`, `http.metrics.enabled`, `http.access_log.enabled`, and `http.tracing.enabled` ownership and behavior
+  - [x] document final-response status usage for successful, short-circuit, error-boundary, and fatal completion paths, including optional observability failure isolation and primary Throwable precedence
+  - [x] document TraceContextMiddleware as the inbound W3C propagation owner, separate from request-span recording
+  - [x] clarify that current tracing contracts do not guarantee automatic parent-child linkage from inbound traceparent
+  - [x] document fixed `route_template='unknown'` access-log behavior without introducing routing metadata consumption or route matching
+  - [x] document only the HTTP-owned `http.request` span, `http.request_total` counter, and `http.request_duration_ms` observation without redefining external lifecycle telemetry
+  - [x] document HTTP-owned BadJsonException, BodyTooLargeException, and TrustedHostRejectedException mapping through the existing ExceptionMapperInterface and error.mapper tag
+  - [x] document that platform/http does not normalize exceptions or render HTTP error representations
+  - [x] document source/compiled DI parity and noop-safe fallback behavior
+  - [x] document security limits and intentionally unsupported future HTTP capabilities
 
 #### Modifies
 
-- [ ] `tools/gates/no_skeleton_http_default_gate.php` — must remain green (no skeleton default http config)
-- [ ] deptrac expectations updated (if needed)
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/http-middleware-wiring.md`
-  - [ ] `docs/ssot/http-middleware-catalog.md`
+- [x] `packages/platform/logging/src/Record/LogRecordPolicy.php` — canonical HTTP access-log sink admission
+  - [x] extend the existing producer-neutral context admission matrix to support the bounded HTTP completion fields emitted by `HttpAccessLogWriter`
+  - [x] admit `method` only as one of the exact uppercase canonical values `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, `CONNECT`, or `OTHER`
+  - [x] admit `status` in exactly two forms: a strict integer in `100..599` or a string satisfying the canonical bounded `isCategory()` grammar, including `ready` and `unknown`
+  - [x] handle integer `status` explicitly in `isAdmittedValue()` before generic category-field dispatch, preserving the existing category-string grammar for all other category fields
+  - [x] reject numeric status strings, out-of-range integers, booleans, floats, and unsupported values without coercion
+  - [x] enforce one status admission policy through `isAdmittedValue()` as reused by `admitContext()`, `redactRecord()`, and `isValidCanonicalRecord()`
+  - [x] require both canonical formatters to reuse `LogRecordPolicy::isValidCanonicalRecord()` without independently interpreting, normalizing, or coercing status values
+  - [x] admit `route_template` only as the exact fixed value `unknown`, independently of the emitting event or package
+  - [x] preserve `path_template` as a separate bounded structural field admitted through the existing canonical policy and optionally enriched by `ContextBagProcessor` from `ContextKeys::PATH_TEMPLATE`
+  - [x] treat `route_template` exclusively as a caller-supplied context field subject to exact-value admission; do not derive, reconstruct, or enrich it from `path_template`, request metadata, or ContextStore
+  - [x] leave HTTP producer responsibility for selecting the fixed `route_template='unknown'` value outside the generic logging sink
+  - [x] retain producer responsibility for the provenance and safety of syntactically admissible context values
+  - [x] validate `status`, `outcome`, and other operational context fields independently by their canonical field-specific grammars
+  - [x] leave HTTP-specific consistency between response status and completion outcome exclusively to the emitting producer; do not introduce cross-field HTTP lifecycle validation into the generic logging sink
+  - [x] preserve the existing bounded `outcome`, `duration_ms`, and optional non-authoritative nested `correlation_id` admission rules
+  - [x] preserve canonical root correlation, UnitOfWork identifier, and UnitOfWork type ownership through the existing `ContextBagProcessor`
+  - [x] apply the same extended context schema during initial admission, canonical record validation, and post-redaction validation
+  - [x] preserve mandatory shared `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` behavior without introducing an HTTP-specific redactor or classifier
+  - [x] preserve admitted HTTP completion fields through canonical record assembly and mandatory shared redaction when their validated values remain unchanged by the redactor
+  - [x] omit individual post-redaction context fields that fail ordinary sink-field admission without restoring their original unredacted values
+  - [x] reject the complete record when the redacted context has an invalid non-null container type, the canonical root schema is invalid, or instance-bound sensitive `key_paths` validation fails
+  - [x] invoke mandatory shared `SensitiveDataRedactorInterface::redactJsonLike()` exactly once for each complete canonical record that passes pre-redaction structural and instance-bound sensitive-key validation
+  - [x] perform no redaction when initial canonical record validation fails; never retry failed redaction, restore unredacted values, or emit rejected records through another sink
+  - [x] preserve the exact integer and string types of final post-redaction admitted context values in JSONL and within the canonical JSON context encoded by logfmt
+  - [x] do not coerce admitted values to their original pre-redaction types or restore caller-provided values when mandatory shared redaction changes them
+  - [x] reuse `LogRecordPolicy::isValidCanonicalRecord()` in both formatters without adding formatter-specific admission rules
+  - [x] omit malformed methods, unsupported numeric statuses, arbitrary `route_template` values, floating-point durations, unknown keys, unsupported value types, and values violating their exact field-specific bounds during initial `admitContext()` admission
+  - [x] preserve independent omission of invalid ordinary caller context fields, normalizing an empty admitted context to `null` without rejecting an otherwise valid log event
+  - [x] preserve complete-record rejection when an invalid field remains in the assembled canonical context after `ContextBagProcessor` enrichment or when canonical pre-redaction validation fails
+  - [x] preserve complete-record failure semantics for sensitive-key classifier exceptions and invalid instance-bound `key_paths` in canonical records
+  - [x] preserve existing structural restrictions on `path_template` without claiming that lexical validation alone can establish whether an admissible string originated from an HTTP request
+  - [x] require producers to supply only safe-by-construction operational values; do not infer producer provenance from syntax or event identity
+  - [x] preserve existing maximum context cardinality, serialized record byte limits, deterministic ordering, and fail-closed behavior
+  - [x] preserve `admitContext()` behavior: caller context containing more than 48 entries is rejected as a whole and becomes null, while a valid log event may still be emitted with current canonical context enrichment
+  - [x] enforce the maximum 48-field limit again on the complete canonical context after optional `ContextBagProcessor` enrichment
+  - [x] reject the entire canonical record when enrichment causes the final context to exceed 48 fields, without truncating fields, skipping validation, or producing an alternate partial record
+  - [x] do not introduce source-package-specific or event-name-specific exceptions to the canonical logging admission policy
+  - [x] do not introduce additional canonical record root fields, configuration keys, loggers, formatters, redaction switches, or alternate emission paths
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-http-runtime-pipeline-wiring.md`
+- [x] `packages/platform/logging/tests/Unit/LogRecordPolicyTest.php` — HTTP completion context admission regression coverage
+  - [x] verify admission of every canonical HTTP method and rejection of lowercase, malformed, oversized, or unsupported method values
+  - [x] verify strict integer status admission at `100` and `599`, rejection of `99`, `600`, floats, booleans, and numeric strings, and preservation of the exact existing category-string grammar for `status`
+  - [x] verify representative string statuses `ready` and `unknown` remain admitted without weakening `isCategory()` for other category fields
+  - [x] verify `status` and `outcome` are admitted independently according to their field-specific grammars, including structurally valid combinations that do not represent a consistent HTTP completion outcome
+  - [x] verify `LogRecordPolicy` does not derive, rewrite, or reject `outcome` based on numeric HTTP status ranges; HTTP completion consistency remains the producer's responsibility
+  - [x] verify numeric status handling is reached before generic category admission and is identical in `admitContext()` and `isValidCanonicalRecord()`
+  - [x] verify `route_template='unknown'` is admitted and every other value is rejected, including arbitrary route templates, raw-looking paths, objects, numeric values, and empty strings
+  - [x] verify independent `path_template` admission retains its bounded structural grammar and is not implicitly copied into `route_template`
+  - [x] verify canonical HTTP completion context preserves `method`, `status`, `outcome`, `duration_ms`, and `route_template` through initial admission
+  - [x] verify optional nested `correlation_id` remains non-authoritative and cannot replace canonical root identifiers
+  - [x] verify mandatory shared redaction executes exactly once on the complete canonical record
+  - [x] verify valid unchanged HTTP completion fields survive post-redaction admission with their original integer or string types
+  - [x] verify invalid ordinary context fields introduced by shared redaction are omitted without restoring original unredacted values
+  - [x] verify invalid non-null redacted context container types reject the complete canonical record
+  - [x] verify a redactor-produced context containing 49 distinct fields, without `key_paths`, is omitted as a whole by post-redaction `admitContext()` and becomes `null` while the canonical root fields remain valid
+  - [x] verify oversized post-redaction context omission does not bypass independent sensitive `key_paths` validation or restore original context values
+  - [x] distinguish post-redaction context omission from complete-record rejection caused by an oversized pre-redaction canonical context
+  - [x] verify sensitive or malformed post-redaction `key_paths` reject the complete record rather than silently omitting only the affected branch
+  - [x] verify malformed root fields, redactor failures, and sensitive-key classifier failures preserve existing fail-closed emission behavior
+  - [x] verify unknown fields, unsupported value types, unsafe objects, Throwables, and lexically invalid transport-derived values are omitted during initial context admission without evaluating unsafe objects or changing other admitted fields
+  - [x] verify classified sensitive `key_paths` cause omission of the entire `key_paths` branch during initial admission without retaining partial path data
+  - [x] verify sensitive-key classifier failures propagate from direct admission and suppress the complete emission through the existing `StreamLogger` failure-isolation boundary
+  - [x] verify invalid context fields remaining in assembled canonical records fail complete-record validation rather than being silently repaired
+  - [x] verify context admission depends only on canonical field names, types, values, and bounds, independently of valid static event identifiers
+  - [x] verify `LogRecordPolicy` does not accept producer identity, runtime mode, or HTTP lifecycle state as admission inputs and introduces no event-specific admission branches
+  - [x] keep producer provenance guarantees outside the generic sink tests; test only the field syntax, types, bounds, and allowed values that `LogRecordPolicy` can actually establish
+  - [x] preserve existing field cardinality, deterministic ordering, category-string compatibility, and failure-isolation tests
+  - [x] do not import platform/http production classes into platform/logging tests or create a cross-platform runtime dependency
 
-- [ ] `packages/core/kernel/src/Runtime/Driver/RuntimeDriverGuard.php`
-  - [ ] replace the temporary direct `platform.http` module-id check with the finalized HTTP runtime provider contract;
-  - [ ] remove `TODO(platform-http-3.50.0)` only after replacement tests are green.
+- [x] `packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php` — canonical HTTP completion record integration coverage
+  - [x] verify an admitted `http.request.completed` event with canonical bounded HTTP completion context survives the real `StreamLogger` admission, enrichment, redaction, and serialization path
+  - [x] verify producer-supplied HTTP completion events with finalized responses preserve canonical uppercase `method`, integer `status` in `100..599`, bounded integer `duration_ms`, and fixed `route_template='unknown'`
+  - [x] verify completed-response cases use producer-supplied `outcome='success'` for statuses below `400` and `outcome='handled_error'` for statuses `400..599`
+  - [x] verify the logging sink preserves these values without independently deriving or enforcing HTTP status-to-outcome consistency
+  - [x] verify an HTTP completion event without a finalized response preserves `status='unknown'` and `outcome='fatal_error'`
+  - [x] verify ordinary string-valued operational status categories through producer-neutral logging cases without treating them as additional `HttpAccessLogWriter` output modes
+  - [x] verify canonical root `correlation_id`, `uow_id`, and `uow_type` are sourced exclusively from the current Kernel/Foundation context boundary
+  - [x] verify caller-supplied nested correlation identifiers do not override canonical root identifiers
+  - [x] verify HTTP completion records before, during, and after UnitOfWork reset preserve the existing context-lifecycle isolation guarantees
+  - [x] verify optional ContextBagProcessor path-template enrichment does not overwrite `route_template='unknown'`
+  - [x] verify caller context exceeding 48 entries is omitted by initial admission without necessarily suppressing an otherwise valid log event
+  - [x] use a producer-neutral static test event to construct exactly 48 distinct, valid, admitted context fields excluding `path_template`
+  - [x] verify an additional valid `ContextKeys::PATH_TEMPLATE` enrichment produces 49 canonical context fields and suppresses the entire emission before mandatory shared redaction
+  - [x] keep this synthetic cardinality scenario separate from the fixed bounded context emitted by `HttpAccessLogWriter`
+  - [x] verify no redaction, formatting, or destination write is attempted for the rejected oversized pre-redaction canonical record
+  - [x] verify no truncation, partial canonical record, secondary write, or raw fallback occurs when post-enrichment validation rejects the complete record
+  - [x] verify invalid or rejected HTTP context values are never restored after shared redaction or emitted through fallback serialization
+  - [x] verify JSONL preserves canonical HTTP context integer and string types in the emitted JSON object
+  - [x] verify logfmt serializes the same canonical HTTP context as one escaped JSON-valued `context` field, preserving numeric types inside that JSON representation
+  - [x] verify both formats preserve the same admitted context semantics without requiring byte-identical output across different formats
+  - [x] preserve the existing no-raw-fallback, bounded-record, and no-leak invariants
+  - [x] exercise the generic PSR-3 event/context contract without importing or constructing platform/http runtime implementations
 
-- [ ] `docs/adr/ADR-0027-runtime-driver-resolution.md`
-- [ ] `docs/ssot/runtime-drivers.md`
-- [ ] `docs/architecture/runtime-driver-resolution.md`
+- [x] `packages/platform/logging/README.md` — HTTP completion logging sink compatibility
+  - [x] document that platform/logging remains a producer-neutral PSR-3 sink while platform/http owns HTTP request completion event production
+  - [x] update the existing operational context field documentation to describe one complete canonical sink-field schema
+  - [x] document `method` as the exact uppercase enum `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, `CONNECT`, or `OTHER`
+  - [x] document `status` as either a strict integer in `100..599` or a bounded canonical category string satisfying the shared category grammar
+  - [x] document `ready` and `unknown` as valid examples of the canonical string-valued status representation
+  - [x] document `route_template` as the fixed value `unknown` and `path_template` as an independently admitted structural template field
+  - [x] preserve the existing `outcome`, `duration_ms`, and correlation identifier admission semantics
+  - [x] describe HTTP completion logging as consuming only canonical bounded request-completion values, with `route_template='unknown'` and no request route discovery or request-path inference
+  - [x] document that all admitted fields pass through the same mandatory redaction, post-redaction validation, and deterministic JSONL/logfmt formatting
+  - [x] preserve the documented nine-field canonical record root schema and Kernel-owned correlation/UnitOfWork enrichment
+  - [x] clarify that platform/logging does not implement HTTP middleware, inspect requests, infer HTTP outcomes, or import platform/http classes
+  - [x] preserve existing logging configuration, sink restrictions, noop behavior, and architectural dependency boundaries
+  - [x] integrate all logging context rules into the existing canonical record, operational context, redaction, and serialization sections without duplicating normative field definitions
+  - [x] update and extend the existing README sections in place to describe exclusively the effective implemented logging behavior as one coherent current contract
+  - [x] replace any conflicting normative field descriptions rather than retaining old and new definitions side by side
+  - [x] do not mention epic identifiers, implementation plans, task identifiers, delivery phases, migration history, former behavior, newly introduced behavior, or before/after comparisons anywhere in the updated documentation
+  - [x] retain references only to relevant architectural decisions, contracts, APIs, and normative technical documentation
+  - [x] preserve the established README heading hierarchy, section ordering, formatting, terminology, and links to authoritative technical SSoT documents
 
-#### Package skeleton (if type=package)
+- [x] `docs/ssot/logging-policy.md` — canonical logging sink-field schema extension
+  - [x] extend the normative context sink-field admission matrix with the exact bounded HTTP completion field types and values
+  - [x] define `method` as one of `GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE|CONNECT|OTHER`, compared byte-for-byte
+  - [x] define `status` in one normative field entry as either a strict integer in `100..599` or a category string of 1..96 ASCII bytes matching `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`
+  - [x] include `ready` and `unknown` as admissible status string examples without introducing special-case string validation
+  - [x] remove `status` from the generic category-string field enumeration in the documentation and define its complete two-form grammar separately
+  - [x] preserve the identical category-string grammar for `operation`, `outcome`, `event`, `reason`, `driver`, `control_transport`, `presetName`, and `preset`
+  - [x] define `route_template` as the exact string `unknown`, with every other value rejected by canonical context admission
+  - [x] define `route_template` independently of `path_template`, which remains subject to its own bounded structural template grammar
+  - [x] assign responsibility for preventing raw URI paths, route parameters, headers, and arbitrary ContextStore values from entering producer-owned context fields to their respective producers
+  - [x] clarify that syntactic sink admission alone does not establish value provenance or guarantee that an otherwise admissible string was not derived from request data
+  - [x] preserve the existing non-negative integer `duration_ms` bound `0..4294967295` and the existing bounded `outcome` category grammar
+  - [x] preserve canonical root correlation/UnitOfWork identity and explicitly distinguish it from non-authoritative caller-provided nested identifiers
+  - [x] require the extended schema to be enforced consistently before redaction, after mandatory shared redaction, and before both canonical formatter outputs
+  - [x] preserve the producer-neutral admission model: fields are validated by their own shape and semantics, never by the emitting package, event name, or runtime mode
+  - [x] define forbidden HTTP completion data categories: raw URI paths, query strings, headers, cookies, request and response bodies, credentials, tokens, personal data, arbitrary routing values, exception messages, and runtime objects
+  - [x] require producer-owned safe-by-construction values without introducing event-specific or package-specific sink validation branches
+  - [x] preserve all existing canonical root fields, context cardinality limits, record byte limits, sensitive-key classification, failure isolation, and omission rules
+  - [x] document that initial caller context exceeding 48 entries is omitted as a whole without necessarily suppressing the log event
+  - [x] document that canonical context exceeding 48 fields after ContextBagProcessor enrichment invalidates the complete assembled record before redaction
+  - [x] document that context exceeding 48 fields in a redactor result is omitted as a whole during post-redaction context admission, while valid canonical root fields remain eligible for emission
+  - [x] distinguish context omission from complete-record rejection without introducing an alternative emission or redaction path
+  - [x] do not introduce a second logging schema, HTTP-specific sink, redaction engine, classifier vocabulary, or configuration namespace
+  - [x] update the existing normative context sink-field admission section in place, maintaining one authoritative definition for every supported field and its exact bounds
+  - [x] align canonical record assembly, initial admission, mandatory shared redaction, post-redaction validation, and deterministic formatter sections with the effective implemented semantics
+  - [x] preserve the existing document title, metadata, heading hierarchy, section sequence, normative terminology, tables, and cross-references
+  - [x] replace outdated or conflicting normative statements without preserving previous definitions alongside their replacements
+  - [x] do not introduce epic identifiers, task references, planning documents, delivery phases, implementation history, migration narratives, old/new terminology, or before/after comparisons
+  - [x] preserve technical cross-references to canonical interfaces, implementation files, architectural decisions, and authoritative SSoT documents where they define actual system behavior
 
-- [ ] `packages/platform/http/composer.json`
-- [ ] `packages/platform/http/src/Module/HttpModule.php`
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php`
-- [ ] `packages/platform/http/config/http.php`
-- [ ] `packages/platform/http/config/rules.php`
-- [ ] `packages/platform/http/README.md`
-- [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `docs/adr/ADR-0037-platform-logging-psr3.md` — producer-neutral HTTP completion sink compatibility decision
+  - [x] define `LogRecordPolicy` as the single producer-neutral logging admission authority for the canonical nine-field record schema and bounded operational context
+  - [x] record `status` as a single field supporting either a strict integer in `100..599` or a bounded canonical category string
+  - [x] record exact uppercase HTTP method admission and fixed `route_template='unknown'` admission as part of the canonical context-field policy
+  - [x] explain why all admitted context values use the same initial validation, mandatory shared redaction, post-redaction validation, and deterministic serialization path
+  - [x] distinguish producer-supplied `context.route_template='unknown'` from optional `context.path_template` enrichment performed by `ContextBagProcessor` through `ContextAccessorInterface` and `ContextKeys::PATH_TEMPLATE`
+  - [x] preserve independent ownership and validation of both fields without copying `path_template` into `route_template` or introducing HTTP-specific context reads in the logging sink
+  - [x] reaffirm that syntax-level admission does not establish producer provenance or authorize arbitrary user-derived data
+  - [x] preserve Logging ownership of the canonical record schema, context admission, mandatory shared redaction, and deterministic serialization
+  - [x] preserve HTTP ownership of final-response classification, bounded event production, and request lifecycle coordination
+  - [x] record independent package ownership: platform/http produces bounded HTTP completion events through the PSR-3 contract, while platform/logging owns canonical sink admission, redaction, and serialization without importing platform/http implementations
+  - [x] reject event-name-specific admission exceptions, HTTP-specific formatters, duplicate logger implementations, new middleware, and alternative redaction paths
+  - [x] preserve existing canonical root fields, Foundation noop compatibility, Kernel UnitOfWork ownership, and source/compiled container parity
+  - [x] reference `docs/ssot/logging-policy.md` as the normative authority for exact field grammars, bounds, and admission behavior
+  - [x] integrate the complete logging admission decision into the existing ADR Context, Decision, and Consequences sections without creating a separate change-history or migration section
+  - [x] describe one effective logging architecture and one canonical sink-admission contract consistent with the implemented runtime
+  - [x] preserve the existing Rejected alternatives structure as architectural rationale without adding retrospective comparisons of previous and current code behavior
+  - [x] preserve the established ADR metadata, decision numbering, section ordering, formatting, and technical normative references
+  - [x] do not mention epic identifiers, internal implementation plans, task tracking documents, delivery phases, former implementations, historical modifications, migration narratives, or before/after behavior in the resulting ADR
+  - [x] retain only architectural rationale, effective runtime contracts, rejected architectural alternatives, implementation boundaries, and normative technical references
+
+- [x] `composer.json`
+  - [x] register `coretsia/platform-http` through the existing Composer workspace policy
+  - [x] use the canonical release-line `devVersion` without hardcoding an independent package version
+  - [x] preserve managed Composer repository ownership
+
+- [x] `packages/applications/skeleton/README.md`
+  - [x] document the PSR-7/17 implementation selection contract introduced by platform/http without claiming that a complete HTTP front controller is already available
+  - [x] document Composer installation commands for the supported implementations:
+    - [x] `composer require nyholm/psr7`
+    - [x] `composer require guzzlehttp/psr7`
+    - [x] `composer require laminas/laminas-diactoros`
+    - [x] `composer require slim/psr7`
+  - [x] document matching target-local `http.factory` values `nyholm`, `guzzlehttp`, `laminas`, and `slim`
+  - [x] clarify that built-in selections automatically contribute ResponseFactoryInterface and StreamFactoryInterface bindings without requiring a consumer-owned DI provider
+  - [x] document `http.factory=external` as the explicit custom-provider mode requiring application-owned declarative PSR-17 bindings
+  - [x] clarify that installing a Composer package alone does not select platform.http or enable HTTP request handling
+  - [x] keep complete HTTP target bootstrap, front-controller, SAPI request construction, response emission, and browser-serving instructions deferred to epics 3.143.0 and 3.145.0
+  - [x] do not introduce skeleton HTTP defaults, new entrypoint files, application DI provider registries, or runtime implementation discovery in this epic
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] register `platform/http` with exact direct PHP source dependencies on `core/contracts`, `core/foundation`, and `core/kernel`
+  - [x] preserve the prohibition on direct source dependencies on other `platform/*` packages
+  - [x] document PSR-7/15/17 interfaces as direct platform/http Composer dependencies without mandatory concrete PSR-7/17 implementation packages
+  - [x] document platform/http ownership of fixed config-driven PSR-17 factory bindings through `http.factory`
+  - [x] keep concrete Composer implementation installation with the consuming application or distribution
+  - [x] preserve external application-owned bindings when `http.factory=external`
+  - [x] distinguish fixed class-string mapping from forbidden direct source imports of concrete PSR-7/17 implementations
+  - [x] preserve the existing Coretsia package-layer boundaries without adding implementation-specific dependency exceptions
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register the new `docs/ssot/http-middleware-wiring.md` document
+  - [x] preserve the existing `docs/ssot/http-middleware-catalog.md` registration without duplication
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register `ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] preserve canonical ADR ordering
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] preserve all nine canonical HTTP middleware tags and their slot semantics
+  - [x] remove the obsolete platform/http-owned CorrelationIdMiddleware priority 950, HttpMetricsMiddleware priority 920, and AccessLogMiddleware priority 910 registration rows
+  - [x] document HttpKernel as the HTTP finalization coordinator and the four dedicated HTTP-owned non-middleware finalization/observability services
+  - [x] retain TraceContextMiddleware priority 930 with conditional `http.tracing.enabled` registration
+  - [x] preserve the existing priorities of platform/http-owned baseline middleware while aligning their registration metadata with the canonical HTTP tag schema
+  - [x] record TraceContextMiddleware priority 930 with `['toggle' => 'http.tracing.enabled']`
+  - [x] record TrustedProxyMiddleware priority 880 with `['toggle' => 'http.proxy.enabled']`
+  - [x] record RequestContextMiddleware priority 870 with `['toggle' => 'http.context.enrich.enabled']`
+  - [x] record TrustedHostMiddleware priority 860 with `['toggle' => 'http.hosts.enabled']`
+  - [x] record RequestBodySizeLimitMiddleware priority 830 with unconditional metadata `[]`
+  - [x] record JsonBodyParserMiddleware priority 800 with `['toggle' => 'http.request.json.enabled']`
+  - [x] preserve future-only platform/http middleware reservations without treating them as implementations activated by this epic
+  - [x] preserve existing cross-owner registration records as opaque catalog metadata without changing their owners, service identifiers, priorities, or activation contracts
+  - [x] do not add implementation details, internal configuration behavior, lifecycle rules, or feature descriptions for middleware owned by other packages
+  - [x] document only platform/http-owned request-phase ordering, response-decorator execution, and outermost error-boundary placement semantics
+  - [x] distinguish implemented platform/http middleware from future-only platform/http registration reservations
+  - [x] do not introduce implementations, DI registrations, or configuration defaults for deferred HTTP features
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] remove the obsolete platform/http-owned CorrelationIdMiddleware, HttpMetricsMiddleware, and AccessLogMiddleware rows
+  - [x] align TraceContextMiddleware with its actual ContextKeys contract: no ContextStore writes or reads; inbound trace context remains request-local through PSR-7 attributes
+  - [x] preserve RequestContextMiddleware as the only baseline HTTP middleware writer of CLIENT_IP, SCHEME, HOST, PATH, and USER_AGENT
+  - [x] do not add HttpResponseFinalizer, HttpRequestMetricsRecorder, HttpAccessLogWriter, or HttpRequestSpanRecorder as middleware rows
+  - [x] preserve remaining middleware-to-ContextKeys mappings without modifying the contracts or implementation responsibilities of other packages
+  - [x] do not introduce new ContextKeys, a tracing ContextStore, or another request-context registry
+
+- [x] `docs/ssot/artifacts-and-fingerprint.md`
+  - [x] remove the obsolete `http.middleware.auto.*` configuration namespace example
+  - [x] retain `http.middleware.*` as platform-owned config data preserved in `config@1`
+  - [x] preserve Kernel artifact ownership, config payload semantics, and fingerprint exclusion policy without introducing middleware-specific interpretation
+
+- [x] `docs/ssot/context-lifecycle.md`
+  - [x] remove the obsolete `http.middleware.auto` and `http.middleware.auto.*` configuration namespace references
+  - [x] preserve all nine canonical HTTP middleware tag identifiers and their existing `ReservedTags::*` ownership
+  - [x] preserve Kernel-owned Context, UnitOfWork, and reset discipline without redefining HTTP middleware ordering or slot semantics
+
+- [x] `tools/testing/package-index.php`
+  - [x] regenerate through the existing package-index generator
+  - [x] register the new runtime package without manual edits to the generated payload
+
+- [x] `tools/testing/deptrac.yaml`
+  - [x] regenerate through the existing Deptrac generator
+  - [x] include the new `platform/http` layer with canonical dependency boundaries
+
+- [x] `packages/core/kernel/resources/packaging/installation-catalog.php`
+  - [x] regenerate through the existing installation-catalog generator
+  - [x] include `platform.http` to `coretsia/platform-http` mapping and its canonical module requirements
+  - [x] do not introduce a second installation catalog or package registry
 
 #### Configuration (keys + defaults)
 
 Normative:
-- [ ] These `http.middleware.*` config arrays are **manual append lists** (class-strings).
-- [ ] TagRegistry enumeration order remains the only ordering source for tagged services.
+- [x] These `http.middleware.*` config arrays are **manual append lists** of middleware class-string service ids resolved exclusively through the canonical DI container.
+- [x] Explicit service definitions and concrete-class autowiring permitted by the existing Foundation container configuration are both valid resolution paths.
+- [x] platform/http MUST NOT introduce its own autowiring, reflection-based construction, service-registration inspection, or fallback middleware resolver.
+- [x] TagRegistry enumeration order remains the only ordering source for tagged services.
 
-- [ ] Canonical slot execution model (MUST):
-  - [ ] request-phase semantic order:
-    - [ ] `http.middleware.system_pre`
-    - [ ] `http.middleware.system`
-    - [ ] `http.middleware.app_pre`
-    - [ ] `http.middleware.app`
-    - [ ] `http.middleware.route_pre`
-    - [ ] `http.middleware.route`
-  - [ ] response-phase semantic order (on unwind):
-    - [ ] `http.middleware.route_post`
-    - [ ] `http.middleware.app_post`
-    - [ ] `http.middleware.system_post`
-  - [ ] `HttpMiddlewareStackBuilder` MUST preserve this semantic model exactly.
-  - [ ] `*_post` slots are response-decorator slots:
-    - [ ] once the HTTP pipeline has been entered, applicable `*_post` middlewares MUST still run for short-circuit responses returned by earlier layers/middlewares
-    - [ ] this prevents package-local divergence for maintenance / redirect / error responses
+- [x] Canonical slot execution model (MUST):
+  - [x] request-phase logical order:
+    - [x] `http.middleware.system_pre`
+    - [x] `http.middleware.system`
+    - [x] `http.middleware.app_pre`
+    - [x] `http.middleware.app`
+    - [x] `http.middleware.route_pre`
+    - [x] `http.middleware.route`
+    - [x] terminal handler
+  - [x] response-decorator unwind order:
+    - [x] `http.middleware.route_post`
+    - [x] `http.middleware.app_post`
+    - [x] `http.middleware.system_post`
+  - [x] the explicitly selected priority-1000 HTTP error middleware MUST remain the outermost middleware boundary
+  - [x] response-decorator wrappers MUST surround the remaining request-phase chain so that returned early short-circuit responses still pass through applicable post decorators
+  - [x] canonical conceptual wrapper order:
+    - [x] optional outermost priority-1000 error boundary
+    - [x] `system_post` response decorator wrapper
+    - [x] `app_post` response decorator wrapper
+    - [x] `route_post` response decorator wrapper
+    - [x] remaining request-phase middleware in canonical order
+    - [x] terminal handler
+  - [x] post middleware MUST invoke its downstream handler exactly once before decorating the returned response
+  - [x] exceptions caught by the outermost Problem Details boundary are converted outside the inner post-decorator unwind; this MUST NOT be misrepresented as ordinary returned short-circuit behavior
+  - [x] no duplicate middleware pipeline, independent post-processing registry, or second ordering mechanism is allowed
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-- [ ] Keys (dot):
+- [x] Files:
+  - [x] `packages/platform/http/config/http.php`
+- [x] Keys (dot):
+   # explicit PSR-17 implementation selection; no automatic package discovery
+   - [x] `http.factory` = 'external' # external|nyholm|guzzlehttp|laminas|slim
 
-  # auto include tagged middlewares per-slot
-  - [ ] `http.middleware.auto.enabled` = true
-  - [ ] `http.middleware.auto.system_pre` = true
-  - [ ] `http.middleware.auto.system` = true
-  - [ ] `http.middleware.auto.system_post` = true
-  - [ ] `http.middleware.auto.app_pre` = true
-  - [ ] `http.middleware.auto.app` = true
-  - [ ] `http.middleware.auto.app_post` = true
-  - [ ] `http.middleware.auto.route_pre` = true
-  - [ ] `http.middleware.auto.route` = true
-  - [ ] `http.middleware.auto.route_post` = true
-
+  # tagged middleware always participates when its owning module is selected;
+  # optional middleware uses validated feature-specific toggle metadata
   # manual append lists (class-strings), appended after tagged portion
-  - [ ] `http.middleware.system_pre` = []
-  - [ ] `http.middleware.system` = []
-  - [ ] `http.middleware.system_post` = []
-  - [ ] `http.middleware.app_pre` = []
-  - [ ] `http.middleware.app` = []
-  - [ ] `http.middleware.app_post` = []
-  - [ ] `http.middleware.route_pre` = []
-  - [ ] `http.middleware.route` = []
-  - [ ] `http.middleware.route_post` = []
+  - [x] `http.middleware.system_pre` = []
+  - [x] `http.middleware.system` = []
+  - [x] `http.middleware.system_post` = []
+  - [x] `http.middleware.app_pre` = []
+  - [x] `http.middleware.app` = []
+  - [x] `http.middleware.app_post` = []
+  - [x] `http.middleware.route_pre` = []
+  - [x] `http.middleware.route` = []
+  - [x] `http.middleware.route_post` = []
 
-  - [ ] `http.correlation.enabled` = true
-  - [ ] `http.correlation.header_name` = 'X-Correlation-Id'
+  - [x] `http.correlation.enabled` = true
+  - [x] `http.correlation.header_name` = 'X-Correlation-Id'
 
-  - [ ] `http.tracing.enabled` = true
-  - [ ] `http.metrics.enabled` = true
-  - [ ] `http.access_log.enabled` = true
+  - [x] `http.tracing.enabled` = true
+  - [x] `http.metrics.enabled` = true
+  - [x] `http.access_log.enabled` = true
 
-  - [ ] `http.proxy.enabled` = false
-  - [ ] `http.proxy.trusted_proxies` = []
-  - [ ] `http.context.enrich.enabled` = true
-  - [ ] `http.hosts.enabled` = false
-  - [ ] `http.hosts.allowed` = []
+  - [x] `http.proxy.enabled` = false
+  - [x] `http.proxy.trusted_proxies` = []
+  - [x] `http.context.enrich.enabled` = true
+  - [x] `http.hosts.enabled` = false
+  - [x] `http.hosts.allowed` = []
 
-  - [ ] `http.request.max_body_bytes` = 1048576
-  - [ ] `http.request.json.enabled` = true
-  - [ ] `http.request.json.max_depth` = 32
+  - [x] `http.request.max_body_bytes` = 1048576
+  - [x] `http.request.json.enabled` = true
+  - [x] `http.request.json.max_depth` = 32
 
-- [ ] Feature toggles referenced by platform/http-owned middleware (must exist; defaults owned by `platform/http`):
-  - [ ] `http.debug.endpoints.enabled`
-  - [ ] alignment rule:
-    - [ ] this list MUST cover every `platform/http`-owned middleware in `docs/ssot/http-middleware-catalog.md` whose placement is conditional on an `if enabled` rule
-  - [ ] Clarification:
-    - [ ] these keys are seeded here as `platform/http`-owned configuration surface only
-    - [ ] `3.50.0` MUST NOT imply that every listed toggle already has a full middleware/runtime implementation in this epic
-    - [ ] concrete behavior for individual HTTP features is introduced by later HTTP epics
+- [x] Factory selection semantics:
+  - [x] `external` requires application/distribution-owned PSR-17 bindings without generating implementation definitions
+  - [x] `nyholm`, `guzzlehttp`, `laminas`, and `slim` generate only their respective canonical PSR-17 definitions
+  - [x] installing multiple compatible Composer packages MUST NOT change the selected implementation
+  - [x] changing `http.factory` MUST change the effective compiled DI definitions through the existing configuration/artifact lifecycle
+  - [x] missing or incompatible selected implementations MUST fail before HTTP request execution
+  - [x] no automatic fallback to another installed implementation is permitted
 
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces shape
+- [x] Rules:
+  - [x] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Existing HTTP middleware tag reuse (platform/http is the semantic owner):
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP_PRE`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_APP_POST`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_PRE`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE`.
-  - [ ] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST`.
-  - [ ] no duplicate identifiers, package-local aliases, or competing tag registry.
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Http\HttpKernel`
-  - [ ] registers: PSR-17 factories (single implementation, e.g. `Nyholm\Psr7\Factory\Psr17Factory`)
-  - [ ] registers services for each middleware class above
-  - [ ] adds tag `http.middleware.system_pre`:
-    - [ ] `CorrelationIdMiddleware` priority `950`
-    - [ ] `TraceContextMiddleware` priority `930`
-    - [ ] `HttpMetricsMiddleware` priority `920`
-    - [ ] `AccessLogMiddleware` priority `910`
-    - [ ] `TrustedProxyMiddleware` priority `880` (if enabled)
-    - [ ] `RequestContextMiddleware` priority `870` (if enabled)
-    - [ ] `TrustedHostMiddleware` priority `860` (if enabled)
-    - [ ] `RequestBodySizeLimitMiddleware` priority `830`
-    - [ ] `JsonBodyParserMiddleware` priority `800` (if enabled)
+- [x] Existing HTTP middleware tag reuse (platform/http is the semantic owner):
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_APP_PRE`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_APP`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_APP_POST`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_PRE`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_ROUTE`.
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_ROUTE_POST`.
+  - [x] no duplicate identifiers, package-local aliases, or competing tag registry.
+- [x] Canonical HTTP middleware tag metadata schema:
+  - [x] unconditional registration uses exact metadata `[]`
+  - [x] conditional registration uses exact metadata `['toggle' => '<canonical-http-config-key>']`
+  - [x] the toggle key MUST be an explicitly declared, validated boolean key under the `http` configuration root
+  - [x] unsupported metadata keys, malformed toggle values, unknown configuration paths, and invalid service ids fail closed
+  - [x] priority is supplied through the existing tag priority argument, never through metadata
+  - [x] the priority-1000 system-pre position is reserved for the canonical externally contributed HTTP error boundary
+  - [x] no package-local re-sorting, competing tag registry, or alternative middleware metadata catalog is introduced
+- [x] ServiceProvider wiring evidence:
+  - [x] registers: `Coretsia\Platform\Http\HttpKernel`
+  - [x] reads the validated `http.factory` selection from the canonical compiled Phase B config
+  - [x] registers fixed PSR-17 class-service definitions and interface aliases for built-in `nyholm`, `guzzlehttp`, `laminas`, and `slim` selections
+  - [x] registers no concrete factory definitions for `external`; consumes the application's existing canonical PSR-17 bindings
+  - [x] requires `ResponseFactoryInterface::class` and `StreamFactoryInterface::class` for every selected HTTP target
+  - [x] preserves one shared service for single-class implementations and separate services for split factory implementations
+  - [x] validates the final effective PSR-17 factory services and their compatibility with the configured `http.factory` selection before HTTP request execution
+  - [x] preserves source/compiled parity and does not select providers from installed Composer packages automatically
+  - [x] register only platform/http-owned middleware services declared in this epic; externally contributed middleware remains registered by its own selected module provider
+  - [x] `HttpKernel` requires `KernelRuntimeInterface`, Foundation `Stopwatch`, and the four HTTP-owned finalization/observability services through canonical DI
+  - [x] `HttpResponseFinalizer` consumes `CorrelationIdProviderInterface` and owns the final correlation response header
+  - [x] `HttpRequestMetricsRecorder` consumes `MeterPortInterface` and owns request-level metric emission
+  - [x] `HttpAccessLogWriter` consumes `LoggerInterface` and owns safe request completion logging
+  - [x] `HttpRequestSpanRecorder` consumes `TracerPortInterface` and owns request span start/completion operations
+  - [x] `http.correlation.enabled` controls final response correlation header emission
+  - [x] `http.metrics.enabled` controls invocation of HttpRequestMetricsRecorder
+  - [x] `http.access_log.enabled` controls invocation of HttpAccessLogWriter
+  - [x] `http.tracing.enabled` controls both TraceContextMiddleware participation and HttpRequestSpanRecorder invocation
+  - [x] all four services are registered through the existing declarative container without HTTP middleware tags, custom observability tags, or additional reset registrations
+  - [x] source and compiled containers preserve the same service dependencies, feature-toggle behavior, and completion ordering
+  - [x] adds tag `http.middleware.system_pre`:
+    - [x] `TraceContextMiddleware` priority `930`, meta `['toggle' => 'http.tracing.enabled']`
+    - [x] `TrustedProxyMiddleware` priority `880`, meta `['toggle' => 'http.proxy.enabled']`
+    - [x] `RequestContextMiddleware` priority `870`, meta `['toggle' => 'http.context.enrich.enabled']`
+    - [x] `TrustedHostMiddleware` priority `860`, meta `['toggle' => 'http.hosts.enabled']`
+    - [x] `RequestBodySizeLimitMiddleware` priority `830`
+    - [x] `JsonBodyParserMiddleware` priority `800`, meta `['toggle' => 'http.request.json.enabled']`
+  - [x] contribute all implemented HTTP middleware service definitions and canonical tags deterministically regardless of feature-toggle values
+  - [x] evaluate validated `toggle` metadata exclusively during HttpMiddlewareStackBuilder effective stack assembly
+  - [x] disabled middleware MUST remain defined and tagged but MUST NOT participate in the effective request pipeline
+  - [x] do not introduce conditional provider registration, duplicate feature selection, or a second middleware activation registry
 
 #### Artifacts / outputs (if applicable)
 
@@ -7334,67 +8095,118 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::UOW_ID`
-  - [ ] `ContextKeys::UOW_TYPE`
-  - [ ] `ContextKeys::CLIENT_IP` (if enriched)
-  - [ ] `ContextKeys::SCHEME`
-  - [ ] `ContextKeys::HOST`
-  - [ ] `ContextKeys::PATH`
-  - [ ] `ContextKeys::USER_AGENT`
-- [ ] Context writes (safe only):
-  - [ ] `ContextKeys::CORRELATION_ID` (CorrelationIdMiddleware)
-  - [ ] `ContextKeys::CLIENT_IP|SCHEME|HOST|PATH|USER_AGENT` (RequestContextMiddleware)
-- [ ] Reset discipline:
-  - [ ] no stateful services expected; if introduced → `ResetInterface` + tag `kernel.reset`
+- Context reads:
+  - N/A
+- [x] Context writes (safe only):
+  - [x] `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE` remain exclusively Kernel-owned
+  - [x] `HttpResponseFinalizer` MUST read but never overwrite Kernel-owned correlation identity
+  - [x] `HttpKernel` MUST invoke HttpResponseFinalizer while the Kernel UnitOfWork is active and before ContextStore reset
+  - [x] HTTP observability services MUST NOT write request metadata, span handles, metrics state, or logging state into ContextStore
+  - [x] `ContextKeys::CLIENT_IP|SCHEME|HOST|PATH|USER_AGENT` may be written only by `RequestContextMiddleware` after owner-approved validation
+  - [x] optional request enrichment failures MUST NOT create unsafe context or override primary HTTP failures
+- [x] UnitOfWork discipline:
+  - [x] use the existing `KernelRuntimeInterface` low-level lifecycle contract for HTTP status-aware outcome mapping
+  - [x] successful begin MUST be matched by exactly one after completion attempt
+  - [x] preserve `success`, `handled_error`, and `fatal_error` according to `docs/ssot/uow-outcome-policy.md`
+  - [x] do not duplicate Kernel before/after hooks, lifecycle gates, reset discovery, or outcome export
+  - [x] preserve the original primary Throwable when after/reset also fails
+- [x] Reset discipline:
+  - [x] Foundation `ResetOrchestrator` remains the sole reset executor
+  - [x] HTTP-owned middleware, policies, HttpResponseFinalizer, HttpRequestMetricsRecorder, HttpAccessLogWriter, and HttpRequestSpanRecorder MUST remain stateless across requests
+  - [x] per-request Stopwatch tokens, SpanInterface handles, responses, outcome values, and correlation data MUST remain local to the HttpKernel invocation
+  - [x] finalization and observability services MUST NOT create their own reset cycle, per-request shared cache, or request-state registry
+  - [x] any introduced stateful service MUST implement `ResetInterface` and use existing `kernel.stateful` enforcement plus `kernel.reset` discovery
+  - [x] `HttpKernel` MUST NOT invoke an additional reset after `KernelRuntimeInterface::afterUnitOfWork()`
+  - [x] complete multi-request leakage verification remains owned by epic 3.55.0
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `http.request` (attrs: `method`, `status`, `outcome`)
-  - [ ] `http.middleware` (attrs: `operation=<middleware>`, `outcome`) (optional debug)
-- [ ] Metrics:
-  - [ ] `http.request_total` (labels: `method`, `status`, `outcome`)
-  - [ ] `http.request_duration_ms` (labels: `method`, `status`, `outcome`)
-  - [ ] `http.middleware_total` (labels: `operation`, `outcome`)
-  - [ ] `http.middleware_duration_ms` (labels: `operation`, `outcome`)
-- [ ] Label normalization applied (if needed):
-  - [ ] `uow_type→operation` (if you ever emit UoW-type metrics here)
-  - [ ] `reason→status` (e.g. 413/400 as status)
-- [ ] Logs:
-  - [ ] Access log: method/status/duration + safe path template (or `unknown`) + correlation_id
-  - [ ] No headers/cookies/body; no tokens/session ids; only `hash/len` when needed
+- [x] Spans:
+  - [x] owner: `HttpRequestSpanRecorder`, invoked by HttpKernel
+  - [x] canonical span: `http.request`
+  - [x] port: `TracerPortInterface` with `SpanInterface`
+  - [x] attributes: exact safe bounded `method`, `status`, and `outcome`
+  - [x] span start occurs before PSR-15 pipeline execution; final status/outcome attributes and span end occur after pipeline completion
+  - [x] `http.tracing.enabled=false` suppresses the request span and inbound TraceContextMiddleware
+  - [x] no automatic inbound parent-child linkage is guaranteed by the current TracerPortInterface
+  - [x] span failures MUST NOT replace the primary response or Throwable
+  - [x] no additional spans, active span registry, recorder backend, exporter, or request-state storage introduced
+- [x] Metrics:
+  - [x] owner: `HttpRequestMetricsRecorder`, invoked by HttpKernel
+  - [x] `http.request_total` — counter with exact labels `method`, `status`, `outcome`
+  - [x] `http.request_duration_ms` — integer-millisecond observation with exact labels `method`, `status`, `outcome`
+  - [x] method/status/outcome normalization MUST follow the existing observability catalog and bounded-cardinality policy
+  - [x] status MUST reflect the final completed response, including Problem Details adaptation and short-circuit handling
+  - [x] uncaught Throwables without a completed response use `status=unknown` and `outcome=fatal_error`
+  - [x] `http.metrics.enabled=false` suppresses request-level metric emission
+  - [x] increment and observe failures MUST be isolated from the primary HTTP result and from each other
+  - [x] no `http.middleware_total` or `http.middleware_duration_ms` emission without approved catalog entries
+  - [x] no second MeterPort implementation, aggregator, exporter, or metric registry
+- [x] Label normalization:
+  - [x] use only metric-specific canonical `method`, `status`, and `outcome` label keys
+  - [x] never export raw paths, route parameters, exception reasons, middleware class names, correlation ids, or request ids as metric labels
+  - [x] HttpKernel owns the shared safe HTTP method representation; HttpRequestMetricsRecorder owns metric-specific label validation and representation
+  - [x] span and access-log services MUST consume the same bounded request-level method without independently reading raw HTTP request values
+- [x] Logs:
+  - [x] owner: `HttpAccessLogWriter`, invoked by HttpKernel
+  - [x] logger: existing PSR-3 `LoggerInterface`, including Foundation noop fallback
+  - [x] one safe request completion record per enabled completion path
+  - [x] permitted baseline fields: bounded method, status, duration_ms, outcome, canonical correlation_id, and fixed `route_template='unknown'`
+  - [x] route template MUST NOT be inferred from the original immutable PSR-7 request after downstream middleware execution
+  - [x] future route-aware logging requires an explicit safe routing metadata handoff owned by epic 3.140.0
+  - [x] no headers, cookies, raw URI paths, query strings, request/response bodies, tokens, session ids, or private context
+  - [x] `http.access_log.enabled=false` suppresses request completion logging
+  - [x] optional logging failure never changes the HTTP response, UnitOfWork outcome, or primary Throwable
+- [x] Finalization:
+  - [x] owner: `HttpKernel` for orchestration; `HttpResponseFinalizer` for response mutation
+  - [x] complete correlation response headers before recording the final request outcome and before Kernel reset
+  - [x] derive observability status from the completed response after response finalization
+  - [x] recorders MUST NOT mutate the response or independently execute the pipeline
+  - [x] all observability completion paths use the same request-local canonical result values
+  - [x] no second HTTP completion pipeline, observer registry, or independent lifecycle
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Http\Exception\BadJsonException` — errorCode `CORETSIA_HTTP_BAD_JSON`
-  - [ ] `Coretsia\Http\Exception\BodyTooLargeException` — errorCode `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
-  - [ ] `Coretsia\Http\Exception\TrustedHostRejectedException` — errorCode `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
-- [ ] Mapping:
-  - [ ] package throws deterministic exceptions; mapping to ErrorDescriptor via `platform/errors` mappers (NO DUPES)
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Platform\Http\Exception\BadJsonException` — errorCode `CORETSIA_HTTP_BAD_JSON`
+  - [x] `Coretsia\Platform\Http\Exception\BodyTooLargeException` — errorCode `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`
+  - [x] `Coretsia\Platform\Http\Exception\TrustedHostRejectedException` — errorCode `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`
+- [x] Mapping:
+  - [x] `HttpExceptionMapper` implements the existing `ExceptionMapperInterface`
+  - [x] mapping is contributed through `ReservedTags::ERROR_MAPPER` with priority `100` and metadata `[]`
+  - [x] `platform/errors` owns registry discovery, normalization, mandatory redaction, and reporting
+  - [x] `platform/problem-details` owns HTTP presentation of the resulting `ErrorDescriptor`
+  - [x] without a selected compatible HTTP error renderer, HTTP-owned exceptions remain Throwables; this epic MUST NOT introduce an alternative response renderer
+  - [x] no duplicate exception mapper registry, ErrorHandler, or fallback normalization implementation
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/session id/tokens/raw SQL/payload
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids (`correlation_id` in logs only)
+- [x] MUST NOT leak:
+  - [x] raw request/response headers, cookies, authorization values, query strings, bodies, raw paths, session identifiers, tokens, SQL, credentials, or private context
+  - [x] raw Throwable messages, stack traces, JSON parser details, forwarded host values, or absolute local paths
+- [x] Safe diagnostic policy:
+  - [x] emit only fixed event identifiers and explicitly admitted bounded operational fields
+  - [x] prefer omission over raw-value logging or unnecessary hashing
+  - [x] canonical Logging retains shared redaction ownership; no second HTTP redaction engine is permitted
+  - [x] optional observability failures MUST NOT replace the primary request Throwable
+  - [x] no producer-side assumption that shared redaction authorizes arbitrary raw diagnostic input
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → covered by:
-  - [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
-  - [ ] (context enrichment) add/verify via middleware integration tests where applicable
-- [ ] If `kernel.reset` used → `N/A` (not expected)
-- [ ] If metrics/spans/logs exist → covered by:
-  - [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
-  - [ ] access log behavior proven indirectly via pipeline tests (Phase 0)
-- [ ] If redaction exists → covered by:
-  - [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+- [x] If Context writes exist → covered by:
+  - [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] validated request context enrichment, canonical key ownership, bounded value admission, and omission of unsafe values
+  - [x] no writes to Kernel-owned CORRELATION_ID, UOW_ID, or UOW_TYPE
+  - [x] ContextStore values are cleared through the existing Kernel-owned UnitOfWork reset lifecycle
+- [x] If `kernel.reset` used → `N/A` (not expected)
+- [x] If metrics/spans/logs exist → covered by:
+  - [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] dedicated metrics, logging, and span service tests verify safe emission and failure isolation
+  - [x] HttpKernel completion ordering and final-response observability are verified by `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+- [x] If redaction exists → covered by:
+  - [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
@@ -7403,73 +8215,372 @@ N/A (integration tests use minimal kernel/http harness)
 ### Tests (MUST)
 
 - Unit:
-  - [ ] `packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
-  - [ ] `packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
+  - [x] `packages/platform/http/tests/Unit/ForwardedParsingDeterministicTest.php`
+    - [x] trusted/untrusted immediate peer, malformed Forwarded values, duplicate fields, invalid IP/CIDR, and deterministic failure policy
+    - [x] missing or invalid immediate peer metadata never authorizes forwarded-header trust
+    - [x] accepted forwarded client IP, scheme, and host values are normalized to bounded canonical representations
+    - [x] rejected or ambiguous forwarded metadata cannot produce trusted proxy attributes
+
+  - [x] `packages/platform/http/tests/Unit/TrustedHostPolicyDeterministicTest.php`
+    - [x] exact allowlist, invalid authority, unsafe host syntax, duplicate/ambiguous host values, and deterministic rejection
+
+  - [x] `packages/platform/http/tests/Unit/HttpExceptionMapperTest.php`
+    - [x] exact three exception mappings, fixed codes/statuses, unrelated Throwable returning null, and no sensitive extensions
+
+  - [x] `packages/platform/http/tests/Unit/HttpRuntimeEntrypointGuardTest.php`
+    - [x] reject missing `platform.http` module participation through the existing ModulePlan
+    - [x] delegate the exact caller-supplied RuntimeDriverContributions to RuntimeDriverResolver
+    - [x] accept an explicit empty contribution set for HTTP targets without other owner-provided drivers
+    - [x] preserve canonical conflict rejection for incompatible Worker HTTP contributions and configured non-classic HTTP drivers
+    - [x] preserve canonical RuntimeDriverInvalidConfigException and RuntimeDriverConflictException semantics
+    - [x] do not derive driver contributions from module ids, installed packages, container services, or runtime capability markers
+
+  - [x] `packages/platform/http/tests/Unit/HttpPsrFactorySelectionTest.php`
+    - [x] verify exact factory class-string mappings for `nyholm`, `guzzlehttp`, `laminas`, and `slim`
+    - [x] verify `external` contributes no concrete factory services or aliases
+    - [x] verify single-class implementations produce one shared service with two PSR-17 aliases
+    - [x] verify split implementations produce distinct response and stream factory services
+    - [x] verify only the configured implementation contributes factory definitions, regardless of other available implementations
+    - [x] verify declarative definition production performs no class loading, Composer discovery, filesystem probing, or service instantiation
+    - [x] verify invalid, unsupported, empty, and `auto` selections fail through the canonical configuration validation boundary
+    - [x] verify factory definitions preserve canonical Foundation later-binding-wins semantics
+    - [x] verify built-in factory mappings contribute only their declared services and aliases without probing other provider definitions
+    - [x] verify effective factory mismatch detection belongs to HTTP bootstrap readiness rather than definition registration
+
+  - [x] `packages/platform/http/tests/Unit/MiddlewareManualAppendAndDedupeTest.php`
+    - [x] tagged-first order, manual append order, first occurrence, cross-slot duplicate rejection, and no re-sorting
+    - [x] explicitly registered manual middleware services resolve through the canonical DI container
+    - [x] unregistered concrete middleware classes resolve only when the existing Foundation autowiring configuration permits them
+    - [x] unregistered middleware classes fail deterministically when Foundation concrete-class autowiring is disabled
+    - [x] non-existent, abstract, incompatible, or otherwise unresolvable manual middleware service ids fail deterministically
+    - [x] source and compiled containers preserve equivalent manual middleware resolution semantics
+    - [x] HttpMiddlewareStackBuilder and HttpServiceFactory introduce no independent reflection, autowiring, or service-registration inspection
+
+  - [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+    - [x] enabled correlation header uses only the Kernel-owned CorrelationIdProviderInterface value
+    - [x] disabled correlation header leaves the response unchanged
+    - [x] completed 200, short-circuit 403, and Problem Details 400/413/500 responses receive identical configured header handling
+    - [x] repeated finalization replaces the canonical header rather than appending duplicate values
+    - [x] response status, body, Content-Type, Cache-Control, and unrelated headers remain unchanged
+    - [x] invalid or absent correlation identity does not trigger independent generation or unsafe header emission
+    - [x] response-finalization failure propagates the original finalizer Throwable without rendering a fallback response
+    - [x] primary Throwable precedence and exactly-once Kernel completion are verified at the HttpKernel integration boundary
+    - [x] no shared mutable response or correlation state is retained
+
+  - [x] `packages/platform/http/tests/Unit/HttpRequestMetricsRecorderTest.php`
+    - [x] emits only `http.request_total` and `http.request_duration_ms`
+    - [x] uses exact label keys `method`, `status`, and `outcome`
+    - [x] validates the canonical bounded method, status, and outcome supplied by HttpKernel
+    - [x] constructs only catalog-compliant metric labels without re-reading or reinterpreting the original HTTP request method
+    - [x] preserves the canonical `OTHER` representation for unsupported HTTP methods
+    - [x] rejects unsafe or unbounded recorder inputs without exporting them as metric labels
+    - [x] accepts final completed HTTP statuses, including 400, 413, 429, 500, and 503
+    - [x] uses fixed unknown status and fatal_error outcome when no completed response exists
+    - [x] emits integer-millisecond duration without introducing a second Stopwatch
+    - [x] increment failure does not suppress an independently attempted duration observation
+    - [x] metric failures do not replace the primary HTTP result
+    - [x] no raw paths, correlation ids, request ids, exception reasons, or private values enter labels
+    - [x] no aggregation, exporter, buffer, or per-request service state is introduced
+
+  - [x] `packages/platform/http/tests/Unit/HttpAccessLogWriterTest.php`
+    - [x] emits one safe request completion record for each invocation
+    - [x] includes only permitted bounded method, status, duration_ms, outcome, optional canonical correlation_id, and fixed `route_template='unknown'`
+    - [x] does not accept, infer, or export application route metadata in the baseline HTTP runtime
+    - [x] uses fixed `route_template='unknown'` for every baseline request without route-metadata inference or application routing dependencies
+    - [x] does not derive routing information from the original immutable PSR-7 request
+    - [x] excludes raw paths, queries, headers, cookies, authorization values, bodies, tokens, exception messages, and private context
+    - [x] preserves Foundation noop logging behavior
+    - [x] logging failure does not change the HTTP response or primary Throwable
+    - [x] no independent redactor, serializer, buffer, or mutable request state is introduced
+
+  - [x] `packages/platform/http/tests/Unit/HttpRequestSpanRecorderTest.php`
+    - [x] starts only the canonical `http.request` span through TracerPortInterface
+    - [x] uses only bounded safe method, status, and outcome attributes
+    - [x] returns the request-local SpanInterface handle without storing it in service properties
+    - [x] sets final status and outcome attributes before ending the span
+    - [x] ends every successfully started span exactly once on normal, handled-error, and uncaught-Throwable paths
+    - [x] isolates span start, attribute update, and end failures independently
+    - [x] never invokes SpanInterface::recordException() with a raw Throwable
+    - [x] records fatal_error only through safe bounded attributes without exposing exception messages or stack traces
+    - [x] preserves Foundation noop tracing behavior
+    - [x] does not infer automatic parent-child linkage from TraceContextMiddleware extraction
+    - [x] no active span registry, exporter, sampler, or retained request state is introduced
+
 - Contract:
-  - [ ] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
-  - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
-  - [ ] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInPipelineContractTest.php`
-  - [ ] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+    - [x] canonical request order and response-decorator unwind order
+    - [x] ordinary early short-circuit responses still reach applicable post decorators
+    - [x] original Throwable identity survives middleware failures
+    - [x] repeated handle() invocations on the same Pipeline preserve identical middleware execution order
+    - [x] short-circuit responses and thrown exceptions do not corrupt subsequent Pipeline invocations
+    - [x] reentrant handle() invocations do not share traversal cursors or request-specific state
+
+  - [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+    - [x] exact catalog slot/priority identity for currently implemented baseline middleware
+    - [x] no future-only middleware registration
+    - [x] selected Problem Details priority `1000` remains outermost
+    - [x] existing TagRegistry ordering remains authoritative
+
+  - [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+    - [x] Foundation noop tracer, meter, and logger preserve safe HTTP request completion
+    - [x] HttpRequestMetricsRecorder, HttpAccessLogWriter, and HttpRequestSpanRecorder do not depend on concrete platform observability implementations
+    - [x] optional observability failures do not replace the primary response or Throwable
+    - [x] no observability middleware, second request lifecycle, registry, or shared request-state storage is introduced
+
+  - [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+    - [x] noop-safe observability without swallowing downstream application Throwables
+
+  - [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+    - [x] subtree-only defaults, no repeated `http` root, no reserved `@*` directives
+    - [x] strictly validated declared keys and no `http.middleware.auto.*` aliases
+    - [x] `http.factory` defaults to `external` and accepts only `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`
+    - [x] invalid factory values, arbitrary class names, unknown selectors, and `auto` are rejected through the existing declarative ConfigValidator
+    - [x] changing `http.factory` participates in canonical Phase B config and compiled artifact inputs without special-case Kernel handling
+
+  - [x] `packages/platform/http/tests/Contract/HttpMiddlewareTagMetadataContractTest.php`
+    - [x] exact `[]` or `toggle` metadata, canonical boolean configuration keys, and deterministic rejection of unsupported metadata
+
 - Integration:
-  - [ ] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
-  - [ ] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
-  - [ ] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
-  - [ ] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+    - [x] exactly one successful begin/after pair, reset after completion, canonical status-to-outcome mapping, and primary Throwable precedence
+    - [x] HttpKernel invokes the PSR-15 pipeline exactly once per successful UnitOfWork begin
+    - [x] response finalization and all enabled observability completion operations precede Kernel after/reset
+    - [x] uncaught pipeline Throwables still trigger exactly one after completion attempt
+    - [x] response-finalization failure after a successful pipeline response produces fatal_error with unknown final status
+    - [x] the original response-finalization Throwable is preserved through exactly one Kernel after/reset completion attempt
+    - [x] an intermediate pipeline response is never returned after failed finalization
+    - [x] optional observability failures do not suppress Kernel completion or replace the primary Throwable
+    - [x] no duplicate reset, Kernel correlation identity, or additional request lifecycle
+    - [x] repeated sequential requests do not leak Stopwatch tokens, SpanInterface handles, response state, or correlation data
 
-  - [ ] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
-    - [ ] explicitly selected platform.problem-details participates in the real HTTP middleware pipeline at priority 1000.
-    - [ ] unselected platform.problem-details contributes no middleware services or tags.
-    - [ ] source and compiled containers preserve equivalent middleware ordering and PSR factory bindings.
-    - [ ] caught downstream Throwable invokes the canonical ErrorHandlerInterface exactly once.
-    - [ ] normal and emergency responses preserve exact status, Content-Type, Cache-Control, and safe JSON body.
-    - [ ] failed response/stream construction preserves the original downstream Throwable.
-    - [ ] successful downstream responses remain unchanged.
+  - [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+    - [x] HttpKernel coordinates HttpResponseFinalizer, HttpRequestMetricsRecorder, HttpAccessLogWriter, and HttpRequestSpanRecorder through canonical DI
+    - [x] completed 200, short-circuit 403, mapped Problem Details 400/413, and emergency 500 responses produce observability records using the final observed HTTP status
+    - [x] response finalization occurs before status/outcome observation and before Kernel after/reset
+    - [x] every enabled completion path invokes each recorder at most once without duplicate request telemetry
+    - [x] metrics and access logs consume the same canonical method, final status, outcome, and integer-millisecond duration; span completion consumes the same canonical method, final status, and outcome, without an additional duration attribute
+    - [x] the existing Foundation Stopwatch provides non-negative integer-millisecond durations for completed and fatal request paths
+    - [x] Stopwatch::stop() is invoked only after a successful start and at most once for the exact invocation-local token
+    - [x] no Stopwatch token is exported to responses, request context, metrics, spans, logs, diagnostics, or artifacts
+    - [x] a rejected UnitOfWork begin does not start an HTTP request timer or execute the pipeline
+    - [x] optional metric, logging, and tracing failures do not suppress Kernel after/reset or replace the primary Throwable
+    - [x] unsupported or attacker-controlled HTTP methods normalize to fixed `OTHER` consistently across metrics, spans, and access logs
+    - [x] no recorder receives the original raw method when it is outside the canonical method allowlist
+    - [x] metrics recorder attempts exactly one request counter and one duration observation
+    - [x] access-log writer attempts exactly one safe completion record
+    - [x] span recorder starts before pipeline execution and ends the exact successfully started span once after completion
+    - [x] `http.correlation.enabled=false` suppresses response correlation header emission without changing Kernel correlation identity
+    - [x] `http.metrics.enabled=false` suppresses request metric recording only
+    - [x] `http.access_log.enabled=false` suppresses access-log emission only
+    - [x] `http.tracing.enabled=false` suppresses request span recording and TraceContextMiddleware participation
+    - [x] uncaught Throwable without a completed response uses fixed unknown status and fatal_error outcome
+    - [x] failed response finalization after a returned pipeline response records unknown status and fatal_error without treating the intermediate response as completed
+    - [x] enabled observability recorders and Kernel after/reset still receive their required completion attempts on finalization failure
+    - [x] failure of one optional recorder does not suppress the remaining enabled recorders
+    - [x] recorder failures do not change response identity, HTTP status, primary Throwable precedence, or Kernel reset behavior
+    - [x] no request-level observability middleware or independent completion pipeline is instantiated
+    - [x] use injected test spies for the existing TracerPortInterface, MeterPortInterface, and LoggerInterface; do not require recording/exporting backends
 
-  - [ ] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+    - [x] HttpKernel delegates canonical correlation response header completion to HttpResponseFinalizer exactly once before Kernel reset, including successful, early short-circuit, and Problem Details responses
+    - [x] HttpResponseFinalizer does not generate correlation identity or create additional middleware
+    - [x] disabled header emission does not disable internal Kernel correlation
+
+  - [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+    - [x] enabled RequestContextMiddleware writes only admissible CLIENT_IP, SCHEME, HOST, PATH, and USER_AGENT ContextKeys
+    - [x] disabled enrichment performs no HTTP-owned ContextStore writes
+    - [x] trusted-proxy-derived metadata is consumed only after canonical proxy validation
+    - [x] malformed, oversized, ambiguous, or unsafe optional request values are omitted without weakening ContextStorePolicy
+    - [x] CORRELATION_ID, UOW_ID, and UOW_TYPE remain exclusively Kernel-owned
+    - [x] raw request-derived ContextStore values are not exported to metrics, spans, access logs, diagnostics, or public errors
+    - [x] request context does not leak across sequential UnitOfWork executions
+    - [x] no additional context storage or reset orchestration is introduced
+
+  - [x] `packages/platform/http/tests/Integration/TrustedProxyMetadataHandoffTest.php`
+    - [x] trusted forwarded metadata is published only through the fixed `coretsia.http.trusted_proxy` PSR-7 request attribute
+    - [x] pre-existing reserved proxy attributes are cleared before trust evaluation
+    - [x] untrusted or missing immediate peer information never authorizes forwarded metadata
+    - [x] RequestContextMiddleware consumes only validated proxy-derived values or admissible direct request metadata
+    - [x] TrustedHostMiddleware accepts a forwarded host only through the validated proxy attribute
+    - [x] disabled proxy handling never makes a pre-existing proxy attribute authoritative
+    - [x] no raw forwarding headers, proxy chains, or unvalidated host values enter ContextStore or observability outputs
+    - [x] no additional request context registry, reset lifecycle, or mutable shared proxy state is introduced
+
+  - [x] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
+    - [x] known and unknown body lengths, bounded reads, stream preservation, and exact 413 mapping when Problem Details is explicitly selected
+
+  - [x] `packages/platform/http/tests/Integration/BodySizeLimitStreamParityTest.php`
+    - [x] enforce identical byte limits for known-length, unknown-length, seekable, and non-seekable streams
+    - [x] preserve accepted request body bytes and downstream readable semantics
+    - [x] a complete unread non-seekable body is reconstructed byte-equivalently for downstream consumers
+    - [x] a detectable partially consumed non-seekable input is rejected without pretending that missing bytes can be restored
+    - [x] a seekable stream with a nonzero initial cursor is checked against its complete body length
+    - [x] accepted seekable streams retain their exact initial cursor position after verification
+    - [x] oversized seekable bodies are rejected even when only their remaining unread portion fits within the configured limit
+    - [x] reject conflicting Content-Length values, oversized declarations, and actual body-size overflow deterministically
+    - [x] prove bounded allocation and no leaked payload fragments
+
+  - [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+    - [x] invalid JSON produces the HTTP-owned exception, one canonical error mapping, and safe 400 rendering through selected Problem Details
+
+  - [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+    - [x] accept valid JSON object/list roots and expose them through PSR-7 withParsedBody()
+    - [x] preserve byte-equivalent raw request body access after parsing for seekable and non-seekable streams
+    - [x] restore the original cursor position for accepted seekable streams
+    - [x] reconstruct accepted non-seekable streams through the selected StreamFactoryInterface before downstream dispatch
+    - [x] verify withParsedBody() does not remove or replace the preserved raw body
+    - [x] verify compatible PSR-17 factories with differing stream seekability preserve equivalent parsing and downstream body semantics
+    - [x] accept valid bounded JSON request bodies larger than Foundation StableJsonDecoder's strict diagnostic-input byte limit
+    - [x] reject malformed JSON, unsupported scalar roots, excessive nesting, and invalid media-type/encoding combinations
+    - [x] leave non-JSON requests unchanged
+    - [x] never export raw parsed data through diagnostics, spans, metrics, logs, or ErrorDescriptor
+
+  - [x] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+    - [x] explicitly selected and unselected Problem Details module behavior
+    - [x] priority-1000 middleware ordering and source/compiled DI parity
+    - [x] exactly one canonical error normalization for a captured downstream Throwable
+    - [x] safe normal/emergency responses, Content-Type, Cache-Control, and original Throwable precedence
+    - [x] successful responses pass through unchanged except explicitly configured HTTP envelope behavior
+
+  - [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+    - [x] no raw request headers, cookies, authorization, body, query, path, or unsafe context in emitted records
+    - [x] HttpKernel coordinates one final-response access-log operation through HttpAccessLogWriter, including mapped errors and early short-circuit responses
+    - [x] HttpAccessLogWriter owns safe field selection and formatting; HttpKernel does not construct log payloads
+    - [x] optional logging failures do not change request outcomes, HTTP responses, or primary Throwable precedence
+
+  - [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+    - [x] verify equivalent HTTP service definitions, factory bindings, middleware metadata, effective ordering, and terminal handling in source and compiled containers
+    - [x] verify equivalent HttpResponseFinalizer, HttpRequestMetricsRecorder, HttpAccessLogWriter, and HttpRequestSpanRecorder service definitions in source and compiled containers
+    - [x] verify canonical HttpKernel dependency injection and finalization ordering without runtime-only factories or observer registries
+    - [x] verify dedicated observability services are not registered under any HTTP middleware slot
+    - [x] verify no shared mutable request state, per-request observer cache, or additional reset service is introduced
+    - [x] verify `nyholm` selects the shared `Nyholm\Psr7\Factory\Psr17Factory` service for both PSR-17 interfaces
+    - [x] verify `guzzlehttp` selects the shared `GuzzleHttp\Psr7\HttpFactory` service for both PSR-17 interfaces
+    - [x] verify `laminas` selects distinct `Laminas\Diactoros\ResponseFactory` and `Laminas\Diactoros\StreamFactory` services
+    - [x] verify `slim` selects distinct `Slim\Psr7\Factory\ResponseFactory` and `Slim\Psr7\Factory\StreamFactory` services
+    - [x] verify `external` preserves explicitly supplied compatible PSR-17 services without registering package-owned replacements
+    - [x] verify each selected factory service implements its required PSR-17 interface
+    - [x] verify the presence of multiple installed implementations never changes the explicit selection or generated definitions
+    - [x] verify changing `http.factory` changes the canonical compiled container inputs and effective factory bindings
+    - [x] verify missing external factory services fail through canonical container completeness validation
+    - [x] verify source and compiled containers preserve the same later-binding-wins results for repeated factory service and alias definitions
+    - [x] verify overriding a built-in selection with an incompatible effective factory is rejected by HTTP bootstrap readiness
+    - [x] verify no implicit provider discovery, fallback selection, or second DI container is introduced
+    - [x] use test-only concrete implementation dependencies or isolated Composer fixtures without adding mandatory PSR-7/17 production dependencies to platform/http
+
+  - [x] `packages/platform/http/tests/Integration/HttpPsrFactoryBootstrapReadinessTest.php`
+    - [x] a selected built-in implementation missing from Composer autoload fails deterministically before the first HTTP request
+    - [x] the owning entrypoint validates PSR-17 readiness before resolving HttpKernelInterface or constructing the middleware pipeline
+    - [x] invalid selected factories prevent HttpKernel and terminal handler construction
+    - [x] readiness validation does not begin UnitOfWork or execute middleware
+    - [x] a selected implementation with incompatible response or stream factory contracts fails deterministically
+    - [x] later service or alias overrides that change a built-in selection's effective factory identity fail readiness before UnitOfWork begin
+    - [x] compatible external factories remain valid under the canonical later-binding-wins policy when `http.factory=external`
+    - [x] `external` without either required PSR-17 binding fails through canonical container completeness validation
+    - [x] `external` with valid application-owned bindings succeeds without any built-in implementation selected
+    - [x] installed but unselected PSR-7/17 packages do not satisfy missing selected implementation requirements
+    - [x] readiness failures do not fall back to another installed implementation or modify Kernel runtime-driver state
+    - [x] failed readiness does not begin an HTTP UnitOfWork, emit request metrics, start request spans, or execute middleware
+    - [x] source and compiled containers preserve equivalent success and failure semantics
+
+  - [x] `packages/platform/http/tests/Integration/HttpEarlyShortCircuitPostDecoratorsTest.php`
+    - [x] route-post, app-post, and system-post decorators execute in canonical unwind order for ordinary returned short-circuit responses
+    - [x] outermost Problem Details exception conversion remains a separately verified path
+
 - Gates/Arch:
-  - [ ] `tools/gates/no_skeleton_http_default_gate.php` green
-  - [ ] deptrac updated (if needed)
+  - [x] `tools/gates/no_skeleton_http_default_gate.php` green
+  - [x] deptrac updated (if needed)
 
-- [ ] non-classic HTTP driver is rejected when no HTTP runtime provider is present;
-- [ ] non-classic HTTP driver is accepted when `platform/http` supplies the canonical provider contract;
-- [ ] `http.classic` remains valid without `platform/http`;
-- [ ] `bg.worker_queue` remains valid without `platform/http`;
-- [ ] Kernel no longer contains temporary owner-module knowledge after the replacement is complete.
+- [x] `HttpRuntimeEntrypointGuard` rejects HTTP entrypoint execution when `platform.http` is absent from the selected ModulePlan.
+- [x] `HttpRuntimeEntrypointGuard` delegates the exact owner-supplied RuntimeDriverContributions to RuntimeDriverResolver, using an explicitly empty contribution set only for targets without additional selected drivers, and propagates canonical matrix failures.
+- [x] `http.classic` and the existing non-classic HTTP driver ids retain their Kernel-owned matrix semantics independently of platform/http module availability.
+- [x] Runtime driver matrix acceptance MUST NOT be interpreted as executable adapter readiness; non-classic adapter readiness belongs to its transport owner.
+- [x] `bg.worker_queue` remains valid without `platform.http`, subject to the existing Kernel matrix and Worker-owned prerequisites.
+- [x] No provider-capability registry, temporary module-id coupling, or second Kernel runtime-driver compatibility layer is introduced.
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] Epic 3.40.0 deferred integration acceptance complete:
-  - [ ] compatible PSR-15 runtime and concrete PSR response/stream factories are available.
-  - [ ] platform.problem-details is explicitly selected and executes as the outermost HTTP error middleware at priority 1000.
-  - [ ] selected/unselected module behavior and source/compiled container parity are verified.
-  - [ ] normal error responses, emergency fallback, sensitive-data exclusion, and original Throwable precedence are verified through the real HTTP pipeline.
-  - [ ] no direct platform/http dependency on platform/problem-details or competing error-handling ownership is introduced.
-- [ ] Dependency rules satisfied:
-  - [ ] `platform/http` has no runtime dependencies on other `platform/*` runtime packages
-  - [ ] allowed dependencies are limited to `core/*` and PSR interfaces per the cemented boundary
-- [ ] Stack assembly deterministic (tags + config + dedupe)
-- [ ] Cross-slot execution model locked:
-  - [ ] request-phase and response-phase slot semantics match the canonical model above
-  - [ ] short-circuit responses still pass through applicable `*_post` decorators
-- [ ] UoW begin/after always called + reset discipline preserved
-- [ ] No secret leakage in logs/metrics/spans
-- [ ] README sections complete and accurate
-- [ ] Stack builder ordering & dedupe (MUST) — prevent double ordering logic
-  - [ ] `HttpMiddlewareStackBuilder` MUST combine sources deterministically:
-    - [ ] (A) tagged middlewares per slot (via `TagRegistry::all(tag)`), included only if `http.middleware.auto.<slot>=true`
-    - [ ] (B) manual config list `http.middleware.<slot>` appended after (A)
-  - [ ] Dedupe policy MUST be single-choice and stable:
-    - [ ] If dedupe is needed, it MUST preserve first occurrence order (tagged first, then manual).
-    - [ ] MUST NOT re-sort anything (TagRegistry already sorted tagged portion).
-- [ ] temporary `platform.http` module-id coupling is either removed through the finalized provider contract or explicitly retained by a new ADR decision;
-- [ ] no runtime service/container probing is used to establish HTTP runtime availability;
-- [ ] RuntimeEntrypointGuard remains the single compatibility boundary.
+- [x] Spec locked (this epic text reviewed + no open questions; deferred production HTTP entrypoint responsibilities explicitly delegated to epics 3.143.0 and 3.145.0)
+- [x] Implementation complete
+- [x] Tests green
+- [x] Gates/Arch green
+- [x] Docs complete
+- [x] Epic 3.40.0 deferred integration acceptance complete:
+  - [x] compatible PSR-15 runtime consumes PSR-17 factories selected through the canonical `http.factory` configuration or externally provided when `http.factory=external`; missing or incompatible implementations and bindings fail deterministically without fallback selection.
+  - [x] platform.problem-details is explicitly selected and executes as the outermost HTTP error middleware at priority 1000.
+  - [x] selected/unselected module behavior and source/compiled container parity are verified.
+  - [x] normal error responses, emergency fallback, sensitive-data exclusion, and original Throwable precedence are verified through the real HTTP pipeline.
+  - [x] no direct platform/http dependency on platform/problem-details or competing error-handling ownership is introduced.
+- [x] Dependency rules satisfied:
+  - [x] no direct source imports from other `platform/*` runtime implementations
+  - [x] Coretsia source dependencies remain limited to the approved core/contracts, core/foundation, and core/kernel boundaries
+  - [x] platform/http declares PSR interface dependencies without requiring concrete PSR-7/17 implementations
+  - [x] platform/http owns only the fixed `http.factory` selection mapping and declarative DI bindings for built-in implementations
+  - [x] consuming applications or distributions own concrete Composer implementation installation and external factory bindings
+  - [x] no Kernel-owned PSR-7/17 selection, vendor scanning, automatic fallback, arbitrary configured factory classes, or second DI container is introduced
+  - [x] no second tracing, metrics, logging, error normalization, redaction, ContextStore, or reset implementation is introduced
+- [x] Stack assembly deterministic (tags + config + dedupe)
+- [x] PSR-17 factory selection contract satisfied:
+  - [x] `http.factory` accepts only `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`, defaulting to `external`
+  - [x] every built-in selection produces the correct canonical PSR-17 definitions and aliases
+  - [x] `external` preserves application-owned bindings without package-level implementation selection
+  - [x] multiple installed implementations do not introduce ambiguity or alter explicit selection
+  - [x] missing selected implementations, incompatible effective factory contracts, missing external bindings, and final bindings inconsistent with the configured built-in selection fail before HTTP request execution
+  - [x] canonical later-binding-wins semantics are preserved without package-local rejection of duplicate service or alias definitions
+  - [x] changing `http.factory` preserves canonical config/artifact invalidation and source/compiled DI parity
+  - [x] no concrete PSR-7/17 implementation is required by platform/http production Composer dependencies
+- [x] Cross-slot execution model locked:
+  - [x] request-phase and response-phase slot semantics match the canonical model above
+  - [x] short-circuit responses still pass through applicable `*_post` decorators
+- [x] Every successful HTTP UnitOfWork begin is matched by exactly one after completion attempt; Kernel-owned after/reset ordering and primary Throwable precedence are preserved.
+- [x] No secret leakage in logs/metrics/spans
+- [x] HTTP request finalization architecture:
+  - [x] HttpKernel is the sole HTTP request lifecycle and finalization coordinator
+  - [x] HttpResponseFinalizer exclusively owns completed-response correlation header mutation
+  - [x] HttpRequestMetricsRecorder exclusively owns HTTP request metric recording
+  - [x] HttpAccessLogWriter exclusively owns safe HTTP request completion logging
+  - [x] HttpRequestSpanRecorder exclusively owns HTTP request span start/completion operations
+  - [x] all four services are stateless, explicitly injected, and absent from PSR-15 middleware slots
+  - [x] final HTTP status reflects the completed response, including outermost Problem Details adaptation
+  - [x] all enabled observability operations complete before Kernel-owned after/reset
+  - [x] each recorder is invoked at most once per HTTP completion path
+  - [x] optional recorder failures are isolated independently without replacing the primary response or Throwable
+  - [x] span handles, Stopwatch tokens, and request outcome data remain invocation-local
+  - [x] no new observability interfaces, observer tags, registries, middleware pipeline, lifecycle hooks, or reset orchestrator are introduced
+  - [x] current TracerPortInterface limitations are preserved without claiming automatic inbound traceparent parent-child linkage
+  - [x] future safe route-template handoff and final-response security policies remain deferred to their owning epics
+- [x] Kernel correlation identity is generated once per UnitOfWork; HTTP response headers are completed before Kernel reset.
+- [x] HTTP body-size enforcement preserves accepted seekable and non-seekable request streams with bounded memory.
+- [x] JSON request parsing uses PSR-7 withParsedBody and does not reuse Foundation diagnostic JSON limits as application payload limits.
+- [x] HTTP middleware assembly reuses Foundation TagRegistry ordering and canonical container resolution without independent middleware registries or duplicate service construction.
+- [x] No concrete system endpoint implementation, SAPI emitter, request-from-globals factory, or future-only HTTP feature is introduced by 3.50.0.
+- [x] README sections complete and accurate
+- [x] Phase ownership boundaries preserved:
+  - [x] 3.55.0 owns repeated-request leakage and long-running safety acceptance
+  - [x] 3.60.0 owns RequestId generation and propagation
+  - [x] 3.70.0 owns security headers and HTTPS redirect behavior
+  - [x] 3.80.0 owns maintenance state, commands, and 503 behavior
+  - [x] 3.90.0 and 3.100.0 own canonical system-route and reserved-path matching contracts
+  - [x] 3.110.0 owns full fallback routing and system endpoints
+  - [x] 3.120.0 owns development diagnostics endpoints
+  - [x] 3.130.0 and 3.140.0 own compiled routing and HTTP application dispatch
+  - [x] 3.143.0 and 3.145.0 own skeleton transport entrypoints and SAPI integration
+  - [x] 3.150.0, 3.170.0, and 3.180.0 own their respective optional HTTP middleware
+  - [x] 4.60.0 owns multipart upload parsing and quarantine
+  - [x] 4.190.0 owns early and identity-aware rate limiting
+  - [x] 3.50.0 MUST NOT implement any of these later capabilities merely because their middleware slots or configuration namespaces are reserved
+- [x] Stack builder ordering & dedupe (MUST) — prevent double ordering logic
+  - [x] `HttpMiddlewareStackBuilder` MUST combine sources deterministically:
+    - [x] (A) tagged middlewares per slot (via `TagRegistry::all(tag)`), included when the owning module is selected and any validated feature-specific `toggle` metadata is enabled
+    - [x] (B) manual config list `http.middleware.<slot>` appended after (A)
+  - [x] Dedupe policy MUST be single-choice and stable:
+    - [x] If dedupe is needed, it MUST preserve first occurrence order (tagged first, then manual).
+    - [x] MUST NOT re-sort anything (TagRegistry already sorted tagged portion).
+- [x] `HttpRuntimeEntrypointGuard` validates HTTP module participation through the existing ModulePlan and delegates driver matrix validation to RuntimeDriverResolver.
+- [x] HTTP entrypoint readiness contract is implemented and integration-tested before UnitOfWork begin with explicit owner-supplied RuntimeDriverContributions; incompatible Worker HTTP contributions are preserved and rejected through canonical Kernel driver matrix validation; production entrypoint invocation and enforcement are explicitly delegated to epic 3.145.0 through the shared transport boundary defined by epic 3.143.0.
+- [x] Kernel contains no new platform/http module-id checks, runtime capability registry, or competing runtime entrypoint guard.
+- [x] no runtime service/container probing is used to establish HTTP module or driver availability.
+- [x] transport-specific extension, executable, and adapter readiness remain with their respective future runtime integration owners.
 
 ---
 
@@ -7987,6 +9098,8 @@ artifacts_introduced: []
 adr: "docs/adr/ADR-XXXX-response-hardening-headers-https.md"
 ssot_refs: []
 ---
+
+- [ ] update `3.70.0 Response hardening` to review the outermost priority-1000 Problem Details error boundary against `SecurityHeadersMiddleware` in `http.middleware.system_post`, ensuring security headers on normal, short-circuit, error, emergency, and maintenance responses without a second response-processing pipeline.
 
 ### Dependencies (MUST)
 
@@ -8832,6 +9945,8 @@ ssot_refs:
 - "docs/ssot/http-system-endpoints.md"
 ---
 
+- [ ] update `3.110.0 HTTP FallbackRouter + system endpoints` to create SystemEndpointPayload only when implementing concrete system endpoints, reuse the existing FallbackRouterHandler terminal seam, and consume HttpKernel-owned access logging without reintroducing AccessLogMiddleware or a second request-observability pipeline.
+
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
@@ -8916,14 +10031,25 @@ Forbidden:
 #### Creates
 
 - [ ] `packages/platform/http/src/Routing/FallbackRouter.php` — endpoint dispatch (uses SystemRouteTable + ReservedPathMatcher)
+
 - [ ] `packages/platform/http/src/Routing/FallbackResponses.php` — helpers for deterministic response bodies/headers
   - [ ] JSON bodies produced here MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder`
   - [ ] map keys MUST be recursively sorted by `strcmp`; lists preserve order
   - [ ] MUST NOT emit floats/NaN/INF
   - [ ] MUST NOT use ad-hoc `json_encode` directly in response helpers
+
 - [ ] `packages/platform/http/src/Exception/IntentionalErrorException.php` — thrown on `/error` (`CORETSIA_HTTP_INTENTIONAL_ERROR`)
+
+System payload helpers:
+- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php`
+  - [ ] provide only bounded, deterministic, safe payload construction helpers required by the later system endpoint implementation
+  - [ ] do not own route matching, endpoint registration, clocks, HTTP dispatch, or exception normalization
+  - [ ] actual endpoint payloads and response behavior remain owned by epic 3.110.0
+
+Docs:
 - [ ] `docs/ssot/http-system-endpoints.md` — owned vs reserved endpoints + owner-claim rules
 
+Tests:
 - [ ] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
 - [ ] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
 - [ ] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
@@ -8966,7 +10092,7 @@ N/A
 - [ ] Metrics:
   - [ ] `http.system_endpoint_total` (labels: `operation`, `status`, `outcome`)
 - [ ] Logs:
-  - [ ] minimal logs via AccessLogMiddleware (no extra logs from router unless warn/error)
+  - [ ] reuse HttpKernel-coordinated HttpAccessLogWriter for one safe request-level completion record; do not introduce AccessLogMiddleware, router-owned access logging, or another request-observability pipeline
 
 #### Errors
 
@@ -9056,6 +10182,7 @@ ssot_refs:
 
 - [ ] update `3.120.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
 - [ ] update `3.120.0 HTTP dev diagnostics endpoints` to contribute `DebugExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata and canonical priority ordering, reusing Foundation `ReservedTags::ERROR_MAPPER` without a second handler or local tag constant.
+- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to introduce and validate `http.debug.endpoints.enabled` under the existing `http` config root with default `false`, keeping debug endpoint activation and its security guards exclusively in this epic rather than predeclaring the key in 3.50.0.
 
 ### Dependencies (MUST)
 
@@ -10025,6 +11152,11 @@ ssot_refs:
 > Review this epic together with 3.145.0 to eliminate duplicated responsibilities, obsolete paths, temporary bootstrap assumptions, and unnecessary tooling.
 >
 > All existing deliverables, implementation details, prerequisites, and acceptance criteria are provisional until the redesign is completed.
+
+- [ ] update `3.143.0 Target-aware skeleton HTTP front controllers + deterministic smoke` to define the shared consumer-owned HTTP transport boundary for `web|api`, including PSR-7 request construction from SAPI/server globals and HTTP response emission, without duplicating transport logic in `platform/http` or Kernel.
+- [ ] update `3.143.0` to require every consuming HTTP entrypoint to provide a complete unread non-seekable PSR-7 request body stream before dispatch; already-consumed bytes MUST NOT be reconstructed by `platform/http`.
+- [ ] update `3.143.0` to establish one shared HTTP bootstrap seam that supports the `HttpRuntimeEntrypointGuard` readiness contract delegated to epic 3.145.0, without introducing an alternative HTTP runtime construction or UnitOfWork lifecycle.
+- [ ] update `3.143.0` together with epic 3.145.0 to resolve ownership of future real `api` runtime activation explicitly; the `api` entrypoint MUST NOT enable request dispatch until the same request-body and readiness contracts are implemented and verified.
 
 ### Dependencies (MUST)
 
@@ -11086,6 +12218,16 @@ ssot_refs:
 > Reconcile HTTP front-controller ownership, real application bootstrap, runtime module selection, consumer-facing serving commands, and deterministic smoke verification.
 >
 > All existing implementation details, prerequisites, and acceptance criteria are provisional until both epics have been reviewed against the current packaging architecture and completed HTTP runtime.
+
+- [ ] update `3.145.0 Web app entrypoint` to implement real PSR-7 request construction and HTTP response emission through the shared consumer-owned transport boundary established by epic 3.143.0, reusing `platform/http` PSR-15 request handling without introducing duplicate SAPI adapters, emitters, or runtime lifecycle ownership.
+- [ ] update `3.145.0` to ensure that PSR-7 request construction supplies a complete unread non-seekable request body stream before HTTP runtime dispatch, preserving the existing `platform/http` request-body verification and reconstruction contract.
+- [ ] update `3.145.0` to invoke `HttpRuntimeEntrypointGuard::assertEntrypointAllowed()` after canonical container composition but before resolving `HttpKernelInterface`, constructing the executable HTTP middleware pipeline, or beginning an HTTP UnitOfWork.
+- [ ] update `3.145.0` to pass the selected target's `ModulePlan`, canonical `ConfigRepositoryInterface`, canonical container containing the final effective PSR-17 bindings, and explicit owner-supplied `RuntimeDriverContributions` to the readiness guard.
+- [ ] update `3.145.0` to preserve all owner-supplied Worker HTTP driver contributions without silently replacing them with an empty contribution set; empty contributions are permitted only when the owning entrypoint has no additional selected drivers.
+- [ ] update `3.145.0` to fail deterministically before HTTP runtime construction and request execution when the selected factory implementation is unavailable, required PSR-17 bindings are missing or incompatible, effective factory identities differ from the configured built-in selection, or the Kernel-owned runtime driver matrix rejects the supplied contributions.
+- [ ] update `3.145.0` to prohibit fallback factory selection, alternative container construction, duplicate runtime-driver compatibility validation, or HTTP UnitOfWork startup before successful readiness validation; transport-specific adapter readiness remains owned by the corresponding transport integration.
+- [ ] update `3.145.0` integration tests to verify successful HTTP dispatch, complete unread non-seekable request bodies, fail-closed readiness before runtime construction and UnitOfWork begin, preservation of incompatible Worker HTTP contributions, and absence of fallback factory selection.
+- [ ] update `3.145.0 Web app entrypoint` to document the complete HTTP application setup in `packages/applications/skeleton/README.md`, including Composer installation, explicit target module selection, config-driven `http.factory` selection with automatic PSR-17 bindings for built-in implementations, application-owned declarative DI bindings only for `http.factory=external`, canonical container validation, implementation replacement, and real SAPI request/response handling without modifying Kernel or platform/http.
 
 ### Dependencies (MUST)
 

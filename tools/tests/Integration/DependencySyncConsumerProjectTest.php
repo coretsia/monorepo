@@ -1025,8 +1025,18 @@ PHP,
                     $releaseVersion,
                 ],
                 [
+                    'coretsia/platform-http',
+                    $repoRoot . '/packages/platform/http',
+                    $releaseVersion,
+                ],
+                [
                     'coretsia/platform-logging',
                     $repoRoot . '/packages/platform/logging',
+                    $releaseVersion,
+                ],
+                [
+                    'coretsia/platform-problem-details',
+                    $repoRoot . '/packages/platform/problem-details',
                     $releaseVersion,
                 ],
                 [
@@ -1053,6 +1063,10 @@ PHP,
             [
                 'psr/clock',
                 'psr/container',
+                'psr/http-factory',
+                'psr/http-message',
+                'psr/http-server-handler',
+                'psr/http-server-middleware',
                 'psr/log',
             ] as $name
         ) {

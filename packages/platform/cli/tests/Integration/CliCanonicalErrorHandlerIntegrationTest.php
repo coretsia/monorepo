@@ -80,6 +80,7 @@ use Coretsia\Platform\Cli\Tests\Integration\Support\CliApplicationFixtureHarness
 use Coretsia\Platform\Cli\Tests\Integration\Support\CliIntegrationTestCase;
 use Coretsia\Platform\Errors\ErrorHandler;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
+use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor;
 
@@ -140,8 +141,8 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
 
             $registered = $container->get(TagRegistry::class)->all(ReservedTags::ERROR_MAPPER);
             self::assertSame(
-                [CliExceptionMapper::class],
-                \array_map(static fn ($tagged): string => $tagged->id(), $registered)
+                [CliExceptionMapper::class, HttpExceptionMapper::class],
+                \array_map(static fn ($tagged): string => $tagged->id(), $registered),
             );
             self::assertSame(100, $registered[0]->priority());
             self::assertSame([], $registered[0]->meta());
@@ -194,7 +195,7 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
         $tags = $container->get(TagRegistry::class)->all(ReservedTags::ERROR_MAPPER);
         self::assertSame(
             [CliCanonicalOwnerPriorityMapper::class, CliExceptionMapper::class],
-            \array_map(static fn ($tagged): string => $tagged->id(), $tags)
+            \array_map(static fn ($tagged): string => $tagged->id(), $tags),
         );
         self::assertSame([200, 100], \array_map(static fn ($tagged): int => $tagged->priority(), $tags));
         $handler = $container->get(ErrorHandlerInterface::class);
@@ -274,7 +275,7 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
                     $document = \json_decode($result->stdoutBytes(), true, flags: \JSON_THROW_ON_ERROR);
                     self::assertSame(
                         [['code' => $code, 'message' => $reason, 'type' => 'error']],
-                        $document['data']['records']
+                        $document['data']['records'],
                     );
                     self::assertSame(1, $document['meta']['exit_code']);
                 } else {
@@ -418,7 +419,7 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
             ),
             \array_map(
                 static fn ($tagged): array => [$tagged->id(), $tagged->priority(), $tagged->meta()],
-                $compiledTags
+                $compiledTags,
             ),
         );
         foreach (

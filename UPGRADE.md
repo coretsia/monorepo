@@ -103,6 +103,73 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.12.0 to v0.13.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- Introduced the `coretsia/platform-http` runtime package with PSR-15 middleware execution, Kernel-owned HTTP UnitOfWork lifecycle, and explicit PSR-17 factory selection.
+- Canonical mode presets now select HTTP and Problem Details modules. Review custom presets, target-local module overrides, Composer dependencies, and HTTP service bindings.
+- Package installation or module selection alone does not provide an executable HTTP transport entrypoint.
+
+#### HTTP runtime and module selection
+
+The new `platform.http` runtime module requires `core.foundation` and `core.kernel`.
+
+Canonical `micro`, `express`, `hybrid`, and `enterprise` presets now select `platform.http` and `platform.problem-details`. The effective module dependency closure also includes the existing error-handling and redaction dependencies.
+
+Composer package installation does not automatically activate runtime modules. Required runtime packages remain subject to explicit DependencySync `plan`, `review`, and `apply` operations.
+
+#### PSR-17 factory configuration
+
+The `http.factory` configuration key explicitly selects the PSR-17 implementation:
+
+- `external`: application-provided `ResponseFactoryInterface` and `StreamFactoryInterface` bindings; default.
+- `nyholm`: `Nyholm\Psr7\Factory\Psr17Factory`.
+- `guzzlehttp`: `GuzzleHttp\Psr7\HttpFactory`.
+- `laminas`: `Laminas\Diactoros\ResponseFactory` and `Laminas\Diactoros\StreamFactory`.
+- `slim`: `Slim\Psr7\Factory\ResponseFactory` and `Slim\Psr7\Factory\StreamFactory`.
+
+Concrete PSR-7/17 implementations must be installed explicitly by the consuming application. The HTTP package does not install, discover, or automatically select an implementation.
+
+For `http.factory='external'`, configure both required PSR-17 services through canonical declarative dependency injection.
+
+Missing, incompatible, or incorrectly selected factory services cause deterministic HTTP readiness failure without falling back to another installed implementation.
+
+#### HTTP middleware and request processing
+
+The `http` configuration root provides strictly validated middleware slots and request-processing options.
+
+- Middleware is registered through canonical DI tags or explicitly configured middleware service ids.
+- Request-phase middleware executes in deterministic order, with response decorators applied to returned responses, including applicable early short-circuit responses.
+- Request body-size verification uses `http.request.max_body_bytes`, defaulting to `1048576`.
+- JSON parsing uses `http.request.json.enabled=true` and `http.request.json.max_depth=32` by default.
+- Trusted proxy and trusted host enforcement are disabled by default and require explicit configuration.
+- Request context enrichment, tracing, metrics, correlation response headers, and access logging are enabled by default.
+
+Consuming HTTP entrypoints must supply complete unread non-seekable request body streams. Previously consumed bytes cannot be recovered by the HTTP runtime.
+
+Explicitly selected Problem Details middleware provides the outermost HTTP error boundary. Without compatible error-rendering middleware, HTTP-owned exceptions remain Throwables.
+
+#### HTTP runtime readiness and transport integration
+
+Applications implementing HTTP entrypoints must validate the selected HTTP module, runtime driver configuration, and final effective PSR-17 bindings before constructing the executable HTTP pipeline or beginning an HTTP UnitOfWork.
+
+The runtime does not provide a production SAPI front controller, HTTP response emitter, application router, or system endpoint dispatcher.
+
+Transport-specific request construction, response emission, and adapter readiness remain application or integration responsibilities.
+
+#### Migration steps
+
+1. Update Coretsia Composer dependencies to the `0.13` release line and refresh application lockfiles intentionally.
+2. Review canonical presets, custom module selections, and target-local overrides for the new HTTP and Problem Details modules.
+3. Install a compatible PSR-7/17 implementation when enabling executable HTTP runtime integration.
+4. Configure `http.factory` explicitly or provide both required PSR-17 bindings when using the default `external` selection.
+5. Review `http.*` middleware, proxy, host, request body, JSON parsing, correlation, and observability configuration.
+6. Ensure custom HTTP entrypoints validate runtime readiness before HTTP pipeline construction and UnitOfWork execution.
+7. Run DependencySync `plan` and `review` before authorizing `apply` when runtime package requirements change.
+8. Run the applicable configuration, architecture, quality, security, and regression checks.
+
 ### From v0.11.0 to v0.12.0
 
 #### Compatibility

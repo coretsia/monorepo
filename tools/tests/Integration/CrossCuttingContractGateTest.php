@@ -182,6 +182,158 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
+    public function testHttpContextStoreCanonicalDiAndPromotedConstructorDependencyPass(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeHttpContextFixture(
+            $sandbox,
+            'Provider/HttpServiceProvider.php',
+            <<<'PHP'
+final class HttpServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        $definitions
+            ->requireService(ContextStore::class);
+        self::ref(ContextStore::class);
+    }
+
+    private static function ref(string $serviceId): string
+    {
+        return $serviceId;
+    }
+}
+PHP,
+        );
+        $this->writeHttpContextFixture(
+            $sandbox,
+            'Middleware/RequestContextMiddleware.php',
+            <<<'PHP'
+final class RequestContextMiddleware
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
+        );
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', trim($output));
+    }
+
+    public function testHttpProviderRejectsNonCanonicalContextStoreReferences(): void
+    {
+        foreach (
+            [
+                '        $factoryClass = ContextStore::class;',
+                '        $factoryClass = ContextStore::class; $store = new $factoryClass();',
+                '        $other->requireService(ContextStore::class);',
+                '        $definitions->requireService(ContextStore::class, true);',
+                '        Other::ref(ContextStore::class);',
+                '        new ContextStore();',
+            ] as $statement
+        ) {
+            $sandbox = $this->createCrossCuttingGateSandbox();
+
+            $this->writeFoundationContextSymbols($sandbox);
+            $this->writeHttpContextFixture(
+                $sandbox,
+                'Provider/HttpServiceProvider.php',
+                \str_replace(
+                    '        __STATEMENT__',
+                    $statement,
+                    <<<'PHP'
+final class HttpServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        __STATEMENT__
+    }
+}
+PHP,
+                ),
+            );
+
+            [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+            self::assertNotSame(0, $code, $output);
+            self::assertStringContainsString('forbidden-context-store-usage', $output);
+            $this->assertSafeGateOutput($sandbox, $output);
+        }
+    }
+
+    public function testHttpMiddlewareRejectsNonPromotedOrConstructedContextStore(): void
+    {
+        foreach (
+            [
+                <<<'PHP'
+final class RequestContextMiddleware
+{
+    private ContextStore $context;
+}
+PHP,
+                <<<'PHP'
+final class RequestContextMiddleware
+{
+    public function __construct(private ContextStore $store)
+    {
+    }
+}
+PHP,
+                <<<'PHP'
+final class RequestContextMiddleware
+{
+    public function create(): object
+    {
+        return new ContextStore();
+    }
+}
+PHP,
+            ] as $classSource
+        ) {
+            $sandbox = $this->createCrossCuttingGateSandbox();
+
+            $this->writeFoundationContextSymbols($sandbox);
+            $this->writeHttpContextFixture($sandbox, 'Middleware/RequestContextMiddleware.php', $classSource);
+
+            [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+            self::assertNotSame(0, $code, $output);
+            self::assertStringContainsString('forbidden-context-store-usage', $output);
+            $this->assertSafeGateOutput($sandbox, $output);
+        }
+    }
+
+    public function testOtherHttpMiddlewareCannotDependOnConcreteContextStore(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeHttpContextFixture(
+            $sandbox,
+            'Middleware/OtherMiddleware.php',
+            <<<'PHP'
+final class OtherMiddleware
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
+        );
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('forbidden-context-store-usage', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
     public function testContractsContextKeysUsageFromPlatformConsumerPasses(): void
     {
         $sandbox = $this->createCrossCuttingGateSandbox();
@@ -230,6 +382,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
             [
                 'core/contracts' => 'coretsia/core-contracts',
                 'core/foundation' => 'coretsia/core-foundation',
+                'platform/http' => 'coretsia/platform-http',
                 'platform/logging' => 'coretsia/platform-logging',
             ] as $packageId => $composerName
         ) {
@@ -579,6 +732,22 @@ PHP,
             . "        \$builder->tag(ReservedTags::KERNEL_STATEFUL, ContextStore::class);\n"
             . "    }\n"
             . "}\n",
+        );
+    }
+
+    private function writeHttpContextFixture(string $sandbox, string $relativePath, string $classSource): void
+    {
+        $namespace = \str_starts_with($relativePath, 'Provider/')
+            ? 'Coretsia\\Platform\\Http\\Provider'
+            : 'Coretsia\\Platform\\Http\\Middleware';
+
+        $this->writeBytesExact(
+            $sandbox . '/packages/platform/http/src/' . $relativePath,
+            "<?php\n\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace {$namespace};\n\n"
+            . "use Coretsia\\Foundation\\Context\\ContextStore;\n\n"
+            . $classSource . "\n",
         );
     }
 

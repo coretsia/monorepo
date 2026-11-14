@@ -7811,6 +7811,7 @@ ssot_refs: []
 
 - [ ] update `4.190.0 platform/http Rate limiting` to consume `SensitiveDataRedactorInterface` for identity-aware diagnostics.
 - [ ] update `4.190.0 platform/http Rate limiting` to preserve deterministic HTTP 429 responses with `Retry-After` and, if `RateLimitedException` is propagated through the HTTP Throwable boundary, contribute a safe 429 mapper via the shared `error.mapper` tag with empty `[]` metadata, preserving HTTP-owned response-header policy without introducing another `ErrorHandlerInterface` implementation.
+- [ ] update `4.190.0 platform/http — Rate limiting (identity-aware)` to replace noncanonical HTTP middleware tag metadata `{"reason":"after auth for actor_id, before csrf"}` with the canonical `[]` or `toggle` metadata schema defined by epic 3.50.0, keeping priority in the tag registration and authentication/CSRF ordering rationale in documentation only.
 
 ### Dependencies (MUST)
 

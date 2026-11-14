@@ -45,6 +45,27 @@ final class EnvironmentOverlayProjectionTest extends TestCase
         );
     }
 
+    public function testEmptyClosedRulesetDoesNotCreateEnvironmentMappings(): void
+    {
+        $ruleset = ConfigRuleset::fromArray('empty', [
+            'schemaVersion' => 1,
+            'configRoot' => 'empty',
+            'additionalKeys' => false,
+            'keys' => [],
+        ]);
+
+        $result = new EnvironmentOverlayLoader()->load(
+            env: new ArrayEnvRepository([
+                'EMPTY_ENABLED' => 'true',
+            ]),
+            rulesets: [$ruleset],
+        );
+
+        self::assertSame([], $result['config']);
+        self::assertSame([], $result['mappings']);
+        self::assertSame([], $result['sources']);
+    }
+
     public function testUnknownEnvVarsDoNotCreateConfigKeys(): void
     {
         $result = new EnvironmentOverlayLoader()->load(
@@ -98,7 +119,7 @@ final class EnvironmentOverlayProjectionTest extends TestCase
                 \array_filter(
                     $result['mappings'],
                     static fn (array $mapping): bool => $mapping['path'] === 'kernel.boot.default_env',
-                )
+                ),
             ),
         );
 

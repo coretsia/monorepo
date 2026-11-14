@@ -24,6 +24,26 @@ This guide defines the canonical (single-choice) release procedure for the Coret
 - Tags MUST use semantic versioning format: `vMAJOR.MINOR.PATCH` (example: `v1.2.3`).
 - Per-package independent versions MUST NOT be used.
 
+### Release version selection (MUST)
+
+The release version MUST be selected based on the complete monorepo change set since the previous released tag, not on individual package changes or implementation size.
+
+- PATCH releases (`v0.MINOR.PATCH`) MUST be limited to fixes for previously released functionality, including defects, regressions, security fixes, and compatible documentation, test, or tooling corrections.
+- PATCH releases MUST NOT introduce new publishable packages, runtime modules, public APIs, contracts, configuration surfaces, or runtime capabilities.
+- PATCH releases MUST NOT intentionally introduce breaking changes to existing public behavior or contracts.
+- MINOR releases (`v0.MINOR.0`) MUST be used when introducing new publishable packages, runtime modules, public APIs, contracts, configuration surfaces, or runtime capabilities.
+- During the `0.x` development line, intentional breaking changes to development-surface behavior, contracts, or architectural invariants MUST require a MINOR release.
+- When a release contains both PATCH-level and MINOR-level changes, the MINOR version bump MUST take precedence.
+- After `v1.0.0`, backward-compatible new functionality MUST use MINOR, while breaking changes to stable public APIs MUST use MAJOR.
+- Upgrade-relevant changes MUST be documented in `UPGRADE.md`. Changes affecting runtime behavior, shapes, invariants, determinism, or boundaries MUST also be reflected in `docs/ssot/**`.
+
+Examples:
+
+- `v0.12.0 -> v0.12.1` — fixes to existing functionality without new public capabilities or intentional breaking changes.
+- `v0.12.0 -> v0.13.0` — introduction of the `coretsia/platform-http` package and its HTTP runtime capabilities.
+
+The selected version MUST apply to the entire monorepo and all published split packages. Per-package independent version selection is forbidden.
+
 ### Release notes source
 
 - Release notes source is human-maintained `CHANGELOG.md`.

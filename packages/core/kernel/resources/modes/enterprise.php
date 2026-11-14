@@ -26,7 +26,11 @@ return [
     ],
     'modules' => [
         'platform.cli',
+        'platform.http',
         'platform.logging',
+        'platform.metrics',
+        'platform.problem-details',
+        'platform.tracing',
         'platform.worker',
     ],
     'featureBundles' => [

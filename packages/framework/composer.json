@@ -28,6 +28,6 @@
   },
   "require": {
     "php": "^8.4",
-    "coretsia/core-kernel": "^0.12.0"
+    "coretsia/core-kernel": "^0.13.0"
   }
 }

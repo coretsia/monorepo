@@ -28,6 +28,8 @@ The baseline runtime needs useful diagnostic logging in all canonical presets, b
 
 Runtime operators need a stable STDERR backend and a constrained daily local-file option while preserving target-local module exclusion, deterministic records, mandatory redaction, safe no-throw failure handling, and existing Foundation ownership.
 
+HTTP request completion is produced by `platform/http` through the existing PSR-3 `LoggerInterface`, using canonical bounded completion values for both finalized responses and failures without a finalized response. When no finalized response exists, the producer supplies `status='unknown'` and `outcome='fatal_error'`. Logging admits these operational fields without importing HTTP implementations or interpreting request lifecycle state. `route_template` is a fixed producer-supplied context value; an independently admitted `path_template` can be enriched from the current canonical context.
+
 A generic redactor cannot prove that arbitrary producer data is safe for logging.
 
 Its shared classifier recognizes a fixed high-confidence vocabulary but may return `null` for unclassified keys.
@@ -90,11 +92,13 @@ Neither logger nor processor caches UoW identifiers, copies runtime context betw
 
 ### Decision 3: Own one logging sink admission policy and reuse shared security ports
 
-`LogRecordPolicy` owns the canonical logging-specific root schema, event-token grammar, context-field allowlist, bounded values, safe key-path admission, and post-redaction validation.
+`LogRecordPolicy` owns the single producer-neutral admission policy for the canonical nine-field root schema, event-token grammar, bounded operational context, safe key-path admission, and post-redaction validation. The exact field grammars and limits are normative in `docs/ssot/logging-policy.md`.
 
-It admits only producer-owned safe-by-construction operational summaries; it rejects arbitrary raw transport data, SQL, secrets, PII, objects, Throwables, and unsafe messages.
+Its context policy admits the ten exact uppercase `method` values `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, `CONNECT`, and `OTHER`; `status` as either a strict integer `100..599` or a bounded category string; and `route_template` only as the exact string `unknown`. Existing `outcome` category, integer `duration_ms`, and optional nested identifier bounds apply independently. The sink never derives or cross-validates HTTP status/outcome semantics.
 
-A syntactically admissible event string is not proof of static provenance; producers retain responsibility for supplying safe static events and safe derived values.
+Producer-supplied `context.route_template='unknown'` is distinct from optional `context.path_template` enrichment by `ContextBagProcessor` through `ContextAccessorInterface` and `ContextKeys::PATH_TEMPLATE`. Both fields are independently validated, and neither is copied into the other. Logging reads no HTTP request or route metadata to populate `route_template`.
+
+The sink admits only producer-owned safe-by-construction operational summaries; it rejects arbitrary raw transport data, SQL, secrets, PII, objects, Throwables, and unsafe messages. Syntactic admission does not prove provenance, and producers retain responsibility for safe static events, bounded values, and exclusion of arbitrary request-derived information.
 
 `core/contracts` provides `SensitiveDataRedactorInterface` and the additional read-only `SensitiveKeyClassifierInterface`, returning `?RedactionKind`.
 
@@ -112,13 +116,11 @@ Producer-specific checks such as Kernel's existing sensitive-key and SQL-like re
 
 Source-package-specific or event-name-specific sink exceptions are forbidden.
 
-The complete assembled canonical record passes through one mandatory `SensitiveDataRedactorInterface::redactJsonLike()` call using `RedactionContext('logging.record', RedactionMode::Placeholder)`.
+Initial caller context exceeding 48 entries is omitted as a whole without necessarily rejecting the log event. After optional canonical `path_template` enrichment, the complete assembled record is validated again: an over-48-field context invalidates the record before redaction. Valid canonical records passing instance-bound sensitive `key_paths` checks reach one mandatory `SensitiveDataRedactorInterface::redactJsonLike()` call using `RedactionContext('logging.record', RedactionMode::Placeholder)`.
 
-The result must pass structural and instance-bound sensitive-key checks before formatting.
+Post-redaction validation retains valid canonical roots and independently rechecks `key_paths`; ordinary invalid context fields are omitted without restoring original values, and a redactor-produced context exceeding 48 fields becomes `null` as a whole when sensitive-key validation succeeds. An invalid non-null context container, malformed root, invalid/sensitive `key_paths`, classifier exception, or redaction failure rejects the entire record.
 
-Redactor errors, invalid results, and classifier exceptions fail closed without an unredacted, partial, hashed, length-derived, or alternative-sink fallback.
-
-There is no logging redaction-disable setting, second generic classifier, or new redaction runtime module.
+`StreamLogger` and both canonical formatters retain one admission and deterministic serialization path for all producers, with integer/string context types preserved after redaction. No unredacted, partial, hashed, length-derived, or alternative-sink fallback exists. There is no logging redaction-disable setting, second generic classifier, or additional redaction runtime module.
 
 ### Decision 4: Select one deterministic formatter over one admitted canonical record
 
@@ -255,12 +257,12 @@ No internal failure may change the caller's primary business exception, silently
 - Canonical presets have one selectable real PSR-3 backend while Foundation remains independently usable when logging is excluded or disabled.
 - Both active destinations share one admitted/redacted record and one bounded single-write pipeline; both formats retain the same canonical service and UoW semantics.
 - Source/compiled DI definitions remain deterministic and resource-free, with Kernel retaining module selection, app-target identity, and config ownership.
-- The shared classifier vocabulary and redactor implementation retain a single owner; logging adds only the destination-specific policy required for safe emission.
+- The shared classifier vocabulary and redactor implementation retain a single owner; logging applies one producer-neutral sink policy to HTTP completion events and other approved operational events without coupling to HTTP runtime implementations.
 - A temporarily unavailable daily file directory can recover on a later emission without rebuilding the logger or adding mutable failure state.
 
 ### Trade-offs
 
-- Conservative sink admission deliberately drops unsupported caller context, so logging is not a general-purpose dump of PSR-3 context.
+- Conservative sink admission deliberately drops unsupported caller context, so logging is not a general-purpose dump of PSR-3 context. Syntax and type validation cannot establish producer provenance, and HTTP status/outcome consistency remains the producer's responsibility.
 - A failed or short write is discarded without retries; previously written partial bytes may remain and multi-process framing is not universally atomic.
 - Deployment is responsible for trusted directory permissions and file lifecycle; PHP checks alone cannot defend against an adversarial filesystem actor.
 - The fixed STDERR stream offers no public arbitrary-destination configuration. More elaborate transports belong to a separately specified future capability, not this module.
@@ -273,9 +275,9 @@ Changing the baseline Foundation binding or treating Composer installation as mo
 
 ### Add another LoggerInterface, FileLogger, or destination-specific record pipeline
 
-Separate logger implementations or admission pipelines would drift on redaction, correlation fields, severity, format, byte limits, and error isolation.
+Separate logger implementations, HTTP-specific formatters, event-name-specific admission exceptions, or admission pipelines would drift on redaction, correlation fields, severity, format, byte limits, and error isolation.
 
-The existing `StreamLogger` owns both destinations.
+The existing `StreamLogger` owns both destinations and accepts HTTP completion records through the same PSR-3 sink boundary.
 
 ### Configure arbitrary stream URIs or inject a generic stream-opener service
 

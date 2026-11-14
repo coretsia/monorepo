@@ -144,6 +144,23 @@ return array(
     ),
     7 =>
     array(
+      'composerName' => 'coretsia/platform-http',
+      'defaultsConfigPath' => 'config/http.php',
+      'id' => 'platform.http',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Http\\Module\\HttpModule',
+      'moduleId' => 'platform.http',
+      'path' => 'packages/platform/http',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Http\\Provider\\HttpServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Http\\',
+      'slug' => 'http',
+    ),
+    8 =>
+    array(
       'composerName' => 'coretsia/platform-logging',
       'defaultsConfigPath' => 'config/logging.php',
       'id' => 'platform.logging',
@@ -159,7 +176,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Logging\\',
       'slug' => 'logging',
     ),
-    8 =>
+    9 =>
     array(
       'composerName' => 'coretsia/platform-metrics',
       'defaultsConfigPath' => 'config/metrics.php',
@@ -176,7 +193,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Metrics\\',
       'slug' => 'metrics',
     ),
-    9 =>
+    10 =>
     array(
       'composerName' => 'coretsia/platform-problem-details',
       'defaultsConfigPath' => 'config/problem_details.php',
@@ -193,7 +210,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\ProblemDetails\\',
       'slug' => 'problem-details',
     ),
-    10 =>
+    11 =>
     array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
@@ -210,7 +227,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    11 =>
+    12 =>
     array(
       'composerName' => 'coretsia/platform-tracing',
       'defaultsConfigPath' => 'config/tracing.php',
@@ -227,7 +244,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Tracing\\',
       'slug' => 'tracing',
     ),
-    12 =>
+    13 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

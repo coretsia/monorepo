@@ -47,6 +47,38 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.13.0
+
+### Added
+
+- Introduced the `coretsia/platform-http` runtime package with a deterministic PSR-7/15 HTTP pipeline, canonical middleware composition, and Kernel-owned UnitOfWork lifecycle.
+- Added nine canonical HTTP middleware slots with deterministic tag ordering, validated manual middleware registration, response decoration, and correct handling of early short-circuit responses.
+- Added explicit PSR-17 factory selection through `http.factory`, supporting `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`, with `external` as the default.
+- Added HTTP request middleware for W3C trace-context propagation, trusted proxy handling, request context enrichment, trusted host validation, request body-size limits, and JSON body parsing.
+- Added safe HTTP 404 terminal fallback behavior before application routing is available.
+- Added HTTP response correlation headers, request metrics, structured access logging, and tracing spans through existing observability interfaces.
+- Added HTTP exception mapping for malformed JSON, oversized request bodies, and rejected hosts through the canonical error-handling interface.
+- Integrated explicitly selected `platform.problem-details` middleware as the outermost HTTP error boundary, including deterministic error responses and emergency fallback handling.
+- Expanded unit, contract, integration, and architecture tests for HTTP configuration, middleware ordering, request safety, factory readiness, UnitOfWork completion, error handling, and source/compiled container parity.
+
+### Changed
+
+- Updated canonical `micro`, `express`, `hybrid`, and `enterprise` presets to select `platform.http` and `platform.problem-details`, while preserving target-local module overrides and Kernel-owned dependency resolution.
+- Extended runtime package metadata, Composer dependency synchronization, and the installation catalog to include the new HTTP runtime and its required PSR interfaces.
+- Added strictly validated `http` configuration for middleware registration, factory selection, correlation headers, tracing, metrics, access logging, proxy trust, host validation, request body limits, and JSON parsing.
+- Preserved canonical declarative dependency injection, later-binding-wins semantics, and equivalent source/compiled container behavior.
+- Kept concrete PSR-7/17 implementation installation, external factory bindings, and transport-specific HTTP entrypoints under application ownership.
+- Preserved Kernel-owned UnitOfWork, Context, reset, and runtime-driver compatibility boundaries without introducing additional lifecycle or container implementations.
+
+### Security
+
+- Enforced deterministic HTTP readiness validation for missing, incompatible, or incorrectly selected PSR-17 implementations and effective factory bindings, without automatic fallback selection.
+- Added bounded request body verification for seekable and non-seekable streams, including oversized payload rejection and safe preservation of accepted request bodies.
+- Added strict JSON parsing limits, canonical trusted proxy and host validation, and rejection of malformed or ambiguous request metadata.
+- Restricted HTTP context enrichment to validated request metadata without overwriting Kernel-owned correlation or UnitOfWork identifiers.
+- Prevented raw request bodies, headers, cookies, credentials, exception messages, stack traces, and private runtime context from entering HTTP diagnostics, metrics, tracing attributes, or public error responses.
+- Preserved original Throwable precedence during HTTP pipeline, response construction, observability, and UnitOfWork completion failures.
+
 ## v0.12.0
 
 ### Added

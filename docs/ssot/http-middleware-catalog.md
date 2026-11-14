@@ -294,6 +294,14 @@ Compiled artifacts MUST NOT redefine:
 
 Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy as their corresponding implementations become available.
 
+## HTTP-owned middleware execution and final-response completion
+
+The implemented `platform/http` baseline consists of six `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
+
+The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
+
+`HttpKernel` coordinates the HTTP UnitOfWork and final-response completion after the full PSR-15 pipeline. Four dedicated, stateless HTTP-owned services operate outside all nine middleware slots: `HttpResponseFinalizer` applies the canonical correlation response-header policy; `HttpRequestMetricsRecorder` records final-result metrics; `HttpAccessLogWriter` emits the bounded completion log through PSR-3; and `HttpRequestSpanRecorder` completes the request-local span. Metrics, logging, and span outcome attributes consume the finalized response status or fixed fatal outcome, never an intermediate middleware result. These services are not PSR-15 middleware or a second observer pipeline. Exact wiring, execution, and error-boundary semantics remain specified by `docs/ssot/http-middleware-wiring.md`.
+
 ## Platform HTTP defaults policy
 
 `platform/http/config/http.php` MUST contain only middleware shipped by `platform/http`.
@@ -535,7 +543,7 @@ The distinction MUST NOT be encoded through forbidden or high-cardinality metric
 
 HTTP access logging is structured and redaction-first.
 
-A structured access log MAY be emitted per request by the owning middleware.
+An enabled `HttpAccessLogWriter` MAY emit one bounded HTTP completion record through the canonical PSR-3 `LoggerInterface` after `HttpKernel` finalizes the response. Access logging is not PSR-15 middleware and MUST NOT observe an intermediate middleware response.
 
 Access logs MUST NOT emit:
 
@@ -589,7 +597,7 @@ Only when `platform.problem-details` is explicitly selected in a compatible HTTP
 http.middleware.system_pre
 ```
 
-with exact priority `1000` and metadata `[]` until `platform/http` defines a normative metadata schema. The tag identifier is `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`. `platform/http` remains the owner of middleware execution, pipeline ordering, and tag metadata semantics. Package installation alone MUST NOT activate `HttpErrorHandlingMiddleware`.
+with exact priority `1000` and metadata `[]`. The tag identifier is `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`. This priority is reserved for the selected outermost error boundary, outside all HTTP response decorators. `platform/http` remains the owner of middleware execution, pipeline ordering, and tag metadata semantics defined by `docs/ssot/http-middleware-wiring.md`. Package installation alone MUST NOT activate `HttpErrorHandlingMiddleware`.
 
 This document does not introduce or require `platform/problem-details`.
 
@@ -705,25 +713,22 @@ System-pre middleware runs before the main system, application, and route middle
 
 ### Platform HTTP baseline entries
 
-| priority | owner package_id | middleware class                                                           | registration                            |
-|----------|------------------|----------------------------------------------------------------------------|-----------------------------------------|
-| `950`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CorrelationIdMiddleware::class`        | auto                                    |
-| `940`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestIdMiddleware::class`            | auto if `http.request_id.enabled`       |
-| `930`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class`         | auto                                    |
-| `920`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\HttpMetricsMiddleware::class`          | auto                                    |
-| `910`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\AccessLogMiddleware::class`            | auto                                    |
-| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`         | auto if enabled                         |
-| `880`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`         | auto if `http.proxy.enabled`            |
-| `870`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class`       | auto if `http.context.enrich.enabled`   |
-| `860`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class`          | auto if `http.hosts.enabled`            |
-| `850`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class`        | auto if `http.https_redirect.enabled`   |
-| `840`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CorsMiddleware::class`                 | auto if `http.cors.enabled`             |
-| `830`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware::class` | auto                                    |
-| `820`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\MethodOverrideMiddleware::class`       | auto if `http.method_override.enabled`  |
-| `810`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\ContentNegotiationMiddleware::class`   | auto if `http.negotiation.enabled`      |
-| `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class`       | auto if `http.request.json.enabled`     |
-| `790`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class`       | auto if `http.rate_limit.early.enabled` |
-| `580`    | `platform/http`  | `\Coretsia\Platform\Http\Debug\DebugEndpointsMiddleware::class`            | optional shape, dev-only, opt-in only   |
+| priority | owner package_id | middleware class                                                           | registration / metadata                       |
+|----------|------------------|----------------------------------------------------------------------------|-----------------------------------------------|
+| `940`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestIdMiddleware::class`            | future-only; not registered                   |
+| `930`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class`         | `['toggle' => 'http.tracing.enabled']`        |
+| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`         | future-only; not registered                   |
+| `880`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`         | `['toggle' => 'http.proxy.enabled']`          |
+| `870`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class`       | `['toggle' => 'http.context.enrich.enabled']` |
+| `860`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class`          | `['toggle' => 'http.hosts.enabled']`          |
+| `850`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class`        | future-only; not registered                   |
+| `840`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CorsMiddleware::class`                 | future-only; not registered                   |
+| `830`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware::class` | `[]`                                          |
+| `820`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\MethodOverrideMiddleware::class`       | future-only; not registered                   |
+| `810`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\ContentNegotiationMiddleware::class`   | future-only; not registered                   |
+| `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class`       | `['toggle' => 'http.request.json.enabled']`   |
+| `790`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class`       | future-only; not registered                   |
+| `580`    | `platform/http`  | `\Coretsia\Platform\Http\Debug\DebugEndpointsMiddleware::class`            | future-only; not registered                   |
 
 ### Optional package entries
 
@@ -753,12 +758,12 @@ System-post middleware runs after the system and application processing stage ac
 
 ### Platform HTTP baseline entries
 
-| priority | owner package_id | middleware class                                                      | registration                            |
-|----------|------------------|-----------------------------------------------------------------------|-----------------------------------------|
-| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CacheHeadersMiddleware::class`    | auto if `http.cache_headers.enabled`    |
-| `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EtagMiddleware::class`            | auto if `http.etag.enabled`             |
-| `700`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CompressionMiddleware::class`     | auto if `http.compression.enabled`      |
-| `600`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\SecurityHeadersMiddleware::class` | auto if `http.security_headers.enabled` |
+| priority | owner package_id | middleware class                                                      | registration                |
+|----------|------------------|-----------------------------------------------------------------------|-----------------------------|
+| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CacheHeadersMiddleware::class`    | future-only; not registered |
+| `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EtagMiddleware::class`            | future-only; not registered |
+| `700`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CompressionMiddleware::class`     | future-only; not registered |
+| `600`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\SecurityHeadersMiddleware::class` | future-only; not registered |
 
 ### Optional package entries
 
@@ -779,9 +784,9 @@ This slot is where identity-aware app-level middleware may run.
 
 ### Platform HTTP baseline entries
 
-| priority | owner package_id | middleware class                                                | registration                                                |
-|----------|------------------|-----------------------------------------------------------------|-------------------------------------------------------------|
-| `150`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RateLimitMiddleware::class` | auto if `http.rate_limit.enabled`; identity-aware placement |
+| priority | owner package_id | middleware class                                                | registration                                      |
+|----------|------------------|-----------------------------------------------------------------|---------------------------------------------------|
+| `150`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RateLimitMiddleware::class` | future-only; identity-aware `app_pre` reservation |
 
 ### Optional package entries
 
@@ -949,23 +954,20 @@ They MUST be introduced, owned, and maintained by their respective packages.
 
 ## Runtime acceptance scenario
 
-When the Micro preset handles an HTTP request:
+When a target with `platform.http` explicitly selected executes an HTTP request through `HttpKernel`:
 
-1. the request enters the canonical HTTP middleware taxonomy through `system_pre`;
-2. correlation id handling is available;
-3. trace context handling is available;
-4. the canonical meter port remains available through a noop-safe fallback; metric recording is not implied;
-5. structured access logging is available;
-6. noop tracing, metrics, and logging fallbacks never throw merely because a backend is absent;
-7. early pre-identity throttling, if enabled, is handled by `EarlyRateLimitMiddleware` in `http.middleware.system_pre`;
-8. identity-aware throttling, if enabled, is handled by `RateLimitMiddleware` in `http.middleware.app_pre`;
-9. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
-10. context and unit-of-work state do not leak across repeated runtime boundaries;
-11. concrete proof is provided by the owning runtime packages.
+1. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
+2. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
+3. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles;
+4. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy after the complete pipeline;
+5. `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` consume the completed HTTP result through the existing noop-safe ports;
+6. disabled optional observability does not change request outcome or create additional middleware;
+7. future-only rate limiting and other middleware reservations remain unregistered until their owning implementations exist;
+8. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
+9. context and unit-of-work state do not leak across repeated runtime boundaries;
+10. concrete proof is provided by the owning runtime packages.
 
-This scenario is expected runtime policy.
-
-It is not implemented by this documentation-only catalog.
+This scenario is expected runtime policy. Package installation alone does not select `platform.http` or make an HTTP front controller available.
 
 ## What this catalog MUST NOT create
 
@@ -1033,6 +1035,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
 - [Tag Registry](./tags.md)
 - [Config Roots Registry](./config-roots.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)

@@ -48,12 +48,22 @@ final class ModuleSelectionFactoryTest extends TestCase
                 'core.foundation',
                 'platform.redaction',
             ]),
+            ModeInfrastructureTestSupport::descriptor('platform.http', [
+                'core.foundation',
+                'core.kernel',
+            ]),
             ModeInfrastructureTestSupport::descriptor('platform.logging', [
                 'core.foundation',
                 'core.kernel',
                 'platform.redaction',
             ]),
+            ModeInfrastructureTestSupport::descriptor('platform.metrics', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.problem-details', [
+                'core.foundation',
+                'platform.errors',
+            ]),
             ModeInfrastructureTestSupport::descriptor('platform.redaction', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.tracing', ['core.foundation']),
             ModeInfrastructureTestSupport::descriptor('platform.worker', ['core.kernel']),
         ]);
 
@@ -63,11 +73,17 @@ final class ModuleSelectionFactoryTest extends TestCase
                 require \dirname(__DIR__, 2) . '/resources/modes/' . $name . '.php',
             );
             $selection = $factory->create($preset, new ResolvedModuleOverrides([], []));
-            $expectedRoots = ['core.foundation', 'core.kernel', 'platform.cli', 'platform.logging'];
-
-            if (\in_array($name, ['hybrid', 'enterprise'], true)) {
-                $expectedRoots[] = 'platform.worker';
-            }
+            $expectedRoots = [
+                'core.foundation',
+                'core.kernel',
+                'platform.cli',
+                'platform.http',
+                'platform.logging',
+                ...($name === 'enterprise' ? ['platform.metrics'] : []),
+                'platform.problem-details',
+                ...($name === 'enterprise' ? ['platform.tracing'] : []),
+                ...(\in_array($name, ['hybrid', 'enterprise'], true) ? ['platform.worker'] : []),
+            ];
 
             self::assertSame($expectedRoots, self::values($selection->roots()));
 

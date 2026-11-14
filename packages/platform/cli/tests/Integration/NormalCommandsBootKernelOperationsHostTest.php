@@ -60,7 +60,7 @@ final class NormalCommandsBootKernelOperationsHostTest extends CliIntegrationTes
             $host = new KernelOpsHostBooter()->boot(new KernelOpsHostInput($root));
             $plan = $host->get(ModulePlan::class);
             self::assertFalse($plan->hasEnabledModule('platform.cli'));
-            self::assertFalse($plan->hasEnabledModule('platform.errors'));
+            self::assertTrue($plan->hasEnabledModule('platform.errors'));
             $result = self::execute($root . '/vendor/bin/coretsia', ['list']);
             self::assertSafeFailure($result, 'CORETSIA_CLI_HOST_BOOT_FAILED: host-boot-failed');
             $source = (string) \file_get_contents(self::packageRoot() . '/src/Bootstrap/CliHostBootstrap.php');

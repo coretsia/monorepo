@@ -383,7 +383,7 @@ final readonly class EnvironmentOverlayLoader
         }
 
         if (isset($rule['keys'])) {
-            if (!\is_array($rule['keys']) || \array_is_list($rule['keys'])) {
+            if (!\is_array($rule['keys']) || (\array_is_list($rule['keys']) && $rule['keys'] !== [])) {
                 throw ConfigInvalidException::withReason(
                     ConfigInvalidException::REASON_SOURCE_INVALID,
                 );
@@ -837,9 +837,9 @@ final readonly class EnvironmentOverlayLoader
             );
         }
 
-        $value = (int)$rawValue;
+        $value = (int) $rawValue;
 
-        if ((string)$value !== $rawValue) {
+        if ((string) $value !== $rawValue) {
             throw ConfigInvalidException::withReason(
                 ConfigInvalidException::REASON_SOURCE_INVALID,
             );

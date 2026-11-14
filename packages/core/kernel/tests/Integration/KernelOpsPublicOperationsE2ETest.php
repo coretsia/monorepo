@@ -39,6 +39,20 @@ final class KernelOpsPublicOperationsE2ETest extends TestCase
                 $root . '/config/logging.php',
                 ['driver' => 'null'],
             );
+            ArtifactPipelineTestSupport::writePhpReturn(
+                $root . '/config/app.php',
+                [
+                    'moduleOverrides' => [
+                        'console' => [
+                            'include' => [],
+                            'exclude' => [
+                                'platform.http',
+                                'platform.problem-details',
+                            ],
+                        ],
+                    ],
+                ],
+            );
 
             $container = new KernelOpsHostBooter()->boot(
                 new KernelOpsHostInput($root),

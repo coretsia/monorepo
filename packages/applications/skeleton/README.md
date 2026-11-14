@@ -68,6 +68,40 @@ The project `composer.json` defines the application's runtime and application-sp
 
 Composer records the resolved dependency graph in `composer.lock` and installs dependencies under `vendor/`.
 
+## HTTP PSR-7/17 factory selection (optional)
+
+HTTP request handling requires `platform.http` to be installed and explicitly selected for the target, together with a compatible PSR-7/17 implementation. The `platform/http` package depends on PSR interfaces but does not install a concrete message/factory implementation automatically. Installing an implementation through Composer alone does not select `platform.http`, activate its middleware, or make HTTP request handling available.
+
+Install one of the supported concrete implementations from the application root:
+
+```bash
+composer require nyholm/psr7
+composer require guzzlehttp/psr7
+composer require laminas/laminas-diactoros
+composer require slim/psr7
+```
+
+These commands are alternatives; install the implementation chosen for the target. Set the matching target-local `http.factory` value:
+
+- `nyholm` for `nyholm/psr7`;
+- `guzzlehttp` for `guzzlehttp/psr7`;
+- `laminas` for `laminas/laminas-diactoros`;
+- `slim` for `slim/psr7`.
+
+For example, `apps/web/config/http.php` may contain the following Phase B root-specific override after the HTTP module is selected:
+
+```php
+return [
+    'factory' => 'nyholm',
+];
+```
+
+The built-in selections contribute the matching `ResponseFactoryInterface` and `StreamFactoryInterface` bindings through canonical declarative DI. No application-owned DI provider is required for those two interfaces when a built-in selection is used. The selection is explicit and does not fall back to another installed implementation.
+
+The default `http.factory=external` selects custom, application/distribution-owned factory binding. In this mode, `platform/http` does not contribute implementation services or aliases; the consuming application must provide compatible effective declarative DI bindings for both `Psr\Http\Message\ResponseFactoryInterface` and `Psr\Http\Message\StreamFactoryInterface` using its own provider configuration.
+
+This describes factory configuration only. Complete HTTP target bootstrap, front-controller registration, SAPI request construction, response emission, and browser-serving instructions are not yet part of the Skeleton application baseline. No HTTP entrypoint, default HTTP configuration, or runtime implementation discovery is introduced by these steps.
+
 ## Command-line interface
 
 The Skeleton project-root `coretsia` launcher has two distinct execution paths.

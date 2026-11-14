@@ -67,7 +67,7 @@ Existing consumers continue to depend on `Psr\Log\LoggerInterface` only; they do
 - `LogRecordPolicy`, owning producer-neutral destination-specific sink admission and post-redaction validation;
 - `JsonLineFormatter` and `LogfmtLineFormatter`, serializing the same admitted and redacted record with Foundation stable JSON reuse.
 
-The active logger applies the same severity filtering, record admission, enrichment, redaction, formatter selection, and complete-record byte limit for the `stream` and `file` drivers. No `FileLogger`, second admission policy, classifier registry, logging-owned context store, or reset service is introduced.
+The active logger applies the same severity filtering, record admission, enrichment, redaction, formatter selection, and complete-record byte limit for the `stream` and `file` drivers. No `FileLogger`, second admission policy, classifier registry, logging-owned context store, or reset service is introduced. HTTP request completion events are produced by `platform/http` through `Psr\Log\LoggerInterface`; `platform/logging` applies its producer-neutral sink contract without importing HTTP implementations, inspecting requests, implementing middleware, or inferring HTTP outcomes.
 
 ## Configuration
 
@@ -140,6 +140,7 @@ PSR-3 level validation
 -> current UoW enrichment
 -> ClockInterface UTC timestamp capture
 -> nine-field canonical record assembly
+-> pre-redaction canonical record and sensitive key-path validation
 -> mandatory shared whole-record redaction
 -> post-redaction schema and classifier validation
 -> selected jsonl or logfmt serialization
@@ -152,11 +153,14 @@ The canonical record is not modified after post-redaction validation. The config
 
 ## Operational context and correlation
 
-`LogRecordPolicy` admits only bounded safe-by-construction operational fields; it is not a general-purpose serializer of PSR-3 context. Caller context with more than 48 entries is rejected as a whole before optional canonical route-template enrichment. Within that limit, invalid or unknown branches are omitted, and a context with no admitted fields becomes `null`.
+`LogRecordPolicy` admits only bounded safe-by-construction operational fields; it is not a general-purpose serializer of PSR-3 context. Caller context with more than 48 entries is omitted as a whole before optional `ContextBagProcessor` enrichment; an otherwise valid event may still be emitted. Within that limit, invalid or unknown branches are omitted, and a context with no admitted fields becomes `null`. The complete assembled canonical context is checked again after enrichment: more than 48 fields reject the entire record before redaction. If the shared redactor returns a context with more than 48 fields, post-redaction admission omits the entire context while retaining otherwise valid root fields, subject to independent sensitive `key_paths` checks.
 
 The allowed scalar families and bounds are:
 
-- Category tokens `operation`, `outcome`, `event`, `reason`, `status`, `driver`, `control_transport`, `presetName`, and `preset`: 1..96 ASCII bytes, using the canonical safe category grammar.
+- Category tokens `operation`, `outcome`, `event`, `reason`, `driver`, `control_transport`, `presetName`, and `preset`: 1..96 ASCII bytes, matching `\A[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*\z`.
+- `status`: either a strict integer `100..599` or a string satisfying the same 1..96-byte category grammar (for example, `ready` or `unknown`); numeric strings, floats, and booleans are not admitted.
+- `method`: exactly `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, `CONNECT`, or `OTHER` (uppercase, byte-for-byte).
+- `route_template`: the exact string `unknown`; no other value is admitted.
 - `code`: 1..128 bytes, using the bounded safe code grammar.
 - Approved non-negative count fields (integers `0..1000000000`; no arbitrary `*_count` names are accepted):
   - `artifact_count`, `bucket_count`, `byte_count`, `dirty_artifact_count`, `env_overlay_mapping_count`, `env_overlay_metadata_count`, `existing_artifact_count`, `expected_artifact_count`.
@@ -166,7 +170,9 @@ The allowed scalar families and bounds are:
 - `artifact_basename`: bounded validated basename, at most 128 bytes; `artifact_path`: validated owner-approved relative path, at most 512 bytes. Absolute local paths are forbidden.
 - `endpoint_hash`: exactly 64 lowercase hexadecimal characters derived under the producer's safe disclosure policy.
 - Nested `app_target`: one of `web|api|console|worker`; nested `correlation_id`, `uow_id`, and `uow_type`: individually validated, non-authoritative copies only.
-- `path_template`: bounded owner-approved route template of at most 256 bytes; never a raw request path or resolved route parameter.
+- `path_template`: bounded structural template of at most 256 bytes, independently admitted from `route_template`; never a raw request path or resolved route parameter. An optional safe value may be enriched from `ContextKeys::PATH_TEMPLATE` by `ContextBagProcessor`.
+
+For the `http.request.completed` event, `platform/http` supplies only bounded `method`, `status`, `outcome`, `duration_ms`, fixed `route_template='unknown'`, and an optional canonical-shaped nested `correlation_id`. Its finalized responses use integer statuses `100..599` with producer-selected `success` (below `400`) or `handled_error` (`400..599`); when no finalized response is available it uses `status=unknown` and `outcome=fatal_error`. The generic sink validates `status` and `outcome` independently and does not derive or enforce their HTTP lifecycle relationship. Neither package derives `route_template` from raw request paths, route parameters, or `path_template`.
 
 The only permitted list fields and their maximum item counts are:
 
@@ -192,6 +198,8 @@ ts_utc level message service_name app_target correlation_id uow_id uow_type cont
 ```
 
 Logfmt emits `key=value` pairs with all non-null strings double-quoted; backslashes, quotes, and control characters are deterministically escaped. Null values are the unquoted token `null` (the string `"null"` remains quoted). A non-empty context is Foundation-encoded compact JSON with only the encoder's trailing LF removed, then escaped and embedded as one quoted logfmt value. A null context emits `context=null`. Logfmt owns exactly one final LF; no second recursive JSON encoder is introduced.
+
+Both formatters validate the same final canonical record through `LogRecordPolicy::isValidCanonicalRecord()` and preserve the integer or string types of post-redaction admitted context values; in logfmt these types are preserved inside the embedded JSON value.
 
 For a synthetic record with no active UoW, a fixed UTC timestamp, and admitted `operation=boot`, the canonical JSONL frame is:
 
@@ -262,7 +270,7 @@ These ports have distinct purposes:
 
 A classified sensitive key in any `key_paths` entry omits the **entire** field during initial context admission, not just the offending item. For example, `['db.account', 'db.password']` cannot be emitted as a partial key-path list. A classifier `null` result means *unclassified*, not *safe*: producer-owned restrictions, exact path grammar, logging's context-field allowlist, and mandatory redaction still apply. Logging does not copy Kernel's sensitive-key/SQL-like producer regexes, and producers may not resubmit paths their own policies rejected.
 
-Ordinary unsafe or unrecognized context fields are omitted, potentially yielding `context=null`. A classifier exception or invalid classifier result is different: it aborts the **whole record** at the existing no-throw logging boundary. Initial classifier failure prevents redaction, formatting, and I/O. Post-redaction classifier failure aborts after the already completed single redaction call, without a second redaction, a partial record, raw diagnostic, or fallback sink. Redactor failure or invalid post-redaction output also fails closed.
+Ordinary unsafe or unrecognized context fields are omitted, potentially yielding `context=null`. Following mandatory whole-record redaction, individual ordinary fields that no longer satisfy sink admission are omitted without recovering their original values or coercing their original types. A malformed non-null redacted context container, invalid canonical root, or invalid/sensitive post-redaction `key_paths` rejects the whole record. A classifier exception or invalid classifier result also aborts the **whole record** at the existing no-throw logging boundary. Initial classifier failure prevents redaction, formatting, and I/O. Post-redaction classifier failure aborts after the already completed single redaction call, without a second redaction, a partial record, raw diagnostic, or fallback sink. Redactor failure or invalid post-redaction output also fails closed.
 
 No generic redactor or key classifier can automatically establish that arbitrary runtime-derived strings, customer data, or even syntactically valid event identifiers are safe. Producers MUST use static, safe-by-construction event names and field-specific approved values. Raw headers, cookies, Authorization credentials, session identifiers, raw request paths, query strings, request/response bodies, SQL, environment secrets, arbitrary exception messages, personal information, and unchecked strings are not approved operational context.
 

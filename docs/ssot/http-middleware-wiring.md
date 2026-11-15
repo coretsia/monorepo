@@ -262,6 +262,16 @@ Integration verification MUST cover deterministic per-slot ordering and deduplic
 
 Tests MUST distinguish an intermediate middleware result from the completed `HttpKernel` result and MUST NOT treat optional observability failures as permission to change responses or primary Throwables.
 
+Sequential HTTP UnitOfWork regression MUST exercise 1000 deterministic sequential invocations in one PHP process through one shared `HttpKernel`, concrete `KernelRuntime`, `Pipeline`, `ContextStore`, and Foundation `ResetOrchestrator`. Verification MUST use the existing `RequestContextMiddleware` and canonical Foundation reset discovery for registered test-only `ResetInterface` services. It MUST NOT introduce another UnitOfWork lifecycle, context store, reset executor, or HTTP-specific reset wrapper.
+
+The regression MUST cover completed HTTP `200` responses (`success`), completed HTTP `503` responses (`handled_error`), uncaught pipeline Throwables (`fatal_error`), and response-finalization Throwables (`fatal_error`) in a deterministic sequence. Each outcome MUST be verified through the canonical Kernel after-UoW phase rather than inferred solely from HTTP status. An exceptional HTTP invocation MUST NOT prevent the next sequential invocation from executing its expected lifecycle when canonical reset succeeds.
+
+During request processing, Kernel-owned UnitOfWork identity and validated request-local HTTP context enrichment MUST reflect the current invocation. After each successful canonical reset, every canonical `ContextKeys` entry MUST be absent and each registered resettable test service MUST have its request-local state cleared. Before subsequent HTTP enrichment, optional HTTP context keys from the preceding request MUST remain absent; Kernel-owned base keys for the new UnitOfWork are established independently.
+
+For each UnitOfWork crossing the Kernel reset-responsibility boundary, verification MUST establish exactly one canonical reset attempt. A reset attempt MUST NOT be treated as successful cleanup when reset execution fails. Reset-responsibility boundaries, lifecycle failure precedence, effective reset discovery, and reset ordering remain Kernel/Foundation-owned. The regression establishes isolation only for examined canonical context keys and registered resettable-service state; it does not establish process-wide memory-leak freedom, cleanup of unregistered mutable state, or transport-adapter and Worker integration readiness.
+
+Existing middleware ordering, outermost error-boundary placement, completed-response observability, Throwable precedence, and HTTP completion contracts MUST remain unchanged.
+
 ## Non-goals
 
 This SSoT does not introduce or redefine:
@@ -282,6 +292,9 @@ This SSoT does not introduce or redefine:
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md)
 - [Config and env SSoT](./config-and-env.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
+- [Context Lifecycle SSoT](./context-lifecycle.md)
+- [Reset Tags SSoT](./reset-tags.md)
+- [Stateful Services SSoT](./stateful-services.md)
 - [UnitOfWork Outcome Policy SSoT](./uow-outcome-policy.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Problem Details SSoT](./problem-details.md)

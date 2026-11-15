@@ -8584,7 +8584,7 @@ N/A (integration tests use minimal kernel/http harness)
 
 ---
 
-### 3.55.0 HTTP long-running safety harness (MUST) [IMPL]
+### 3.55.0 HTTP long-running isolation regression (MUST) [IMPL]
 
 ---
 type: package
@@ -8597,26 +8597,35 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "Один і той самий process може обробити 100 sequential requests без leak, а reset виконується детерміновано після кожного request."
+goal: "Довести через deterministic integration regression, що один HttpKernel, KernelRuntime, Pipeline, ContextStore і ResetOrchestrator можуть послідовно обробити 1000 різнорідних HTTP invocations в одному PHP process без перенесення перевірюваного request-local стану між UoW за умови успішного canonical reset."
 provides:
-- "`platform/http` long-running safe: HttpKernel/handler викликається багато разів у одному процесі без протікання стану/контексту."
-- "Harness/integration tests на sequential requests + reset discipline through the standard `HttpKernel` → `KernelRuntimeInterface` → Foundation `ResetOrchestrator` flow."
-- "Optional span attribute `long_running=true` (НЕ metric label)."
-- "Consumers of this harness (policy): `integrations/runtime-frankenphp`, `integrations/runtime-swoole`, `integrations/runtime-roadrunner`, and `platform/worker` when `worker.task_type=http`."
-- "No extra runtime toggles required: protection/harness is activated by using a long-running HTTP runtime adapter; no middleware/endpoint changes."
+- "1000-request regression evidence for HTTP request-local ContextStore isolation and registered ResetInterface service cleanup."
+- "Deterministic scenario matrix covering successful responses, handled HTTP error responses, uncaught pipeline exceptions, and response-finalization exceptions."
+- "Verification that each invocation crossing the Kernel reset-responsibility boundary triggers exactly one canonical reset attempt."
+- "Verification that a failed HTTP invocation does not prevent subsequent sequential requests after successful reset."
+- "Reuse of existing HttpKernel, KernelRuntime, Foundation ContextStore, TagRegistry, and ResetOrchestrator without introducing a second lifecycle, reset executor, or test harness abstraction."
+- "No new production code, runtime dependencies, middleware, configuration, tags, spans, metrics, logs, or architecture decisions."
 
 runtime_invariant:
-- "Long-running safety is a consequence of the standard KernelRuntime + Foundation reset flow."
+- "Request-local ContextStore isolation and registered ResetInterface service cleanup are consequences of the standard KernelRuntime + Foundation reset flow when canonical reset completes successfully; unregistered mutable state and process-wide memory-leak freedom are not covered by this guarantee."
 - "It MUST NOT be controlled by a dedicated `enabled=false` style flag in Foundation."
+- "Reset success is required before claiming that all registered request-local state was cleared; a failed or incomplete reset MUST NOT be treated as successful cleanup."
+- "One KernelRuntime boundary permits at most one active UoW; HTTP adapters MUST NOT introduce nested or overlapping UoW lifecycles."
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-0018-kernel-long-running-safety-harness.md"
+adr: "docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md"
 ssot_refs:
 - "docs/ssot/reset-tags.md"
 - "docs/ssot/context-lifecycle.md"
 - "docs/ssot/context-store.md"
+- "docs/ssot/stateful-services.md"
+- "docs/ssot/runtime-drivers.md"
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/uow-and-reset-contracts.md"
+- "docs/ssot/context-keys.md"
 ---
 
 ### Dependencies (MUST)
@@ -8658,12 +8667,28 @@ ssot_refs:
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional; noop-safe)
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional; noop-safe)
 
+- Runtime-driver ownership boundary:
+  - `RuntimeDriverResolver` owns only the Kernel runtime-driver compatibility matrix.
+  - HTTP adapter owners validate their own package/module prerequisites, transport readiness, executable availability, and effective PSR-17 bindings.
+  - `RuntimeDriverContributions` carry selected canonical drivers only.
+  - `platform/worker` already executes HTTP tasks through `ApplicationWorker` and `KernelRuntimeInterface::runUnitOfWork('http', ...)`.
+  - Calling `HttpKernel::handle()` inside that already active Worker UoW on the same KernelRuntime boundary is forbidden because it would create a nested UoW.
+  - This epic MUST NOT introduce a Worker-to-HttpKernel bridge or change Worker lifecycle ownership.
+  - Adapter-specific long-running integration and Worker HTTP task-source compatibility require their own verification; the HTTP package harness alone does not certify those integrations.
+
 - Non-goals (legacy):
   - No process manager / worker pool (owned by other epics or integrations).
   - No middleware stack / endpoint changes.
 
 - Acceptance scenario:
-  - When running `LongRunning100SequentialRequestsNoLeakTest`, then one `HttpKernel` instance handles 100 sequential requests in the same process without request-local ContextStore leakage.
+  - When running `testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes()` inside `HttpKernelInvokesKernelRuntimeUowHooksTest`, one concrete HttpKernel and KernelRuntime process 1000 sequential HTTP invocations using the same Pipeline, ContextStore, ResetOrchestrator, and registered resettable fixture.
+  - The sequence cycles deterministically through 200, 503, uncaught pipeline Throwable, and finalization Throwable.
+  - Each invocation crossing the reset-responsibility boundary produces one reset attempt.
+  - After every successful reset, canonical request-local ContextKeys are absent and the registered resettable fixture contains no previous-request state.
+  - After each exceptional HTTP invocation, the next scheduled invocation can begin on the same KernelRuntime and produce its own deterministic expected response or Throwable.
+  - At every non-terminal four-scenario cycle boundary, an HTTP 200 response follows the preceding response-finalization failure.
+  - The test verifies successful lifecycle recovery without claiming that every invocation returns a successful HTTP status.
+  - The acceptance test does not claim absence of unregistered mutable state, process-wide memory leaks, or adapter-specific lifecycle defects.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -8697,7 +8722,8 @@ Forbidden:
 - CLI:
   - N/A
 - HTTP:
-  - N/A (uses existing stack; adds harness/probe)
+  - N/A (uses the existing HttpKernel and PSR-15 pipeline; adds tests only)
+  - No production probe, middleware, runtime adapter, or request entrypoint is introduced.
 - Kernel hooks/tags:
   - relies on Foundation reset orchestration via `ResetOrchestrator`
 - Artifacts:
@@ -8707,55 +8733,150 @@ Forbidden:
 
 #### Creates
 
-- [ ] Before implementation, re-review this epic against the current runtime-driver ownership boundary: `RuntimeDriverResolver` remains Kernel matrix-only; owner packages/adapters own their package/module prerequisites, adapter/transport/executable readiness, and `RuntimeDriverContributions` carry selected canonical drivers only.
+N/A — no new files.
 
-Test-only harness/support:
-- [ ] `packages/platform/http/tests/Support/LongRunningSafetyProbe.php` — helper used only by tests
-  - [ ] MUST NOT change production behavior (no hooks, no middleware injection)
-  - [ ] MUST NOT emit stdout/stderr output
-  - [ ] MUST NOT log request payloads/headers/tokens
-  - [ ] MAY inspect ContextStore via `ContextAccessorInterface` for invariants only
-
-Docs:
-- [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
-- [ ] `docs/architecture/http-long-running.md` — rules: no statics, reset discipline, adapter notes
-
-Tests:
-- [ ] `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
-- [ ] `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
+- [x] Existing HTTP integration tests and canonical documentation are extended in place.
+- [x] No separate harness, probe, reset fixture class file, ADR, architecture document, or test support package is introduced.
 
 #### Modifies
 
-- [ ] `packages/platform/http/README.md` — add long-running runtime safety section.
-- [ ] `packages/platform/http/config/http.php` — add only `http.long_running.span_attr_enabled` if optional span attribute emission is configurable.
-- [ ] `packages/platform/http/config/rules.php` — add shape rule only for `http.long_running.span_attr_enabled` if the config key is introduced.
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
+- [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] preserve all existing integration test cases and their semantic assertions
+  - [x] replace the three existing `self::assertSame()` comparisons against `$context->get(ContextKeys::CORRELATION_ID)`, `$context->get(ContextKeys::UOW_ID)`, and `$context->get(ContextKeys::UOW_TYPE)` with equivalent boolean predicates and fixed safe assertion messages
+  - [x] preserve exact expected-value comparison semantics without allowing PHPUnit failure diagnostics to render actual ContextStore values
+  - [x] replace the two existing `self::assertSame([], $context->all())` assertions with key-presence checks over `ContextKeys::all()`
+  - [x] use `ContextAccessorInterface::has()` or the existing ContextStore::has() for absence assertions
+  - [x] failure diagnostics for ContextStore cleanup MUST expose only canonical key names, never stored values or complete context arrays
+  - [x] preserve the original assertion intent: no canonical ContextStore keys remain after successful reset
+  - [x] add `testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes()`
+  - [x] execute exactly 1000 sequential HTTP invocations in one PHP process
+  - [x] reuse the same concrete instances throughout the sequence:
+    - [x] `HttpKernel`
+    - [x] `KernelRuntime`
+    - [x] `ContextStore`
+    - [x] `ResetOrchestrator`
+    - [x] `Pipeline`
+    - [x] registered test-only `ResetInterface` fixture
+  - [x] reuse existing Foundation and Kernel construction patterns already present in this test file
+  - [x] use the real `RequestContextMiddleware` for request-local context enrichment
+  - [x] use existing PSR-7/15 test stubs and mocks without introducing a concrete PSR implementation dependency
+  - [x] register ContextStore and the test-only mutable ResetInterface fixture through the existing Foundation TagRegistry
+  - [x] register both stateful services under `ReservedTags::KERNEL_STATEFUL` as the canonical enforcement marker
+  - [x] register both services under the effective reset discovery tag returned by `ResetOrchestrator::effectiveResetTag()`
+  - [x] use `ReservedTags::KERNEL_STATEFUL` only for stateful-service policy alignment, never as the reset execution discovery list
+  - [x] retain Foundation ResetOrchestrator as the only reset executor
+  - [x] verify that the test-only resettable fixture is discovered and reset exactly once for each completed UoW
+  - [x] use the existing KernelRuntime lifecycle without direct ContextStore::reset() or ResetInterface::reset() calls
+  - [x] use a deterministic 4-scenario sequence:
+    - [x] request index modulo 4 = 0 → successful HTTP 200 response
+    - [x] request index modulo 4 = 1 → completed synthetic HTTP 503 response, classified by HttpKernel as `handled_error`; no separate error-boundary implementation is introduced or required
+    - [x] request index modulo 4 = 2 → uncaught synthetic pipeline Throwable
+    - [x] request index modulo 4 = 3 → synthetic Throwable from ResponseInterface::withHeader() during enabled HttpResponseFinalizer::finalize(), using a valid current-UoW correlation ID
+  - [x] each scenario executes exactly 250 times
+  - [x] construct a new synthetic ServerRequestInterface for every invocation
+  - [x] provide valid canonical REMOTE_ADDR, URI scheme, host, path, and one bounded User-Agent header
+  - [x] vary the synthetic request path and User-Agent for every invocation
+  - [x] alternate valid HTTP/HTTPS schemes and use a consistent URI authority and Host header
+  - [x] execute the existing RequestContextMiddleware with context enrichment enabled and trusted-proxy enrichment disabled
+  - [x] verify that current-request CLIENT_IP, SCHEME, HOST, PATH, and USER_AGENT values are present during terminal handling
+  - [x] verify that all five optional HTTP context keys are absent before enrichment of the next request
+  - [x] use a deterministic test-owned UnitOfWork ID generator producing valid canonical identities
+  - [x] use a test-owned deterministic CorrelationIdProviderInterface fixture with a distinct canonical 26-character correlation ID for every request index
+  - [x] use the same correlation ID throughout one request lifecycle, including response finalization
+  - [x] inject the deterministic test-owned CorrelationIdProviderInterface fixture into KernelRuntime for current-UoW correlation ID selection
+  - [x] inject the existing `Coretsia\Foundation\Observability\CorrelationIdProvider` backed by the same ContextStore into HttpResponseFinalizer
+  - [x] preserve the Foundation provider's canonical ContextStore read and correlation ID validation behavior
+  - [x] do not introduce a second correlation propagation mechanism, context accessor, or production provider implementation
+  - [x] keep correlation response-header finalization enabled for the entire 1000-request sequence
+  - [x] verify that ResponseInterface::withHeader() receives the configured `X-Correlation-Id` header name and the exact current-UoW correlation ID read through the real Foundation CorrelationIdProvider
+  - [x] verify this correlation ID before triggering the synthetic withHeader() Throwable in the finalization-failure scenario
+  - [x] verify that the previous request's correlation ID cannot be reused during subsequent response finalization
+  - [x] keep assertion failure messages limited to fixed tokens and synthetic request indices; do not expose actual header values
+  - [x] prevent fallback to nondeterministic ULID generation during the acceptance scenario
+  - [x] verify that both UoW ID and correlation ID match the current synthetic request index and differ from the preceding invocation
+  - [x] implement the identity fixtures locally inside the existing test file without introducing another identity-generation service or production abstraction
+  - [x] verify that consecutive UoW identities are distinct
+  - [x] use only canonical `ContextKeys`:
+    - [x] `ContextKeys::CORRELATION_ID`
+    - [x] `ContextKeys::UOW_ID`
+    - [x] `ContextKeys::UOW_TYPE`
+    - [x] `ContextKeys::CLIENT_IP`
+    - [x] `ContextKeys::SCHEME`
+    - [x] `ContextKeys::HOST`
+    - [x] `ContextKeys::PATH`
+    - [x] `ContextKeys::USER_AGENT`
+  - [x] before current-request HTTP enrichment, verify that optional request-local ContextKeys from the previous request are absent
+  - [x] during processing, verify current Kernel-owned UoW identity and current-request HTTP metadata
+  - [x] verify that previous-request metadata cannot substitute for current-request values
+  - [x] use a test-only ResetInterface fixture containing synthetic mutable per-UoW state
+  - [x] verify that the fixture is empty at the beginning of each request
+  - [x] populate the fixture with the current synthetic request index during request handling
+  - [x] verify exactly one fixture reset invocation for each completed request lifecycle
+  - [x] verify that the fixture is cleared after canonical reset execution
+  - [x] after every successful reset, iterate over `ContextKeys::all()` and verify that every canonical key is absent
+  - [x] use key-presence assertions rather than ContextStore::all(), snapshot(), or value-array comparisons
+  - [x] verify reset cleanup after all four outcome scenarios, including uncaught pipeline and finalization Throwables
+  - [x] verify that the test-only ResetInterface fixture has null request-local state after each reset
+  - [x] assert only stable counters, canonical key names, and fixed failure tokens; never include actual context values in assertion messages
+  - [x] compare current-request ContextStore values and correlation response-header values through boolean predicates with fixed safe assertion messages
+  - [x] MUST NOT use PHPUnit equality assertions that may render actual ContextStore values, request metadata, or response-header values when expectations fail
+  - [x] absence assertions MUST use ContextAccessorInterface::has() or ContextStore::has() with canonical key names only
+  - [x] preserve exact value-comparison semantics without exporting compared values to failure diagnostics
+  - [x] verify deterministic expected HTTP status or exact expected synthetic Throwable category for every invocation
+  - [x] verify that pipeline and finalization failures do not leave KernelRuntime locked against the next sequential invocation
+  - [x] verify that 1000 invocations produce exactly 1000 successful fixture reset executions
+  - [x] verify that one HttpKernel and Pipeline remain reusable without reconstruction
+  - [x] retain test-owned state only for bounded counters, current scenario identity, and safe assertion evidence
+  - [x] no second ContextStore, lifecycle gate, reset executor, reset discovery mechanism, or HTTP reset wrapper
+  - [x] no production hooks, middleware registration changes, or runtime adapter additions
+  - [x] no absolute paths, raw request values, cookies, Authorization values, tokens, payloads, object dumps, or stack traces in assertion messages
+  - [x] do not treat stable memory consumption, reset counts, or ContextStore cleanup as proof of process-wide memory-leak freedom
+
+Docs:
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] extend the existing `## Enforcement rails` section with HTTP sequential-UoW regression requirements
+  - [x] require real KernelRuntime and Foundation ResetOrchestrator integration evidence for repeated HttpKernel execution
+  - [x] require one shared HttpKernel, KernelRuntime, Pipeline, ContextStore, and ResetOrchestrator across the regression sequence
+  - [x] require request-local ContextKeys to be absent after successful reset and before subsequent request enrichment
+  - [x] require registered resettable-service state to be cleared through canonical Foundation discovery
+  - [x] require normal responses, handled-error responses, uncaught pipeline exceptions, and finalization failures to participate in the regression sequence
+  - [x] require recovery of subsequent sequential request execution after an earlier HTTP failure when reset succeeds
+  - [x] reference the existing Kernel-owned reset-responsibility and failure-precedence policy
+  - [x] distinguish reset attempt from successful cleanup
+  - [x] distinguish tested request-local isolation from process-wide memory-leak freedom
+  - [x] preserve existing HTTP observability, middleware ordering, error-boundary, and completion contracts
+  - [x] reference `docs/ssot/context-lifecycle.md`, `docs/ssot/reset-tags.md`, and `docs/ssot/stateful-services.md` as canonical owners
+  - [x] do not redefine Foundation reset planning, tag meta, ordering, error reasons, or lifecycle ownership
+
+- [x] `packages/platform/http/README.md`
+  - [x] extend the existing `## HttpKernel and UnitOfWork lifecycle` section rather than adding a second lifecycle section
+  - [x] describe regression verification of 1000 sequential invocations on shared runtime instances
+  - [x] distinguish successful responses, handled errors, and exception paths
+  - [x] explain that KernelRuntime and Foundation remain the only reset owners
+  - [x] clarify that registered stateful services are cleared only when canonical reset succeeds
+  - [x] clarify that ContextStore isolation is not a proof of absence of every process-wide memory leak
+  - [x] reference the existing HTTP integration test and `docs/ssot/http-middleware-wiring.md`
+  - [x] preserve existing adapter, Worker, middleware, and observability ownership boundaries
+  - [x] do not introduce additional configuration, spans, metrics, logs, or runtime behavior
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-  - [ ] `packages/platform/http/config/rules.php`
-- [ ] Keys (dot):
-  - [ ] `http.long_running.span_attr_enabled` = true
-    - [ ] controls only optional span attribute emission;
-    - [ ] MUST NOT enable/disable long-running safety;
-    - [ ] MUST NOT enable/disable reset discipline;
-    - [ ] MUST NOT enable/disable harness behavior;
-    - [ ] long-running safety remains unconditional when a long-running HTTP runtime adapter is used.
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces `http.long_running.span_attr_enabled` as bool.
+N/A — no new HTTP configuration keys or defaults.
+
+- Long-running safety and Kernel/Foundation reset behavior are unconditional runtime lifecycle invariants.
+- Existing `http.*` configuration remains unchanged.
+- No `http.long_running.*` subtree is introduced.
+- No span-attribute enablement toggle is introduced.
 
 #### Wiring / DI tags (when applicable)
 
 N/A for new tags.
 
-- [ ] This epic MUST NOT introduce or modify `http.middleware.*` tag constants.
-- [ ] HTTP middleware tag constants are already owned and introduced by `3.50.0` in:
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-- [ ] This epic MUST NOT add new middleware slots.
-- [ ] This epic MUST NOT alter middleware stack ordering.
+- [x] This epic MUST NOT introduce or modify `http.middleware.*` tag constants.
+- [x] HTTP middleware tag constants are already owned and introduced by `3.50.0` in:
+  - [x] `packages/core/foundation/src/Tag/ReservedTags.php`
+- [x] This epic MUST NOT add new middleware slots.
+- [x] This epic MUST NOT alter middleware stack ordering.
 
 #### Artifacts / outputs (if applicable)
 
@@ -8765,25 +8886,42 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] via `Coretsia\Contracts\Context\ContextAccessorInterface` (for leak detection / invariants)
-- Context writes (safe only):
-  - N/A
-- [ ] Reset discipline:
-  - [ ] relies on the standard `HttpKernel` → `KernelRuntimeInterface` → `ResetOrchestrator::resetAll()` flow from 3.50.0 / 1.280.0.
-  - [ ] `platform/http` MUST NOT enumerate `kernel.reset`.
-  - [ ] `platform/http` MUST NOT read `foundation.reset.tag`.
-  - [ ] `platform/http` MUST NOT call `ResetInterface::reset()` directly.
-  - [ ] Long-running tests MAY observe reset effects/counts through test fixtures, but production code remains reset-tag-opaque.
+- [x] Context reads:
+  - [x] via `Coretsia\Contracts\Context\ContextAccessorInterface` (for leak detection / invariants)
+- Context writes:
+  - Existing production behavior:
+    - KernelRuntime owns writes of `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, and `ContextKeys::UOW_TYPE`.
+    - RequestContextMiddleware owns validated optional writes of `ContextKeys::CLIENT_IP`, `ContextKeys::SCHEME`, `ContextKeys::HOST`, `ContextKeys::PATH`, and `ContextKeys::USER_AGENT`.
+  - This epic introduces no additional production context writes.
+  - Tests MUST exercise existing KernelRuntime and RequestContextMiddleware writes using synthetic canonical values.
+  - Tests MUST NOT bypass ContextStorePolicy or introduce new context keys, context stores, or write interfaces.
+- [x] Reset discipline:
+  - [x] relies exclusively on the existing HttpKernel → KernelRuntimeInterface → ResetOrchestrator::resetAll() lifecycle
+  - [x] every successfully begun HttpKernel UoW is completed through exactly one matching afterUnitOfWork() attempt
+  - [x] KernelRuntime owns the single-active-UoW gate and reset-responsibility boundary
+  - [x] reset is attempted once after the after-UoW phase when that phase is eligible
+  - [x] a before-UoW hook failure after successful base context creation triggers reset but skips after-UoW hooks
+  - [x] a begin failure before base context creation completes does not create a reset obligation
+  - [x] rejected nested/overlapping UoW starts are not new UoWs and do not trigger another reset
+  - [x] effective reset discovery and ordering remain Foundation-owned
+  - [x] tests MAY register test-only ResetInterface fixtures through the effective Foundation discovery tag
+  - [x] production platform/http MUST NOT enumerate kernel.reset or kernel.stateful
+  - [x] production platform/http MUST NOT read foundation.reset.tag
+  - [x] production platform/http MUST NOT invoke ResetInterface::reset() or ResetOrchestrator::resetAll() directly
+  - [x] failed reset execution MUST NOT be interpreted as proof of complete request-local state cleanup
+  - [x] no additional HTTP reset lifecycle, reset retry, cleanup manager, or reset ordering policy is introduced
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] optional attribute `long_running=true` on the existing request/runtime span only.
-  - [ ] `long_running` MUST NOT be used as a metric label.
-  - [ ] `long_running` MUST NOT contain request-specific data.
-- Metrics/Logs:
-  - N/A
+- Spans:
+  - N/A — no new spans or span attributes.
+  - Existing `http.request`, `kernel.uow`, and Foundation reset observability remain unchanged.
+  - No `long_running` attribute is introduced.
+- Metrics:
+  - N/A — no new metrics or metric labels.
+  - Existing HTTP, Kernel, and Foundation metric catalogs remain authoritative.
+- Logs:
+  - N/A — no new log events, fields, or diagnostic sinks.
 
 #### Errors
 
@@ -8791,59 +8929,78 @@ N/A
 
 #### Security / Redaction
 
-- [ ] Long-running harness MUST enforce “no leak” without capturing secrets:
-  - [ ] MUST NOT dump ContextStore values (only key presence/absence or safe ids)
-  - [ ] MUST NOT include absolute paths in assertion messages
-  - [ ] MUST NOT include raw headers/cookies/Authorization in test failure output
-  - [ ] Allowed diagnostics: key names, stable counters, `hash(value)` / `len(value)` when necessary
+- [x] Long-running harness MUST enforce “no leak” without capturing secrets:
+  - [x] MUST NOT dump ContextStore values (only key presence/absence or safe ids)
+  - [x] MUST NOT include absolute paths in assertion messages
+  - [x] MUST NOT include raw headers/cookies/Authorization in test failure output
+  - [x] Allowed diagnostics: canonical key names, stable counters, fixed reason tokens, and test-owned synthetic identifiers only.
+  - [x] Raw ContextStore values MUST NOT be copied into assertion messages.
+  - [x] Hashing or measuring the length of an unknown sensitive value MUST NOT be treated as sufficient declassification.
+  - [x] Test failure messages MUST remain safe even when an invariant fails unexpectedly.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] if effective reset discovery is used → `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
-- [ ] If long-running no-leak promised → `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
+- [x] Long-running HTTP isolation regression:
+  - [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] 1000 sequential invocations with four deterministic outcomes
+  - [x] real KernelRuntime and Foundation reset orchestration
+  - [x] request-local ContextStore and registered resettable fixture isolation
+  - [x] successful next-request execution after earlier HTTP failure
+
+- [x] Existing Kernel/Foundation lifecycle evidence MUST remain green:
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeAlwaysResetsAfterUowTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeResetHappensAfterAfterUowHooksTest.php`
+  - [x] `packages/core/kernel/tests/Integration/KernelRuntimeEnforcesSingleActiveUnitOfWorkTest.php`
+  - [x] existing Foundation reset discovery, ordering, failure, and ContextStore integration tests
+
+- [x] Existing HTTP regression evidence MUST remain green:
+  - [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+
+- [x] Foundation enhanced reset modes, custom effective reset discovery, and Kernel lifecycle failure precedence remain covered by their existing owner-package tests.
+- [x] Adapter-specific executable readiness, process recycling, and Worker HTTP task-source integration remain outside this epic.
 
 ### Tests (MUST)
 
 - Contract:
   - N/A
 - Integration:
-  - [ ] `packages/platform/http/tests/Integration/LongRunning100SequentialRequestsNoLeakTest.php`
-  - [ ] `packages/platform/http/tests/Integration/ResetIsCalledBetweenRequestsTest.php`
-- [ ] Add policy/contract assertions inside these integration tests:
-  - [ ] `LongRunning100SequentialRequestsNoLeakTest` MUST assert:
-    - [ ] one `HttpKernel` instance can handle 100 sequential requests in the same process;
-    - [ ] each request succeeds or deterministically returns the expected response shape;
-    - [ ] request-local ContextStore values from a previous request do not leak into the next request;
-    - [ ] no raw headers, cookies, Authorization values, tokens, request bodies, or absolute paths appear in failure diagnostics.
-  - [ ] `ResetIsCalledBetweenRequestsTest` MUST assert:
-    - [ ] reset orchestration is observed exactly once per request UoW, where observable;
-    - [ ] reset happens after request after-phase completion and before the next request begins;
-    - [ ] reset still happens when a request path throws before being mapped/handled by later platform error middleware, subject to the 3.50.0 runtime flow.
+  - [x] Extend `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php` with the 1000-invocation regression scenario defined under `Deliverables → Modifies`.
 - Gates/Arch:
   - N/A
 
 ### DoD (MUST)
 
-- [ ] Spec locked.
-- [ ] Tests green.
-- [ ] Gates/Arch green.
-- [ ] No new runtime dependencies introduced.
-- [ ] No package skeleton files created by this epic.
-- [ ] No HTTP middleware tags introduced or modified by this epic.
-- [ ] No HTTP config root introduced by this epic.
-- [ ] Existing `platform/http` runtime from 3.50.0 remains the production target.
-- [ ] One `HttpKernel` instance can process 100 sequential requests in one PHP process.
-- [ ] Reset is observed once per request UoW.
-- [ ] No request-local ContextStore state leaks between sequential requests.
-- [ ] Harness/support remains tests-only.
-- [ ] Harness/support does not emit stdout/stderr.
-- [ ] Harness/support does not log or dump headers, cookies, Authorization values, tokens, request bodies, raw payloads, object dumps, stack traces, or absolute paths.
-- [ ] Docs complete:
-  - [ ] `docs/architecture/http-long-running.md`
-  - [ ] `docs/adr/ADR-0018-kernel-long-running-safety-harness.md`
-  - [ ] `packages/platform/http/README.md` long-running safety section.
+- [x] Spec locked.
+- [x] Tests green.
+- [x] Gates/Arch green.
+- [x] No new runtime dependencies introduced.
+- [x] No package skeleton files created by this epic.
+- [x] No HTTP middleware tags introduced or modified by this epic.
+- [x] No HTTP config root introduced by this epic.
+- [x] Existing `platform/http` runtime from 3.50.0 remains the production target.
+- [x] One concrete HttpKernel and KernelRuntime process 1000 sequential HTTP invocations in one PHP process without rebuilding shared runtime instances.
+- [x] All four deterministic HTTP outcome scenarios execute 250 times each.
+- [x] Every invocation crossing the Kernel reset-responsibility boundary is followed by exactly one successful canonical reset execution, including both exceptional HTTP paths.
+- [x] The KernelRuntime lifecycle gate permits the next sequential UoW after each completed reset.
+- [x] Exactly one reset attempt is observed per UoW that crossed the Kernel reset-responsibility boundary.
+- [x] No request-local ContextStore or registered resettable-service state leaks between sequential requests when canonical reset execution succeeds.
+- [x] Regression coverage extends the existing HTTP integration test; no new test harness, probe service, production safety wrapper, lifecycle manager, or ContextStore abstraction is introduced.
+- [x] Integration tests and test-local fixtures do not emit stdout/stderr during normal execution.
+- [x] New regression assertions and their test-local fixtures do not log, dump, retain diagnostic copies of, or explicitly render headers, cookies, Authorization values, tokens, request bodies, raw payloads, ContextStore snapshots, object dumps, stack traces, or absolute paths.
+- [x] Test-authored failure messages expose only canonical key names, bounded synthetic request indices, stable counters, and fixed reason tokens.
+- [x] PHPUnit-owned exception and stack-trace rendering is not redefined by this epic.
+- [x] Existing HttpKernel, KernelRuntime, Foundation reset orchestration, HTTP provider wiring, HTTP configuration, metrics, spans, and middleware contracts remain unchanged.
+- [x] No readiness or fail-stop guarantee is claimed for future long-running HTTP adapters or Worker HTTP integrations solely from this package-level harness.
+- [x] Existing canonical documentation aligned:
+  - [x] `docs/ssot/http-middleware-wiring.md` sequential-UoW regression enforcement requirements.
+  - [x] `packages/platform/http/README.md` existing lifecycle section extended with regression evidence and limitations.
+- [x] No ADR or architecture document is created solely for test coverage.
+- [x] Existing ADR-0041, ADR-0019, and canonical Foundation/Kernel SSoTs remain the architecture and lifecycle authorities.
+- [x] No production source files, runtime behavior, configuration, tags, metrics, or spans are changed.
+- [x] No unverified process-wide memory-leak guarantee is introduced.
 
 ---
 

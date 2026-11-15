@@ -21,6 +21,7 @@ namespace Coretsia\Platform\Http\Tests\Integration;
 use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
@@ -29,6 +30,7 @@ use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
+use Coretsia\Foundation\Observability\CorrelationIdProvider;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
@@ -39,6 +41,7 @@ use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\Middleware\Pipeline;
+use Coretsia\Platform\Http\Middleware\RequestContextMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
@@ -48,6 +51,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
@@ -377,9 +381,18 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             static function (ServerRequestInterface $request, RequestHandlerInterface $next) use (
                 $context,
             ): ResponseInterface {
-                self::assertSame(self::CORRELATION, $context->get(ContextKeys::CORRELATION_ID));
-                self::assertSame(self::CORRELATION, $context->get(ContextKeys::UOW_ID));
-                self::assertSame('http', $context->get(ContextKeys::UOW_TYPE));
+                self::assertTrue(
+                    $context->get(ContextKeys::CORRELATION_ID) === self::CORRELATION,
+                    'kernel-correlation-id-mismatch',
+                );
+                self::assertTrue(
+                    $context->get(ContextKeys::UOW_ID) === self::CORRELATION,
+                    'kernel-uow-id-mismatch',
+                );
+                self::assertTrue(
+                    $context->get(ContextKeys::UOW_TYPE) === 'http',
+                    'kernel-uow-type-mismatch',
+                );
                 $context->set(ContextKeys::PATH, '/request-local');
 
                 return $next->handle($request);
@@ -398,11 +411,294 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         );
 
         self::assertSame($response, $kernel->handle($request));
-        self::assertSame([], $context->all());
+        foreach (ContextKeys::all() as $key) {
+            self::assertFalse($context->has($key), 'context-key-not-reset:' . $key);
+        }
         self::assertSame(1, $probe->calls);
         self::assertSame($response, $kernel->handle($request));
-        self::assertSame([], $context->all());
+        foreach (ContextKeys::all() as $key) {
+            self::assertFalse($context->has($key), 'context-key-not-reset:' . $key);
+        }
         self::assertSame(2, $probe->calls);
+    }
+
+    public function testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes(): void
+    {
+        $context = new ContextStore();
+        $probe = new class() implements ResetInterface {
+            public int $calls = 0;
+            public ?int $requestIndex = null;
+
+            public function reset(): void
+            {
+                $this->requestIndex = null;
+                ++$this->calls;
+            }
+        };
+
+        $after = new class(static fn (): ?int => $probe->requestIndex) implements AfterUowHookInterface {
+            public int $calls = 0;
+            public ?string $outcome = null;
+            public ?int $observedRequestIndex = null;
+
+            public function __construct(private \Closure $requestIndex)
+            {
+            }
+
+            public function afterUow(array $context, array $result): void
+            {
+                ++$this->calls;
+                $this->outcome = \is_string($result['outcome'] ?? null) ? $result['outcome'] : null;
+                $this->observedRequestIndex = ($this->requestIndex)();
+            }
+        };
+
+        $container = $this->createStub(ContainerInterface::class);
+        $container->method('get')->willReturnCallback(
+            static fn (string $id): mixed => match ($id) {
+                ContextStore::class => $context,
+                'App\\LongRunningResetProbe' => $probe,
+                'App\\LongRunningAfterHook' => $after,
+                default => throw new \LogicException('unexpected-test-service'),
+            },
+        );
+        $container->method('has')->willReturnCallback(
+            static fn (string $id): bool => $id === 'App\\LongRunningAfterHook',
+        );
+        $hookTags = new TagRegistry();
+        $hookTags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'App\\LongRunningAfterHook');
+        $tags = new TagRegistry();
+        $reset = new ResetOrchestrator($container, $tags);
+        $resetTag = $reset->effectiveResetTag();
+        $tags->add(ReservedTags::KERNEL_STATEFUL, ContextStore::class);
+        $tags->add(ReservedTags::KERNEL_STATEFUL, 'App\\LongRunningResetProbe');
+        $tags->add($resetTag, 'App\\LongRunningResetProbe', 100);
+        $tags->add($resetTag, ContextStore::class);
+
+        $requestIndex = 0;
+        $uowId = static fn (int $index): string => \sprintf('01ARZ3NDEKTSV4RS%010d', $index);
+        $correlationId = static fn (int $index): string => \sprintf('01ARZ3NDEKTSV4RR%010d', $index);
+        $ids = $this->createStub(IdGeneratorInterface::class);
+        $ids->method('generate')->willReturnCallback(
+            static function () use (&$requestIndex, $uowId): string {
+                return $uowId($requestIndex);
+            },
+        );
+        $correlation = $this->createStub(CorrelationIdProviderInterface::class);
+        $correlation->method('correlationId')->willReturnCallback(
+            static function () use (&$requestIndex, $correlationId): string {
+                return $correlationId($requestIndex);
+            },
+        );
+        $runtime = new KernelRuntime(
+            contextStore: $context,
+            resetOrchestrator: $reset,
+            stopwatch: new Stopwatch(),
+            uowIds: $ids,
+            correlationIdProvider: $correlation,
+            correlationIds: new CorrelationIdGenerator(new UlidGenerator()),
+            hooks: new HookInvoker($container, $hookTags),
+            logger: new NoopLogger(),
+            tracer: new NoopTracer(),
+            meter: new NoopMeter(),
+            attributesMaxDepth: 10,
+            attributesMaxKeys: 200,
+        );
+
+        $optionalKeys = [
+            ContextKeys::CLIENT_IP,
+            ContextKeys::SCHEME,
+            ContextKeys::HOST,
+            ContextKeys::PATH,
+            ContextKeys::USER_AGENT,
+        ];
+        $beforeCalls = 0;
+        $before = $this->createStub(MiddlewareInterface::class);
+        $before->method('process')->willReturnCallback(
+            static function (ServerRequestInterface $request, RequestHandlerInterface $next) use (
+                $context,
+                $optionalKeys,
+                &$beforeCalls,
+            ): ResponseInterface {
+                foreach ($optionalKeys as $key) {
+                    self::assertFalse($context->has($key), 'previous-request-key-present:' . $key);
+                }
+                ++$beforeCalls;
+
+                return $next->handle($request);
+            },
+        );
+
+        $activeRequest = null;
+        $activeResponse = null;
+        $terminalCalls = 0;
+        $terminal = $this->createStub(RequestHandlerInterface::class);
+        $terminal->method('handle')->willReturnCallback(
+            static function (ServerRequestInterface $request) use (
+                $context,
+                $probe,
+                $uowId,
+                $correlationId,
+                &$requestIndex,
+                &$activeRequest,
+                &$activeResponse,
+                &$terminalCalls,
+            ): ResponseInterface {
+                self::assertTrue($request === $activeRequest, 'http-request-identity-mismatch');
+                self::assertNull($probe->requestIndex, 'previous-resettable-state-present');
+                self::assertTrue($context->get(ContextKeys::UOW_ID) === $uowId($requestIndex), 'uow-id-mismatch');
+                self::assertTrue(
+                    $context->get(ContextKeys::CORRELATION_ID) === $correlationId($requestIndex),
+                    'correlation-id-mismatch',
+                );
+                self::assertTrue($context->get(ContextKeys::UOW_TYPE) === 'http', 'uow-type-mismatch');
+                foreach (
+                    [
+                        ContextKeys::CLIENT_IP => '192.0.2.8',
+                        ContextKeys::SCHEME => $requestIndex % 2 === 0 ? 'http' : 'https',
+                        ContextKeys::HOST => 'example.test',
+                        ContextKeys::PATH => '/long-running/' . $requestIndex,
+                        ContextKeys::USER_AGENT => 'CoretsiaTest/' . $requestIndex,
+                    ] as $key => $expected
+                ) {
+                    self::assertTrue($context->has($key), 'current-request-key-missing:' . $key);
+                    self::assertTrue($context->get($key) === $expected, 'current-request-value-mismatch:' . $key);
+                }
+                $probe->requestIndex = $requestIndex;
+                ++$terminalCalls;
+                if ($requestIndex % 4 === 2) {
+                    throw new \RuntimeException('synthetic-pipeline-failure');
+                }
+
+                if (!$activeResponse instanceof ResponseInterface) {
+                    throw new \LogicException('active-http-response-missing');
+                }
+
+                return $activeResponse;
+            },
+        );
+        $pipeline = new Pipeline([
+            $before,
+            new RequestContextMiddleware($context, true, false),
+        ], $terminal);
+        $kernel = new HttpKernel(
+            $runtime,
+            new Stopwatch(),
+            $pipeline,
+            new HttpResponseFinalizer(new CorrelationIdProvider($context), true, 'X-Correlation-Id'),
+            new HttpRequestMetricsRecorder(new NoopMeter(), true),
+            new HttpAccessLogWriter(new NoopLogger(), true),
+            new HttpRequestSpanRecorder(new NoopTracer(), true),
+        );
+
+        $finalizations = 0;
+        $expectedFinalizations = 0;
+        $scenarioCounts = [0, 0, 0, 0];
+        $previousRequest = null;
+        for ($requestIndex = 0; $requestIndex < 1000; ++$requestIndex) {
+            $scenario = $requestIndex % 4;
+            ++$scenarioCounts[$scenario];
+            $uri = $this->createStub(UriInterface::class);
+            $uri->method('getScheme')->willReturn($requestIndex % 2 === 0 ? 'http' : 'https');
+            $uri->method('getHost')->willReturn('example.test');
+            $uri->method('getPath')->willReturn('/long-running/' . $requestIndex);
+            $request = $this->createStub(ServerRequestInterface::class);
+            $request->method('getMethod')->willReturn('GET');
+            $request->method('getUri')->willReturn($uri);
+            $request->method('getServerParams')->willReturn(['REMOTE_ADDR' => '192.0.2.8']);
+            $request->method('getHeader')->willReturnCallback(
+                static fn (string $name): array => match ($name) {
+                    'Host' => ['example.test'],
+                    'User-Agent' => ['CoretsiaTest/' . $requestIndex],
+                    default => [],
+                },
+            );
+            self::assertTrue($request !== $previousRequest, 'http-request-not-recreated');
+            $activeRequest = $request;
+            $previousRequest = $request;
+
+            $response = $this->createStub(ResponseInterface::class);
+            $response->method('getStatusCode')->willReturn($scenario === 1 ? 503 : 200);
+            $response->method('withHeader')->willReturnCallback(
+                static function (string $name, mixed $value) use (
+                    $response,
+                    $correlationId,
+                    $scenario,
+                    &$requestIndex,
+                    &$finalizations,
+                ): ResponseInterface {
+                    self::assertTrue($name === 'X-Correlation-Id', 'correlation-header-name-mismatch');
+                    self::assertTrue($value === $correlationId($requestIndex), 'correlation-header-value-mismatch');
+                    if ($requestIndex > 0) {
+                        self::assertTrue(
+                            $value !== $correlationId($requestIndex - 1),
+                            'previous-request-correlation-reused',
+                        );
+                    }
+                    ++$finalizations;
+                    if ($scenario === 3) {
+                        throw new \RuntimeException('synthetic-finalization-failure');
+                    }
+
+                    return $response;
+                },
+            );
+            $activeResponse = $response;
+
+            $caught = null;
+            $returned = null;
+            try {
+                $returned = $kernel->handle($request);
+            } catch (\RuntimeException $exception) {
+                $caught = $exception;
+            }
+            if ($scenario === 0 || $scenario === 1) {
+                self::assertNull($caught, 'unexpected-http-failure:' . $requestIndex);
+                self::assertTrue($returned === $response, 'http-response-identity-mismatch');
+                self::assertTrue(
+                    $response->getStatusCode() === ($scenario === 0 ? 200 : 503),
+                    'http-response-status-mismatch',
+                );
+            } else {
+                $reason = $scenario === 2 ? 'synthetic-pipeline-failure' : 'synthetic-finalization-failure';
+                self::assertTrue(
+                    $caught !== null && $caught::class === \RuntimeException::class && $caught->getMessage() === $reason,
+                    'unexpected-http-throwable:' . $requestIndex,
+                );
+                self::assertNull($returned, 'failed-http-returned-response');
+            }
+            if ($scenario !== 2) {
+                ++$expectedFinalizations;
+            }
+            self::assertSame($requestIndex + 1, $beforeCalls, 'http-before-calls-mismatch');
+            self::assertSame($requestIndex + 1, $terminalCalls, 'http-terminal-calls-mismatch');
+            self::assertSame($expectedFinalizations, $finalizations, 'http-finalizations-mismatch');
+            self::assertSame($requestIndex + 1, $after->calls, 'http-after-hook-count-mismatch');
+            self::assertTrue(
+                $after->outcome === match ($scenario) {
+                    0 => 'success',
+                    1 => 'handled_error',
+                    default => 'fatal_error',
+                },
+                'http-outcome-mismatch:' . $requestIndex,
+            );
+            self::assertTrue(
+                $after->observedRequestIndex === $requestIndex,
+                'http-after-before-reset-mismatch:' . $requestIndex,
+            );
+            self::assertSame($requestIndex + 1, $probe->calls, 'http-reset-count-mismatch');
+            self::assertNull($probe->requestIndex, 'http-resettable-state-not-cleared');
+            foreach (ContextKeys::all() as $key) {
+                self::assertFalse($context->has($key), 'http-context-not-cleared:' . $key);
+            }
+        }
+
+        self::assertSame(1000, $beforeCalls);
+        self::assertSame(1000, $terminalCalls);
+        self::assertSame(1000, $after->calls);
+        self::assertSame(1000, $probe->calls);
+        self::assertSame(750, $finalizations);
+        self::assertSame([250, 250, 250, 250], $scenarioCounts);
     }
 
     private static function handle(): UnitOfWorkHandle

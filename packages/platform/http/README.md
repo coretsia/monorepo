@@ -290,6 +290,21 @@ A successfully finalized response with status below `400` is `success`; finalize
 
 Timing and optional observability failures are independently isolated and cannot replace the final response or earlier primary Throwable. A primary pipeline/finalization Throwable remains authoritative over later completion failures; otherwise Kernel completion failure is preserved. The matching Kernel `afterUnitOfWork()` is attempted after every successful begin, including fatal HTTP completion paths.
 
+Sequential HTTP UnitOfWork isolation is verified by [`HttpKernelInvokesKernelRuntimeUowHooksTest.php`](tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php), specifically `testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes()`. The integration regression executes 1000 deterministic sequential HTTP invocations in one PHP process using the same concrete `HttpKernel`, `KernelRuntime`, `Pipeline`, `ContextStore`, and Foundation `ResetOrchestrator` instances.
+
+The regression exercises four outcomes, 250 times each:
+
+- Successful HTTP `200` responses with Kernel outcome `success`.
+- Completed HTTP `503` responses with Kernel outcome `handled_error`.
+- Uncaught pipeline Throwables with Kernel outcome `fatal_error`.
+- Response-finalization Throwables with Kernel outcome `fatal_error`.
+
+Each invocation uses a new synthetic PSR-7 request with deterministic UnitOfWork and correlation identities and validated request-local HTTP metadata. The test verifies current-request context enrichment through the existing `RequestContextMiddleware`, canonical Kernel after-UoW outcome delivery, response-finalization correlation identity, successful reset execution, and subsequent request recovery after exceptional HTTP completion.
+
+`KernelRuntime` and Foundation remain the sole owners of UnitOfWork lifecycle, reset responsibility, effective reset discovery, and reset execution. HTTP does not introduce another reset coordinator, lifecycle hook registry, or request-local state container. After successful canonical reset, the tested canonical `ContextKeys` are absent and registered resettable-service state is cleared. A reset attempt or failed reset does not establish successful cleanup.
+
+This regression verifies isolation of the examined request-local context and registered resettable services only. It does not prove the absence of unregistered process-wide mutable state or memory leaks, nor does it certify transport-adapter readiness, process recycling, or Worker HTTP task-source integration. The canonical enforcement requirements are defined in the [HTTP Middleware Wiring SSoT](../../../docs/ssot/http-middleware-wiring.md).
+
 ## Observability
 
 `HttpServiceProvider` registers four separate, stateless HTTP-owned completion services with explicit constructor dependencies and injects them into `HttpKernel`. None is PSR-15 middleware, appears in the nine HTTP slots, creates another lifecycle hook, or registers independent reset logic.

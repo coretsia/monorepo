@@ -10,13 +10,89 @@
 # For contributors list, see git history.
 # See LICENSE and NOTICE in the project root for full license information.
 
-/.env
-/.env.*
-!/.env.example
+# ---------------------------------------
+# OS / Editor / IDE
+# ---------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
 
+.idea/
+.vscode/
+.fleet/
+*.iml
+
+# ---------------------------------------
+# Environment files (keep examples)
+# ---------------------------------------
+.env
+.env.*
+!.env.example
+!.env.dist
+!.env.sample
+
+# ---------------------------------------
+# Composer / PHP dependencies
+# ---------------------------------------
 /vendor/
+/auth.json
 
+# ---------------------------------------
+# PHPUnit / test artifacts
+# ---------------------------------------
+.phpunit.result.cache
+.phpunit.cache/
+coverage/
+clover.xml
+
+# ---------------------------------------
+# Static analysis / code style tool caches
+# ---------------------------------------
+.php-cs-fixer.cache
+.php-cs-fixer.dist.php.cache
+
+.phpstan.cache/
+.phpstan-cache/
+phpstan-baseline.neon.cache
+
+.rector.cache/
+.psalm/
+.deptrac.cache
+
+# ---------------------------------------
+# Logs / temp / runtime artifacts
+# ---------------------------------------
+*.log
+*.tmp
+*.swp
+/tmp/
+
+# ---------------------------------------
+# Application runtime directories
+# keep .gitkeep, ignore runtime contents
+# ---------------------------------------
 /var/*
 !/var/*/
 /var/*/*
 !/var/*/.gitkeep
+
+# ---------------------------------------
+# Node / frontend artifacts (if present)
+# ---------------------------------------
+node_modules/
+**/public/build/
+**/public/hot
+.vite/
+.parcel-cache/
+
+# ---------------------------------------
+# PHP tooling
+# ---------------------------------------
+.phpactor/
+
+# ---------------------------------------
+# Security / secrets
+# ---------------------------------------
+*.key
+*.pem
+*.p12

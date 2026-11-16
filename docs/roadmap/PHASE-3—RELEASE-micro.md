@@ -9004,7 +9004,7 @@ N/A
 
 ---
 
-### 3.60.0 RequestId vs CorrelationId policy (SHOULD) [IMPL]
+### 3.60.0 HTTP request-id policy (SHOULD) [IMPL]
 
 ---
 type: package
@@ -9017,17 +9017,29 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "Якщо ввімкнено, request_id завжди валідний, записаний у ContextStore і повертається як response header."
+goal: "When enabled, HTTP request identity is selected before PSR-15 execution, stored under ContextKeys::REQUEST_ID, and applied to every successfully finalized HTTP response."
 provides:
-- "Policy розмежування `correlation_id` (end-to-end) та `request_id` (ingress id)"
-- "Middleware приймає upstream `X-Request-Id` (опційно) або генерує safe id"
-- "request_id ніколи не стає secret і не використовується як metric label"
+- "HTTP-owned request_id identity distinct from Kernel-owned correlation_id and uow_id."
+- "Optional acceptance of validated opaque identifiers supplied by an explicitly trusted ingress boundary."
+- "Canonical Foundation ULID generation when upstream acceptance is disabled or the supplied identifier is missing or invalid."
+- "Request-id response-header application through the existing HttpResponseFinalizer."
+- "Canonical ContextStore cleanup through the existing KernelRuntime and Foundation reset lifecycle."
+- "No request-id metric labels, raw upstream identifier diagnostics, or additional middleware lifecycle."
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-requestid-correlationid-policy.md"
-ssot_refs: []
+adr: "docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md"
+ssot_refs:
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/middleware-context-keys-map.md"
+- "docs/ssot/context-keys.md"
+- "docs/ssot/context-store.md"
+- "docs/ssot/context-lifecycle.md"
+- "docs/ssot/time-ids-and-duration.md"
+- "docs/ssot/reset-tags.md"
+- "docs/ssot/observability.md"
 ---
 
 ### Dependencies (MUST)
@@ -9036,13 +9048,28 @@ ssot_refs: []
 
 - Epic prerequisites:
   - 3.50.0 — base HTTP runtime exists (middleware tags/stack builder + config/http.php)
-  - PHASE 1 Foundation `ContextKeys::REQUEST_ID` MUST exist (see PHASE 1 patch above)
+  - `core/contracts` already defines the canonical `ContextKeys::REQUEST_ID` key.
+  - `core/foundation` already provides ContextStore, canonical ULID generation, declarative generator bindings, and reset orchestration.
+  - 3.55.0 — existing HTTP sequential-UoW isolation regression coverage remains green.
 
 - Required deliverables (exact paths):
   - `packages/platform/http/config/http.php` — base config file must exist
   - `packages/platform/http/config/rules.php` — base rules must exist
   - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring base exists
   - `packages/core/foundation/src/Tag/ReservedTags.php` — provides `http.middleware.system_pre`
+  - `packages/core/contracts/src/Context/ContextKeys.php`
+  - `packages/core/contracts/src/Context/ContextAccessorInterface.php`
+  - `packages/core/foundation/src/Context/ContextStore.php`
+  - `packages/core/foundation/src/Id/IdGeneratorInterface.php`
+  - `packages/core/foundation/src/Id/UlidGenerator.php`
+  - `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - `packages/platform/http/src/HttpKernel.php`
+  - `packages/platform/http/src/Response/HttpResponseFinalizer.php`
+  - `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - `docs/ssot/http-middleware-wiring.md`
+  - `docs/ssot/http-middleware-catalog.md`
+  - `docs/ssot/middleware-context-keys-map.md`
 
 - Required config roots/keys:
   - `http.request_id.*` — introduced by this epic
@@ -9052,21 +9079,26 @@ ssot_refs: []
   - It MUST NOT be treated as a config-root owner/introduction epic.
 
 - Required tags:
-  - `http.middleware.system_pre` — used for wiring priority `940`
+  - N/A for request-id policy.
+  - Existing HTTP middleware tags and their ordering remain unchanged.
 
 - Required contracts / ports:
-  - `Psr\Http\Server\MiddlewareInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
+  - `Coretsia\Contracts\Context\ContextKeys`
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Foundation\Context\ContextStore`
-  - `Coretsia\Contracts\Context\ContextKeys` (reserved key `REQUEST_ID`)
-  - `Coretsia\Foundation\Id\UlidGenerator` (or canonical id generator)
+  - `Coretsia\Foundation\Id\IdGeneratorInterface`
 
-- Generator single-choice (MUST)
-  - RequestId generation MUST use canonical ID generator (single-choice):
-    - `Coretsia\Foundation\Id\UlidGenerator`
-  - Validation MUST be deterministic and MUST NOT throw on invalid upstream id:
-    - invalid → generate replacement (outcome token stable)
+- Generator single-choice (MUST):
+  - Production request-id generation MUST reuse the existing Foundation-owned `UlidGenerator::class` service.
+  - HTTP request-id generation MUST consume it through the existing `IdGeneratorInterface`.
+  - The declarative HTTP binding MUST explicitly reference `UlidGenerator::class`.
+  - Changes to the generic Foundation default id-generator selection MUST NOT change the HTTP request-id generation format.
+  - Kernel correlation generation remains independent.
+  - No second ULID implementation, generator contract, identity provider, entropy source, or generation fallback is introduced.
+  - Invalid upstream identifiers MUST be replaced through the canonical generator without introducing rejection behavior.
+  - Generator failures MUST propagate through the existing HttpKernel fatal completion path.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -9081,21 +9113,22 @@ Forbidden:
 #### Uses ports (API surface, NOT deps) (optional)
 
 - PSR:
-  - `Psr\Http\Server\MiddlewareInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
-- Contracts:
-  - `Coretsia\Contracts\Runtime\ResetInterface` (not expected)
 - Foundation stable APIs:
   - `Coretsia\Foundation\Context\ContextStore`
   - `Coretsia\Contracts\Context\ContextKeys`
   - `Coretsia\Foundation\Id\UlidGenerator`
+  - `Coretsia\Foundation\Id\IdGeneratorInterface`
 
 ### Entry points / integration points (MUST)
 
 - HTTP:
-  - middleware: `\Coretsia\Http\Middleware\RequestIdMiddleware::class`
-  - middleware slots/tags: `http.middleware.system_pre` priority `940` meta `{toggle:'http.request_id.enabled'}`
+  - request identity preparation: `Coretsia\Platform\Http\RequestId\RequestIdPolicy::initialize()`
+  - invoked by the existing `HttpKernel` after successful UnitOfWork begin and before entering the PSR-15 pipeline
+  - response header application: existing `Coretsia\Platform\Http\Response\HttpResponseFinalizer::finalize()`
+  - effective policy controlled by `http.request_id.enabled`
+  - no middleware slot, priority, tag metadata, request-local registry, or additional completion stage
 - CLI:
   - N/A
 - Kernel hooks/tags:
@@ -9107,47 +9140,564 @@ Forbidden:
 
 #### Creates
 
-- [ ] `packages/platform/http/src/Middleware/RequestIdMiddleware.php` — read/validate/generate request id
-- [ ] `packages/platform/http/src/RequestId/RequestIdPolicy.php` — VO policy
-- [ ] `packages/platform/http/src/RequestId/RequestIdValidator.php` — deterministic charset/len validation
+- [x] `packages/platform/http/src/RequestId/RequestIdPolicy.php`
+  - [x] final readonly HTTP-owned request identity policy service
+  - [x] exact constructor dependencies in declaration order:
+    - [x] `private ContextStore $context`
+    - [x] `private IdGeneratorInterface $generator`
+    - [x] `private bool $enabled`
+    - [x] `private string $headerName`
+    - [x] `private bool $acceptFromUpstream`
+    - [x] `private int $maxLength`
+  - [x] concrete ContextStore access is limited to the existing canonical promoted HTTP context-writer dependency pattern
+  - [x] no ContextStore construction, alias, factory, or additional mutable storage
+  - [x] consumes the existing:
+    - [x] `Coretsia\Foundation\Context\ContextStore`
+    - [x] `Coretsia\Foundation\Id\IdGeneratorInterface`
+  - [x] constructor receives validated immutable configuration:
+    - [x] `enabled`
+    - [x] `headerName`
+    - [x] `acceptFromUpstream`
+    - [x] `maxLength`
+  - [x] exact public API:
+    - [x] `public function initialize(ServerRequestInterface $request): ?string`
+    - [x] `public function current(): ?string`
+    - [x] `public function headerName(): string`
+  - [x] validates constructor settings even when the feature is disabled
+  - [x] invalid constructor settings throw `\InvalidArgumentException` with the corresponding fixed reason token
+  - [x] invalid generator output and invalid enabled request context throw `\RuntimeException` with the corresponding fixed reason token
+  - [x] existing Foundation generator and ContextStore exceptions propagate unchanged
+  - [x] policy-authored exception messages MUST NOT contain identifier or header values
+  - [x] header name:
+    - [x] non-empty ASCII HTTP header token
+    - [x] maximum 128 bytes
+    - [x] matches `\A(?:[A-Za-z0-9]+-)*request-id\z` case-insensitively
+    - [x] rejects unrelated HTTP headers and all correlation-id header names
+    - [x] invalid configuration uses fixed reason `http-request-id-header-invalid`
+  - [x] validates `maxLength` within inclusive range `26..128`
+  - [x] invalid maximum length uses fixed reason `http-request-id-max-length-invalid`
+  - [x] `initialize()`:
+    - [x] returns null immediately when disabled without context access, header reads, or identity generation
+    - [x] does not read request headers when upstream acceptance is disabled
+    - [x] reads only the configured request-id header through `getHeader()`
+    - [x] does not use `getHeaderLine()` or concatenate multiple header values
+    - [x] accepts exactly one string value from the configured case-insensitive PSR-7 header lookup when upstream acceptance is enabled
+    - [x] extracts the single value without assuming a specific array index
+    - [x] rejects non-string values without coercion
+    - [x] validates the effective PSR-7 header value without additional trimming, normalization, decoding, or case conversion
+    - [x] does not claim access to original wire-level header bytes or pre-PSR-7 normalization state
+    - [x] validates the complete identifier against `\A[A-Za-z0-9._-]+\z` without Unicode or case-insensitive matching
+    - [x] reuses the same identifier syntax and byte-length validation for upstream acceptance and current()
+    - [x] requires byte length within inclusive range `1..maxLength`
+    - [x] rejects empty values, whitespace, control characters, non-ASCII characters, comma-separated values, multiple header values, and oversized values
+    - [x] missing or invalid upstream input selects one generated replacement
+    - [x] generated replacement MUST be a canonical uppercase 26-character ULID matching `\A[0-7][0-9A-HJKMNP-TV-Z]{25}\z`
+    - [x] invalid generator output uses fixed reason `http-request-id-generation-invalid`
+    - [x] generator failure or invalid generator output MUST NOT write REQUEST_ID
+    - [x] unexpected PSR-7 header-access failures propagate through the existing HttpKernel fatal completion path
+    - [x] writes exactly the selected identifier through `ContextStore::set(ContextKeys::REQUEST_ID, $requestId)`
+    - [x] returns exactly the identifier successfully written to ContextStore
+    - [x] the returned identifier serves only as invocation-local evidence for final-response identity verification
+    - [x] MUST NOT retain the identifier in shared service state
+    - [x] does not modify the original immutable PSR-7 request
+  - [x] `current()`:
+    - [x] returns null without reading ContextStore when disabled
+    - [x] reads only `ContextKeys::REQUEST_ID` through the existing ContextStore
+    - [x] returns the current validated identifier when enabled
+    - [x] rejects missing, non-string, or invalid current identifiers using fixed reason `http-request-id-context-invalid`
+    - [x] MUST NOT generate a replacement identifier during response finalization
+  - [x] `headerName()` returns the validated configured header name
+  - [x] does not read or modify `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, or `ContextKeys::UOW_TYPE`
+  - [x] does not infer semantic trust from header syntax, header name, or identifier format
+  - [x] does not identify or authenticate the request sender
+  - [x] does not guarantee uniqueness of accepted upstream identifiers
+  - [x] no request-local identifier, request, response, or raw header retained in service properties
+  - [x] no logger, meter, tracer, reset service, or additional runtime abstraction
 
-- [ ] `packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts accepted upstream id is written to `ContextKeys::REQUEST_ID` and returned in the configured response header
-- [ ] `packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts invalid upstream id is replaced deterministically, written to `ContextKeys::REQUEST_ID`, and returned in the configured response header
+Tests:
+- [x] `packages/platform/http/tests/Unit/RequestIdPolicyTest.php`
+  - [x] uses the existing ContextStore and deterministic test-only IdGeneratorInterface fixtures
+  - [x] verifies disabled initialize() and current() return null without context access, header reads, or identity generation
+  - [x] verifies upstream acceptance enabled and disabled
+  - [x] verifies exact header-value cardinality
+  - [x] verifies acceptance of a single valid string value without assuming a zero-based array index
+  - [x] verifies non-string header values are rejected without coercion
+  - [x] verifies deterministic validation and byte-length boundaries
+  - [x] verifies valid upstream identifiers are preserved byte-for-byte
+  - [x] verifies initialize() returns exactly the identifier written to ContextStore
+  - [x] verifies unexpected PSR-7 header-access and generator failures propagate unchanged
+  - [x] verifies generator failures do not write REQUEST_ID
+  - [x] verifies invalid identifiers invoke the generator exactly once
+  - [x] verifies valid accepted identifiers do not invoke the generator
+  - [x] verifies canonical generated ULID validation
+  - [x] verifies invalid generator output fails without writing unsafe context
+  - [x] verifies invalid, protected, and correlation-id header names are rejected
+  - [x] verifies maximum length boundaries `25`, `26`, `128`, and `129`
+  - [x] verifies current() rejects missing or invalid enabled state without regeneration
+  - [x] verifies correlation and UnitOfWork context values remain unchanged
+  - [x] compares identifier, header, and ContextStore values through strict boolean predicates with fixed safe assertion messages
+  - [x] MUST NOT use PHPUnit equality assertions that may render actual identifier, header, or ContextStore values
+  - [x] absence assertions use canonical ContextStore::has() checks
+
+- [x] `packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php`
+  - [x] uses the real HttpKernel, KernelRuntime, ContextStore, Pipeline, and Foundation ResetOrchestrator
+  - [x] uses existing PSR-7/15 test stubs and deterministic IdGeneratorInterface fixtures
+  - [x] verifies default-disabled request-id policy
+  - [x] verifies valid trusted upstream identifiers are written to ContextStore and returned through the configured response header
+  - [x] verifies missing, malformed, multiple, and oversized upstream values are replaced by generated identifiers
+  - [x] verifies upstream-disabled generation ignores an otherwise valid supplied identifier
+  - [x] verifies request-id availability before any PSR-15 middleware executes
+  - [x] verifies the selected REQUEST_ID remains available through the existing ContextAccessorInterface during eligible after-UoW hooks after successful identity preparation on conforming execution paths
+  - [x] verifies REQUEST_ID is not added to Kernel UnitOfWork context or result payloads
+  - [x] verifies successful canonical reset removes REQUEST_ID together with all other request-local context keys after the after-UoW phase
+  - [x] verifies normal terminal responses, request-phase short-circuits, post-decorator short-circuits, and responses returned by the existing outermost Problem Details boundary
+  - [x] verifies pre-existing request-id response headers are replaced by the selected canonical value
+  - [x] verifies independent enablement of request-id and correlation response headers
+  - [x] verifies both enabled headers preserve their independent identities
+  - [x] verifies the invocation-local selected identity exactly matches the current ContextStore value before finalization
+  - [x] verifies test-only simulated removal, invalid replacement, and syntactically valid substitution of REQUEST_ID produce deterministic fatal completion
+  - [x] verifies substituted identifiers never reach the request-id response header
+  - [x] verifies canonical reset still executes after these failures
+  - [x] verifies subsequent sequential HTTP requests remain executable after successful canonical reset without inheriting stale ContextStore state
+  - [x] verifies uncaught pipeline, generator, and response-finalization failures preserve canonical Throwable and completion behavior
+  - [x] verifies no additional reset execution, lifecycle hook, or middleware registration is introduced
+  - [x] verifies operation with Foundation noop observability bindings
+  - [x] no raw identifier values or complete ContextStore snapshots in failure diagnostics
 
 #### Modifies
 
-- [ ] `packages/platform/http/config/http.php` — add `http.request_id.*` keys + defaults
-- [ ] `packages/platform/http/config/rules.php` — enforce shape for new keys
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag `system_pre` priority `940`
-- [ ] `packages/platform/http/README.md` — section “RequestIdMiddleware” (slot/priority, header policy, upstream accept/replace rules)
-- [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RequestIdMiddleware` (system_pre 940)
-- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `RequestIdMiddleware` (`http.middleware.system_pre` priority `940`)
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-requestid-correlationid-policy.md`
+Configuration:
+- [x] `packages/platform/http/config/http.php`
+  - [x] extends the existing `http` subtree with `request_id`
+  - [x] introduces exactly:
+    - [x] `http.request_id.enabled` = false
+    - [x] `http.request_id.header_name` = 'X-Request-Id'
+    - [x] `http.request_id.accept_from_upstream` = false
+    - [x] `http.request_id.max_length` = 128
+  - [x] documents trusted-ingress acceptance requirements
+  - [x] removes request-id configuration from the existing list of unimplemented features
+  - [x] preserves all existing defaults and middleware lists
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/config/rules.php`
+  - [x] adds a required strict `request_id` map
+  - [x] `additionalKeys` = false
+  - [x] `enabled`: required bool
+  - [x] `header_name`: required non-empty-string-no-ws
+  - [x] `accept_from_upstream`: required bool
+  - [x] `max_length`: required int, min 26, max 128
+  - [x] preserves canonical ConfigValidator rule types
+  - [x] semantic header-name validation remains owned by RequestIdPolicy
+  - [x] does not introduce another configuration DSL or validation pipeline
 
-N/A (same package as 3.50.0)
+Runtime:
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - [x] reads the existing merged `http.request_id` configuration section through HttpServiceFactory
+  - [x] uses existing boolean(), string(), and integer() configuration extraction helpers
+  - [x] requires the existing Foundation `UlidGenerator::class` service
+  - [x] registers RequestIdPolicy through canonical declarative classService()
+  - [x] injects the existing shared ContextStore service
+  - [x] injects the existing UlidGenerator service through its IdGeneratorInterface implementation
+  - [x] passes validated request-id configuration as declarative scalar arguments
+  - [x] injects the same shared RequestIdPolicy into HttpKernel and HttpResponseFinalizer
+  - [x] definitions remain independent of feature enablement
+  - [x] no additional service definitions or aliases for identity generation or context storage
+  - [x] no middleware, kernel.reset, or kernel.stateful tag registration
+  - [x] preserves existing PSR-17, terminal, pipeline, and observability definitions
+
+- [x] `packages/platform/http/src/HttpKernel.php`
+  - [x] adds trailing mandatory non-nullable constructor dependency `RequestIdPolicy $requestIds`
+  - [x] canonical provider always supplies the configured RequestIdPolicy
+  - [x] requires RequestIdPolicy for every HttpKernel construction, including direct test construction
+  - [x] request-id enablement is controlled exclusively by `http.request_id.enabled`
+  - [x] MUST NOT support absent-policy, nullable-dependency, or fallback-policy behavior
+  - [x] invokes `$requestId = $this->requestIds->initialize($request)` exactly once inside the existing guarded request-processing block immediately before `Pipeline::handle()`
+  - [x] retains the selected identifier only in the invocation-local `$requestId` variable
+  - [x] passes the selected identifier to `$this->finalizer->finalize($response, $requestId)`
+  - [x] does not reconstruct, regenerate, or reread the selected identifier locally
+  - [x] performs identity preparation after successful UoW begin and before `Pipeline::handle()`
+  - [x] request identity is available before execution of the outermost error boundary or post decorators
+  - [x] before-UoW hooks remain outside HTTP request-id preparation
+  - [x] initialization failures use the existing primary Throwable and `fatal_error` path
+  - [x] preserves exact afterUnitOfWork(), failure precedence, timing, metrics, access logging, and span completion behavior
+  - [x] does not implement request-id validation, generation, header application, or reset locally
+  - [x] no mutable request-local service properties
+
+- [x] `packages/platform/http/src/Response/HttpResponseFinalizer.php`
+  - [x] adds trailing mandatory non-nullable constructor dependency `RequestIdPolicy $requestIds`
+  - [x] canonical provider supplies the same policy instance used by HttpKernel
+  - [x] extends the existing finalize() API with one backward-compatible optional parameter:
+    - [x] `public function finalize(ResponseInterface $response, ?string $selectedRequestId = null): ResponseInterface`
+  - [x] requires RequestIdPolicy for every HttpResponseFinalizer construction, including direct test construction
+  - [x] existing callers retain baseline response behavior through an explicitly disabled RequestIdPolicy
+  - [x] MUST NOT support absent-policy, nullable-dependency, or fallback-policy behavior
+  - [x] preserves the existing Kernel-owned correlation-header policy, validation, and failure semantics
+  - [x] applies correlation-header finalization before request-id header finalization
+  - [x] correlation disabled, absent, or invalid MUST NOT skip enabled request-id header finalization
+  - [x] obtains the current request identifier through `$this->requestIds->current()`
+  - [x] requires exact strict equality between the current identifier and `$selectedRequestId`, including the disabled policy case
+  - [x] both identifiers being null means request-id finalization is not applicable
+  - [x] a non-null selected identifier with a disabled finalizer policy MUST fail deterministically
+  - [x] a non-null current identifier with a missing selected identifier MUST fail deterministically
+  - [x] mismatched current and selected identifiers throw `\RuntimeException('http-request-id-context-invalid')`
+  - [x] request-id header mutation occurs only when both identifiers are non-null and strictly equal
+  - [x] MUST NOT emit a different but syntactically valid identifier substituted into ContextStore during pipeline execution
+  - [x] disabled request-id policy performs no request-id response mutation and does not remove application-owned response headers
+  - [x] each enabled header mutation consumes the ResponseInterface returned by the preceding mutation
+  - [x] applies the configured request-id header through immutable `ResponseInterface::withHeader()`
+  - [x] replaces any existing value for that configured request-id header
+  - [x] verifies the returned object remains a ResponseInterface
+  - [x] invalid returned response uses fixed reason `http-request-id-response-invalid`
+  - [x] propagates PSR-7 mutation failures unchanged to HttpKernel
+  - [x] preserves the response status, body, and all unrelated headers
+  - [x] applies enabled identity headers after the entire PSR-15 pipeline has returned
+  - [x] applies request-id header policy before final HTTP result observation and Kernel reset
+  - [x] does not read request headers, generate identities, or retain request-local values
+  - [x] no additional finalizer, observer registry, or response middleware
+
+Tooling:
+- [x] `tools/gates/cross_cutting_contract_gate.php`
+  - [x] extends the existing concrete ContextStore owner allowance with the exact path `packages/platform/http/src/RequestId/RequestIdPolicy.php`
+  - [x] reuses `coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency()`
+  - [x] permits only the existing canonical `private ContextStore $context` promoted constructor dependency pattern
+  - [x] preserves existing HttpServiceProvider ContextStore DI reference validation
+  - [x] preserves existing RequestContextMiddleware allowance
+  - [x] rejects ContextStore construction, arbitrary properties, non-canonical constructor parameters, and other concrete ContextStore usages
+  - [x] MUST NOT introduce a package-wide or namespace-wide ContextStore exception
+  - [x] MUST NOT introduce a second gate, context owner registry, or token parser
+  - [x] preserves existing deterministic diagnostic codes and safe output
+
+- [x] `tools/tests/Integration/CrossCuttingContractGateTest.php`
+  - [x] extends the existing HTTP context fixture construction helper to support the canonical RequestId namespace
+  - [x] verifies the exact RequestIdPolicy owner path with the canonical promoted ContextStore constructor dependency passes
+  - [x] verifies RequestIdPolicy cannot construct another ContextStore
+  - [x] verifies non-promoted ContextStore properties and non-canonical constructor dependencies remain forbidden
+  - [x] verifies other RequestId namespace classes do not receive concrete ContextStore access
+  - [x] verifies unrelated HTTP middleware and provider restrictions remain unchanged
+  - [x] preserves existing positive and negative gate test cases
+  - [x] verifies existing safe diagnostic output behavior
+
+Tests:
+- [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] supplies one explicitly disabled RequestIdPolicy to HttpKernel and HttpResponseFinalizer
+  - [x] preserves existing Foundation noop observability coverage and completion behavior
+
+- [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] verifies the exact request_id subtree defaults:
+    - [x] `enabled` = false
+    - [x] `header_name` = 'X-Request-Id'
+    - [x] `accept_from_upstream` = false
+    - [x] `max_length` = 128
+  - [x] verifies identical root key ordering between defaults and validation rules
+  - [x] verifies the request_id map and all four declared keys are required
+  - [x] verifies the request_id map rejects unknown keys and reserved @* directives
+  - [x] verifies enabled and accept_from_upstream require actual boolean values without coercion
+  - [x] verifies header_name requires a non-empty whitespace-free string
+  - [x] verifies max_length requires an actual integer
+  - [x] verifies max_length values 26 and 128 pass canonical validation
+  - [x] verifies max_length values 25 and 129 fail canonical validation
+  - [x] verifies string, float, boolean, and null max_length values are rejected
+  - [x] verifies disabled policy configuration remains structurally validated
+  - [x] distinguishes ConfigValidator structural validation from RequestIdPolicy semantic header-name validation
+  - [x] verifies all existing nine middleware slot defaults remain unchanged
+  - [x] verifies no additional HTTP configuration root or middleware activation map is introduced
+  - [x] verifies existing default configuration remains valid
+  - [x] preserves all existing HTTP configuration contract assertions
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] extends exact HttpResponseFinalizer declarative constructor argument assertions with the shared RequestIdPolicy reference
+  - [x] extends exact readonly HttpResponseFinalizer property assertions with `requestIds`
+  - [x] verifies RequestIdPolicy is a final readonly runtime policy service
+  - [x] verifies RequestIdPolicy does not implement MiddlewareInterface or ResetInterface
+  - [x] verifies RequestIdPolicy is not registered under middleware, reset, or stateful tags
+  - [x] verifies RequestIdPolicy is not added to the four existing HTTP completion/observability services
+  - [x] verifies RequestIdPolicy does not consume logger, meter, tracer, or reset dependencies
+  - [x] verifies enabled request-id preparation and finalization work with Foundation noop tracer, meter, and logger
+  - [x] verifies optional observability failures do not suppress successful request-id response finalization
+  - [x] verifies optional observability failures cannot replace primary identity preparation or finalization Throwables
+  - [x] verifies no additional observability channel, request-local lifecycle state, or request lifecycle registry is introduced
+  - [x] preserves all existing noop, completion-service, and primary failure precedence assertions
+
+- [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+  - [x] uses the real RequestIdPolicy and existing ContextStore with a deterministic test-only IdGeneratorInterface fixture
+  - [x] verifies all four independent combinations of request-id and correlation-header enablement
+  - [x] verifies enabled request-id finalization when the correlation provider returns null or an invalid identifier
+  - [x] verifies both enabled headers are applied in deterministic correlation-first order
+  - [x] verifies each withHeader() operation consumes the immutable ResponseInterface returned by the preceding mutation
+  - [x] verifies the configured request-id header name is used
+  - [x] verifies the exact initially selected identifier is applied
+  - [x] verifies an existing request-id response header is replaced rather than appended
+  - [x] verifies response status, body, and unrelated headers remain unchanged
+  - [x] verifies an explicitly disabled policy with a null selected identifier preserves baseline response behavior and application-owned headers
+  - [x] verifies missing, invalid, and substituted ContextStore identities fail with `http-request-id-context-invalid`
+  - [x] verifies missing invocation-local selected identity fails with `http-request-id-context-invalid`
+  - [x] verifies a non-null selected identifier with a disabled finalizer policy fails with `http-request-id-context-invalid`
+  - [x] verifies a non-ResponseInterface header mutation result fails with `http-request-id-response-invalid`
+  - [x] verifies correlation-header mutation failure prevents subsequent request-id mutation
+  - [x] verifies request-id header mutation failures propagate unchanged
+  - [x] verifies finalization never invokes identity generation
+  - [x] verifies finalizer reuse does not retain previous request identity
+  - [x] compares identifier and header values through strict boolean predicates with fixed safe assertion messages
+  - [x] preserves all existing correlation-header and HttpKernel completion test cases
+
+- [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [x] supplies one explicitly disabled RequestIdPolicy to HttpKernel and HttpResponseFinalizer
+  - [x] preserves existing access-log redaction, bounded context, and sensitive-data exclusion assertions
+
+- [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] supplies one explicitly disabled RequestIdPolicy to HttpKernel and HttpResponseFinalizer
+  - [x] preserves existing canonical JSON error mapping and handled-error completion assertions
+
+- [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [x] supplies an explicitly disabled RequestIdPolicy to every directly constructed HttpResponseFinalizer
+  - [x] supplies the same RequestIdPolicy instance to HttpKernel and its HttpResponseFinalizer
+  - [x] preserves independent correlation-header enablement and existing Kernel correlation identity assertions
+
+- [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+  - [x] supplies one explicitly disabled RequestIdPolicy to HttpKernel and HttpResponseFinalizer
+  - [x] preserves existing PSR-7 parsed-body, request-body validation, and observability assertions
+
+- [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] supplies one explicitly disabled RequestIdPolicy to HttpKernel and HttpResponseFinalizer
+  - [x] reuses the existing ContextStore instance for request identity policy construction
+  - [x] preserves existing canonical HTTP ContextKeys, request-local isolation, and context-enrichment assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] extends exact HttpKernel and HttpResponseFinalizer constructor descriptor assertions with the same RequestIdPolicy service reference
+  - [x] verifies the canonical RequestIdPolicy service descriptor contains the exact six constructor arguments in declaration order:
+    - [x] shared ContextStore reference
+    - [x] UlidGenerator service reference
+    - [x] enabled
+    - [x] headerName
+    - [x] acceptFromUpstream
+    - [x] maxLength
+  - [x] verifies the policy definition uses canonical shared classService() registration
+  - [x] verifies the request-id generator reference explicitly targets `UlidGenerator::class`, not the configurable IdGeneratorInterface alias
+  - [x] verifies all four effective request-id configuration values are preserved in source and compiled definitions
+  - [x] verifies equivalent RequestIdPolicy resolution and shared service identity in source and compiled containers
+  - [x] verifies HttpKernel and HttpResponseFinalizer resolve the same RequestIdPolicy object in each container
+  - [x] verifies HttpKernel and HttpResponseFinalizer declare RequestIdPolicy as a mandatory non-nullable constructor dependency without a default value
+  - [x] verifies disabled request-id configuration retains the same mandatory shared policy wiring as enabled configuration
+  - [x] verifies RequestIdPolicy uses the existing canonical shared ContextStore instance
+  - [x] verifies the concrete ContextStore and its ContextAccessorInterface binding remain the same object
+  - [x] verifies enabled policy produces a valid request-id response header in both container modes
+  - [x] verifies disabled policy performs no request-id response mutation in both container modes
+  - [x] verifies `foundation.ids.default=uuid` does not change HTTP request-id generation from canonical uppercase 26-character ULID
+  - [x] verifies generated identifiers by canonical format and per-invocation identity consistency
+  - [x] MUST NOT require identical independently generated random ULID values across separate containers
+  - [x] verifies the exact readonly property sets of RequestIdPolicy, HttpKernel, and HttpResponseFinalizer
+  - [x] verifies request-id enablement does not change registered service identity or middleware tag structure
+  - [x] verifies the existing six HTTP middleware tag registrations remain unchanged
+  - [x] verifies no additional ContextStore, stateful-service, or reset registration exists
+  - [x] preserves the existing distinction between container parity fixtures and real KernelRuntime reset evidence
+  - [x] preserves all existing factory selection, container parity, terminal resolution, and provider precedence tests
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] extends exact provider descriptor assertions for RequestIdPolicy, HttpKernel, and HttpResponseFinalizer declarative dependency wiring
+  - [x] verifies request-id policy remains independent of existing correlation, metrics, access_log, and tracing flags
+  - [x] verifies enabling request-id policy does not introduce a new middleware or completion-observability service
+  - [x] verifies existing request metrics and access logging observe the finalized response after both enabled identity headers have been applied
+  - [x] verifies existing request span completion observes only the canonical final HTTP outcome
+  - [x] verifies successful normal, short-circuit, and handled-error responses preserve existing status and outcome classification
+  - [x] verifies request-id preparation and finalization failures produce `fatal_error` and status `unknown`
+  - [x] verifies no intermediate successful response is returned or observed after identity finalization fails
+  - [x] verifies the original primary Throwable reaches the existing afterUnitOfWork() completion path unchanged
+  - [x] verifies existing metrics, logging, and span completion cardinality remain unchanged
+  - [x] verifies no `http.request_id_total` metric or request-id metric label is emitted
+  - [x] verifies selected and rejected upstream identifiers are absent from metrics, access-log context, and span attributes
+  - [x] uses distinct synthetic request and correlation identifiers to verify that existing correlation logging remains unchanged
+  - [x] verifies optional recorder failures cannot replace the completed response or primary Throwable
+  - [x] verifies request identifiers are never retained in shared observability service state
+  - [x] assertion diagnostics MUST NOT render actual request identifiers or raw header values
+  - [x] preserves all existing provider descriptor, completion-service argument, completion outcome, feature-toggle, and observability failure tests
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] extends `testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes()` with disabled and enabled request-id policy coverage
+  - [x] executes the existing 1000-invocation sequence independently for each policy configuration
+  - [x] parameterizes the existing regression without duplicating the lifecycle or reset harness
+  - [x] injects the same RequestIdPolicy instance into HttpKernel and HttpResponseFinalizer for each configuration
+  - [x] uses the same canonical ContextStore and ResetOrchestrator as the existing HTTP context enrichment
+  - [x] uses deterministic test-only request-id generation fixtures with distinct identifiers for subsequent invocations
+  - [x] verifies REQUEST_ID is absent before middleware context enrichment and during after-UoW hooks when the policy is disabled
+  - [x] verifies the current invocation REQUEST_ID is available before middleware context enrichment when the policy is enabled
+  - [x] verifies after-UoW hooks observe the selected request identifier before successful canonical reset when the policy is enabled
+  - [x] verifies the current request-id response header for successfully finalized responses when the policy is enabled
+  - [x] verifies no request-id response-header mutation occurs when the policy is disabled
+  - [x] preserves all four existing completion outcome scenarios with 250 invocations per scenario for each policy configuration
+  - [x] preserves the existing synthetic correlation-header finalization failure scenario
+  - [x] verifies 750 correlation-header finalization attempts per policy configuration
+  - [x] verifies 500 request-id header finalization attempts when enabled and zero when disabled
+  - [x] verifies request-id header mutation is not attempted after pipeline or correlation-header finalization failure
+  - [x] verifies REQUEST_ID is absent after successful reset across all existing outcome scenarios
+  - [x] verifies subsequent invocations do not inherit the previous request identity
+  - [x] preserves existing correlation header, outcome, completion cardinality, and reset assertions
+  - [x] preserves existing disabled-policy regression behavior
+  - [x] compares identifier and header values through strict boolean predicates with fixed safe assertion messages
+
+- [x] `packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] replaces all four `RequestIdMiddleware` synthetic fixture references with `AuditMiddleware`
+  - [x] preserves all existing test cases, strict equality assertions, and expected list ordering
+  - [x] does not introduce HTTP runtime behavior or dependencies into Kernel configuration tests
+
+Documentation:
+- [x] `packages/platform/http/README.md`
+  - [x] documents the request-id configuration subtree and exact defaults
+  - [x] documents independent request, correlation, and UnitOfWork identities
+  - [x] documents trusted-ingress acceptance and generated replacement behavior
+  - [x] documents exact request-id and header-name validation policy
+  - [x] extends the existing HttpKernel lifecycle and response finalization sections
+  - [x] documents normal, short-circuit, and handled-error response behavior
+  - [x] removes request-id from the future-only feature list
+  - [x] preserves the existing six implemented middleware registrations
+  - [x] documents canonical reset ownership and observability restrictions
+  - [x] documents exact request identity preservation from initialization through response finalization
+  - [x] clarifies that enabled request-id policy is not middleware and cannot be bypassed through PSR-15 short-circuit responses
+  - [x] clarifies that upstream acceptance does not perform per-request authentication or trusted-proxy detection
+  - [x] documents mandatory shared RequestIdPolicy wiring independently of request-id feature enablement
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] extends the existing HTTP lifecycle decision with pre-pipeline request identity preparation
+  - [x] extends the existing HttpResponseFinalizer decision with independent request-id response-header application
+  - [x] explains why request-id preparation is outside the PSR-15 middleware chain
+  - [x] preserves Kernel correlation ownership and Foundation ID generation/reset ownership
+  - [x] references the existing canonical HTTP middleware wiring SSoT
+  - [x] preserves ADR status and existing decisions unrelated to request identity
+  - [x] records RequestIdPolicy as a mandatory shared HTTP runtime dependency with configuration-controlled execution
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] defines the normative HTTP request-id preparation and finalization policy
+  - [x] documents exact configuration, defaults, trust requirements, validation grammar, and generation behavior
+  - [x] defines request-id preparation before the entire PSR-15 chain
+  - [x] extends the existing completion sequence and HttpResponseFinalizer responsibility
+  - [x] requires invocation-local retention of the initially selected request identifier for final-response verification
+  - [x] requires exact equality between the initially selected identifier and the current ContextStore value before response-header application
+  - [x] forbids replacement of the selected identifier by middleware, terminal handlers, or lifecycle hooks
+  - [x] documents deterministic failure on missing, invalid, or substituted request identity
+  - [x] documents the narrowly authorized ContextStore constructor dependency of RequestIdPolicy
+  - [x] documents correlation-header finalization preceding request-id header finalization
+  - [x] requires request-id header application on successfully returned normal, short-circuit, and handled-error responses
+  - [x] distinguishes completed responses from uncaught generation, pipeline, finalization, and reset failures
+  - [x] documents independent enablement from correlation response-header policy
+  - [x] preserves all existing middleware slots, priorities, toggle metadata, and error-boundary ordering
+  - [x] forbids registering request identity preparation as PSR-15 middleware
+  - [x] preserves canonical reset ownership
+  - [x] extends the existing sequential HTTP UnitOfWork regression requirements with an independent 1000-invocation sequence for each disabled and enabled request-id policy configuration
+  - [x] requires current REQUEST_ID availability before middleware enrichment and during eligible after-UoW hooks when the policy is enabled
+  - [x] requires REQUEST_ID absence throughout conforming execution paths when the policy is disabled
+  - [x] requires REQUEST_ID absence after successful canonical reset across existing completion outcome scenarios
+  - [x] requires the same mandatory non-nullable RequestIdPolicy dependency in HttpKernel and HttpResponseFinalizer regardless of feature enablement
+  - [x] defines `http.request_id.enabled` as the sole request-id policy activation mechanism
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] removes the future-only RequestIdMiddleware reservation at priority 940
+  - [x] documents HTTP request identity preparation outside middleware slots
+  - [x] extends HttpResponseFinalizer responsibility with the request-id header
+  - [x] updates the runtime acceptance scenario
+  - [x] preserves all six implemented baseline middleware registrations and unrelated future reservations
+  - [x] removes the reserved priority 940 RequestIdMiddleware catalog entry without introducing a replacement middleware entry
+  - [x] MUST NOT reserve a middleware priority or slot for RequestIdPolicy
+  - [x] removes `request_id` from the reserved context keys without implemented baseline writers
+  - [x] documents `request_id` as an implemented optional HTTP ingress context key owned by RequestIdPolicy
+  - [x] MUST NOT add `request_id` to the generic middleware context-enrichment write allowance
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] removes the future-only RequestIdMiddleware row
+  - [x] extends the existing Request id boundary section
+  - [x] identifies RequestIdPolicy as the sole HTTP-owned REQUEST_ID writer
+  - [x] documents that this writer operates outside the PSR-15 middleware chain
+  - [x] preserves all existing middleware context ownership assignments
+
+- [x] `docs/ssot/context-keys.md`
+  - [x] moves REQUEST_ID from reserved future keys into active optional HTTP-owned context keys
+  - [x] preserves the canonical constant name, key value, and writer category
+  - [x] documents preparation after Kernel begin and before PSR-15 execution when enabled
+  - [x] documents canonical ContextStore reset and trusted safe-value requirements
+  - [x] identifies RequestIdPolicy as the only authorized HTTP runtime writer of REQUEST_ID
+  - [x] forbids modification or removal of the selected REQUEST_ID by subsequent middleware, terminal handlers, or hooks
+  - [x] preserves ContextKeysAreStableContractTest expectations without changing key membership or ordering
+  - [x] references HTTP middleware wiring for owner-specific request-id policy
+  - [x] does not introduce another context key or registry
+
+- [x] `docs/ssot/context-store.md`
+  - [x] updates REQUEST_ID implementation status from future-only to active optional HTTP-owned usage
+  - [x] preserves generic ContextStore validation and reset policy
+  - [x] does not redefine HTTP-specific validation rules
+  - [x] updates the existing HTTP boundary wording to distinguish implemented HTTP-owned writers from future-only writers
+  - [x] identifies RequestIdPolicy as an explicitly authorized HTTP context writer using the existing shared ContextStore
+  - [x] preserves the prohibition on additional concrete ContextStore owners and independent storage instances
+  - [x] extends the existing single-store rule with a narrowly scoped owner read-back exception
+  - [x] permits RequestIdPolicy to read its own `ContextKeys::REQUEST_ID` value through its already authorized concrete ContextStore dependency solely for final-response identity verification
+  - [x] this exception does not grant access to other context keys, complete context snapshots, or arbitrary context exports
+  - [x] all other runtime context readers remain subject to the existing ContextAccessorInterface dependency policy
+  - [x] introduces no additional ContextAccessorInterface alias, context reader service, or storage abstraction
+
+- [x] `docs/ssot/context-lifecycle.md`
+  - [x] aligns HTTP context-enrichment wording with implemented optional HTTP ownership
+  - [x] distinguishes request-id preparation from middleware-based context enrichment
+  - [x] preserves Kernel base context creation, lifecycle, and Foundation reset responsibilities
+  - [x] documents RequestIdPolicy owner-local REQUEST_ID read-back as the narrowly scoped exception defined by context-store.md
+  - [x] preserves ContextAccessorInterface as the canonical read-only port for all other context consumers
+  - [x] distinguishes owner-local identity verification from general runtime context consumption
+
+- [x] `docs/ssot/config-directives.md`
+  - [x] replaces all four obsolete `RequestIdMiddleware` example references with `AuditMiddleware`
+  - [x] preserves the existing @prepend and @remove directive examples and their resulting list ordering
+  - [x] does not introduce request-id policy activation through middleware configuration
+  - [x] preserves all existing configuration directive semantics
+
+- [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
+  - [x] aligns REQUEST_ID status with implemented optional HTTP owner usage
+  - [x] preserves existing correlation, ContextStore, and ContextBag architecture decisions
+  - [x] records the narrowly scoped REQUEST_ID owner read-back exception for RequestIdPolicy
+  - [x] preserves the canonical ContextAccessorInterface dependency policy for other runtime readers
+  - [x] preserves single ContextStore instance ownership and existing controlled mutation APIs
+
+- [x] `packages/core/foundation/README.md`
+  - [x] distinguishes the implemented optional HTTP-owned REQUEST_ID writer from future-only context writers
+  - [x] references the narrowly scoped RequestIdPolicy owner-local REQUEST_ID read-back exception defined by `docs/ssot/context-store.md`
+  - [x] aligns the existing context accessor binding and lifecycle acceptance descriptions with this exception without redefining the canonical read-only port
+  - [x] preserves Foundation ownership of ContextStore, generic IDs, and reset
+  - [x] does not introduce Foundation request-id configuration or generation policy
+
+- [x] `docs/guides/commands.md`
+  - [x] extends the existing `composer cross-cutting-contract:gate` context boundary enforcement documentation
+  - [x] documents the canonical HttpServiceProvider ContextStore DI reference allowance
+  - [x] documents the existing RequestContextMiddleware promoted ContextStore dependency allowance
+  - [x] documents the exact additional RequestIdPolicy promoted ContextStore dependency allowance
+  - [x] preserves existing forbidden concrete ContextStore usage rules and fixed diagnostic tokens
+  - [x] does not introduce a package-wide ContextStore access exception
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-- [ ] Keys (dot):
-  - [ ] `http.request_id.enabled` = false
-  - [ ] `http.request_id.header_name` = 'X-Request-Id'
-  - [ ] `http.request_id.accept_from_upstream` = true
-  - [ ] `http.request_id.max_length` = 128
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/http/config/http.php`
+  - [x] `packages/platform/http/config/rules.php`
+- [x] Keys (dot):
+  - [x] `http.request_id.enabled` = false
+  - [x] `http.request_id.header_name` = 'X-Request-Id'
+  - [x] `http.request_id.accept_from_upstream` = false
+    - [x] enabling this setting requires an explicitly trusted ingress deployment boundary
+    - [x] the trusted ingress MUST remove arbitrary client-supplied request-id headers or replace them with owner-approved opaque identifiers
+    - [x] HTTP MUST NOT infer upstream trust from identifier syntax or header presence
+    - [x] untrusted direct-client ingress MUST keep upstream acceptance disabled
+  - [x] `http.request_id.max_length` = 128
+    - [x] inclusive allowed configuration range `26..128`
+    - [x] applies to the accepted upstream identifier byte length
+    - [x] MUST permit the canonical 26-character generated ULID
+- [x] Rules:
+  - [x] `packages/platform/http/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] N/A (reuses `http.middleware.system_pre`)
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Http\Middleware\RequestIdMiddleware`
-  - [ ] adds tag: `http.middleware.system_pre` priority `940` meta `{toggle:'http.request_id.enabled'}`
+- [x] No tags introduced or modified.
+- [x] RequestIdPolicy is registered through the existing declarative HttpServiceProvider.
+- [x] HttpKernel and HttpResponseFinalizer require the same shared RequestIdPolicy as a mandatory non-nullable constructor dependency.
+- [x] RequestIdPolicy registration and dependency injection remain unconditional regardless of `http.request_id.enabled`.
+- [x] No absent-policy behavior, fallback policy instance, or secondary request-id enablement mechanism is introduced.
+- [x] RequestIdPolicy consumes the existing shared ContextStore and Foundation UlidGenerator service.
+- [x] `http.request_id.enabled` controls policy execution, not middleware participation.
+- [x] Existing middleware slot taxonomy, priorities, metadata allowlist, and ordering remain unchanged.
+- [x] RequestIdPolicy MUST NOT be registered under `http.middleware.*`, `kernel.reset`, or `kernel.stateful`.
+- [x] Source and compiled container resolution remain equivalent.
 
 #### Artifacts / outputs (if applicable)
 
@@ -9157,76 +9707,194 @@ N/A
 
 #### Context & UoW
 
-- Context reads:
-  - N/A
-- [ ] Context writes (safe only):
-  - [ ] `ContextKeys::REQUEST_ID` (safe id, not secret)
-- Reset discipline:
-  - N/A
+- [x] Context reads:
+  - [x] `ContextKeys::REQUEST_ID` through the existing ContextStore during response finalization
+- [x] Context writes:
+  - [x] `ContextKeys::REQUEST_ID` exactly once during successful enabled HTTP request identity preparation
+  - [x] failed identity selection or generation MUST NOT write REQUEST_ID
+  - [x] request identity preparation occurs after successful Kernel UnitOfWork begin and before the entire PSR-15 pipeline
+  - [x] disabled policy performs no ContextStore reads or writes
+  - [x] no modification of `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, or `ContextKeys::UOW_TYPE`
+  - [x] request-id policy remains independent from optional RequestContextMiddleware enrichment
+  - [x] RequestIdPolicy is the sole authorized REQUEST_ID writer
+  - [x] ContextAccessorInterface consumers remain read-only
+  - [x] the selected identifier is immutable for the remainder of the enabled HTTP UnitOfWork
+  - [x] invocation-local identity evidence MUST NOT become another persistent context store or shared runtime state
+- [x] Reset discipline:
+  - [x] relies exclusively on existing KernelRuntime and Foundation ResetOrchestrator
+  - [x] after successful request identity preparation, the selected identifier remains available through response finalization and the eligible after-UoW phase on conforming execution paths
+  - [x] missing, invalid, or substituted REQUEST_ID detected during response finalization MUST cause fatal completion without repairing or regenerating context
+  - [x] successful canonical reset clears REQUEST_ID
+  - [x] invalid configuration fails during policy construction before HTTP UnitOfWork execution
+  - [x] identity preparation, pipeline, or finalization failures after successful UoW begin MUST NOT bypass the existing after-UoW and reset lifecycle
+  - [x] production HTTP request-id implementation MUST NOT directly invoke ContextStore::reset(), remove(), or clear()
+  - [x] test-only REQUEST_ID removal or replacement is permitted exclusively for deterministic identity-integrity failure verification
+  - [x] no direct reset execution, reset-tag discovery, reset retries, or additional cleanup mechanism
+  - [x] failed reset execution is not proof of cleared request-local state
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `http.request_id_total` (labels: `outcome=accepted|generated`)
-- [ ] Logs:
-  - [ ] optional debug log: outcome + `len(value)` or `hash(value)` only
-- [ ] request_id MUST NOT become a metric label (already enforced by label allowlist; keep as explicit rule here).
+- Spans:
+  - N/A
+- Metrics:
+  - N/A
+- Logs:
+  - N/A
+
+- [x] No additional observability instruments are introduced.
+- [x] RequestIdPolicy does not consume tracer, meter, or logger ports.
+- [x] `request_id` MUST NOT become a metric label.
+- [x] Request identifiers and rejected upstream values MUST NOT be added to existing HTTP completion logs, span attributes, or metrics.
+- [x] Existing HTTP completion observability remains unchanged.
 
 #### Errors
 
 - Exceptions introduced:
-  - N/A (recommended: generate instead of reject)
-- Single-choice outcome policy (MUST):
-  - In this epic, invalid upstream request ids are replaced, not rejected.
-  - Therefore `rejected` is not a valid runtime outcome token for this epic.
-  - If a future epic introduces explicit reject behavior, it MUST add its own metric/error-flow update explicitly.
-- [ ] Mapping:
-  - [ ] deterministic error code (if reject is ever introduced): `CORETSIA_HTTP_REQUEST_ID_INVALID`
+  - N/A for new exception classes
+
+- [x] Invalid upstream request identifiers are replaced, not rejected.
+- [x] Invalid upstream input MUST NOT introduce HTTP error responses.
+- [x] Invalid policy configuration uses existing exception types and fixed safe reason tokens.
+- [x] Invalid generator output or missing/invalid enabled request context fails deterministically.
+- [x] Foundation generator failures propagate without an alternative identity generator or fallback identity.
+- [x] PSR-7 response-header mutation failures propagate through the existing HttpKernel completion path.
+- [x] Uncaught identity preparation and finalization failures retain canonical `fatal_error` classification.
+- [x] Existing Kernel completion and reset failure precedence remains unchanged.
+- [x] No new ErrorDescriptor code, exception mapper, Problem Details renderer, or rejection outcome is introduced.
+- [x] RequestIdPolicy- and HttpResponseFinalizer-authored exception messages MUST contain only fixed safe reason tokens and MUST NOT include raw identifiers, rejected values, or header contents.
+- [x] Existing dependency Throwables propagate unchanged through the canonical failure-precedence path.
+- [x] No raw dependency exception messages or stack traces are exported by request-id policy.
 
 #### Security / Redaction
 
-- [ ] Allowed:
-  - [ ] request id in response header and logs (safe id)
-- [ ] Forbidden:
-  - [ ] never log other headers/cookies
-  - [ ] request_id MUST NOT be used as metric label
+- [x] Generated identifiers:
+  - [x] originate exclusively from the canonical Foundation UlidGenerator
+  - [x] MUST NOT be derived from credentials, tokens, sessions, cookies, user identifiers, raw headers, or request payloads
+- [x] Accepted upstream identifiers:
+  - [x] upstream acceptance is disabled by default
+  - [x] requires an explicitly trusted ingress boundary supplying safe opaque identifiers
+  - [x] deterministic syntax validation is necessary but is not proof of semantic sensitivity or provenance
+  - [x] MUST NOT be interpreted as authenticated identity or authorization information
+- [x] Allowed:
+  - [x] selected identifier in the canonical REQUEST_ID context key
+  - [x] selected identifier in the validated configured request-id response header
+- [x] Forbidden:
+  - [x] raw invalid upstream values in diagnostics
+  - [x] request_id as a metric label, span name, or error descriptor extension
+  - [x] request_id logging or additional span attributes introduced by this epic
+  - [x] raw headers, cookies, credentials, tokens, and request payloads in assertion messages
+  - [x] overwriting Kernel-owned correlation or UnitOfWork identity
+  - [x] hashing or measuring unknown sensitive input as a substitute for declassification
+  - [x] replacing the initially selected REQUEST_ID with another identifier during the same UnitOfWork
+  - [x] treating syntactically valid ContextStore contents as sufficient proof of request identity provenance
+  - [x] emitting a substituted identifier through response finalization
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → covered by integration tests that assert both:
-  - [ ] `ContextKeys::REQUEST_ID` is present in `ContextStore`
-  - [ ] the configured request-id response header is emitted
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → metric emission asserted in integration tests (where applicable)
-- [ ] If redaction exists → logs use only `hash/len` (assert in tests if log capture harness exists)
+- [x] Request identity validation:
+  - [x] `packages/platform/http/tests/Unit/RequestIdPolicyTest.php`
+- [x] Configuration validation:
+  - [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+- [x] Response finalization:
+  - [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+- [x] HTTP lifecycle and reset isolation:
+  - [x] `packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php`
+  - [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+- [x] Declarative DI and source/compiled parity:
+  - [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+- [x] ContextStore owner enforcement:
+  - [x] `tools/gates/cross_cutting_contract_gate.php` remains green
+  - [x] `tools/tests/Integration/CrossCuttingContractGateTest.php`
+  - [x] only the exact RequestIdPolicy owner receives the additional canonical ContextStore dependency allowance
+- [x] Existing middleware ordering:
+  - [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] `packages/platform/http/tests/Contract/HttpMiddlewareTagMetadataContractTest.php`
+- [x] Existing completion observability and noop behavior:
+  - [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+- [x] Existing direct HTTP runtime construction remains compatible with mandatory RequestIdPolicy wiring:
+  - [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+  - [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+- [x] Existing Kernel and Foundation lifecycle/reset owner tests remain green.
+- [x] Obsolete request-id middleware reservation cleanup:
+  - [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] `docs/ssot/config-directives.md`
+  - [x] `packages/core/kernel/tests/Unit/DirectivesAppendRemoveListLikeOnlyTest.php`
+  - [x] no remaining RequestIdMiddleware reservation, configuration example, or synthetic directive fixture reference
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A
+- [x] Reuse existing HTTP integration construction patterns and PSR-7/15 test stubs.
+- [x] Reuse deterministic test-only IdGeneratorInterface implementations.
+- [x] Reuse the real canonical KernelRuntime and Foundation ResetOrchestrator.
+- [x] No production generator override, additional harness service, ContextStore abstraction, or reset executor.
 
 ### Tests (MUST)
 
-- Unit/Contract:
-  - N/A
-- Integration:
-  - [ ] `packages/platform/http/tests/Integration/UpstreamRequestIdAcceptedWhenValidTest.php` — asserts ContextStore write + response header echo for valid upstream id
-  - [ ] `packages/platform/http/tests/Integration/InvalidRequestIdIsReplacedByGeneratedTest.php` — asserts deterministic replacement + ContextStore write + response header emission
+- Existing regression evidence:
+  - [x] all tests listed in the required policy tests matrix remain green
 - Gates/Arch:
-  - [ ] deptrac green (same boundary as 3.50.0)
+  - [x] deptrac green
+  - [x] existing package dependency boundaries remain unchanged
+  - [x] canonical documentation, configuration, and architecture gates remain green
+  - [x] `tools/tests/Integration/CrossCuttingContractGateTest.php`
+  - [x] `composer cross-cutting-contract:gate` remains green
+  - [x] existing unauthorized concrete ContextStore usage remains forbidden
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] Deterministic validation policy
-- [ ] Request id is written to `ContextStore` and returned in the configured response header when middleware is enabled
-- [ ] Works under noop tracer/meter/logger
-- [ ] Docs updated (README + middleware catalog entry)
+- [x] Spec locked.
+- [x] Implementation complete.
+- [x] Tests green.
+- [x] Gates/Arch green.
+- [x] Docs complete.
+- [x] No new runtime dependencies introduced.
+- [x] No new configuration root introduced.
+- [x] Request-id policy is disabled by default.
+- [x] HttpKernel and HttpResponseFinalizer require one shared non-nullable RequestIdPolicy without constructor defaults or fallback policy construction.
+- [x] Request-id enablement is controlled exclusively by `http.request_id.enabled`.
+- [x] All existing direct HTTP runtime construction sites supply an explicit RequestIdPolicy instance.
+- [x] Upstream identifier acceptance is disabled by default.
+- [x] Explicit upstream acceptance requires a trusted ingress boundary.
+- [x] Successful enabled request identity preparation selects exactly one identifier before PSR-15 execution.
+- [x] Missing or invalid upstream identifiers are replaced through canonical Foundation ULID generation.
+- [x] Generated identifiers always satisfy configured length limits.
+- [x] Request identity is written only through the canonical ContextKeys::REQUEST_ID key.
+- [x] Request-id response header is applied through the existing HttpResponseFinalizer.
+- [x] When request-id policy is enabled, successfully finalized response headers contain exactly the identifier originally selected for the current invocation.
+- [x] When request-id policy is enabled, missing, invalid, or substituted request identity detected during finalization prevents successful response completion.
+- [x] Disabled request-id policy does not require REQUEST_ID to exist and preserves application-owned response headers.
+- [x] The initially selected identifier is retained only as invocation-local verification evidence.
+- [x] Successfully finalized normal, short-circuit, and handled-error responses receive the selected request identifier when enabled.
+- [x] Correlation and request-id header policies remain independently configurable.
+- [x] Kernel-owned correlation and UnitOfWork identities remain unchanged.
+- [x] Identity preparation and finalization failures preserve canonical Kernel completion and reset behavior.
+- [x] Successful canonical reset clears request-local REQUEST_ID state.
+- [x] No request-id middleware, additional middleware tags, or middleware ordering changes are introduced.
+- [x] The obsolete RequestIdMiddleware reservation and priority 940 assignment are removed from canonical documentation.
+- [x] Configuration directive examples and corresponding synthetic test fixtures no longer reference RequestIdMiddleware.
+- [x] Existing configuration directive behavior remains unchanged.
+- [x] No second identity generator, context store, request lifecycle, or response finalizer is introduced.
+- [x] Existing cross-cutting ContextStore owner enforcement permits only the exact canonical RequestIdPolicy constructor dependency.
+- [x] Existing cross-cutting gate positive and negative regression coverage remains green.
+- [x] No package-wide ContextStore access exception or additional gate is introduced.
+- [x] No additional reset mechanism or stateful-service registration is introduced.
+- [x] No additional spans, metrics, or logging behavior is introduced.
+- [x] Existing noop observability compatibility remains green.
+- [x] Source and compiled container parity remains green.
+- [x] Existing HTTP sequential-UoW regression coverage remains green.
+- [x] Existing ADR-0041, ADR-0015, and canonical SSoTs are extended in place.
+- [x] No new ADR, ADR index entry, or standalone architecture document is introduced.
+- [x] Inconsistent request-id policy wiring cannot silently suppress a successfully selected request identifier during response finalization.
+- [x] RequestIdPolicy owner-local REQUEST_ID read-back complies with the explicitly documented ContextStore access boundary.
+- [x] Existing HTTP sequential-UoW regression completes 1000 invocations independently for each disabled and enabled request-id policy configuration while preserving all four existing outcome scenarios and canonical reset assertions.
 
 ---
 

@@ -21,6 +21,8 @@ namespace Coretsia\Platform\Http\Tests\Integration;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
@@ -30,6 +32,7 @@ use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -131,9 +134,19 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
         $provider->expects(self::once())->method('correlationId')->willReturn(null);
         $response = $this->createMock(ResponseInterface::class);
         $response->expects(self::never())->method('withHeader');
+
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         self::assertSame(
             $response,
-            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id')->finalize($response),
+            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', $requestIds)->finalize($response),
         );
     }
 
@@ -153,14 +166,24 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
         CorrelationIdProviderInterface $provider,
         bool $enabled,
     ): HttpKernel {
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($provider, $enabled, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($provider, $enabled, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
     }
 }

@@ -19,7 +19,10 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Tests\Integration;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Foundation\Container\Container;
@@ -28,6 +31,10 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\IdGeneratorInterface;
+use Coretsia\Foundation\Id\UlidGenerator;
+use Coretsia\Foundation\Id\UuidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
@@ -51,11 +58,18 @@ use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
+use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
+use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
+use Coretsia\Platform\Http\Middleware\RequestContextMiddleware;
+use Coretsia\Platform\Http\Middleware\TraceContextMiddleware;
+use Coretsia\Platform\Http\Middleware\TrustedHostMiddleware;
+use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
@@ -80,32 +94,115 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         HttpRequestSpanRecorder::class,
     ];
 
-    public function testCanonicalSourceAndCompiledContainersResolveEquivalentHttpRuntimeAndTerminal(): void
-    {
-        $config = self::config();
+    #[DataProvider('requestIdConfigurations')]
+    public function testCanonicalSourceAndCompiledContainersResolveEquivalentHttpRuntimeAndTerminal(
+        bool $requestIdEnabled,
+    ): void {
+        $config = self::requestIdConfig($requestIdEnabled);
         $config['http']['tracing']['enabled'] = false;
         $config['http']['context']['enrich']['enabled'] = false;
         $config['http']['request']['json']['enabled'] = false;
         $config['http']['correlation']['enabled'] = false;
 
         [$source, $compiled] = self::containers(self::definitions($config), $config);
-        $response = $this->createStub(ResponseInterface::class);
-        $response->method('getStatusCode')->willReturn(404);
-        $response->method('withBody')->willReturnSelf();
         $stream = $this->createStub(StreamInterface::class);
         $stream->method('isSeekable')->willReturn(true);
         $stream->method('tell')->willReturn(0);
         $stream->method('eof')->willReturn(true);
-        HttpParityExternalFactory::$response = $response;
         HttpParityExternalFactory::$stream = $stream;
 
         try {
             foreach ([$source, $compiled] as $container) {
+                $context = $container->get(ContextStore::class);
+                $policy = $container->get(RequestIdPolicy::class);
+
+                self::assertInstanceOf(ContextStore::class, $context);
+                self::assertInstanceOf(RequestIdPolicy::class, $policy);
+                self::assertSame($context, $container->get(ContextAccessorInterface::class));
+                self::assertSame($policy, $container->get(RequestIdPolicy::class));
+                self::assertInstanceOf(UuidGenerator::class, $container->get(IdGeneratorInterface::class));
+                self::assertSame(
+                    $container->get(UlidGenerator::class),
+                    new \ReflectionProperty(RequestIdPolicy::class, 'generator')->getValue($policy),
+                );
+                self::assertSame(
+                    $context,
+                    new \ReflectionProperty(RequestIdPolicy::class, 'context')->getValue($policy),
+                );
+
+                foreach (
+                    [
+                        'enabled' => $requestIdEnabled,
+                        'headerName' => $config['http']['request_id']['header_name'],
+                        'acceptFromUpstream' => $config['http']['request_id']['accept_from_upstream'],
+                        'maxLength' => $config['http']['request_id']['max_length'],
+                    ] as $property => $expected
+                ) {
+                    self::assertTrue(
+                        new \ReflectionProperty(RequestIdPolicy::class, $property)->getValue($policy) === $expected,
+                        'request-id-configuration-mismatch:' . $property,
+                    );
+                }
+
+                self::assertFalse($context->has(ContextKeys::REQUEST_ID));
+
                 $request = $this->createStub(ServerRequestInterface::class);
                 $request->method('getMethod')->willReturn('GET');
                 $request->method('getBody')->willReturn($stream);
                 $request->method('getHeader')->willReturn([]);
                 $request->method('hasHeader')->willReturn(false);
+
+                $response = $this->createMock(ResponseInterface::class);
+                $response->method('getStatusCode')->willReturn(404);
+                $response->method('withBody')->willReturnSelf();
+                $response->expects(self::never())->method('withAddedHeader');
+                $response->expects(self::never())->method('withoutHeader');
+                HttpParityExternalFactory::$response = $response;
+
+                $emittedRequestId = null;
+                $expectedHeader = $config['http']['request_id']['header_name'];
+                $finalized = $response;
+
+                if ($requestIdEnabled) {
+                    $finalized = $this->createMock(ResponseInterface::class);
+                    $finalized->method('getStatusCode')->willReturn(404);
+                    $finalized->expects(self::never())->method('withHeader');
+                    $finalized->expects(self::never())->method('withAddedHeader');
+                    $finalized->expects(self::never())->method('withoutHeader');
+                    $finalized->method('getHeaderLine')->willReturnCallback(
+                        static function (string $name) use ($expectedHeader, &$emittedRequestId): string {
+                            return $name === $expectedHeader ? ($emittedRequestId ?? '') : '';
+                        },
+                    );
+
+                    $response->expects(self::once())->method('withHeader')->willReturnCallback(
+                        static function (string $name, mixed $value) use (
+                            $context,
+                            $policy,
+                            $expectedHeader,
+                            $finalized,
+                            &$emittedRequestId,
+                        ): ResponseInterface {
+                            self::assertTrue($name === $expectedHeader, 'request-id-header-name-mismatch');
+                            self::assertTrue(
+                                \is_string($value)
+                                && \preg_match('/\A[0-7][0-9A-HJKMNP-TV-Z]{25}\z/D', $value) === 1,
+                                'request-id-not-canonical-ulid',
+                            );
+                            self::assertTrue(
+                                $value === $context->get(ContextKeys::REQUEST_ID),
+                                'request-id-context-header-mismatch',
+                            );
+                            self::assertTrue($value === $policy->current(), 'request-id-policy-header-mismatch');
+
+                            $emittedRequestId = $value;
+
+                            return $finalized;
+                        },
+                    );
+                } else {
+                    $response->expects(self::never())->method('withHeader');
+                }
 
                 $terminal = $container->get(RequestHandlerInterface::class);
                 self::assertInstanceOf(FallbackRouterHandler::class, $terminal);
@@ -115,19 +212,53 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                     $container->get(HttpMiddlewareStackBuilder::class),
                 );
                 self::assertInstanceOf(Pipeline::class, $container->get(Pipeline::class));
+
                 foreach (self::COMPLETION_SERVICES as $id) {
                     self::assertInstanceOf($id, $container->get($id));
                 }
+
                 $kernel = $container->get(HttpKernelInterface::class);
+                $finalizer = $container->get(HttpResponseFinalizer::class);
+
                 self::assertInstanceOf(HttpKernel::class, $kernel);
+                self::assertInstanceOf(HttpResponseFinalizer::class, $finalizer);
                 self::assertSame($kernel, $container->get(HttpKernel::class));
-                self::assertSame($response, $kernel->handle($request));
+                self::assertSame(
+                    $policy,
+                    new \ReflectionProperty(HttpKernel::class, 'requestIds')->getValue($kernel),
+                );
+                self::assertSame(
+                    $policy,
+                    new \ReflectionProperty(HttpResponseFinalizer::class, 'requestIds')->getValue($finalizer),
+                );
+                self::assertSame(
+                    $finalizer,
+                    new \ReflectionProperty(HttpKernel::class, 'finalizer')->getValue($kernel),
+                );
+
+                $actual = $kernel->handle($request);
+                self::assertTrue(
+                    $actual === $finalized,
+                    'http-finalized-response-identity-mismatch',
+                );
+
+                if ($requestIdEnabled) {
+                    self::assertTrue(
+                        \is_string($emittedRequestId)
+                        && $actual->getHeaderLine($expectedHeader) === $emittedRequestId,
+                        'request-id-final-response-mismatch',
+                    );
+                } else {
+                    self::assertTrue($emittedRequestId === null, 'disabled-request-id-header-emitted');
+                    self::assertFalse($context->has(ContextKeys::REQUEST_ID));
+                }
+
                 $runtime = $container->get(KernelRuntimeInterface::class);
                 self::assertInstanceOf(HttpParityKernelRuntime::class, $runtime);
                 self::assertSame(1, $runtime->begins);
                 self::assertSame(1, $runtime->completions);
                 self::assertSame('handled_error', $runtime->lastOutcome);
-                self::assertSame(404, $response->getStatusCode());
+                self::assertSame(404, $actual->getStatusCode());
             }
         } finally {
             HttpParityExternalFactory::$response = null;
@@ -135,62 +266,187 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
     }
 
-    public function testProviderDescriptorsAndTagsHaveOneCanonicalSourceForBothContainerModes(): void
-    {
-        $config = self::config();
+    #[DataProvider('requestIdConfigurations')]
+    public function testProviderDescriptorsAndTagsHaveOneCanonicalSourceForBothContainerModes(
+        bool $requestIdEnabled,
+    ): void {
+        $config = self::requestIdConfig($requestIdEnabled);
         $set = self::definitions($config);
         $operations = $set->toDescriptorStream();
         $graph = self::compiler()->compile($set)->toArray();
         self::assertNotEmpty($graph['services']);
 
         $expected = [
+            RequestIdPolicy::class,
             HttpKernel::class,
             ...self::COMPLETION_SERVICES,
         ];
+
         $services = [];
         $tags = [];
+        $lifecycleTags = [];
+        $contextStores = [];
+
         foreach ($operations as $operation) {
-            if (($operation['kind'] ?? null) === 'service.class' && \in_array($operation['id'], $expected, true)) {
-                $services[$operation['id']] = $operation;
+            if (($operation['kind'] ?? null) === 'service.class') {
+                if (\in_array($operation['id'], $expected, true)) {
+                    $services[$operation['id']] = $operation;
+                }
+
+                if ($operation['class'] === ContextStore::class) {
+                    $contextStores[] = $operation['id'];
+                }
             }
-            if (($operation['kind'] ?? null) === 'tag'
-                && \str_starts_with($operation['tag'], 'http.middleware.')
-            ) {
+
+            if (($operation['kind'] ?? null) !== 'tag') {
+                continue;
+            }
+
+            if (\str_starts_with($operation['tag'], 'http.middleware.')) {
                 $tags[] = $operation;
                 self::assertNotContains($operation['serviceId'], self::COMPLETION_SERVICES);
                 self::assertNotSame(HttpKernel::class, $operation['serviceId']);
+                self::assertNotSame(RequestIdPolicy::class, $operation['serviceId']);
+            }
+
+            if (\in_array(
+                $operation['tag'],
+                [ReservedTags::KERNEL_RESET, ReservedTags::KERNEL_STATEFUL],
+                true,
+            )) {
+                $lifecycleTags[] = [$operation['tag'], $operation['serviceId']];
             }
         }
-        self::assertCount(5, $services);
+
+        self::assertCount(6, $services);
         self::assertCount(6, $tags);
+        self::assertSame(
+            [
+            [TraceContextMiddleware::class, 930, ['toggle' => 'http.tracing.enabled']],
+            [TrustedProxyMiddleware::class, 880, ['toggle' => 'http.proxy.enabled']],
+            [RequestContextMiddleware::class, 870, ['toggle' => 'http.context.enrich.enabled']],
+            [TrustedHostMiddleware::class, 860, ['toggle' => 'http.hosts.enabled']],
+            [RequestBodySizeLimitMiddleware::class, 830, []],
+            [JsonBodyParserMiddleware::class, 800, ['toggle' => 'http.request.json.enabled']],
+        ],
+            \array_map(
+                static fn (array $tag): array => [$tag['serviceId'], $tag['priority'], $tag['meta']],
+                $tags,
+            )
+        );
+
+        foreach ($tags as $tag) {
+            self::assertSame(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, $tag['tag']);
+        }
+        self::assertSame([ContextStore::class], $contextStores);
+        self::assertSame([
+            [ReservedTags::KERNEL_RESET, ContextStore::class],
+            [ReservedTags::KERNEL_STATEFUL, ContextStore::class],
+        ], $lifecycleTags);
+
         foreach ($services as $id => $service) {
             self::assertSame($service['class'], $graph['services'][$id]['construction']['class']);
             self::assertTrue($service['shared']);
+            self::assertTrue($graph['services'][$id]['shared']);
+            self::assertSame($service['arguments'], $graph['services'][$id]['arguments']);
         }
+
+        $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
+        $requestId = $config['http']['request_id'];
+
+        self::assertSame(RequestIdPolicy::class, $services[RequestIdPolicy::class]['class']);
         self::assertSame([
-            ContainerValueReference::service(
-                KernelRuntimeInterface::class,
-            )->toArray(),
-            ContainerValueReference::service(Stopwatch::class)->toArray(),
-            ContainerValueReference::service(Pipeline::class)->toArray(),
-            ...\array_map(
-                static fn (
-                    string $id,
-                ): array => ContainerValueReference::service($id)->toArray(),
-                self::COMPLETION_SERVICES,
-            ),
+            $ref(ContextStore::class),
+            $ref(UlidGenerator::class),
+            $requestId['enabled'],
+            $requestId['header_name'],
+            $requestId['accept_from_upstream'],
+            $requestId['max_length'],
+        ], $services[RequestIdPolicy::class]['arguments']);
+
+        self::assertSame([
+            $ref(CorrelationIdProviderInterface::class),
+            true,
+            'X-Correlation-Id',
+            $ref(RequestIdPolicy::class),
+        ], $services[HttpResponseFinalizer::class]['arguments']);
+
+        self::assertSame([
+            $ref(KernelRuntimeInterface::class),
+            $ref(Stopwatch::class),
+            $ref(Pipeline::class),
+            ...\array_map($ref, self::COMPLETION_SERVICES),
+            $ref(RequestIdPolicy::class),
         ], $services[HttpKernel::class]['arguments']);
-        self::assertSame(
-            [],
-            \array_filter(
-                $operations,
-                static fn (array $operation): bool => ($operation['kind'] ?? null) === 'tag'
-                    && \in_array($operation['tag'], [ReservedTags::KERNEL_RESET, ReservedTags::KERNEL_STATEFUL], true)
-                    && \in_array($operation['serviceId'], [HttpKernel::class, ...self::COMPLETION_SERVICES], true),
-            ),
+
+        self::assertSame(UuidGenerator::class, $graph['aliases'][IdGeneratorInterface::class]);
+        self::assertSame(ContextStore::class, $graph['aliases'][ContextAccessorInterface::class]);
+
+        $compiledContextStores = [];
+        foreach ($graph['services'] as $id => $service) {
+            if (($service['construction']['class'] ?? null) === ContextStore::class) {
+                $compiledContextStores[] = $id;
+            }
+        }
+
+        self::assertSame([ContextStore::class], $compiledContextStores);
+
+        $compiledMiddlewareTags = \array_filter(
+            $graph['tags'],
+            static fn (string $tag): bool => \str_starts_with($tag, 'http.middleware.'),
+            ARRAY_FILTER_USE_KEY,
         );
+
+        self::assertSame([
+            ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE => \array_map(
+                static fn (array $tag): array => [
+                    'id' => $tag['serviceId'],
+                    'meta' => $tag['meta'],
+                    'priority' => $tag['priority'],
+                ],
+                $tags,
+            ),
+        ], $compiledMiddlewareTags);
+
+        $expectedContextStoreRegistration = [
+            [
+                'id' => ContextStore::class,
+                'meta' => [],
+                'priority' => 0,
+            ],
+        ];
+
+        self::assertSame(
+            $expectedContextStoreRegistration,
+            $graph['tags'][ReservedTags::KERNEL_RESET],
+        );
+        self::assertSame(
+            $expectedContextStoreRegistration,
+            $graph['tags'][ReservedTags::KERNEL_STATEFUL],
+        );
+
+        $opposite = $config;
+        $opposite['http']['request_id']['enabled'] = !$requestIdEnabled;
+        $oppositeGraph = self::compiler()->compile(self::definitions($opposite))->toArray();
+
+        self::assertSame(\array_keys($graph['services']), \array_keys($oppositeGraph['services']));
+        self::assertSame($graph['aliases'], $oppositeGraph['aliases']);
+        self::assertSame($graph['parameters'], $oppositeGraph['parameters']);
+        self::assertSame($graph['tags'], $oppositeGraph['tags']);
+
+        $expectedServices = $graph['services'];
+        $expectedServices[RequestIdPolicy::class]['arguments'][2] = !$requestIdEnabled;
+        self::assertSame($expectedServices, $oppositeGraph['services']);
+
         self::assertSame(HttpParityExternalFactory::class, $graph['aliases'][ResponseFactoryInterface::class]);
         self::assertSame(HttpParityExternalFactory::class, $graph['aliases'][StreamFactoryInterface::class]);
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function requestIdConfigurations(): iterable
+    {
+        yield 'request-id-disabled' => [false];
+        yield 'request-id-enabled' => [true];
     }
 
     #[RunInSeparateProcess]
@@ -288,8 +544,17 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 'metrics',
                 'accessLog',
                 'spans',
+                'requestIds',
             ],
-            HttpResponseFinalizer::class => ['correlationIds', 'enabled', 'headerName'],
+            HttpResponseFinalizer::class => ['correlationIds', 'enabled', 'headerName', 'requestIds'],
+            RequestIdPolicy::class => [
+                'context',
+                'generator',
+                'enabled',
+                'headerName',
+                'acceptFromUpstream',
+                'maxLength',
+            ],
             HttpRequestMetricsRecorder::class => ['meter', 'enabled'],
             HttpAccessLogWriter::class => ['logger', 'enabled'],
             HttpRequestSpanRecorder::class => ['tracer', 'enabled'],
@@ -310,6 +575,26 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             foreach ($properties as $property) {
                 self::assertFalse($property->isStatic());
             }
+        }
+    }
+
+    public function testRequestIdPolicyIsAMandatoryConstructorDependencyOfBothHttpOwners(): void
+    {
+        foreach ([HttpKernel::class, HttpResponseFinalizer::class] as $class) {
+            $reflection = new \ReflectionClass($class);
+            $constructor = $reflection->getConstructor();
+
+            self::assertNotNull($constructor);
+            $parameters = $constructor->getParameters();
+            $parameter = $parameters[\count($parameters) - 1];
+            $type = $parameter->getType();
+
+            self::assertSame('requestIds', $parameter->getName());
+            self::assertInstanceOf(\ReflectionNamedType::class, $type);
+            self::assertSame(RequestIdPolicy::class, $type->getName());
+            self::assertFalse($type->allowsNull());
+            self::assertFalse($parameter->isOptional());
+            self::assertFalse($parameter->isDefaultValueAvailable());
         }
     }
 
@@ -344,7 +629,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         );
         self::assertNotSame($a['aliases'][StreamFactoryInterface::class], $b['aliases'][StreamFactoryInterface::class]);
         self::assertSame($a['tags'], $b['tags']);
-        foreach ([HttpKernel::class, ...self::COMPLETION_SERVICES, Pipeline::class] as $id) {
+        foreach ([HttpKernel::class, RequestIdPolicy::class, ...self::COMPLETION_SERVICES, Pipeline::class] as $id) {
             self::assertSame($a['services'][$id], $b['services'][$id]);
         }
     }
@@ -450,6 +735,21 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             'http' => $http,
             'kernel' => ['runtime' => ['http_driver' => 'http.classic']],
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function requestIdConfig(bool $enabled): array
+    {
+        $config = self::config();
+        $config['foundation']['ids']['default'] = 'uuid';
+        $config['http']['request_id'] = [
+            'enabled' => $enabled,
+            'header_name' => 'X-Edge-Request-Id',
+            'accept_from_upstream' => true,
+            'max_length' => 64,
+        ];
+
+        return $config;
     }
 
     private static function definitions(array $config, bool $overrideBuiltIn = false): ContainerDefinitionSet

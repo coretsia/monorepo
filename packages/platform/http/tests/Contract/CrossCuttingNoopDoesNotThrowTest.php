@@ -21,6 +21,8 @@ namespace Coretsia\Platform\Http\Tests\Contract;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
@@ -30,6 +32,7 @@ use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -160,14 +163,24 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
             }
         };
 
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
     }
 

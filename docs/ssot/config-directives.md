@@ -322,7 +322,7 @@ return [
     'middleware' => [
         'app' => [
             '@prepend' => [
-                'RequestIdMiddleware',
+                'AuditMiddleware',
             ],
         ],
     ],
@@ -336,7 +336,7 @@ Effective result:
     'http' => [
         'middleware' => [
             'app' => [
-                'RequestIdMiddleware',
+                'AuditMiddleware',
                 'AuthMiddleware',
                 'ControllerMiddleware',
             ],
@@ -374,7 +374,7 @@ Lower-rank effective config:
     'http' => [
         'middleware' => [
             'app' => [
-                'RequestIdMiddleware',
+                'AuditMiddleware',
                 'AuthMiddleware',
                 'DebugToolbarMiddleware',
                 'ControllerMiddleware',
@@ -409,7 +409,7 @@ Effective result:
     'http' => [
         'middleware' => [
             'app' => [
-                'RequestIdMiddleware',
+                'AuditMiddleware',
                 'AuthMiddleware',
                 'ControllerMiddleware',
             ],

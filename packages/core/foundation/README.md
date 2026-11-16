@@ -18,7 +18,7 @@
 
 Scope: PSR-11 DI container runtime, canonical declarative runtime-container definition model, deterministic definition application and graph-ready export, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
 
-Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, developer tooling, and repository automation.
+Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP request identity preparation and response-header policy, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, developer tooling, and repository automation.
 
 ## Package identity
 
@@ -222,7 +222,11 @@ Context safe-write validation is baseline safety infrastructure.
 
 It MUST NOT be disabled through config, environment-derived runtime flags, emergency toggles, debug modes, performance modes, or alternate provider wiring.
 
-Optional context writers that cannot provide safe public-key json-like context values MUST omit the optional write rather than bypass validation.
+Optional context writers that cannot provide safe public-key json-like context values MUST omit the write when omission is permitted by the owning context policy.
+
+Otherwise, failure MUST follow the owning policy's canonical failure semantics.
+
+Context safe-write validation MUST NOT be bypassed.
 
 The following configuration keys are not owned by this package contract:
 
@@ -620,11 +624,23 @@ Coretsia\Foundation\Context\ContextStore
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
 
-Runtime readers SHOULD depend on:
+General runtime context readers MUST depend on:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
+
+The narrowly scoped owner-local read-back exception for:
+
+```text
+Coretsia\Platform\Http\RequestId\RequestIdPolicy
+```
+
+is governed by `docs/ssot/context-store.md`.
+
+Through its explicitly authorized concrete `ContextStore` dependency, the HTTP request identity owner MAY read back only `ContextKeys::REQUEST_ID` for final-response identity verification.
+
+This exception uses the same Foundation-owned `ContextStore` instance bound to `ContextAccessorInterface`. It does not authorize concrete store access for other runtime readers, access to unrelated context keys, full context snapshots, or arbitrary context exports.
 
 Runtime code MUST NOT create independent context stores for the same runtime boundary.
 
@@ -669,17 +685,30 @@ path
 user_agent
 ```
 
-Reserved keys without baseline Foundation writers:
+Implemented optional HTTP-owned context key:
 
 ```text
 request_id
+```
+
+The sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID` is:
+
+```text
+Coretsia\Platform\Http\RequestId\RequestIdPolicy
+```
+
+The policy uses the existing shared Foundation-owned `ContextStore`. Request identity preparation, validation, activation, and response-header application belong to the HTTP runtime owner and are governed by `docs/ssot/http-middleware-wiring.md`.
+
+Reserved future keys:
+
+```text
 path_template
 http_response_format
 actor_id
 tenant_id
 ```
 
-These keys MAY be present in `ContextKeys` to prevent name drift even when their concrete writers belong to owner packages outside Foundation or are absent from a given composition.
+These keys remain part of `ContextKeys` to prevent name drift even when their concrete writers are absent from a given runtime composition.
 
 ## Context safe-write policy
 
@@ -1313,16 +1342,22 @@ uow_id
 uow_type
 ```
 
-At or after the end of a unit of work, reset orchestration MUST clear `ContextStore` before the next unit of work can observe stale context.
+For each UnitOfWork that crosses the reset-responsibility boundary, Kernel runtime MUST trigger Foundation reset orchestration exactly once.
 
-Acceptance scenario:
+Successful canonical reset clears all unit-of-work-local values from `ContextStore`.
+
+Reset eligibility, runtime-boundary release, and failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
+
+Acceptance scenario with successful canonical reset:
 
 1. one unit of work starts;
 2. owner code writes safe context keys;
-3. runtime packages read context through `ContextAccessorInterface`;
+3. general runtime context readers use `ContextAccessorInterface`; explicitly authorized owner-local read-back follows the narrow exception defined by `docs/ssot/context-store.md`;
 4. the unit of work finishes;
-5. Foundation reset orchestration calls `ContextStore::reset()`;
-6. the next unit of work starts with an empty store except new base keys set by Kernel.
+5. Foundation reset orchestration successfully calls `ContextStore::reset()`, clearing all unit-of-work-local context values;
+6. the next unit of work starts without inherited context values, except for the new base keys established by Kernel.
+
+A reset attempt or failed reset execution MUST NOT be treated as proof of successful context cleanup.
 
 ## Stable diagnostics and serialization
 
@@ -1691,6 +1726,7 @@ Runtime owners MUST prefer omission over unsafe emission.
 - [Config Roots SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-roots.md)
 - [Config and env SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
 - [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md)
 - [DI Tags and Middleware Ordering SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/di-tags-and-middleware-ordering.md)
 - [Observability Naming and Labels Allowlist](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md)
 - [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)

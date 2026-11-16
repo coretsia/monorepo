@@ -19,15 +19,20 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Response;
 
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Stateless correlation-header finalization for completed PSR-7 responses.
+ * Stateless identity-header finalization for completed PSR-7 responses.
  *
  * HttpKernel invokes this service after the entire PSR-15 pipeline, including
  * any explicitly selected Problem Details error boundary, has returned.
- * Correlation identity belongs to Kernel; this service neither reads request
- * headers nor creates identities, fallback responses, or completion hooks.
+ * Kernel-owned correlation identity is applied before HTTP-owned request
+ * identity. The selected request identifier must match the current context
+ * value exactly before its response header can be applied.
+ *
+ * This service neither reads request headers nor creates identities,
+ * fallback responses, or completion hooks.
  */
 final readonly class HttpResponseFinalizer
 {
@@ -95,6 +100,7 @@ final readonly class HttpResponseFinalizer
         private CorrelationIdProviderInterface $correlationIds,
         private bool $enabled,
         private string $headerName,
+        private RequestIdPolicy $requestIds,
     ) {
         if (
             \strlen($this->headerName) > self::MAX_HEADER_NAME_BYTES
@@ -107,10 +113,35 @@ final readonly class HttpResponseFinalizer
     }
 
     /**
+     * Applies correlation and request identity headers in deterministic order.
+     * Identity verification and PSR-7 mutation failures propagate unchanged.
+     */
+    public function finalize(ResponseInterface $response, ?string $selectedRequestId = null): ResponseInterface
+    {
+        $response = $this->finalizeCorrelation($response);
+        $requestId = $this->requestIds->current();
+
+        if ($requestId !== $selectedRequestId) {
+            throw new \RuntimeException('http-request-id-context-invalid');
+        }
+
+        if ($requestId === null) {
+            return $response;
+        }
+
+        $finalized = $response->withHeader($this->requestIds->headerName(), $requestId);
+        if (!$finalized instanceof ResponseInterface) {
+            throw new \RuntimeException('http-request-id-response-invalid');
+        }
+
+        return $finalized;
+    }
+
+    /**
      * Returns the unchanged response when correlation is disabled or absent.
      * PSR-7 header mutation failures propagate to HttpKernel unchanged.
      */
-    public function finalize(ResponseInterface $response): ResponseInterface
+    private function finalizeCorrelation(ResponseInterface $response): ResponseInterface
     {
         if (!$this->enabled) {
             return $response;

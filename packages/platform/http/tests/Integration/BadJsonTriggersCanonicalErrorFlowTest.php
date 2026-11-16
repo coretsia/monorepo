@@ -23,6 +23,8 @@ use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
@@ -36,6 +38,7 @@ use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
@@ -158,6 +161,15 @@ final class BadJsonTriggersCanonicalErrorFlowTest extends TestCase
             ->with(self::identicalTo($handle), 'handled_error', null)->willReturn([]);
         $correlation = $this->createMock(CorrelationIdProviderInterface::class);
         $correlation->expects(self::once())->method('correlationId')->willReturn(self::CORRELATION);
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
@@ -166,10 +178,11 @@ final class BadJsonTriggersCanonicalErrorFlowTest extends TestCase
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, $maxDepth, 1024),
             ], $terminal),
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
 
         self::assertSame($response, $kernel->handle($request));

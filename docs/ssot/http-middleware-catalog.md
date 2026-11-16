@@ -282,7 +282,7 @@ No application config is required for baseline middleware participation.
 
 Canonical tag-based registration and discovery remain the source of truth for middleware participation.
 
-Later compiled config artifacts MAY materialize or augment middleware slot lists for runtime consumption by `platform/http`.
+Compiled config artifacts MAY materialize or augment middleware slot lists for runtime consumption by `platform/http`.
 
 Compiled artifacts MUST NOT redefine:
 
@@ -292,7 +292,7 @@ Compiled artifacts MUST NOT redefine:
 - default optional package participation;
 - forbidden non-canonical tag policy.
 
-Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy as their corresponding implementations become available.
+Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy.
 
 ## HTTP-owned middleware execution and final-response completion
 
@@ -300,7 +300,15 @@ The implemented `platform/http` baseline consists of six `http.middleware.system
 
 The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
 
-`HttpKernel` coordinates the HTTP UnitOfWork and final-response completion after the full PSR-15 pipeline. Four dedicated, stateless HTTP-owned services operate outside all nine middleware slots: `HttpResponseFinalizer` applies the canonical correlation response-header policy; `HttpRequestMetricsRecorder` records final-result metrics; `HttpAccessLogWriter` emits the bounded completion log through PSR-3; and `HttpRequestSpanRecorder` completes the request-local span. Metrics, logging, and span outcome attributes consume the finalized response status or fixed fatal outcome, never an intermediate middleware result. These services are not PSR-15 middleware or a second observer pipeline. Exact wiring, execution, and error-boundary semantics remain specified by `docs/ssot/http-middleware-wiring.md`.
+Optional HTTP request identity preparation is owned by `Coretsia\Platform\Http\RequestId\RequestIdPolicy`.
+
+`HttpKernel` invokes the policy after successful Kernel UnitOfWork begin and before entering the entire PSR-15 pipeline, including the selected outermost error boundary and response decorators.
+
+`RequestIdPolicy` is a mandatory shared HTTP runtime dependency whose execution is controlled exclusively by `http.request_id.enabled`.
+
+It does not implement PSR-15 middleware and MUST NOT participate in any of the nine middleware slots. No middleware priority, tag metadata, or catalog entry is reserved for request identity preparation.
+
+`HttpKernel` coordinates the HTTP UnitOfWork and final-response completion after the full PSR-15 pipeline. Four dedicated, stateless HTTP-owned services operate outside all nine middleware slots: `HttpResponseFinalizer` applies the independently enabled Kernel-owned correlation and HTTP-owned request-id response-header policies in that order, including exact request identity verification; `HttpRequestMetricsRecorder` records final-result metrics; `HttpAccessLogWriter` emits the bounded completion log through PSR-3; and `HttpRequestSpanRecorder` completes the request-local span. Metrics, logging, and span outcome attributes consume the finalized response status or fixed fatal outcome, never an intermediate middleware result. These services are not PSR-15 middleware or a second observer pipeline. Exact wiring, execution, and error-boundary semantics remain specified by `docs/ssot/http-middleware-wiring.md`.
 
 ## Platform HTTP defaults policy
 
@@ -352,13 +360,15 @@ uow_id
 uow_type
 ```
 
-Baseline safe context writes may use the following semantic keys:
+The following base context keys are written exclusively by Kernel runtime:
 
 ```text
 correlation_id
 uow_id
 uow_type
 ```
+
+HTTP middleware MUST NOT select, write, replace, or remove these Kernel-owned context values.
 
 HTTP request context enrichment may use the following request-safe semantic keys:
 
@@ -386,10 +396,41 @@ len(value)
 
 and only when allowed by the owner policy.
 
-The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
+The implemented optional HTTP ingress context key is:
 
 ```text
 request_id
+```
+
+Its sole authorized HTTP runtime writer is:
+
+```text
+\Coretsia\Platform\Http\RequestId\RequestIdPolicy::class
+```
+
+This writer operates outside the PSR-15 middleware chain.
+
+When enabled, request identity is established after successful Kernel UnitOfWork begin and before middleware execution. It remains independent of middleware-based HTTP context enrichment and Kernel-owned correlation identity.
+
+The selected identifier MUST NOT be modified, replaced, or removed by subsequent middleware, terminal handlers, or lifecycle hooks.
+
+Successful canonical Foundation reset MUST clear `request_id` together with all other UnitOfWork-local context values.
+
+`request_id` MUST NOT be included in the generic middleware context-enrichment write allowance.
+
+Middleware MAY read `request_id` through `ContextAccessorInterface` only when permitted by the ownership mapping defined in `docs/ssot/middleware-context-keys-map.md` and the responsible owner policy.
+
+Permission to read request identity does not grant permission to export it to observability.
+
+The owner-specific request identity policy is governed by:
+
+```text
+docs/ssot/http-middleware-wiring.md
+```
+
+The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
+
+```text
 path_template
 http_response_format
 actor_id
@@ -524,7 +565,7 @@ Metric labels MUST NOT contain:
 
 ## Rate-limit observability policy
 
-Early pre-identity throttling and identity-aware throttling are distinct middleware roles.
+Early pre-application-identity throttling and application-identity-aware throttling are distinct middleware roles.
 
 They MUST remain distinguishable in code, docs, tests, and runtime wiring.
 
@@ -653,7 +694,7 @@ http.middleware.app_pre
 
 Early rate limiting and identity-aware rate limiting MUST use distinct middleware classes and distinct config toggles.
 
-Early rate limiting is pre-identity.
+Early rate limiting operates before application identity context is available. It executes after Kernel-owned base context creation and optional HTTP request identity preparation.
 
 Identity-aware rate limiting is app-level and must run only after app-level identity context is available.
 
@@ -715,7 +756,6 @@ System-pre middleware runs before the main system, application, and route middle
 
 | priority | owner package_id | middleware class                                                           | registration / metadata                       |
 |----------|------------------|----------------------------------------------------------------------------|-----------------------------------------------|
-| `940`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestIdMiddleware::class`            | future-only; not registered                   |
 | `930`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class`         | `['toggle' => 'http.tracing.enabled']`        |
 | `900`    | `platform/http`  | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`         | future-only; not registered                   |
 | `880`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`         | `['toggle' => 'http.proxy.enabled']`          |
@@ -915,7 +955,7 @@ core/kernel
 platform/routing
 ```
 
-A later compiled artifact MAY materialize middleware slot lists for runtime consumption.
+A compiled artifact MAY materialize middleware slot lists for runtime consumption.
 
 Such an artifact MUST NOT redefine:
 
@@ -939,10 +979,14 @@ Referenced owner-package tests are evidence inputs for this coordination policy.
 
 They are not owned by this catalog.
 
-Future owner-package evidence may include:
+Owner-package verification evidence includes:
 
 ```text
 packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
+packages/platform/http/tests/Unit/RequestIdPolicyTest.php
+packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php
+packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php
+packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php
 packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
 packages/platform/metrics/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php
 packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTest.php
@@ -950,22 +994,28 @@ packages/platform/logging/tests/Integration/CorrelationIdIsAlwaysPresentInLogsTe
 
 Those tests are reference-only here.
 
-They MUST be introduced, owned, and maintained by their respective packages.
+They MUST be owned and maintained by their respective packages.
 
 ## Runtime acceptance scenario
 
-When a target with `platform.http` explicitly selected executes an HTTP request through `HttpKernel`:
+When a target with `platform.http` explicitly selected successfully completes an HTTP invocation through `HttpKernel`, including successful canonical reset:
 
-1. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
-2. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
-3. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles;
-4. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy after the complete pipeline;
-5. `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` consume the completed HTTP result through the existing noop-safe ports;
-6. disabled optional observability does not change request outcome or create additional middleware;
-7. future-only rate limiting and other middleware reservations remain unregistered until their owning implementations exist;
-8. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
-9. context and unit-of-work state do not leak across repeated runtime boundaries;
-10. concrete proof is provided by the owning runtime packages.
+1. Kernel runtime successfully begins the HTTP UnitOfWork and establishes its base context;
+2. `HttpKernel` invokes its mandatory shared `RequestIdPolicy`, which establishes HTTP request identity when enabled, before the entire PSR-15 pipeline and independently of middleware participation;
+3. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
+4. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
+5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles;
+6. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy after the complete pipeline;
+7. request-id response-header application requires exact equality between the initially selected identifier and the current owner-local context identity;
+8. `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` consume the completed HTTP result through the existing noop-safe ports;
+9. disabled optional request identity and observability policies do not create additional middleware or change their declarative service registrations;
+10. future-only rate limiting and other middleware reservations remain unregistered until their owning implementations exist;
+11. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
+12. selected request identifiers and rejected upstream values are not exported through HTTP completion observability;
+13. Kernel runtime executes eligible after-UoW lifecycle handling and canonical Foundation reset;
+14. successful reset clears all UnitOfWork-local context, including the optional `request_id`;
+15. context and UnitOfWork-local state do not leak across the verified repeated runtime boundaries;
+16. concrete proof is provided by the owning runtime packages.
 
 This scenario is expected runtime policy. Package installation alone does not select `platform.http` or make an HTTP front controller available.
 
@@ -1036,6 +1086,10 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Context Keys SSoT](./context-keys.md)
+- [Context Store SSoT](./context-store.md)
+- [Context Lifecycle SSoT](./context-lifecycle.md)
+- [Middleware → ContextKeys map](./middleware-context-keys-map.md)
 - [Tag Registry](./tags.md)
 - [Config Roots Registry](./config-roots.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)

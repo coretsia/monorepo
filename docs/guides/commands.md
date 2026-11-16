@@ -15,9 +15,7 @@
 # Commands (SSoT)
 
 > Scope: Canonical command catalog. \
-> Normative: MUST / MUST NOT / SHOULD / MAY \
-> Source of truth for workflow rules: `docs/roadmap/ROADMAP.md` \
-> See also (workflow): `docs/guides/development-workflow.md`
+> Normative: MUST / MUST NOT / SHOULD / MAY
 
 This document fixes the canonical commands/entrypoints that actually exist in the repository, and the rules for documenting them.
 
@@ -40,7 +38,7 @@ This document fixes the canonical commands/entrypoints that actually exist in th
 - Documentation/examples MUST avoid “non-existent” entrypoints for the current context (for example, do not reference non-existent `./dev/**` entrypoints).
 - If a command has an alias (for example, `composer ...` as a proxy to `coretsia ...`), the document MUST explicitly state:
   - which entrypoint is canonical, and which one is alias/compat, and MUST guarantee behavior equivalence (semantics/outputs) in deterministic mode.
-- When an entrypoint is migrated (the canonical one changes), the previous canonical entrypoint SHOULD remain as a compat alias for at least 1 epic/phase (or until the next cutline), and MUST be marked as `DEPRECATED` with a “remove-after” milestone.
+- When an entrypoint is migrated (the canonical one changes), the previous canonical entrypoint SHOULD remain as a compat alias for at least one development phase (or until the next cutline), and MUST be marked as `DEPRECATED` with a “remove-after” milestone.
 
 ### Tooling output policy
 
@@ -2188,6 +2186,17 @@ Notes:
   - direct `ContextStore` usage is allowed in `packages/core/kernel/src/Runtime/KernelRuntime.php`
   - direct `ContextStore` usage is allowed in `packages/core/kernel/src/Provider/KernelServiceFactory.php`
   - in `packages/core/foundation/src/Provider/FoundationServiceProvider.php`, `ContextStore` is allowed only as the subject of `new ContextStore(...)` or a `ContextStore::class` reference
+  - in `packages/platform/http/src/Provider/HttpServiceProvider.php`, `ContextStore` is allowed only as a canonical declarative DI service reference:
+    - `self::ref(ContextStore::class)`
+    - `$definitions->requireService(ContextStore::class)`, including chains originating from the canonical `$definitions` builder
+  - in `packages/platform/http/src/Middleware/RequestContextMiddleware.php`, `ContextStore` is allowed only as the canonical promoted constructor dependency:
+    - `private ContextStore $context`
+  - in `packages/platform/http/src/RequestId/RequestIdPolicy.php`, `ContextStore` is allowed only as the canonical promoted constructor dependency:
+    - `private ContextStore $context`
+  - the HTTP promoted constructor dependency allowances do not permit independent `ContextStore` construction, ordinary non-promoted properties, alternative dependency names, nullable dependencies, default constructor values, or arbitrary method type declarations
+  - these allowances are restricted to the exact declared owner paths and do not establish a package-wide `ContextStore` usage exception
+  - the authorized owners use the existing shared Foundation-owned `ContextStore`; general runtime context readers remain subject to the canonical `ContextAccessorInterface` dependency policy
+  - the owner-local `RequestIdPolicy` read-back exception is governed by `docs/ssot/context-store.md`
 - Output policy:
   - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
   - next lines are repo-relative paths plus fixed reason tokens sorted by byte-order `strcmp`
@@ -3043,7 +3052,7 @@ Notes:
   - An invalid or unknown workflow name fails with `CORETSIA_CLI_WORKFLOW_NOT_FOUND`, reason `workflow-not-found`, without exposing the requested name.
   - Invalid workflow definitions and command references fail with `CORETSIA_CLI_WORKFLOW_DEFINITION_INVALID` and a fixed safe reason.
 - Composite execution policy:
-  - `workflow:run` is the only platform-owned composite CLI command permitted by this epic.
+  - `workflow:run` is the only platform-owned composite CLI command supported by the CLI runtime.
   - It implements the internal `CompositeCommandInterface`, not the normal `CommandInterface`.
   - The composite command itself MUST NOT create an enclosing Kernel CLI UnitOfWork.
   - Each executed workflow step is dispatched through the existing `CommandRunner`.

@@ -28,7 +28,9 @@ The nine reserved `http.middleware.*` slots separate system, application, and ro
 
 The runtime also needs concrete PSR-17 response and stream factories, but its production dependencies cannot force one PSR-7 implementation on every application. Container compilation must be deterministic even when several implementations are installed. Configuration-driven selection and executable readiness are different boundaries: declarative definitions may describe classes that are unavailable in the current Composer installation, while the owning HTTP entrypoint must reject an unexecutable selection before constructing `HttpKernel` or its pipeline.
 
-Request-level metrics, access logging, span completion, and correlation response headers must observe the final response after the entire PSR-15 chain, including an error response returned by an outermost boundary. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
+When enabled, HTTP request identity must be established after successful Kernel UnitOfWork begin and before the entire PSR-15 chain executes.
+
+The independently enabled correlation and request-id response-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the finalized HTTP result. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
 
 ## Decision
 
@@ -68,13 +70,28 @@ Without explicit module selection, no Problem Details middleware is contributed 
 
 `HttpKernel` implements the existing `HttpKernelInterface` / PSR-15 request-handler contract and consumes the contracts-level `KernelRuntimeInterface`. It invokes `beginUnitOfWork('http')` before the pipeline and attempts exactly one matching `afterUnitOfWork()` with the returned handle after request-level completion. Kernel remains the sole owner of UoW hooks, context lifetime, and reset; HTTP does not register a competing lifecycle or reset orchestrator.
 
-The fixed completion order is:
+`Coretsia\Platform\Http\RequestId\RequestIdPolicy` owns optional HTTP request identity preparation. `HttpKernel` invokes `RequestIdPolicy::initialize()` after successful Kernel UnitOfWork begin and before entering the entire PSR-15 pipeline.
+
+Request identity preparation operates outside middleware because the selected identifier must already be available when the outermost error boundary, response decorators, and request-phase middleware execute. Middleware execution and short-circuit behavior must not determine whether an enabled request identity is established.
+
+`RequestIdPolicy` is a mandatory non-nullable shared dependency of both `HttpKernel` and `HttpResponseFinalizer`. `HttpServiceProvider` registers the policy through canonical Foundation declarative DI and wires the same shared policy instance into both services regardless of feature enablement. The `http.request_id.enabled` setting exclusively controls request identity preparation and response-header application, not service registration, dependency injection, or middleware participation.
+
+`HttpKernel` invokes the shared policy at the pre-pipeline identity preparation boundary regardless of feature enablement. The disabled policy performs no request identity preparation.
+
+The policy writes only `ContextKeys::REQUEST_ID` through its explicitly authorized dependency on the existing shared Foundation-owned `ContextStore`. Its owner-local read-back follows the narrow exception defined by `docs/ssot/context-store.md`.
+
+HTTP request identity remains independent of Kernel-owned correlation and UnitOfWork identity. Generated request identifiers use the existing Foundation-owned `UlidGenerator` through `IdGeneratorInterface`.
+
+The normative request-id configuration, trusted ingress requirements, identifier validation, and response finalization policy are defined by `docs/ssot/http-middleware-wiring.md`.
+
+The fixed completion order when request preparation, pipeline execution, and response finalization succeed is:
 
 ```text
 KernelRuntimeInterface::beginUnitOfWork('http')
   -> request-local Stopwatch start and optional http.request span start
+  -> RequestIdPolicy::initialize() and invocation-local identity selection
   -> complete PSR-15 Pipeline::handle()
-  -> HttpResponseFinalizer::finalize() for a returned response
+  -> HttpResponseFinalizer::finalize() with the selected request identifier
   -> derive final HTTP status and outcome
   -> request-local Stopwatch stop when a valid token exists
   -> HttpRequestMetricsRecorder::record()
@@ -84,21 +101,35 @@ KernelRuntimeInterface::beginUnitOfWork('http')
   -> return the finalized ResponseInterface or rethrow the primary Throwable
 ```
 
+An uncaught failure before request identity preparation prevents both identity preparation and pipeline execution. Failed identity preparation prevents pipeline execution, and an uncaught pipeline failure prevents response finalization.
+
+These failures follow the canonical fatal completion path and do not bypass eligible Kernel completion or reset responsibility.
+
 An optional timing or observability failure cannot suppress the pipeline, replace a completed response, or replace an earlier primary Throwable. `afterUnitOfWork()` is attempted after every successful begin, including fatal paths. A failure during Kernel completion remains authoritative when there is no earlier primary Throwable. `HttpKernel` never returns an intermediate response after finalization fails.
 
 ### Decision 4: Split final-response mutation and observability into four stateless services
 
 `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` are separate HTTP-owned, stateless services wired directly into `HttpKernel` through Foundation declarative DI. None implements or is tagged as PSR-15 middleware; none participates in any of the nine HTTP middleware slots. No observer interface, registry, hook, extra response pipeline, per-request observer cache, or additional reset service is introduced.
 
-`HttpResponseFinalizer` consumes the existing `CorrelationIdProviderInterface` and validated `http.correlation.enabled` / `http.correlation.header_name` settings. It applies the Kernel-owned correlation value to the completed immutable PSR-7 response when enabled, including ordinary short-circuit and Problem Details responses. It does not create another correlation identity or modify the response body, status, or unrelated headers.
+`HttpResponseFinalizer` consumes the existing `CorrelationIdProviderInterface`, validated `http.correlation.enabled` / `http.correlation.header_name` settings, and the mandatory shared `RequestIdPolicy`.
+
+It applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy.
+
+Before applying the request-id header, the finalizer verifies exact equality between the initially selected invocation-local request identifier and the current `ContextKeys::REQUEST_ID` value obtained through `RequestIdPolicy`.
+
+Missing, invalid, or substituted enabled request identity causes deterministic fatal completion without regenerating or repairing context.
+
+Both enabled identity-header policies apply to normally returned, short-circuit, and Problem Details responses after the entire PSR-15 pipeline has returned.
+
+The finalizer uses immutable PSR-7 response mutation. It does not generate identities or modify the response body, status, or unrelated headers.
 
 `HttpRequestMetricsRecorder` consumes the existing `MeterPortInterface` and emits only the canonical `http.request_total` and `http.request_duration_ms` measurements with approved bounded dimensions. `HttpAccessLogWriter` consumes the existing `Psr\Log\LoggerInterface`, and `HttpRequestSpanRecorder` consumes the existing `TracerPortInterface` and an invocation-local `SpanInterface` handle. Optional unselected observability modules retain Foundation noop bindings; the four HTTP services do not introduce backend implementations or source dependencies on optional platform observability packages.
 
-Only a successfully finalized response provides the canonical final HTTP status. A final status below `400` maps to `success`; `400..599` maps to `handled_error`. An uncaught pipeline or finalization Throwable maps to `fatal_error` and fixed observability status `unknown`, even if an intermediate response existed. `HttpKernel` supplies one bounded method, status, outcome, and non-negative duration to all request-level recorders; metrics and logging must not infer them from a middleware-local result.
+Only a successfully finalized response provides the canonical final HTTP status. A final status below `400` maps to `success`; `400..599` maps to `handled_error`. An uncaught request identity preparation, pipeline, or finalization Throwable maps to `fatal_error` and fixed observability status `unknown`, even if an intermediate response existed. `HttpKernel` supplies one bounded method, status, outcome, and non-negative duration to all request-level recorders; metrics and logging must not infer them from a middleware-local result.
 
 ### Decision 5: Keep timing and tracing handles request-local
 
-`HttpKernel::handle()` alone retains the Foundation `Stopwatch` start token, any `SpanInterface` returned from `HttpRequestSpanRecorder::start()`, the current response, canonical completion fields, and the primary Throwable. These values are never stored in shared service properties, mutable singleton registries, or process-global context. A valid Stopwatch token is stopped at most once; unavailable timing yields a fixed safe zero duration. A successfully started span is ended once after final outcome attributes are set, including failure paths.
+`HttpKernel::handle()` alone retains the Foundation `Stopwatch` start token, any `SpanInterface` returned from `HttpRequestSpanRecorder::start()`, the initially selected request identifier used for final-response identity verification, the current response, canonical completion fields, and the primary Throwable. These values are never stored in shared service properties, mutable singleton registries, or process-global context. A valid Stopwatch token is stopped at most once; unavailable timing yields a fixed safe zero duration. A successfully started span is ended once after final outcome attributes are set, including failure paths.
 
 Inbound `TraceContextMiddleware` reuses `ContextPropagationInterface` to extract and validate W3C traceparent context on the PSR-15 request side. The current `TracerPortInterface` cannot accept an explicit parent context when starting a span, so extraction does **not** establish automatic parent-child linkage for `http.request`. Any future parent-context support requires a deliberate tracing-contract decision, not an HTTP-local propagation store, second tracer, or changed Kernel UoW lifecycle.
 
@@ -156,7 +187,11 @@ This owner-local guard avoids a generic `RuntimeEntrypointGuard`, a new `Runtime
 
 HTTP-owned bad-body, invalid-JSON, and trusted-host exceptions are contributed to the existing canonical error-mapper tag through the contracts-level `ExceptionMapperInterface`. That does not make `platform/http` a second error-normalization owner. A selected outermost Problem Details middleware remains responsible for converting captured Throwables into safe HTTP responses through the canonical handler and renderer; unhandled failures retain their original Throwable precedence through `HttpKernel` completion.
 
-`HttpKernel`, `Pipeline`, the stack builder, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
+`HttpKernel`, `Pipeline`, the stack builder, `RequestIdPolicy`, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
+
+`RequestIdPolicy` does not participate in middleware discovery, lifecycle hook registration, or reset discovery. It does not establish authenticated identity, authorization information, or upstream trust.
+
+The selected request identifier must remain unchanged throughout the HTTP UnitOfWork on conforming execution paths and is cleared by successful canonical Foundation reset. Neither selected request identifiers nor rejected upstream values are added to HTTP completion logs, metrics, or span attributes.
 
 The dependency boundary prohibits direct production imports of optional concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, and `platform/metrics` implementation classes. Optional integration uses existing contracts, tag contributions from selected modules, and Foundation noop fallbacks. Compile-time import rules remain governed by `docs/architecture/DEPENDENCIES.md`.
 
@@ -166,6 +201,8 @@ The dependency boundary prohibits direct production imports of optional concrete
 
 - One deterministic PSR-15 chain preserves ordinary short-circuit response decorators and keeps error conversion outside their response-unwind path.
 - `HttpKernel` observes only finalized response state, including selected Problem Details responses, without introducing another observer pipeline.
+- When enabled, HTTP request identity is available before middleware execution and remains independent of middleware ordering, Kernel correlation identity, and correlation response-header enablement.
+- Exact invocation-local identity verification prevents substituted context identifiers from being emitted as finalized request-id response headers.
 - Distinct stateless completion services preserve single-purpose DI boundaries, independent failure isolation, and Kernel-owned UoW/reset semantics.
 - Explicit PSR-17 selection supports one shared factory or two distinct factories while avoiding a mandatory vendor implementation.
 - Canonical declarative definitions and later-binding-wins semantics remain identical in source and compiled containers.
@@ -197,6 +234,12 @@ Rejected because post middleware would be skipped on ordinary early returns and 
 ### Let middleware or individual recorders own UnitOfWork and reset hooks
 
 Rejected because Kernel already provides `beginUnitOfWork()` / `afterUnitOfWork()` and reset discipline. A duplicate lifecycle would risk stale context, double completion, and changed failure precedence.
+
+### Prepare request identity through PSR-15 middleware
+
+Rejected because request identity must be established before every entered middleware, including the outermost error boundary and response decorators. Middleware placement and short-circuit behavior must not control identity availability.
+
+The existing `HttpKernel` lifecycle and the shared `RequestIdPolicy` provide the preparation boundary without introducing another middleware slot, priority, tag registration, or request lifecycle.
 
 ### Require one concrete PSR-7/17 package or infer the best installed implementation
 
@@ -232,6 +275,10 @@ Verification must cover the exact outer-to-inner pipeline order, priority-`1000`
 
 Source and compiled container tests must compare service definitions, effective aliases, factory sharing/distinction, final provider overrides, middleware tag metadata and ordering, terminal handling, and HTTP lifecycle outcomes. Factory readiness tests must distinguish declarative selection from missing autoloadable classes, missing external ports, incompatible implementations, and overwritten built-in identities; they must confirm failure before UnitOfWork, `HttpKernel`, terminal construction, and pipeline execution. Completion tests must cover safe final-response metrics/logging/span handling, independent optional failures, primary Throwable precedence, and the fixed routing-free `route_template` value.
 
+Request identity verification must cover disabled policy behavior, trusted upstream acceptance, canonical Foundation ULID generation, pre-pipeline context availability, exact final-response identity verification, independent identity-header enablement, deterministic fatal completion, shared declarative policy wiring, and canonical UnitOfWork reset isolation.
+
+Sequential HTTP isolation verification follows the requirements defined by `docs/ssot/http-middleware-wiring.md`.
+
 ## Related SSoT
 
 - [HTTP Middleware Wiring SSoT](../ssot/http-middleware-wiring.md)
@@ -242,6 +289,10 @@ Source and compiled container tests must compare service definitions, effective 
 - [Config and env SSoT](../ssot/config-and-env.md)
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
 - [UoW and Reset Contracts SSoT](../ssot/uow-and-reset-contracts.md)
+- [Context Keys SSoT](../ssot/context-keys.md)
+- [Context Store SSoT](../ssot/context-store.md)
+- [Context Lifecycle SSoT](../ssot/context-lifecycle.md)
+- [Time, IDs, and Duration SSoT](../ssot/time-ids-and-duration.md)
 - [UnitOfWork Outcome Policy SSoT](../ssot/uow-outcome-policy.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](../ssot/observability.md)
 - [Logging Policy SSoT](../ssot/logging-policy.md)
@@ -251,6 +302,7 @@ Source and compiled container tests must compare service definitions, effective 
 ## Related ADRs
 
 - [ADR-0014: DI container, tags, deterministic ordering, and reset orchestration](./ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md)
+- [ADR-0015: ContextBag, ContextStore, and CorrelationId](./ADR-0015-context-bag-context-store-correlation-id.md)
 - [ADR-0020: Kernel runtime UnitOfWork SPI](./ADR-0020-kernel-runtime-uow-spi.md)
 - [ADR-0022: UnitOfWork result and outcome policy](./ADR-0022-unit-of-work-result-outcome-policy.md)
 - [ADR-0027: Runtime driver resolution and compatibility matrix](./ADR-0027-runtime-driver-resolution.md)

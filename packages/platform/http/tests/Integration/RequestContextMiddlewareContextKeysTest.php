@@ -26,6 +26,7 @@ use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
@@ -36,6 +37,7 @@ use Coretsia\Platform\Http\Middleware\RequestContextMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -200,14 +202,24 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
                 return '01ARZ3NDEKTSV4RRFFQ69G5FAV';
             }
         };
+        $requestIds = new RequestIdPolicy(
+            $context,
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
             new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal),
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
         self::assertSame($response, $kernel->handle($first));
         self::assertSame($response, $kernel->handle($second));
@@ -299,14 +311,24 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
                 return '01ARZ3NDEKTSV4RRFFQ69G5FAV';
             }
         };
+        $requestIds = new RequestIdPolicy(
+            $context,
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
             new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal),
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder($meter, true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder($tracer, true),
+            $requestIds,
         );
 
         self::assertSame($response, $kernel->handle($request));

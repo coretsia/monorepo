@@ -1125,7 +1125,10 @@ function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_con
         return coretsia_cross_cutting_contract_gate_is_http_provider_context_store_di_reference($tokens, $tokenIndex);
     }
 
-    if (\str_ends_with($path, '/packages/platform/http/src/Middleware/RequestContextMiddleware.php')) {
+    if (
+        \str_ends_with($path, '/packages/platform/http/src/Middleware/RequestContextMiddleware.php')
+        || \str_ends_with($path, '/packages/platform/http/src/RequestId/RequestIdPolicy.php')
+    ) {
         return coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency($tokens, $tokenIndex);
     }
 

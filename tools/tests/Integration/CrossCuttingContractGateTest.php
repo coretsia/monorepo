@@ -220,6 +220,19 @@ final class RequestContextMiddleware
 PHP,
         );
 
+        $this->writeHttpContextFixture(
+            $sandbox,
+            'RequestId/RequestIdPolicy.php',
+            <<<'PHP'
+final readonly class RequestIdPolicy
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
+        );
+
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
 
         self::assertSame(0, $code, $output);
@@ -319,6 +332,101 @@ PHP,
             'Middleware/OtherMiddleware.php',
             <<<'PHP'
 final class OtherMiddleware
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
+        );
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('forbidden-context-store-usage', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
+    }
+
+    public function testRequestIdPolicyRejectsNonCanonicalConcreteContextStoreUsage(): void
+    {
+        foreach (
+            [
+                <<<'PHP'
+final readonly class RequestIdPolicy
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+
+    public function create(): object
+    {
+        return new ContextStore();
+    }
+}
+PHP,
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    private ContextStore $context;
+}
+PHP,
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    public function __construct(ContextStore $context)
+    {
+    }
+}
+PHP,
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    public function __construct(private ContextStore $store)
+    {
+    }
+}
+PHP,
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    public function __construct(public ContextStore $context)
+    {
+    }
+}
+PHP,
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    public function __construct(private ?ContextStore $context = null)
+    {
+    }
+}
+PHP,
+            ] as $classSource
+        ) {
+            $sandbox = $this->createCrossCuttingGateSandbox();
+
+            $this->writeFoundationContextSymbols($sandbox);
+            $this->writeHttpContextFixture($sandbox, 'RequestId/RequestIdPolicy.php', $classSource);
+
+            [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+            self::assertNotSame(0, $code, $output);
+            self::assertStringContainsString('forbidden-context-store-usage', $output);
+            $this->assertSafeGateOutput($sandbox, $output);
+        }
+    }
+
+    public function testOtherHttpRequestIdClassCannotDependOnConcreteContextStore(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeHttpContextFixture(
+            $sandbox,
+            'RequestId/OtherRequestIdPolicy.php',
+            <<<'PHP'
+final readonly class OtherRequestIdPolicy
 {
     public function __construct(private ContextStore $context)
     {
@@ -737,9 +845,11 @@ PHP,
 
     private function writeHttpContextFixture(string $sandbox, string $relativePath, string $classSource): void
     {
-        $namespace = \str_starts_with($relativePath, 'Provider/')
-            ? 'Coretsia\\Platform\\Http\\Provider'
-            : 'Coretsia\\Platform\\Http\\Middleware';
+        $namespace = match (true) {
+            \str_starts_with($relativePath, 'Provider/') => 'Coretsia\\Platform\\Http\\Provider',
+            \str_starts_with($relativePath, 'RequestId/') => 'Coretsia\\Platform\\Http\\RequestId',
+            default => 'Coretsia\\Platform\\Http\\Middleware',
+        };
 
         $this->writeBytesExact(
             $sandbox . '/packages/platform/http/src/' . $relativePath,

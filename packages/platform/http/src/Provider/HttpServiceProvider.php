@@ -31,6 +31,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterfac
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
@@ -51,6 +52,7 @@ use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
@@ -92,6 +94,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
         }
 
         $correlation = HttpServiceFactory::section($http, 'correlation');
+        $requestId = HttpServiceFactory::section($http, 'request_id');
         $proxy = HttpServiceFactory::section($http, 'proxy');
         $hosts = HttpServiceFactory::section($http, 'hosts');
         $request = HttpServiceFactory::section($http, 'request');
@@ -103,6 +106,10 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
 
         $correlationEnabled = HttpServiceFactory::boolean($correlation, 'enabled');
         $correlationHeader = HttpServiceFactory::string($correlation, 'header_name');
+        $requestIdEnabled = HttpServiceFactory::boolean($requestId, 'enabled');
+        $requestIdHeader = HttpServiceFactory::string($requestId, 'header_name');
+        $requestIdAcceptFromUpstream = HttpServiceFactory::boolean($requestId, 'accept_from_upstream');
+        $requestIdMaxLength = HttpServiceFactory::integer($requestId, 'max_length');
         $tracingEnabled = HttpServiceFactory::boolean(
             HttpServiceFactory::section($http, 'tracing'),
             'enabled',
@@ -132,6 +139,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(RuntimeDriverResolver::class)
             ->requireService(Stopwatch::class)
             ->requireService(ContextStore::class)
+            ->requireService(UlidGenerator::class)
             ->requireService(CorrelationIdProviderInterface::class)
             ->requireService(ContextPropagationInterface::class)
             ->requireService(TracerPortInterface::class)
@@ -263,9 +271,26 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 meta: [],
             )
             ->classService(
+                RequestIdPolicy::class,
+                RequestIdPolicy::class,
+                [
+                    self::ref(ContextStore::class),
+                    self::ref(UlidGenerator::class),
+                    $requestIdEnabled,
+                    $requestIdHeader,
+                    $requestIdAcceptFromUpstream,
+                    $requestIdMaxLength,
+                ],
+            )
+            ->classService(
                 HttpResponseFinalizer::class,
                 HttpResponseFinalizer::class,
-                [self::ref(CorrelationIdProviderInterface::class), $correlationEnabled, $correlationHeader],
+                [
+                    self::ref(CorrelationIdProviderInterface::class),
+                    $correlationEnabled,
+                    $correlationHeader,
+                    self::ref(RequestIdPolicy::class),
+                ],
             )
             ->classService(
                 HttpRequestMetricsRecorder::class,
@@ -304,6 +329,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                     self::ref(HttpRequestMetricsRecorder::class),
                     self::ref(HttpAccessLogWriter::class),
                     self::ref(HttpRequestSpanRecorder::class),
+                    self::ref(RequestIdPolicy::class),
                 ],
             )
             ->alias(HttpKernelInterface::class, HttpKernel::class);

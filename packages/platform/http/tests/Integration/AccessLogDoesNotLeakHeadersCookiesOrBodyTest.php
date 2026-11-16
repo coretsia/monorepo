@@ -23,6 +23,8 @@ use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
 use Coretsia\Foundation\Time\Stopwatch;
@@ -34,6 +36,7 @@ use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
@@ -330,14 +333,24 @@ final class AccessLogDoesNotLeakHeadersCookiesOrBodyTest extends TestCase
         LoggerInterface $logger,
         CorrelationIdProviderInterface $correlation,
     ): HttpKernel {
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
     }
 }

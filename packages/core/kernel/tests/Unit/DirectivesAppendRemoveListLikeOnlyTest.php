@@ -117,7 +117,7 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
                 'middleware' => [
                     'app' => [
                         '@prepend' => [
-                            'RequestIdMiddleware',
+                            'AuditMiddleware',
                         ],
                     ],
                 ],
@@ -128,7 +128,7 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
             [
                 'middleware' => [
                     'app' => [
-                        'RequestIdMiddleware',
+                        'AuditMiddleware',
                         'AuthMiddleware',
                         'ControllerMiddleware',
                     ],
@@ -146,7 +146,7 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
         $base = [
             'middleware' => [
                 'app' => [
-                    'RequestIdMiddleware',
+                    'AuditMiddleware',
                     'AuthMiddleware',
                     'DebugToolbarMiddleware',
                     'ControllerMiddleware',
@@ -171,7 +171,7 @@ final class DirectivesAppendRemoveListLikeOnlyTest extends TestCase
             [
                 'middleware' => [
                     'app' => [
-                        'RequestIdMiddleware',
+                        'AuditMiddleware',
                         'AuthMiddleware',
                         'ControllerMiddleware',
                     ],

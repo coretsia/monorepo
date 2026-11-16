@@ -82,7 +82,9 @@ Coretsia\Foundation\Serialization\JsonLikeNormalizer
 
 ## Goal
 
-Runtime layers must read context through one stable format-neutral access port, while Foundation owns one mutable runtime context store that is reset between units of work.
+General runtime context readers MUST read context through one stable format-neutral access port, while Foundation owns one mutable runtime context store that is reset between units of work.
+
+Explicitly authorized owner-local read-back is limited to the narrow exception defined by the single store rule.
 
 The Foundation context model provides:
 
@@ -177,11 +179,35 @@ Coretsia\Foundation\Context\ContextStore
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
 
-Runtime packages that read context MUST depend on:
+General runtime context readers MUST depend on:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
+
+Concrete `ContextStore` dependencies MUST remain restricted to explicitly authorized owner boundaries.
+
+The HTTP request identity owner:
+
+```text
+Coretsia\Platform\Http\RequestId\RequestIdPolicy
+```
+
+MAY read back its own `ContextKeys::REQUEST_ID` value through its existing authorized concrete `ContextStore` dependency solely for final-response identity verification.
+
+This owner-local read-back MUST use the same Foundation-owned `ContextStore` instance bound to `ContextAccessorInterface`.
+
+This exception MUST NOT grant permission to:
+
+- read other context keys through the concrete store;
+- read complete context snapshots;
+- perform arbitrary context exports;
+- modify or remove the selected request identity during verification;
+- create additional concrete context store owners.
+
+All other general runtime context readers MUST continue to depend on `ContextAccessorInterface`.
+
+The exception MUST NOT introduce another `ContextAccessorInterface` alias, context reader service, or storage abstraction.
 
 Runtime packages MUST NOT create independent context stores for the same runtime boundary.
 
@@ -223,7 +249,7 @@ A `ContextBag` snapshot MUST NOT observe later mutations to `ContextStore`.
 
 A `ContextBag` MUST provide read-only access.
 
-Recommended public shape:
+The canonical public read API is:
 
 ```text
 has(string $key): bool
@@ -231,7 +257,7 @@ get(string $key): mixed
 all(): array<string,mixed>
 ```
 
-If `ContextBag` implements `ContextAccessorInterface`, it MUST implement `get()` exactly as:
+`ContextBag` MUST implement `ContextAccessorInterface` and MUST implement `get()` exactly as:
 
 ```text
 get(string $key): mixed
@@ -253,7 +279,9 @@ No runtime mode may bypass `ContextStorePolicy`.
 
 A validation failure rejects the attempted write. It MUST NOT degrade to storing unsafe, unknown, raw, or non-deterministic context data.
 
-Optional writers MAY gracefully degrade only by omitting optional context writes.
+Optional writers MAY omit context writes only when the owning context policy permits omission.
+
+A context write required by an enabled owner policy MUST NOT be silently omitted. Failure MUST follow the owning policy's canonical failure semantics.
 
 `ContextStorePolicy` owns context-specific write policy:
 
@@ -538,7 +566,7 @@ docs/ssot/context-keys.md
 Coretsia\Contracts\Context\ContextKeys
 ```
 
-The active baseline keys are:
+The active keys, including optional HTTP-owned context keys, are:
 
 ```text
 correlation_id
@@ -549,12 +577,14 @@ scheme
 host
 path
 user_agent
+request_id
 ```
+
+`request_id` is actively implemented as an optional HTTP-owned context key.
 
 The reserved future keys are:
 
 ```text
-request_id
 path_template
 http_response_format
 actor_id
@@ -996,7 +1026,7 @@ Any Foundation or runtime code needing a generated ULID MUST use `UlidGenerator`
 
 ## CorrelationIdProvider
 
-`CorrelationIdProvider` reads the current correlation id from context.
+`CorrelationIdProvider` reads the current correlation id through `ContextAccessorInterface`.
 
 It MUST implement:
 
@@ -1010,11 +1040,11 @@ It MUST return:
 non-empty-string|null
 ```
 
-It SHOULD return `null` when no valid current correlation id is available.
+It MUST return `null` when no valid current correlation id is available.
 
 It MUST NOT generate a new correlation id as a side effect of reading.
 
-Generation belongs to the unit-of-work owner, such as the later Kernel runtime integration.
+Correlation id generation belongs to Kernel runtime at begin-UoW.
 
 It MUST NOT define HTTP header extraction, HTTP header injection, or propagation policy.
 
@@ -1035,7 +1065,7 @@ scheduler tick
 custom runtime boundary
 ```
 
-At begin-UoW, a later Kernel runtime integration MUST set base keys:
+At begin-UoW, Kernel runtime MUST set base keys:
 
 ```text
 correlation_id
@@ -1047,13 +1077,17 @@ For the canonical Kernel runtime, reset responsibility starts only after those b
 
 If Kernel runtime fails before writing those keys, `ContextStore::reset()` MUST NOT be triggered by that failed begin attempt.
 
-At or after the end of a unit of work, reset orchestration MUST clear ContextStore before the next unit of work can observe stale context.
+For each UnitOfWork that crosses the reset-responsibility boundary, Kernel runtime MUST trigger Foundation reset orchestration exactly once.
 
-The acceptance scenario is:
+Successful canonical reset MUST clear all ContextStore values. A reset attempt or failed reset execution MUST NOT be treated as proof of successful context cleanup.
+
+Reset eligibility, runtime-boundary release, and failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
+
+The acceptance scenario with successful canonical reset is:
 
 1. one unit of work starts;
 2. owner code writes safe context keys;
-3. runtime packages read context through `ContextAccessorInterface`;
+3. general runtime context readers read context through `ContextAccessorInterface`; explicitly authorized owner-local read-back follows the single store rule;
 4. the unit of work finishes;
 5. Foundation reset orchestration calls `ContextStore::reset()`;
 6. the next unit of work starts with an empty store except new base keys set by Kernel.
@@ -1145,9 +1179,9 @@ Runtime reset execution MUST discover ContextStore through the effective reset d
 
 ## Configuration policy
 
-This epic introduces no config root and no config keys.
+Foundation context storage introduces no config root and no config keys.
 
-The following config keys MUST NOT be introduced by this epic:
+The following config keys MUST NOT be introduced:
 
 ```text
 foundation.context.*
@@ -1194,25 +1228,54 @@ Graceful degradation MUST NOT mean unsafe context storage.
 Graceful degradation MAY mean:
 
 ```text
-optional writer omits optional context write
-optional reader treats absent context as absent
+optional writer omits a context write when the owner policy permits omission
+optional reader treats absent context as absent when the owner policy permits absence
 ```
+
+A required context write or owner-local verification MUST NOT be silently skipped when the owning policy requires successful completion.
+
+The enabled HTTP request identity policy follows the owner-specific preparation and final-response verification requirements defined by `docs/ssot/http-middleware-wiring.md`.
 
 ## Artifact policy
 
-This epic introduces no artifacts.
+Foundation context storage introduces no artifacts.
 
 ContextStore MUST NOT write generated artifacts.
 
 ContextStore MUST NOT serialize raw context into generated artifacts.
 
-A future owner MAY introduce safe artifacts only through its own artifact SSoT and owner epic.
+A future owner MAY introduce safe artifacts only under its own normative artifact SSoT.
 
 ## HTTP boundary
 
-HTTP writing is not implemented by this epic.
+HTTP context writing is implemented by explicitly authorized HTTP runtime owners:
 
-HTTP layer packages MAY later write only safe keys declared in `ContextKeys` and accepted by `ContextStorePolicy`.
+```text
+Coretsia\Platform\Http\Middleware\RequestContextMiddleware
+Coretsia\Platform\Http\RequestId\RequestIdPolicy
+```
+
+`RequestContextMiddleware` owns middleware-based HTTP request context enrichment.
+
+`RequestIdPolicy` owns optional HTTP request identity preparation and is the only authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`.
+
+Both writers MUST use the existing shared Foundation-owned `ContextStore` through their explicitly authorized concrete constructor dependencies.
+
+`RequestIdPolicy` MAY perform only the narrowly scoped owner-local read-back permitted by the single store rule.
+
+No other HTTP runtime component is granted concrete `ContextStore` access by this policy.
+
+Reserved future context keys do not imply that their responsible writers are already implemented or authorized to access concrete `ContextStore`.
+
+HTTP writers MAY write only safe keys declared in `ContextKeys`, accepted by `ContextStorePolicy`, and assigned to their explicit owner boundary.
+
+Foundation context storage MUST NOT redefine HTTP-specific request-id validation, upstream acceptance, identifier generation, or response-header policy.
+
+The owner-specific HTTP request-id policy is governed by:
+
+```text
+docs/ssot/http-middleware-wiring.md
+```
 
 HTTP writers MUST NOT write:
 
@@ -1289,11 +1352,11 @@ Metric labels MUST remain within the canonical allowlist from `docs/ssot/observa
 
 Foundation context exceptions are Foundation runtime exceptions.
 
-Higher layers may map or adapt them later.
+Higher layers MAY map or adapt them according to their owner-specific error handling policy.
 
-This epic MUST NOT introduce platform error mappers.
+Foundation context storage MUST NOT implement platform error mappers.
 
-This epic MUST NOT duplicate mapping behavior owned by future `platform/errors` or other platform packages.
+It MUST NOT duplicate mapping behavior owned by `platform/errors` or other platform packages.
 
 `ContextStorePolicy` maps baseline json-like value failures from:
 
@@ -1504,7 +1567,7 @@ When a long-running runtime processes two units of work in the same process:
 1. the first unit of work begins;
 2. Kernel owner code sets `correlation_id`, `uow_id`, and `uow_type`;
 3. optional runtime owners write only declared safe context keys;
-4. readers access context through `ContextAccessorInterface`;
+4. general runtime context readers access context through `ContextAccessorInterface`; explicitly authorized owner-local read-back follows the single store rule;
 5. the first unit of work finishes;
 6. reset orchestration discovers `ContextStore` through the effective Foundation reset tag;
 7. `ContextStore::reset()` clears all context;
@@ -1550,6 +1613,8 @@ This SSoT does not define:
 - [Config and env SSoT](./config-and-env.md)
 - [Json-like Runtime Values SSoT](./json-like-runtime-values.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Context Lifecycle SSoT](./context-lifecycle.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)

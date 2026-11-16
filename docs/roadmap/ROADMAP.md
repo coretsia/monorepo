@@ -142,7 +142,7 @@
 ### 3.40.0 Platform problem-details (RFC9457 + RFC7807 compatibility) (MUST) [IMPL]
 ### 3.50.0 Platform HTTP runtime (pipeline + middleware + UoW + wiring model) (MUST) [IMPL]
 ### 3.55.0 HTTP long-running isolation regression (MUST) [IMPL]
-### 3.60.0 RequestId vs CorrelationId policy (SHOULD) [IMPL]
+### 3.60.0 HTTP request-id policy (SHOULD) [IMPL]
 ### 3.70.0 Response hardening (security headers + HTTPS redirect) (SHOULD) [IMPL]
 ### 3.80.0 Maintenance mode (real toggle, MUST) (MUST) [IMPL]
 ### 3.90.0 SystemRouteTable reserved map (SSoT) (MUST) [DOC]

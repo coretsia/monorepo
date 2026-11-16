@@ -45,6 +45,7 @@ use Coretsia\Platform\Http\Middleware\RequestContextMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -83,12 +84,16 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $initial = $this->createMock(ResponseInterface::class);
         $final = $this->createStub(ResponseInterface::class);
         $initial->expects(self::once())->method('withHeader')
-            ->with('X-Correlation-Id', self::CORRELATION)
-            ->willReturnCallback(static function () use (&$events, $final): ResponseInterface {
-                $events[] = 'finalize';
+            ->willReturnCallback(
+                static function (string $name, mixed $value) use (&$events, $final): ResponseInterface {
+                    self::assertTrue($name === 'X-Correlation-Id', 'correlation-header-name-mismatch');
+                    self::assertTrue($value === self::CORRELATION, 'correlation-header-value-mismatch');
 
-                return $final;
-            });
+                    $events[] = 'finalize';
+
+                    return $final;
+                },
+            );
         $final->method('getStatusCode')->willReturn($status);
         $terminal = $this->createMock(RequestHandlerInterface::class);
         $terminal->expects(self::once())->method('handle')->with($request)
@@ -372,7 +377,15 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             attributesMaxKeys: 200,
         );
         $response = $this->createMock(ResponseInterface::class);
-        $response->method('withHeader')->with('X-Correlation-Id', self::CORRELATION)->willReturn($response);
+        $response->expects(self::exactly(2))->method('withHeader')
+            ->willReturnCallback(
+                static function (string $name, mixed $value) use ($response): ResponseInterface {
+                    self::assertTrue($name === 'X-Correlation-Id', 'correlation-header-name-mismatch');
+                    self::assertTrue($value === self::CORRELATION, 'correlation-header-value-mismatch');
+
+                    return $response;
+                },
+            );
         $response->method('getStatusCode')->willReturn(200);
         $terminal = $this->createMock(RequestHandlerInterface::class);
         $terminal->expects(self::exactly(2))->method('handle')->willReturn($response);
@@ -400,14 +413,23 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         );
         $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getMethod')->willReturn('GET');
+        $requestIds = new RequestIdPolicy(
+            $context,
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
             new Pipeline([$middleware], $terminal),
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
 
         self::assertSame($response, $kernel->handle($request));
@@ -422,9 +444,14 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         self::assertSame(2, $probe->calls);
     }
 
-    public function testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes(): void
-    {
+    #[DataProvider('longRunningRequestIdConfigurations')]
+    public function testLongRunningSequentialRequestsPreserveIsolationAcrossOutcomes(
+        bool $requestIdEnabled,
+    ): void {
         $context = new ContextStore();
+
+        $requestIndex = 0;
+        $requestId = static fn (int $index): string => \sprintf('01ARZ3NDEKTSV4RT%010d', $index);
         $probe = new class() implements ResetInterface {
             public int $calls = 0;
             public ?int $requestIndex = null;
@@ -436,13 +463,26 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             }
         };
 
-        $after = new class(static fn (): ?int => $probe->requestIndex) implements AfterUowHookInterface {
+        $after = new class(
+            static fn (): ?int => $probe->requestIndex,
+            static function () use ($context, $requestIdEnabled, $requestId, &$requestIndex): bool {
+                if (!$requestIdEnabled) {
+                    return !$context->has(ContextKeys::REQUEST_ID);
+                }
+
+                return $context->has(ContextKeys::REQUEST_ID)
+                    && $context->get(ContextKeys::REQUEST_ID) === $requestId($requestIndex);
+            },
+        ) implements AfterUowHookInterface {
             public int $calls = 0;
             public ?string $outcome = null;
             public ?int $observedRequestIndex = null;
+            public bool $observedRequestIdMatches = false;
 
-            public function __construct(private \Closure $requestIndex)
-            {
+            public function __construct(
+                private \Closure $requestIndex,
+                private \Closure $requestIdentityMatches,
+            ) {
             }
 
             public function afterUow(array $context, array $result): void
@@ -450,6 +490,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                 ++$this->calls;
                 $this->outcome = \is_string($result['outcome'] ?? null) ? $result['outcome'] : null;
                 $this->observedRequestIndex = ($this->requestIndex)();
+                $this->observedRequestIdMatches = ($this->requestIdentityMatches)();
             }
         };
 
@@ -475,7 +516,6 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $tags->add($resetTag, 'App\\LongRunningResetProbe', 100);
         $tags->add($resetTag, ContextStore::class);
 
-        $requestIndex = 0;
         $uowId = static fn (int $index): string => \sprintf('01ARZ3NDEKTSV4RS%010d', $index);
         $correlationId = static fn (int $index): string => \sprintf('01ARZ3NDEKTSV4RR%010d', $index);
         $ids = $this->createStub(IdGeneratorInterface::class);
@@ -505,6 +545,24 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             attributesMaxKeys: 200,
         );
 
+        $requestIdsGenerator = $this->createMock(IdGeneratorInterface::class);
+        $requestIdsGenerator->expects($requestIdEnabled ? self::exactly(1000) : self::never())
+            ->method('generate')
+            ->willReturnCallback(
+                static function () use (&$requestIndex, $requestId): string {
+                    return $requestId($requestIndex);
+                },
+            );
+
+        $requestIds = new RequestIdPolicy(
+            $context,
+            $requestIdsGenerator,
+            $requestIdEnabled,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         $optionalKeys = [
             ContextKeys::CLIENT_IP,
             ContextKeys::SCHEME,
@@ -518,11 +576,38 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             static function (ServerRequestInterface $request, RequestHandlerInterface $next) use (
                 $context,
                 $optionalKeys,
+                $requestIdEnabled,
+                $requestId,
+                &$requestIndex,
                 &$beforeCalls,
             ): ResponseInterface {
                 foreach ($optionalKeys as $key) {
                     self::assertFalse($context->has($key), 'previous-request-key-present:' . $key);
                 }
+
+                if ($requestIdEnabled) {
+                    self::assertTrue(
+                        $context->has(ContextKeys::REQUEST_ID),
+                        'request-id-missing-before-context-enrichment',
+                    );
+                    self::assertTrue(
+                        $context->get(ContextKeys::REQUEST_ID) === $requestId($requestIndex),
+                        'request-id-mismatch-before-context-enrichment',
+                    );
+
+                    if ($requestIndex > 0) {
+                        self::assertTrue(
+                            $context->get(ContextKeys::REQUEST_ID) !== $requestId($requestIndex - 1),
+                            'previous-request-id-present-before-context-enrichment',
+                        );
+                    }
+                } else {
+                    self::assertFalse(
+                        $context->has(ContextKeys::REQUEST_ID),
+                        'disabled-request-id-present-before-context-enrichment',
+                    );
+                }
+
                 ++$beforeCalls;
 
                 return $next->handle($request);
@@ -539,6 +624,8 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                 $probe,
                 $uowId,
                 $correlationId,
+                $requestIdEnabled,
+                $requestId,
                 &$requestIndex,
                 &$activeRequest,
                 &$activeResponse,
@@ -552,6 +639,17 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                     'correlation-id-mismatch',
                 );
                 self::assertTrue($context->get(ContextKeys::UOW_TYPE) === 'http', 'uow-type-mismatch');
+                if ($requestIdEnabled) {
+                    self::assertTrue(
+                        $context->get(ContextKeys::REQUEST_ID) === $requestId($requestIndex),
+                        'request-id-changed-during-context-enrichment',
+                    );
+                } else {
+                    self::assertFalse(
+                        $context->has(ContextKeys::REQUEST_ID),
+                        'disabled-request-id-present-in-terminal',
+                    );
+                }
                 foreach (
                     [
                         ContextKeys::CLIENT_IP => '192.0.2.8',
@@ -585,14 +683,22 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer(new CorrelationIdProvider($context), true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer(
+                new CorrelationIdProvider($context),
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+            ),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
 
         $finalizations = 0;
         $expectedFinalizations = 0;
+        $requestIdFinalizations = 0;
+        $expectedRequestIdFinalizations = 0;
         $scenarioCounts = [0, 0, 0, 0];
         $previousRequest = null;
         for ($requestIndex = 0; $requestIndex < 1000; ++$requestIndex) {
@@ -617,32 +723,112 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             $activeRequest = $request;
             $previousRequest = $request;
 
-            $response = $this->createStub(ResponseInterface::class);
+            $response = $this->createMock(ResponseInterface::class);
             $response->method('getStatusCode')->willReturn($scenario === 1 ? 503 : 200);
-            $response->method('withHeader')->willReturnCallback(
-                static function (string $name, mixed $value) use (
-                    $response,
-                    $correlationId,
-                    $scenario,
-                    &$requestIndex,
-                    &$finalizations,
-                ): ResponseInterface {
-                    self::assertTrue($name === 'X-Correlation-Id', 'correlation-header-name-mismatch');
-                    self::assertTrue($value === $correlationId($requestIndex), 'correlation-header-value-mismatch');
-                    if ($requestIndex > 0) {
-                        self::assertTrue(
-                            $value !== $correlationId($requestIndex - 1),
-                            'previous-request-correlation-reused',
-                        );
-                    }
-                    ++$finalizations;
-                    if ($scenario === 3) {
-                        throw new \RuntimeException('synthetic-finalization-failure');
-                    }
+            $response->expects(self::never())->method('withAddedHeader');
+            $response->expects(self::never())->method('withoutHeader');
 
-                    return $response;
+            $emittedCorrelationId = null;
+            $emittedRequestId = null;
+
+            $expectedHeaderMutations = $scenario === 2 ? 0 : 1;
+            if ($requestIdEnabled && ($scenario === 0 || $scenario === 1)) {
+                ++$expectedHeaderMutations;
+            }
+
+            $response->expects(self::exactly($expectedHeaderMutations))
+                ->method('withHeader')
+                ->willReturnCallback(
+                    static function (string $name, mixed $value) use (
+                        $response,
+                        $correlationId,
+                        $requestId,
+                        $requestIdEnabled,
+                        $scenario,
+                        &$requestIndex,
+                        &$finalizations,
+                        &$requestIdFinalizations,
+                        &$emittedCorrelationId,
+                        &$emittedRequestId,
+                    ): ResponseInterface {
+                        if ($name === 'X-Correlation-Id') {
+                            self::assertTrue(
+                                $emittedCorrelationId === null,
+                                'duplicate-correlation-header-mutation',
+                            );
+                            self::assertTrue(
+                                $emittedRequestId === null,
+                                'request-id-finalized-before-correlation',
+                            );
+                            self::assertTrue(
+                                $value === $correlationId($requestIndex),
+                                'correlation-header-value-mismatch',
+                            );
+
+                            if ($requestIndex > 0) {
+                                self::assertTrue(
+                                    $value !== $correlationId($requestIndex - 1),
+                                    'previous-request-correlation-reused',
+                                );
+                            }
+
+                            ++$finalizations;
+
+                            if ($scenario === 3) {
+                                throw new \RuntimeException('synthetic-finalization-failure');
+                            }
+
+                            $emittedCorrelationId = $value;
+
+                            return $response;
+                        }
+
+                        self::assertTrue($name === 'X-Request-Id', 'unexpected-identity-header-name');
+                        self::assertTrue($requestIdEnabled, 'disabled-request-id-header-mutation');
+                        self::assertTrue(
+                            $scenario === 0 || $scenario === 1,
+                            'request-id-finalization-after-http-failure',
+                        );
+                        self::assertTrue(
+                            $emittedCorrelationId === $correlationId($requestIndex),
+                            'request-id-finalized-before-successful-correlation',
+                        );
+                        self::assertTrue(
+                            $emittedRequestId === null,
+                            'duplicate-request-id-header-mutation',
+                        );
+                        self::assertTrue(
+                            $value === $requestId($requestIndex),
+                            'request-id-header-value-mismatch',
+                        );
+
+                        if ($requestIndex > 0) {
+                            self::assertTrue(
+                                $value !== $requestId($requestIndex - 1),
+                                'previous-request-id-header-reused',
+                            );
+                        }
+
+                        ++$requestIdFinalizations;
+                        $emittedRequestId = $value;
+
+                        return $response;
+                    },
+                );
+
+            $response->method('getHeaderLine')->willReturnCallback(
+                static function (string $name) use (
+                    &$emittedCorrelationId,
+                    &$emittedRequestId,
+                ): string {
+                    return match ($name) {
+                        'X-Correlation-Id' => $emittedCorrelationId ?? '',
+                        'X-Request-Id' => $emittedRequestId ?? '',
+                        default => '',
+                    };
                 },
             );
+
             $activeResponse = $response;
 
             $caught = null;
@@ -653,19 +839,36 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                 $caught = $exception;
             }
             if ($scenario === 0 || $scenario === 1) {
-                self::assertNull($caught, 'unexpected-http-failure:' . $requestIndex);
+                self::assertTrue($caught === null, 'unexpected-http-failure:' . $requestIndex);
                 self::assertTrue($returned === $response, 'http-response-identity-mismatch');
                 self::assertTrue(
                     $response->getStatusCode() === ($scenario === 0 ? 200 : 503),
                     'http-response-status-mismatch',
                 );
+                self::assertTrue(
+                    $response->getHeaderLine('X-Correlation-Id') === $correlationId($requestIndex),
+                    'finalized-correlation-header-mismatch',
+                );
+                self::assertTrue(
+                    $response->getHeaderLine('X-Request-Id')
+                    === ($requestIdEnabled ? $requestId($requestIndex) : ''),
+                    'finalized-request-id-header-mismatch',
+                );
+
+                if ($requestIdEnabled) {
+                    ++$expectedRequestIdFinalizations;
+                }
             } else {
                 $reason = $scenario === 2 ? 'synthetic-pipeline-failure' : 'synthetic-finalization-failure';
                 self::assertTrue(
                     $caught !== null && $caught::class === \RuntimeException::class && $caught->getMessage() === $reason,
                     'unexpected-http-throwable:' . $requestIndex,
                 );
-                self::assertNull($returned, 'failed-http-returned-response');
+                self::assertTrue($returned === null, 'failed-http-returned-response');
+                self::assertTrue(
+                    $emittedRequestId === null,
+                    'request-id-header-emitted-after-http-failure',
+                );
             }
             if ($scenario !== 2) {
                 ++$expectedFinalizations;
@@ -673,6 +876,11 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             self::assertSame($requestIndex + 1, $beforeCalls, 'http-before-calls-mismatch');
             self::assertSame($requestIndex + 1, $terminalCalls, 'http-terminal-calls-mismatch');
             self::assertSame($expectedFinalizations, $finalizations, 'http-finalizations-mismatch');
+            self::assertSame(
+                $expectedRequestIdFinalizations,
+                $requestIdFinalizations,
+                'http-request-id-finalizations-mismatch',
+            );
             self::assertSame($requestIndex + 1, $after->calls, 'http-after-hook-count-mismatch');
             self::assertTrue(
                 $after->outcome === match ($scenario) {
@@ -686,8 +894,16 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                 $after->observedRequestIndex === $requestIndex,
                 'http-after-before-reset-mismatch:' . $requestIndex,
             );
+            self::assertTrue(
+                $after->observedRequestIdMatches,
+                'http-after-request-id-before-reset-mismatch:' . $requestIndex,
+            );
             self::assertSame($requestIndex + 1, $probe->calls, 'http-reset-count-mismatch');
             self::assertNull($probe->requestIndex, 'http-resettable-state-not-cleared');
+            self::assertFalse(
+                $context->has(ContextKeys::REQUEST_ID),
+                'http-request-id-not-cleared-after-reset',
+            );
             foreach (ContextKeys::all() as $key) {
                 self::assertFalse($context->has($key), 'http-context-not-cleared:' . $key);
             }
@@ -698,7 +914,15 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         self::assertSame(1000, $after->calls);
         self::assertSame(1000, $probe->calls);
         self::assertSame(750, $finalizations);
+        self::assertSame($requestIdEnabled ? 500 : 0, $requestIdFinalizations);
         self::assertSame([250, 250, 250, 250], $scenarioCounts);
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function longRunningRequestIdConfigurations(): iterable
+    {
+        yield 'request-id-disabled' => [false];
+        yield 'request-id-enabled' => [true];
     }
 
     private static function handle(): UnitOfWorkHandle
@@ -723,14 +947,24 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             }
         };
 
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder($meter ?? new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
+            $requestIds,
         );
     }
 }

@@ -20,11 +20,9 @@ status: pre-accepted
 owner: core/foundation
 ```
 
-## Runtime diagnostics hardening follow-up note
+## Runtime diagnostics and correlation id read policy
 
-Epic `1.277.0` hardens Foundation context diagnostics and correlation id reads.
-
-Canonical live context diagnostics policy is now owned by:
+Canonical context diagnostics policy is owned by:
 
 ```text
 docs/ssot/context-store.md
@@ -77,7 +75,7 @@ Context exception messages MUST be constructed only from stable reason tokens an
 
 Rejected raw values, unsafe raw keys, unsafe raw paths, raw map keys, object dumps, stack traces, credentials, tokens, cookies, authorization values, session ids, raw SQL, absolute local paths, and environment-specific bytes MUST NOT appear in context exception messages.
 
-Canonical live correlation id read-side policy is owned by:
+Canonical correlation id read-side policy is owned by:
 
 ```text
 docs/ssot/time-ids-and-duration.md
@@ -93,13 +91,11 @@ Malformed, empty, non-string, lowercase, token-like, cookie-like, SQL-like, URL-
 
 `CorrelationIdProvider` MUST NOT normalize, uppercase, trim, rewrite, remove, replace, store, log, trace, emit, or generate correlation ids as a side effect of reading.
 
-Historical wording in this ADR that allows generic `key` or `path-to-value` diagnostics should now be read as allowing only safe diagnostic segments under the 1.277.0 context diagnostics policy.
-
 ## Context
 
 Coretsia runtimes need one stable way to read unit-of-work-local context across Foundation, Kernel, HTTP, logging, tracing, metrics, and future platform packages.
 
-The contracts layer already defines a format-neutral context read port:
+The contracts layer defines a format-neutral context read port:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
@@ -140,8 +136,6 @@ kernel.stateful
 The runtime needs a single mutable context store that is reset between units of work. Without a single store, package-local context stores would create drift, stale state leaks, and inconsistent reads between logging, tracing, HTTP, and kernel lifecycle code.
 
 The runtime also needs a safe correlation id mechanism. The correlation id must be format-stable, safe to use for correlation, and not coupled to HTTP headers, transport propagation, or platform packages.
-
-This ADR records the decision introduced by epic `1.210.0`.
 
 ## Decision
 
@@ -188,7 +182,7 @@ Keys beginning with `@` MUST be rejected deterministically.
 
 The `@*` namespace remains reserved for config directives and MUST NOT be used by runtime context keys.
 
-The active baseline keys are:
+The active keys, including optional HTTP-owned context keys, are:
 
 ```text
 correlation_id
@@ -199,12 +193,21 @@ scheme
 host
 path
 user_agent
+request_id
+```
+
+`request_id` is an active optional HTTP-owned context key. It represents HTTP request identity independently of the Kernel-owned `correlation_id` and `uow_id`.
+
+Its lifecycle, writer ownership, and safe-value requirements are defined by:
+
+```text
+docs/ssot/context-keys.md
+docs/ssot/http-middleware-wiring.md
 ```
 
 The reserved future keys are:
 
 ```text
-request_id
 path_template
 http_response_format
 actor_id
@@ -248,7 +251,7 @@ A `ContextBag` snapshot MUST NOT observe later mutations to `ContextStore`.
 
 A `ContextBag` MUST provide read-only access.
 
-Recommended public shape:
+The canonical public read API is:
 
 ```text
 has(string $key): bool
@@ -256,7 +259,7 @@ get(string $key): mixed
 all(): array<string,mixed>
 ```
 
-If `ContextBag` implements `ContextAccessorInterface`, it MUST use the same `get(string $key): mixed` signature and MUST NOT add a default parameter.
+`ContextBag` MUST implement `ContextAccessorInterface` using the canonical `get(string $key): mixed` signature without a default parameter.
 
 `ContextBag::all()` MUST return a copy of snapshot data.
 
@@ -284,7 +287,9 @@ The policy is baseline safety infrastructure, not a debug, performance, emergenc
 
 A validation failure rejects the attempted write and MUST NOT degrade into unsafe context storage.
 
-Optional writers MAY gracefully degrade only by omitting optional context writes.
+Optional writers MAY omit context writes only when the owning context policy permits omission.
+
+A context write required by an enabled owner policy MUST NOT be silently omitted. Failure MUST follow the owning policy's canonical failure semantics.
 
 It MUST validate:
 
@@ -397,36 +402,41 @@ Forbidden writes MUST fail deterministically.
 
 Failure messages MUST NOT include raw values.
 
-Failure messages MAY include only stable safe metadata:
+Context exception messages MUST be constructed only from stable reason tokens and conservative safe diagnostic segments:
 
 ```text
-key
-path-to-value
-reason code
-safe type name
+stable reason token
+stable reason token + safe key segment
+stable reason token + safe path-to-value segment
 ```
 
-Recommended Foundation context exceptions are:
+Unsafe diagnostic segments MUST use the canonical placeholders defined by:
+
+```text
+docs/ssot/context-store.md
+```
+
+The canonical Foundation context exceptions are:
 
 ```text
 Coretsia\Foundation\Context\Exception\ContextWriteForbiddenException
 Coretsia\Foundation\Context\Exception\ContextInvalidKeyException
 ```
 
-If introduced, their canonical error codes are:
+Their canonical error codes are:
 
 ```text
 CORETSIA_CONTEXT_WRITE_FORBIDDEN
 CORETSIA_CONTEXT_INVALID_KEY
 ```
 
-Foundation context exceptions are mapped or adapted by higher layers later.
+Higher layers MAY map or adapt Foundation context exceptions according to their owner-specific error handling policy.
 
-This ADR does not introduce platform error mappers.
+Platform error mapping remains outside Foundation context ownership.
 
 ## Decision 7: Correlation id generation uses one canonical ULID source
 
-`Coretsia\Foundation\Id\UlidGenerator` is introduced as the single canonical ULID implementation.
+`Coretsia\Foundation\Id\UlidGenerator` is the single canonical ULID implementation.
 
 No second ULID implementation may be introduced.
 
@@ -454,7 +464,7 @@ Generated correlation ids are entropy-based, but their string format is determin
 Coretsia\Contracts\Observability\CorrelationIdProviderInterface
 ```
 
-It reads the current correlation id from context.
+It reads the current correlation id through `ContextAccessorInterface`.
 
 It returns:
 
@@ -462,7 +472,7 @@ It returns:
 non-empty-string|null
 ```
 
-It SHOULD return `null` when no valid current correlation id is available.
+It MUST return `null` when no valid current correlation id is available.
 
 It MUST NOT generate a correlation id as a side effect of reading.
 
@@ -489,6 +499,22 @@ The following service ids MUST point to the same object instance:
 ```text
 Coretsia\Foundation\Context\ContextStore
 Coretsia\Contracts\Context\ContextAccessorInterface
+```
+
+General runtime context readers MUST depend on `ContextAccessorInterface` rather than concrete `ContextStore`.
+
+`Coretsia\Platform\Http\RequestId\RequestIdPolicy` is an explicitly authorized HTTP context writer.
+
+As a narrowly scoped owner-local read-back exception, it MAY read its own `ContextKeys::REQUEST_ID` value through its existing authorized concrete `ContextStore` dependency solely for final-response identity verification.
+
+This exception MUST NOT grant access to other context keys, complete context snapshots, or arbitrary context exports.
+
+It MUST NOT introduce additional concrete context store owners, independent context stores, context reader services, or accessor bindings.
+
+The canonical concrete context access boundary and owner-local read-back exception are defined by:
+
+```text
+docs/ssot/context-store.md
 ```
 
 Foundation provider wiring MUST register:
@@ -673,7 +699,7 @@ FOUNDATION_CONTEXT_VALIDATION_DISABLED
 
 Absence of optional writers/readers is represented by no writes/no reads.
 
-Graceful degradation is represented by omitting optional context writes, not by accepting unsafe context values.
+Graceful degradation is represented by omitting context writes when the owning context policy permits omission, not by accepting unsafe context values or suppressing failures of required context writes.
 
 ## Security and redaction
 
@@ -742,14 +768,18 @@ uow_id
 uow_type
 ```
 
-At or after the end of a unit of work, Foundation reset orchestration MUST clear ContextStore before the next unit of work can observe stale context.
+Kernel runtime MUST trigger Foundation reset orchestration exactly once for each UnitOfWork that crosses the reset-responsibility boundary.
 
-The accepted lifecycle is:
+Successful canonical reset MUST clear all ContextStore values. Reset eligibility, runtime-boundary release, and failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
+
+A reset attempt or failed reset execution MUST NOT be treated as proof of successful context cleanup.
+
+The accepted lifecycle with successful canonical reset is:
 
 1. unit of work begins;
 2. Kernel owner code sets base keys;
 3. optional owner packages write only declared safe keys;
-4. readers access context through `ContextAccessorInterface`;
+4. general runtime readers access context through `ContextAccessorInterface`; explicitly authorized owner-local read-back follows `docs/ssot/context-store.md`;
 5. unit of work finishes;
 6. reset orchestration discovers `ContextStore` through the effective Foundation reset tag;
 7. `ContextStore::reset()` clears context;
@@ -763,7 +793,8 @@ This ADR does not introduce:
 - config keys;
 - generated artifacts;
 - package-level PHPUnit config;
-- platform HTTP writers;
+- concrete platform HTTP writer implementations;
+- HTTP-specific request-id validation and response-header policy;
 - HTTP header extraction;
 - HTTP header injection;
 - W3C propagation behavior;
@@ -871,6 +902,8 @@ Verification MUST prove:
 - `docs/ssot/context-keys.md`
 - `docs/ssot/config-and-env.md`
 - `docs/ssot/http-middleware-catalog.md`
+- `docs/ssot/http-middleware-wiring.md`
+- `docs/ssot/context-lifecycle.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/tags.md`

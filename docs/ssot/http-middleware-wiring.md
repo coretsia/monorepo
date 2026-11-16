@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Scope
 
-This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, and the boundary between middleware execution and `HttpKernel` final-response completion.
+This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, and the boundary between middleware execution and `HttpKernel` final-response completion.
 
 The implementation boundary is:
 
@@ -32,6 +32,7 @@ packages/platform/http/src/Middleware/Pipeline.php
 packages/platform/http/src/Provider/HttpServiceFactory.php
 packages/platform/http/src/Provider/HttpServiceProvider.php
 packages/platform/http/src/HttpKernel.php
+packages/platform/http/src/RequestId/RequestIdPolicy.php
 packages/platform/http/src/Response/HttpResponseFinalizer.php
 packages/platform/http/src/Observability/HttpRequestMetricsRecorder.php
 packages/platform/http/src/Observability/HttpAccessLogWriter.php
@@ -46,7 +47,11 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 ## Goal
 
-A selected HTTP target MUST execute one deterministic PSR-15 middleware chain, preserve applicable response decorators for ordinary short-circuit responses, and observe the final HTTP result only after the entire chain has returned.
+A selected HTTP target MUST execute one deterministic PSR-15 middleware chain when Kernel UnitOfWork begin and pre-pipeline request preparation succeed.
+
+The runtime MUST preserve applicable response decorators for ordinary short-circuit responses and observe the completed HTTP result only after successful pipeline return and response finalization.
+
+Uncaught failures MUST follow the canonical fatal completion path.
 
 The runtime MUST reuse Foundation tagged-service discovery and declarative DI, Kernel-owned UnitOfWork hooks, and the optional canonical Problem Details boundary without introducing another observer pipeline or request lifecycle.
 
@@ -57,6 +62,9 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - `docs/ssot/di-tags-and-middleware-ordering.md` owns `TagRegistry::all()` ordering and Foundation's first-registration-wins tag deduplication.
 - `docs/ssot/runtime-container-definitions.md` owns declarative container operations, service binding precedence, and source/compiled container construction semantics.
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
+- `docs/ssot/context-keys.md` owns the canonical context key registry and writer ownership. `docs/ssot/context-store.md` owns shared ContextStore access, controlled mutation, safe-write validation, and the narrowly scoped request identity owner-local read-back exception.
+- `docs/ssot/context-lifecycle.md` owns context lifetime and canonical reset boundaries. `docs/ssot/time-ids-and-duration.md` owns Foundation identifier generation and correlation id semantics.
+- This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, and response-header application.
 - `docs/ssot/observability.md` owns canonical metric and span names, allowed labels, and disclosure policy. `docs/ssot/problem-details.md` owns canonical error response adaptation and rendering.
 - `docs/architecture/DEPENDENCIES.md` governs compile-time package dependencies. HTTP wiring MUST NOT import concrete implementations from optional `platform/*` runtime packages.
 
@@ -67,7 +75,10 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - A middleware service MUST participate in at most one effective HTTP slot. Repetition within its own slot follows first-occurrence semantics; participation in different slots is invalid.
 - Tag ordering, middleware instance resolution, PSR-15 traversal, and HTTP request completion have separate owners. None may recreate another owner's registry or lifecycle.
 - The resolved pipeline and HTTP completion services MUST have equivalent construction and execution semantics in source and compiled containers.
-- Per-request requests, responses, Throwables, traversal positions, timing tokens, and span handles MUST remain invocation-local, not shared mutable DI service state.
+- Per-request requests, responses, selected request identity evidence, Throwables, traversal positions, timing tokens, and span handles MUST remain invocation-local, not shared mutable DI service state.
+- HTTP request identity preparation MUST execute after successful Kernel UnitOfWork begin and before the entire PSR-15 chain when enabled.
+- `RequestIdPolicy` MUST operate outside all nine HTTP middleware slots.
+- HTTP request identity MUST remain independent of Kernel-owned correlation and UnitOfWork identity.
 
 ## Canonical nine-slot taxonomy (MUST)
 
@@ -195,27 +206,280 @@ The optional priority-`1000` boundary is governed by explicit module selection, 
 
 `http.middleware.auto.*` flags MUST NOT exist. `http.correlation.enabled`, `http.metrics.enabled`, and `http.access_log.enabled` govern their respective HTTP completion services; their inclusion in the metadata allowlist MUST NOT be interpreted as creating correlation, metrics, or access-log middleware.
 
+`http.request_id.enabled` is not a middleware participation toggle and MUST NOT be included in the HTTP middleware tag metadata allowlist.
+
+Request identity preparation MUST NOT reserve or consume a middleware slot, priority, tag registration, or manual append-list entry.
+
 ## Declarative composition and container parity (MUST)
 
 `HttpServiceProvider` MUST register HTTP-owned services, middleware tags, and the pipeline construction definition through the canonical Foundation declarative DI operations. `HttpMiddlewareStackBuilder` consumes the final `TagRegistry` and validated HTTP configuration; `HttpServiceFactory` constructs `Pipeline` from effective service ids resolved through the final canonical container.
 
 - Source and compiled containers MUST retain equivalent middleware service definitions, tag metadata and priorities, effective ordering, factory bindings, and terminal-handler resolution.
+- `HttpServiceProvider` MUST register one shared `RequestIdPolicy` through canonical declarative DI independently of `http.request_id.enabled`.
+- `HttpKernel` and `HttpResponseFinalizer` MUST consume the same `RequestIdPolicy` instance as a mandatory non-nullable constructor dependency.
+- `RequestIdPolicy` MUST consume the existing shared Foundation `ContextStore` and the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`.
+- Source and compiled containers MUST preserve equivalent effective request-id policy configuration. Within each container, `HttpKernel` and `HttpResponseFinalizer` MUST consume the same shared `RequestIdPolicy` instance, which MUST consume that container's canonical shared `ContextStore` and `UlidGenerator` services.
+- Request-id policy registration and constructor injection MUST remain unconditional. An absent policy dependency, nullable dependency, fallback policy instance, or alternative enablement mechanism MUST NOT be supported.
 - Canonical Foundation service and alias precedence, including later-binding-wins semantics, MUST remain unchanged. HTTP MUST NOT introduce a second definition-conflict policy.
 - The selected target's `http.factory` and effective PSR-17 bindings MUST be validated through the HTTP-owned entrypoint readiness boundary before resolving executable HTTP services. Installed but unselected implementations MUST NOT alter the selected factory or provide an implicit fallback.
 - The selected HTTP target and effective module participation MUST govern optional middleware provider registration. An unselected optional module MUST NOT contribute a middleware merely because its package is installed.
 - Runtime-only closure definitions, filesystem discovery, reflection-based factory selection, alternate containers, observer registries, or another middleware pipeline MUST NOT be introduced.
 
+## HTTP request identity policy (MUST)
+
+### Configuration and activation
+
+The HTTP request identity policy is configured exclusively through the existing `http` config root:
+
+| Config key                             | Type   | Default          | Meaning                                                                    |
+|----------------------------------------|--------|------------------|----------------------------------------------------------------------------|
+| `http.request_id.enabled`              | bool   | `false`          | Enables HTTP request identity preparation and response-header application. |
+| `http.request_id.header_name`          | string | `'X-Request-Id'` | Header name used for upstream acceptance and response-header application.  |
+| `http.request_id.accept_from_upstream` | bool   | `false`          | Permits acceptance of validated identifiers from trusted ingress.          |
+| `http.request_id.max_length`           | int    | `128`            | Maximum accepted identifier byte length; inclusive range `26..128`.        |
+
+The `http.request_id` subtree MUST be a required map containing exactly these four required keys. Additional keys, reserved `@*` directives, and invalid value types MUST be rejected through canonical config validation.
+
+The `enabled` and `accept_from_upstream` values MUST be booleans without coercion. The `header_name` value MUST be a non-empty whitespace-free string. The `max_length` value MUST be an integer without coercion.
+
+Structural configuration validation MUST apply regardless of whether request identity preparation is enabled.
+
+The configured header name MUST be a non-empty ASCII HTTP header token, contain at most 128 bytes, and match the following complete-name grammar case-insensitively:
+
+```text
+\A(?:[A-Za-z0-9]+-)*request-id\z
+```
+
+Unrelated HTTP header names and correlation-id header names MUST NOT be accepted.
+
+`http.request_id.max_length` MUST be an integer within the inclusive range `26..128`.
+
+`RequestIdPolicy` MUST validate semantic constructor settings even when request identity preparation is disabled. Invalid semantic header-name or maximum-length configuration MUST fail during policy construction, before HTTP UnitOfWork execution, with `InvalidArgumentException` and the applicable fixed reason:
+
+```text
+http-request-id-header-invalid
+http-request-id-max-length-invalid
+```
+
+`http.request_id.enabled` is the sole request identity policy activation mechanism. It MUST NOT control service registration, dependency injection, middleware participation, or reset discovery.
+
+Request-id enablement and correlation response-header enablement are independent. Neither policy enables, disables, replaces, or generates the identity owned by the other.
+
+### Ownership and shared dependencies
+
+The HTTP request identity owner is:
+
+```text
+Coretsia\Platform\Http\RequestId\RequestIdPolicy
+```
+
+`RequestIdPolicy` MUST be a shared immutable policy service with no mutable request-local state.
+
+It MUST receive the existing Foundation-owned `ContextStore` through its explicitly authorized concrete promoted constructor dependency. It MUST NOT construct, alias, or register another context store.
+
+`RequestIdPolicy` is the sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`.
+
+Its concrete ContextStore read access MUST be limited to owner-local read-back of `ContextKeys::REQUEST_ID` solely for final-response identity verification, under the exception defined by:
+
+```text
+docs/ssot/context-store.md
+```
+
+All other runtime context consumers remain subject to the canonical `ContextAccessorInterface` dependency policy.
+
+The policy MUST NOT read or modify Kernel-owned `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, or `ContextKeys::UOW_TYPE`.
+
+Production request-id generation MUST use the existing Foundation-owned `UlidGenerator::class` service through `IdGeneratorInterface`. The declarative HTTP dependency MUST explicitly select `UlidGenerator::class`.
+
+Changes to the generic Foundation default id-generator selection MUST NOT change HTTP request-id generation format.
+
+The policy MUST NOT introduce another generator contract, ULID implementation, entropy source, generation fallback, identity provider, or request-local registry.
+
+### Trusted upstream acceptance
+
+Upstream identifier acceptance is disabled by default.
+
+Enabling `http.request_id.accept_from_upstream` requires an explicitly trusted ingress deployment boundary.
+
+The trusted ingress boundary MUST remove arbitrary client-supplied request-id headers or replace them with owner-approved safe opaque identifiers.
+
+Untrusted direct-client ingress MUST keep upstream acceptance disabled.
+
+Header presence, header name, identifier syntax, and identifier format MUST NOT be interpreted as proof of upstream trust or semantic value safety.
+
+The request-id policy MUST NOT perform per-request sender authentication, trusted-proxy detection, authorization, or authenticated identity resolution.
+
+Accepted upstream identifiers are not guaranteed to be globally unique.
+
+### Request identity preparation
+
+For each HTTP invocation that reaches the pre-pipeline identity preparation boundary, `HttpKernel` MUST invoke exactly once:
+
+```text
+RequestIdPolicy::initialize()
+```
+
+The invocation MUST occur after successful Kernel UnitOfWork begin, including eligible before-UoW handling, and before entering the entire PSR-15 pipeline, including any selected outermost error boundary and response decorators.
+
+The policy MUST be invoked regardless of `http.request_id.enabled`.
+
+An earlier uncaught request processing failure after successful Kernel UnitOfWork begin MUST prevent both identity preparation and pipeline execution and follow the canonical fatal completion path.
+
+When disabled, `initialize()` MUST return `null` immediately without reading request headers, accessing ContextStore, or generating an identifier.
+
+When enabled and upstream acceptance is disabled, the policy MUST generate a local identifier without reading the configured request-id request header.
+
+When upstream acceptance is enabled, the policy MUST inspect only the configured case-insensitive PSR-7 request header through `ServerRequestInterface::getHeader()`.
+
+An upstream identifier is accepted only when the effective PSR-7 header values contain exactly one string value that satisfies both:
+
+- byte length within the inclusive range `1..http.request_id.max_length`;
+- complete-value grammar:
+
+```text
+\A[A-Za-z0-9._-]+\z
+```
+
+Validation MUST use ASCII matching without Unicode or case-insensitive matching modifiers.
+
+The single string value MUST be extracted without assuming a specific array index.
+
+The policy MUST NOT use `getHeaderLine()`, concatenate multiple header values, coerce non-string values, trim, normalize, decode, or change the case of the accepted identifier.
+
+The policy validates effective PSR-7 header values. It does not claim access to original wire-level header bytes or pre-PSR-7 normalization state.
+
+Missing, empty, multiple, comma-separated, whitespace-containing, control-character-containing, non-ASCII, non-string, oversized, or otherwise invalid header values MUST NOT be accepted.
+
+Missing or invalid upstream input MUST select one generated replacement. It MUST NOT introduce an HTTP rejection response solely because the supplied request identifier is invalid.
+
+A valid accepted upstream identifier MUST remain unchanged.
+
+Generated identifiers MUST be canonical uppercase 26-character ULIDs matching:
+
+```text
+\A[0-7][0-9A-HJKMNP-TV-Z]{25}\z
+```
+
+Invalid generator output MUST fail with:
+
+```text
+http-request-id-generation-invalid
+```
+
+through `RuntimeException`.
+
+The generator MUST NOT be invoked when a valid upstream identifier is accepted.
+
+When request identity preparation is enabled, the canonical generator MUST be invoked exactly once if upstream acceptance is disabled or if upstream input is missing or invalid.
+
+Generator failures, invalid generator output, and unsuccessful identity selection MUST NOT write `ContextKeys::REQUEST_ID`.
+
+Unexpected PSR-7 header-access failures and Foundation generator or ContextStore failures MUST propagate unchanged through canonical HTTP fatal completion.
+
+After successful enabled identity selection, the policy MUST write the selected identifier exactly once through:
+
+```php
+ContextStore::set(ContextKeys::REQUEST_ID, $requestId)
+```
+
+and return exactly that identifier.
+
+The original PSR-7 request MUST remain unmodified.
+
+`HttpKernel` MUST retain the returned identifier only as invocation-local evidence for final-response identity verification.
+
+The selected identifier MUST remain available through the PSR-15 pipeline, response finalization, and eligible after-UoW lifecycle handling on conforming execution paths.
+
+Subsequent middleware, terminal handlers, and lifecycle hooks MUST NOT modify, replace, or remove the selected identifier.
+
+Test-only removal or replacement of `ContextKeys::REQUEST_ID` is permitted exclusively for deterministic verification of identity-integrity failures. This does not grant additional production context mutation permissions.
+
+### Final-response identity verification
+
+After the entire PSR-15 pipeline returns a response, `HttpKernel` MUST pass the initially selected invocation-local identifier to `HttpResponseFinalizer`.
+
+The finalizer MUST apply the enabled correlation response-header policy before request-id response-header finalization.
+
+When correlation response-header application is disabled or the correlation provider returns `null` or an invalid identifier, correlation finalization MUST leave the response unchanged and MUST NOT skip enabled request-id identity verification or response-header application.
+
+The finalizer MUST obtain the current request identity through `RequestIdPolicy::current()`.
+
+When disabled, `current()` MUST return `null` without accessing ContextStore.
+
+When enabled, `current()` MUST read only `ContextKeys::REQUEST_ID` and apply the same identifier syntax and byte-length validation used for upstream acceptance.
+
+Missing, non-string, empty, oversized, or otherwise invalid current identity MUST fail deterministically.
+
+The current identifier and the initially selected invocation-local identifier MUST match exactly using strict equality.
+
+Syntactically valid replacement values MUST NOT be accepted merely because they satisfy identifier validation.
+
+Missing, invalid, or substituted enabled context identity, a missing invocation-local selected identity when enabled, or an inconsistent selected identity when disabled MUST fail with `RuntimeException` and the fixed reason:
+
+```text
+http-request-id-context-invalid
+```
+
+The finalizer MUST NOT repair context, regenerate identity, normalize the current identifier, or emit a substituted identifier.
+
+When both identifiers are `null`, request-id response-header finalization is not applicable.
+
+When both identifiers are non-null and strictly equal, the finalizer MUST apply the validated configured header name and exact selected identifier through immutable PSR-7 `ResponseInterface::withHeader()`.
+
+This operation MUST replace any existing value for the configured request-id response header, not append another value.
+
+The finalizer MUST consume the response returned by preceding correlation-header finalization and MUST preserve the response status, body, and unrelated headers.
+
+When request identity is disabled, application-owned response headers MUST NOT be added, removed, or modified by the request-id policy.
+
+A request-id header mutation returning an object that does not implement `ResponseInterface` MUST fail with `RuntimeException` and the fixed reason:
+
+```text
+http-request-id-response-invalid
+```
+
+PSR-7 mutation failures MUST propagate unchanged.
+
+A correlation-header finalization failure MUST prevent subsequent request-id response-header mutation.
+
+Both independently enabled identity-header policies apply to successfully returned normal responses, request-phase short-circuit responses, post-decorator short-circuit responses, and handled-error responses returned by the selected outermost error boundary.
+
+### Failure, reset, and disclosure boundaries
+
+Uncaught request identity preparation, pipeline, and response-finalization failures MUST use the existing `HttpKernel` fatal completion path.
+
+Request identity policy failures MUST NOT introduce another error normalization path, exception mapper, Problem Details renderer, rejection outcome, or fallback response.
+
+Policy-authored exception messages MUST contain only fixed safe reason tokens. Rejected identifiers, selected identifiers, raw header contents, and dependency exception messages MUST NOT be exported through request-id diagnostics.
+
+Identity preparation or finalization failure after successful Kernel UnitOfWork begin MUST NOT bypass the existing after-UoW phase or canonical reset responsibility.
+
+Successful Foundation reset MUST clear `ContextKeys::REQUEST_ID` together with all other UnitOfWork-local context values.
+
+HTTP MUST NOT directly execute reset, discover reset tags, retry reset, or invoke `ContextStore::remove()`, `ContextStore::clear()`, or `ContextStore::reset()` for request identity cleanup.
+
+`RequestIdPolicy` MUST NOT implement `MiddlewareInterface` or `ResetInterface`.
+
+It MUST NOT participate in lifecycle hook registration or be registered under any `http.middleware.*`, `kernel.reset`, `kernel.stateful`, or effective Foundation reset discovery tag.
+
+The selected request identifier MUST NOT be added to Kernel UnitOfWork context or result payloads.
+
+The policy MUST NOT consume logger, meter, or tracer ports.
+
+Request identifiers and rejected upstream values MUST NOT be added to existing HTTP completion logs, metrics, span attributes, span names, or error descriptor extensions.
+
 ## HttpKernel lifecycle and final-response completion (MUST)
 
 `HttpKernel` is the sole HTTP request lifecycle and final-response coordinator. It consumes the existing `KernelRuntimeInterface::beginUnitOfWork('http')` and matching `afterUnitOfWork()` hooks with the exact returned handle. Kernel owns hook execution, context lifetime, and reset discipline; HTTP MUST NOT reimplement them.
 
-After a successful UnitOfWork begin, the canonical completion sequence is:
+After a successful UnitOfWork begin, the canonical completion sequence when request preparation, pipeline execution, and response finalization succeed is:
 
 ```text
 KernelRuntimeInterface::beginUnitOfWork('http')
   -> optional request-local Stopwatch start and http.request span start
+  -> RequestIdPolicy::initialize() and invocation-local identity selection
   -> complete PSR-15 Pipeline::handle() (including any selected error boundary)
-  -> HttpResponseFinalizer::finalize() for the returned response
+  -> HttpResponseFinalizer::finalize() with the selected request identifier
   -> derive final status and outcome
   -> optional Stopwatch stop
   -> HttpRequestMetricsRecorder::record()
@@ -225,20 +489,38 @@ KernelRuntimeInterface::beginUnitOfWork('http')
   -> return final ResponseInterface or rethrow primary Throwable
 ```
 
-A response returned by the selected outermost error boundary is a completed pipeline response and MUST pass through the same `HttpResponseFinalizer` and request-level observability sequence as any successful or short-circuit response. The finalizer owns optional application of the configured Kernel correlation response header through immutable PSR-7 `withHeader()`.
+A response returned by the selected outermost error boundary is a completed pipeline response and MUST pass through the same `HttpResponseFinalizer` and request-level observability sequence as any normally returned or short-circuit response.
 
-Only the status of the successfully finalized response determines the HTTP result: statuses below `400` are `success`; finalized `400..599` responses are `handled_error`. An uncaught pipeline or response-finalization Throwable is `fatal_error`, with observability status fixed to `unknown`. A merely intermediate pipeline response MUST NOT be reported as final if response finalization fails.
+The finalizer owns independently enabled application of the Kernel-owned correlation response header and the HTTP-owned request-id response header through immutable PSR-7 `withHeader()`.
+
+Correlation response-header finalization MUST precede request-id identity verification and response-header finalization.
+
+Only the status of the successfully finalized response determines the HTTP result: statuses below `400` are `success`; finalized `400..599` responses are `handled_error`. An uncaught request identity preparation, pipeline, or response-finalization Throwable is `fatal_error`, with observability status fixed to `unknown`. A merely intermediate pipeline response MUST NOT be reported as final if response finalization fails.
 
 `HttpKernel` MUST derive one bounded request method, final status, outcome, and non-negative duration for all enabled request-level recorders. Metrics and access logging MUST consume these final values, not an intermediate response, raw request data, or a middleware-local outcome. Recording failures MUST be isolated so that they do not replace the final response or primary Throwable. `afterUnitOfWork()` MUST still be attempted once after every successful begin, following request-level completion and before Kernel-owned reset.
+
+If request identity preparation fails after successful UnitOfWork begin, the PSR-15 pipeline and response finalization MUST NOT execute.
+
+If the pipeline fails without returning a response, response-header finalization MUST NOT execute.
+
+A successful pipeline return does not guarantee a successfully completed HTTP invocation. An uncaught finalization failure MUST prevent returning an intermediate response.
+
+A subsequent Kernel completion or reset failure MUST prevent returning a finalized response when that failure is authoritative under canonical failure precedence.
+
+HTTP completion observations recorded before Kernel completion MUST NOT be retroactively reclassified or emitted again because reset fails. Kernel completion and reset failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
+
+A failed reset attempt MUST NOT be treated as proof of successful context cleanup.
 
 ## Dedicated HTTP completion services (MUST)
 
 The four HTTP-owned services are distinct, stateless DI services and MUST NOT be registered in any of the nine HTTP middleware slots:
 
-- `HttpResponseFinalizer` owns correlation response-header finalization through the existing `CorrelationIdProviderInterface`.
+- `HttpResponseFinalizer` owns independently enabled correlation and request-id response-header finalization through the existing `CorrelationIdProviderInterface` and mandatory shared `RequestIdPolicy`, including exact invocation-local request identity verification.
 - `HttpRequestMetricsRecorder` owns final-response request metrics through `MeterPortInterface`, using only approved bounded labels.
 - `HttpAccessLogWriter` owns at most one safe access-log operation through the existing PSR-3 `LoggerInterface`, without exporting raw request values.
 - `HttpRequestSpanRecorder` owns the request-local `http.request` span start and finish through `TracerPortInterface` and `SpanInterface`.
+
+`RequestIdPolicy` is a separate HTTP request identity preparation and owner-local verification policy dependency. It is not a fifth completion-observability service or an additional completion stage.
 
 These services MUST NOT become PSR-15 response decorators, create a parallel post-response observer chain, or retain request-local response/span/timer state in shared services. Inbound `TraceContextMiddleware` remains a separate PSR-15 concern and does not create a second tracing lifecycle.
 
@@ -254,7 +536,7 @@ These services MUST NOT become PSR-15 response decorators, create a parallel pos
 
 Final-response metrics, access logs, and span attributes MUST use safe, bounded canonical fields. Raw paths, query strings, headers, cookies, credentials, request or response bodies, arbitrary context, and exception messages MUST NOT be added merely because a middleware or response was observed.
 
-`Pipeline`, `HttpMiddlewareStackBuilder`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
+`Pipeline`, `HttpMiddlewareStackBuilder`, `RequestIdPolicy`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
 
 ## Enforcement rails
 
@@ -262,11 +544,50 @@ Integration verification MUST cover deterministic per-slot ordering and deduplic
 
 Tests MUST distinguish an intermediate middleware result from the completed `HttpKernel` result and MUST NOT treat optional observability failures as permission to change responses or primary Throwables.
 
-Sequential HTTP UnitOfWork regression MUST exercise 1000 deterministic sequential invocations in one PHP process through one shared `HttpKernel`, concrete `KernelRuntime`, `Pipeline`, `ContextStore`, and Foundation `ResetOrchestrator`. Verification MUST use the existing `RequestContextMiddleware` and canonical Foundation reset discovery for registered test-only `ResetInterface` services. It MUST NOT introduce another UnitOfWork lifecycle, context store, reset executor, or HTTP-specific reset wrapper.
+Sequential HTTP UnitOfWork regression MUST exercise an independent sequence of 1000 deterministic sequential invocations for each request-id policy configuration:
 
-The regression MUST cover completed HTTP `200` responses (`success`), completed HTTP `503` responses (`handled_error`), uncaught pipeline Throwables (`fatal_error`), and response-finalization Throwables (`fatal_error`) in a deterministic sequence. Each outcome MUST be verified through the canonical Kernel after-UoW phase rather than inferred solely from HTTP status. An exceptional HTTP invocation MUST NOT prevent the next sequential invocation from executing its expected lifecycle when canonical reset succeeds.
+- `http.request_id.enabled=false`;
+- `http.request_id.enabled=true`.
 
-During request processing, Kernel-owned UnitOfWork identity and validated request-local HTTP context enrichment MUST reflect the current invocation. After each successful canonical reset, every canonical `ContextKeys` entry MUST be absent and each registered resettable test service MUST have its request-local state cleared. Before subsequent HTTP enrichment, optional HTTP context keys from the preceding request MUST remain absent; Kernel-owned base keys for the new UnitOfWork are established independently.
+Each sequence MUST execute in one PHP process through one shared `HttpKernel`, concrete `KernelRuntime`, `Pipeline`, mandatory shared `RequestIdPolicy`, `ContextStore`, and Foundation `ResetOrchestrator`, without rebuilding those runtime instances between invocations.
+
+Verification MUST use the existing `RequestContextMiddleware`, deterministic test-only request identifier generation, and canonical Foundation reset discovery for registered test-only `ResetInterface` services.
+
+It MUST NOT introduce another UnitOfWork lifecycle, context store, reset executor, or HTTP-specific reset wrapper.
+
+Each independent sequence MUST cover exactly:
+
+- 250 completed HTTP `200` responses (`success`);
+- 250 completed HTTP `503` responses (`handled_error`);
+- 250 uncaught pipeline Throwables (`fatal_error`);
+- 250 response-finalization Throwables caused by correlation-header mutation failure (`fatal_error`).
+
+Each outcome MUST be verified through the canonical Kernel after-UoW phase rather than inferred solely from HTTP status.
+
+Both sequences MUST enable correlation response-header finalization and verify exactly 750 correlation-header mutation attempts per sequence.
+
+Request-id response-header mutation MUST be attempted exactly 500 times in the enabled request-id sequence and zero times in the disabled request-id sequence.
+
+Request-id response-header mutation MUST NOT occur after pipeline failure or correlation-header finalization failure.
+
+An exceptional HTTP invocation MUST NOT prevent the next sequential invocation from executing its expected lifecycle when canonical reset succeeds.
+
+During request processing, Kernel-owned UnitOfWork identity and validated request-local HTTP context enrichment MUST reflect the current invocation.
+
+When request identity is enabled, the regression MUST verify:
+
+- the current invocation identifier is present in `ContextKeys::REQUEST_ID` before middleware context enrichment;
+- eligible after-UoW hooks observe the selected identifier before reset;
+- successfully finalized responses contain the exact selected request identifier;
+- subsequent invocations do not inherit a previous request identifier.
+
+When request identity is disabled, `ContextKeys::REQUEST_ID` MUST remain absent throughout conforming execution paths, including before middleware enrichment and during eligible after-UoW hooks. Request-id response-header mutation and identifier generation MUST NOT occur.
+
+After each successful canonical reset in either configuration, every canonical `ContextKeys` entry, including `ContextKeys::REQUEST_ID`, MUST be absent and each registered resettable test service MUST have its request-local state cleared.
+
+Before subsequent HTTP enrichment, optional HTTP context enrichment keys from the preceding request MUST remain absent. Kernel-owned base keys and enabled HTTP request identity for the new UnitOfWork are established independently.
+
+Identifier and header verification MUST use strict boolean predicates with fixed safe assertion messages. Actual request identifiers, raw header values, and complete context snapshots MUST NOT appear in assertion diagnostics.
 
 For each UnitOfWork crossing the Kernel reset-responsibility boundary, verification MUST establish exactly one canonical reset attempt. A reset attempt MUST NOT be treated as successful cleanup when reset execution fails. Reset-responsibility boundaries, lifecycle failure precedence, effective reset discovery, and reset ordering remain Kernel/Foundation-owned. The regression establishes isolation only for examined canonical context keys and registered resettable-service state; it does not establish process-wide memory-leak freedom, cleanup of unregistered mutable state, or transport-adapter and Worker integration readiness.
 
@@ -292,6 +613,9 @@ This SSoT does not introduce or redefine:
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md)
 - [Config and env SSoT](./config-and-env.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
+- [Context Keys SSoT](./context-keys.md)
+- [Context Store SSoT](./context-store.md)
+- [Time, IDs, and Duration SSoT](./time-ids-and-duration.md)
 - [Context Lifecycle SSoT](./context-lifecycle.md)
 - [Reset Tags SSoT](./reset-tags.md)
 - [Stateful Services SSoT](./stateful-services.md)

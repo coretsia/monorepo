@@ -24,6 +24,8 @@ use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Http\Exception\BadJsonException;
 use Coretsia\Platform\Http\HttpKernel;
@@ -33,6 +35,7 @@ use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -474,6 +477,15 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
         );
         $correlation = $this->createMock(CorrelationIdProviderInterface::class);
         $correlation->expects(self::never())->method('correlationId');
+        $requestIds = new RequestIdPolicy(
+            new ContextStore(),
+            new UlidGenerator(),
+            false,
+            'X-Request-Id',
+            false,
+            128,
+        );
+
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
@@ -481,10 +493,11 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, 32, 1024),
             ], $terminal),
-            new HttpResponseFinalizer($correlation, false, 'X-Correlation-Id'),
+            new HttpResponseFinalizer($correlation, false, 'X-Correlation-Id', $requestIds),
             new HttpRequestMetricsRecorder($meter, true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder($tracer, true),
+            $requestIds,
         );
 
         self::assertSame($response, $kernel->handle($request));

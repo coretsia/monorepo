@@ -68,6 +68,14 @@ The lifecycle rules for when context is created, enriched, reset, and cleared ar
 docs/ssot/context-lifecycle.md
 ```
 
+The HTTP request identity preparation and final-response verification policy is owned by:
+
+```text
+docs/ssot/http-middleware-wiring.md
+```
+
+HTTP request identity ownership is referenced here only to distinguish it from middleware-owned context enrichment.
+
 Observability export rules remain owned by:
 
 ```text
@@ -100,6 +108,7 @@ docs/ssot/context-keys.md
 docs/ssot/context-store.md
 docs/ssot/context-lifecycle.md
 docs/ssot/http-middleware-catalog.md
+docs/ssot/http-middleware-wiring.md
 docs/ssot/observability.md
 docs/ssot/observability-and-errors.md
 ```
@@ -126,11 +135,14 @@ A row does not redefine catalog membership or slot placement. If a row conflicts
 Coretsia\Contracts\Context\ContextKeys
 ```
 
-`—` means no canonical ContextKeys write/read is owned by this map. The HTTP completion services `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` are not PSR-15 middleware and therefore have no rows in this map. In the implemented HTTP baseline, only `RequestContextMiddleware` writes request-derived `client_ip`, `scheme`, `host`, `path`, or `user_agent` ContextKeys.
+`—` means no canonical ContextKeys write/read is owned by this map.
+
+The HTTP request identity policy `RequestIdPolicy` and the HTTP completion services `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` are not PSR-15 middleware and therefore have no rows in this map.
+
+In the implemented HTTP baseline, only `RequestContextMiddleware` writes request-derived `client_ip`, `scheme`, `host`, `path`, or `user_agent` ContextKeys. The HTTP-owned `request_id` key is written exclusively by `RequestIdPolicy` outside the PSR-15 chain.
 
 | Middleware FQCN                                                                        | Slot                          | Owner                      | Writes                                              | Reads                                                   | Notes                                                                                                                                                               |
 |----------------------------------------------------------------------------------------|-------------------------------|----------------------------|-----------------------------------------------------|---------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `\Coretsia\Platform\Http\Middleware\RequestIdMiddleware::class`                        | `http.middleware.system_pre`  | `platform/http`            | `request_id`                                        | `correlation_id`                                        | Writes only a safe request id when the HTTP request-id policy is enabled by its owner. MUST NOT affect `correlation_id`.                                            |
 | `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class`                     | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | Inbound W3C trace context is request-local in the PSR-7 `coretsia.http.trace_context` attribute. No ContextStore reads or writes.                                   |
 | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`                     | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | No canonical ContextKeys usage.                                                                                                                                     |
 | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`                     | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | May normalize transport-level proxy data for later HTTP processing, but this map does not assign ContextKeys writes to it.                                          |
@@ -142,7 +154,7 @@ Coretsia\Contracts\Context\ContextKeys
 | `\Coretsia\Platform\Http\Middleware\MethodOverrideMiddleware::class`                   | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | MUST NOT write raw method override headers or body fields into ContextStore.                                                                                        |
 | `\Coretsia\Platform\Http\Middleware\ContentNegotiationMiddleware::class`               | `http.middleware.system_pre`  | `platform/http`            | `http_response_format`                              | `—`                                                     | MAY write a stable bounded response format category such as `html`, `json`, or `problem_json`.                                                                      |
 | `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class`                   | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | MUST NOT write parsed request bodies or raw payloads into ContextStore.                                                                                             |
-| `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class`                   | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `client_ip`, `scheme`, `host`                           | Pre-identity throttling MAY read safe request metadata. MUST NOT write counters, tokens, or raw forwarding chains into ContextStore.                                |
+| `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class`                   | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `client_ip`, `scheme`, `host`                           | Pre-application-identity throttling MAY read safe request metadata. MUST NOT write counters, tokens, or raw forwarding chains into ContextStore.                    |
 | `\Coretsia\Platform\Http\Debug\DebugEndpointsMiddleware::class`                        | `http.middleware.system_pre`  | `platform/http`            | `—`                                                 | `—`                                                     | Dev-only/opt-in shape. Any diagnostics MUST obey redaction policy.                                                                                                  |
 | `\Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware::class` | `http.middleware.system_pre`  | `platform/problem-details` | `—`                                                 | `correlation_id`, `request_id`, `uow_id`                | Optional owner. MAY read safe ids for error correlation only when problem-details policy allows. MUST NOT expose raw context values.                                |
 | `\Coretsia\Platform\Health\Http\Middleware\HealthEndpointsMiddleware::class`           | `http.middleware.system_pre`  | `platform/health`          | `—`                                                 | `—`                                                     | Optional owner. Health output MUST NOT dump ContextStore values.                                                                                                    |
@@ -176,6 +188,10 @@ Coretsia\Contracts\Context\ContextKeys
 ```
 
 Middleware MUST NOT create ad hoc ContextKeys.
+
+Middleware MUST NOT write, replace, or remove `ContextKeys::REQUEST_ID`.
+
+The implemented HTTP request identity writer operates outside the PSR-15 middleware chain and is not part of this middleware context-key map.
 
 Middleware writes MUST pass:
 
@@ -226,18 +242,53 @@ user_agent
 
 `user_agent` MAY be high-cardinality and privacy-sensitive. Writers SHOULD prefer omission, normalization, hashing, or length-only diagnostics when feasible.
 
+`RequestContextMiddleware` MUST NOT write, replace, or remove `request_id`.
+
+HTTP request identity preparation is independent of middleware context enrichment.
+
 ### Request id boundary
 
-`request_id` is distinct from `correlation_id`.
+`request_id` is an active optional HTTP-owned context key distinct from Kernel-owned `correlation_id` and `uow_id`.
 
-`request_id` MAY be written only by the owning HTTP request-id policy.
+The sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID` is:
+
+```text
+\Coretsia\Platform\Http\RequestId\RequestIdPolicy::class
+```
+
+`RequestIdPolicy` operates outside the PSR-15 middleware chain after successful Kernel UnitOfWork begin and before middleware execution.
+
+It MUST NOT have a middleware slot, priority, tag registration, or row in this middleware-to-context-key map.
+
+The selected request identifier MUST remain unchanged throughout conforming request execution. Middleware, terminal handlers, and lifecycle hooks MUST NOT write, replace, or remove it.
+
+Middleware permitted to consume request identity MUST read it through the canonical `ContextAccessorInterface` dependency policy.
+
+The narrowly scoped `RequestIdPolicy` owner-local concrete ContextStore read-back exception is governed by:
+
+```text
+docs/ssot/context-store.md
+```
+
+Owner-local request identity verification does not grant concrete ContextStore access to middleware.
+
+Successful canonical reset MUST clear `request_id` after eligible after-UoW lifecycle handling.
 
 This document does not define:
 
-- request-id generation policy;
+- request-id configuration or activation;
+- upstream acceptance and trusted ingress policy;
+- request-id generation or validation policy;
 - request-id header extraction;
 - request-id header injection;
+- final-response identity verification;
 - request-id propagation.
+
+These HTTP owner-specific policies are governed by:
+
+```text
+docs/ssot/http-middleware-wiring.md
+```
 
 ### Correlation id boundary
 
@@ -352,6 +403,7 @@ This document does not define:
 - [Context Store SSoT](./context-store.md)
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)

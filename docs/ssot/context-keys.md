@@ -211,7 +211,9 @@ docs/ssot/context-store.md
 
 ## Writer categories
 
-This document may name only high-level writer categories.
+The canonical key registry MUST use high-level writer categories.
+
+This document MAY identify a concrete non-middleware runtime owner when necessary to define exclusive ownership of a canonical context key.
 
 Allowed writer categories are:
 
@@ -297,7 +299,7 @@ Forbidden data includes:
 - private customer data;
 - direct user identifiers such as email, phone, full name, or external account identifiers.
 
-A future owner epic MAY introduce explicitly safe identifiers only by updating this SSoT and contract tests.
+A future owner MAY introduce explicitly safe identifiers only by updating this SSoT and the applicable contract tests.
 
 ## Request metadata policy
 
@@ -311,16 +313,19 @@ The presence of a request metadata key in this registry does not allow raw heade
 
 The following keys are active in the canonical runtime context baseline.
 
-| Constant         | Key              | Meaning                                                                                | Writer category | Lifecycle                                                                            | Safe-value notes                                                                                                                                 |
-|------------------|------------------|----------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `CORRELATION_ID` | `correlation_id` | Safe opaque correlation id for joining runtime diagnostics within a unit of work.      | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                | Non-empty uppercase ULID string. Safe for logs/tracing correlation. MUST NOT be used as a metric label under baseline observability policy.      |
-| `UOW_ID`         | `uow_id`         | Safe opaque unit-of-work id.                                                           | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                | Non-empty safe id string. MUST NOT encode raw payload data or direct user identifiers.                                                           |
-| `UOW_TYPE`       | `uow_type`       | Stable unit-of-work category.                                                          | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                | Non-empty stable string such as `http`, `cli`, `worker`, `queue`, `scheduler`, or another owner-defined safe category.                           |
-| `CLIENT_IP`      | `client_ip`      | Client network address metadata when an owner chooses to expose a safe representation. | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`. | SHOULD be normalized or hashed when feasible. MUST NOT include headers or raw forwarding chains.                                                 |
-| `SCHEME`         | `scheme`         | Request scheme metadata.                                                               | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`. | Stable lowercase value such as `http` or `https`.                                                                                                |
-| `HOST`           | `host`           | Request host metadata when safe for runtime context.                                   | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`. | MUST NOT include credentials, userinfo, headers, cookies, or raw authority payloads.                                                             |
-| `PATH`           | `path`           | Request path metadata when an owner deliberately writes it for runtime context.        | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`. | MUST NOT include query string. MUST NOT be exported to logs, spans, or metrics as raw path. Prefer `path_template` when available.               |
-| `USER_AGENT`     | `user_agent`     | User-agent metadata when an owner deliberately writes it for runtime context.          | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`. | MAY be high-cardinality and privacy-sensitive. Writers SHOULD prefer omission, normalization, hashing, or length-only diagnostics when feasible. |
+Optional context keys are populated only when the responsible owner policy is enabled.
+
+| Constant         | Key              | Meaning                                                                                | Writer category | Lifecycle                                                                                                        | Safe-value notes                                                                                                                                                                                         |
+|------------------|------------------|----------------------------------------------------------------------------------------|-----------------|------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `CORRELATION_ID` | `correlation_id` | Safe opaque correlation id for joining runtime diagnostics within a unit of work.      | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                                            | Non-empty uppercase ULID string. Safe for logs/tracing correlation. MUST NOT be used as a metric label under baseline observability policy.                                                              |
+| `UOW_ID`         | `uow_id`         | Safe opaque unit-of-work id.                                                           | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                                            | Non-empty safe id string. MUST NOT encode raw payload data or direct user identifiers.                                                                                                                   |
+| `UOW_TYPE`       | `uow_type`       | Stable unit-of-work category.                                                          | `kernel`        | Set at begin-UoW; cleared by `ContextStore::reset()`.                                                            | Non-empty stable string such as `http`, `cli`, `worker`, `queue`, `scheduler`, or another owner-defined safe category.                                                                                   |
+| `CLIENT_IP`      | `client_ip`      | Client network address metadata when an owner chooses to expose a safe representation. | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | SHOULD be normalized or hashed when feasible. MUST NOT include headers or raw forwarding chains.                                                                                                         |
+| `SCHEME`         | `scheme`         | Request scheme metadata.                                                               | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | Stable lowercase value such as `http` or `https`.                                                                                                                                                        |
+| `HOST`           | `host`           | Request host metadata when safe for runtime context.                                   | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | MUST NOT include credentials, userinfo, headers, cookies, or raw authority payloads.                                                                                                                     |
+| `PATH`           | `path`           | Request path metadata when an owner deliberately writes it for runtime context.        | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | MUST NOT include query string. MUST NOT be exported to logs, spans, or metrics as raw path. Prefer `path_template` when available.                                                                       |
+| `USER_AGENT`     | `user_agent`     | User-agent metadata when an owner deliberately writes it for runtime context.          | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | MAY be high-cardinality and privacy-sensitive. Writers SHOULD prefer omission, normalization, hashing, or length-only diagnostics when feasible.                                                         |
+| `REQUEST_ID`     | `request_id`     | Safe opaque HTTP request id distinct from correlation id and unit-of-work id.          | `http`          | Optional; set after successful Kernel begin-UoW and before PSR-15 execution; cleared by `ContextStore::reset()`. | Safe opaque id only. Generated locally or accepted from an explicitly trusted ingress boundary. MUST NOT encode credentials, tokens, cookies, session ids, direct user identifiers, or raw payload data. |
 
 ## Reserved future keys
 
@@ -328,13 +333,12 @@ The following keys are reserved for future owner integration.
 
 They are part of the canonical registry to prevent name drift, but their concrete writers MAY be absent until the responsible owner package implements them.
 
-| Constant               | Key                    | Meaning                                                                                  | Future writer category | Lifecycle                                                                       | Safe-value notes                                                                                                                    |
-|------------------------|------------------------|------------------------------------------------------------------------------------------|------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| `REQUEST_ID`           | `request_id`           | Safe request id distinct from correlation id when a transport owner needs both concepts. | `http`                 | Future HTTP lifecycle; cleared by `ContextStore::reset()`.                      | Safe opaque id only. MUST NOT be a session id, token, cookie, or direct user identifier.                                            |
-| `PATH_TEMPLATE`        | `path_template`        | Stable route/path template suitable for low-cardinality diagnostics.                     | `routing`              | Future routing lifecycle; cleared by `ContextStore::reset()`.                   | Preferred over raw `path` for observability. MUST NOT include concrete user-controlled path parameters.                             |
-| `HTTP_RESPONSE_FORMAT` | `http_response_format` | Stable response format category selected by an HTTP owner.                               | `http`                 | Future HTTP response negotiation lifecycle; cleared by `ContextStore::reset()`. | Stable bounded string such as `html`, `json`, `problem_json`, or another owner-defined safe category.                               |
-| `ACTOR_ID`             | `actor_id`             | Safe actor id when auth introduces an explicitly non-PII actor identifier.               | `auth`                 | Future auth lifecycle; cleared by `ContextStore::reset()`.                      | MUST be an opaque safe id. MUST NOT be email, phone, full name, username, external account id, token, or session id.                |
-| `TENANT_ID`            | `tenant_id`            | Safe tenant id when tenancy introduces an explicitly non-PII tenant identifier.          | `tenancy`              | Future tenancy lifecycle; cleared by `ContextStore::reset()`.                   | MUST be an opaque safe id. MUST NOT expose customer name, domain, billing id, external account id, token, or private customer data. |
+| Constant               | Key                    | Meaning                                                                         | Future writer category | Lifecycle                                                                       | Safe-value notes                                                                                                                    |
+|------------------------|------------------------|---------------------------------------------------------------------------------|------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `PATH_TEMPLATE`        | `path_template`        | Stable route/path template suitable for low-cardinality diagnostics.            | `routing`              | Future routing lifecycle; cleared by `ContextStore::reset()`.                   | Preferred over raw `path` for observability. MUST NOT include concrete user-controlled path parameters.                             |
+| `HTTP_RESPONSE_FORMAT` | `http_response_format` | Stable response format category selected by an HTTP owner.                      | `http`                 | Future HTTP response negotiation lifecycle; cleared by `ContextStore::reset()`. | Stable bounded string such as `html`, `json`, `problem_json`, or another owner-defined safe category.                               |
+| `ACTOR_ID`             | `actor_id`             | Safe actor id when auth introduces an explicitly non-PII actor identifier.      | `auth`                 | Future auth lifecycle; cleared by `ContextStore::reset()`.                      | MUST be an opaque safe id. MUST NOT be email, phone, full name, username, external account id, token, or session id.                |
+| `TENANT_ID`            | `tenant_id`            | Safe tenant id when tenancy introduces an explicitly non-PII tenant identifier. | `tenancy`              | Future tenancy lifecycle; cleared by `ContextStore::reset()`.                   | MUST be an opaque safe id. MUST NOT expose customer name, domain, billing id, external account id, token, or private customer data. |
 
 ## Observability policy
 
@@ -369,7 +373,11 @@ Safe correlation or request identifiers MUST NOT be copied into `ErrorDescriptor
 
 For error handling, `correlation_id` is represented through `ErrorHandlingContext.correlationId` when an error-handling context is available.
 
-`request_id` remains runtime/HTTP context and MAY be consumed directly by an owner-approved adapter; it is not canonical normalized error metadata.
+`request_id` remains runtime/HTTP context and MAY be consumed by an owner-approved adapter through `ContextAccessorInterface`; it is not canonical normalized error metadata.
+
+It MUST NOT be added to existing HTTP request metrics, access-log context, or request span attributes.
+
+The HTTP owner-local read-back exception for final-response identity verification is governed by `docs/ssot/context-store.md`.
 
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, session ids, and payloads MUST NOT be exported even if a future owner accidentally attempts to write them.
 
@@ -439,15 +447,41 @@ uow_id
 uow_type
 ```
 
-Kernel runtime MUST execute Foundation reset orchestration after the unit of work.
+Kernel runtime MUST trigger Foundation reset orchestration exactly once for each UnitOfWork that crosses the reset-responsibility boundary, following eligible after-UoW lifecycle handling.
+
+Reset eligibility, runtime-boundary release, and failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
 
 This document defines the key vocabulary and lifecycle policy only.
 
 ## HTTP lifecycle note
 
-HTTP writers are owned by HTTP packages and middlewares.
+HTTP context writers are owned by the responsible HTTP runtime packages.
 
 HTTP writers MAY write only safe keys declared in this registry and accepted by `ContextStorePolicy`.
+
+`Coretsia\Platform\Http\RequestId\RequestIdPolicy` is the only authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`.
+
+When enabled, the policy MUST select and write the request identifier after successful Kernel begin-UoW and before the entire PSR-15 pipeline executes.
+
+When disabled, the policy MUST NOT read or write `ContextKeys::REQUEST_ID`.
+
+The selected request identifier MUST NOT be modified, replaced, or removed by subsequent middleware, terminal handlers, or lifecycle hooks.
+
+Successful canonical Foundation reset MUST clear `request_id` together with all other unit-of-work-local context keys after eligible after-UoW lifecycle handling.
+
+An upstream request identifier MAY be accepted only when upstream acceptance is explicitly enabled and an explicitly trusted ingress boundary supplies owner-approved safe opaque identifiers.
+
+The trusted ingress boundary MUST remove arbitrary client-supplied request-id headers or replace them with owner-approved safe opaque identifiers.
+
+Header presence and identifier syntax MUST NOT be treated as evidence of upstream trust.
+
+Rejected upstream identifiers MUST NOT be stored in context or exported to diagnostics.
+
+The owner-specific HTTP request-id policy is governed by:
+
+```text
+docs/ssot/http-middleware-wiring.md
+```
 
 HTTP writers MUST NOT write:
 
@@ -477,7 +511,7 @@ docs/ssot/middleware-context-keys-map.md
 
 The canonical key list is contract-tested in `core/contracts`.
 
-The following changes require an explicit SSoT and test update:
+The following changes require an explicit SSoT update and applicable contract-test evidence:
 
 - adding a key;
 - removing a key;
@@ -487,6 +521,10 @@ The following changes require an explicit SSoT and test update:
 - changing a lifecycle rule;
 - changing safe-value notes;
 - moving a reserved future key into active owner usage.
+
+Moving an already declared key into active owner usage does not change the canonical key registry when its constant name, key value, registry membership, and ordering remain unchanged.
+
+Such a change MUST preserve the existing stable key-list contract test expectations. The responsible owner MUST provide test evidence for the implemented key lifecycle and safe-value semantics.
 
 The stable contract test is:
 
@@ -520,6 +558,7 @@ This SSoT does not define:
 - [Context Store SSoT](./context-store.md) — context invalid-key diagnostic safety, write-forbidden safe path diagnostics, and `<key>` / `<path>` / `[<key>]` placeholders.
 - [Config and env SSoT](./config-and-env.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)

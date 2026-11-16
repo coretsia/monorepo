@@ -24,6 +24,7 @@ use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -31,9 +32,14 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * Single-owner HTTP request lifecycle and final-response orchestration.
  *
- * KernelRuntime owns UnitOfWork begin, after hooks, and reset. This adapter
- * retains all request response, timing, span, outcome, and Throwable state only
- * inside handle(). Observability always consumes the finalized HTTP result.
+ * KernelRuntime owns UnitOfWork begin, after hooks, and reset. HTTP-owned
+ * request identity is selected after successful begin and before the PSR-15
+ * pipeline. The selected identity is passed to response finalization for
+ * exact context verification.
+ *
+ * This adapter retains all request identity, response, timing, span, outcome,
+ * and Throwable state only inside handle(). Observability always consumes
+ * the finalized HTTP result.
  *
  * @internal
  */
@@ -62,6 +68,7 @@ final readonly class HttpKernel implements HttpKernelInterface
         private HttpRequestMetricsRecorder $metrics,
         private HttpAccessLogWriter $accessLog,
         private HttpRequestSpanRecorder $spans,
+        private RequestIdPolicy $requestIds,
     ) {
     }
 
@@ -96,8 +103,9 @@ final readonly class HttpKernel implements HttpKernelInterface
                 // Span startup cannot suppress the HTTP pipeline.
             }
 
+            $requestId = $this->requestIds->initialize($request);
             $response = $this->pipeline->handle($request);
-            $response = $this->finalizer->finalize($response);
+            $response = $this->finalizer->finalize($response, $requestId);
             $status = $response->getStatusCode();
             if ($status < 100 || $status > 599) {
                 throw new \RuntimeException('http-final-response-status-invalid');

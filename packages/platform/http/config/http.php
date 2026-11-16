@@ -47,8 +47,11 @@ declare(strict_types=1);
  *   outermost error boundary belong to the HTTP middleware stack builder;
  * - Kernel retains UnitOfWork and reset lifecycle ownership;
  * - request-level final-response observability is not middleware configuration;
+ * - request-id preparation and response-header finalization are governed by
+ *   the HTTP-owned identity policy, independently of middleware configuration;
+ * - upstream request-id acceptance requires an explicitly trusted ingress;
  * - no routing, system-endpoint, transport, security-header, CORS, rate-limit,
- *   upload, maintenance, request-id, or debugging configuration is declared;
+ *   upload, maintenance, or debugging configuration is declared;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -134,6 +137,32 @@ return [
     'correlation' => [
         'enabled' => true,
         'header_name' => 'X-Correlation-Id',
+    ],
+
+    /*
+     * HTTP-owned request identity policy.
+     *
+     * When enabled, request identity is selected before the PSR-15 pipeline
+     * and applied to the completed response by HttpResponseFinalizer.
+     * Request identity is independent of Kernel-owned correlation and
+     * UnitOfWork identities.
+     *
+     * Upstream acceptance requires an explicitly trusted ingress boundary
+     * that removes arbitrary client-supplied request-id headers or replaces
+     * them with owner-approved opaque identifiers. Header presence and
+     * identifier syntax do not establish upstream trust. Untrusted direct
+     * client ingress must keep upstream acceptance disabled.
+     *
+     * Missing or invalid upstream identifiers are replaced with canonical
+     * Foundation ULIDs. The maximum length applies to accepted upstream
+     * identifier bytes and must be within 26..128 to permit generated ULIDs.
+     * This policy does not activate middleware or introduce a reset lifecycle.
+     */
+    'request_id' => [
+        'enabled' => false,
+        'header_name' => 'X-Request-Id',
+        'accept_from_upstream' => false,
+        'max_length' => 128,
     ],
 
     /*

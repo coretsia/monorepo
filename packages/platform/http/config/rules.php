@@ -30,14 +30,18 @@ declare(strict_types=1);
  * - each middleware slot must be a list of non-empty, whitespace-free service
  *   id strings; class-string grammar and cross-slot duplicate checks remain
  *   owned by HttpMiddlewareStackBuilder;
- * - correlation, tracing, metrics, access logging, proxy, context enrichment,
- *   host validation, and JSON parsing toggles must be actual booleans;
- * - `http.correlation.header_name` must be non-empty and whitespace-free;
+ * - correlation, request-id, upstream request-id acceptance, tracing, metrics,
+ *   access logging, proxy, context enrichment, host validation, and JSON
+ *   parsing toggles must be actual booleans;
+ * - `http.correlation.header_name` and `http.request_id.header_name` must be
+ *   non-empty and whitespace-free;
+ * - `http.request_id.max_length` must be an integer in 26..128;
  * - `http.proxy.trusted_proxies` and `http.hosts.allowed` must be lists of
  *   non-empty, whitespace-free strings;
- * - HTTP-owned policies validate canonical header tokens, IP/CIDR addresses,
- *   host syntax, entry lengths, and bounded list limits; ConfigValidator
- *   supplies only the existing declarative structural/string type rules;
+ * - HTTP-owned policies validate canonical header tokens, request identity
+ *   semantics, IP/CIDR addresses, host syntax, entry lengths, and bounded list
+ *   limits; ConfigValidator supplies only the existing declarative structural,
+ *   string type, and integer range rules;
  * - `http.request.max_body_bytes` must be an integer in 1..16777216;
  * - `http.request.json.max_depth` must be an integer in 1..512;
  * - no `http.middleware.auto.*`, implicit factory selection, implementation
@@ -155,6 +159,31 @@ return [
                 'header_name' => [
                     'required' => true,
                     'type' => 'non-empty-string-no-ws',
+                ],
+            ],
+        ],
+        'request_id' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'enabled' => [
+                    'required' => true,
+                    'type' => 'bool',
+                ],
+                'header_name' => [
+                    'required' => true,
+                    'type' => 'non-empty-string-no-ws',
+                ],
+                'accept_from_upstream' => [
+                    'required' => true,
+                    'type' => 'bool',
+                ],
+                'max_length' => [
+                    'required' => true,
+                    'type' => 'int',
+                    'min' => 26,
+                    'max' => 128,
                 ],
             ],
         ],

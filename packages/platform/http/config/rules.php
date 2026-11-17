@@ -31,17 +31,30 @@ declare(strict_types=1);
  *   id strings; class-string grammar and cross-slot duplicate checks remain
  *   owned by HttpMiddlewareStackBuilder;
  * - correlation, request-id, upstream request-id acceptance, tracing, metrics,
- *   access logging, proxy, context enrichment, host validation, and JSON
- *   parsing toggles must be actual booleans;
+ *   access logging, proxy, context enrichment, host validation, security
+ *   headers, HTTPS redirect, and JSON parsing toggles must be actual booleans;
  * - `http.correlation.header_name` and `http.request_id.header_name` must be
  *   non-empty and whitespace-free;
  * - `http.request_id.max_length` must be an integer in 26..128;
  * - `http.proxy.trusted_proxies` and `http.hosts.allowed` must be lists of
  *   non-empty, whitespace-free strings;
+ * - security-header directives must match their canonical allowed values;
+ * - optional security-header values and HTTPS target authority must be strings;
+ * - `http.https_redirect.status` must be exactly integer `307` or `308`;
+ * - `http.https_redirect.allow_methods` must be a list of supported canonical
+ *   uppercase HTTP method strings;
  * - HTTP-owned policies validate canonical header tokens, request identity
- *   semantics, IP/CIDR addresses, host syntax, entry lengths, and bounded list
- *   limits; ConfigValidator supplies only the existing declarative structural,
- *   string type, and integer range rules;
+ *   semantics, IP/CIDR addresses, host syntax, entry lengths, bounded list
+ *   limits, redirect method uniqueness, target authority semantics, and
+ *   bounded optional security-header values;
+ * - ConfigValidator supplies only existing declarative structural, type,
+ *   allowed-value, and integer range rules;
+ * - structural validation applies independently of feature enablement;
+ * - semantic policy validation executes during policy construction;
+ * - SecurityHeadersPolicy is validated independently of enablement;
+ * - an enabled HttpsRedirectPolicy is validated during canonical middleware
+ *   resolution before request execution; disabled redirect configuration
+ *   does not require eager policy resolution solely for semantic validation;
  * - `http.request.max_body_bytes` must be an integer in 1..16777216;
  * - `http.request.json.max_depth` must be an integer in 1..512;
  * - no `http.middleware.auto.*`, implicit factory selection, implementation
@@ -271,6 +284,93 @@ return [
                     'items' => [
                         'type' => 'non-empty-string-no-ws',
                     ],
+                ],
+            ],
+        ],
+        'security_headers' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'enabled' => [
+                    'required' => true,
+                    'type' => 'bool',
+                ],
+                'x_content_type_options' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'allowedValues' => [
+                        'nosniff',
+                    ],
+                ],
+                'x_frame_options' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'allowedValues' => [
+                        'deny',
+                        'sameorigin',
+                    ],
+                ],
+                'referrer_policy' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'allowedValues' => [
+                        'no-referrer',
+                        'no-referrer-when-downgrade',
+                        'origin',
+                        'origin-when-cross-origin',
+                        'same-origin',
+                        'strict-origin',
+                        'strict-origin-when-cross-origin',
+                        'unsafe-url',
+                    ],
+                ],
+                'permissions_policy' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+                'csp' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+            ],
+        ],
+        'https_redirect' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'enabled' => [
+                    'required' => true,
+                    'type' => 'bool',
+                ],
+                'status' => [
+                    'required' => true,
+                    'type' => 'int',
+                    'allowedValues' => [
+                        307,
+                        308,
+                    ],
+                ],
+                'allow_methods' => [
+                    'required' => true,
+                    'type' => 'list',
+                    'items' => [
+                        'type' => 'string',
+                        'allowedValues' => [
+                            'GET',
+                            'HEAD',
+                            'POST',
+                            'PUT',
+                            'PATCH',
+                            'DELETE',
+                            'OPTIONS',
+                        ],
+                    ],
+                ],
+                'target_authority' => [
+                    'required' => true,
+                    'type' => 'string',
                 ],
             ],
         ],

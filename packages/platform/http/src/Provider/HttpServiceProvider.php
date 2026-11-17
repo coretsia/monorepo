@@ -40,7 +40,9 @@ use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Http\Host\TrustedHostPolicy;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
+use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
+use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
@@ -56,6 +58,7 @@ use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -171,6 +174,18 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 TrustedHostPolicy::class,
                 [$allowedHosts],
             )
+            ->classMethodFactory(
+                SecurityHeadersPolicy::class,
+                HttpServiceFactory::class,
+                'securityHeaders',
+                [self::ref(ConfigRepositoryInterface::class)],
+            )
+            ->classMethodFactory(
+                HttpsRedirectPolicy::class,
+                HttpServiceFactory::class,
+                'httpsRedirect',
+                [self::ref(ConfigRepositoryInterface::class)],
+            )
             ->classService(
                 HttpMiddlewareStackBuilder::class,
                 HttpMiddlewareStackBuilder::class,
@@ -208,6 +223,19 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 [self::ref(TrustedHostPolicy::class), $hostsEnabled, $proxyEnabled],
             )
             ->classService(
+                HttpsRedirectMiddleware::class,
+                HttpsRedirectMiddleware::class,
+                [
+                    self::ref(HttpsRedirectPolicy::class),
+                    self::ref(ResponseFactoryInterface::class),
+                    self::ref(MeterPortInterface::class),
+                    self::ref(LoggerInterface::class),
+                    $proxyEnabled,
+                    $metricsEnabled,
+                    $accessLogEnabled,
+                ],
+            )
+            ->classService(
                 RequestBodySizeLimitMiddleware::class,
                 RequestBodySizeLimitMiddleware::class,
                 [self::ref(StreamFactoryInterface::class), $maxBodyBytes],
@@ -222,6 +250,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
         $proxyTagMeta = ['toggle' => 'http.proxy.enabled'];
         $contextTagMeta = ['toggle' => 'http.context.enrich.enabled'];
         $hostsTagMeta = ['toggle' => 'http.hosts.enabled'];
+        $httpsRedirectTagMeta = ['toggle' => 'http.https_redirect.enabled'];
         $jsonTagMeta = ['toggle' => 'http.request.json.enabled'];
 
         $definitions
@@ -248,6 +277,12 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 TrustedHostMiddleware::class,
                 priority: 860,
                 meta: $hostsTagMeta,
+            )
+            ->tag(
+                ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE,
+                HttpsRedirectMiddleware::class,
+                priority: 850,
+                meta: $httpsRedirectTagMeta,
             )
             ->tag(
                 ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE,
@@ -290,6 +325,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                     $correlationEnabled,
                     $correlationHeader,
                     self::ref(RequestIdPolicy::class),
+                    self::ref(SecurityHeadersPolicy::class),
                 ],
             )
             ->classService(

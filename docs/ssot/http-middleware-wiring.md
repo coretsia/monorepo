@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Scope
 
-This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, and the boundary between middleware execution and `HttpKernel` final-response completion.
+This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, HTTPS redirect policy, security-header finalization, and the boundary between middleware execution and `HttpKernel` final-response completion.
 
 The implementation boundary is:
 
@@ -33,6 +33,9 @@ packages/platform/http/src/Provider/HttpServiceFactory.php
 packages/platform/http/src/Provider/HttpServiceProvider.php
 packages/platform/http/src/HttpKernel.php
 packages/platform/http/src/RequestId/RequestIdPolicy.php
+packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php
+packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php
+packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php
 packages/platform/http/src/Response/HttpResponseFinalizer.php
 packages/platform/http/src/Observability/HttpRequestMetricsRecorder.php
 packages/platform/http/src/Observability/HttpAccessLogWriter.php
@@ -64,7 +67,7 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
 - `docs/ssot/context-keys.md` owns the canonical context key registry and writer ownership. `docs/ssot/context-store.md` owns shared ContextStore access, controlled mutation, safe-write validation, and the narrowly scoped request identity owner-local read-back exception.
 - `docs/ssot/context-lifecycle.md` owns context lifetime and canonical reset boundaries. `docs/ssot/time-ids-and-duration.md` owns Foundation identifier generation and correlation id semantics.
-- This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, and response-header application.
+- This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, HTTPS redirect execution policy, and canonical response-header application.
 - `docs/ssot/observability.md` owns canonical metric and span names, allowed labels, and disclosure policy. `docs/ssot/problem-details.md` owns canonical error response adaptation and rendering.
 - `docs/architecture/DEPENDENCIES.md` governs compile-time package dependencies. HTTP wiring MUST NOT import concrete implementations from optional `platform/*` runtime packages.
 
@@ -188,6 +191,7 @@ http.access_log.enabled
 http.proxy.enabled
 http.context.enrich.enabled
 http.hosts.enabled
+http.https_redirect.enabled
 http.request.json.enabled
 ```
 
@@ -199,6 +203,7 @@ The baseline `system_pre` tag contributions are:
 - `TrustedProxyMiddleware` at priority `880`, conditional on `http.proxy.enabled`;
 - `RequestContextMiddleware` at priority `870`, conditional on `http.context.enrich.enabled`;
 - `TrustedHostMiddleware` at priority `860`, conditional on `http.hosts.enabled`;
+- `HttpsRedirectMiddleware` at priority `850`, conditional on `http.https_redirect.enabled`;
 - `RequestBodySizeLimitMiddleware` at priority `830`, unconditional;
 - `JsonBodyParserMiddleware` at priority `800`, conditional on `http.request.json.enabled`.
 
@@ -206,7 +211,9 @@ The optional priority-`1000` boundary is governed by explicit module selection, 
 
 `http.middleware.auto.*` flags MUST NOT exist. `http.correlation.enabled`, `http.metrics.enabled`, and `http.access_log.enabled` govern their respective HTTP completion services; their inclusion in the metadata allowlist MUST NOT be interpreted as creating correlation, metrics, or access-log middleware.
 
-`http.request_id.enabled` is not a middleware participation toggle and MUST NOT be included in the HTTP middleware tag metadata allowlist.
+`http.request_id.enabled` and `http.security_headers.enabled` are not middleware participation toggles and MUST NOT be included in the HTTP middleware tag metadata allowlist.
+
+`http.https_redirect.enabled` controls tagged HTTPS redirect participation. A manually appended `HttpsRedirectMiddleware` MUST also respect its injected policy enablement. A disabled policy MUST delegate without performing redirect-decision observability.
 
 Request identity preparation MUST NOT reserve or consume a middleware slot, priority, tag registration, or manual append-list entry.
 
@@ -220,10 +227,101 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 - `RequestIdPolicy` MUST consume the existing shared Foundation `ContextStore` and the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`.
 - Source and compiled containers MUST preserve equivalent effective request-id policy configuration. Within each container, `HttpKernel` and `HttpResponseFinalizer` MUST consume the same shared `RequestIdPolicy` instance, which MUST consume that container's canonical shared `ContextStore` and `UlidGenerator` services.
 - Request-id policy registration and constructor injection MUST remain unconditional. An absent policy dependency, nullable dependency, fallback policy instance, or alternative enablement mechanism MUST NOT be supported.
+- `HttpServiceProvider` MUST register shared immutable `SecurityHeadersPolicy` and `HttpsRedirectPolicy` services independently of feature enablement.
+- `HttpResponseFinalizer` MUST consume the shared `SecurityHeadersPolicy` as a mandatory non-nullable constructor dependency without a default or fallback instance.
+- `HttpsRedirectMiddleware` MUST consume the shared `HttpsRedirectPolicy`, canonical PSR-17 response factory, meter, PSR-3 logger, and validated HTTP proxy and observability settings through explicit constructor injection.
+- Structural validation MUST apply to the complete effective `http.security_headers` and `http.https_redirect` configuration maps independently of feature enablement.
+- Semantic security-header policy validation MUST execute when the mandatory shared policy is constructed, independently of enablement.
+- Enabled HTTPS redirect policy validation MUST execute during canonical middleware resolution before HTTP UnitOfWork execution. Disabled redirect middleware MUST NOT require eager policy resolution solely for semantic validation.
+- Declarative provider definition production MUST NOT instantiate these policies or introduce another configuration-validation lifecycle.
 - Canonical Foundation service and alias precedence, including later-binding-wins semantics, MUST remain unchanged. HTTP MUST NOT introduce a second definition-conflict policy.
 - The selected target's `http.factory` and effective PSR-17 bindings MUST be validated through the HTTP-owned entrypoint readiness boundary before resolving executable HTTP services. Installed but unselected implementations MUST NOT alter the selected factory or provide an implicit fallback.
 - The selected HTTP target and effective module participation MUST govern optional middleware provider registration. An unselected optional module MUST NOT contribute a middleware merely because its package is installed.
 - Runtime-only closure definitions, filesystem discovery, reflection-based factory selection, alternate containers, observer registries, or another middleware pipeline MUST NOT be introduced.
+
+## HTTPS redirect policy (MUST)
+
+### Participation and scheme resolution
+
+`HttpsRedirectMiddleware` owns optional HTTP-to-HTTPS redirect decisions using the immutable shared `HttpsRedirectPolicy`.
+
+Redirect eligibility MUST use the exact effective scheme and request method.
+
+When `http.proxy.enabled=true`, the middleware MUST accept an effective proxy scheme only from `TrustedProxyMiddleware::ATTRIBUTE` containing an array with a non-empty string `client_ip` and a `scheme` equal to `http` or `https`.
+
+Otherwise, the middleware MUST use the PSR-7 request URI scheme.
+
+Canonical forwarding-header interpretation, client IP validation, and immediate-peer trust remain owned by `TrustedProxyPolicy` and `TrustedProxyMiddleware`.
+
+HTTPS redirect MUST NOT independently parse raw forwarding headers, consume ContextKeys, depend on ContextStore enrichment, or trust the reserved proxy attribute when proxy participation is disabled.
+
+Only effective `http` is eligible for redirection.
+
+### Redirect configuration and destination authority
+
+`http.https_redirect.enabled` defaults to `false`.
+
+`http.https_redirect.status` MUST be either integer `307` or `308` and defaults to `308`.
+
+`http.https_redirect.allow_methods` defaults to `['GET', 'HEAD']` and MUST contain only unique canonical uppercase method values from:
+
+- `GET`;
+- `HEAD`;
+- `POST`;
+- `PUT`;
+- `PATCH`;
+- `DELETE`;
+- `OPTIONS`.
+
+An empty method allowlist MUST permit no redirects.
+
+`http.https_redirect.target_authority` defaults to an empty string. An enabled policy MUST require a non-empty explicitly configured authority.
+
+Every non-empty configured authority MUST satisfy the existing canonical authority grammar owned by `TrustedHostPolicy`, independently of redirect enablement.
+
+A non-empty target authority MUST consist of a canonical DNS name, IPv4 address, or bracketed IPv6 address, optionally followed by an explicit port. It MUST NOT contain a scheme prefix, userinfo, path, query, or fragment.
+
+The destination authority MUST NOT be derived from the request URI, Host header, forwarded host, ContextStore, or `http.hosts.allowed`.
+
+### Location construction and response execution
+
+The Location value MUST consist exclusively of `https://`, the validated configured target authority, the original encoded request path, and the original encoded query when non-empty.
+
+An empty request path MUST be normalized to `/`.
+
+The normalized path MUST begin with `/` and MUST NOT begin with `//`.
+
+Path characters MUST conform to RFC 3986 `pchar` or `/`. Query characters MUST conform to RFC 3986 `pchar`, `/`, or `?`.
+
+Every percent-encoded sequence MUST contain exactly two hexadecimal digits. Accepted encoded components MUST NOT be decoded, re-encoded, normalized, or reconstructed from parsed request parameters.
+
+Raw whitespace, control characters, non-ASCII bytes, backslashes, raw fragment delimiters (`#`), malformed percent encoding, and a raw query delimiter (`?`) within the path component MUST cause the redirect to be skipped.
+
+Request userinfo, fragments, and source ports MUST NOT be copied into Location. Ports are supplied exclusively by the configured destination authority.
+
+An ineligible scheme, disallowed method, or invalid Location component MUST delegate to the downstream handler without constructing a redirect response.
+
+An eligible redirect MUST use the canonical PSR-17 response factory and immutable PSR-7 `withHeader()` application of Location. The mutation result MUST implement `ResponseInterface`.
+
+A non-response Location mutation result MUST fail with `RuntimeException` and the fixed reason `http-https-redirect-response-invalid`.
+
+A successfully constructed redirect MUST return without invoking the downstream handler.
+
+Response construction and mutation failures MUST propagate through the canonical PSR-15 error boundary or uncaught HTTP failure path.
+
+### Redirect-decision observability
+
+Redirect-decision observations MUST follow `docs/ssot/observability.md`.
+
+A completed redirected decision requires successful response construction and Location mutation. A completed skipped decision MUST be recorded before downstream handler invocation.
+
+The `http.metrics.enabled` and `http.access_log.enabled` settings independently control the canonical redirect-decision counter and PSR-3 info event.
+
+Disabled or bypassed middleware MUST NOT emit redirect-decision observations. Failed redirect-response construction or Location mutation MUST NOT emit a completed decision.
+
+Optional metric and log failures MUST be isolated independently without retries.
+
+Redirect decisions MUST NOT establish the final HTTP request status or outcome, introduce additional spans, write ContextStore values, register reset services, or create another request lifecycle.
 
 ## HTTP request identity policy (MUST)
 
@@ -422,7 +520,7 @@ http-request-id-context-invalid
 
 The finalizer MUST NOT repair context, regenerate identity, normalize the current identifier, or emit a substituted identifier.
 
-When both identifiers are `null`, request-id response-header finalization is not applicable.
+When both identifiers are `null`, request-id response-header finalization is not applicable. This condition MUST NOT bypass enabled security-header application.
 
 When both identifiers are non-null and strictly equal, the finalizer MUST apply the validated configured header name and exact selected identifier through immutable PSR-7 `ResponseInterface::withHeader()`.
 
@@ -468,6 +566,61 @@ The policy MUST NOT consume logger, meter, or tracer ports.
 
 Request identifiers and rejected upstream values MUST NOT be added to existing HTTP completion logs, metrics, span attributes, span names, or error descriptor extensions.
 
+## Security-header finalization (MUST)
+
+`SecurityHeadersPolicy` owns immutable configuration-based response security-header values. `HttpResponseFinalizer` exclusively owns their application to completed pipeline responses.
+
+`http.security_headers.enabled` defaults to `false` and MUST operate independently of correlation, request-id, and HTTPS redirect enablement.
+
+The policy MUST expose only enabled, non-empty header values in the following fixed application order:
+
+| Order | Response header           | Configuration key                              | Default value |
+|-------|---------------------------|------------------------------------------------|---------------|
+| 1     | `X-Content-Type-Options`  | `http.security_headers.x_content_type_options` | `nosniff`     |
+| 2     | `X-Frame-Options`         | `http.security_headers.x_frame_options`        | `deny`        |
+| 3     | `Referrer-Policy`         | `http.security_headers.referrer_policy`        | `no-referrer` |
+| 4     | `Permissions-Policy`      | `http.security_headers.permissions_policy`     | empty         |
+| 5     | `Content-Security-Policy` | `http.security_headers.csp`                    | empty         |
+
+The policy MUST accept only `nosniff` for `x_content_type_options` and `deny` or `sameorigin` for `x_frame_options`. Frame-option response values MUST be emitted as `DENY` or `SAMEORIGIN`.
+
+Supported `referrer_policy` values are:
+
+- `no-referrer`;
+- `no-referrer-when-downgrade`;
+- `origin`;
+- `origin-when-cross-origin`;
+- `same-origin`;
+- `strict-origin`;
+- `strict-origin-when-cross-origin`;
+- `unsafe-url`.
+
+Non-empty `permissions_policy` and `csp` values MUST contain at most 4096 bytes, use printable ASCII only, and contain no leading or trailing whitespace.
+
+Invalid policy configuration MUST fail through fixed safe diagnostic tokens without disclosing configured values.
+
+A disabled policy MUST expose an empty header map.
+
+Security-header application MUST execute after successful correlation and request-id finalization. Identity-header verification or mutation failure MUST prevent all subsequent security-header mutations.
+
+Each configured non-empty security header MUST be applied through exactly one immutable PSR-7 `withHeader()` operation, consuming the response returned by the preceding successful mutation.
+
+Each mutation result MUST implement `ResponseInterface`. A non-response result MUST fail with `RuntimeException` and the fixed reason `http-security-header-response-invalid`.
+
+Mutation failures MUST propagate unchanged through canonical HTTP fatal completion and MUST prevent subsequent header applications.
+
+Configured non-empty values MUST replace existing matching response-header values case-insensitively. Empty optional settings MUST NOT remove or modify existing application-provided headers.
+
+Security-header application MUST preserve the response status, body, and unrelated headers.
+
+The canonical mutation order MUST NOT be interpreted as a guarantee of PSR-7 serialized header iteration or transport wire order.
+
+Enabled security-header application MUST cover every successfully returned pipeline response, including normal responses, request-phase and post-decorator short-circuits, HTTPS redirects, returned maintenance responses, mapped Problem Details responses, and emergency responses.
+
+An uncaught pipeline Throwable MUST NOT cause the finalizer to synthesize a response.
+
+Security-header policies and their application MUST NOT introduce HSTS, CSP nonce generation, request-dependent values, middleware participation, additional observability, ContextStore mutation, or reset responsibility.
+
 ## HttpKernel lifecycle and final-response completion (MUST)
 
 `HttpKernel` is the sole HTTP request lifecycle and final-response coordinator. It consumes the existing `KernelRuntimeInterface::beginUnitOfWork('http')` and matching `afterUnitOfWork()` hooks with the exact returned handle. Kernel owns hook execution, context lifetime, and reset discipline; HTTP MUST NOT reimplement them.
@@ -491,9 +644,9 @@ KernelRuntimeInterface::beginUnitOfWork('http')
 
 A response returned by the selected outermost error boundary is a completed pipeline response and MUST pass through the same `HttpResponseFinalizer` and request-level observability sequence as any normally returned or short-circuit response.
 
-The finalizer owns independently enabled application of the Kernel-owned correlation response header and the HTTP-owned request-id response header through immutable PSR-7 `withHeader()`.
+The finalizer owns independently enabled application of the Kernel-owned correlation response header, the HTTP-owned request-id response header, and configured security headers through immutable PSR-7 `withHeader()`.
 
-Correlation response-header finalization MUST precede request-id identity verification and response-header finalization.
+Correlation response-header finalization MUST precede request-id identity verification and response-header finalization. Security-header application MUST follow successful identity-header finalization and precede final HTTP status derivation and request-level observability.
 
 Only the status of the successfully finalized response determines the HTTP result: statuses below `400` are `success`; finalized `400..599` responses are `handled_error`. An uncaught request identity preparation, pipeline, or response-finalization Throwable is `fatal_error`, with observability status fixed to `unknown`. A merely intermediate pipeline response MUST NOT be reported as final if response finalization fails.
 
@@ -515,12 +668,14 @@ A failed reset attempt MUST NOT be treated as proof of successful context cleanu
 
 The four HTTP-owned services are distinct, stateless DI services and MUST NOT be registered in any of the nine HTTP middleware slots:
 
-- `HttpResponseFinalizer` owns independently enabled correlation and request-id response-header finalization through the existing `CorrelationIdProviderInterface` and mandatory shared `RequestIdPolicy`, including exact invocation-local request identity verification.
+- `HttpResponseFinalizer` owns independently enabled correlation, request-id, and security-header response finalization through the existing `CorrelationIdProviderInterface`, mandatory shared `RequestIdPolicy`, and mandatory shared `SecurityHeadersPolicy`, including exact invocation-local request identity verification and deterministic security-header mutation order.
 - `HttpRequestMetricsRecorder` owns final-response request metrics through `MeterPortInterface`, using only approved bounded labels.
 - `HttpAccessLogWriter` owns at most one safe access-log operation through the existing PSR-3 `LoggerInterface`, without exporting raw request values.
 - `HttpRequestSpanRecorder` owns the request-local `http.request` span start and finish through `TracerPortInterface` and `SpanInterface`.
 
 `RequestIdPolicy` is a separate HTTP request identity preparation and owner-local verification policy dependency. It is not a fifth completion-observability service or an additional completion stage.
+
+`SecurityHeadersPolicy` is a separate immutable configuration dependency of `HttpResponseFinalizer`, not a completion service, middleware registration, observer, or additional completion stage.
 
 These services MUST NOT become PSR-15 response decorators, create a parallel post-response observer chain, or retain request-local response/span/timer state in shared services. Inbound `TraceContextMiddleware` remains a separate PSR-15 concern and does not create a second tracing lifecycle.
 
@@ -536,13 +691,17 @@ These services MUST NOT become PSR-15 response decorators, create a parallel pos
 
 Final-response metrics, access logs, and span attributes MUST use safe, bounded canonical fields. Raw paths, query strings, headers, cookies, credentials, request or response bodies, arbitrary context, and exception messages MUST NOT be added merely because a middleware or response was observed.
 
-`Pipeline`, `HttpMiddlewareStackBuilder`, `RequestIdPolicy`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
+`Pipeline`, `HttpMiddlewareStackBuilder`, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
 
 ## Enforcement rails
 
 Integration verification MUST cover deterministic per-slot ordering and deduplication, cross-slot failures, exact metadata and toggles, selected/unselected priority-`1000` boundary placement, returned short-circuit response unwind, exception conversion as a separate path, final-response completion and outcome classification, and source/compiled container parity.
 
 Tests MUST distinguish an intermediate middleware result from the completed `HttpKernel` result and MUST NOT treat optional observability failures as permission to change responses or primary Throwables.
+
+Response hardening verification MUST cover independent feature enablement, mandatory shared policy injection, deterministic immutable header mutation, case-insensitive replacement, preservation of unrelated response data, policy validation, all successfully returned pipeline response paths, and canonical fatal completion on mutation failure.
+
+HTTPS redirect verification MUST cover exact registration and conditional participation, same-slot deduplication, actual trusted-proxy handoff, malformed metadata fallback, independence from context enrichment, explicit authority validation, method and status restrictions, encoded Location preservation and rejection, downstream invocation counts, and bounded independently isolated redirect-decision observations.
 
 Sequential HTTP UnitOfWork regression MUST exercise an independent sequence of 1000 deterministic sequential invocations for each request-id policy configuration:
 

@@ -9911,65 +9911,87 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "Коли ввімкнено, кожна відповідь має deterministic security headers, а HTTP→HTTPS redirect працює за policy."
+goal: "Коли ввімкнено, кожна успішно фіналізована HTTP response має deterministic security headers, а HTTP→HTTPS redirect працює за явною безпечною policy."
 provides:
-- "Security headers middleware для всіх responses (включно з errors/maintenance)"
-- "Optional HTTPS redirect policy (prod hardening), враховуючи scheme (TrustedProxy/Context)"
-- "Deterministic header order + redaction: no raw URL/query in logs"
+- "Security headers policy integrated into the existing HttpResponseFinalizer for all returned HTTP responses"
+- "Optional HTTPS redirect middleware using canonical trusted proxy metadata and an explicitly configured HTTPS target authority"
+- "Deterministic security header application order and bounded redirect observability without raw request data"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-response-hardening-headers-https.md"
-ssot_refs: []
+adr: "docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md"
+ssot_refs:
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/middleware-context-keys-map.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/logging-policy.md"
 ---
 
-- [ ] update `3.70.0 Response hardening` to review the outermost priority-1000 Problem Details error boundary against `SecurityHeadersMiddleware` in `http.middleware.system_post`, ensuring security headers on normal, short-circuit, error, emergency, and maintenance responses without a second response-processing pipeline.
+- [x] Response hardening MUST reuse the existing HTTP final-response completion boundary:
+  - [x] apply security headers through the existing `HttpResponseFinalizer` after the entire PSR-15 pipeline returns
+  - [x] cover normal, request-phase short-circuit, post-decorator short-circuit, handled-error, emergency, and returned maintenance responses
+  - [x] preserve the exclusive outermost priority-`1000` Problem Details error boundary
+  - [x] MUST NOT introduce `SecurityHeadersMiddleware`, another response finalizer, a second decorator traversal, or another error-processing pipeline
+  - [x] MUST NOT synthesize a response when the existing HTTP lifecycle propagates a Throwable
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - 3.50.0 — base HTTP runtime exists (system_pre/system_post slots)
-  - 3.50.0 — `http.middleware.system_post` tag exists
-  - (optional) 3.50.0 — TrustedProxyMiddleware exists if redirect relies on proxy scheme
+  - 3.50.0 — canonical HTTP runtime, PSR-15 pipeline, and declarative middleware composition exist
+  - 3.50.0 — `HttpResponseFinalizer` and canonical final-response completion exist
+  - 3.50.0 — `TrustedProxyMiddleware` and `TrustedHostPolicy` exist
+  - 3.55.0 — HTTP long-running isolation regression evidence exists
 
 - Required deliverables (exact paths):
   - `packages/platform/http/config/http.php`
   - `packages/platform/http/config/rules.php`
+  - `packages/platform/http/src/HttpKernel.php`
   - `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - `packages/platform/http/src/Middleware/TrustedProxyMiddleware.php`
+  - `packages/platform/http/src/Host/TrustedHostPolicy.php`
+  - `packages/platform/http/src/Response/HttpResponseFinalizer.php`
 
-- Required config roots/keys:
-  - `http.security_headers.*`
-  - `http.https_redirect.*`
+- Required existing config root:
+  - `http`
 
 - Existing root reuse note (MUST):
   - This epic extends the existing `http` root with `http.security_headers.*` and `http.https_redirect.*` keys only.
-  - It MUST NOT be treated as a config-root owner/introduction epic.
+  - It MUST NOT introduce another config root or config owner.
 
 - Required tags:
-  - `http.middleware.system_pre` — for HttpsRedirectMiddleware (priority `850`)
-  - `http.middleware.system_post` — for SecurityHeadersMiddleware (priority `600`)
+  - `http.middleware.system_pre` — for `HttpsRedirectMiddleware` (priority `850`)
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Psr\Log\LoggerInterface`
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
-- Foundation stable APIs:
-  - `Coretsia\Contracts\Context\ContextKeys` — required because redirect scheme resolution MAY read `ContextKeys::SCHEME`
+  - `Psr\Http\Message\ResponseFactoryInterface`
 
-- tighten to cemented APIs
-  - `Coretsia\Contracts\Context\ContextAccessorInterface::get(string $key): mixed` MUST be used without a default param.
-  - Missing key handling MUST remain non-throwing for this epic’s runtime path.
-
-- Scheme source (single-choice) (MUST)
-  - Redirect decision MUST use scheme in this priority order (deterministic):
-    1) trusted proxy derived scheme (if proxy middleware enabled and policy accepts)
-    2) context key `ContextKeys::SCHEME` (if present)
-    3) request URI scheme (PSR-7)
-  - Logging MUST NOT dump raw URL/query; allowed only `hash/len`.
+- Scheme source (MUST):
+  - redirect decisions MUST consume the canonical request-local handoff from `TrustedProxyMiddleware::ATTRIBUTE` only when `http.proxy.enabled=true`
+  - accept the proxy scheme only from an array containing a non-empty string `client_ip` and a `scheme` equal to `http` or `https`
+  - canonical client IP validation and forwarding-header trust resolution remain owned exclusively by `TrustedProxyPolicy`
+  - otherwise use the PSR-7 request URI scheme
+  - only the exact effective schemes `http` and `https` are supported
+  - only effective `http` is eligible for redirection
+  - MUST NOT parse raw forwarding headers independently
+  - MUST NOT depend on optional ContextStore enrichment or read `ContextKeys::SCHEME` as a second scheme-resolution authority
+  - MUST NOT trust the reserved proxy attribute when proxy participation is disabled
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -9981,24 +10003,28 @@ Depends on:
 Forbidden:
 - any other `platform/*` runtime packages
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
 - PSR:
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
+  - `Psr\Http\Message\ResponseFactoryInterface`
+  - `Psr\Log\LoggerInterface`
 - Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
-- Foundation stable APIs:
-  - `Coretsia\Contracts\Context\ContextKeys`
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 
 ### Entry points / integration points (MUST)
 
 - HTTP:
-  - middleware: `\Coretsia\Http\Middleware\HttpsRedirectMiddleware::class`
+  - middleware: `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class`
     - tag: `http.middleware.system_pre` priority `850` meta `{toggle:'http.https_redirect.enabled'}`
-  - middleware: `\Coretsia\Http\Middleware\SecurityHeadersMiddleware::class`
-    - tag: `http.middleware.system_post` priority `600` meta `{toggle:'http.security_headers.enabled'}`
+  - response finalization: `\Coretsia\Platform\Http\Response\HttpResponseFinalizer::finalize()`
+    - policy: `\Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy::class`
+    - config toggle: `http.security_headers.enabled`
+    - no middleware slot, priority, or tag registration
 - CLI:
   - N/A
 - Kernel hooks/tags:
@@ -10010,60 +10036,402 @@ Forbidden:
 
 #### Creates
 
-- [ ] `packages/platform/http/src/Middleware/SecurityHeadersMiddleware.php` — adds headers deterministically
-- [ ] `packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php` — VO policy (CSP/Referrer/etc)
-- [ ] `packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php` — redirect policy-based
-- [ ] `packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php` — VO policy (status/allowlist)
+- [x] `packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php` — immutable response security-header policy
+  - [x] implement a `final readonly` configuration policy
+  - [x] consume validated values from `http.security_headers.*`
+  - [x] expose an ordered map containing only enabled, non-empty security-header values
+  - [x] use the following fixed header application order:
+    - [x] `X-Content-Type-Options`
+    - [x] `X-Frame-Options`
+    - [x] `Referrer-Policy`
+    - [x] `Permissions-Policy`
+    - [x] `Content-Security-Policy`
+  - [x] allow `x_content_type_options` only as `nosniff`
+  - [x] allow `x_frame_options` only as `deny` or `sameorigin`; emit canonical `DENY` or `SAMEORIGIN`
+  - [x] allow only the canonical Referrer-Policy directive values
+  - [x] treat empty `permissions_policy` and `csp` values as omitted header applications
+  - [x] reject non-empty optional header values exceeding 4096 bytes, containing non-printable ASCII characters, or containing leading/trailing whitespace
+  - [x] reject invalid policy configuration through fixed safe diagnostic tokens without including configured values
+  - [x] disabled policy MUST expose an empty ordered header map
+  - [x] MUST NOT mutate responses, inspect requests, read/write ContextStore, or emit observability
+  - [x] MUST NOT introduce HSTS, CSP nonce generation, or request-dependent header values
 
-- [ ] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
-- [ ] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
-- [ ] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
+- [x] `packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php` — immutable HTTPS redirect configuration policy
+  - [x] implement a `final readonly` configuration policy
+  - [x] consume validated values from `http.https_redirect.*`
+  - [x] support only redirect statuses `307` and `308`
+  - [x] validate `allow_methods` as a list of unique canonical uppercase methods from `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`
+  - [x] an empty method allowlist MUST permit no redirects
+  - [x] require a non-empty explicitly configured `target_authority` when enabled
+  - [x] permit an empty `target_authority` only when disabled
+  - [x] validate every non-empty `target_authority` through the existing `TrustedHostPolicy` constructor using a single-entry authority list
+  - [x] reuse its existing canonical authority grammar without copying or exposing its private normalization implementation
+  - [x] MUST NOT use `http.hosts.allowed` as the HTTPS redirect destination configuration
+  - [x] support canonical DNS names, IP addresses, and an optional explicitly configured port
+  - [x] reject scheme prefixes, userinfo, paths, query strings, fragments, malformed authorities, and control characters in `target_authority`
+  - [x] MUST NOT derive the target authority from the request URI, Host header, forwarded host, or ContextStore
+  - [x] MUST NOT introduce another trusted-host allowlist grammar or proxy-resolution policy
+  - [x] MUST NOT retain request-local state or emit observability
+
+- [x] `packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php` — deterministic HTTPS redirect middleware
+  - [x] implement `MiddlewareInterface` as a `final readonly` service
+  - [x] inject the shared `HttpsRedirectPolicy`, existing PSR-17 `ResponseFactoryInterface`, existing `MeterPortInterface`, existing PSR-3 `LoggerInterface`, and validated boolean values from:
+    - [x] `http.proxy.enabled`
+    - [x] `http.metrics.enabled`
+    - [x] `http.access_log.enabled`
+  - [x] consume HTTPS redirect enablement exclusively through the injected `HttpsRedirectPolicy`
+  - [x] when disabled, delegate to the downstream handler without redirect observability
+  - [x] enforce disabled policy behavior even when the middleware is explicitly included through a manual append list
+  - [x] resolve the effective scheme using the canonical trusted-proxy request attribute when enabled and available; otherwise use the request URI scheme
+  - [x] delegate unchanged when the scheme is not `http` or the request method is not explicitly allowed
+  - [x] construct the absolute Location URI using `https://`, the validated configured target authority, and the original encoded request path/query
+  - [x] normalize an empty path to `/`
+  - [x] preserve the encoded path/query without decoding, re-encoding, or reconstructing request parameters
+  - [x] omit request userinfo and fragments
+  - [x] validate the encoded path and query independently before constructing Location:
+    - [x] the normalized path MUST begin with `/` and MUST NOT begin with `//`
+    - [x] path characters MUST conform to RFC 3986 `pchar` or `/`
+    - [x] query characters MUST conform to RFC 3986 `pchar`, `/`, or `?`
+    - [x] every percent-encoded sequence MUST contain exactly two hexadecimal digits
+    - [x] reject raw whitespace, non-ASCII bytes, control characters, backslashes, fragment delimiters, and malformed percent-encoded sequences
+    - [x] reject raw query delimiters within the path component
+  - [x] skip the redirect when any Location component fails validation
+  - [x] MUST NOT decode or normalize accepted percent-encoded sequences
+  - [x] MUST NOT preserve a source HTTP port unless that port is explicitly configured in the target authority
+  - [x] construct the configured `307` or `308` response through the existing PSR-17 response factory
+  - [x] apply `Location` through immutable PSR-7 `withHeader()`
+  - [x] require the mutation result to implement `ResponseInterface`
+  - [x] reject a non-response mutation result using the fixed diagnostic token `http-https-redirect-response-invalid`
+  - [x] return the constructed redirect response without downstream execution
+  - [x] preserve the canonical error boundary for response construction or PSR-7 mutation failures
+  - [x] MUST NOT catch or replace downstream application Throwables
+  - [x] record a completed `redirected` decision only after successful redirect-response construction and Location-header mutation
+  - [x] record a completed `skipped` decision before invoking the downstream handler
+  - [x] MUST NOT record a completed decision when redirect-response construction or Location-header mutation fails
+  - [x] attempt `MeterPortInterface::increment('http.https_redirect_total', 1, ['outcome' => $outcome])` exactly once per completed decision when `http.metrics.enabled=true`
+  - [x] attempt the fixed PSR-3 info event `http.https_redirect.decided` exactly once per completed decision when `http.access_log.enabled=true`
+  - [x] supply only `outcome=redirected|skipped` and include the configured integer `status` only for redirected decisions
+  - [x] isolate metric and log failures independently without retrying either emission
+  - [x] observability failures MUST NOT change the redirect decision, suppress downstream handling, or replace a completed response
+  - [x] MUST NOT emit new spans, raw request values, URL hashes, URL lengths, or exception diagnostics
+  - [x] MUST NOT introduce ContextStore writes, reset participation, or another request lifecycle
+
+Tests:
+- [x] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+  - [x] use the existing `HttpKernel`, canonical finalizer, KernelRuntime lifecycle, and actual selected Problem Details boundary
+  - [x] verify security headers on normally returned responses
+  - [x] verify request-phase and post-decorator short-circuit responses
+  - [x] verify HTTPS redirect responses
+  - [x] verify mapped Problem Details responses and emergency `500` responses
+  - [x] verify a returned maintenance-style `503` response using a test-only short-circuit fixture
+  - [x] verify security header application independently of correlation and request-id enablement
+  - [x] verify disabled security headers leave the response unchanged by hardening
+  - [x] verify preservation of status, body, Location, Content-Type, Cache-Control, and unrelated headers
+  - [x] verify that a redirect-response construction Throwable handled by the selected Problem Details boundary produces a canonically finalized error response
+  - [x] verify no response is synthesized by platform/http when a Throwable escapes the complete pipeline
+  - [x] verify response-finalization mutation failures use the existing fatal completion path
+  - [x] verify canonical after-UoW and reset responsibility remains unchanged
+
+- [x] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+  - [x] verify canonical middleware ordering at priority `850`
+  - [x] verify trusted forwarded `https` prevents a redirect when the direct request URI scheme is `http`
+  - [x] verify trusted forwarded `http` permits a redirect when the direct request URI scheme is `https`
+  - [x] verify untrusted, malformed, disabled, or missing proxy metadata cannot override the direct request scheme
+  - [x] verify trusted-proxy behavior through the actual existing `TrustedProxyMiddleware` and `TrustedProxyPolicy`
+  - [x] verify that `X-Forwarded-Proto` without the required canonical `X-Forwarded-For` handoff cannot override the direct request scheme
+  - [x] verify that forged incoming reserved proxy attributes are removed or ignored according to canonical proxy enablement
+  - [x] verify identical redirect decisions with HTTP ContextStore enrichment enabled and disabled
+  - [x] verify exact method allowlist behavior, supported status codes, and disabled behavior
+  - [x] verify rejection of duplicate methods and unsupported method values
+  - [x] verify rejection of an empty target authority when enabled
+  - [x] verify an empty target authority is accepted when disabled
+  - [x] verify malformed non-empty target authorities are rejected during policy construction independently of enablement
+  - [x] verify canonical authority validation is reused for DNS names, IPv4, bracketed IPv6, and explicit ports
+  - [x] verify disabled redirect middleware remains non-operative when manually appended
+  - [x] verify enabled tagged and same-slot manually appended middleware participates only once
+  - [x] verify malicious Host and forwarded host values cannot control Location authority
+  - [x] verify target authority, explicit target port, encoded path/query preservation, and omission of userinfo and fragments
+  - [x] verify malformed Location candidates cannot create unsafe redirects
+  - [x] verify redirect responses bypass downstream handling and skipped decisions execute downstream exactly once
+  - [x] verify metric and log enablement, bounded values, redaction, and independent observability failure isolation
+  - [x] verify a skipped decision is recorded exactly once even when downstream handling throws
+  - [x] verify failed redirect-response construction or Location-header mutation emits no completed redirect decision
+  - [x] verify metric and log failures do not cause retries or duplicate decision emissions
+
+- [x] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
+  - [x] verify the exact fixed ordered security-header map
+  - [x] verify the exact immutable PSR-7 mutation sequence
+  - [x] verify each mutation consumes the response returned by the preceding successful mutation
+  - [x] verify non-response mutation results fail deterministically
+  - [x] verify mutation failure prevents subsequent security-header applications
+  - [x] verify case-insensitive replacement of configured non-empty header values
+  - [x] verify empty optional settings do not remove existing application response headers
+  - [x] verify disabled policy produces no security-header mutations
+  - [x] verify supported and rejected policy values, including injection attempts
+  - [x] MUST NOT assume PSR-7 implementations guarantee identical serialized header iteration or wire order
 
 #### Modifies
 
-- [ ] `packages/platform/http/config/http.php` — add `security_headers.*` + `https_redirect.*` keys + defaults
-- [ ] `packages/platform/http/config/rules.php` — enforce shape for new keys
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middlewares + add tags/priority
-- [ ] `packages/platform/http/README.md` — sections “HttpsRedirectMiddleware” and “SecurityHeadersMiddleware” (slot/priority, toggle keys, override recipe)
-- [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
-  - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
-  - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
-- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for:
-  - [ ] `HttpsRedirectMiddleware` → `http.middleware.system_pre` priority `850`
-  - [ ] `SecurityHeadersMiddleware` → `http.middleware.system_post` priority `600`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-response-hardening-headers-https.md`
+- [x] `packages/platform/http/src/Response/HttpResponseFinalizer.php` — canonical security-header application
+  - [x] append the mandatory non-nullable constructor parameter `private SecurityHeadersPolicy $securityHeaders` after the existing `RequestIdPolicy` dependency, without a default value
+  - [x] receive the shared `SecurityHeadersPolicy` exclusively through explicit constructor injection
+  - [x] MUST NOT construct a fallback security-header policy internally
+  - [x] update class and finalization method documentation to cover both identity-header and security-header application
+  - [x] preserve existing correlation-header application and exact request-id verification
+  - [x] preserve correlation-header application before request-id header application
+  - [x] apply security headers after successful identity-header finalization
+  - [x] ensure the absence of a selected request identifier under the existing disabled `RequestIdPolicy` does not bypass security-header application
+  - [x] preserve the mandatory shared `RequestIdPolicy` dependency and exact selected/current request identifier verification
+  - [x] remove the existing early-return behavior from the request-id-absent branch only to permit subsequent security-header application
+  - [x] consume the ordered map supplied by `SecurityHeadersPolicy`
+  - [x] use immutable PSR-7 `withHeader()` exactly once for each configured non-empty security header
+  - [x] require every header mutation result to implement `ResponseInterface` before continuing
+  - [x] use the preceding successful mutation result as the input to the next mutation
+  - [x] reject a non-response mutation result using the fixed diagnostic token `http-security-header-response-invalid`
+  - [x] stop subsequent security-header mutations immediately when a mutation fails
+  - [x] MUST NOT execute security-header mutations after correlation or request-id finalization failure
+  - [x] preserve response status, body, and unrelated headers
+  - [x] configured non-empty security header values MUST replace existing values case-insensitively
+  - [x] empty optional values MUST NOT remove existing application-provided headers
+  - [x] propagate mutation failures through the existing HttpKernel fatal completion path
+  - [x] MUST NOT generate fallback responses, execute middleware, normalize Throwables, or introduce another completion lifecycle
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/config/http.php` — response hardening defaults
+  - [x] extend the existing `http` subtree with `security_headers` and `https_redirect` maps
+  - [x] declare the exact defaults specified in this epic
+  - [x] document independent security-header and HTTPS redirect enablement
+  - [x] document explicitly configured HTTPS target authority semantics
+  - [x] remove obsolete baseline comments excluding security-header configuration
+  - [x] preserve existing config root ownership and middleware append-list defaults
 
-N/A (same package as 3.50.0)
+- [x] `packages/platform/http/config/rules.php` — canonical strict hardening configuration validation
+  - [x] validate both new maps using existing ConfigValidator rules only
+  - [x] require every declared key, including disabled feature settings
+  - [x] reject unknown keys and reserved directives
+  - [x] require actual booleans for enablement
+  - [x] validate redirect status using strict integer `allowedValues` of `307` and `308`
+  - [x] validate method list item types and allowed values without coercion
+  - [x] validate fixed security-header directive values through supported `allowedValues` rules
+  - [x] validate optional header values and target authority as strings, permitting their empty defaults
+  - [x] leave semantic authority validation, method uniqueness, and bounded header-value validation to the owning immutable policies
+  - [x] MUST NOT introduce another rules DSL or callable validator mechanism
+
+- [x] `packages/platform/http/src/Provider/HttpServiceFactory.php` — canonical hardening policy construction
+  - [x] introduce deterministic static `securityHeaders()` and `httpsRedirect()` factory methods
+  - [x] consume both configuration sections from the existing effective `http` subtree through `ConfigRepositoryInterface`
+  - [x] reuse the existing `section()`, `boolean()`, `string()`, `integer()`, and `list()` configuration helpers
+  - [x] supply all required policy constructor arguments explicitly
+  - [x] preserve policy-owned semantic validation during service resolution
+  - [x] MUST NOT embed raw security-header or redirect authority configuration values into declarative service descriptors or compiled container graphs
+  - [x] MUST NOT introduce another configuration repository, service registry, validation lifecycle, or middleware construction mechanism
+  - [x] preserve the existing canonical pipeline construction behavior
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php` — declarative hardening wiring
+  - [x] register shared `SecurityHeadersPolicy` and `HttpsRedirectPolicy` definitions through canonical declarative class-method factories owned by `HttpServiceFactory`
+  - [x] supply the existing `ConfigRepositoryInterface` as an explicit service reference to both policy factories
+  - [x] append the explicit shared `SecurityHeadersPolicy` service reference to the existing `HttpResponseFinalizer` constructor arguments
+  - [x] supply all required `HttpsRedirectMiddleware` constructor arguments explicitly and delegate explicit policy construction to the canonical `HttpServiceFactory`, independently of feature enablement
+  - [x] register `HttpsRedirectMiddleware` using the existing PSR-17 response factory, observability bindings, and validated feature toggles
+  - [x] register `HttpsRedirectMiddleware` through `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`, priority `850`, meta `['toggle' => 'http.https_redirect.enabled']`
+  - [x] preserve tag registration independently of the enabled value
+  - [x] preserve source/compiled container parity and Foundation later-binding-wins semantics
+  - [x] MUST NOT register security-header application as middleware
+  - [x] MUST NOT change the existing HttpKernel completion-service composition
+
+- [x] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - [x] add `http.https_redirect.enabled` to the existing boolean middleware-toggle metadata allowlist
+  - [x] preserve canonical TagRegistry ordering and toggle evaluation
+  - [x] MUST NOT add `http.security_headers.enabled` to the middleware-toggle allowlist
+  - [x] MUST NOT change slot order, post-decorator traversal, or exclusive outermost priority-`1000` error-boundary semantics
+
+- [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] extend exact root-key and default-value assertions for both new maps
+  - [x] verify strict required-key validation and rejection of unknown or malformed values
+  - [x] verify matching defaults/rules key order
+  - [x] verify existing nine middleware slots remain unchanged
+
+- [x] `packages/platform/http/tests/Contract/HttpMiddlewareTagMetadataContractTest.php`
+  - [x] add `http.https_redirect.enabled` to canonical toggle coverage
+  - [x] verify `http.security_headers.enabled` is rejected as middleware tag metadata
+  - [x] verify malformed redirect toggle values fail closed
+
+- [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] extend the exact baseline from six to seven HTTP-owned middleware registrations
+  - [x] assert `HttpsRedirectMiddleware` at `http.middleware.system_pre`, priority `850`, with exact toggle metadata
+  - [x] verify enabled/disabled participation and canonical relative ordering
+  - [x] verify no `SecurityHeadersMiddleware` registration exists
+  - [x] preserve exclusive priority-`1000` Problem Details placement
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] extend exact service descriptors with the new shared policies and redirect middleware
+  - [x] assert the mandatory shared security-header policy reference in the HttpResponseFinalizer descriptor
+  - [x] update `testRequestIdPolicyIsAMandatoryConstructorDependencyOfBothHttpOwners()` to locate the existing `requestIds` constructor parameter by name instead of assuming it is the last parameter
+  - [x] preserve exact `RequestIdPolicy` type, non-nullability, mandatory participation, and absence of a default value
+  - [x] verify the `securityHeaders` constructor parameter has the exact `SecurityHeadersPolicy` type, is non-nullable, non-optional, and has no default value
+  - [x] verify all constructor parameters of `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, and `HttpsRedirectMiddleware` are non-optional and have no default values
+  - [x] verify the resolved finalizer receives the exact shared security-header policy instance from the canonical container
+  - [x] extend exact middleware tag assertions from six to seven registrations
+  - [x] verify equivalent enabled/disabled hardening configurations and resolved behavior in both container modes
+  - [x] verify an enabled redirect policy with invalid semantic configuration fails during canonical middleware resolution before HTTP UnitOfWork execution in both container modes
+  - [x] verify disabled redirect participation does not require eager resolution of its policy solely for semantic validation
+  - [x] extend readonly-property and shared-service assertions
+  - [x] preserve the existing lifecycle-tag ownership assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] extend exact finalizer constructor descriptors and readonly-property assertions for `SecurityHeadersPolicy`
+  - [x] update the middleware-tag count from six to seven
+  - [x] preserve the four existing final-response completion services
+  - [x] verify final-response observability consumes the hardened response
+  - [x] verify security-header mutation failure reports the existing fatal outcome with status `unknown`
+  - [x] supply the explicit disabled security-header policy to existing direct finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+  - [x] update exact baseline middleware registration counts to seven without and eight with the selected Problem Details boundary
+  - [x] preserve the error boundary's exact priority, metadata, and exclusive outermost position
+  - [x] preserve canonical normalization, emergency response, and original Throwable propagation coverage
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] extend exact HttpResponseFinalizer constructor descriptors and readonly-property assertions
+  - [x] verify new redirect observability participates safely through existing noop ports
+  - [x] supply the explicit disabled security-header policy to existing direct finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+  - [x] supply the explicit security-header policy to every finalizer construction
+  - [x] verify correlation, request-id, and security-header application order
+  - [x] verify security headers are applied when request-id is absent or disabled
+  - [x] preserve existing identity verification and mutation failure precedence
+
+- [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+  - [x] preserve the existing 1000-invocation isolation regression sequences and their mutation-count assertions
+  - [x] MUST NOT relax existing after-UoW, reset-count, and isolation assertions
+
+- [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php`
+  - [x] supply the explicit disabled security-header policy to existing finalizer construction fixtures
+
+- [x] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+  - [x] assert the canonical `http.https_redirect_total` counter catalog entry with exactly the `outcome` label
+  - [x] preserve the existing global metric-label allowlist
+
+- [x] `packages/platform/http/README.md`
+  - [x] document `HttpsRedirectMiddleware`, priority `850`, toggle, supported statuses, method allowlist, and explicit target authority
+  - [x] document security-header application through the existing HttpResponseFinalizer outside all middleware slots
+  - [x] document defaults, override configuration, deterministic application order, replacement semantics, and empty optional values
+  - [x] document redirect observability toggles and safe diagnostic fields
+  - [x] update obsolete six-middleware and future-only security-header/HTTPS redirect statements
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] activate the existing `HttpsRedirectMiddleware` reservation at `http.middleware.system_pre`, priority `850`
+  - [x] remove the future-only `SecurityHeadersMiddleware` reservation at `http.middleware.system_post`, priority `600`
+  - [x] document security-header application as an existing HttpResponseFinalizer responsibility outside middleware slot participation
+  - [x] update implemented middleware counts and final-response completion rules
+  - [x] preserve all unrelated middleware reservations and priorities
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] add `http.https_redirect.enabled` to the canonical middleware-toggle metadata allowlist
+  - [x] add the implemented priority-`850` redirect middleware contribution
+  - [x] document the canonical redirect scheme source and fixed target-authority policy
+  - [x] document security-header application after identity-header finalization
+  - [x] document coverage of normal, short-circuit, mapped, and emergency returned responses
+  - [x] preserve the existing pipeline, Throwable precedence, final-response observability, and Kernel-owned reset semantics
+  - [x] document deterministic mutation order without implying PSR-7 wire-order guarantees
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] update the `HttpsRedirectMiddleware` row to declare no ContextKeys reads or writes
+  - [x] document consumption of the canonical trusted-proxy request-local attribute
+  - [x] remove the `SecurityHeadersMiddleware` row because security-header application is not middleware
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `http.https_redirect_total` as a `platform/http` counter with exactly the `outcome` label
+  - [x] define allowed values `redirected` and `skipped`
+  - [x] document redirect-decision metric and log enablement
+  - [x] document fixed event `http.https_redirect.decided` and its bounded fields
+  - [x] distinguish redirect decisions from final HTTP request outcomes
+  - [x] MUST NOT extend the global metric-label allowlist or introduce another logging admission policy
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] extend the existing final-response completion decision with security-header application
+  - [x] record the rejection of ordinary post middleware as the owner of all-response hardening
+  - [x] document why security-header application follows outermost error conversion
+  - [x] preserve the existing nine slots, canonical error boundary, and single HTTP completion lifecycle
+  - [x] update the relevant Non-goals and verification statements
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-- [ ] Keys (dot):
-  - [ ] `http.security_headers.enabled` = false
-  - [ ] `http.security_headers.x_content_type_options` = 'nosniff'
-  - [ ] `http.security_headers.x_frame_options` = 'deny'
-  - [ ] `http.security_headers.referrer_policy` = 'no-referrer'
-  - [ ] `http.security_headers.permissions_policy` = ''
-  - [ ] `http.security_headers.csp` = ''
-  - [ ] `http.https_redirect.enabled` = false
-  - [ ] `http.https_redirect.status` = 308
-  - [ ] `http.https_redirect.allow_methods` = ['GET','HEAD']
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/http/config/http.php`
+- [x] Keys (dot):
+  - [x] `http.security_headers.enabled` = false
+  - [x] `http.security_headers.x_content_type_options` = 'nosniff'
+  - [x] `http.security_headers.x_frame_options` = 'deny'
+  - [x] `http.security_headers.referrer_policy` = 'no-referrer'
+  - [x] `http.security_headers.permissions_policy` = ''
+  - [x] `http.security_headers.csp` = ''
+  - [x] `http.https_redirect.enabled` = false
+  - [x] `http.https_redirect.status` = 308
+  - [x] `http.https_redirect.allow_methods` = ['GET','HEAD']
+  - [x] `http.https_redirect.target_authority` = ''
+- [x] Rules:
+  - [x] `packages/platform/http/config/rules.php` enforces strict required-key and value-type validation
+  - [x] `http.security_headers.x_content_type_options` supports only `nosniff`
+  - [x] `http.security_headers.x_frame_options` supports only `deny` and `sameorigin`
+  - [x] `http.security_headers.referrer_policy` supports only:
+    - [x] `no-referrer`
+    - [x] `no-referrer-when-downgrade`
+    - [x] `origin`
+    - [x] `origin-when-cross-origin`
+    - [x] `same-origin`
+    - [x] `strict-origin`
+    - [x] `strict-origin-when-cross-origin`
+    - [x] `unsafe-url`
+  - [x] `http.security_headers.permissions_policy` and `http.security_headers.csp` permit empty strings
+  - [x] `http.https_redirect.status` supports only `307` and `308`
+  - [x] `http.https_redirect.allow_methods` contains only supported canonical method values
+  - [x] an enabled HTTPS redirect policy requires an explicitly configured, non-empty canonical `target_authority`
+  - [x] structural configuration validation MUST apply to the complete effective configuration independently of feature enablement
+  - [x] semantic policy validation MUST execute when the corresponding immutable policy is constructed
+  - [x] `SecurityHeadersPolicy` MUST be validated independently of enablement because it is a mandatory dependency of `HttpResponseFinalizer`
+  - [x] an enabled `HttpsRedirectPolicy` MUST be validated during canonical middleware resolution before request execution
+  - [x] a disabled redirect policy MUST NOT require eager service resolution solely for semantic validation
+  - [x] MUST NOT instantiate services during declarative provider definition production or introduce another configuration-validation lifecycle
+  - [x] MUST NOT infer the HTTPS target authority from untrusted request data
 
 #### Wiring / DI tags (when applicable)
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] N/A (reuses `http.middleware.system_pre` / `http.middleware.system_post`)
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Http\Middleware\HttpsRedirectMiddleware`
-  - [ ] adds tag: `http.middleware.system_pre` priority `850` meta `{toggle:'http.https_redirect.enabled'}`
-  - [ ] registers: `Coretsia\Http\Middleware\SecurityHeadersMiddleware`
-  - [ ] adds tag: `http.middleware.system_post` priority `600` meta `{toggle:'http.security_headers.enabled'}`
+- Tags introduced:
+  - N/A
+- [x] ServiceProvider wiring evidence:
+  - [x] registers: `Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy`
+  - [x] registers: `Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy`
+  - [x] registers: `Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware`
+  - [x] adds tag: `http.middleware.system_pre` priority `850` meta `{toggle:'http.https_redirect.enabled'}`
+  - [x] extends the existing `HttpResponseFinalizer` definition with the shared `SecurityHeadersPolicy`
+  - [x] extends the existing middleware-toggle metadata allowlist with `http.https_redirect.enabled`
+  - [x] preserves declarative service and tag registration independently of feature enablement
+- [x] Restrictions:
+  - [x] MUST NOT introduce additional reserved tags or middleware slots
+  - [x] MUST NOT register security-header application in any HTTP middleware slot
+  - [x] MUST NOT register `SecurityHeadersPolicy` or `HttpsRedirectPolicy` as middleware or resettable services
+  - [x] MUST NOT modify existing middleware priorities or outermost Problem Details ownership
+  - [x] MUST NOT introduce runtime dependencies on optional concrete observability or Problem Details implementations
 
 #### Artifacts / outputs (if applicable)
 
@@ -10073,67 +10441,119 @@ N/A
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] scheme from trusted proxy/context (if configured)
-- Context writes (safe only):
+- Context reads:
   - N/A
-- Reset discipline:
+- Context writes:
   - N/A
+- [x] Request-local metadata:
+  - [x] consume normalized trusted-proxy scheme metadata exclusively through `TrustedProxyMiddleware::ATTRIBUTE`
+  - [x] MUST NOT independently parse forwarding headers or write transport objects into ContextStore
+- [x] Reset discipline:
+  - [x] all introduced policies and middleware MUST be immutable and retain no invocation-local request state
+  - [x] preserve the existing KernelRuntime-owned UnitOfWork and reset lifecycle
+  - [x] MUST NOT introduce `kernel.reset` or `kernel.stateful` contributions
+  - [x] MUST NOT invoke reset orchestration or after-UoW hooks directly
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `http.https_redirect_total` (labels: `outcome=redirected|skipped`)
-- [ ] Logs:
-  - [ ] redirect decision logged as info (no URL dump; only `hash(url)` + status)
+- [x] Metrics:
+  - [x] `http.https_redirect_total` (`counter`)
+  - [x] labels: `outcome=redirected|skipped`
+  - [x] respect `http.metrics.enabled`
+  - [x] attempt exactly one counter increment for each successfully completed redirect decision
+  - [x] a failed counter invocation MUST NOT trigger another attempt
+  - [x] redirect-response construction failures MUST NOT be classified as completed redirected or skipped decisions
+  - [x] do not count disabled or bypassed middleware participation
+  - [x] distinguish redirect decisions from finalized HTTP request outcomes
+- [x] Logs:
+  - [x] fixed PSR-3 info event `http.https_redirect.decided`
+  - [x] `outcome=redirected|skipped`
+  - [x] include configured integer `status` only for redirected decisions
+  - [x] respect `http.access_log.enabled`
+  - [x] reuse the canonical logging admission and redaction boundary
+- Spans introduced:
+  - N/A
+- [x] Failure isolation:
+  - [x] metric and log failures MUST be isolated independently
+  - [x] MUST NOT suppress redirect responses, downstream handling, or canonical HTTP completion
 
 #### Errors
 
-- Exceptions introduced:
-  - N/A (prefer skip over throw)
+- Exception types introduced:
+  - N/A
+- [x] Invalid policy configuration MUST fail through safe fixed diagnostic tokens.
+- [x] Missing or unsupported scheme/method eligibility MUST skip the redirect.
+- [x] Response construction and mutation failures MUST preserve canonical HTTP error and fatal completion semantics.
+- [x] MUST NOT introduce another error normalizer, renderer, or emergency-response policy.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] raw URL/query in logs (use `hash/len` only)
-- [ ] Deterministic header order:
-  - [ ] stable tests prove header order
+- [x] MUST NOT leak:
+  - [x] raw URL, path, query, Location value, host, userinfo, or fragment in observability
+  - [x] raw request headers, cookies, Authorization values, or exception diagnostics
+  - [x] hashes or lengths derived from untrusted URL/query values
+- [x] HTTPS redirect target:
+  - [x] target authority MUST originate exclusively from validated explicit configuration
+  - [x] preserve encoded request path/query only for HTTP response Location construction
+  - [x] MUST NOT treat request-controlled authority values as trusted redirect destinations
+- [x] Security-header application:
+  - [x] apply configured non-empty values in the fixed canonical mutation order
+  - [x] replace existing matching header values case-insensitively
+  - [x] preserve unrelated headers and existing headers corresponding to empty optional settings
+  - [x] reject unsafe configured header values before response mutation
+  - [x] MUST NOT claim deterministic transport wire order beyond the canonical mutation sequence
 
-### Verification (TEST EVIDENCE) (MUST when applicable)
+### Verification (TEST EVIDENCE) (MUST)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → redirect metric/log asserted in integration tests
-- [ ] If redaction exists → logs must not include raw URL/query (assert via log capture where applicable)
+- [x] Strict configuration defaults, shape, directive values, and policy semantics.
+- [x] Exact declarative DI definitions and source/compiled container parity.
+- [x] Canonical priority-`850` HTTPS redirect middleware placement.
+- [x] Enabled/disabled HTTPS redirect participation.
+- [x] Security-header application independently of middleware participation.
+- [x] Normal, request-phase short-circuit, post-decorator short-circuit, redirect, handled-error, emergency, and returned maintenance responses.
+- [x] Security-header application independently of correlation and request-id enablement.
+- [x] Deterministic header mutation order and case-insensitive replacement.
+- [x] Trusted/untrusted/disabled proxy scheme behavior.
+- [x] Explicit HTTPS target authority and open-redirect prevention.
+- [x] Redirect method allowlist and status policy.
+- [x] Metrics and logs with exact bounded names, values, and feature toggles.
+- [x] No raw or derived sensitive URL/query data in redirect observability.
+- [x] Independent noop and observability failure isolation.
+- [x] Canonical Throwable propagation and fatal response-finalization behavior.
+- [x] No additional ContextStore state, lifecycle tags, or reset attempts.
+- [x] Existing HTTP long-running isolation regression remains green.
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A
-
-### Tests (MUST)
-
-- Unit:
-  - N/A
-- Contract:
-  - [ ] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
-- Integration:
-  - [ ] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
-  - [ ] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
-- Gates/Arch:
-  - [ ] deptrac green (same boundary as 3.50.0)
+- [x] Reuse existing HTTP integration test construction patterns, canonical KernelRuntime, declarative container fixtures, and PSR-7 test responses.
+- [x] Use test-only short-circuit and emergency-response fixtures where required.
+- [x] Maintenance behavior MUST be represented by a returned test-only `503` response until the owning maintenance epic is implemented.
+- [x] MUST NOT introduce another generic HTTP test harness, runtime lifecycle manager, response finalizer, or reset abstraction.
 
 ### DoD (MUST)
 
-- [ ] Spec locked (this epic text reviewed + no open questions)
-- [ ] Implementation complete
-- [ ] Tests green
-- [ ] Gates/Arch green
-- [ ] Docs complete
-- [ ] Works with maintenance and error responses too
-- [ ] Deterministic header order
-- [ ] Docs updated in middleware catalog
+- [x] Spec locked (this epic text reviewed + no open questions)
+- [x] Implementation complete
+- [x] Tests green
+- [x] Gates/Arch green
+- [x] Docs complete
+- [x] When enabled, configured non-empty security headers are applied through the existing HttpResponseFinalizer to every successfully finalized HTTP response.
+- [x] When disabled, the security-header policy performs no response mutations.
+- [x] Normal, short-circuit, redirect, handled-error, emergency, and returned maintenance-style responses are covered.
+- [x] HTTPS redirect uses canonical trusted-proxy metadata and an explicitly configured target authority.
+- [x] Request-controlled authorities cannot influence the HTTPS redirect destination.
+- [x] Deterministic security-header mutation order is verified.
+- [x] Existing request-id, correlation-id, final-response observability, Throwable precedence, and reset discipline remain unchanged.
+- [x] Redirect observability complies with the canonical metric catalog and logging policy.
+- [x] Source and compiled container behavior remains equivalent.
+- [x] All introduced constructor parameters are mandatory, explicitly supplied, and have no default values.
+- [x] All affected production DI definitions and existing test construction sites use the updated constructor contracts.
+- [x] No new middleware slots, reserved tags, config roots, artifacts, or runtime dependencies.
+- [x] No second response-processing pipeline or duplicated trusted-proxy, trusted-host, error, context, or reset implementation.
+- [x] Existing HTTP long-running isolation regression remains green.
+- [x] ADR-0041 and affected SSoT documents are synchronized with the implementation.
 
 ---
 

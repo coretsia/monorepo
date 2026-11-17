@@ -37,6 +37,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -493,7 +494,13 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, 32, 1024),
             ], $terminal),
-            new HttpResponseFinalizer($correlation, false, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlation,
+                false,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder($meter, true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder($tracer, true),

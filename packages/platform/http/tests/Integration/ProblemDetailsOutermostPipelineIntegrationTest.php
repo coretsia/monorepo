@@ -101,11 +101,13 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
         }
         $ordered = new HttpMiddlewareStackBuilder($source)->build($http);
         self::assertSame(
-            $selected ? HttpErrorHandlingMiddleware::class : RequestBodySizeLimitMiddleware::class,
-            $ordered[0],
+            $selected
+                ? [HttpErrorHandlingMiddleware::class, RequestBodySizeLimitMiddleware::class]
+                : [RequestBodySizeLimitMiddleware::class],
+            $ordered,
         );
         self::assertCount(
-            $selected ? 7 : 6,
+            $selected ? 8 : 7,
             \array_filter(
                 $operations,
                 static fn (array $op): bool => ($op['kind'] ?? null) === 'tag'
@@ -374,6 +376,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
         $http['proxy']['enabled'] = false;
         $http['context']['enrich']['enabled'] = false;
         $http['hosts']['enabled'] = false;
+        $http['https_redirect']['enabled'] = false;
         $http['request']['json']['enabled'] = false;
         $config = [
             'foundation' => require \dirname(__DIR__, 4) . '/core/foundation/config/foundation.php',

@@ -19,14 +19,16 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Provider;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\Pipeline;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Stateless canonical HTTP middleware construction helper.
+ * Stateless canonical HTTP service construction helper.
  *
  * Resolves exactly the service IDs selected by HttpMiddlewareStackBuilder
  * through the final effective container. No secondary autowiring, definition
@@ -60,6 +62,44 @@ final class HttpServiceFactory
         }
 
         return new Pipeline($middleware, $terminal);
+    }
+
+    public static function securityHeaders(
+        ConfigRepositoryInterface $config,
+    ): SecurityHeadersPolicy {
+        $root = $config->get('http');
+        if (!\is_array($root)) {
+            throw new \InvalidArgumentException('http-config-invalid');
+        }
+
+        $values = self::section($root, 'security_headers');
+
+        return new SecurityHeadersPolicy(
+            self::boolean($values, 'enabled'),
+            self::string($values, 'x_content_type_options'),
+            self::string($values, 'x_frame_options'),
+            self::string($values, 'referrer_policy'),
+            self::string($values, 'permissions_policy'),
+            self::string($values, 'csp'),
+        );
+    }
+
+    public static function httpsRedirect(
+        ConfigRepositoryInterface $config,
+    ): HttpsRedirectPolicy {
+        $root = $config->get('http');
+        if (!\is_array($root)) {
+            throw new \InvalidArgumentException('http-config-invalid');
+        }
+
+        $values = self::section($root, 'https_redirect');
+
+        return new HttpsRedirectPolicy(
+            self::boolean($values, 'enabled'),
+            self::integer($values, 'status'),
+            self::list($values, 'allow_methods'),
+            self::string($values, 'target_authority'),
+        );
     }
 
     /**

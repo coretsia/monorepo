@@ -296,7 +296,7 @@ Deterministic ordering and discovery-consumption rules are Foundation-owned and 
 
 ## HTTP-owned middleware execution and final-response completion
 
-The implemented `platform/http` baseline consists of six `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
+The implemented `platform/http` baseline consists of seven `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `HttpsRedirectMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
 
 The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
 
@@ -308,7 +308,11 @@ Optional HTTP request identity preparation is owned by `Coretsia\Platform\Http\R
 
 It does not implement PSR-15 middleware and MUST NOT participate in any of the nine middleware slots. No middleware priority, tag metadata, or catalog entry is reserved for request identity preparation.
 
-`HttpKernel` coordinates the HTTP UnitOfWork and final-response completion after the full PSR-15 pipeline. Four dedicated, stateless HTTP-owned services operate outside all nine middleware slots: `HttpResponseFinalizer` applies the independently enabled Kernel-owned correlation and HTTP-owned request-id response-header policies in that order, including exact request identity verification; `HttpRequestMetricsRecorder` records final-result metrics; `HttpAccessLogWriter` emits the bounded completion log through PSR-3; and `HttpRequestSpanRecorder` completes the request-local span. Metrics, logging, and span outcome attributes consume the finalized response status or fixed fatal outcome, never an intermediate middleware result. These services are not PSR-15 middleware or a second observer pipeline. Exact wiring, execution, and error-boundary semantics remain specified by `docs/ssot/http-middleware-wiring.md`.
+`HttpKernel` coordinates the HTTP UnitOfWork and final-response completion after the full PSR-15 pipeline. Four dedicated, stateless HTTP-owned services operate outside all nine middleware slots: `HttpResponseFinalizer` applies the independently enabled Kernel-owned correlation, HTTP-owned request-id, and security-header policies in that order, including exact request identity verification; `HttpRequestMetricsRecorder` records final-result metrics; `HttpAccessLogWriter` emits the bounded completion log through PSR-3; and `HttpRequestSpanRecorder` completes the request-local span. Metrics, logging, and span outcome attributes consume the finalized response status or fixed fatal outcome, never an intermediate middleware result. These services are not PSR-15 middleware or a second observer pipeline. Exact wiring, execution, and error-boundary semantics remain specified by `docs/ssot/http-middleware-wiring.md`.
+
+`SecurityHeadersPolicy` is a mandatory shared configuration dependency of `HttpResponseFinalizer`. Security-header application MUST operate outside all nine middleware slots and MUST NOT reserve a middleware priority, tag registration, or manual append-list entry.
+
+When enabled, configured security headers MUST apply to every successfully returned pipeline response, including responses produced by the selected outermost error boundary. Security-header application MUST follow successful identity-header finalization and precede final-response observability.
 
 ## Platform HTTP defaults policy
 
@@ -512,6 +516,18 @@ status
 outcome
 ```
 
+HTTPS redirect-decision observability is separate from final HTTP request observability.
+
+The canonical redirect-decision metric is:
+
+```text
+http.https_redirect_total
+```
+
+It MUST be a counter with exactly the `outcome` label and allowed values `redirected` and `skipped`.
+
+Its enablement, completed-decision semantics, and redaction requirements are governed by `docs/ssot/observability.md`.
+
 The global metric label allowlist remains:
 
 ```text
@@ -585,6 +601,10 @@ The distinction MUST NOT be encoded through forbidden or high-cardinality metric
 HTTP access logging is structured and redaction-first.
 
 An enabled `HttpAccessLogWriter` MAY emit one bounded HTTP completion record through the canonical PSR-3 `LoggerInterface` after `HttpKernel` finalizes the response. Access logging is not PSR-15 middleware and MUST NOT observe an intermediate middleware response.
+
+`HttpsRedirectMiddleware` MUST use the existing PSR-3 logger for enabled redirect-decision logging under `http.access_log.enabled`. The fixed event `http.https_redirect.decided` contains only the bounded decision `outcome` and, for redirected decisions, the configured integer `status`.
+
+Redirect-decision logs MUST NOT include raw URL data, Location values, request-derived authority values, or hashes or lengths derived from untrusted URL or query values. Redirect-decision logging MUST NOT be interpreted as final HTTP request-completion logging.
 
 Access logs MUST NOT emit:
 
@@ -761,7 +781,7 @@ System-pre middleware runs before the main system, application, and route middle
 | `880`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`         | `['toggle' => 'http.proxy.enabled']`          |
 | `870`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class`       | `['toggle' => 'http.context.enrich.enabled']` |
 | `860`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class`          | `['toggle' => 'http.hosts.enabled']`          |
-| `850`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class`        | future-only; not registered                   |
+| `850`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware::class`        | `['toggle' => 'http.https_redirect.enabled']` |
 | `840`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CorsMiddleware::class`                 | future-only; not registered                   |
 | `830`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware::class` | `[]`                                          |
 | `820`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\MethodOverrideMiddleware::class`       | future-only; not registered                   |
@@ -803,7 +823,6 @@ System-post middleware runs after the system and application processing stage ac
 | `900`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CacheHeadersMiddleware::class`    | future-only; not registered |
 | `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EtagMiddleware::class`            | future-only; not registered |
 | `700`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\CompressionMiddleware::class`     | future-only; not registered |
-| `600`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\SecurityHeadersMiddleware::class` | future-only; not registered |
 
 ### Optional package entries
 
@@ -985,6 +1004,9 @@ Owner-package verification evidence includes:
 packages/core/contracts/tests/Contract/ContextKeysAreStableContractTest.php
 packages/platform/http/tests/Unit/RequestIdPolicyTest.php
 packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php
+packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php
+packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php
+packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php
 packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php
 packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php
 packages/platform/tracing/tests/Contract/W3CPropagationDeterministicContractTest.php
@@ -1004,11 +1026,11 @@ When a target with `platform.http` explicitly selected successfully completes an
 2. `HttpKernel` invokes its mandatory shared `RequestIdPolicy`, which establishes HTTP request identity when enabled, before the entire PSR-15 pipeline and independently of middleware participation;
 3. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
 4. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
-5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles;
-6. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy after the complete pipeline;
+5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles; when enabled and eligible, `HttpsRedirectMiddleware` short-circuits request processing with a response constructed through the canonical PSR-17 response factory, independently observing the completed redirect decision;
+6. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy, followed by independently enabled security-header application after the complete pipeline;
 7. request-id response-header application requires exact equality between the initially selected identifier and the current owner-local context identity;
 8. `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` consume the completed HTTP result through the existing noop-safe ports;
-9. disabled optional request identity and observability policies do not create additional middleware or change their declarative service registrations;
+9. disabled optional request identity, security-header, HTTPS redirect, and observability policies do not change their declarative service registrations or introduce additional middleware;
 10. future-only rate limiting and other middleware reservations remain unregistered until their owning implementations exist;
 11. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
 12. selected request identifiers and rejected upstream values are not exported through HTTP completion observability;

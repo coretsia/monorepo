@@ -23,6 +23,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
+use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
@@ -43,11 +44,12 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         TrustedProxyMiddleware::class => ['priority' => 880, 'meta' => ['toggle' => 'http.proxy.enabled']],
         RequestContextMiddleware::class => ['priority' => 870, 'meta' => ['toggle' => 'http.context.enrich.enabled']],
         TrustedHostMiddleware::class => ['priority' => 860, 'meta' => ['toggle' => 'http.hosts.enabled']],
+        HttpsRedirectMiddleware::class => ['priority' => 850, 'meta' => ['toggle' => 'http.https_redirect.enabled']],
         RequestBodySizeLimitMiddleware::class => ['priority' => 830, 'meta' => []],
         JsonBodyParserMiddleware::class => ['priority' => 800, 'meta' => ['toggle' => 'http.request.json.enabled']],
     ];
 
-    public function testPackageContributesOnlySixCurrentMiddlewareAtExactCanonicalPriorities(): void
+    public function testPackageContributesOnlySevenCurrentMiddlewareAtExactCanonicalPriorities(): void
     {
         $operations = self::definitions();
         $actual = [];
@@ -70,8 +72,12 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         \ksort($expected);
         \ksort($actual);
         self::assertSame($expected, $actual);
-        self::assertCount(6, $actual);
+        self::assertCount(7, $actual);
         self::assertArrayNotHasKey(self::PROBLEM_DETAILS, $actual);
+        self::assertArrayNotHasKey(
+            'Coretsia\\Platform\\Http\\Middleware\\SecurityHeadersMiddleware',
+            $actual,
+        );
 
         $registered = [];
         foreach ($operations as $operation) {
@@ -113,6 +119,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
             TrustedProxyMiddleware::class,
             RequestContextMiddleware::class,
             TrustedHostMiddleware::class,
+            HttpsRedirectMiddleware::class,
             RequestBodySizeLimitMiddleware::class,
             JsonBodyParserMiddleware::class,
             'App\\Alpha',
@@ -122,7 +129,23 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         $http = require __DIR__ . '/../../config/http.php';
         $http['proxy']['enabled'] = true;
         $http['hosts']['enabled'] = true;
-        self::assertSame($ordered, new HttpMiddlewareStackBuilder($tags)->build($http));
+        $http['https_redirect']['enabled'] = true;
+        $http['https_redirect']['target_authority'] = 'example.test';
+
+        $stack = new HttpMiddlewareStackBuilder($tags);
+        self::assertSame($ordered, $stack->build($http));
+
+        $http['https_redirect']['enabled'] = false;
+
+        self::assertSame(
+            \array_values(
+                \array_filter(
+                    $ordered,
+                    static fn (string $id): bool => $id !== HttpsRedirectMiddleware::class,
+                ),
+            ),
+            $stack->build($http),
+        );
     }
 
     public function testExternallySelectedProblemDetailsHasExclusiveOutermostPriority(): void
@@ -137,6 +160,8 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         $http = require __DIR__ . '/../../config/http.php';
         $http['proxy']['enabled'] = true;
         $http['hosts']['enabled'] = true;
+        $http['https_redirect']['enabled'] = true;
+        $http['https_redirect']['target_authority'] = 'example.test';
         $effective = new HttpMiddlewareStackBuilder($tags)->build($http);
 
         self::assertSame(self::PROBLEM_DETAILS, $effective[0]);

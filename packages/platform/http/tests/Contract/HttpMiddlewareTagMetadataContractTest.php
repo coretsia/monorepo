@@ -64,6 +64,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
                 'http.proxy.enabled',
                 'http.context.enrich.enabled',
                 'http.hosts.enabled',
+                'http.https_redirect.enabled',
                 'http.request.json.enabled',
             ] as $key
         ) {
@@ -90,6 +91,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
         yield 'numeric-toggle' => [['toggle' => 1]];
         yield 'empty-toggle' => [['toggle' => '']];
         yield 'unknown-path' => [['toggle' => 'http.request.unknown.enabled']];
+        yield 'security-headers-not-middleware' => [['toggle' => 'http.security_headers.enabled']];
         yield 'short-path' => [['toggle' => 'http.tracing']];
         yield 'different-case' => [['toggle' => 'http.Tracing.enabled']];
         yield 'null-toggle' => [['toggle' => null]];
@@ -119,6 +121,36 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('http-middleware-toggle-invalid');
         new HttpMiddlewareStackBuilder($tags)->build($http);
+    }
+
+    #[DataProvider('invalidRedirectToggleValues')]
+    public function testMalformedHttpsRedirectToggleFailsClosed(mixed $value): void
+    {
+        $http = self::defaults();
+        $http['https_redirect']['enabled'] = $value;
+
+        self::assertFalse(self::validate($http));
+
+        $tags = new TagRegistry();
+        $tags->add(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, 'App\\Redirect', 850, [
+            'toggle' => 'http.https_redirect.enabled',
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('http-middleware-toggle-invalid');
+        new HttpMiddlewareStackBuilder($tags)->build($http);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidRedirectToggleValues(): iterable
+    {
+        yield 'true-string' => ['true'];
+        yield 'false-string' => ['false'];
+        yield 'integer-one' => [1];
+        yield 'integer-zero' => [0];
+        yield 'float' => [1.0];
+        yield 'null' => [null];
+        yield 'array' => [[]];
     }
 
     /** @return array<string, mixed> */

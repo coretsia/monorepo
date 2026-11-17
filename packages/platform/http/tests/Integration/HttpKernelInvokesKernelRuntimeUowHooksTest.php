@@ -47,6 +47,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -425,7 +426,13 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             $runtime,
             new Stopwatch(),
             new Pipeline([$middleware], $terminal),
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlation,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),
@@ -688,6 +695,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
                 true,
                 'X-Correlation-Id',
                 $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
             ),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
@@ -960,7 +968,13 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlation,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder($meter ?? new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),

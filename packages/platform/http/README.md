@@ -16,7 +16,7 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, a safe pre-routing terminal fallback, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation and request-id response headers, and bounded request-level observability after the completed pipeline.
+Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, optional policy-based HTTPS redirects, and bounded redirect-decision and final-request observability.
 
 Out of scope: SAPI request creation and response emission, a packaged front controller, route matching and system endpoints, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
@@ -73,8 +73,9 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
 - `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
 - `FallbackRouterHandler` as the safe, routing-free terminal `RequestHandlerInterface`;
-- six implemented `system_pre` middleware and their HTTP-owned request-safety policies;
+- seven implemented `system_pre` middleware and their HTTP-owned request-safety and HTTPS redirect policies;
 - `RequestIdPolicy` for optional HTTP request identity preparation and owner-local final-response identity verification outside the PSR-15 middleware chain;
+- `SecurityHeadersPolicy` for immutable configured security-header values and deterministic application through `HttpResponseFinalizer`;
 - the four stateless HTTP response-finalization and request-observability services;
 - `HttpExceptionMapper` for the three HTTP-owned safe failure types through the existing `error.mapper` tag.
 
@@ -235,6 +236,20 @@ Baseline defaults include:
         'enabled' => false,
         'allowed' => [],
     ],
+    'security_headers' => [
+        'enabled' => false,
+        'x_content_type_options' => 'nosniff',
+        'x_frame_options' => 'deny',
+        'referrer_policy' => 'no-referrer',
+        'permissions_policy' => '',
+        'csp' => '',
+    ],
+    'https_redirect' => [
+        'enabled' => false,
+        'status' => 308,
+        'allow_methods' => ['GET', 'HEAD'],
+        'target_authority' => '',
+    ],
     'request' => [
         'max_body_bytes' => 1048576,
         'json' => [
@@ -256,25 +271,116 @@ Important config rules:
 - `http.request_id.max_length=128` by default and must be an integer within the inclusive range `26..128`, measured in bytes for accepted upstream identifiers.
 - `http.request_id.enabled` controls request identity preparation and response-header application only. It does not activate middleware, change declarative service registrations, alter middleware ordering, or introduce an additional reset lifecycle.
 - `http.tracing.enabled=true` controls both inbound `TraceContextMiddleware` participation and the optional `http.request` span.
-- `http.metrics.enabled=true` and `http.access_log.enabled=true` control request-level completion observability outside the PSR-15 pipeline.
+- `http.metrics.enabled=true` and `http.access_log.enabled=true` independently control request-level completion observability and HTTPS redirect-decision observations.
 - `http.proxy.enabled=false` by default; `http.proxy.trusted_proxies` is an empty list of trusted immediate-peer IP/CIDR entries.
 - `http.context.enrich.enabled=true` enables bounded request-derived enrichment through existing `ContextKeys`.
 - `http.hosts.enabled=false` by default; `http.hosts.allowed` is an empty host allowlist.
+- `http.security_headers.enabled=false` by default; enabling it activates canonical security-header application through `HttpResponseFinalizer`, independently of middleware participation.
+- `http.https_redirect.enabled=false` by default; enabling it activates tagged HTTPS redirect participation.
+- `http.https_redirect.status=308` by default and accepts only integer `307` or `308`.
+- `http.https_redirect.allow_methods=['GET', 'HEAD']` by default and accepts only unique supported canonical uppercase methods. An empty list permits no redirects.
+- `http.https_redirect.target_authority` defaults to an empty string and requires an explicitly configured canonical authority when redirect is enabled.
 - `http.request.max_body_bytes=1048576` by default; the validated byte budget must be from `1` to `16777216`.
 - `http.request.json.enabled=true` enables eligible JSON parsing; `http.request.json.max_depth=32` by default and must be from `1` to `512`.
 - Unknown configuration keys, invalid values, and reserved `@*` directives are rejected through the existing Phase B configuration rules. HTTP-owned policies enforce additional semantic header, host, and proxy constraints.
 - No `http.middleware.auto.*` flags, concrete implementation class names, route matching, transport adapters, or future-only HTTP feature defaults are introduced.
 
-The six implemented baseline `system_pre` registrations, in canonical priority order, are:
+The seven implemented baseline `system_pre` registrations, in canonical priority order, are:
 
 - `TraceContextMiddleware` — `930`, `['toggle' => 'http.tracing.enabled']`.
 - `TrustedProxyMiddleware` — `880`, `['toggle' => 'http.proxy.enabled']`.
 - `RequestContextMiddleware` — `870`, `['toggle' => 'http.context.enrich.enabled']`.
 - `TrustedHostMiddleware` — `860`, `['toggle' => 'http.hosts.enabled']`.
+- `HttpsRedirectMiddleware` — `850`, `['toggle' => 'http.https_redirect.enabled']`.
 - `RequestBodySizeLimitMiddleware` — `830`, unconditional metadata `[]`.
 - `JsonBodyParserMiddleware` — `800`, `['toggle' => 'http.request.json.enabled']`.
 
 `ConfigKernel` Phase B supplies the validated target-local `http` subtree to canonical declarative DI through `ContainerDefinitionContext`. Other cataloged HTTP-owned middleware entries are future-only reservations, not implementations or default registrations. Optional middleware owners control their own module selection and DI contributions.
+
+## HTTPS redirect middleware
+
+`HttpsRedirectMiddleware` provides optional HTTP-to-HTTPS redirects through the immutable shared `HttpsRedirectPolicy`.
+
+It participates in `http.middleware.system_pre` at priority `850`, after trusted-proxy, request-context, and trusted-host processing. Tagged participation is controlled by `http.https_redirect.enabled`.
+
+The middleware also respects disabled policy behavior when explicitly included through a manual append list. Same-slot tagged and manual participation is deduplicated by the canonical middleware stack builder.
+
+Only the effective `http` scheme and explicitly allowed request methods are eligible for redirection.
+
+When proxy participation is enabled, the middleware consumes the canonical request-local metadata supplied by `TrustedProxyMiddleware`. Missing or invalid metadata falls back to the direct PSR-7 URI scheme. Redirect decisions do not depend on ContextStore enrichment.
+
+Supported redirect statuses are `307` and `308`. The method allowlist accepts `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS` as unique canonical uppercase values.
+
+The destination authority must be configured explicitly. It accepts canonical DNS names, IPv4 addresses, bracketed IPv6 addresses, and optional explicit ports through the existing trusted-host authority grammar.
+
+For example, override the following values in the target-local `http` configuration subtree:
+
+```php
+[
+    'https_redirect' => [
+        'enabled' => true,
+        'status' => 308,
+        'allow_methods' => ['GET', 'HEAD'],
+        'target_authority' => 'secure.example:8443',
+    ],
+]
+```
+
+Location uses the configured authority and the original encoded request path and query. Empty paths become `/`. Request userinfo, fragments, source ports, and request-derived authorities are not copied into Location.
+
+Malformed encoded URI components, raw whitespace, control characters, non-ASCII bytes, backslashes, and ambiguous path prefixes cause the redirect to be skipped.
+
+A completed redirect response bypasses downstream request handling. Skipped decisions delegate to the downstream handler. Response construction failures retain canonical HTTP error-boundary behavior.
+
+HTTPS redirect eligibility and authority validation remain governed by [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md).
+
+## Security-header finalization
+
+`HttpResponseFinalizer` applies optional configured security headers after successful correlation and request-id finalization, independently of middleware participation.
+
+`SecurityHeadersPolicy` is its mandatory shared immutable configuration dependency. Security-header application does not occupy any of the nine middleware slots or require Problem Details module selection.
+
+`SecurityHeadersPolicy` exposes an ordered map of configured non-empty header values when enabled. `HttpResponseFinalizer` applies these values in the following fixed mutation order:
+
+1. `X-Content-Type-Options` — default configured value: `nosniff`.
+2. `X-Frame-Options` — default configured value: `deny`.
+3. `Referrer-Policy` — default configured value: `no-referrer`.
+4. `Permissions-Policy` — default configured value: empty string.
+5. `Content-Security-Policy` — default configured value: empty string.
+
+Security headers are disabled by default.
+
+For example, enable them through target-local HTTP configuration overrides:
+
+```php
+[
+    'security_headers' => [
+        'enabled' => true,
+        'x_frame_options' => 'sameorigin',
+        'referrer_policy' => 'strict-origin-when-cross-origin',
+        'permissions_policy' => 'geolocation=()',
+        'csp' => "default-src 'self'",
+    ],
+]
+```
+
+The effective merged configuration retains the remaining required defaults.
+
+Supported frame options are `deny` and `sameorigin`, emitted as `DENY` and `SAMEORIGIN`.
+
+Optional Permissions-Policy and CSP values accept empty strings. Non-empty values are limited to 4096 bytes of printable ASCII without leading or trailing whitespace.
+
+Configured non-empty values replace matching existing response-header values case-insensitively through immutable PSR-7 `withHeader()` operations.
+
+Empty optional settings preserve existing application-provided headers. A disabled policy does not perform security-header mutations.
+
+The finalizer applies security headers to every successfully returned pipeline response, including ordinary responses, request-phase and post-decorator short-circuits, HTTPS redirects, returned maintenance responses, and mapped or emergency responses produced by the selected outermost error boundary.
+
+Response status, body, Location, Content-Type, Cache-Control, and unrelated headers remain unchanged by security-header application.
+
+The deterministic mutation sequence does not guarantee serialized PSR-7 header iteration or transport wire order.
+
+Mutation failures propagate through the canonical HTTP fatal completion path. The finalizer does not synthesize fallback responses or execute another middleware traversal.
 
 ## HTTP request identity
 
@@ -425,7 +531,7 @@ This regression verifies isolation of the examined request-local context and reg
 
 `HttpServiceProvider` registers four separate, stateless HTTP-owned completion services with explicit constructor dependencies and injects them into `HttpKernel`. None is PSR-15 middleware, appears in the nine HTTP slots, creates another lifecycle hook, or registers independent reset logic.
 
-- `HttpResponseFinalizer` uses `CorrelationIdProviderInterface` and the mandatory shared `RequestIdPolicy` to apply the independently enabled correlation and request-id response headers to the fully returned immutable `ResponseInterface`. Correlation-header finalization precedes request-id verification and response-header application. Both policies apply to normally returned responses, request-phase short-circuit responses, post-decorator short-circuit responses, and handled-error responses returned by the selected outermost Problem Details boundary. The finalizer neither trusts arbitrary inbound correlation headers nor generates or replaces either identity.
+- `HttpResponseFinalizer` uses `CorrelationIdProviderInterface`, the mandatory shared `RequestIdPolicy`, and the mandatory shared `SecurityHeadersPolicy` to apply independently enabled response-header policies to the fully returned immutable `ResponseInterface`. Correlation-header finalization precedes request-id verification and response-header application, followed by security-header application. The finalizer neither trusts arbitrary inbound correlation headers nor generates or replaces either identity.
 - `HttpRequestMetricsRecorder` uses `MeterPortInterface` to increment `http.request_total` and observe `http.request_duration_ms`, with only the canonical `method`, `status`, and `outcome` labels and integer-millisecond duration. It does not aggregate or export metrics.
 - `HttpAccessLogWriter` uses the canonical PSR-3 `LoggerInterface` to emit at most one bounded `http.request.completed` record when enabled. It consumes the final method, status, outcome, duration, optional validated Kernel-owned correlation id, and fixed `route_template='unknown'`. It does not read routes or infer templates from raw URIs, request attributes, or `ContextStore`.
 - `HttpRequestSpanRecorder` uses `TracerPortInterface` to start and finish the request-local `http.request` span through the returned `SpanInterface`. It sets only safe, bounded method/status/outcome attributes; it does not record raw HTTP Throwables or retain span handles in service properties.
@@ -436,9 +542,11 @@ For request-id response-header application, `HttpResponseFinalizer` reads the cu
 
 Missing, invalid, or substituted enabled context identity, a missing invocation-local selected identity when enabled, or an inconsistent selected identity when disabled causes deterministic fatal completion with `http-request-id-context-invalid`. The finalizer does not repair context or regenerate identity.
 
-When both identifiers are `null`, request-id response-header application is not applicable. When both are non-null and strictly equal, the finalizer applies the exact selected value through `ResponseInterface::withHeader()`, replacing any existing value for the configured request-id response header.
+When both identifiers are `null`, request-id response-header application is not applicable, but enabled security-header application still proceeds. When both are non-null and strictly equal, the finalizer applies the exact selected value through `ResponseInterface::withHeader()`, replacing any existing value for the configured request-id response header.
 
 Disabled correlation response-header application, or an absent or invalid correlation identifier returned by the correlation provider, does not skip enabled request-id finalization. A correlation-header finalization failure prevents subsequent request-id response-header mutation.
+
+A correlation or request-id finalization failure prevents subsequent security-header mutations.
 
 `RequestIdPolicy` is a mandatory shared policy dependency, not a fifth completion service, additional observer, middleware registration, resettable service, or lifecycle hook.
 
@@ -447,6 +555,24 @@ The canonical Foundation noop-safe logging, tracing, and metrics ports preserve 
 Selected request identifiers and rejected upstream identifier values are not added to HTTP request metrics, metric labels, access-log context, request span attributes, span names, or error descriptor extensions.
 
 Request identity preparation and verification do not introduce additional metrics, spans, logging events, or observability dependencies.
+
+### HTTPS redirect decisions
+
+Enabled `HttpsRedirectMiddleware` observes completed redirect decisions independently of final HTTP request completion.
+
+- `http.metrics.enabled` controls the `http.https_redirect_total` counter with exactly the `outcome` label.
+- `http.access_log.enabled` controls the PSR-3 info event `http.https_redirect.decided`.
+- Allowed outcome values are `redirected` and `skipped`.
+- Redirected log records additionally contain the configured integer status `307` or `308`.
+- Skipped log records do not contain a status field.
+
+Redirected decisions are recorded only after successful response construction and Location mutation. Skipped decisions are recorded before downstream handler execution.
+
+Disabled or bypassed middleware and failed redirect-response construction or Location mutation do not emit completed decisions.
+
+Metric and log failures are isolated independently without retries or duplicate emissions. Redirect observability does not introduce additional spans or determine the final HTTP request outcome.
+
+Redirect-decision observations contain no raw URL, path, query, authority, Location, request headers, cookies, credentials, URL-derived hashes or lengths, or exception diagnostics.
 
 ## Errors
 
@@ -468,7 +594,7 @@ Request identity remains separate from generic middleware context enrichment. It
 
 HTTP does not directly execute reset, discover reset tags, retry reset, or separately remove request identity from `ContextStore`. A failed reset does not establish successful context cleanup.
 
-Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits safe, bounded completion fields only. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
+Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded redirect-decision and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
 
 A non-seekable inbound request body must arrive complete and unread from its owning transport adapter; already consumed bytes cannot be recovered by HTTP middleware. Accepted bounded body verification and JSON parsing preserve downstream body availability without an unbounded buffering layer, spooling subsystem, or shared request cache. HTTP-owned policies do not rely on superglobals or mutable process-global request state.
 
@@ -480,7 +606,8 @@ This package does not provide:
 - route matching, routing artifacts, application routes, system endpoints, or a route-template extraction/handoff contract;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
-- future-only maintenance, security-header, HTTPS redirect, CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
+- maintenance, CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
+- HSTS, CSP nonce generation, request-dependent security-header values, TLS termination, or transport-level HTTPS enforcement;
 - request identity preparation through PSR-15 middleware, authenticated identity resolution, or automatic upstream trust detection;
 - separate exception normalization, Problem Details rendering, logging backend/redactor, metrics exporter, tracing parent-context registry, or observability observer pipeline;
 - any independent Kernel UnitOfWork, reset orchestration, runtime driver matrix, or mutable request-state registry.

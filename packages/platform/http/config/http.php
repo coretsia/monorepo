@@ -47,11 +47,15 @@ declare(strict_types=1);
  *   outermost error boundary belong to the HTTP middleware stack builder;
  * - Kernel retains UnitOfWork and reset lifecycle ownership;
  * - request-level final-response observability is not middleware configuration;
- * - request-id preparation and response-header finalization are governed by
+ * - redirect-decision observability is owned by HTTPS redirect middleware;
+ * - request-id preparation and identity-header finalization are governed by
  *   the HTTP-owned identity policy, independently of middleware configuration;
+ * - security-header application is governed by an independent HTTP-owned
+ *   policy within HttpResponseFinalizer, after identity-header finalization;
+ * - security-header and HTTPS redirect enablement are independent;
  * - upstream request-id acceptance requires an explicitly trusted ingress;
- * - no routing, system-endpoint, transport, security-header, CORS, rate-limit,
- *   upload, maintenance, or debugging configuration is declared;
+ * - no routing, system-endpoint, transport, CORS, rate-limit, upload,
+ *   maintenance, or debugging configuration is declared;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -177,20 +181,28 @@ return [
     ],
 
     /*
-     * HTTP request-level metric recording.
+     * HTTP request-level and HTTPS redirect-decision metric recording.
      *
-     * Metrics consume the finalized request outcome through the existing
-     * MeterPortInterface, outside the PSR-15 middleware pipeline.
+     * Request-level metrics consume the finalized request outcome through
+     * the existing MeterPortInterface, outside the PSR-15 middleware pipeline.
+     * HTTPS redirect middleware records completed redirect decisions
+     * independently through the same metrics port.
+     *
+     * This toggle governs both metric boundaries.
      */
     'metrics' => [
         'enabled' => true,
     ],
 
     /*
-     * HTTP request completion access logging.
+     * HTTP request completion and HTTPS redirect-decision logging.
      *
-     * Records use the existing PSR-3 logger and shared redaction boundary;
+     * Request completion and redirect-decision records are produced at
+     * independent HTTP-owned observability boundaries.
+     *
+     * Both use the existing PSR-3 logger and shared redaction boundary;
      * this does not select or require an optional Logging module.
+     * This toggle governs both logging boundaries.
      */
     'access_log' => [
         'enabled' => true,
@@ -231,6 +243,57 @@ return [
     'hosts' => [
         'enabled' => false,
         'allowed' => [],
+    ],
+
+    /*
+     * Canonical response security-header policy.
+     *
+     * When enabled, HttpResponseFinalizer applies configured non-empty
+     * security headers after successful identity-header finalization.
+     * Application is independent of middleware participation, request
+     * identity enablement, and HTTPS redirect enablement.
+     *
+     * Configured non-empty values replace existing values for the same
+     * headers case-insensitively. Empty optional values leave existing
+     * application-provided headers unchanged.
+     *
+     * SecurityHeadersPolicy owns canonical directive validation and
+     * bounded optional header-value semantics.
+     */
+    'security_headers' => [
+        'enabled' => false,
+        'x_content_type_options' => 'nosniff',
+        'x_frame_options' => 'deny',
+        'referrer_policy' => 'no-referrer',
+        'permissions_policy' => '',
+        'csp' => '',
+    ],
+
+    /*
+     * Optional HTTP-to-HTTPS redirect policy.
+     *
+     * Redirects apply only to eligible HTTP requests with explicitly
+     * allowed methods. An empty method allowlist permits no redirects.
+     * Effective scheme resolution uses canonical trusted-proxy metadata
+     * when enabled and available, otherwise the request URI scheme.
+     *
+     * The target authority must be configured explicitly when enabled.
+     * It accepts a canonical host with an optional explicit port, without
+     * a scheme, userinfo, path, query, or fragment.
+     *
+     * The destination authority is never derived from the request URI,
+     * Host header, forwarded host, ContextStore, or trusted-host allowlist.
+     * Accepted encoded request paths and queries are preserved in Location.
+     *
+     * HTTPS redirect enablement is independent of security-header
+     * enablement. Redirect-decision observability is governed by the
+     * existing HTTP metrics and access-log toggles.
+     */
+    'https_redirect' => [
+        'enabled' => false,
+        'status' => 308,
+        'allow_methods' => ['GET', 'HEAD'],
+        'target_authority' => '',
     ],
 
     /*

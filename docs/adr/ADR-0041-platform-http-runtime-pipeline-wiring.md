@@ -30,7 +30,7 @@ The runtime also needs concrete PSR-17 response and stream factories, but its pr
 
 When enabled, HTTP request identity must be established after successful Kernel UnitOfWork begin and before the entire PSR-15 chain executes.
 
-The independently enabled correlation and request-id response-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the finalized HTTP result. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
+The independently enabled correlation, request-id, and security-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the finalized HTTP result. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
 
 ## Decision
 
@@ -57,6 +57,8 @@ The logical request-phase order is `system_pre`, `system`, `app_pre`, `app`, `ro
 The pre-routing terminal is `FallbackRouterHandler`, returning a safe empty-body HTTP `404` through the selected PSR-17 factories. It does not match routes, implement system endpoints, inspect URLs, or infer route metadata.
 
 `TagRegistry::all()` remains the sole tagged-discovery and ordering authority: priority descending, then service id ascending by byte-order comparison. Each slot appends configured manual service ids after its tagged entries and preserves their configured order. The first effective occurrence within one slot wins; participation in multiple effective slots is rejected. HTTP does not create another sorter, registry, deduplication service, or container-specific middleware resolver. HTTP metadata and conditional participation remain defined in `docs/ssot/http-middleware-wiring.md`.
+
+`HttpsRedirectMiddleware` participates in `http.middleware.system_pre` at priority `850` with metadata `['toggle' => 'http.https_redirect.enabled']`. It consumes the canonical trusted-proxy request-local scheme metadata when enabled and available, otherwise the direct request URI scheme. Redirect destinations use an explicitly configured, validated target authority rather than request-derived authority values. Redirect eligibility, Location construction, and decision observability are governed by `docs/ssot/http-middleware-wiring.md` and `docs/ssot/observability.md`.
 
 ### Decision 2: Reserve the selected error boundary outside every decorator
 
@@ -111,7 +113,7 @@ An optional timing or observability failure cannot suppress the pipeline, replac
 
 `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` are separate HTTP-owned, stateless services wired directly into `HttpKernel` through Foundation declarative DI. None implements or is tagged as PSR-15 middleware; none participates in any of the nine HTTP middleware slots. No observer interface, registry, hook, extra response pipeline, per-request observer cache, or additional reset service is introduced.
 
-`HttpResponseFinalizer` consumes the existing `CorrelationIdProviderInterface`, validated `http.correlation.enabled` / `http.correlation.header_name` settings, and the mandatory shared `RequestIdPolicy`.
+`HttpResponseFinalizer` consumes the existing `CorrelationIdProviderInterface`, validated `http.correlation.enabled` / `http.correlation.header_name` settings, the mandatory shared `RequestIdPolicy`, and the mandatory shared `SecurityHeadersPolicy`.
 
 It applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy.
 
@@ -119,9 +121,17 @@ Before applying the request-id header, the finalizer verifies exact equality bet
 
 Missing, invalid, or substituted enabled request identity causes deterministic fatal completion without regenerating or repairing context.
 
-Both enabled identity-header policies apply to normally returned, short-circuit, and Problem Details responses after the entire PSR-15 pipeline has returned.
+After successful identity-header finalization, the finalizer applies the independently enabled security-header policy in its fixed canonical mutation order. Disabled identity-header application must not bypass security-header application.
 
-The finalizer uses immutable PSR-7 response mutation. It does not generate identities or modify the response body, status, or unrelated headers.
+`SecurityHeadersPolicy` is an immutable shared configuration dependency registered through canonical Foundation declarative DI independently of feature enablement. It owns validated security-header values and their application order; response mutation belongs exclusively to `HttpResponseFinalizer`.
+
+All enabled response-header policies apply to normally returned responses, request-phase and post-decorator short-circuit responses, HTTPS redirects, returned maintenance responses, mapped Problem Details responses, and emergency responses returned by the selected outermost error boundary.
+
+Security-header application follows outermost error conversion because ordinary post decorators cannot decorate a response constructed after their downstream Throwable has unwound the middleware chain.
+
+The finalizer uses immutable PSR-7 response mutation, consuming the preceding successful response mutation result. Configured non-empty security headers replace matching response headers case-insensitively. Empty optional settings leave application-provided headers unchanged.
+
+The finalizer does not generate identities or modify the response body, status, or unrelated headers. Its deterministic mutation sequence does not establish a PSR-7 serialized header iteration or transport wire-order guarantee.
 
 `HttpRequestMetricsRecorder` consumes the existing `MeterPortInterface` and emits only the canonical `http.request_total` and `http.request_duration_ms` measurements with approved bounded dimensions. `HttpAccessLogWriter` consumes the existing `Psr\Log\LoggerInterface`, and `HttpRequestSpanRecorder` consumes the existing `TracerPortInterface` and an invocation-local `SpanInterface` handle. Optional unselected observability modules retain Foundation noop bindings; the four HTTP services do not introduce backend implementations or source dependencies on optional platform observability packages.
 
@@ -140,6 +150,8 @@ Inbound `TraceContextMiddleware` reuses `ContextPropagationInterface` to extract
 There is no route matching, route metadata extraction, inferred path template, request-attribute handoff, or new route-template registry in `platform/http`. The writer never reconstructs a route from a raw URI, path, query, handler result, `ContextStore`, or an original immutable request. It does not log request/response headers, cookies, credentials, bodies, raw exception messages, or arbitrary request context.
 
 `docs/ssot/logging-policy.md` remains authoritative for the producer-neutral sink contract: accepted context shapes, canonical admission, redaction, formatting, and failure behavior. The HTTP producer must supply safe values; the sink does not derive or reinterpret HTTP status/outcome relationships. `HttpAccessLogWriter` does not import concrete `platform/logging` classes, create another logging pipeline or redaction owner, or bypass the Foundation noop logger when Logging is unselected.
+
+`HttpsRedirectMiddleware` owns redirect-decision observations independently of final HTTP request completion. It uses the existing meter and PSR-3 logger through the respective `http.metrics.enabled` and `http.access_log.enabled` settings. Redirect decisions do not establish the final HTTP request outcome or introduce another completion observer. Canonical metric names, bounded event fields, enablement, failure isolation, and redaction requirements remain defined by `docs/ssot/observability.md`.
 
 ### Decision 7: Use declarative, target-local PSR-17 factory selection
 
@@ -187,7 +199,7 @@ This owner-local guard avoids a generic `RuntimeEntrypointGuard`, a new `Runtime
 
 HTTP-owned bad-body, invalid-JSON, and trusted-host exceptions are contributed to the existing canonical error-mapper tag through the contracts-level `ExceptionMapperInterface`. That does not make `platform/http` a second error-normalization owner. A selected outermost Problem Details middleware remains responsible for converting captured Throwables into safe HTTP responses through the canonical handler and renderer; unhandled failures retain their original Throwable precedence through `HttpKernel` completion.
 
-`HttpKernel`, `Pipeline`, the stack builder, `RequestIdPolicy`, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
+`HttpKernel`, `Pipeline`, the stack builder, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
 
 `RequestIdPolicy` does not participate in middleware discovery, lifecycle hook registration, or reset discovery. It does not establish authenticated identity, authorization information, or upstream trust.
 
@@ -203,6 +215,8 @@ The dependency boundary prohibits direct production imports of optional concrete
 - `HttpKernel` observes only finalized response state, including selected Problem Details responses, without introducing another observer pipeline.
 - When enabled, HTTP request identity is available before middleware execution and remains independent of middleware ordering, Kernel correlation identity, and correlation response-header enablement.
 - Exact invocation-local identity verification prevents substituted context identifiers from being emitted as finalized request-id response headers.
+- Independently enabled security headers apply to every successfully returned pipeline response, including mapped and emergency responses produced by the selected outermost error boundary.
+- HTTPS redirects use validated explicit destination authorities and canonical proxy scheme metadata without introducing another proxy trust or request context policy.
 - Distinct stateless completion services preserve single-purpose DI boundaries, independent failure isolation, and Kernel-owned UoW/reset semantics.
 - Explicit PSR-17 selection supports one shared factory or two distinct factories while avoiding a mandatory vendor implementation.
 - Canonical declarative definitions and later-binding-wins semantics remain identical in source and compiled containers.
@@ -230,6 +244,12 @@ Rejected because `ReservedTags`, `TagRegistry::all()`, and `HttpMiddlewareStackB
 ### Place response decorators after request-phase middleware or run an observer pipeline
 
 Rejected because post middleware would be skipped on ordinary early returns and a second completion chain could observe intermediate responses. The selected topology retains PSR-15 response unwinding; `HttpKernel` alone owns final-response observability.
+
+### Apply all-response security headers through ordinary post middleware
+
+Rejected because an ordinary post decorator cannot receive a response constructed by the outermost error boundary after downstream Throwable propagation. Moving security-header application into that boundary would also make HTTP hardening depend on optional Problem Details participation.
+
+The canonical `HttpResponseFinalizer` applies configured security headers after the complete pipeline returns and before final-response observability, without another middleware slot, decorator traversal, or completion lifecycle.
 
 ### Let middleware or individual recorders own UnitOfWork and reset hooks
 
@@ -267,7 +287,7 @@ Rejected because request completion and reentrant pipeline handling require invo
 
 ## Non-goals
 
-This decision does not implement routing or system endpoints, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement security headers, CORS, uploads, rate limiting, or other future HTTP middleware behavior.
+This decision does not implement routing or system endpoints, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, rate limiting, or maintenance middleware. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
 
 ## Verification
 
@@ -276,6 +296,12 @@ Verification must cover the exact outer-to-inner pipeline order, priority-`1000`
 Source and compiled container tests must compare service definitions, effective aliases, factory sharing/distinction, final provider overrides, middleware tag metadata and ordering, terminal handling, and HTTP lifecycle outcomes. Factory readiness tests must distinguish declarative selection from missing autoloadable classes, missing external ports, incompatible implementations, and overwritten built-in identities; they must confirm failure before UnitOfWork, `HttpKernel`, terminal construction, and pipeline execution. Completion tests must cover safe final-response metrics/logging/span handling, independent optional failures, primary Throwable precedence, and the fixed routing-free `route_template` value.
 
 Request identity verification must cover disabled policy behavior, trusted upstream acceptance, canonical Foundation ULID generation, pre-pipeline context availability, exact final-response identity verification, independent identity-header enablement, deterministic fatal completion, shared declarative policy wiring, and canonical UnitOfWork reset isolation.
+
+Response hardening verification must cover independent security-header enablement, mandatory shared policy wiring, canonical header mutation order, immutable response chaining, case-insensitive replacement, preservation of unrelated headers and empty optional settings, strict policy validation, and fatal completion on response mutation failure.
+
+Integration verification must cover security headers on normal, request-phase and post-decorator short-circuit, redirect, returned maintenance, mapped Problem Details, and emergency responses, including independence from correlation and request-id enablement.
+
+HTTPS redirect verification must cover canonical priority and conditional participation, same-slot deduplication, trusted and untrusted proxy handoff, independence from ContextStore enrichment, explicit target authority validation, method and status policy, encoded Location safety, downstream execution semantics, bounded redirect-decision observability, and independent observability failure isolation.
 
 Sequential HTTP isolation verification follows the requirements defined by `docs/ssot/http-middleware-wiring.md`.
 

@@ -34,6 +34,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -146,7 +147,13 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
 
         self::assertSame(
             $response,
-            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', $requestIds)->finalize($response),
+            new HttpResponseFinalizer(
+                $provider,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            )->finalize($response),
         );
     }
 
@@ -179,7 +186,13 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($provider, $enabled, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $provider,
+                $enabled,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter(new NoopLogger(), true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),

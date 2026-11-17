@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Http\Tests\Integration;
 
+use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -44,9 +45,11 @@ use Coretsia\Platform\Http\Middleware\TraceContextMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\Provider\HttpServiceFactory;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
@@ -82,6 +85,9 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
 
         $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
         $expected = [
+            SecurityHeadersPolicy::class => [
+                $ref(ConfigRepositoryInterface::class),
+            ],
             RequestIdPolicy::class => [
                 $ref(ContextStore::class),
                 $ref(UlidGenerator::class),
@@ -95,6 +101,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                 true,
                 'X-Correlation-Id',
                 $ref(RequestIdPolicy::class),
+                $ref(SecurityHeadersPolicy::class),
             ],
             HttpRequestMetricsRecorder::class => [$ref(MeterPortInterface::class), true],
             HttpAccessLogWriter::class => [$ref(LoggerInterface::class), true],
@@ -124,14 +131,24 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                 }
             }
 
-            if (($operation['kind'] ?? null) !== 'service.class') {
+            $kind = $operation['kind'] ?? null;
+            if (!\in_array($kind, ['service.class', 'service.factory.class-method'], true)) {
                 continue;
             }
 
             $id = $operation['id'];
             if (isset($expected[$id])) {
                 $actual[$id] = $operation['arguments'];
-                self::assertSame($id, $operation['class']);
+
+                if ($id === SecurityHeadersPolicy::class) {
+                    self::assertSame('service.factory.class-method', $kind);
+                    self::assertSame(HttpServiceFactory::class, $operation['factoryClass']);
+                    self::assertSame('securityHeaders', $operation['method']);
+                } else {
+                    self::assertSame('service.class', $kind);
+                    self::assertSame($id, $operation['class']);
+                }
+
                 self::assertTrue($operation['shared']);
             }
 
@@ -144,7 +161,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         }
 
         self::assertSame($expected, $actual);
-        self::assertCount(6, $middlewareTags);
+        self::assertCount(7, $middlewareTags);
         self::assertSame([
             HttpResponseFinalizer::class,
             HttpRequestMetricsRecorder::class,
@@ -183,6 +200,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         string $expectedMethod,
         bool $requestIdEnabled,
         bool $acceptValidUpstream,
+        bool $securityHeadersEnabled,
     ): void {
         $events = [];
         $outcome = $status < 400 ? 'success' : 'handled_error';
@@ -217,7 +235,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         $requestIds = self::requestIds($requestIdEnabled, $generator, true);
         $intermediate = $this->createMock(ResponseInterface::class);
         $correlated = $this->createMock(ResponseInterface::class);
-        $final = $requestIdEnabled ? $this->createMock(ResponseInterface::class) : $correlated;
+        $identityFinal = $requestIdEnabled ? $this->createMock(ResponseInterface::class) : $correlated;
 
         $intermediate->expects(self::once())->method('withHeader')
             ->willReturnCallback(static function (string $name, mixed $value) use (
@@ -238,23 +256,60 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $correlated->expects(self::once())->method('withHeader')
                 ->willReturnCallback(static function (string $name, mixed $value) use (
                     &$events,
-                    $final,
+                    $identityFinal,
                     $selectedRequestId,
                 ): ResponseInterface {
                     self::assertTrue($name === self::REQUEST_HEADER, 'request-id-header-name-mismatch');
                     self::assertTrue($value === $selectedRequestId, 'request-id-header-value-mismatch');
                     $events[] = 'finalize-request-id';
 
-                    return $final;
+                    return $identityFinal;
                 });
-        } else {
-            $correlated->expects(self::never())->method('withHeader');
         }
 
-        $final->expects(self::once())->method('getStatusCode')->willReturn($status);
-        if ($requestIdEnabled) {
-            $final->expects(self::never())->method('withHeader');
+        $expectedSecurityHeaders = $securityHeadersEnabled ? [
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+            'Referrer-Policy' => 'no-referrer',
+            'Permissions-Policy' => 'geolocation=()',
+            'Content-Security-Policy' => "default-src 'none'",
+        ] : [];
+
+        $final = $identityFinal;
+
+        foreach ($expectedSecurityHeaders as $expectedName => $expectedValue) {
+            $next = $this->createMock(ResponseInterface::class);
+
+            $final->expects(self::never())->method('getStatusCode');
+            $final->expects(self::never())->method('withAddedHeader');
+            $final->expects(self::never())->method('withoutHeader');
+            $final->expects(self::never())->method('withStatus');
+            $final->expects(self::never())->method('withBody');
+
+            $final->expects(self::once())->method('withHeader')
+                ->willReturnCallback(static function (string $name, mixed $value) use (
+                    &$events,
+                    $expectedName,
+                    $expectedValue,
+                    $next,
+                ): ResponseInterface {
+                    self::assertTrue($name === $expectedName, 'security-header-name-mismatch');
+                    self::assertTrue($value === $expectedValue, 'security-header-value-mismatch');
+                    $events[] = 'finalize-security-header:' . $expectedName;
+
+                    return $next;
+                });
+
+            $final = $next;
         }
+
+        $final->expects(self::never())->method('withHeader');
+        $final->expects(self::once())->method('getStatusCode')
+            ->willReturnCallback(static function () use (&$events, $status): int {
+                $events[] = 'status';
+
+                return $status;
+            });
         $terminal = $this->createMock(RequestHandlerInterface::class);
         if ($status === 403) {
             $terminal->expects(self::never())->method('handle');
@@ -345,7 +400,15 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                 return $span;
             });
 
-        $kernel = self::kernel($runtime, $pipeline, $meter, $logger, $tracer, requestIds: $requestIds);
+        $kernel = self::kernel(
+            $runtime,
+            $pipeline,
+            $meter,
+            $logger,
+            $tracer,
+            flags: ['security_headers' => $securityHeadersEnabled],
+            requestIds: $requestIds,
+        );
         self::assertSame($final, $kernel->handle($request));
 
         self::assertTrue(
@@ -399,6 +462,12 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $expectedEvents[] = 'finalize-request-id';
         }
 
+        foreach (\array_keys($expectedSecurityHeaders) as $name) {
+            $expectedEvents[] = 'finalize-security-header:' . $name;
+        }
+
+        $expectedEvents[] = 'status';
+
         self::assertTrue(
             $events === [
                 ...$expectedEvents,
@@ -420,7 +489,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         );
     }
 
-    /** @return iterable<string, array{int, string, string, bool, bool}> */
+    /** @return iterable<string, array{int, string, string, bool, bool, bool}> */
     public static function completedStatusCases(): iterable
     {
         $cases = [
@@ -434,9 +503,13 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         ];
 
         foreach ($cases as $name => $case) {
-            yield $name . '-request-id-disabled' => [...$case, false, false];
-            yield $name . '-request-id-generated' => [...$case, true, false];
-            yield $name . '-request-id-accepted' => [...$case, true, true];
+            yield $name . '-request-id-disabled' => [...$case, false, false, false];
+            yield $name . '-request-id-generated' => [...$case, true, false, false];
+            yield $name . '-request-id-accepted' => [...$case, true, true, false];
+
+            yield $name . '-request-id-disabled-security-headers-enabled' => [...$case, false, false, true];
+            yield $name . '-request-id-generated-security-headers-enabled' => [...$case, true, false, true];
+            yield $name . '-request-id-accepted-security-headers-enabled' => [...$case, true, true, true];
         }
     }
 
@@ -885,7 +958,13 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $runtime,
             new Stopwatch(),
             new Pipeline([], $terminal),
-            new HttpResponseFinalizer($correlations, true, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlations,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder($meter, true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder($tracer, true),
@@ -1033,7 +1112,15 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
     public function testFatalPipelineAndFailedFinalizationUseUnknownStatusForEveryRecorder(
         bool $optionalFailures,
     ): void {
-        foreach (['pipeline', 'finalizer', 'request-id-preparation', 'request-id-finalization'] as $origin) {
+        foreach (
+            [
+                'pipeline',
+                'finalizer',
+                'request-id-preparation',
+                'request-id-finalization',
+                'security-header-finalization',
+            ] as $origin
+        ) {
             $failure = new \RuntimeException('original-' . $origin);
             $handle = self::handle();
             $runtime = $this->createMock(KernelRuntimeInterface::class);
@@ -1110,6 +1197,45 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                         ->willReturnCallback(static function (string $name, mixed $value) use ($failure): never {
                             self::assertTrue($name === self::REQUEST_HEADER, 'request-id-header-name-mismatch');
                             self::assertTrue($value === self::REQUEST_ID, 'request-id-header-value-mismatch');
+
+                            throw $failure;
+                        });
+
+                    break;
+
+                case 'security-header-finalization':
+                    $correlated = $this->createMock(ResponseInterface::class);
+                    $correlated->expects(self::never())->method('getStatusCode');
+
+                    $partiallyHardened = $this->createMock(ResponseInterface::class);
+                    $partiallyHardened->expects(self::never())->method('getStatusCode');
+
+                    $terminal->expects(self::once())->method('handle')->willReturn($intermediate);
+
+                    $intermediate->expects(self::once())->method('withHeader')
+                        ->willReturnCallback(static function (string $name, mixed $value) use (
+                            $correlated,
+                        ): ResponseInterface {
+                            self::assertTrue($name === 'X-Correlation-Id', 'correlation-header-name-mismatch');
+                            self::assertTrue($value === self::CORRELATION, 'correlation-header-value-mismatch');
+
+                            return $correlated;
+                        });
+
+                    $correlated->expects(self::once())->method('withHeader')
+                        ->willReturnCallback(static function (string $name, mixed $value) use (
+                            $partiallyHardened,
+                        ): ResponseInterface {
+                            self::assertTrue($name === 'X-Content-Type-Options', 'security-header-name-mismatch');
+                            self::assertTrue($value === 'nosniff', 'security-header-value-mismatch');
+
+                            return $partiallyHardened;
+                        });
+
+                    $partiallyHardened->expects(self::once())->method('withHeader')
+                        ->willReturnCallback(static function (string $name, mixed $value) use ($failure): never {
+                            self::assertTrue($name === 'X-Frame-Options', 'security-header-name-mismatch');
+                            self::assertTrue($value === 'DENY', 'security-header-value-mismatch');
 
                             throw $failure;
                         });
@@ -1214,6 +1340,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                     $meter,
                     $logger,
                     $tracer,
+                    flags: ['security_headers' => $origin === 'security-header-finalization'],
                     requestIds: $requestIds,
                 )->handle($request);
 
@@ -1292,7 +1419,14 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
     public function testCompletionServicesCannotRetainRequestLocalIdentity(): void
     {
         $expectedProperties = [
-            HttpResponseFinalizer::class => ['correlationIds', 'enabled', 'headerName', 'requestIds'],
+            HttpResponseFinalizer::class => [
+                'correlationIds',
+                'enabled',
+                'headerName',
+                'requestIds',
+                'securityHeaders',
+            ],
+            SecurityHeadersPolicy::class => ['headers'],
             HttpRequestMetricsRecorder::class => ['meter', 'enabled'],
             HttpAccessLogWriter::class => ['logger', 'enabled'],
             HttpRequestSpanRecorder::class => ['tracer', 'enabled'],
@@ -1414,6 +1548,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             'access_log' => true,
             'tracing' => true,
             'request_id' => false,
+            'security_headers' => false,
         ];
 
         $requestIds ??= self::requestIds($flags['request_id']);
@@ -1424,11 +1559,26 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             }
         };
 
+        $securityHeaders = new SecurityHeadersPolicy(
+            $flags['security_headers'],
+            'nosniff',
+            'deny',
+            'no-referrer',
+            $flags['security_headers'] ? 'geolocation=()' : '',
+            $flags['security_headers'] ? "default-src 'none'" : '',
+        );
+
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($provider, $flags['correlation'], 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $provider,
+                $flags['correlation'],
+                'X-Correlation-Id',
+                $requestIds,
+                $securityHeaders,
+            ),
             new HttpRequestMetricsRecorder($meter, $flags['metrics']),
             new HttpAccessLogWriter($logger, $flags['access_log']),
             new HttpRequestSpanRecorder($tracer, $flags['tracing']),

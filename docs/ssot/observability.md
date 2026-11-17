@@ -182,6 +182,7 @@ The method/type mapping is canonical:
 |------------------------------------------|-------------------|---------|-------------------------------|
 | http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome` |
 | http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
+| http.https_redirect_total                | `platform/http`   | counter | `outcome`                     |
 | cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`        |
 | cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`        |
 | error.map_total                          | `platform/errors` | counter | `operation`, `outcome`        |
@@ -478,6 +479,84 @@ Container compile logs MAY include only safe compile summary data:
 - outcome.
 
 Artifact/fingerprint/container-compile/cache logs MUST NOT include secrets, raw payloads, raw config values, raw config dumps, raw env values, dotenv values, source file contents, closure dumps, source snippets, full fingerprints, absolute paths, temp paths, OS error messages, PHP warning text, stack traces, throwable messages, previous throwable messages, mtimes, permissions, owners, hostnames, user names, process ids, or random bytes.
+
+### HTTP HTTPS redirect observability policy
+
+HTTPS redirect-decision observability is owned by `platform/http` through `HttpsRedirectMiddleware`.
+
+The canonical metric is:
+
+```text
+http.https_redirect_total
+```
+
+This metric is a `counter` and MUST use exactly the following label:
+
+```text
+outcome
+```
+
+Allowed `outcome` values are exactly:
+
+```text
+redirected
+skipped
+```
+
+`outcome = redirected` requires successful redirect-response construction and successful immutable Location-header application.
+
+`outcome = skipped` means that enabled HTTPS redirect middleware has completed its decision to delegate to the downstream handler without constructing a redirect response. This includes requests with an ineligible scheme, a disallowed method, or invalid Location components.
+
+A completed skipped decision MUST be recorded before downstream handler invocation.
+
+Redirect-response construction or Location-header mutation failures MUST NOT be classified as completed redirected or skipped decisions.
+
+Disabled or bypassed HTTPS redirect middleware MUST NOT produce redirect-decision metrics or logs, including when disabled middleware is explicitly included through a manual middleware append list.
+
+`HttpsRedirectMiddleware` MUST attempt exactly one counter increment with value `1` per completed redirect decision when `http.metrics.enabled` is `true`.
+
+When `http.access_log.enabled` is `true`, `HttpsRedirectMiddleware` MUST attempt exactly one PSR-3 `info` log per completed redirect decision using the fixed event identifier:
+
+```text
+http.https_redirect.decided
+```
+
+The producer-supplied log context MUST contain only:
+
+- `outcome`: exactly `redirected` or `skipped`;
+- `status`: the configured integer `307` or `308`, present only when `outcome = redirected`.
+
+The `status` field MUST NOT be supplied for skipped decisions and MUST NOT be emitted as a redirect-decision metric label.
+
+Redirect-decision logs MUST use the existing PSR-3 logger and remain subject to the canonical logging admission and shared redaction policies defined by `docs/ssot/logging-policy.md` and `docs/ssot/sensitive-data-redaction.md`.
+
+HTTPS redirect-decision telemetry is independent of finalized HTTP request observability.
+
+The canonical request metrics `http.request_total` and `http.request_duration_ms`, the `http.request` span, and the `http.request.completed` log event retain their finalized request outcome semantics.
+
+Redirect-decision outcomes MUST NOT replace or reinterpret finalized HTTP request outcomes:
+
+```text
+success
+handled_error
+fatal_error
+```
+
+A completed redirect decision MUST NOT be invalidated or reclassified by subsequent downstream execution, response finalization, or HTTP request completion failures.
+
+Metric and logger calls MUST be observability-isolated independently and MUST NOT be retried. Failure of one emission MUST NOT suppress the other permitted emission, replace a completed response, suppress downstream handler execution, or interfere with canonical HTTP request completion.
+
+HTTPS redirect-decision metrics and logs MUST NOT contain:
+
+- raw URLs, paths, or queries;
+- Location-header values, hostnames, userinfo, or fragments;
+- raw request headers, cookies, authorization values, or tokens;
+- hashes or lengths derived from untrusted URL or query values;
+- Throwable messages, previous Throwable messages, or stack traces.
+
+HTTPS redirect middleware MUST NOT emit an additional span, duration metric, request completion event, or Kernel lifecycle signal.
+
+Security-header policies and response security-header application MUST NOT emit independent observability signals.
 
 ### CLI command observability policy
 

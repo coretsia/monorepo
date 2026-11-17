@@ -49,6 +49,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
@@ -372,6 +373,7 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
                 $correlationEnabled,
                 self::CORRELATION_HEADER,
                 $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
             ),
             new HttpRequestMetricsRecorder($meter, true),
             new HttpAccessLogWriter($logger, true),

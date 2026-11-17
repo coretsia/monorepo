@@ -35,6 +35,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\MessageInterface;
@@ -85,9 +86,14 @@ final class HttpResponseFinalizerTest extends TestCase
         $provider = $this->createMock(CorrelationIdProviderInterface::class);
         $provider->expects(self::once())->method('correlationId')->willReturn(self::CORRELATION);
 
-        $actual = new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', self::disabledRequestIds())->finalize(
-            $input,
-        );
+        $actual = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            self::securityHeaders(false),
+        )->finalize($input);
+
         self::assertSame($output, $actual);
         self::assertSame($status, $actual->getStatusCode());
         self::assertSame($body, $actual->getBody());
@@ -118,9 +124,13 @@ final class HttpResponseFinalizerTest extends TestCase
 
         self::assertSame(
             $response,
-            new HttpResponseFinalizer($provider, false, 'X-Correlation-Id', self::disabledRequestIds())->finalize(
-                $response,
-            ),
+            new HttpResponseFinalizer(
+                $provider,
+                false,
+                'X-Correlation-Id',
+                self::disabledRequestIds(),
+                self::securityHeaders(false),
+            )->finalize($response),
         );
     }
 
@@ -138,7 +148,13 @@ final class HttpResponseFinalizerTest extends TestCase
             ->willReturnCallback(self::headerMutation('X-Correlation-Id', self::CORRELATION, $second));
         $provider = $this->createMock(CorrelationIdProviderInterface::class);
         $provider->expects(self::exactly(2))->method('correlationId')->willReturn(self::CORRELATION);
-        $finalizer = new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', self::disabledRequestIds());
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            self::securityHeaders(false),
+        );
 
         self::assertSame($second, $finalizer->finalize($finalizer->finalize($initial)));
         // PSR-7 withHeader() REPLACES existing values; withAddedHeader() is never used.
@@ -161,7 +177,13 @@ final class HttpResponseFinalizerTest extends TestCase
         $provider = $this->createMock(CorrelationIdProviderInterface::class);
         $provider->expects(self::exactly(2))->method('correlationId')
             ->willReturnOnConsecutiveCalls(self::CORRELATION, $nextCorrelation);
-        $finalizer = new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', self::disabledRequestIds());
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            self::securityHeaders(false),
+        );
 
         self::assertSame($firstFinal, $finalizer->finalize($first));
         self::assertSame($secondFinal, $finalizer->finalize($second));
@@ -171,7 +193,7 @@ final class HttpResponseFinalizerTest extends TestCase
             new \ReflectionObject($finalizer)->getProperties(),
         );
         \sort($properties);
-        self::assertSame(['correlationIds', 'enabled', 'headerName', 'requestIds'], $properties);
+        self::assertSame(['correlationIds', 'enabled', 'headerName', 'requestIds', 'securityHeaders'], $properties);
     }
 
     #[DataProvider('invalidCorrelations')]
@@ -184,9 +206,13 @@ final class HttpResponseFinalizerTest extends TestCase
 
         self::assertSame(
             $response,
-            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', self::disabledRequestIds())->finalize(
-                $response,
-            ),
+            new HttpResponseFinalizer(
+                $provider,
+                true,
+                'X-Correlation-Id',
+                self::disabledRequestIds(),
+                self::securityHeaders(false),
+            )->finalize($response),
         );
     }
 
@@ -209,9 +235,13 @@ final class HttpResponseFinalizerTest extends TestCase
         $provider->method('correlationId')->willReturn(self::CORRELATION);
 
         try {
-            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', self::disabledRequestIds())->finalize(
-                $response,
-            );
+            new HttpResponseFinalizer(
+                $provider,
+                true,
+                'X-Correlation-Id',
+                self::disabledRequestIds(),
+                self::securityHeaders(false),
+            )->finalize($response);
             self::fail('Response header failure must propagate.');
         } catch (\RuntimeException $actual) {
             self::assertSame($failure, $actual);
@@ -364,6 +394,7 @@ final class HttpResponseFinalizerTest extends TestCase
             $correlationEnabled,
             'X-Correlation-Id',
             $requestIds,
+            self::securityHeaders(false),
         )->finalize($input, $selected);
 
         self::assertSame($expected, $actual);
@@ -395,6 +426,71 @@ final class HttpResponseFinalizerTest extends TestCase
         yield 'both-enabled' => [true, true];
     }
 
+    #[DataProvider('identityHeaderConfigurations')]
+    public function testSecurityHeadersFollowSuccessfulIdentityFinalizationInCanonicalOrder(
+        bool $correlationEnabled,
+        bool $requestIdEnabled,
+    ): void {
+        $requestIds = $requestIdEnabled
+            ? $this->enabledRequestIds(new ContextStore())
+            : self::disabledRequestIds();
+
+        $selected = $requestIds->initialize($this->createStub(ServerRequestInterface::class));
+
+        $provider = $this->createMock(CorrelationIdProviderInterface::class);
+        $provider->expects($correlationEnabled ? self::once() : self::never())
+            ->method('correlationId')
+            ->willReturn(self::CORRELATION);
+
+        $expected = [];
+
+        if ($correlationEnabled) {
+            $expected['X-Correlation-Id'] = self::CORRELATION;
+        }
+
+        if ($requestIdEnabled) {
+            $expected[self::REQUEST_HEADER] = self::REQUEST_ID;
+        }
+
+        $expected += [
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+            'Referrer-Policy' => 'no-referrer',
+            'Permissions-Policy' => 'geolocation=()',
+            'Content-Security-Policy' => "default-src 'none'",
+        ];
+
+        $input = $this->createMock(ResponseInterface::class);
+        $current = $input;
+
+        foreach ($expected as $name => $value) {
+            $next = $this->createMock(ResponseInterface::class);
+
+            $current->expects(self::once())
+                ->method('withHeader')
+                ->willReturnCallback(self::headerMutation($name, $value, $next));
+
+            $current->expects(self::never())->method('withAddedHeader');
+            $current->expects(self::never())->method('withoutHeader');
+            $current->expects(self::never())->method('withStatus');
+            $current->expects(self::never())->method('withBody');
+
+            $current = $next;
+        }
+
+        $current->expects(self::never())->method('withHeader');
+
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            $correlationEnabled,
+            'X-Correlation-Id',
+            $requestIds,
+            self::securityHeaders(true),
+        );
+
+        self::assertSame($current, $finalizer->finalize($input, $selected));
+    }
+
     #[DataProvider('invalidCorrelations')]
     public function testEnabledRequestIdIsFinalizedWhenCorrelationIsAbsentOrInvalid(?string $correlation): void
     {
@@ -414,11 +510,55 @@ final class HttpResponseFinalizerTest extends TestCase
 
         self::assertSame(
             $output,
-            new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', $requestIds)->finalize(
-                $input,
-                $selected,
-            ),
+            new HttpResponseFinalizer(
+                $provider,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                self::securityHeaders(false),
+            )->finalize($input, $selected),
         );
+    }
+
+    #[DataProvider('invalidCorrelations')]
+    public function testSecurityHeadersAreAppliedWhenBothIdentitiesAreAbsent(?string $correlation): void
+    {
+        $provider = $this->createMock(CorrelationIdProviderInterface::class);
+        $provider->expects(self::once())
+            ->method('correlationId')
+            ->willReturn($correlation);
+
+        $policy = new SecurityHeadersPolicy(
+            true,
+            'nosniff',
+            'sameorigin',
+            'strict-origin',
+            '',
+            '',
+        );
+
+        $input = $this->createMock(ResponseInterface::class);
+        $withoutSniffing = $this->createMock(ResponseInterface::class);
+        $withFrameOptions = $this->createMock(ResponseInterface::class);
+        $output = $this->createMock(ResponseInterface::class);
+
+        $input->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('X-Content-Type-Options', 'nosniff', $withoutSniffing));
+        $withoutSniffing->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('X-Frame-Options', 'SAMEORIGIN', $withFrameOptions));
+        $withFrameOptions->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('Referrer-Policy', 'strict-origin', $output));
+        $output->expects(self::never())->method('withHeader');
+
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            $policy,
+        );
+
+        self::assertSame($output, $finalizer->finalize($input));
     }
 
     #[DataProvider('requestIdentityIntegrityFailures')]
@@ -478,6 +618,7 @@ final class HttpResponseFinalizerTest extends TestCase
             false,
             'X-Correlation-Id',
             $requestIds,
+            self::securityHeaders(true),
         );
 
         try {
@@ -522,6 +663,7 @@ final class HttpResponseFinalizerTest extends TestCase
             false,
             'X-Correlation-Id',
             $requestIds,
+            self::securityHeaders(true),
         );
 
         try {
@@ -556,7 +698,13 @@ final class HttpResponseFinalizerTest extends TestCase
                 throw $failure;
             });
 
-        $finalizer = new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', $requestIds);
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            $requestIds,
+            self::securityHeaders(true),
+        );
 
         try {
             $finalizer->finalize($response, $selected);
@@ -593,11 +741,82 @@ final class HttpResponseFinalizerTest extends TestCase
                 throw $failure;
             });
 
-        $finalizer = new HttpResponseFinalizer($provider, true, 'X-Correlation-Id', $requestIds);
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            true,
+            'X-Correlation-Id',
+            $requestIds,
+            self::securityHeaders(true),
+        );
 
         try {
             $finalizer->finalize($response, $selected);
             self::fail('request-id-mutation-failure-must-propagate');
+        } catch (\RuntimeException $actual) {
+            self::assertSame($failure, $actual);
+        }
+    }
+
+    public function testSecurityHeaderMutationMustReturnResponseInterface(): void
+    {
+        $provider = $this->createMock(CorrelationIdProviderInterface::class);
+        $provider->expects(self::never())->method('correlationId');
+
+        $input = $this->createMock(ResponseInterface::class);
+        $intermediate = $this->createMock(ResponseInterface::class);
+        $invalid = $this->createMock(MessageInterface::class);
+
+        $input->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('X-Content-Type-Options', 'nosniff', $intermediate));
+        $intermediate->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('X-Frame-Options', 'DENY', $invalid));
+        $invalid->expects(self::never())->method('withHeader');
+
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            false,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            self::securityHeaders(true),
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('http-security-header-response-invalid');
+
+        $finalizer->finalize($input);
+    }
+
+    public function testSecurityHeaderMutationPropagatesOriginalFailure(): void
+    {
+        $provider = $this->createMock(CorrelationIdProviderInterface::class);
+        $provider->expects(self::never())->method('correlationId');
+
+        $failure = new \RuntimeException('security-header-mutation-failed');
+        $input = $this->createMock(ResponseInterface::class);
+        $intermediate = $this->createMock(ResponseInterface::class);
+
+        $input->expects(self::once())->method('withHeader')
+            ->willReturnCallback(self::headerMutation('X-Content-Type-Options', 'nosniff', $intermediate));
+
+        $intermediate->expects(self::once())->method('withHeader')
+            ->willReturnCallback(static function (string $name, mixed $value) use ($failure): never {
+                self::assertTrue($name === 'X-Frame-Options', 'security-header-name-mismatch');
+                self::assertTrue($value === 'DENY', 'security-header-value-mismatch');
+
+                throw $failure;
+            });
+
+        $finalizer = new HttpResponseFinalizer(
+            $provider,
+            false,
+            'X-Correlation-Id',
+            self::disabledRequestIds(),
+            self::securityHeaders(true),
+        );
+
+        try {
+            $finalizer->finalize($input);
+            self::fail('security-header-mutation-failure-must-propagate');
         } catch (\RuntimeException $actual) {
             self::assertSame($failure, $actual);
         }
@@ -628,6 +847,7 @@ final class HttpResponseFinalizerTest extends TestCase
             false,
             'X-Correlation-Id',
             $requestIds,
+            self::securityHeaders(false),
         );
 
         $first = $this->createMock(ResponseInterface::class);
@@ -670,6 +890,18 @@ final class HttpResponseFinalizerTest extends TestCase
             self::REQUEST_HEADER,
             false,
             128,
+        );
+    }
+
+    private static function securityHeaders(bool $enabled): SecurityHeadersPolicy
+    {
+        return new SecurityHeadersPolicy(
+            $enabled,
+            'nosniff',
+            'deny',
+            'no-referrer',
+            'geolocation=()',
+            "default-src 'none'",
         );
     }
 
@@ -718,7 +950,13 @@ final class HttpResponseFinalizerTest extends TestCase
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlations, true, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlations,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                self::securityHeaders(false),
+            ),
             new HttpRequestMetricsRecorder(new NoopMeter(), false),
             new HttpAccessLogWriter(new NoopLogger(), false),
             new HttpRequestSpanRecorder(new NoopTracer(), false),

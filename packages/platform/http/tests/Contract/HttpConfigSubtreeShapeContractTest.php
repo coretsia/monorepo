@@ -53,6 +53,8 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'proxy',
             'context',
             'hosts',
+            'security_headers',
+            'https_redirect',
             'request',
         ], \array_keys($http));
 
@@ -62,6 +64,28 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'accept_from_upstream' => false,
             'max_length' => 128,
         ], $http['request_id']);
+        self::assertSame([
+            'enabled' => false,
+            'x_content_type_options' => 'nosniff',
+            'x_frame_options' => 'deny',
+            'referrer_policy' => 'no-referrer',
+            'permissions_policy' => '',
+            'csp' => '',
+        ], $http['security_headers']);
+        self::assertSame([
+            'enabled' => false,
+            'status' => 308,
+            'allow_methods' => ['GET', 'HEAD'],
+            'target_authority' => '',
+        ], $http['https_redirect']);
+
+        foreach (['security_headers', 'https_redirect'] as $section) {
+            self::assertSame(
+                \array_keys($http[$section]),
+                \array_keys($rules['keys'][$section]['keys']),
+            );
+        }
+
         self::assertSame([
             'system_pre',
             'system',
@@ -304,6 +328,175 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
         yield 'invalid-delimiter' => ['X_Request_Id'];
         yield 'invalid-token-character' => ['X:-Request-Id'];
         yield 'oversized-header' => [\str_repeat('A', 118) . '-Request-Id'];
+    }
+
+    public function testHardeningMapsAndAllDeclaredKeysAreRequired(): void
+    {
+        foreach (['security_headers', 'https_redirect'] as $section) {
+            $http = self::defaults();
+            $keys = \array_keys($http[$section]);
+            unset($http[$section]);
+
+            self::assertTrue(self::validate($http)->isFailure(), $section);
+
+            foreach ($keys as $key) {
+                $http = self::defaults();
+                unset($http[$section][$key]);
+
+                self::assertTrue(
+                    self::validate($http)->isFailure(),
+                    $section . '.' . $key,
+                );
+            }
+        }
+    }
+
+    public function testHardeningMapsRejectUnknownKeysAndReservedDirectives(): void
+    {
+        foreach (['security_headers', 'https_redirect'] as $section) {
+            foreach (['unknown', '@enabled', '@replace', '@append', '@remove'] as $key) {
+                $http = self::defaults();
+                $http[$section][$key] = [];
+
+                self::assertTrue(self::validate($http)->isFailure());
+            }
+        }
+    }
+
+    public function testHardeningSectionsMustBeStrictMaps(): void
+    {
+        foreach (['security_headers', 'https_redirect'] as $section) {
+            foreach ([null, false, 'disabled', [], [false]] as $value) {
+                $http = self::defaults();
+                $http[$section] = $value;
+
+                self::assertTrue(self::validate($http)->isFailure(), $section);
+            }
+        }
+    }
+
+    #[DataProvider('invalidHardeningValues')]
+    public function testInvalidHardeningValuesFailCanonicalValidationEvenWhenDisabled(
+        string $section,
+        string $key,
+        mixed $value,
+    ): void {
+        $http = self::defaults();
+        $http[$section]['enabled'] = false;
+        $http[$section][$key] = $value;
+
+        $result = self::validate($http);
+
+        self::assertTrue($result->isFailure());
+        self::assertNotEmpty($result->violations());
+    }
+
+    /** @return iterable<string, array{string, string, mixed}> */
+    public static function invalidHardeningValues(): iterable
+    {
+        foreach (['security_headers', 'https_redirect'] as $section) {
+            foreach (['true', 'false', 1, 0, 1.0, null, []] as $index => $value) {
+                yield $section . '-enabled-' . $index => [$section, 'enabled', $value];
+            }
+        }
+
+        foreach (
+            [
+                'x_content_type_options',
+                'x_frame_options',
+                'referrer_policy',
+                'permissions_policy',
+                'csp',
+            ] as $key
+        ) {
+            foreach ([null, false, 123, []] as $index => $value) {
+                yield $key . '-type-' . $index => ['security_headers', $key, $value];
+            }
+        }
+
+        yield 'content-type-unsupported' => ['security_headers', 'x_content_type_options', ''];
+        yield 'content-type-uppercase' => ['security_headers', 'x_content_type_options', 'NOSNIFF'];
+        yield 'frame-unsupported' => ['security_headers', 'x_frame_options', 'allowall'];
+        yield 'frame-uppercase' => ['security_headers', 'x_frame_options', 'DENY'];
+        yield 'referrer-unsupported' => ['security_headers', 'referrer_policy', 'unknown'];
+
+        foreach ([301, 302, 303, 306, 309, '307', '308', 308.0, true, null, []] as $index => $value) {
+            yield 'status-' . $index => ['https_redirect', 'status', $value];
+        }
+
+        foreach (
+            [
+                null,
+                false,
+                'GET',
+                ['method' => 'GET'],
+                [1 => 'GET'],
+                ['get'],
+                ['CONNECT'],
+                ['TRACE'],
+                [123],
+                [true],
+                [null],
+                [['GET']],
+            ] as $index => $value
+        ) {
+            yield 'allow-methods-' . $index => ['https_redirect', 'allow_methods', $value];
+        }
+
+        foreach ([null, false, 123, []] as $index => $value) {
+            yield 'target-authority-' . $index => ['https_redirect', 'target_authority', $value];
+        }
+    }
+
+    public function testCanonicalHardeningValuesPassStructuralValidation(): void
+    {
+        foreach ([false, true] as $enabled) {
+            foreach (['deny', 'sameorigin'] as $frameOptions) {
+                foreach (
+                    [
+                        'no-referrer',
+                        'no-referrer-when-downgrade',
+                        'origin',
+                        'origin-when-cross-origin',
+                        'same-origin',
+                        'strict-origin',
+                        'strict-origin-when-cross-origin',
+                        'unsafe-url',
+                    ] as $referrerPolicy
+                ) {
+                    $http = self::defaults();
+                    $http['security_headers']['enabled'] = $enabled;
+                    $http['security_headers']['x_frame_options'] = $frameOptions;
+                    $http['security_headers']['referrer_policy'] = $referrerPolicy;
+
+                    self::assertTrue(self::validate($http)->isSuccess());
+                }
+            }
+
+            foreach ([307, 308] as $status) {
+                foreach ([[], ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']] as $methods) {
+                    $http = self::defaults();
+                    $http['https_redirect'] = [
+                        'enabled' => $enabled,
+                        'status' => $status,
+                        'allow_methods' => $methods,
+                        'target_authority' => 'example.test:8443',
+                    ];
+
+                    self::assertTrue(self::validate($http)->isSuccess());
+                }
+            }
+        }
+    }
+
+    public function testHardeningSemanticValidationRemainsOwnedByImmutablePolicies(): void
+    {
+        $http = self::defaults();
+        $http['security_headers']['csp'] = \str_repeat('a', 4097);
+        $http['https_redirect']['enabled'] = true;
+        $http['https_redirect']['allow_methods'] = ['GET', 'GET'];
+
+        self::assertTrue(self::validate($http)->isSuccess());
     }
 
     public function testFactoryChangeFlowsIntoCanonicalCompiledConfigAndContainerInputs(): void

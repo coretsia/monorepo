@@ -23,6 +23,7 @@ use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
+use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Foundation\Container\Container;
@@ -31,6 +32,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
+use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
@@ -57,7 +59,9 @@ use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
+use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
+use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Middleware\RequestBodySizeLimitMiddleware;
@@ -68,11 +72,13 @@ use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
 use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
+use Coretsia\Platform\Http\Provider\HttpServiceFactory;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -82,7 +88,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
 
 final class HttpContainerSourceCompiledParityTest extends TestCase
 {
@@ -231,6 +239,15 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                     $policy,
                     new \ReflectionProperty(HttpResponseFinalizer::class, 'requestIds')->getValue($finalizer),
                 );
+                $securityHeaders = $container->get(SecurityHeadersPolicy::class);
+
+                self::assertInstanceOf(SecurityHeadersPolicy::class, $securityHeaders);
+                self::assertSame($securityHeaders, $container->get(SecurityHeadersPolicy::class));
+                self::assertSame(
+                    $securityHeaders,
+                    new \ReflectionProperty(HttpResponseFinalizer::class, 'securityHeaders')->getValue($finalizer),
+                );
+                self::assertSame([], $securityHeaders->headers());
                 self::assertSame(
                     $finalizer,
                     new \ReflectionProperty(HttpKernel::class, 'finalizer')->getValue($kernel),
@@ -266,11 +283,188 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
     }
 
-    #[DataProvider('requestIdConfigurations')]
+    #[DataProvider('hardeningConfigurations')]
+    public function testSourceAndCompiledContainersResolveEquivalentHardeningBehavior(
+        bool $securityHeadersEnabled,
+        bool $httpsRedirectEnabled,
+    ): void {
+        $config = self::requestIdConfig(false);
+        $config['http']['tracing']['enabled'] = false;
+        $config['http']['context']['enrich']['enabled'] = false;
+        $config['http']['request']['json']['enabled'] = false;
+        $config['http']['correlation']['enabled'] = false;
+
+        $config['http']['security_headers'] = [
+            'enabled' => $securityHeadersEnabled,
+            'x_content_type_options' => 'nosniff',
+            'x_frame_options' => 'sameorigin',
+            'referrer_policy' => 'strict-origin',
+            'permissions_policy' => 'geolocation=()',
+            'csp' => "default-src 'none'",
+        ];
+        $config['http']['https_redirect'] = [
+            'enabled' => $httpsRedirectEnabled,
+            'status' => 307,
+            'allow_methods' => ['GET'],
+            'target_authority' => 'example.test:8443',
+        ];
+
+        [$source, $compiled] = self::containers(self::definitions($config), $config);
+
+        $stream = $this->createStub(StreamInterface::class);
+        $stream->method('isSeekable')->willReturn(true);
+        $stream->method('tell')->willReturn(0);
+        $stream->method('eof')->willReturn(true);
+
+        HttpParityExternalFactory::$stream = $stream;
+
+        try {
+            foreach ([$source, $compiled] as $container) {
+                $securityHeaders = $container->get(SecurityHeadersPolicy::class);
+                $httpsRedirect = $container->get(HttpsRedirectPolicy::class);
+                $middleware = $container->get(HttpsRedirectMiddleware::class);
+
+                self::assertInstanceOf(SecurityHeadersPolicy::class, $securityHeaders);
+                self::assertInstanceOf(HttpsRedirectPolicy::class, $httpsRedirect);
+                self::assertInstanceOf(HttpsRedirectMiddleware::class, $middleware);
+
+                self::assertSame($securityHeaders, $container->get(SecurityHeadersPolicy::class));
+                self::assertSame($httpsRedirect, $container->get(HttpsRedirectPolicy::class));
+                self::assertSame($middleware, $container->get(HttpsRedirectMiddleware::class));
+
+                self::assertSame(
+                    $httpsRedirect,
+                    new \ReflectionProperty(HttpsRedirectMiddleware::class, 'policy')->getValue($middleware),
+                );
+
+                $finalizer = $container->get(HttpResponseFinalizer::class);
+                self::assertInstanceOf(HttpResponseFinalizer::class, $finalizer);
+                self::assertSame($finalizer, $container->get(HttpResponseFinalizer::class));
+
+                self::assertSame(
+                    $securityHeaders,
+                    new \ReflectionProperty(HttpResponseFinalizer::class, 'securityHeaders')->getValue($finalizer),
+                );
+
+                self::assertSame($httpsRedirectEnabled, $httpsRedirect->enabled());
+                self::assertSame(307, $httpsRedirect->status());
+                self::assertTrue($httpsRedirect->allowsMethod('GET'));
+                self::assertFalse($httpsRedirect->allowsMethod('HEAD'));
+
+                $expectedSecurityHeaders = $securityHeadersEnabled ? [
+                    'X-Content-Type-Options' => 'nosniff',
+                    'X-Frame-Options' => 'SAMEORIGIN',
+                    'Referrer-Policy' => 'strict-origin',
+                    'Permissions-Policy' => 'geolocation=()',
+                    'Content-Security-Policy' => "default-src 'none'",
+                ] : [];
+
+                self::assertSame($expectedSecurityHeaders, $securityHeaders->headers());
+
+                $pipeline = $container->get(Pipeline::class);
+                self::assertInstanceOf(Pipeline::class, $pipeline);
+
+                $resolvedMiddleware = new \ReflectionProperty(Pipeline::class, 'middleware')->getValue($pipeline);
+
+                self::assertIsArray($resolvedMiddleware);
+                self::assertSame(
+                    $httpsRedirectEnabled,
+                    \in_array($middleware, $resolvedMiddleware, true),
+                );
+
+                $uri = $this->createStub(UriInterface::class);
+                $uri->method('getScheme')->willReturn('http');
+                $uri->method('getPath')->willReturn('/resource%20name');
+                $uri->method('getQuery')->willReturn('page=1');
+
+                $request = $this->createStub(ServerRequestInterface::class);
+                $request->method('getMethod')->willReturn('GET');
+                $request->method('getUri')->willReturn($uri);
+                $request->method('getBody')->willReturn($stream);
+                $request->method('getHeader')->willReturn([]);
+                $request->method('hasHeader')->willReturn(false);
+
+                $status = $httpsRedirectEnabled ? 307 : 404;
+                $expectedHeaders = $httpsRedirectEnabled ? [
+                    'Location' => 'https://example.test:8443/resource%20name?page=1',
+                ] : [];
+                $expectedHeaders += $expectedSecurityHeaders;
+
+                $response = $this->createMock(ResponseInterface::class);
+                $response->method('getStatusCode')->willReturn($status);
+                $response->expects(self::never())->method('withAddedHeader');
+                $response->expects(self::never())->method('withoutHeader');
+                $response->expects($httpsRedirectEnabled ? self::never() : self::once())
+                    ->method('withBody')
+                    ->with(self::identicalTo($stream))
+                    ->willReturnSelf();
+
+                $expectedMutations = [];
+                foreach ($expectedHeaders as $name => $value) {
+                    $expectedMutations[] = [$name, $value];
+                }
+
+                $index = 0;
+                $response->expects(self::exactly(\count($expectedMutations)))
+                    ->method('withHeader')
+                    ->willReturnCallback(static function (string $name, mixed $value) use (
+                        $expectedMutations,
+                        $response,
+                        &$index,
+                    ): ResponseInterface {
+                        self::assertTrue(isset($expectedMutations[$index]), 'unexpected-hardening-mutation');
+                        self::assertTrue($name === $expectedMutations[$index][0], 'hardening-header-name-mismatch');
+                        self::assertTrue($value === $expectedMutations[$index][1], 'hardening-header-value-mismatch');
+                        ++$index;
+
+                        return $response;
+                    });
+
+                HttpParityExternalFactory::$response = $response;
+
+                $factory = $container->get(ResponseFactoryInterface::class);
+                self::assertInstanceOf(HttpParityExternalFactory::class, $factory);
+
+                $runtime = $container->get(KernelRuntimeInterface::class);
+                self::assertInstanceOf(HttpParityKernelRuntime::class, $runtime);
+                self::assertSame(0, $runtime->begins);
+
+                $kernel = $container->get(HttpKernelInterface::class);
+                self::assertInstanceOf(HttpKernel::class, $kernel);
+
+                self::assertSame($response, $kernel->handle($request));
+                self::assertSame($status, $factory->lastResponseCode);
+                self::assertSame($status, $response->getStatusCode());
+                self::assertSame(\count($expectedMutations), $index);
+                self::assertSame(1, $runtime->begins);
+                self::assertSame(1, $runtime->completions);
+                self::assertSame($httpsRedirectEnabled ? 'success' : 'handled_error', $runtime->lastOutcome);
+            }
+        } finally {
+            HttpParityExternalFactory::$response = null;
+            HttpParityExternalFactory::$stream = null;
+        }
+    }
+
+    /** @return iterable<string, array{bool, bool}> */
+    public static function hardeningConfigurations(): iterable
+    {
+        yield 'both-disabled' => [false, false];
+        yield 'security-headers-only' => [true, false];
+        yield 'https-redirect-only' => [false, true];
+        yield 'both-enabled' => [true, true];
+    }
+
+    #[DataProvider('hardeningDescriptorConfigurations')]
     public function testProviderDescriptorsAndTagsHaveOneCanonicalSourceForBothContainerModes(
         bool $requestIdEnabled,
+        bool $securityHeadersEnabled,
+        bool $httpsRedirectEnabled,
     ): void {
         $config = self::requestIdConfig($requestIdEnabled);
+        $config['http']['security_headers']['enabled'] = $securityHeadersEnabled;
+        $config['http']['https_redirect']['enabled'] = $httpsRedirectEnabled;
+        $config['http']['https_redirect']['target_authority'] = 'example.test:8443';
         $set = self::definitions($config);
         $operations = $set->toDescriptorStream();
         $graph = self::compiler()->compile($set)->toArray();
@@ -278,6 +472,9 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $expected = [
             RequestIdPolicy::class,
+            SecurityHeadersPolicy::class,
+            HttpsRedirectPolicy::class,
+            HttpsRedirectMiddleware::class,
             HttpKernel::class,
             ...self::COMPLETION_SERVICES,
         ];
@@ -288,12 +485,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $contextStores = [];
 
         foreach ($operations as $operation) {
-            if (($operation['kind'] ?? null) === 'service.class') {
+            $kind = $operation['kind'] ?? null;
+            if (\in_array($kind, ['service.class', 'service.factory.class-method'], true)) {
                 if (\in_array($operation['id'], $expected, true)) {
                     $services[$operation['id']] = $operation;
                 }
 
-                if ($operation['class'] === ContextStore::class) {
+                if ($kind === 'service.class' && $operation['class'] === ContextStore::class) {
                     $contextStores[] = $operation['id'];
                 }
             }
@@ -307,6 +505,8 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertNotContains($operation['serviceId'], self::COMPLETION_SERVICES);
                 self::assertNotSame(HttpKernel::class, $operation['serviceId']);
                 self::assertNotSame(RequestIdPolicy::class, $operation['serviceId']);
+                self::assertNotSame(SecurityHeadersPolicy::class, $operation['serviceId']);
+                self::assertNotSame(HttpsRedirectPolicy::class, $operation['serviceId']);
             }
 
             if (\in_array(
@@ -318,21 +518,22 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             }
         }
 
-        self::assertCount(6, $services);
-        self::assertCount(6, $tags);
+        self::assertCount(9, $services);
+        self::assertCount(7, $tags);
         self::assertSame(
             [
-            [TraceContextMiddleware::class, 930, ['toggle' => 'http.tracing.enabled']],
-            [TrustedProxyMiddleware::class, 880, ['toggle' => 'http.proxy.enabled']],
-            [RequestContextMiddleware::class, 870, ['toggle' => 'http.context.enrich.enabled']],
-            [TrustedHostMiddleware::class, 860, ['toggle' => 'http.hosts.enabled']],
-            [RequestBodySizeLimitMiddleware::class, 830, []],
-            [JsonBodyParserMiddleware::class, 800, ['toggle' => 'http.request.json.enabled']],
-        ],
+                [TraceContextMiddleware::class, 930, ['toggle' => 'http.tracing.enabled']],
+                [TrustedProxyMiddleware::class, 880, ['toggle' => 'http.proxy.enabled']],
+                [RequestContextMiddleware::class, 870, ['toggle' => 'http.context.enrich.enabled']],
+                [TrustedHostMiddleware::class, 860, ['toggle' => 'http.hosts.enabled']],
+                [HttpsRedirectMiddleware::class, 850, ['toggle' => 'http.https_redirect.enabled']],
+                [RequestBodySizeLimitMiddleware::class, 830, []],
+                [JsonBodyParserMiddleware::class, 800, ['toggle' => 'http.request.json.enabled']],
+            ],
             \array_map(
                 static fn (array $tag): array => [$tag['serviceId'], $tag['priority'], $tag['meta']],
                 $tags,
-            )
+            ),
         );
 
         foreach ($tags as $tag) {
@@ -345,7 +546,22 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         ], $lifecycleTags);
 
         foreach ($services as $id => $service) {
-            self::assertSame($service['class'], $graph['services'][$id]['construction']['class']);
+            if ($service['kind'] === 'service.factory.class-method') {
+                self::assertSame('factory', $graph['services'][$id]['type']);
+                self::assertSame([
+                    'factory' => [
+                        'class' => $service['factoryClass'],
+                        'kind' => 'class-method',
+                        'method' => $service['method'],
+                    ],
+                ], $graph['services'][$id]['construction']);
+            } else {
+                self::assertSame('class', $graph['services'][$id]['type']);
+                self::assertSame([
+                    'class' => $service['class'],
+                ], $graph['services'][$id]['construction']);
+            }
+
             self::assertTrue($service['shared']);
             self::assertTrue($graph['services'][$id]['shared']);
             self::assertSame($service['arguments'], $graph['services'][$id]['arguments']);
@@ -364,11 +580,41 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             $requestId['max_length'],
         ], $services[RequestIdPolicy::class]['arguments']);
 
+        foreach (
+            [
+                SecurityHeadersPolicy::class => 'securityHeaders',
+                HttpsRedirectPolicy::class => 'httpsRedirect',
+            ] as $id => $method
+        ) {
+            self::assertSame('service.factory.class-method', $services[$id]['kind']);
+            self::assertSame(HttpServiceFactory::class, $services[$id]['factoryClass']);
+            self::assertSame($method, $services[$id]['method']);
+            self::assertSame([
+                $ref(ConfigRepositoryInterface::class),
+            ], $services[$id]['arguments']);
+        }
+
+        self::assertSame(
+            HttpsRedirectMiddleware::class,
+            $services[HttpsRedirectMiddleware::class]['class'],
+        );
+
+        self::assertSame([
+            $ref(HttpsRedirectPolicy::class),
+            $ref(ResponseFactoryInterface::class),
+            $ref(MeterPortInterface::class),
+            $ref(LoggerInterface::class),
+            $config['http']['proxy']['enabled'],
+            $config['http']['metrics']['enabled'],
+            $config['http']['access_log']['enabled'],
+        ], $services[HttpsRedirectMiddleware::class]['arguments']);
+
         self::assertSame([
             $ref(CorrelationIdProviderInterface::class),
             true,
             'X-Correlation-Id',
             $ref(RequestIdPolicy::class),
+            $ref(SecurityHeadersPolicy::class),
         ], $services[HttpResponseFinalizer::class]['arguments']);
 
         self::assertSame([
@@ -427,6 +673,8 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $opposite = $config;
         $opposite['http']['request_id']['enabled'] = !$requestIdEnabled;
+        $opposite['http']['security_headers']['enabled'] = !$securityHeadersEnabled;
+        $opposite['http']['https_redirect']['enabled'] = !$httpsRedirectEnabled;
         $oppositeGraph = self::compiler()->compile(self::definitions($opposite))->toArray();
 
         self::assertSame(\array_keys($graph['services']), \array_keys($oppositeGraph['services']));
@@ -440,6 +688,23 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         self::assertSame(HttpParityExternalFactory::class, $graph['aliases'][ResponseFactoryInterface::class]);
         self::assertSame(HttpParityExternalFactory::class, $graph['aliases'][StreamFactoryInterface::class]);
+    }
+
+    /** @return iterable<string, array{bool, bool, bool}> */
+    public static function hardeningDescriptorConfigurations(): iterable
+    {
+        foreach ([false, true] as $requestIdEnabled) {
+            foreach ([false, true] as $securityHeadersEnabled) {
+                foreach ([false, true] as $httpsRedirectEnabled) {
+                    yield \sprintf(
+                        'request-id-%d-security-headers-%d-https-redirect-%d',
+                        $requestIdEnabled,
+                        $securityHeadersEnabled,
+                        $httpsRedirectEnabled,
+                    ) => [$requestIdEnabled, $securityHeadersEnabled, $httpsRedirectEnabled];
+                }
+            }
+        }
     }
 
     /** @return iterable<string, array{bool}> */
@@ -546,7 +811,29 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 'spans',
                 'requestIds',
             ],
-            HttpResponseFinalizer::class => ['correlationIds', 'enabled', 'headerName', 'requestIds'],
+            HttpResponseFinalizer::class => [
+                'correlationIds',
+                'enabled',
+                'headerName',
+                'requestIds',
+                'securityHeaders',
+            ],
+            SecurityHeadersPolicy::class => ['headers'],
+            HttpsRedirectPolicy::class => [
+                'allowedMethods',
+                'enabled',
+                'status',
+                'targetAuthority',
+            ],
+            HttpsRedirectMiddleware::class => [
+                'policy',
+                'responses',
+                'meter',
+                'logger',
+                'proxyEnabled',
+                'metricsEnabled',
+                'accessLogEnabled',
+            ],
             RequestIdPolicy::class => [
                 'context',
                 'generator',
@@ -585,16 +872,181 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             $constructor = $reflection->getConstructor();
 
             self::assertNotNull($constructor);
-            $parameters = $constructor->getParameters();
-            $parameter = $parameters[\count($parameters) - 1];
-            $type = $parameter->getType();
+            $parameters = [];
+            foreach ($constructor->getParameters() as $candidate) {
+                $parameters[$candidate->getName()] = $candidate;
+            }
 
-            self::assertSame('requestIds', $parameter->getName());
+            self::assertArrayHasKey('requestIds', $parameters);
+            $parameter = $parameters['requestIds'];
+            $type = $parameter->getType();
             self::assertInstanceOf(\ReflectionNamedType::class, $type);
             self::assertSame(RequestIdPolicy::class, $type->getName());
             self::assertFalse($type->allowsNull());
             self::assertFalse($parameter->isOptional());
             self::assertFalse($parameter->isDefaultValueAvailable());
+        }
+    }
+
+    public function testSecurityHeadersPolicyIsAMandatoryConstructorDependencyOfTheFinalizer(): void
+    {
+        $constructor = new \ReflectionClass(HttpResponseFinalizer::class)->getConstructor();
+        self::assertNotNull($constructor);
+
+        $parameters = [];
+        foreach ($constructor->getParameters() as $parameter) {
+            $parameters[$parameter->getName()] = $parameter;
+        }
+
+        self::assertArrayHasKey('securityHeaders', $parameters);
+
+        $parameter = $parameters['securityHeaders'];
+        $type = $parameter->getType();
+
+        self::assertInstanceOf(\ReflectionNamedType::class, $type);
+        self::assertSame(SecurityHeadersPolicy::class, $type->getName());
+        self::assertFalse($type->allowsNull());
+        self::assertFalse($parameter->isOptional());
+        self::assertFalse($parameter->isDefaultValueAvailable());
+
+        self::assertSame(
+            $parameters['requestIds']->getPosition() + 1,
+            $parameter->getPosition(),
+        );
+    }
+
+    public function testHardeningServicesHaveOnlyMandatoryConstructorDependencies(): void
+    {
+        foreach (
+            [
+                SecurityHeadersPolicy::class,
+                HttpsRedirectPolicy::class,
+                HttpsRedirectMiddleware::class,
+            ] as $class
+        ) {
+            $reflection = new \ReflectionClass($class);
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->isReadOnly());
+
+            $constructor = $reflection->getConstructor();
+            self::assertNotNull($constructor);
+
+            foreach ($constructor->getParameters() as $parameter) {
+                self::assertFalse($parameter->allowsNull());
+                self::assertFalse($parameter->isOptional());
+                self::assertFalse($parameter->isDefaultValueAvailable());
+            }
+        }
+    }
+
+    public function testHardeningPoliciesResolveCanonicalValuesFromRuntimeConfiguration(): void
+    {
+        $config = self::config();
+        $authority = '[2001:db8::1]:8443';
+        $csp = 'default-src ' . \str_repeat('https://example.test ', 64) . 'https://other.example';
+
+        $config['http']['security_headers']['enabled'] = true;
+        $config['http']['security_headers']['csp'] = $csp;
+        $config['http']['https_redirect']['enabled'] = true;
+        $config['http']['https_redirect']['target_authority'] = $authority;
+
+        [$source, $compiled] = self::containers(self::definitions($config), $config);
+
+        foreach ([$source, $compiled] as $container) {
+            $securityHeaders = $container->get(SecurityHeadersPolicy::class);
+            $httpsRedirect = $container->get(HttpsRedirectPolicy::class);
+
+            self::assertInstanceOf(SecurityHeadersPolicy::class, $securityHeaders);
+            self::assertInstanceOf(HttpsRedirectPolicy::class, $httpsRedirect);
+
+            self::assertTrue(
+                ($securityHeaders->headers()['Content-Security-Policy'] ?? null) === $csp,
+                'security-header-policy-value-mismatch',
+            );
+            self::assertTrue(
+                $httpsRedirect->targetAuthority() === $authority,
+                'https-redirect-target-authority-mismatch',
+            );
+        }
+    }
+
+    public function testEnabledInvalidRedirectPolicyFailsDuringMiddlewareResolutionBeforeUnitOfWork(): void
+    {
+        $config = self::config();
+        $config['http']['https_redirect']['enabled'] = true;
+        $config['http']['https_redirect']['target_authority'] = 'https://example.test';
+
+        [$source, $compiled] = self::containers(self::definitions($config), $config);
+
+        foreach (
+            [
+                [$source, 'container-definition-factory-failed'],
+                [$compiled, 'container-compiled-factory-failed'],
+            ] as [$container, $reason]
+        ) {
+            $runtime = $container->get(KernelRuntimeInterface::class);
+            self::assertInstanceOf(HttpParityKernelRuntime::class, $runtime);
+            self::assertSame(0, $runtime->begins);
+            self::assertSame(0, $runtime->completions);
+
+            try {
+                $container->get(Pipeline::class);
+                self::fail('invalid-enabled-redirect-policy-must-fail-during-resolution');
+            } catch (ContainerException $actual) {
+                self::assertSame($reason, $actual->reason());
+
+                if ($container === $source) {
+                    $previous = $actual->getPrevious();
+                    self::assertInstanceOf(\InvalidArgumentException::class, $previous);
+                    self::assertSame('http-https-redirect-target-authority-invalid', $previous->getMessage());
+                }
+            }
+
+            self::assertSame(0, $runtime->begins);
+            self::assertSame(0, $runtime->completions);
+        }
+    }
+
+    public function testDisabledInvalidRedirectPolicyDoesNotRequireEagerResolution(): void
+    {
+        $config = self::config();
+        $config['http']['https_redirect']['enabled'] = false;
+        $config['http']['https_redirect']['target_authority'] = 'https://example.test';
+
+        [$source, $compiled] = self::containers(self::definitions($config), $config);
+
+        foreach (
+            [
+                [$source, 'container-definition-factory-failed'],
+                [$compiled, 'container-compiled-factory-failed'],
+            ] as [$container, $reason]
+        ) {
+            $runtime = $container->get(KernelRuntimeInterface::class);
+            self::assertInstanceOf(HttpParityKernelRuntime::class, $runtime);
+
+            $pipeline = $container->get(Pipeline::class);
+            self::assertInstanceOf(Pipeline::class, $pipeline);
+            self::assertInstanceOf(HttpKernel::class, $container->get(HttpKernelInterface::class));
+
+            $resolvedMiddleware = new \ReflectionProperty(Pipeline::class, 'middleware')->getValue($pipeline);
+            self::assertIsArray($resolvedMiddleware);
+
+            foreach ($resolvedMiddleware as $middleware) {
+                self::assertNotInstanceOf(HttpsRedirectMiddleware::class, $middleware);
+            }
+
+            self::assertSame(0, $runtime->begins);
+            self::assertSame(0, $runtime->completions);
+
+            try {
+                $container->get(HttpsRedirectPolicy::class);
+                self::fail('invalid-redirect-policy-must-fail-when-explicitly-resolved');
+            } catch (ContainerException $actual) {
+                self::assertSame($reason, $actual->reason());
+            }
+
+            self::assertSame(0, $runtime->begins);
+            self::assertSame(0, $runtime->completions);
         }
     }
 
@@ -819,9 +1271,11 @@ class HttpParityExternalFactory implements ResponseFactoryInterface, StreamFacto
 {
     public static ?ResponseInterface $response = null;
     public static ?StreamInterface $stream = null;
+    public ?int $lastResponseCode = null;
 
     public function createResponse(int $code = 200, string $reasonPhrase = ''): ResponseInterface
     {
+        $this->lastResponseCode = $code;
         return self::$response ?? throw new \LogicException('http-parity-response-not-set');
     }
 

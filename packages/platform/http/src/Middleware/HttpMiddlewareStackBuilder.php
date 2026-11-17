@@ -45,6 +45,7 @@ final readonly class HttpMiddlewareStackBuilder
         'http.proxy.enabled' => true,
         'http.context.enrich.enabled' => true,
         'http.hosts.enabled' => true,
+        'http.https_redirect.enabled' => true,
         'http.request.json.enabled' => true,
     ];
 

@@ -20,16 +20,18 @@ namespace Coretsia\Platform\Http\Response;
 
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Stateless identity-header finalization for completed PSR-7 responses.
+ * Stateless identity-header and security-header finalization for completed PSR-7 responses.
  *
  * HttpKernel invokes this service after the entire PSR-15 pipeline, including
  * any explicitly selected Problem Details error boundary, has returned.
  * Kernel-owned correlation identity is applied before HTTP-owned request
  * identity. The selected request identifier must match the current context
- * value exactly before its response header can be applied.
+ * value exactly before its response header can be applied. Configured security
+ * headers are applied only after successful identity-header finalization.
  *
  * This service neither reads request headers nor creates identities,
  * fallback responses, or completion hooks.
@@ -101,6 +103,7 @@ final readonly class HttpResponseFinalizer
         private bool $enabled,
         private string $headerName,
         private RequestIdPolicy $requestIds,
+        private SecurityHeadersPolicy $securityHeaders,
     ) {
         if (
             \strlen($this->headerName) > self::MAX_HEADER_NAME_BYTES
@@ -113,7 +116,7 @@ final readonly class HttpResponseFinalizer
     }
 
     /**
-     * Applies correlation and request identity headers in deterministic order.
+     * Applies correlation, request identity, and security headers in deterministic order.
      * Identity verification and PSR-7 mutation failures propagate unchanged.
      */
     public function finalize(ResponseInterface $response, ?string $selectedRequestId = null): ResponseInterface
@@ -125,16 +128,25 @@ final readonly class HttpResponseFinalizer
             throw new \RuntimeException('http-request-id-context-invalid');
         }
 
-        if ($requestId === null) {
-            return $response;
+        if ($requestId !== null) {
+            $finalized = $response->withHeader($this->requestIds->headerName(), $requestId);
+            if (!$finalized instanceof ResponseInterface) {
+                throw new \RuntimeException('http-request-id-response-invalid');
+            }
+
+            $response = $finalized;
         }
 
-        $finalized = $response->withHeader($this->requestIds->headerName(), $requestId);
-        if (!$finalized instanceof ResponseInterface) {
-            throw new \RuntimeException('http-request-id-response-invalid');
+        foreach ($this->securityHeaders->headers() as $name => $value) {
+            $finalized = $response->withHeader($name, $value);
+            if (!$finalized instanceof ResponseInterface) {
+                throw new \RuntimeException('http-security-header-response-invalid');
+            }
+
+            $response = $finalized;
         }
 
-        return $finalized;
+        return $response;
     }
 
     /**

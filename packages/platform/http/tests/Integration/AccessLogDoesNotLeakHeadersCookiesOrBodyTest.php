@@ -38,6 +38,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
@@ -346,7 +347,13 @@ final class AccessLogDoesNotLeakHeadersCookiesOrBodyTest extends TestCase
             $runtime,
             new Stopwatch(),
             $pipeline,
-            new HttpResponseFinalizer($correlation, true, 'X-Correlation-Id', $requestIds),
+            new HttpResponseFinalizer(
+                $correlation,
+                true,
+                'X-Correlation-Id',
+                $requestIds,
+                new SecurityHeadersPolicy(false, 'nosniff', 'deny', 'no-referrer', '', ''),
+            ),
             new HttpRequestMetricsRecorder(new NoopMeter(), true),
             new HttpAccessLogWriter($logger, true),
             new HttpRequestSpanRecorder(new NoopTracer(), true),

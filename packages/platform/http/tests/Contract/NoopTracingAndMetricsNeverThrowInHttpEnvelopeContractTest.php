@@ -34,9 +34,12 @@ use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
+use Coretsia\Platform\Http\Maintenance\MaintenanceStateStore;
 use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Observability\HttpAccessLogWriter;
@@ -374,6 +377,15 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
                 self::assertNotSame(RequestIdPolicy::class, $operation['serviceId']);
                 self::assertNotSame(SecurityHeadersPolicy::class, $operation['serviceId']);
                 self::assertNotSame(HttpsRedirectPolicy::class, $operation['serviceId']);
+                self::assertNotSame(MaintenanceStateStore::class, $operation['serviceId']);
+
+                if (\in_array(
+                    $operation['tag'],
+                    [ReservedTags::KERNEL_RESET, ReservedTags::KERNEL_STATEFUL],
+                    true,
+                )) {
+                    self::assertNotSame(MaintenanceMiddleware::class, $operation['serviceId']);
+                }
             }
 
             if (($operation['kind'] ?? null) === 'service.class') {
@@ -465,6 +477,21 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
                     'proxyEnabled',
                     'responses',
                 ],
+                MaintenanceStateStore::class => [
+                    'locks',
+                    'paths',
+                ],
+                MaintenanceMiddleware::class => [
+                    'accessLogEnabled',
+                    'enabled',
+                    'logger',
+                    'meter',
+                    'metricsEnabled',
+                    'responses',
+                    'retryAfterDefaultSeconds',
+                    'state',
+                    'streams',
+                ],
                 HttpRequestMetricsRecorder::class => ['enabled', 'meter'],
                 HttpAccessLogWriter::class => ['enabled', 'logger'],
                 HttpRequestSpanRecorder::class => ['enabled', 'tracer'],
@@ -517,6 +544,10 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
         self::assertFalse(\is_subclass_of(HttpsRedirectPolicy::class, MiddlewareInterface::class));
         self::assertFalse(\is_subclass_of(HttpsRedirectPolicy::class, ResetInterface::class));
         self::assertFalse(\is_subclass_of(HttpsRedirectMiddleware::class, ResetInterface::class));
+        self::assertTrue(\is_subclass_of(MaintenanceMiddleware::class, MiddlewareInterface::class));
+        self::assertFalse(\is_subclass_of(MaintenanceMiddleware::class, ResetInterface::class));
+        self::assertFalse(\is_subclass_of(MaintenanceStateStore::class, MiddlewareInterface::class));
+        self::assertFalse(\is_subclass_of(MaintenanceStateStore::class, ResetInterface::class));
     }
 
     private function runtime(string $outcome, ?\Throwable $failure): KernelRuntimeInterface

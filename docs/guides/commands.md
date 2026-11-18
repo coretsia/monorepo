@@ -3424,6 +3424,176 @@ Usage (repo root):
 
 ---
 
+### Coretsia CLI maintenance enable
+
+Id: `cli.maintenance_enable` \
+Entrypoint: `php coretsia maintenance:enable` \
+Category: CLI / HTTP / maintenance operations \
+Outputs:
+- `var/maintenance/enabled`
+- `var/maintenance/message.json` (created, updated, or removed according to the supplied options)
+- `var/maintenance/maintenance.lock`
+- No generated configuration or container artifacts
+
+Determinism:
+
+| Mode / flags          | Determinism      | Notes                                                                  |
+|-----------------------|------------------|------------------------------------------------------------------------|
+| default               | NONDETERMINISTIC | Mutates application-local runtime maintenance state                    |
+| `--message=<message>` | NONDETERMINISTIC | Publishes or updates the public maintenance message                    |
+| `--retry-after=<int>` | NONDETERMINISTIC | Supplies an explicit retry delay for the public maintenance message    |
+| `--format=json`       | NONDETERMINISTIC | Stable output schema; operation depends on live filesystem state       |
+
+Notes:
+- Purpose: activate application-local HTTP maintenance mode and optionally publish a public maintenance message.
+- All three maintenance commands are contributed by `platform.http` through the canonical `cli.command` DI tag with group `maintenance` and `hidden = false`.
+- `platform.cli` and `platform.http` MUST be enabled in the Console ModulePlan for the maintenance commands to be available.
+- Selecting `platform.http` only for an HTTP target does not make its commands available in the Console command catalog.
+- Command discovery uses the existing CLI command catalog and tagged metadata. List and help discovery MUST NOT resolve executable maintenance or HTTP runtime services or create maintenance state.
+- Accepts no positional arguments.
+- Supported command-specific options:
+  - `--message=<message>`: optional, value required when supplied, non-repeatable. MUST contain non-empty valid UTF-8 text of at most 1024 bytes, without control characters, Unicode line separators, or leading/trailing whitespace;
+  - `--retry-after=<int>`: optional, value required when supplied, non-repeatable. MUST be supplied together with `--message` and contain a canonical positive decimal integer within `1..86400` seconds, without a sign, leading zeros, decimal fractions, or surrounding whitespace.
+- None of the maintenance commands accepts target-specific options such as `--target` or application-root overrides.
+- The public maintenance message is intentionally exposed as HTTP response content and MUST NOT contain sensitive information.
+- Sensitive values MUST NOT be supplied through command-line message arguments because shell history, process listings, or external command logging may retain them.
+- Delegates state mutation to `MaintenanceStateStore`.
+- The state directory is resolved through the existing Kernel-owned `RuntimePathContext::applicationRoot()`, independently of the current working directory.
+- The runtime flag is shared by all participating HTTP targets using the same application root and filesystem.
+- Static middleware participation remains target-local and is controlled by `http.maintenance.enabled`. The runtime flag does not override disabled middleware participation.
+- Maintenance command availability and execution are independent of the static HTTP maintenance middleware setting.
+- Maintenance activation does not suspend CLI commands or Worker execution.
+- Repeated enablement with identical message content and retry delay is idempotent and preserves the existing flag and canonical message bytes.
+- Enablement with changed message content or retry delay updates the message without replacing an existing enabled flag.
+- Enablement without `--message` removes a retained regular message file and selects the generic maintenance response.
+- Successful execution emits exactly the structured payload `{"enabled":true}` through `OutputInterface`.
+- All maintenance commands use the canonical CLI input validation, output rendering, and Kernel UnitOfWork lifecycle.
+- Global CLI output options `--format` and `--color` retain their existing semantics.
+- With `--format=json`, structured command output is represented by a `json` record with a `payload` field inside `data.records` of the canonical `coretsia.cli-output@1` envelope.
+- Exit-code policy:
+  - `0`: maintenance state was enabled successfully or already matches the requested state;
+  - `1`: invalid input, invalid public message, unavailable maintenance state, or uncaught execution failure.
+- Fixed maintenance diagnostics:
+  - `CORETSIA_MAINTENANCE_COMMAND_INVALID`, reason `http-maintenance-command-invalid`: invalid command input at the maintenance command boundary;
+  - `CORETSIA_MAINTENANCE_MESSAGE_INVALID`, reason `http-maintenance-message-invalid`: invalid public message or retry delay;
+  - `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE`, reason `http-maintenance-state-unavailable`: unavailable maintenance state or unsuccessful required filesystem operation.
+- Invalid CLI input rejected before command execution uses the existing `CORETSIA_CLI_INPUT_INVALID` diagnostic:
+  - `cli-option-unknown`: unsupported option, including `--target`;
+  - `cli-option-invalid`: invalid option value or shape;
+  - `cli-option-repeated`: repeated non-repeatable option;
+  - `cli-argument-count-invalid`: unsupported positional argument.
+- With `--format=json`, error diagnostics use the existing `error` record containing `code` and `message`, with the fixed reason token as the message.
+- Diagnostics MUST NOT expose supplied message contents, rejected input values, filesystem paths, or raw filesystem and decoder errors.
+- Validation failures MUST NOT mutate maintenance state.
+- An unsuccessful state-changing operation does not guarantee rollback of completed filesystem mutations. Maintenance status MUST be checked after an unsuccessful enable or disable operation.
+- Maintenance state changes MUST NOT require `config:compile`, generated artifact regeneration, or an application restart.
+- Kernel artifact ownership and Kernel operation target-selection semantics remain unchanged.
+- The `var/maintenance` application fingerprint exclusion MUST be preserved according to `docs/ssot/artifacts-and-fingerprint.md`.
+- Runtime state ownership and HTTP middleware participation follow `docs/ssot/http-middleware-wiring.md`.
+- Runtime-dependent results MUST NOT be used as deterministic rerun-no-diff CI assertions.
+
+Usage (Skeleton application root):
+- `php coretsia maintenance:enable`
+- `php coretsia maintenance:enable --message="Scheduled maintenance."`
+- `php coretsia maintenance:enable --message="Scheduled maintenance." --retry-after=300`
+- `php coretsia maintenance:enable --message="Scheduled maintenance." --retry-after=300 --format=json`
+
+---
+
+### Coretsia CLI maintenance disable
+
+Id: `cli.maintenance_disable` \
+Entrypoint: `php coretsia maintenance:disable` \
+Category: CLI / HTTP / maintenance operations \
+Outputs:
+- Removes `var/maintenance/enabled` if present
+- Retains `var/maintenance/message.json` if present
+- `var/maintenance/maintenance.lock` (created if absent)
+- No generated configuration or container artifacts
+
+Determinism:
+
+| Mode / flags    | Determinism      | Notes                                                             |
+|-----------------|------------------|-------------------------------------------------------------------|
+| default         | NONDETERMINISTIC | Mutates application-local runtime maintenance state               |
+| `--format=json` | NONDETERMINISTIC | Stable output schema; operation depends on live filesystem state  |
+
+Notes:
+- Purpose: deactivate application-local HTTP maintenance mode.
+- The command is contributed by the enabled `platform.http` package through the canonical `cli.command` DI tag.
+- `platform.http` MUST be enabled in the Console ModulePlan for this command to appear in the CLI catalog.
+- Accepts no positional arguments or command-specific options.
+- Delegates state mutation to `MaintenanceStateStore`.
+- Removes the shared application-root-local enabled flag without inspecting or removing the retained optional message.
+- Repeated disablement is idempotent and preserves the inactive logical state.
+- The persistent maintenance lock anchor is retained.
+- Successful execution emits exactly the structured payload `{"enabled":false}` through `OutputInterface`.
+- Exit-code policy:
+  - `0`: maintenance state was disabled successfully or was already inactive;
+  - `1`: invalid input, unavailable maintenance state, or uncaught execution failure.
+- Maintenance command input failures use `CORETSIA_MAINTENANCE_COMMAND_INVALID`, reason `http-maintenance-command-invalid`.
+- Unavailable maintenance state uses `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE`, reason `http-maintenance-state-unavailable`.
+- The shared CLI input validation, output rendering, safe diagnostic, and Kernel lifecycle rules documented for `maintenance:enable` also apply.
+- An unsuccessful disable operation does not guarantee rollback of completed filesystem mutations. Maintenance status MUST be checked after a failure.
+- The command does not modify static HTTP feature configuration or generated Kernel artifacts.
+- Runtime-dependent results MUST NOT be used as deterministic rerun-no-diff CI assertions.
+
+Usage (Skeleton application root):
+- `php coretsia maintenance:disable`
+- `php coretsia maintenance:disable --format=json`
+
+---
+
+### Coretsia CLI maintenance status
+
+Id: `cli.maintenance_status` \
+Entrypoint: `php coretsia maintenance:status` \
+Category: CLI / HTTP / maintenance diagnostics \
+Outputs:
+- none (emits a safe live maintenance state summary through `OutputInterface`)
+- May create `var/maintenance/maintenance.lock` when reading active maintenance state
+- Does not modify the enabled flag, optional message, or generated Kernel artifacts
+
+Determinism:
+
+| Mode / flags    | Determinism      | Notes                                                        |
+|-----------------|------------------|--------------------------------------------------------------|
+| default         | NONDETERMINISTIC | Reports live application-local runtime maintenance state     |
+| `--format=json` | NONDETERMINISTIC | Stable output schema; values reflect current runtime state    |
+
+Notes:
+- Purpose: inspect the current application-local maintenance flag and optional message state.
+- The command is contributed by the enabled `platform.http` package through the canonical `cli.command` DI tag.
+- `platform.http` MUST be enabled in the Console ModulePlan for this command to appear in the CLI catalog.
+- Accepts no positional arguments or command-specific options.
+- Delegates state inspection to `MaintenanceStateStore`.
+- Reports the shared application-root-local runtime flag, not effective middleware participation for an individual HTTP target.
+- Structured output contains:
+  - `enabled`: boolean indicating whether the runtime maintenance flag is active;
+  - `message_state`: one of:
+    - `ignored`: maintenance is inactive; retained optional message entries are not inspected;
+    - `absent`: maintenance is active and no optional message is present;
+    - `valid`: maintenance is active and the optional message is valid;
+    - `invalid`: maintenance is active and the optional message is invalid or cannot be safely read;
+  - `retry_after_seconds`: integer within `1..86400`, present only when an active, valid optional message supplies an explicit retry delay.
+- The configured default retry delay MUST NOT be reported as an explicit message retry delay.
+- Exit-code policy:
+  - `0`: maintenance is inactive or is active with an absent or valid optional message;
+  - `1`: maintenance is active with an invalid optional message, maintenance state is unavailable, input is invalid, or execution fails.
+- An invalid optional message does not deactivate maintenance. The command emits the structured payload `{"enabled":true,"message_state":"invalid"}` and returns exit code `1`.
+- Unavailable maintenance state emits only `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE`, reason `http-maintenance-state-unavailable`, without a fabricated status payload.
+- Maintenance command input failures use `CORETSIA_MAINTENANCE_COMMAND_INVALID`, reason `http-maintenance-command-invalid`.
+- The shared CLI input validation, output rendering, safe diagnostic, and Kernel lifecycle rules documented for `maintenance:enable` also apply.
+- The command MUST NOT expose public message contents, filesystem paths, raw runtime state bytes, or raw filesystem diagnostics.
+- The command does not modify logical maintenance activation or static HTTP feature configuration.
+- Runtime-dependent results MUST NOT be used as deterministic rerun-no-diff CI assertions.
+
+Usage (Skeleton application root):
+- `php coretsia maintenance:status`
+- `php coretsia maintenance:status --format=json`
+
+---
+
 ### Coretsia CLI worker health
 
 Id: `cli.worker_health` \

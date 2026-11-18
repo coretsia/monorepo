@@ -296,9 +296,21 @@ Deterministic ordering and discovery-consumption rules are Foundation-owned and 
 
 ## HTTP-owned middleware execution and final-response completion
 
-The implemented `platform/http` baseline consists of seven `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `HttpsRedirectMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
+The implemented `platform/http` baseline consists of eight `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `MaintenanceMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `HttpsRedirectMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
 
 The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
+
+`Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware` owns application-local HTTP maintenance short-circuiting.
+
+It participates in `http.middleware.system_pre` at priority `900`, after `TraceContextMiddleware` and before trusted-proxy, request-context, trusted-host, HTTPS redirect, and request-body processing.
+
+Static participation is controlled by the validated target-local `http.maintenance.enabled` configuration. Runtime activation is independently determined through the application-local maintenance state store on each participating request.
+
+Active maintenance MUST return a deterministic HTTP `503` response without invoking downstream request middleware or terminal handling, except for the exact case-sensitive URI path `/_alive`. Unavailable maintenance state MUST follow the same short-circuit and bypass policy.
+
+The liveness bypass delegates to the downstream handler without implementing a system endpoint, generating a liveness response, or determining its status.
+
+Maintenance responses remain subject to applicable response decorators and canonical `HttpKernel` final-response completion. Exact execution, state access, response construction, and failure semantics are governed by `docs/ssot/http-middleware-wiring.md`.
 
 Optional HTTP request identity preparation is owned by `Coretsia\Platform\Http\RequestId\RequestIdPolicy`.
 
@@ -527,6 +539,20 @@ http.https_redirect_total
 It MUST be a counter with exactly the `outcome` label and allowed values `redirected` and `skipped`.
 
 Its enablement, completed-decision semantics, and redaction requirements are governed by `docs/ssot/observability.md`.
+
+Maintenance-decision observability is separately owned by `platform/http` through `MaintenanceMiddleware`.
+
+The canonical maintenance-decision metric is:
+
+```text
+http.maintenance_total
+```
+
+It MUST be a counter with exactly the `outcome` label and allowed values `served` and `bypassed`.
+
+Maintenance-decision metrics and logs MUST remain independent of HTTPS redirect decisions and final HTTP request completion.
+
+Completed-decision semantics, fixed log event identifiers, bounded producer-supplied fields, independent observability enablement, failure isolation, and redaction requirements are governed by `docs/ssot/observability.md`.
 
 The global metric label allowlist remains:
 
@@ -777,7 +803,7 @@ System-pre middleware runs before the main system, application, and route middle
 | priority | owner package_id | middleware class                                                           | registration / metadata                       |
 |----------|------------------|----------------------------------------------------------------------------|-----------------------------------------------|
 | `930`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TraceContextMiddleware::class`         | `['toggle' => 'http.tracing.enabled']`        |
-| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`         | future-only; not registered                   |
+| `900`    | `platform/http`  | `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`         | `['toggle' => 'http.maintenance.enabled']`    |
 | `880`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware::class`         | `['toggle' => 'http.proxy.enabled']`          |
 | `870`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class`       | `['toggle' => 'http.context.enrich.enabled']` |
 | `860`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\TrustedHostMiddleware::class`          | `['toggle' => 'http.hosts.enabled']`          |
@@ -1006,6 +1032,9 @@ packages/platform/http/tests/Unit/RequestIdPolicyTest.php
 packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php
 packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php
 packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php
+packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php
+packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php
+packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php
 packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php
 packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php
 packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php
@@ -1026,11 +1055,11 @@ When a target with `platform.http` explicitly selected successfully completes an
 2. `HttpKernel` invokes its mandatory shared `RequestIdPolicy`, which establishes HTTP request identity when enabled, before the entire PSR-15 pipeline and independently of middleware participation;
 3. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
 4. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
-5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles; when enabled and eligible, `HttpsRedirectMiddleware` short-circuits request processing with a response constructed through the canonical PSR-17 response factory, independently observing the completed redirect decision;
+5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles; `MaintenanceMiddleware` evaluates application-local runtime state before trusted-proxy, request-context, trusted-host, HTTPS redirect, and request-body processing, short-circuiting active or unavailable maintenance state with an HTTP `503` response except for the exact `/_alive` downstream bypass; when request processing reaches enabled and eligible `HttpsRedirectMiddleware`, it may short-circuit with a response constructed through the canonical PSR-17 response factory; maintenance and redirect decisions are observed independently of final HTTP request completion;
 6. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy, followed by independently enabled security-header application after the complete pipeline;
 7. request-id response-header application requires exact equality between the initially selected identifier and the current owner-local context identity;
 8. `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` consume the completed HTTP result through the existing noop-safe ports;
-9. disabled optional request identity, security-header, HTTPS redirect, and observability policies do not change their declarative service registrations or introduce additional middleware;
+9. disabled optional request identity, security-header, maintenance, HTTPS redirect, and observability policies do not change their declarative service registrations or introduce additional middleware;
 10. future-only rate limiting and other middleware reservations remain unregistered until their owning implementations exist;
 11. raw path, raw query, headers, cookies, body, auth/session ids, tokens, raw SQL, secrets, and PII are not logged or exported;
 12. selected request identifiers and rejected upstream values are not exported through HTTP completion observability;

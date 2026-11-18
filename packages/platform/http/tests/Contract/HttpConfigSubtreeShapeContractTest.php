@@ -50,6 +50,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'tracing',
             'metrics',
             'access_log',
+            'maintenance',
             'proxy',
             'context',
             'hosts',
@@ -65,6 +66,10 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'max_length' => 128,
         ], $http['request_id']);
         self::assertSame([
+            'enabled' => true,
+            'retry_after_default_seconds' => 60,
+        ], $http['maintenance']);
+        self::assertSame([
             'enabled' => false,
             'x_content_type_options' => 'nosniff',
             'x_frame_options' => 'deny',
@@ -79,7 +84,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'target_authority' => '',
         ], $http['https_redirect']);
 
-        foreach (['security_headers', 'https_redirect'] as $section) {
+        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
             self::assertSame(
                 \array_keys($http[$section]),
                 \array_keys($rules['keys'][$section]['keys']),
@@ -332,7 +337,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
 
     public function testHardeningMapsAndAllDeclaredKeysAreRequired(): void
     {
-        foreach (['security_headers', 'https_redirect'] as $section) {
+        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
             $http = self::defaults();
             $keys = \array_keys($http[$section]);
             unset($http[$section]);
@@ -353,7 +358,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
 
     public function testHardeningMapsRejectUnknownKeysAndReservedDirectives(): void
     {
-        foreach (['security_headers', 'https_redirect'] as $section) {
+        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
             foreach (['unknown', '@enabled', '@replace', '@append', '@remove'] as $key) {
                 $http = self::defaults();
                 $http[$section][$key] = [];
@@ -365,7 +370,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
 
     public function testHardeningSectionsMustBeStrictMaps(): void
     {
-        foreach (['security_headers', 'https_redirect'] as $section) {
+        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
             foreach ([null, false, 'disabled', [], [false]] as $value) {
                 $http = self::defaults();
                 $http[$section] = $value;
@@ -394,10 +399,30 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
     /** @return iterable<string, array{string, string, mixed}> */
     public static function invalidHardeningValues(): iterable
     {
-        foreach (['security_headers', 'https_redirect'] as $section) {
+        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
             foreach (['true', 'false', 1, 0, 1.0, null, []] as $index => $value) {
                 yield $section . '-enabled-' . $index => [$section, 'enabled', $value];
             }
+        }
+
+        foreach (
+            [
+                -1,
+                0,
+                86401,
+                '60',
+                60.0,
+                true,
+                false,
+                null,
+                [],
+            ] as $index => $value
+        ) {
+            yield 'maintenance-retry-after-' . $index => [
+                'maintenance',
+                'retry_after_default_seconds',
+                $value,
+            ];
         }
 
         foreach (
@@ -445,6 +470,21 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
 
         foreach ([null, false, 123, []] as $index => $value) {
             yield 'target-authority-' . $index => ['https_redirect', 'target_authority', $value];
+        }
+    }
+
+    public function testMaintenanceRetryAfterBoundariesPassCanonicalValidation(): void
+    {
+        foreach ([false, true] as $enabled) {
+            foreach ([1, 60, 86400] as $retryAfterSeconds) {
+                $http = self::defaults();
+                $http['maintenance'] = [
+                    'enabled' => $enabled,
+                    'retry_after_default_seconds' => $retryAfterSeconds,
+                ];
+
+                self::assertTrue(self::validate($http)->isSuccess());
+            }
         }
     }
 

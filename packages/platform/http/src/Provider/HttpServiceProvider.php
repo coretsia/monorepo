@@ -31,16 +31,23 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterfac
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
+use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
+use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
+use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Http\Host\TrustedHostPolicy;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
+use Coretsia\Platform\Http\Maintenance\MaintenanceStateStore;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
@@ -98,6 +105,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
 
         $correlation = HttpServiceFactory::section($http, 'correlation');
         $requestId = HttpServiceFactory::section($http, 'request_id');
+        $maintenance = HttpServiceFactory::section($http, 'maintenance');
         $proxy = HttpServiceFactory::section($http, 'proxy');
         $hosts = HttpServiceFactory::section($http, 'hosts');
         $request = HttpServiceFactory::section($http, 'request');
@@ -125,6 +133,8 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             HttpServiceFactory::section($http, 'access_log'),
             'enabled',
         );
+        $maintenanceEnabled = HttpServiceFactory::boolean($maintenance, 'enabled');
+        $maintenanceRetryAfterDefaultSeconds = HttpServiceFactory::integer($maintenance, 'retry_after_default_seconds');
         $proxyEnabled = HttpServiceFactory::boolean($proxy, 'enabled');
         $contextEnabled = HttpServiceFactory::boolean($enrich, 'enabled');
         $hostsEnabled = HttpServiceFactory::boolean($hosts, 'enabled');
@@ -140,6 +150,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(TagRegistry::class)
             ->requireService(KernelRuntimeInterface::class)
             ->requireService(RuntimeDriverResolver::class)
+            ->requireService(RuntimePathContext::class)
             ->requireService(Stopwatch::class)
             ->requireService(ContextStore::class)
             ->requireService(UlidGenerator::class)
@@ -164,6 +175,12 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
         }
 
         $definitions
+            ->classService(ScopedFileLock::class, ScopedFileLock::class)
+            ->classService(
+                MaintenanceStateStore::class,
+                MaintenanceStateStore::class,
+                [self::ref(RuntimePathContext::class), self::ref(ScopedFileLock::class)],
+            )
             ->classService(
                 TrustedProxyPolicy::class,
                 TrustedProxyPolicy::class,
@@ -208,6 +225,21 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 [self::ref(ContextPropagationInterface::class), $tracingEnabled],
             )
             ->classService(
+                MaintenanceMiddleware::class,
+                MaintenanceMiddleware::class,
+                [
+                    self::ref(MaintenanceStateStore::class),
+                    self::ref(ResponseFactoryInterface::class),
+                    self::ref(StreamFactoryInterface::class),
+                    self::ref(MeterPortInterface::class),
+                    self::ref(LoggerInterface::class),
+                    $maintenanceEnabled,
+                    $maintenanceRetryAfterDefaultSeconds,
+                    $metricsEnabled,
+                    $accessLogEnabled,
+                ],
+            )
+            ->classService(
                 TrustedProxyMiddleware::class,
                 TrustedProxyMiddleware::class,
                 [self::ref(TrustedProxyPolicy::class), $proxyEnabled],
@@ -247,6 +279,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             );
 
         $tracingTagMeta = ['toggle' => 'http.tracing.enabled'];
+        $maintenanceTagMeta = ['toggle' => 'http.maintenance.enabled'];
         $proxyTagMeta = ['toggle' => 'http.proxy.enabled'];
         $contextTagMeta = ['toggle' => 'http.context.enrich.enabled'];
         $hostsTagMeta = ['toggle' => 'http.hosts.enabled'];
@@ -259,6 +292,12 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 TraceContextMiddleware::class,
                 priority: 930,
                 meta: $tracingTagMeta,
+            )
+            ->tag(
+                ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE,
+                MaintenanceMiddleware::class,
+                priority: 900,
+                meta: $maintenanceTagMeta,
             )
             ->tag(
                 ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE,
@@ -295,6 +334,59 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 JsonBodyParserMiddleware::class,
                 priority: 800,
                 meta: $jsonTagMeta,
+            );
+
+        $definitions
+            ->classService(
+                MaintenanceEnableCommand::class,
+                MaintenanceEnableCommand::class,
+                [self::ref(MaintenanceStateStore::class)],
+            )
+            ->classService(
+                MaintenanceDisableCommand::class,
+                MaintenanceDisableCommand::class,
+                [self::ref(MaintenanceStateStore::class)],
+            )
+            ->classService(
+                MaintenanceStatusCommand::class,
+                MaintenanceStatusCommand::class,
+                [self::ref(MaintenanceStateStore::class)],
+            )
+            ->tag(
+                ReservedTags::CLI_COMMAND,
+                MaintenanceEnableCommand::class,
+                meta: self::commandMeta(
+                    MaintenanceEnableCommand::NAME,
+                    MaintenanceEnableCommand::SUMMARY,
+                    MaintenanceEnableCommand::GROUP,
+                    MaintenanceEnableCommand::HIDDEN,
+                    MaintenanceEnableCommand::ARGUMENTS,
+                    MaintenanceEnableCommand::OPTIONS,
+                ),
+            )
+            ->tag(
+                ReservedTags::CLI_COMMAND,
+                MaintenanceDisableCommand::class,
+                meta: self::commandMeta(
+                    MaintenanceDisableCommand::NAME,
+                    MaintenanceDisableCommand::SUMMARY,
+                    MaintenanceDisableCommand::GROUP,
+                    MaintenanceDisableCommand::HIDDEN,
+                    MaintenanceDisableCommand::ARGUMENTS,
+                    MaintenanceDisableCommand::OPTIONS,
+                ),
+            )
+            ->tag(
+                ReservedTags::CLI_COMMAND,
+                MaintenanceStatusCommand::class,
+                meta: self::commandMeta(
+                    MaintenanceStatusCommand::NAME,
+                    MaintenanceStatusCommand::SUMMARY,
+                    MaintenanceStatusCommand::GROUP,
+                    MaintenanceStatusCommand::HIDDEN,
+                    MaintenanceStatusCommand::ARGUMENTS,
+                    MaintenanceStatusCommand::OPTIONS,
+                ),
             );
 
         $definitions
@@ -369,6 +461,37 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 ],
             )
             ->alias(HttpKernelInterface::class, HttpKernel::class);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $arguments
+     * @param list<array<string, mixed>> $options
+     *
+     * @return array{
+     *     name: string,
+     *     summary: string,
+     *     group: string,
+     *     hidden: bool,
+     *     arguments: list<array<string, mixed>>,
+     *     options: list<array<string, mixed>>
+     * }
+     */
+    private static function commandMeta(
+        string $name,
+        string $summary,
+        string $group,
+        bool $hidden,
+        array $arguments,
+        array $options,
+    ): array {
+        return \compact(
+            'name',
+            'summary',
+            'group',
+            'hidden',
+            'arguments',
+            'options',
+        );
     }
 
     private static function ref(string $serviceId): ContainerValueReference

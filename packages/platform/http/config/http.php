@@ -48,6 +48,11 @@ declare(strict_types=1);
  * - Kernel retains UnitOfWork and reset lifecycle ownership;
  * - request-level final-response observability is not middleware configuration;
  * - redirect-decision observability is owned by HTTPS redirect middleware;
+ * - maintenance-decision observability is owned by maintenance middleware;
+ * - maintenance configuration controls static middleware participation and
+ *   the default Retry-After policy, not runtime maintenance activation;
+ * - maintenance runtime state is application-root-local and independent of
+ *   compiled configuration and generated artifacts;
  * - request-id preparation and identity-header finalization are governed by
  *   the HTTP-owned identity policy, independently of middleware configuration;
  * - security-header application is governed by an independent HTTP-owned
@@ -55,7 +60,7 @@ declare(strict_types=1);
  * - security-header and HTTPS redirect enablement are independent;
  * - upstream request-id acceptance requires an explicitly trusted ingress;
  * - no routing, system-endpoint, transport, CORS, rate-limit, upload,
- *   maintenance, or debugging configuration is declared;
+ *   or debugging configuration is declared;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -181,31 +186,58 @@ return [
     ],
 
     /*
-     * HTTP request-level and HTTPS redirect-decision metric recording.
+     * HTTP request-level, HTTPS redirect-decision, and maintenance-decision
+     * metric recording.
      *
      * Request-level metrics consume the finalized request outcome through
      * the existing MeterPortInterface, outside the PSR-15 middleware pipeline.
-     * HTTPS redirect middleware records completed redirect decisions
-     * independently through the same metrics port.
+     * HTTPS redirect and maintenance middleware record their respective
+     * completed decisions independently through the same metrics port.
      *
-     * This toggle governs both metric boundaries.
+     * This toggle governs all three metric boundaries.
      */
     'metrics' => [
         'enabled' => true,
     ],
 
     /*
-     * HTTP request completion and HTTPS redirect-decision logging.
+     * HTTP request completion, HTTPS redirect-decision, and maintenance
+     * logging.
      *
-     * Request completion and redirect-decision records are produced at
-     * independent HTTP-owned observability boundaries.
+     * Request completion, redirect-decision, and maintenance records are
+     * produced at independent HTTP-owned observability boundaries.
      *
-     * Both use the existing PSR-3 logger and shared redaction boundary;
+     * All use the existing PSR-3 logger and shared redaction boundary;
      * this does not select or require an optional Logging module.
-     * This toggle governs both logging boundaries.
+     * This toggle governs all three logging boundaries, including safe
+     * maintenance state failure diagnostics.
      */
     'access_log' => [
         'enabled' => true,
+    ],
+
+    /*
+     * Application-root-local maintenance mode.
+     *
+     * The enabled toggle controls static middleware participation, not active
+     * runtime maintenance state. Runtime activation is determined through
+     * the existing maintenance state directory on each participating request.
+     *
+     * The fixed application-root-relative runtime state paths are:
+     * - `var/maintenance/enabled`;
+     * - `var/maintenance/message.json`;
+     * - `var/maintenance/maintenance.lock`.
+     *
+     * Runtime state paths are not configurable. Runtime activation and
+     * deactivation do not modify compiled configuration or generated artifacts.
+     *
+     * The default Retry-After value must be an integer in 1..86400 seconds.
+     * A valid public maintenance message may supply an explicit override
+     * within the same range.
+     */
+    'maintenance' => [
+        'enabled' => true,
+        'retry_after_default_seconds' => 60,
     ],
 
     /*

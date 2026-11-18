@@ -161,7 +161,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         }
 
         self::assertSame($expected, $actual);
-        self::assertCount(7, $middlewareTags);
+        self::assertCount(8, $middlewareTags);
         self::assertSame([
             HttpResponseFinalizer::class,
             HttpRequestMetricsRecorder::class,

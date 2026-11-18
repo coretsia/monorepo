@@ -34,6 +34,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Id\UuidGenerator;
@@ -57,9 +58,15 @@ use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
+use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
+use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
+use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMessage;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
+use Coretsia\Platform\Http\Maintenance\MaintenanceStateStore;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
@@ -100,6 +107,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         HttpRequestMetricsRecorder::class,
         HttpAccessLogWriter::class,
         HttpRequestSpanRecorder::class,
+    ];
+
+    /** @var list<class-string> */
+    private const array MAINTENANCE_COMMANDS = [
+        MaintenanceEnableCommand::class,
+        MaintenanceDisableCommand::class,
+        MaintenanceStatusCommand::class,
     ];
 
     #[DataProvider('requestIdConfigurations')]
@@ -462,6 +476,8 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         bool $httpsRedirectEnabled,
     ): void {
         $config = self::requestIdConfig($requestIdEnabled);
+        $config['http']['maintenance']['enabled'] = true;
+        $config['http']['maintenance']['retry_after_default_seconds'] = 120;
         $config['http']['security_headers']['enabled'] = $securityHeadersEnabled;
         $config['http']['https_redirect']['enabled'] = $httpsRedirectEnabled;
         $config['http']['https_redirect']['target_authority'] = 'example.test:8443';
@@ -469,18 +485,26 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $operations = $set->toDescriptorStream();
         $graph = self::compiler()->compile($set)->toArray();
         self::assertNotEmpty($graph['services']);
+        self::assertContains(RuntimePathContext::class, $set->requiredServiceIds());
+        self::assertArrayNotHasKey(RuntimePathContext::class, $graph['services']);
+        self::assertArrayNotHasKey(RuntimePathContext::class, $graph['aliases']);
 
         $expected = [
             RequestIdPolicy::class,
             SecurityHeadersPolicy::class,
             HttpsRedirectPolicy::class,
             HttpsRedirectMiddleware::class,
+            ScopedFileLock::class,
+            MaintenanceStateStore::class,
+            MaintenanceMiddleware::class,
+            ...self::MAINTENANCE_COMMANDS,
             HttpKernel::class,
             ...self::COMPLETION_SERVICES,
         ];
 
         $services = [];
         $tags = [];
+        $cliTags = [];
         $lifecycleTags = [];
         $contextStores = [];
 
@@ -488,6 +512,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             $kind = $operation['kind'] ?? null;
             if (\in_array($kind, ['service.class', 'service.factory.class-method'], true)) {
                 if (\in_array($operation['id'], $expected, true)) {
+                    self::assertArrayNotHasKey($operation['id'], $services);
                     $services[$operation['id']] = $operation;
                 }
 
@@ -507,6 +532,21 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertNotSame(RequestIdPolicy::class, $operation['serviceId']);
                 self::assertNotSame(SecurityHeadersPolicy::class, $operation['serviceId']);
                 self::assertNotSame(HttpsRedirectPolicy::class, $operation['serviceId']);
+                self::assertNotSame(ScopedFileLock::class, $operation['serviceId']);
+                self::assertNotSame(MaintenanceStateStore::class, $operation['serviceId']);
+                self::assertNotContains($operation['serviceId'], self::MAINTENANCE_COMMANDS);
+            }
+
+            if ($operation['tag'] === ReservedTags::CLI_COMMAND) {
+                $id = $operation['serviceId'];
+
+                self::assertArrayNotHasKey($id, $cliTags);
+
+                $cliTags[$id] = [
+                    'id' => $id,
+                    'meta' => $operation['meta'],
+                    'priority' => $operation['priority'],
+                ];
             }
 
             if (\in_array(
@@ -518,11 +558,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             }
         }
 
-        self::assertCount(9, $services);
-        self::assertCount(7, $tags);
+        self::assertCount(15, $services);
+        self::assertCount(8, $tags);
+        self::assertCount(3, $cliTags);
         self::assertSame(
             [
                 [TraceContextMiddleware::class, 930, ['toggle' => 'http.tracing.enabled']],
+                [MaintenanceMiddleware::class, 900, ['toggle' => 'http.maintenance.enabled']],
                 [TrustedProxyMiddleware::class, 880, ['toggle' => 'http.proxy.enabled']],
                 [RequestContextMiddleware::class, 870, ['toggle' => 'http.context.enrich.enabled']],
                 [TrustedHostMiddleware::class, 860, ['toggle' => 'http.hosts.enabled']],
@@ -539,6 +581,40 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         foreach ($tags as $tag) {
             self::assertSame(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, $tag['tag']);
         }
+
+        $expectedCliTags = [];
+
+        foreach (self::MAINTENANCE_COMMANDS as $id) {
+            $options = $id::OPTIONS;
+
+            foreach ($options as &$option) {
+                \ksort($option, SORT_STRING);
+            }
+            unset($option);
+
+            $expectedCliTags[$id] = [
+                'id' => $id,
+                'meta' => [
+                    'arguments' => $id::ARGUMENTS,
+                    'group' => $id::GROUP,
+                    'hidden' => $id::HIDDEN,
+                    'name' => $id::NAME,
+                    'options' => $options,
+                    'summary' => $id::SUMMARY,
+                ],
+                'priority' => 0,
+            ];
+        }
+
+        self::assertSame($expectedCliTags, $cliTags);
+
+        \ksort($expectedCliTags, SORT_STRING);
+
+        self::assertSame(
+            \array_values($expectedCliTags),
+            $graph['tags'][ReservedTags::CLI_COMMAND],
+        );
+
         self::assertSame([ContextStore::class], $contextStores);
         self::assertSame([
             [ReservedTags::KERNEL_RESET, ContextStore::class],
@@ -569,6 +645,44 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
         $requestId = $config['http']['request_id'];
+
+        $maintenanceArguments = [
+            ScopedFileLock::class => [],
+            MaintenanceStateStore::class => [
+                $ref(RuntimePathContext::class),
+                $ref(ScopedFileLock::class),
+            ],
+            MaintenanceMiddleware::class => [
+                $ref(MaintenanceStateStore::class),
+                $ref(ResponseFactoryInterface::class),
+                $ref(StreamFactoryInterface::class),
+                $ref(MeterPortInterface::class),
+                $ref(LoggerInterface::class),
+                $config['http']['maintenance']['enabled'],
+                $config['http']['maintenance']['retry_after_default_seconds'],
+                $config['http']['metrics']['enabled'],
+                $config['http']['access_log']['enabled'],
+            ],
+            MaintenanceEnableCommand::class => [
+                $ref(MaintenanceStateStore::class),
+            ],
+            MaintenanceDisableCommand::class => [
+                $ref(MaintenanceStateStore::class),
+            ],
+            MaintenanceStatusCommand::class => [
+                $ref(MaintenanceStateStore::class),
+            ],
+        ];
+
+        foreach ($maintenanceArguments as $id => $arguments) {
+            self::assertSame([
+                'arguments' => $arguments,
+                'class' => $id,
+                'id' => $id,
+                'kind' => 'service.class',
+                'shared' => true,
+            ], $services[$id]);
+        }
 
         self::assertSame(RequestIdPolicy::class, $services[RequestIdPolicy::class]['class']);
         self::assertSame([
@@ -675,6 +789,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $opposite['http']['request_id']['enabled'] = !$requestIdEnabled;
         $opposite['http']['security_headers']['enabled'] = !$securityHeadersEnabled;
         $opposite['http']['https_redirect']['enabled'] = !$httpsRedirectEnabled;
+        $opposite['http']['maintenance']['enabled'] = false;
         $oppositeGraph = self::compiler()->compile(self::definitions($opposite))->toArray();
 
         self::assertSame(\array_keys($graph['services']), \array_keys($oppositeGraph['services']));
@@ -684,6 +799,8 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $expectedServices = $graph['services'];
         $expectedServices[RequestIdPolicy::class]['arguments'][2] = !$requestIdEnabled;
+        $expectedServices[MaintenanceMiddleware::class]['arguments'][5] = false;
+
         self::assertSame($expectedServices, $oppositeGraph['services']);
 
         self::assertSame(HttpParityExternalFactory::class, $graph['aliases'][ResponseFactoryInterface::class]);
@@ -834,6 +951,22 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 'metricsEnabled',
                 'accessLogEnabled',
             ],
+            ScopedFileLock::class => [],
+            MaintenanceStateStore::class => ['paths', 'locks'],
+            MaintenanceMiddleware::class => [
+                'state',
+                'responses',
+                'streams',
+                'meter',
+                'logger',
+                'enabled',
+                'retryAfterDefaultSeconds',
+                'metricsEnabled',
+                'accessLogEnabled',
+            ],
+            MaintenanceEnableCommand::class => ['stateStore'],
+            MaintenanceDisableCommand::class => ['stateStore'],
+            MaintenanceStatusCommand::class => ['stateStore'],
             RequestIdPolicy::class => [
                 'context',
                 'generator',
@@ -935,6 +1068,37 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertFalse($parameter->allowsNull());
                 self::assertFalse($parameter->isOptional());
                 self::assertFalse($parameter->isDefaultValueAvailable());
+            }
+        }
+    }
+
+    public function testMaintenanceServicesHaveOnlyMandatoryConstructorDependencies(): void
+    {
+        foreach (
+            [
+                MaintenanceMessage::class,
+                MaintenanceStateStore::class,
+                MaintenanceMiddleware::class,
+                ...self::MAINTENANCE_COMMANDS,
+            ] as $class
+        ) {
+            $reflection = new \ReflectionClass($class);
+
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->isReadOnly());
+
+            $constructor = $reflection->getConstructor();
+            self::assertNotNull($constructor);
+
+            foreach ($constructor->getParameters() as $parameter) {
+                self::assertFalse($parameter->isOptional());
+                self::assertFalse($parameter->isDefaultValueAvailable());
+
+                self::assertSame(
+                    $class === MaintenanceMessage::class
+                    && $parameter->getName() === 'retryAfterSeconds',
+                    $parameter->allowsNull(),
+                );
             }
         }
     }
@@ -1050,6 +1214,219 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
     }
 
+    #[DataProvider('maintenanceConfigurations')]
+    public function testSourceAndCompiledContainersObserveIsolatedMaintenanceStateWithoutRebuilding(
+        bool $maintenanceEnabled,
+    ): void {
+        $config = self::config();
+
+        $config['http']['maintenance'] = [
+            'enabled' => $maintenanceEnabled,
+            'retry_after_default_seconds' => 75,
+        ];
+        $config['http']['correlation']['enabled'] = false;
+        $config['http']['tracing']['enabled'] = false;
+        $config['http']['metrics']['enabled'] = false;
+        $config['http']['access_log']['enabled'] = false;
+        $config['http']['context']['enrich']['enabled'] = false;
+        $config['http']['request']['json']['enabled'] = false;
+
+        $set = self::definitions($config);
+        $descriptors = $set->toDescriptorStream();
+        $graph = self::compiler()->compile($set)->toArray();
+        $encodedGraph = \serialize($graph);
+
+        self::assertFalse(
+            \str_contains($encodedGraph, 'var/maintenance'),
+            'maintenance-state-path-in-compiled-graph',
+        );
+        self::assertFalse(
+            \str_contains($encodedGraph, 'maintenance.lock'),
+            'maintenance-lock-path-in-compiled-graph',
+        );
+        self::assertFalse(
+            \str_contains($encodedGraph, 'message.json'),
+            'maintenance-message-path-in-compiled-graph',
+        );
+
+        $temporaryDirectory = \realpath(\sys_get_temp_dir());
+        self::assertIsString($temporaryDirectory);
+
+        $roots = [];
+        $fixtures = [];
+
+        try {
+            foreach ([0, 1] as $index) {
+                $root = \rtrim($temporaryDirectory, '/\\')
+                    . '/coretsia-http-maintenance-parity-'
+                    . \bin2hex(\random_bytes(8));
+
+                self::assertTrue(
+                    @\mkdir($root, 0700),
+                    'maintenance-test-root-creation-failed',
+                );
+
+                $roots[] = $root;
+                $paths = new RuntimePathContext($root, $root . '/var/cache');
+
+                foreach (self::containers($set, $config, $paths) as $container) {
+                    $store = $container->get(MaintenanceStateStore::class);
+                    $middleware = $container->get(MaintenanceMiddleware::class);
+                    $kernel = $container->get(HttpKernelInterface::class);
+                    $pipeline = $container->get(Pipeline::class);
+                    $locks = $container->get(ScopedFileLock::class);
+                    $stack = $container->get(HttpMiddlewareStackBuilder::class);
+
+                    self::assertInstanceOf(MaintenanceStateStore::class, $store);
+                    self::assertInstanceOf(MaintenanceMiddleware::class, $middleware);
+                    self::assertInstanceOf(HttpKernel::class, $kernel);
+                    self::assertInstanceOf(Pipeline::class, $pipeline);
+                    self::assertInstanceOf(ScopedFileLock::class, $locks);
+                    self::assertInstanceOf(HttpMiddlewareStackBuilder::class, $stack);
+
+                    self::assertSame($paths, $container->get(RuntimePathContext::class));
+                    self::assertSame(
+                        $paths,
+                        new \ReflectionProperty(MaintenanceStateStore::class, 'paths')->getValue($store),
+                    );
+                    self::assertSame(
+                        $locks,
+                        new \ReflectionProperty(MaintenanceStateStore::class, 'locks')->getValue($store),
+                    );
+                    self::assertSame(
+                        $store,
+                        new \ReflectionProperty(MaintenanceMiddleware::class, 'state')->getValue($middleware),
+                    );
+
+                    self::assertSame($store, $container->get(MaintenanceStateStore::class));
+                    self::assertSame($middleware, $container->get(MaintenanceMiddleware::class));
+                    self::assertSame($locks, $container->get(ScopedFileLock::class));
+
+                    self::assertSame(
+                        $maintenanceEnabled,
+                        \in_array(
+                            MaintenanceMiddleware::class,
+                            $stack->build($config['http']),
+                            true,
+                        ),
+                    );
+
+                    foreach (self::MAINTENANCE_COMMANDS as $id) {
+                        $command = $container->get($id);
+
+                        self::assertInstanceOf($id, $command);
+                        self::assertSame($command, $container->get($id));
+                        self::assertSame(
+                            $store,
+                            new \ReflectionProperty($id, 'stateStore')->getValue($command),
+                        );
+                    }
+
+                    $fixtures[$index][] = [
+                        'container' => $container,
+                        'store' => $store,
+                        'kernel' => $kernel,
+                        'pipeline' => $pipeline,
+                    ];
+                }
+
+                self::assertFalse(
+                    \str_contains($encodedGraph, $paths->applicationRoot()),
+                    'maintenance-application-root-in-compiled-graph',
+                );
+                self::assertFalse(
+                    \str_contains($encodedGraph, $paths->artifactRoot()),
+                    'maintenance-artifact-root-in-compiled-graph',
+                );
+            }
+
+            $assertStates = function (bool $firstActive, bool $secondActive) use (
+                $fixtures,
+                $maintenanceEnabled,
+            ): void {
+                foreach ($fixtures as $index => $pair) {
+                    $active = $index === 0 ? $firstActive : $secondActive;
+
+                    foreach ($pair as $fixture) {
+                        $container = $fixture['container'];
+                        $store = $fixture['store'];
+
+                        self::assertSame($active, $store->read()['enabled']);
+                        self::assertSame($store, $container->get(MaintenanceStateStore::class));
+                        self::assertSame($fixture['kernel'], $container->get(HttpKernelInterface::class));
+                        self::assertSame($fixture['pipeline'], $container->get(Pipeline::class));
+
+                        $served = $maintenanceEnabled && $active;
+
+                        $this->assertMaintenanceParityResponse(
+                            $container,
+                            $fixture['kernel'],
+                            $served ? ($index === 0 ? 120 : 75) : null,
+                            $served
+                                ? ($index === 0 ? "Maintenance parity\n" : "Service Unavailable\n")
+                                : '',
+                        );
+                    }
+                }
+            };
+
+            $assertDefinitionsUnchanged = static function () use (
+                $config,
+                $descriptors,
+                $graph,
+            ): void {
+                $current = self::definitions($config);
+
+                self::assertSame($descriptors, $current->toDescriptorStream());
+                self::assertSame($graph, self::compiler()->compile($current)->toArray());
+            };
+
+            $firstStore = $fixtures[0][0]['store'];
+            $secondStore = $fixtures[1][1]['store'];
+
+            $assertStates(false, false);
+
+            $firstStore->enable(new MaintenanceMessage(1, 'Maintenance parity', 120));
+
+            $assertStates(true, false);
+            $assertDefinitionsUnchanged();
+
+            $secondStore->enable(null);
+
+            $assertStates(true, true);
+            $assertDefinitionsUnchanged();
+
+            $fixtures[0][1]['store']->disable();
+
+            $assertStates(false, true);
+            $assertDefinitionsUnchanged();
+
+            $fixtures[1][0]['store']->disable();
+
+            $assertStates(false, false);
+            $assertDefinitionsUnchanged();
+
+            self::assertFalse(
+                \str_contains($encodedGraph, 'Maintenance parity'),
+                'maintenance-message-in-compiled-graph',
+            );
+        } finally {
+            HttpParityExternalFactory::$response = null;
+            HttpParityExternalFactory::$stream = null;
+
+            foreach ($roots as $root) {
+                self::removeMaintenanceRoot($root);
+            }
+        }
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function maintenanceConfigurations(): iterable
+    {
+        yield 'maintenance-enabled' => [true];
+        yield 'maintenance-disabled' => [false];
+    }
+
     public function testExternalDoesNotContributeAnyFactoryReplacementBeforeApplicationBindings(): void
     {
         $definitions = new ContainerDefinitionBuilder();
@@ -1159,6 +1536,93 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
     }
 
+    private function assertMaintenanceParityResponse(
+        Container $container,
+        HttpKernel $kernel,
+        ?int $retryAfterSeconds,
+        string $expectedBody,
+    ): void {
+        $expectedStatus = $retryAfterSeconds === null ? 404 : 503;
+
+        $stream = $this->createStub(StreamInterface::class);
+        $stream->method('isSeekable')->willReturn(true);
+        $stream->method('tell')->willReturn(0);
+        $stream->method('eof')->willReturn(true);
+
+        $uri = $this->createStub(UriInterface::class);
+        $uri->method('getPath')->willReturn('/maintenance-parity');
+
+        $request = $this->createStub(ServerRequestInterface::class);
+        $request->method('getMethod')->willReturn('GET');
+        $request->method('getUri')->willReturn($uri);
+        $request->method('getBody')->willReturn($stream);
+        $request->method('getHeader')->willReturn([]);
+        $request->method('hasHeader')->willReturn(false);
+
+        $headers = [];
+        $response = $this->createMock(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn($expectedStatus);
+        $response->expects(self::once())->method('withBody')->with($stream)->willReturnSelf();
+
+        $response->expects(self::exactly($retryAfterSeconds === null ? 0 : 3))
+            ->method('withHeader')
+            ->willReturnCallback(
+                static function (string $name, mixed $value) use ($response, &$headers): ResponseInterface {
+                    $headers[$name] = $value;
+
+                    return $response;
+                },
+            );
+
+        HttpParityExternalFactory::$stream = $stream;
+        HttpParityExternalFactory::$response = $response;
+
+        $factory = $container->get(HttpParityExternalFactory::class);
+        self::assertInstanceOf(HttpParityExternalFactory::class, $factory);
+
+        $factory->lastResponseCode = null;
+        $factory->lastStreamContent = null;
+
+        $actual = $kernel->handle($request);
+
+        self::assertSame($response, $actual);
+        self::assertSame($expectedStatus, $actual->getStatusCode());
+        self::assertSame($expectedStatus, $factory->lastResponseCode);
+        self::assertSame($expectedBody, $factory->lastStreamContent);
+
+        self::assertSame(
+            $retryAfterSeconds === null
+                ? []
+                : [
+                'Content-Type' => 'text/plain; charset=utf-8',
+                'Cache-Control' => 'no-store',
+                'Retry-After' => (string) $retryAfterSeconds,
+            ],
+            $headers,
+        );
+    }
+
+    private static function removeMaintenanceRoot(string $root): void
+    {
+        $entries = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(
+                $root,
+                \FilesystemIterator::SKIP_DOTS,
+            ),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        foreach ($entries as $entry) {
+            if ($entry->isDir() && !$entry->isLink()) {
+                @\rmdir($entry->getPathname());
+            } else {
+                @\unlink($entry->getPathname());
+            }
+        }
+
+        @\rmdir($root);
+    }
+
     private function expectFactoryMismatch(Container $container, array $config): void
     {
         try {
@@ -1181,6 +1645,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
     {
         $http = require __DIR__ . '/../../config/http.php';
         $http['factory'] = $factory;
+        $http['maintenance']['enabled'] = false;
 
         return [
             'foundation' => require \dirname(__DIR__, 4) . '/core/foundation/config/foundation.php',
@@ -1228,11 +1693,17 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
     }
 
     /** @return array{Container, Container} */
-    private static function containers(ContainerDefinitionSet $set, array $config): array
-    {
+    private static function containers(
+        ContainerDefinitionSet $set,
+        array $config,
+        ?RuntimePathContext $paths = null,
+    ): array {
+        $paths ??= new RuntimePathContext('/test', '/test/var/cache');
+
         $builder = new ContainerBuilder($config);
         $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
         $builder->instance(TagRegistry::class, $builder->tagRegistry());
+        $builder->instance(RuntimePathContext::class, $paths);
         $source = $builder->applyDefinitions($set)->build();
         $graph = self::compiler()->compile($set);
         new ContainerGraphCompletenessValidator()->validate($graph, $set);
@@ -1245,7 +1716,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             new RuntimeContainerSeedSet([
                 ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
                 ModulePlan::class => self::plan(),
-                RuntimePathContext::class => new RuntimePathContext('/test', '/test/var/cache'),
+                RuntimePathContext::class => $paths,
             ]),
         );
 
@@ -1272,6 +1743,7 @@ class HttpParityExternalFactory implements ResponseFactoryInterface, StreamFacto
     public static ?ResponseInterface $response = null;
     public static ?StreamInterface $stream = null;
     public ?int $lastResponseCode = null;
+    public ?string $lastStreamContent = null;
 
     public function createResponse(int $code = 200, string $reasonPhrase = ''): ResponseInterface
     {
@@ -1281,6 +1753,8 @@ class HttpParityExternalFactory implements ResponseFactoryInterface, StreamFacto
 
     public function createStream(string $content = ''): StreamInterface
     {
+        $this->lastStreamContent = $content;
+
         return self::$stream ?? throw new \LogicException('http-parity-stream-not-set');
     }
 

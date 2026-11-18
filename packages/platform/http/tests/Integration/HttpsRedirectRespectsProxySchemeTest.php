@@ -28,6 +28,7 @@ use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Platform\Http\Host\TrustedHostPolicy;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\Pipeline;
@@ -344,6 +345,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
     {
         $http = require __DIR__ . '/../../config/http.php';
         $http['tracing']['enabled'] = false;
+        $http['maintenance']['enabled'] = true;
         $http['proxy']['enabled'] = true;
         $http['context']['enrich']['enabled'] = true;
         $http['hosts']['enabled'] = true;
@@ -358,6 +360,15 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
                 $tags->add($operation['tag'], $operation['serviceId'], $operation['priority'], $operation['meta']);
             }
         }
+        $maintenanceEntries = \array_values(
+            \array_filter(
+                $tags->all(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE),
+                static fn ($entry): bool => $entry->id() === MaintenanceMiddleware::class,
+            ),
+        );
+        self::assertCount(1, $maintenanceEntries);
+        self::assertSame(900, $maintenanceEntries[0]->priority());
+        self::assertSame(['toggle' => 'http.maintenance.enabled'], $maintenanceEntries[0]->meta());
         $entries = \array_values(
             \array_filter(
                 $tags->all(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE),
@@ -369,6 +380,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
         self::assertSame(['toggle' => 'http.https_redirect.enabled'], $entries[0]->meta());
         $stack = new HttpMiddlewareStackBuilder($tags);
         self::assertSame([
+            MaintenanceMiddleware::class,
             TrustedProxyMiddleware::class,
             RequestContextMiddleware::class,
             TrustedHostMiddleware::class,
@@ -377,6 +389,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
         ], $stack->build($http));
         $http['middleware']['system_pre'] = [HttpsRedirectMiddleware::class];
         self::assertSame([
+            MaintenanceMiddleware::class,
             TrustedProxyMiddleware::class,
             RequestContextMiddleware::class,
             TrustedHostMiddleware::class,
@@ -384,6 +397,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
             RequestBodySizeLimitMiddleware::class,
         ], $stack->build($http));
 
+        $http['maintenance']['enabled'] = false;
         $http['proxy']['enabled'] = false;
         $http['context']['enrich']['enabled'] = false;
         $http['hosts']['enabled'] = false;

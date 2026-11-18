@@ -61,6 +61,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
                 'http.tracing.enabled',
                 'http.metrics.enabled',
                 'http.access_log.enabled',
+                'http.maintenance.enabled',
                 'http.proxy.enabled',
                 'http.context.enrich.enabled',
                 'http.hosts.enabled',
@@ -92,6 +93,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
         yield 'empty-toggle' => [['toggle' => '']];
         yield 'unknown-path' => [['toggle' => 'http.request.unknown.enabled']];
         yield 'security-headers-not-middleware' => [['toggle' => 'http.security_headers.enabled']];
+        yield 'maintenance-retry-after-not-toggle' => [['toggle' => 'http.maintenance.retry_after_default_seconds']];
         yield 'short-path' => [['toggle' => 'http.tracing']];
         yield 'different-case' => [['toggle' => 'http.Tracing.enabled']];
         yield 'null-toggle' => [['toggle' => null]];
@@ -123,7 +125,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
         new HttpMiddlewareStackBuilder($tags)->build($http);
     }
 
-    #[DataProvider('invalidRedirectToggleValues')]
+    #[DataProvider('invalidBooleanToggleValues')]
     public function testMalformedHttpsRedirectToggleFailsClosed(mixed $value): void
     {
         $http = self::defaults();
@@ -142,7 +144,7 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
     }
 
     /** @return iterable<string, array{mixed}> */
-    public static function invalidRedirectToggleValues(): iterable
+    public static function invalidBooleanToggleValues(): iterable
     {
         yield 'true-string' => ['true'];
         yield 'false-string' => ['false'];
@@ -151,6 +153,57 @@ final class HttpMiddlewareTagMetadataContractTest extends TestCase
         yield 'float' => [1.0];
         yield 'null' => [null];
         yield 'array' => [[]];
+    }
+
+    #[DataProvider('invalidMaintenanceToggleConfigurations')]
+    public function testInvalidMaintenanceToggleFailsClosed(
+        bool $present,
+        mixed $maintenance,
+    ): void {
+        $http = self::defaults();
+
+        if ($present) {
+            $http['maintenance'] = $maintenance;
+        } else {
+            unset($http['maintenance']);
+        }
+
+        self::assertFalse(self::validate($http));
+
+        $tags = new TagRegistry();
+        $tags->add(
+            ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE,
+            'App\\Maintenance',
+            900,
+            ['toggle' => 'http.maintenance.enabled'],
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('http-middleware-toggle-invalid');
+
+        new HttpMiddlewareStackBuilder($tags)->build($http);
+    }
+
+    /** @return iterable<string, array{bool, mixed}> */
+    public static function invalidMaintenanceToggleConfigurations(): iterable
+    {
+        yield 'missing-map' => [false, null];
+        yield 'missing-enabled' => [true, ['retry_after_default_seconds' => 60]];
+        yield 'null-map' => [true, null];
+        yield 'boolean-map' => [true, false];
+        yield 'string-map' => [true, 'enabled'];
+        yield 'empty-map' => [true, []];
+        yield 'list-map' => [true, [true, 60]];
+
+        foreach (self::invalidBooleanToggleValues() as $name => [$value]) {
+            yield 'enabled-' . $name => [
+                true,
+                [
+                    'enabled' => $value,
+                    'retry_after_default_seconds' => 60,
+                ],
+            ];
+        }
     }
 
     /** @return array<string, mixed> */

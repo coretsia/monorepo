@@ -107,7 +107,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
             $ordered,
         );
         self::assertCount(
-            $selected ? 8 : 7,
+            $selected ? 9 : 8,
             \array_filter(
                 $operations,
                 static fn (array $op): bool => ($op['kind'] ?? null) === 'tag'
@@ -130,9 +130,11 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
             'foundation' => require \dirname(__DIR__, 4) . '/core/foundation/config/foundation.php',
             'http' => $http,
         ];
+        $paths = new RuntimePathContext('/test', '/test/var/cache');
         $sourceBuilder = new ContainerBuilder($config);
         $sourceBuilder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
         $sourceBuilder->instance(TagRegistry::class, $sourceBuilder->tagRegistry());
+        $sourceBuilder->instance(RuntimePathContext::class, $paths);
         $source = $sourceBuilder->applyDefinitions($set)->build();
         $graph = new ContainerCompiler(new NoopTracer(), new NoopMeter(), new NoopLogger(), new Stopwatch())
             ->compile($set);
@@ -146,7 +148,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
             new RuntimeContainerSeedSet([
                 ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
                 ModulePlan::class => new ModulePlan('web', [], [], [], []),
-                RuntimePathContext::class => new RuntimePathContext('/test', '/test/var/cache'),
+                RuntimePathContext::class => $paths,
             ]),
         );
 
@@ -373,6 +375,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
     {
         $http = require __DIR__ . '/../../config/http.php';
         $http['tracing']['enabled'] = false;
+        $http['maintenance']['enabled'] = false;
         $http['proxy']['enabled'] = false;
         $http['context']['enrich']['enabled'] = false;
         $http['hosts']['enabled'] = false;

@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Scope
 
-This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, HTTPS redirect policy, security-header finalization, and the boundary between middleware execution and `HttpKernel` final-response completion.
+This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, application-local maintenance policy, HTTPS redirect policy, security-header finalization, and the boundary between middleware execution and `HttpKernel` final-response completion.
 
 The implementation boundary is:
 
@@ -33,6 +33,12 @@ packages/platform/http/src/Provider/HttpServiceFactory.php
 packages/platform/http/src/Provider/HttpServiceProvider.php
 packages/platform/http/src/HttpKernel.php
 packages/platform/http/src/RequestId/RequestIdPolicy.php
+packages/platform/http/src/Maintenance/MaintenanceMessage.php
+packages/platform/http/src/Maintenance/MaintenanceStateStore.php
+packages/platform/http/src/Maintenance/MaintenanceMiddleware.php
+packages/platform/http/src/Console/MaintenanceEnableCommand.php
+packages/platform/http/src/Console/MaintenanceDisableCommand.php
+packages/platform/http/src/Console/MaintenanceStatusCommand.php
 packages/platform/http/src/HttpsRedirect/HttpsRedirectPolicy.php
 packages/platform/http/src/Middleware/HttpsRedirectMiddleware.php
 packages/platform/http/src/SecurityHeaders/SecurityHeadersPolicy.php
@@ -67,7 +73,8 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
 - `docs/ssot/context-keys.md` owns the canonical context key registry and writer ownership. `docs/ssot/context-store.md` owns shared ContextStore access, controlled mutation, safe-write validation, and the narrowly scoped request identity owner-local read-back exception.
 - `docs/ssot/context-lifecycle.md` owns context lifetime and canonical reset boundaries. `docs/ssot/time-ids-and-duration.md` owns Foundation identifier generation and correlation id semantics.
-- This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, HTTPS redirect execution policy, and canonical response-header application.
+- This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, maintenance runtime-state consumption and execution policy, HTTPS redirect execution policy, and canonical response-header application.
+- `docs/ssot/artifacts-and-fingerprint.md` owns Kernel-generated artifact and fingerprint exclusion policy. Maintenance runtime state MUST remain independent of generated artifacts.
 - `docs/ssot/observability.md` owns canonical metric and span names, allowed labels, and disclosure policy. `docs/ssot/problem-details.md` owns canonical error response adaptation and rendering.
 - `docs/architecture/DEPENDENCIES.md` governs compile-time package dependencies. HTTP wiring MUST NOT import concrete implementations from optional `platform/*` runtime packages.
 
@@ -82,6 +89,10 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - HTTP request identity preparation MUST execute after successful Kernel UnitOfWork begin and before the entire PSR-15 chain when enabled.
 - `RequestIdPolicy` MUST operate outside all nine HTTP middleware slots.
 - HTTP request identity MUST remain independent of Kernel-owned correlation and UnitOfWork identity.
+- Static maintenance middleware participation MUST remain independent of application-local runtime maintenance activation.
+- Maintenance runtime state MUST NOT be cached in shared HTTP services or materialized into compiled configuration and container definitions.
+- Maintenance state access MUST reuse the existing Kernel-owned runtime path context and Foundation filesystem locking and stable JSON primitives.
+- Maintenance decisions MUST remain independent of canonical final-response completion, ContextStore ownership, and Kernel lifecycle and reset responsibility.
 
 ## Canonical nine-slot taxonomy (MUST)
 
@@ -188,6 +199,7 @@ http.correlation.enabled
 http.tracing.enabled
 http.metrics.enabled
 http.access_log.enabled
+http.maintenance.enabled
 http.proxy.enabled
 http.context.enrich.enabled
 http.hosts.enabled
@@ -200,6 +212,7 @@ Unknown keys, extra metadata fields, unsupported toggle names, or missing/non-bo
 The baseline `system_pre` tag contributions are:
 
 - `TraceContextMiddleware` at priority `930`, conditional on `http.tracing.enabled`;
+- `MaintenanceMiddleware` at priority `900`, conditional on `http.maintenance.enabled`;
 - `TrustedProxyMiddleware` at priority `880`, conditional on `http.proxy.enabled`;
 - `RequestContextMiddleware` at priority `870`, conditional on `http.context.enrich.enabled`;
 - `TrustedHostMiddleware` at priority `860`, conditional on `http.hosts.enabled`;
@@ -212,6 +225,10 @@ The optional priority-`1000` boundary is governed by explicit module selection, 
 `http.middleware.auto.*` flags MUST NOT exist. `http.correlation.enabled`, `http.metrics.enabled`, and `http.access_log.enabled` govern their respective HTTP completion services; their inclusion in the metadata allowlist MUST NOT be interpreted as creating correlation, metrics, or access-log middleware.
 
 `http.request_id.enabled` and `http.security_headers.enabled` are not middleware participation toggles and MUST NOT be included in the HTTP middleware tag metadata allowlist.
+
+`http.maintenance.enabled` controls tagged maintenance middleware participation. A manually appended `MaintenanceMiddleware` MUST also respect its injected feature enablement. Disabled middleware MUST delegate without accessing maintenance state or producing maintenance-decision observations.
+
+Runtime maintenance activation MUST NOT change declarative middleware registrations, tag metadata, or effective pipeline construction.
 
 `http.https_redirect.enabled` controls tagged HTTPS redirect participation. A manually appended `HttpsRedirectMiddleware` MUST also respect its injected policy enablement. A disabled policy MUST delegate without performing redirect-decision observability.
 
@@ -230,6 +247,15 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 - `HttpServiceProvider` MUST register shared immutable `SecurityHeadersPolicy` and `HttpsRedirectPolicy` services independently of feature enablement.
 - `HttpResponseFinalizer` MUST consume the shared `SecurityHeadersPolicy` as a mandatory non-nullable constructor dependency without a default or fallback instance.
 - `HttpsRedirectMiddleware` MUST consume the shared `HttpsRedirectPolicy`, canonical PSR-17 response factory, meter, PSR-3 logger, and validated HTTP proxy and observability settings through explicit constructor injection.
+- `HttpServiceProvider` MUST require the existing Kernel-owned `RuntimePathContext` service and MUST NOT register, replace, construct, or alias it.
+- `HttpServiceProvider` MUST register Foundation `ScopedFileLock` and one shared immutable `MaintenanceStateStore` through canonical declarative DI, using explicit runtime path-context and scoped-lock service references.
+- `MaintenanceMiddleware` MUST consume the shared `MaintenanceStateStore`, canonical PSR-17 `ResponseFactoryInterface` and `StreamFactoryInterface`, `MeterPortInterface`, PSR-3 `LoggerInterface`, and validated maintenance and observability settings through mandatory explicit constructor dependencies.
+- Maintenance middleware and state-store service registration MUST remain independent of static feature enablement and dynamic runtime activation.
+- The complete effective `http.maintenance` configuration map MUST be structurally validated independently of feature enablement.
+- The three maintenance command services MUST consume the same shared `MaintenanceStateStore` as the middleware within their canonical container. They MUST be registered through `ReservedTags::CLI_COMMAND` independently of HTTP maintenance feature enablement.
+- Maintenance command resolution MUST NOT require executable HTTP response factories, middleware pipeline construction, or `HttpKernel` resolution.
+- Maintenance definition production MUST NOT inspect filesystem state, resolve maintenance command services, embed resolved application-root paths, or materialize active maintenance state into service descriptors.
+- Source and compiled containers MUST preserve equivalent maintenance dependencies, configuration, tag metadata, and runtime-state consumption semantics.
 - Structural validation MUST apply to the complete effective `http.security_headers` and `http.https_redirect` configuration maps independently of feature enablement.
 - Semantic security-header policy validation MUST execute when the mandatory shared policy is constructed, independently of enablement.
 - Enabled HTTPS redirect policy validation MUST execute during canonical middleware resolution before HTTP UnitOfWork execution. Disabled redirect middleware MUST NOT require eager policy resolution solely for semantic validation.
@@ -238,6 +264,152 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 - The selected target's `http.factory` and effective PSR-17 bindings MUST be validated through the HTTP-owned entrypoint readiness boundary before resolving executable HTTP services. Installed but unselected implementations MUST NOT alter the selected factory or provide an implicit fallback.
 - The selected HTTP target and effective module participation MUST govern optional middleware provider registration. An unselected optional module MUST NOT contribute a middleware merely because its package is installed.
 - Runtime-only closure definitions, filesystem discovery, reflection-based factory selection, alternate containers, observer registries, or another middleware pipeline MUST NOT be introduced.
+
+## Maintenance policy (MUST)
+
+### Static participation and runtime activation
+
+`MaintenanceMiddleware` owns application-local HTTP maintenance decisions.
+
+The effective `http.maintenance` configuration map contains exactly two required keys with the following defaults:
+
+```php
+[
+    'enabled' => true,
+    'retry_after_default_seconds' => 60,
+]
+```
+
+`enabled` MUST be a boolean.
+
+`retry_after_default_seconds` MUST be an integer within the inclusive range `1..86400`.
+
+These settings control target-local middleware participation and the default retry delay. They MUST NOT represent active runtime maintenance state.
+
+All participating HTTP targets using the same application root and filesystem MUST consume the same application-local maintenance activation. A disabled HTTP target MUST continue normal request processing regardless of the shared runtime flag.
+
+Disabled middleware MUST delegate immediately without accessing maintenance state.
+
+### Runtime state ownership and access
+
+`MaintenanceStateStore` owns maintenance state access for participating HTTP middleware and maintenance commands.
+
+The state directory MUST be resolved through the existing Kernel-owned `RuntimePathContext::applicationRoot()` using the following fixed application-root-relative paths:
+
+```text
+var/maintenance/enabled
+var/maintenance/message.json
+var/maintenance/maintenance.lock
+```
+
+The presence of a regular `enabled` flag determines active maintenance. The optional message file MUST NOT independently activate maintenance.
+
+The application root MUST be a fully qualified absolute local path identifying an existing accessible application directory. Relative and drive-relative application roots MUST fail through the maintenance state-unavailable boundary. State-changing operations MAY create missing runtime directory components beneath the application root but MUST NOT create the application root itself.
+
+The runtime state directory MUST be operator-controlled and MUST NOT be writable by untrusted users or processes. The `var` and `var/maintenance` components MUST be real directories, not symlinks. Required flag and lock-anchor entries MUST be regular files and MUST NOT be followed if they are symlinks.
+
+The state store MUST reuse Foundation `ScopedFileLock` for cooperating shared reads and exclusive mutations, and the canonical `StableJsonEncoder` and `StableJsonDecoder` primitives for maintenance message serialization and reconstruction.
+
+Maintenance state evaluation MUST observe current filesystem state on each participating request without retaining a mutable runtime snapshot in shared services.
+
+Confirmed absence of the runtime state directory or enabled flag represents inactive maintenance. Failed filesystem inspection MUST NOT be interpreted as confirmed absence.
+
+An invalid optional message MUST NOT deactivate an existing maintenance flag. Unsafe optional message entries MUST be classified as invalid during active-state reads without following symlinks or reading non-regular files. Inactive-state reads and disable operations MUST NOT inspect retained optional message entries. Enable operations MAY inspect retained optional message entries under the exclusive lock but MUST NOT follow, read, replace, or remove unsafe entries.
+
+Application-root resolution, directory validation, flag and lock-anchor validation, and unsuccessful required filesystem operations MUST fail through the fixed `MaintenanceStateUnavailableException` boundary.
+
+Mutable maintenance state MUST remain outside compiled configuration and container definitions. The `var/maintenance` application fingerprint exclusion MUST be preserved according to `docs/ssot/artifacts-and-fingerprint.md`. The configured artifact cache directory MUST NOT overlap the maintenance runtime state directory.
+
+Maintenance activation and deactivation MUST NOT require configuration recompilation or reconstruction of shared HTTP runtime services.
+
+### Public maintenance message
+
+`MaintenanceMessage` owns the immutable version-1 public message schema.
+
+The optional message file MUST contain a JSON object with exactly the required `schemaVersion` and `message` fields and, when supplied, the optional `retryAfterSeconds` field.
+
+- `schemaVersion` MUST be integer `1`.
+- `message` MUST contain non-empty valid UTF-8 text of at most 1024 bytes, without control characters, Unicode line separators, or leading/trailing whitespace.
+- `retryAfterSeconds`, when present, MUST be an integer within the inclusive range `1..86400`.
+
+Unknown fields, duplicate object keys, unsupported schema versions, invalid field types, malformed JSON, and JSON input exceeding 8192 bytes MUST be rejected.
+
+Canonical message publication MUST use Foundation stable JSON encoding with deterministic key ordering and exactly one final LF.
+
+Invalid message diagnostics MUST NOT expose rejected values or original JSON decoder diagnostics.
+
+The message is intentionally public response content and MUST NOT contain sensitive information.
+
+### Request execution and liveness bypass
+
+`MaintenanceMiddleware` MUST execute in the canonical `system_pre` position at priority `900`, after `TraceContextMiddleware` and before trusted-proxy interpretation, request-context enrichment, trusted-host validation, HTTPS redirect decisions, and request-body processing.
+
+Confirmed inactive maintenance state MUST delegate to the downstream handler without maintenance-decision observations.
+
+Active maintenance MUST prevent downstream request processing, except for the exact case-sensitive URI path:
+
+```text
+/_alive
+```
+
+The bypass MUST compare the PSR-7 URI path exactly. Query strings MUST NOT affect path matching. Trailing slashes, additional path segments, different casing, and percent-encoded substitutes MUST NOT match. Debug paths MUST NOT receive an automatic bypass.
+
+The exact liveness bypass MUST remain available when maintenance state is unavailable.
+
+A bypassed request MUST invoke the downstream handler exactly once and return its response unchanged or propagate its original Throwable.
+
+Maintenance MUST NOT implement a system endpoint, create a synthetic liveness response, or guarantee a downstream HTTP status.
+
+### Maintenance response construction
+
+Active maintenance on a non-bypassed request MUST return a response constructed through the existing PSR-17 response and stream factories with:
+
+```text
+status: 503
+Content-Type: text/plain; charset=utf-8
+Cache-Control: no-store
+Retry-After: <decimal seconds>
+```
+
+A valid public message with an explicit `retryAfterSeconds` MUST override the configured default retry delay. A valid message without that field MUST use the configured default.
+
+Missing or invalid optional message state, including malformed, oversized, unreadable, or unsafe message entries, MUST use the configured default retry delay and the generic body.
+
+Unavailable maintenance state MUST fail closed using the same generic response and default retry delay, except for the exact liveness bypass.
+
+For methods other than the exact `HEAD` method, the response body MUST contain the validated public message followed by exactly one LF, or the generic body `Service Unavailable` followed by exactly one LF.
+
+For `HEAD`, the body MUST be empty while preserving the maintenance status and headers.
+
+Response construction MUST use canonical immutable PSR-7 mutations and consume each successfully returned `ResponseInterface`.
+
+Response-construction failures MUST propagate through the existing PSR-15 Throwable path. Maintenance MUST NOT generate a replacement error response or introduce another error boundary.
+
+### Maintenance-decision observability
+
+Maintenance decisions MUST be observed independently of final HTTP request completion.
+
+The canonical `http.maintenance_total` counter and fixed maintenance log events MUST follow the enablement, completed-decision, bounded-context, disclosure, and failure-isolation requirements in `docs/ssot/observability.md`.
+
+A completed served decision MUST be observed only after successful maintenance response construction. A completed bypassed decision MUST be observed before invoking the downstream handler.
+
+Applicable invalid-message and unavailable-state warning logs MUST remain independent of successful response construction and downstream execution.
+
+Disabled middleware and confirmed inactive maintenance state MUST NOT emit maintenance-decision observations.
+
+Maintenance observability MUST NOT introduce additional spans, ContextStore writes, completion observers, lifecycle hooks, or reset services.
+
+### Final-response completion
+
+Successfully returned maintenance responses MUST follow applicable outer post-decorator traversal and the canonical `HttpKernel` final-response completion sequence.
+
+Enabled correlation, request-id, and security-header policies MUST remain applicable to the returned maintenance response.
+
+A successfully finalized HTTP `503` response MUST retain the canonical `handled_error` request outcome.
+
+Subsequent post-decorator, response-finalization, or Kernel completion failures MUST preserve the existing Throwable precedence and completion semantics. An already completed maintenance decision MUST NOT be retried or reclassified because of a subsequent failure.
+
+Maintenance MUST NOT introduce another UnitOfWork, ContextStore mutation boundary, reset attempt, or response-finalization pipeline.
 
 ## HTTPS redirect policy (MUST)
 
@@ -691,7 +863,9 @@ These services MUST NOT become PSR-15 response decorators, create a parallel pos
 
 Final-response metrics, access logs, and span attributes MUST use safe, bounded canonical fields. Raw paths, query strings, headers, cookies, credentials, request or response bodies, arbitrary context, and exception messages MUST NOT be added merely because a middleware or response was observed.
 
-`Pipeline`, `HttpMiddlewareStackBuilder`, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
+`Pipeline`, `HttpMiddlewareStackBuilder`, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, `MaintenanceMiddleware`, `MaintenanceStateStore`, the four completion services, and `HttpKernel` MUST NOT retain mutable per-request state or install additional reset handlers. Source and compiled execution MUST preserve response identity, ordinary short-circuit decoration, and original Throwable precedence under the same effective configuration.
+
+Maintenance runtime state MUST remain filesystem-backed and application-root-local. Maintenance services MUST NOT read or write ContextKeys or ContextStore, introduce request-local attributes, or reset runtime maintenance state at UnitOfWork completion. Maintenance-decision diagnostics MUST NOT expose raw runtime state contents or filesystem details; only the bounded fields defined by `docs/ssot/observability.md` are permitted.
 
 ## Enforcement rails
 
@@ -702,6 +876,12 @@ Tests MUST distinguish an intermediate middleware result from the completed `Htt
 Response hardening verification MUST cover independent feature enablement, mandatory shared policy injection, deterministic immutable header mutation, case-insensitive replacement, preservation of unrelated response data, policy validation, all successfully returned pipeline response paths, and canonical fatal completion on mutation failure.
 
 HTTPS redirect verification MUST cover exact registration and conditional participation, same-slot deduplication, actual trusted-proxy handoff, malformed metadata fallback, independence from context enrichment, explicit authority validation, method and status restrictions, encoded Location preservation and rejection, downstream invocation counts, and bounded independently isolated redirect-decision observations.
+
+Maintenance verification MUST cover exact registration and metadata, conditional participation, disabled manual participation, same-slot deduplication, application-root-local state resolution, shared declarative dependencies, source/compiled container parity, strict message validation, safe filesystem operations, repeated runtime mutations without rebuilding services, and application-root isolation.
+
+Maintenance HTTP integration verification MUST cover deterministic response construction, configured and message-specific retry delays, HEAD behavior, invalid-message fallback, unavailable-state fail-closed behavior, exact liveness delegation, precedence over downstream request middleware, applicable post-decorator traversal, independent maintenance-decision observability, canonical security-header finalization, original Throwable precedence, and unchanged Kernel reset discipline.
+
+Maintenance CLI integration verification MUST cover canonical command discovery and execution, independent HTTP factory readiness, rejection of target overrides, safe structured output, runtime activation shared across participating HTTP targets, and unchanged Kernel fingerprint and generated artifacts.
 
 Sequential HTTP UnitOfWork regression MUST exercise an independent sequence of 1000 deterministic sequential invocations for each request-id policy configuration:
 
@@ -761,7 +941,8 @@ This SSoT does not introduce or redefine:
 - a second DI container, middleware resolver, observer pipeline, lifecycle hook registry, or reset implementation;
 - a replacement canonical error handler, `ErrorDescriptor` model, Problem Details renderer, or diagnostic redaction boundary;
 - metrics aggregation, logging backend, tracing exporter, span-parent linkage contract, or mutable request cache;
-- optional middleware implementations or automatic activation based on installed packages.
+- optional middleware implementations or automatic activation based on installed packages;
+- system endpoint implementation through maintenance middleware, target-specific maintenance activation, distributed maintenance-state synchronization, or crash-transactional filesystem updates.
 
 ## Cross-references
 
@@ -770,6 +951,7 @@ This SSoT does not introduce or redefine:
 - [Tag Registry](./tags.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md)
+- [Artifacts and Fingerprint Behavior SSoT](./artifacts-and-fingerprint.md)
 - [Config and env SSoT](./config-and-env.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [Context Keys SSoT](./context-keys.md)

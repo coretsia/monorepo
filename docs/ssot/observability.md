@@ -183,6 +183,7 @@ The method/type mapping is canonical:
 | http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome` |
 | http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
 | http.https_redirect_total                | `platform/http`   | counter | `outcome`                     |
+| http.maintenance_total                   | `platform/http`   | counter | `outcome`                     |
 | cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`        |
 | cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`        |
 | error.map_total                          | `platform/errors` | counter | `operation`, `outcome`        |
@@ -557,6 +558,84 @@ HTTPS redirect-decision metrics and logs MUST NOT contain:
 HTTPS redirect middleware MUST NOT emit an additional span, duration metric, request completion event, or Kernel lifecycle signal.
 
 Security-header policies and response security-header application MUST NOT emit independent observability signals.
+
+### HTTP maintenance observability policy
+
+Maintenance-decision observability is owned by `platform/http` through `MaintenanceMiddleware`.
+
+The canonical metric is:
+
+```text
+http.maintenance_total
+```
+
+This metric is a `counter` and MUST use exactly the following label:
+
+```text
+outcome
+```
+
+Allowed `outcome` values are exactly:
+
+```text
+served
+bypassed
+```
+
+`outcome = served` requires successful construction of an HTTP `503` maintenance response, including all required immutable response mutations. This includes generic maintenance responses when the optional message is invalid or maintenance state is unavailable.
+
+`outcome = bypassed` means that active maintenance or fail-closed maintenance due to unavailable state delegates the exact liveness path `/_alive` to the downstream handler. A completed bypassed decision MUST be recorded before downstream handler invocation.
+
+Disabled maintenance middleware, including disabled middleware explicitly included through a manual middleware append list, and confirmed inactive maintenance state MUST NOT produce maintenance-decision metrics or logs.
+
+Maintenance-response construction failures MUST NOT be classified as completed served decisions.
+
+`MaintenanceMiddleware` MUST attempt exactly one counter increment with value `1` per completed maintenance decision when `http.metrics.enabled` is `true`.
+
+When `http.access_log.enabled` is `true`, `MaintenanceMiddleware` MUST attempt exactly one PSR-3 `info` log per completed served decision using the fixed event identifier:
+
+```text
+http.maintenance.served
+```
+
+The producer-supplied log context MUST contain exactly:
+
+- `outcome`: `served`;
+- `status`: integer `503`.
+
+Bypassed decisions MUST NOT produce a served log. The `status` field MUST NOT be emitted as a maintenance-decision metric label.
+
+When `http.access_log.enabled` is `true`, the middleware MUST attempt exactly one applicable PSR-3 `warning` log per enabled invocation that encounters an invalid optional maintenance message or unavailable maintenance state:
+
+- `http.maintenance.message_invalid` with exactly `reason = invalid-message`;
+- `http.maintenance.state_unavailable` with exactly `reason = state-unavailable`.
+
+These warning logs MUST be attempted independently of successful response construction or downstream execution, including for the exact liveness bypass. Disabled middleware and confirmed inactive maintenance state MUST NOT produce maintenance warning logs.
+
+Maintenance-decision logs MUST use the existing PSR-3 logger and remain subject to the canonical logging admission and shared redaction policies defined by `docs/ssot/logging-policy.md` and `docs/ssot/sensitive-data-redaction.md`.
+
+Maintenance-decision telemetry is independent of finalized HTTP request observability.
+
+The canonical request metrics `http.request_total` and `http.request_duration_ms`, the `http.request` span, and the `http.request.completed` log event retain their finalized request outcome semantics:
+
+```text
+success
+handled_error
+fatal_error
+```
+
+A successfully finalized maintenance response with status `503` retains the canonical HTTP request outcome `handled_error`. Maintenance-decision outcomes MUST NOT replace or reinterpret finalized HTTP request outcomes. A completed maintenance decision MUST NOT be invalidated or reclassified by subsequent downstream execution, response finalization, or HTTP request completion failures.
+
+Metric and logger calls MUST be observability-isolated independently and MUST NOT be retried. Failure of one emission MUST NOT suppress another permitted emission, replace a completed response, suppress downstream handler execution, or interfere with canonical HTTP request completion.
+
+Maintenance-decision metrics and logs MUST NOT contain:
+
+- raw maintenance message text, message-file contents, or Retry-After values;
+- raw request paths, queries, headers, cookies, authorization values, or tokens;
+- filesystem paths, permissions, modification times, or raw filesystem diagnostics;
+- Throwable messages, previous Throwable messages, or stack traces.
+
+Maintenance middleware MUST NOT emit an additional span, duration metric, request completion event, or Kernel lifecycle signal. Maintenance commands retain canonical CLI command observability without emitting HTTP maintenance-decision signals.
 
 ### CLI command observability policy
 

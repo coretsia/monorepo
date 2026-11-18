@@ -353,7 +353,9 @@ final class MaintenanceStateStoreTest extends TestCase
                 \is_readable($directory),
                 'The fixture must deny directory inspection.',
             );
-            self::assertFalse(@\scandir($directory));
+            if (\PHP_OS_FAMILY !== 'Windows') {
+                self::assertFalse(@\scandir($directory));
+            }
             self::assertUnavailable(static fn () => $store->read());
             self::assertUnavailable(static fn () => $store->enable(null));
             self::assertUnavailable(static fn () => $store->disable());
@@ -440,7 +442,16 @@ final class MaintenanceStateStoreTest extends TestCase
             FilesystemPermissionTestSupport::restrict($directory, 0500, 'WD,AD,DC');
 
             if (\PHP_OS_FAMILY === 'Windows') {
+                self::assertTrue(
+                    @\chmod($flag, 0400),
+                    'Applying the read-only attribute to the maintenance flag failed.',
+                );
+
                 FilesystemPermissionTestSupport::restrict($flag, 0600, 'DE');
+
+                $permissions = \fileperms($flag);
+                self::assertIsInt($permissions);
+                self::assertSame(0, $permissions & 0222);
             }
 
             self::assertFalse(
@@ -458,11 +469,20 @@ final class MaintenanceStateStoreTest extends TestCase
             self::assertSame($original, \file_get_contents($path));
             $this->assertEntries(['enabled', 'maintenance.lock', 'message.json']);
         } finally {
-            if (\PHP_OS_FAMILY === 'Windows' && \is_file($flag)) {
-                FilesystemPermissionTestSupport::restore($flag, 0600);
-            }
+            try {
+                if (\PHP_OS_FAMILY === 'Windows' && \is_file($flag)) {
+                    FilesystemPermissionTestSupport::restore($flag, 0600);
 
-            FilesystemPermissionTestSupport::restore($directory, 0700);
+                    self::assertTrue(
+                        @\chmod($flag, 0600),
+                        'Restoring maintenance flag permissions failed.',
+                    );
+
+                    \clearstatcache(true, $flag);
+                }
+            } finally {
+                FilesystemPermissionTestSupport::restore($directory, 0700);
+            }
         }
         $this->assertActive($store, 'valid', $message);
     }

@@ -32,6 +32,8 @@ When enabled, HTTP request identity must be established after successful Kernel 
 
 The independently enabled correlation, request-id, and security-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the finalized HTTP result. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
 
+The HTTP runtime also needs application-root-local maintenance activation that can change independently of compiled configuration and process lifetime. Static middleware participation belongs to effective target-local configuration; mutable maintenance state belongs to the HTTP runtime and must be shared by cooperating HTTP and CLI processes without introducing another filesystem-locking or serialization mechanism.
+
 ## Decision
 
 ### Decision 1: Use one canonical PSR-15 pipeline with outer response decorators
@@ -57,6 +59,10 @@ The logical request-phase order is `system_pre`, `system`, `app_pre`, `app`, `ro
 The pre-routing terminal is `FallbackRouterHandler`, returning a safe empty-body HTTP `404` through the selected PSR-17 factories. It does not match routes, implement system endpoints, inspect URLs, or infer route metadata.
 
 `TagRegistry::all()` remains the sole tagged-discovery and ordering authority: priority descending, then service id ascending by byte-order comparison. Each slot appends configured manual service ids after its tagged entries and preserves their configured order. The first effective occurrence within one slot wins; participation in multiple effective slots is rejected. HTTP does not create another sorter, registry, deduplication service, or container-specific middleware resolver. HTTP metadata and conditional participation remain defined in `docs/ssot/http-middleware-wiring.md`.
+
+`MaintenanceMiddleware` participates in `http.middleware.system_pre` at priority `900` with metadata `['toggle' => 'http.maintenance.enabled']`. It executes after `TraceContextMiddleware` and before trusted-proxy interpretation, request-context enrichment, trusted-host validation, HTTPS redirect decisions, and request-body processing.
+
+Active maintenance short-circuits downstream request processing with an HTTP `503` response, except for the exact case-sensitive URI path `/_alive`, which delegates to the downstream handler. Maintenance does not implement the liveness endpoint or determine its response status.
 
 `HttpsRedirectMiddleware` participates in `http.middleware.system_pre` at priority `850` with metadata `['toggle' => 'http.https_redirect.enabled']`. It consumes the canonical trusted-proxy request-local scheme metadata when enabled and available, otherwise the direct request URI scheme. Redirect destinations use an explicitly configured, validated target authority rather than request-derived authority values. Redirect eligibility, Location construction, and decision observability are governed by `docs/ssot/http-middleware-wiring.md` and `docs/ssot/observability.md`.
 
@@ -153,6 +159,8 @@ There is no route matching, route metadata extraction, inferred path template, r
 
 `HttpsRedirectMiddleware` owns redirect-decision observations independently of final HTTP request completion. It uses the existing meter and PSR-3 logger through the respective `http.metrics.enabled` and `http.access_log.enabled` settings. Redirect decisions do not establish the final HTTP request outcome or introduce another completion observer. Canonical metric names, bounded event fields, enablement, failure isolation, and redaction requirements remain defined by `docs/ssot/observability.md`.
 
+`MaintenanceMiddleware` owns maintenance-decision observations independently of redirect decisions and final HTTP request completion. It uses the existing meter and PSR-3 logger through `http.metrics.enabled` and `http.access_log.enabled`. Completed maintenance decisions and safe state-failure warnings follow `docs/ssot/observability.md` without introducing additional spans, completion observers, or lifecycle hooks.
+
 ### Decision 7: Use declarative, target-local PSR-17 factory selection
 
 The validated Phase B `http` configuration subtree is supplied to `HttpServiceProvider::define()` through `ContainerDefinitionContext::configRoot('http')`. `http.factory` is the one explicit selector; its exact allowed values are `external`, `nyholm`, `guzzlehttp`, `laminas`, and `slim`, with default `external`. It does not accept `auto`, arbitrary class names, installation paths, or implementation-specific constructor expressions.
@@ -199,13 +207,35 @@ This owner-local guard avoids a generic `RuntimeEntrypointGuard`, a new `Runtime
 
 HTTP-owned bad-body, invalid-JSON, and trusted-host exceptions are contributed to the existing canonical error-mapper tag through the contracts-level `ExceptionMapperInterface`. That does not make `platform/http` a second error-normalization owner. A selected outermost Problem Details middleware remains responsible for converting captured Throwables into safe HTTP responses through the canonical handler and renderer; unhandled failures retain their original Throwable precedence through `HttpKernel` completion.
 
-`HttpKernel`, `Pipeline`, the stack builder, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
+`HttpKernel`, `Pipeline`, the stack builder, `RequestIdPolicy`, `SecurityHeadersPolicy`, `HttpsRedirectPolicy`, `HttpsRedirectMiddleware`, `MaintenanceMiddleware`, `MaintenanceStateStore`, and the dedicated finalization services have no shared mutable request state or additional `kernel.reset` registrations. Optional logging, metrics, span, and timer failures are isolated from the HTTP result and from Kernel completion precedence. Raw request values, credentials, exception diagnostics, route parameters, and arbitrary runtime context must not be exported into metric labels, access logs, public error bodies, or span attributes merely because they were visible during request processing.
 
 `RequestIdPolicy` does not participate in middleware discovery, lifecycle hook registration, or reset discovery. It does not establish authenticated identity, authorization information, or upstream trust.
 
 The selected request identifier must remain unchanged throughout the HTTP UnitOfWork on conforming execution paths and is cleared by successful canonical Foundation reset. Neither selected request identifiers nor rejected upstream values are added to HTTP completion logs, metrics, or span attributes.
 
 The dependency boundary prohibits direct production imports of optional concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, and `platform/metrics` implementation classes. Optional integration uses existing contracts, tag contributions from selected modules, and Foundation noop fallbacks. Compile-time import rules remain governed by `docs/architecture/DEPENDENCIES.md`.
+
+### Decision 11: Separate maintenance middleware participation from application-local runtime activation
+
+`http.maintenance.enabled` controls static middleware participation for the effective HTTP target. It defaults to `true` and does not represent active maintenance state. `http.maintenance.retry_after_default_seconds` supplies the configured default retry delay.
+
+`MaintenanceStateStore` owns application-root-local maintenance state access for HTTP and CLI. It resolves the existing Kernel-owned `RuntimePathContext::applicationRoot()` and uses the fixed runtime state directory `var/maintenance` beneath that root, independently of the current working directory or selected application target.
+
+The directory contains the regular `enabled` flag, optional version-1 `message.json`, and persistent `maintenance.lock` anchor. The presence of the regular flag activates maintenance. The optional public message does not control activation.
+
+The state store reuses Foundation `ScopedFileLock` for cooperating shared reads and exclusive mutations, `StableJsonEncoder` for canonical message serialization, and `StableJsonDecoder` for strict message reconstruction. It owns safe filesystem validation and same-directory file publication without introducing another locking or JSON serialization subsystem.
+
+Maintenance state is evaluated on each participating request and is not cached in shared runtime services. Confirmed inactive state delegates normally. Invalid optional message state retains active maintenance and uses the generic response. Unavailable maintenance state fails closed, except for the exact `/_alive` downstream bypass.
+
+`HttpServiceProvider` registers the shared state store and middleware through canonical Foundation declarative DI with explicit dependencies on the existing runtime path context, Foundation lock service, selected PSR-17 factories, observability ports, and validated configuration. It does not resolve maintenance state or embed application-root paths during definition production.
+
+The maintenance commands `maintenance:enable`, `maintenance:disable`, and `maintenance:status` consume the same shared state store through canonical CLI command registration. Their availability follows explicit `platform.http` module participation in the Console target, independently of HTTP maintenance middleware enablement.
+
+Maintenance activation is shared by participating HTTP targets using the same application root and filesystem. It does not suspend CLI or Worker execution and does not introduce target-specific maintenance state.
+
+Runtime maintenance mutations do not modify compiled configuration, container definitions, or generated artifacts. The existing `var/maintenance` fingerprint exclusion and Kernel artifact ownership remain governed by `docs/ssot/artifacts-and-fingerprint.md`.
+
+Successfully returned maintenance responses follow applicable post-decorator traversal and canonical `HttpKernel` response finalization. Response-construction failures and downstream Throwables retain the existing outermost error-boundary and Kernel completion semantics. Maintenance introduces no additional ContextStore writes, UnitOfWork lifecycle, or reset responsibility.
 
 ## Consequences
 
@@ -217,6 +247,9 @@ The dependency boundary prohibits direct production imports of optional concrete
 - Exact invocation-local identity verification prevents substituted context identifiers from being emitted as finalized request-id response headers.
 - Independently enabled security headers apply to every successfully returned pipeline response, including mapped and emergency responses produced by the selected outermost error boundary.
 - HTTPS redirects use validated explicit destination authorities and canonical proxy scheme metadata without introducing another proxy trust or request context policy.
+- Application-local maintenance activation and public message updates take effect without rebuilding compiled configuration, reconstructing the HTTP pipeline, or restarting application processes.
+- Maintenance short-circuits downstream request processing while preserving request identity preparation, the selected outermost error boundary, applicable response decorators, final-response hardening, and Kernel-owned completion.
+- HTTP and CLI share one filesystem-backed maintenance state owner without introducing another runtime-state registry.
 - Distinct stateless completion services preserve single-purpose DI boundaries, independent failure isolation, and Kernel-owned UoW/reset semantics.
 - Explicit PSR-17 selection supports one shared factory or two distinct factories while avoiding a mandatory vendor implementation.
 - Canonical declarative definitions and later-binding-wins semantics remain identical in source and compiled containers.
@@ -230,6 +263,8 @@ The dependency boundary prohibits direct production imports of optional concrete
 - Middleware that short-circuits within a post slot can prevent inner middleware from running, as required by standard PSR-15 semantics.
 - Inbound traceparent extraction cannot automatically establish a request span's parent without a future change to the tracing port contract.
 - The baseline has no routing-derived access-log template: `route_template` remains `unknown` until a separate explicit integration contract exists.
+- Participating HTTP and CLI processes require compatible filesystem access to the application-local maintenance directory and shared lock anchor. Scoped lock operations may block while another cooperating operation holds an incompatible lock.
+- Maintenance state is local to cooperating processes using the same application root and filesystem; it does not provide distributed synchronization or crash-transactional durability.
 
 ## Rejected alternatives
 
@@ -285,9 +320,17 @@ Rejected because `LoggerInterface` and the producer-neutral Logging sink already
 
 Rejected because request completion and reentrant pipeline handling require invocation-local state. Shared mutable caches or extra reset registrations would violate the existing lifecycle model.
 
+### Encode active maintenance state in compiled configuration or shared process memory
+
+Rejected because runtime activation must remain observable across cooperating HTTP and CLI processes without recompiling configuration, rebuilding the container, or restarting long-running processes.
+
+The effective target-local configuration controls middleware participation and the default retry delay. Application-local filesystem state independently controls runtime activation.
+
 ## Non-goals
 
-This decision does not implement routing or system endpoints, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, rate limiting, or maintenance middleware. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
+This decision does not implement routing or system endpoints, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, or rate limiting. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
+
+Maintenance does not implement system endpoints, distributed maintenance-state synchronization, crash-transactional filesystem updates, target-specific activation, CLI or Worker suspension, or another generated-artifact lifecycle.
 
 ## Verification
 
@@ -302,6 +345,12 @@ Response hardening verification must cover independent security-header enablemen
 Integration verification must cover security headers on normal, request-phase and post-decorator short-circuit, redirect, returned maintenance, mapped Problem Details, and emergency responses, including independence from correlation and request-id enablement.
 
 HTTPS redirect verification must cover canonical priority and conditional participation, same-slot deduplication, trusted and untrusted proxy handoff, independence from ContextStore enrichment, explicit target authority validation, method and status policy, encoded Location safety, downstream execution semantics, bounded redirect-decision observability, and independent observability failure isolation.
+
+Maintenance verification must cover exact priority and toggle metadata, static participation and dynamic activation independence, same-slot deduplication, application-root resolution, shared declarative state-store wiring, source/compiled container parity, strict version-1 message validation, safe filesystem operations, idempotent mutations, retained-message handling, and runtime-state visibility without rebuilding services.
+
+HTTP integration verification must cover deterministic maintenance responses, retry-delay selection, HEAD behavior, exact liveness bypass, invalid-message fallback, unavailable-state fail-closed behavior, precedence over downstream request processing, bounded decision observability, applicable post-decorator traversal, canonical finalization, Throwable precedence, and unchanged Kernel completion and reset discipline.
+
+CLI integration verification must cover command discovery, safe structured output, application-root isolation, target-independent runtime activation, and unchanged Kernel fingerprint, generation identity, and generated artifact bytes across maintenance mutations.
 
 Sequential HTTP isolation verification follows the requirements defined by `docs/ssot/http-middleware-wiring.md`.
 

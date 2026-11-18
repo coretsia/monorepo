@@ -31,8 +31,11 @@ declare(strict_types=1);
  *   id strings; class-string grammar and cross-slot duplicate checks remain
  *   owned by HttpMiddlewareStackBuilder;
  * - correlation, request-id, upstream request-id acceptance, tracing, metrics,
- *   access logging, proxy, context enrichment, host validation, security
- *   headers, HTTPS redirect, and JSON parsing toggles must be actual booleans;
+ *   access logging, maintenance, proxy, context enrichment, host validation,
+ *   security headers, HTTPS redirect, and JSON parsing toggles must be actual
+ *   booleans;
+ * - `http.maintenance.retry_after_default_seconds` must be an integer
+ *   in 1..86400;
  * - `http.correlation.header_name` and `http.request_id.header_name` must be
  *   non-empty and whitespace-free;
  * - `http.request_id.max_length` must be an integer in 26..128;
@@ -230,6 +233,23 @@ return [
                 'enabled' => [
                     'required' => true,
                     'type' => 'bool',
+                ],
+            ],
+        ],
+        'maintenance' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'enabled' => [
+                    'required' => true,
+                    'type' => 'bool',
+                ],
+                'retry_after_default_seconds' => [
+                    'required' => true,
+                    'type' => 'int',
+                    'min' => 1,
+                    'max' => 86400,
                 ],
             ],
         ],

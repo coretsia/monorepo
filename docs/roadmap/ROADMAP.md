@@ -144,7 +144,7 @@
 ### 3.55.0 HTTP long-running isolation regression (MUST) [IMPL]
 ### 3.60.0 HTTP request-id policy (SHOULD) [IMPL]
 ### 3.70.0 Response hardening (security headers + HTTPS redirect) (SHOULD) [IMPL]
-### 3.80.0 Maintenance mode (real toggle, MUST) (MUST) [IMPL]
+### 3.80.0 Maintenance mode (real runtime toggle) (MUST) [IMPL]
 ### 3.90.0 SystemRouteTable reserved map (SSoT) (MUST) [DOC]
 ### 3.100.0 Reserved path matching rules (SSoT) (MUST) [DOC]
 ### 3.110.0 HTTP FallbackRouter + system endpoints (MUST) [IMPL]

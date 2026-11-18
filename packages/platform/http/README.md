@@ -16,7 +16,7 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, a safe pre-routing terminal fallback, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, optional policy-based HTTPS redirects, and bounded redirect-decision and final-request observability.
+Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, and bounded maintenance-decision, redirect-decision, and final-request observability.
 
 Out of scope: SAPI request creation and response emission, a packaged front controller, route matching and system endpoints, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
@@ -73,7 +73,9 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
 - `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
 - `FallbackRouterHandler` as the safe, routing-free terminal `RequestHandlerInterface`;
-- seven implemented `system_pre` middleware and their HTTP-owned request-safety and HTTPS redirect policies;
+- eight implemented `system_pre` middleware and their HTTP-owned request-safety, maintenance, and HTTPS redirect policies;
+- `MaintenanceStateStore` and `MaintenanceMessage` for application-root-local maintenance activation and validated public message state;
+- `MaintenanceEnableCommand`, `MaintenanceDisableCommand`, and `MaintenanceStatusCommand` for application-local maintenance operations through canonical CLI command registration;
 - `RequestIdPolicy` for optional HTTP request identity preparation and owner-local final-response identity verification outside the PSR-15 middleware chain;
 - `SecurityHeadersPolicy` for immutable configured security-header values and deterministic application through `HttpResponseFinalizer`;
 - the four stateless HTTP response-finalization and request-observability services;
@@ -223,6 +225,10 @@ Baseline defaults include:
     'access_log' => [
         'enabled' => true,
     ],
+    'maintenance' => [
+        'enabled' => true,
+        'retry_after_default_seconds' => 60,
+    ],
     'proxy' => [
         'enabled' => false,
         'trusted_proxies' => [],
@@ -271,7 +277,9 @@ Important config rules:
 - `http.request_id.max_length=128` by default and must be an integer within the inclusive range `26..128`, measured in bytes for accepted upstream identifiers.
 - `http.request_id.enabled` controls request identity preparation and response-header application only. It does not activate middleware, change declarative service registrations, alter middleware ordering, or introduce an additional reset lifecycle.
 - `http.tracing.enabled=true` controls both inbound `TraceContextMiddleware` participation and the optional `http.request` span.
-- `http.metrics.enabled=true` and `http.access_log.enabled=true` independently control request-level completion observability and HTTPS redirect-decision observations.
+- `http.metrics.enabled=true` and `http.access_log.enabled=true` independently control request-level completion observability, HTTPS redirect-decision observations, and maintenance-decision observations.
+- `http.maintenance.enabled=true` by default; it controls target-local maintenance middleware participation independently of the application-local runtime flag.
+- `http.maintenance.retry_after_default_seconds=60` by default and must be an integer within the inclusive range `1..86400`. A valid public message may supply an explicit retry-delay override within the same range.
 - `http.proxy.enabled=false` by default; `http.proxy.trusted_proxies` is an empty list of trusted immediate-peer IP/CIDR entries.
 - `http.context.enrich.enabled=true` enables bounded request-derived enrichment through existing `ContextKeys`.
 - `http.hosts.enabled=false` by default; `http.hosts.allowed` is an empty host allowlist.
@@ -285,9 +293,10 @@ Important config rules:
 - Unknown configuration keys, invalid values, and reserved `@*` directives are rejected through the existing Phase B configuration rules. HTTP-owned policies enforce additional semantic header, host, and proxy constraints.
 - No `http.middleware.auto.*` flags, concrete implementation class names, route matching, transport adapters, or future-only HTTP feature defaults are introduced.
 
-The seven implemented baseline `system_pre` registrations, in canonical priority order, are:
+The eight implemented baseline `system_pre` registrations, in canonical priority order, are:
 
 - `TraceContextMiddleware` — `930`, `['toggle' => 'http.tracing.enabled']`.
+- `MaintenanceMiddleware` — `900`, `['toggle' => 'http.maintenance.enabled']`.
 - `TrustedProxyMiddleware` — `880`, `['toggle' => 'http.proxy.enabled']`.
 - `RequestContextMiddleware` — `870`, `['toggle' => 'http.context.enrich.enabled']`.
 - `TrustedHostMiddleware` — `860`, `['toggle' => 'http.hosts.enabled']`.
@@ -297,11 +306,155 @@ The seven implemented baseline `system_pre` registrations, in canonical priority
 
 `ConfigKernel` Phase B supplies the validated target-local `http` subtree to canonical declarative DI through `ContainerDefinitionContext`. Other cataloged HTTP-owned middleware entries are future-only reservations, not implementations or default registrations. Optional middleware owners control their own module selection and DI contributions.
 
+## Maintenance middleware
+
+`MaintenanceMiddleware` provides application-root-local HTTP maintenance short-circuiting through the shared immutable `MaintenanceStateStore`.
+
+It participates in `http.middleware.system_pre` at priority `900`, after `TraceContextMiddleware` and before trusted-proxy, request-context enrichment, trusted-host, HTTPS redirect, and request-body processing.
+
+Tagged participation is controlled by `http.maintenance.enabled`, which defaults to `true`. The feature toggle does not itself activate maintenance.
+
+Disabled maintenance middleware also delegates without accessing runtime state when explicitly included through a manual append list. Same-slot tagged and manual participation is deduplicated by the canonical middleware stack builder.
+
+### Runtime activation and state
+
+Maintenance activation is determined from the current application-local runtime flag on each participating request.
+
+`MaintenanceStateStore` resolves the application root through the existing Kernel-owned `RuntimePathContext` and uses the fixed paths:
+
+```text
+var/maintenance/enabled
+var/maintenance/message.json
+var/maintenance/maintenance.lock
+```
+
+- `enabled` is the regular activation flag. Its presence activates maintenance; existing regular flag contents are not interpreted. Newly published flags contain zero bytes.
+- `message.json` is the optional public maintenance message.
+- `maintenance.lock` is the persistent Foundation scoped-lock anchor shared by cooperating HTTP and CLI operations.
+
+The state store reuses Foundation `ScopedFileLock` and stable JSON primitives. Runtime state paths are not configurable and are not resolved relative to the current working directory.
+
+The application root must be an existing accessible directory identified by a fully qualified absolute local path. The runtime state directory must be operator-controlled, and its `var` and `var/maintenance` components must be real directories, not symlinks. Participating HTTP and CLI processes require compatible filesystem permissions for directory inspection, optional message reading, and read/write opening of the shared lock anchor.
+
+Runtime activation is shared by participating web and api targets using the same application root and filesystem. Each target independently controls static middleware participation through its effective `http.maintenance.enabled` configuration.
+
+The runtime flag does not suspend CLI command execution or Worker processing.
+
+Runtime maintenance mutations do not require `config:compile`, container rebuilding, or application process restart. The `var/maintenance` fingerprint exclusion and existing Kernel artifact ownership must be preserved. The configured artifact cache directory must not overlap the maintenance runtime state directory.
+
+### Public maintenance message
+
+The optional message uses the version-1 JSON object schema:
+
+```json
+{
+  "schemaVersion": 1,
+  "message": "Scheduled maintenance.",
+  "retryAfterSeconds": 300
+}
+```
+
+`schemaVersion` must be integer `1`, and `message` must be a string. Both fields are required. `retryAfterSeconds` is optional and must be omitted when no explicit retry-delay override is supplied.
+
+The message must contain non-empty valid UTF-8 text of at most 1024 bytes without control characters, Unicode line separators, or leading/trailing whitespace.
+
+An explicit retry delay must be an integer within the inclusive range `1..86400`.
+
+Unknown fields, duplicate object keys, unsupported schema versions, invalid field types, malformed JSON, and JSON input exceeding 8192 bytes are rejected.
+
+The message is serialized through canonical Foundation stable JSON encoding.
+
+Maintenance message text is intentionally public HTTP response content. It must not contain secrets, credentials, personal data, internal paths, or other sensitive values.
+
+### Maintenance response and liveness bypass
+
+Confirmed inactive maintenance delegates to the downstream handler without maintenance-decision observations.
+
+Active maintenance short-circuits ordinary requests before downstream middleware and terminal application handling, including HTTPS redirects.
+
+The maintenance response has:
+
+- HTTP status `503`;
+- `Content-Type: text/plain; charset=utf-8`;
+- `Cache-Control: no-store`;
+- `Retry-After` containing the selected retry delay in decimal seconds;
+- the validated public message followed by exactly one LF, or `Service Unavailable` followed by exactly one LF.
+
+A valid message with an explicit `retryAfterSeconds` overrides `http.maintenance.retry_after_default_seconds`. A valid message without an override uses the configured default.
+
+The exact `HEAD` request method returns an empty body with the same status and headers.
+
+A missing, malformed, oversized, unreadable, or otherwise invalid optional message uses the generic response and configured default retry delay without deactivating maintenance.
+
+Unavailable maintenance state fails closed using the same generic response and retry delay, rather than assuming inactive state.
+
+The only automatic bypass is the exact case-sensitive URI path `/_alive`. Query strings do not affect this comparison. Trailing slashes, additional segments, different casing, percent-encoded substitutes, and debug paths do not receive an automatic bypass.
+
+The exact liveness bypass remains available when maintenance state is unavailable. It delegates exactly once to the downstream handler and returns its response unchanged or propagates its original Throwable.
+
+Maintenance does not implement the liveness endpoint or guarantee its response status.
+
+Successfully returned maintenance responses remain subject to applicable post decorators and canonical `HttpKernel` correlation, request-id, and security-header finalization. A successfully finalized `503` response retains the canonical `handled_error` outcome.
+
+Response-construction and mutation failures retain the existing outermost error-boundary and Kernel Throwable precedence. Maintenance does not introduce another error pipeline, ContextStore mutation boundary, UnitOfWork, or reset operation.
+
+### Maintenance commands
+
+The maintenance commands are available when `platform.cli` and `platform.http` are selected for the Console target.
+
+Run the commands through the canonical CLI launcher from the application root:
+
+```bash
+php coretsia maintenance:enable
+php coretsia maintenance:enable --message="Scheduled maintenance."
+php coretsia maintenance:enable --message="Scheduled maintenance." --retry-after=300
+php coretsia maintenance:status --format=json
+php coretsia maintenance:disable
+```
+
+The commands consume the same application-local state store as participating HTTP middleware. Command availability and execution are independent of HTTP middleware feature enablement and do not require executable HTTP response factories.
+
+`maintenance:enable` accepts the optional non-repeatable `--message` and `--retry-after` options. `--retry-after` is allowed only together with `--message` and must contain a canonical positive decimal integer in `1..86400`, without signs, leading zeroes, whitespace, fractions, or exponent notation.
+
+The maintenance commands accept no positional arguments or target overrides such as `--target`.
+
+Do not supply sensitive values through command-line message arguments because shell history and process inspection may expose them.
+
+Successful enablement and disablement return exit code `0` with the respective structured payload:
+
+```json
+{"enabled":true}
+```
+
+```json
+{"enabled":false}
+```
+
+The status payload contains:
+
+- `enabled`: the current runtime flag state;
+- `message_state`: `ignored` when inactive, or `absent`, `valid`, or `invalid` when active;
+- `retry_after_seconds`: present only when an active valid message supplies an explicit retry delay.
+
+Status reports runtime activation, not effective middleware participation for any individual HTTP target. It does not expose public message contents or filesystem paths.
+
+Inactive state and active state with an absent or valid message return exit code `0`. Active state with an invalid message returns exit code `1` while retaining the structured status payload. Unavailable state returns exit code `1` and a fixed safe diagnostic instead of a fabricated status snapshot.
+
+Structured JSON outputs remain inside the canonical `coretsia.cli-output@1` envelope.
+
+Enable and disable operations are logically idempotent. Disablement removes the activation flag while retaining the optional message file. Enabling without a message removes a retained regular message file. Repeated identical enablement preserves existing flag and message files.
+
+Filesystem operations may block while another cooperating operation holds an incompatible scoped lock. A reported operation failure does not guarantee rollback of already completed filesystem mutations. Check `maintenance:status` after an unsuccessful state-changing command.
+
+Maintenance state is local to cooperating processes using the same application root and filesystem. It does not provide distributed state synchronization or crash-transactional durability.
+
+Canonical maintenance execution and state boundaries are governed by the [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md).
+
 ## HTTPS redirect middleware
 
 `HttpsRedirectMiddleware` provides optional HTTP-to-HTTPS redirects through the immutable shared `HttpsRedirectPolicy`.
 
-It participates in `http.middleware.system_pre` at priority `850`, after trusted-proxy, request-context, and trusted-host processing. Tagged participation is controlled by `http.https_redirect.enabled`.
+It participates in `http.middleware.system_pre` at priority `850`, after maintenance, trusted-proxy, request-context, and trusted-host processing. Tagged participation is controlled by `http.https_redirect.enabled`. A maintenance response short-circuit prevents HTTPS redirect execution.
 
 The middleware also respects disabled policy behavior when explicitly included through a manual append list. Same-slot tagged and manual participation is deduplicated by the canonical middleware stack builder.
 
@@ -556,6 +709,33 @@ Selected request identifiers and rejected upstream identifier values are not add
 
 Request identity preparation and verification do not introduce additional metrics, spans, logging events, or observability dependencies.
 
+### Maintenance decisions
+
+Enabled `MaintenanceMiddleware` observes maintenance decisions independently of final HTTP request completion.
+
+- `http.metrics.enabled` controls the `http.maintenance_total` counter with exactly the `outcome` label.
+- Allowed outcome values are `served` and `bypassed`.
+- `http.access_log.enabled` controls the fixed maintenance decision and state-failure log events.
+- The PSR-3 info event `http.maintenance.served` has exactly the producer-supplied context fields `outcome = served` and integer `status = 503`.
+- The PSR-3 warning event `http.maintenance.message_invalid` has exactly the producer-supplied context field `reason = invalid-message`.
+- The PSR-3 warning event `http.maintenance.state_unavailable` has exactly the producer-supplied context field `reason = state-unavailable`.
+
+When metrics are enabled, the middleware attempts exactly one counter increment with value `1` per completed decision. When access logging is enabled, it attempts exactly one applicable log emission for each served decision or warning condition. Canonical logging admission, context enrichment, and redaction remain unchanged.
+
+A completed served decision is recorded only after successful maintenance response construction and required immutable response mutations.
+
+A completed bypassed decision is recorded before downstream execution. Bypassed decisions do not emit the served log event.
+
+Invalid-message and unavailable-state warnings are independent of successful response construction and downstream execution, including liveness bypass.
+
+Disabled maintenance middleware and confirmed inactive maintenance state do not produce maintenance observations.
+
+Metric and log failures are isolated independently without retries or duplicate emissions. Maintenance decisions do not introduce additional spans or determine the final HTTP request outcome.
+
+Maintenance-decision observations contain no public message text, message-file contents, retry-delay values, filesystem paths, raw request data, permissions, filesystem diagnostics, or Throwable diagnostics.
+
+Maintenance observability remains governed by the [Observability SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md).
+
 ### HTTPS redirect decisions
 
 Enabled `HttpsRedirectMiddleware` observes completed redirect decisions independently of final HTTP request completion.
@@ -594,7 +774,7 @@ Request identity remains separate from generic middleware context enrichment. It
 
 HTTP does not directly execute reset, discover reset tags, retry reset, or separately remove request identity from `ContextStore`. A failed reset does not establish successful context cleanup.
 
-Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded redirect-decision and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
+Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
 
 A non-seekable inbound request body must arrive complete and unread from its owning transport adapter; already consumed bytes cannot be recovered by HTTP middleware. Accepted bounded body verification and JSON parsing preserve downstream body availability without an unbounded buffering layer, spooling subsystem, or shared request cache. HTTP-owned policies do not rely on superglobals or mutable process-global request state.
 
@@ -606,7 +786,8 @@ This package does not provide:
 - route matching, routing artifacts, application routes, system endpoints, or a route-template extraction/handoff contract;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
-- maintenance, CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
+- CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
+- maintenance-specific system endpoint implementation, target-specific runtime activation, distributed maintenance-state synchronization, crash-transactional filesystem updates, or CLI and Worker suspension;
 - HSTS, CSP nonce generation, request-dependent security-header values, TLS termination, or transport-level HTTPS enforcement;
 - request identity preparation through PSR-15 middleware, authenticated identity resolution, or automatic upstream trust detection;
 - separate exception normalization, Problem Details rendering, logging backend/redactor, metrics exporter, tracing parent-context registry, or observability observer pipeline;

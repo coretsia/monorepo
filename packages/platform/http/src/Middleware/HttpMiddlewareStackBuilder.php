@@ -42,6 +42,7 @@ final readonly class HttpMiddlewareStackBuilder
         'http.tracing.enabled' => true,
         'http.metrics.enabled' => true,
         'http.access_log.enabled' => true,
+        'http.maintenance.enabled' => true,
         'http.proxy.enabled' => true,
         'http.context.enrich.enabled' => true,
         'http.hosts.enabled' => true,

@@ -10557,7 +10557,7 @@ N/A
 
 ---
 
-### 3.80.0 Maintenance mode (real toggle, MUST) (MUST) [IMPL]
+### 3.80.0 Maintenance mode (real runtime toggle) (MUST) [IMPL]
 
 ---
 type: package
@@ -10570,89 +10570,206 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "Maintenance toggle працює без `config:compile` і без впливу на fingerprint/artifacts, повертаючи deterministic 503."
+goal: "Maintenance mode provides an application-root-local HTTP runtime toggle shared across participating HTTP targets, takes effect without config:compile, container rebuilding, or artifact regeneration, and returns deterministic HTTP 503 responses for non-bypassed requests while active."
 provides:
-- "Real maintenance toggle через `packages/applications/skeleton/var/maintenance/*` (поза artifacts/fingerprint)"
-- "Deterministic 503 response + optional `message.json` schema"
-- "CLI команди enable/disable/status живуть у `platform/http` і discover-яться через existing tag `cli.command` (owner = `platform/cli`) за non-owner tag usage rule"
+- "Application-root-local maintenance state under var/maintenance, independent of generated artifacts"
+- "Deterministic HTTP 503 response with an optional validated public maintenance message and Retry-After policy"
+- "Maintenance bypass for the exact /_alive request path without introducing a system endpoint implementation"
+- "CLI commands maintenance:enable, maintenance:disable, and maintenance:status contributed by platform/http through the existing cli.command tag"
+- "Shared maintenance state access using existing Kernel runtime path context and Foundation filesystem-lock and stable JSON primitives"
+- "Runtime state changes visible to already constructed HTTP pipelines without rebuilding shared services"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-XXXX-maintenance-mode-toggle.md"
-ssot_refs: []
+adr: "docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md"
+ssot_refs:
+- "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/middleware-context-keys-map.md"
+- "docs/ssot/artifacts-and-fingerprint.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/logging-policy.md"
+- "docs/ssot/tags.md"
 ---
+
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
+- [x] Runtime maintenance state ownership (MUST):
+  - [x] `platform/http` owns maintenance state semantics and maintenance response construction
+  - [x] reuse the existing Kernel `RuntimePathContext` for application-root resolution
+  - [x] reuse Foundation `ScopedFileLock`, `StableJsonEncoder`, and `StableJsonDecoder`
+  - [x] MUST NOT introduce another application-root resolver, filesystem-lock abstraction, generic JSON serializer, or runtime-state framework
+  - [x] maintenance state MUST be shared across participating HTTP targets belonging to the same application root
+  - [x] CLI commands MUST operate on the same application-root-local maintenance state
+  - [x] target-local HTTP feature participation remains controlled by the existing Phase B configuration
+  - [x] maintenance activation MUST NOT suspend CLI command execution or Worker processing
+  - [x] maintenance state MUST NOT be stored in ContextStore, compiled configuration, container parameters, generated artifacts, or request-local service state
+- [x] Static configuration and dynamic state separation (MUST):
+  - [x] `http.maintenance.enabled` controls middleware feature availability through the existing Phase B configuration lifecycle
+  - [x] the runtime flag controls active/inactive maintenance state independently of compiled configuration
+  - [x] enabling or disabling runtime maintenance MUST NOT modify configuration files
+  - [x] runtime flag and message changes MUST be visible to subsequent requests handled by an already constructed HTTP pipeline
+  - [x] changing static `http.maintenance.*` configuration retains normal configuration compilation and fingerprint semantics
+  - [x] maintenance commands MUST NOT invoke configuration compilation, artifact generation, cache invalidation, or runtime rebuilding
+- [x] HTTP lifecycle preservation (MUST):
+  - [x] preserve the existing exclusive outermost priority-`1000` Problem Details boundary
+  - [x] preserve the existing nine middleware slots and canonical TagRegistry ordering
+  - [x] return maintenance responses through the normal PSR-15 short-circuit path
+  - [x] preserve applicable post-decorator traversal and canonical HttpResponseFinalizer execution
+  - [x] preserve final-response observability and Kernel-owned UnitOfWork/reset discipline
+  - [x] MUST NOT introduce another HTTP completion service, error renderer, response finalizer, or reset lifecycle
+- [x] Endpoint ownership (MUST):
+  - [x] maintenance bypass MUST NOT be treated as implementation of a system endpoint
+  - [x] routing and system-endpoint response ownership remain outside this slice
+  - [x] MUST NOT introduce debugging endpoint behavior or a debug-policy dependency
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - 2.30.0 — canonical tag-first CLI command catalog and source-host execution exist.
+  - 3.50.0 — canonical HTTP runtime, middleware stack, PSR-17 bindings, and final-response lifecycle exist.
+  - 3.70.0 — canonical response hardening and HTTPS redirect behavior exist.
+  - Existing Foundation scoped filesystem locking and stable JSON serialization are required.
+  - Existing Kernel application-root runtime context and maintenance directory fingerprint exclusion are required.
+  - Actual system-endpoint implementation is not a prerequisite for maintenance middleware bypass.
 
 - Required deliverables (exact paths):
-  - `packages/platform/http/config/http.php` — додаємо `http.maintenance.*` ключі
-  - `packages/platform/http/config/rules.php` — додаємо rules для `http.maintenance.*`
-  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring middleware + CLI commands
-  - `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants owner=http (для `http.middleware.system_pre`)
+  - `packages/platform/http/config/http.php`
+  - `packages/platform/http/config/rules.php`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - `packages/platform/http/src/Response/HttpResponseFinalizer.php`
+  - `packages/platform/http/src/HttpKernel.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/core/foundation/src/Tag/TagRegistry.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Filesystem/ScopedFileLock.php`
+  - `packages/core/foundation/src/Filesystem/Exception/ScopedFileLockException.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Serialization/StableJsonDecoder.php`
+  - `packages/core/kernel/src/Runtime/RuntimePathContext.php`
+  - `packages/core/kernel/src/Container/RuntimeContainerSeedIds.php`
+  - `packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php`
+  - `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+  - `packages/core/kernel/config/kernel.php`
+  - `packages/platform/cli/src/Catalog/CommandTagSchema.php`
+  - `packages/platform/cli/src/Runner/CommandRunner.php`
+  - `packages/applications/skeleton/var/maintenance/.gitkeep`
+  - `packages/applications/skeleton/.gitignore`
 
 - Runtime state location policy (MUST):
-  - `packages/applications/skeleton/var/maintenance/` is the reserved runtime state directory for this epic.
-  - The directory itself is created by this epic via `packages/applications/skeleton/var/maintenance/.gitkeep`.
+  - `var/maintenance` is the existing application-root-relative maintenance runtime state directory.
+  - The shipped Skeleton already contains `packages/applications/skeleton/var/maintenance/.gitkeep`.
+  - The existing Skeleton ignore policy already excludes runtime files within this directory and preserves `.gitkeep`.
+  - Resolve the directory exclusively from the existing `RuntimePathContext::applicationRoot()`.
+  - Participating HTTP and CLI runtimes MUST provide the same fully qualified absolute local application root through the existing RuntimePathContext.
+  - The supplied application root MUST identify an existing accessible application directory.
+  - Maintenance operations MAY create missing runtime-state directory components beneath an existing application root.
+  - Maintenance operations MUST NOT create the application root itself.
+  - A missing, inaccessible, or invalid application root MUST be classified as unavailable state.
+  - Maintenance state access MUST reject relative or drive-relative application roots through the fixed maintenance state-unavailable boundary.
+  - MUST NOT resolve relative application roots against the current working directory or introduce another application-root resolver.
+  - HTTP and CLI MUST use the same directory for the same application root, independently of application target and current working directory.
+  - MUST NOT derive runtime paths from the monorepo checkout, package installation directory, `__DIR__`, current working directory, request data, or artifact root.
+  - MUST NOT introduce configurable flag, message, or lock paths.
+  - The existing effective fingerprint exclusion for `var/maintenance` MUST remain enabled.
+  - The configured artifact cache directory MUST NOT overlap the maintenance runtime state directory.
+  - No changes to Kernel fingerprint algorithms, artifact schemas, runtime seed identifiers, or boot mechanisms are required.
 
 - Required config roots/keys:
-  - `http.maintenance.*` — toggles + paths + retry-after defaults
+  - `http.maintenance.enabled` — static middleware participation.
+  - `http.maintenance.retry_after_default_seconds` — default Retry-After value.
 
 - Existing root reuse note (MUST):
   - This epic extends an existing reserved config root with additional subkeys only.
   - It MUST NOT be treated as a config-root owner/introduction epic.
 
 - Required tags:
-  - `http.middleware.system_pre` — slot для middleware (owner=`platform/http`)
-  - `cli.command` — discovery of commands (owner=`platform/cli`; preferred runtime-code pattern here is a package-local internal mirror constant, for example a private constant in the wiring class; canonical string literal is allowed only as fallback because owner package is a forbidden compile-time dependency here)
+  - `http.middleware.system_pre` — owner `platform/http`; consume `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`.
+  - `cli.command` — owner `platform/cli`; consume `ReservedTags::CLI_COMMAND`.
+
+- Required tags registry:
+  - Both tags MUST already exist in `docs/ssot/tags.md`.
+  - This epic MUST reuse their existing identifiers from `packages/core/foundation/src/Tag/ReservedTags.php`.
+  - `cli.command` registration MUST use actual tag priority `0` and the exact canonical six-field command metadata contract.
+  - MUST NOT introduce a local mirror constant, duplicate tag identifier, or another tag registry.
 
 - Required contracts / ports:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface` — optional (якщо потрібно; без write)
-  - `Coretsia\Contracts\Config\ConfigRepositoryInterface` — optional guard toggles/paths (без секретів у виводі)
-  - `Psr\Http\Server\MiddlewareInterface` — middleware
-  - `Psr\Http\Message\ServerRequestInterface` — middleware
-  - `Psr\Http\Message\ResponseInterface` — middleware
+  - `Coretsia\Contracts\Cli\Command\CommandInterface`
+  - `Coretsia\Contracts\Cli\Input\InputInterface`
+  - `Coretsia\Contracts\Cli\Output\OutputInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Psr\Log\LoggerInterface`
+  - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
+  - `Psr\Http\Message\ServerRequestInterface`
+  - `Psr\Http\Message\ResponseInterface`
+  - `Psr\Http\Message\ResponseFactoryInterface`
+  - `Psr\Http\Message\StreamFactoryInterface`
+
+- Existing runtime path and filesystem primitives:
+  - `Coretsia\Kernel\Runtime\RuntimePathContext`
+  - `Coretsia\Foundation\Filesystem\ScopedFileLock`
+  - `Coretsia\Foundation\Serialization\StableJsonEncoder`
+  - `Coretsia\Foundation\Serialization\StableJsonDecoder`
 
 - CLI commands MUST implement:
   - `Coretsia\Contracts\Cli\Command\CommandInterface`
+
 - CLI I/O MUST use only:
   - `Coretsia\Contracts\Cli\Input\InputInterface`
   - `Coretsia\Contracts\Cli\Output\OutputInterface`
-- Commands MUST NOT write to stdout/stderr directly (no `echo/print/var_dump/...`).
+
+- CLI commands MUST NOT write directly to stdout or stderr.
+- Maintenance services MUST NOT require ContextAccessorInterface, ContextStore, or a new configuration repository dependency.
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
 - `core/contracts`
 - `core/foundation`
+- `core/kernel`
+
+- Reuse the existing `platform/http` package dependency on `core/kernel` for `RuntimePathContext`.
+- Reuse the existing `platform/http` package dependency on `core/foundation` for declarative DI, reserved tag identifiers, scoped filesystem locking, and stable JSON serialization.
+- Reuse existing direct PSR-7/15/17 and PSR-3 Composer dependencies.
+- No Composer dependency or module dependency changes are required.
 
 Forbidden:
-- direct imports of kernel artifact/compiler internals (maintenance state MUST stay independent from artifacts/fingerprint logic)
-- any other `platform/*` runtime packages (крім self)
-- `platform/cli` (commands discovered via tag; no dep)
-- `integrations/*`
+- Kernel artifact, compiler, fingerprint, generation-publication, or cache-invalidation internals in maintenance production services.
+- Concrete `platform/cli` command, input, output, catalog, or runner implementations.
+- Concrete `platform/errors`, `platform/problem-details`, `platform/logging`, `platform/metrics`, `platform/tracing`, or `platform/redaction` implementations.
+- Any other `platform/*` runtime package dependency.
+- Any `integrations/*` dependency.
 
 Slice boundary note (MUST):
-- This epic lives inside package `platform/http`, whose Phase 3 baseline already depends on `core/kernel`.
-- The restriction here is narrower:
-  - maintenance slice code MUST NOT import kernel artifact/compiler internals or depend on artifact/fingerprint behavior.
-- The real invariant is runtime-state independence, not package-level removal of the existing baseline dependency.
+- Maintenance production code MUST consume only the existing Kernel runtime path context, not Kernel bootstrap or artifact internals.
+- CLI command execution MUST remain owned by the existing CLI source-host and CommandRunner lifecycle.
+- Cross-package integration tests MAY exercise existing Kernel operations and concrete CLI execution without introducing production dependencies.
 
-#### Uses ports (API surface, NOT deps) (optional)
+#### Uses ports (API surface, NOT deps) (MUST)
 
 - PSR:
   - `Psr\Http\Server\MiddlewareInterface`
+  - `Psr\Http\Server\RequestHandlerInterface`
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
+  - `Psr\Http\Message\ResponseFactoryInterface`
+  - `Psr\Http\Message\StreamFactoryInterface`
+  - `Psr\Log\LoggerInterface`
 - Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface` (optional)
-  - `Coretsia\Contracts\Config\ConfigRepositoryInterface` (optional)
+  - `Coretsia\Contracts\Cli\Command\CommandInterface`
+  - `Coretsia\Contracts\Cli\Input\InputInterface`
+  - `Coretsia\Contracts\Cli\Output\OutputInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
 
 ### Entry points / integration points (MUST)
 
@@ -10660,172 +10777,1043 @@ Slice boundary note (MUST):
   - `maintenance:enable` → `packages/platform/http/src/Console/MaintenanceEnableCommand.php`
   - `maintenance:disable` → `packages/platform/http/src/Console/MaintenanceDisableCommand.php`
   - `maintenance:status` → `packages/platform/http/src/Console/MaintenanceStatusCommand.php`
+  - Commands operate on application-root-local maintenance state shared across targets.
+  - Command availability follows existing console ModulePlan participation of `platform.http`.
+  - Command execution MUST NOT require an HTTP kernel, HTTP middleware pipeline, or resolved PSR-17 factories.
+  - Commands MUST NOT introduce a target, preset, application-root, or filesystem-path override.
 - HTTP:
-  - middleware: `\Coretsia\Http\Maintenance\MaintenanceMiddleware::class`
-  - middleware slots/tags: `http.middleware.system_pre` priority `900` meta `{toggle:'http.maintenance.enabled'}`
+  - middleware: `\Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware::class`
+  - middleware slot/tag: `http.middleware.system_pre`, priority `900`, meta `['toggle' => 'http.maintenance.enabled']`
+  - ordering:
+    - selected Problem Details error boundary — priority `1000`
+    - TraceContextMiddleware — priority `930`
+    - MaintenanceMiddleware — priority `900`
+    - TrustedProxyMiddleware — priority `880`
+    - remaining middleware retain their canonical ordering
   - bypass rules:
-    - `/_alive` exact bypass (always 200)
-    - (optional) `/_debug/*` bypass only if debug diagnostics are enabled+guarded by their owner policy (no secret leakage)
+    - exact case-sensitive PSR-7 URI path `/_alive`
+    - query strings do not participate in bypass matching
+    - MUST NOT decode, normalize, prefix-match, or case-fold the request path
+    - bypass delegates to the existing downstream handler
+    - bypass MUST NOT synthesize an HTTP `200` response
+    - no automatic `/_debug/*` bypass
+  - active maintenance responses short-circuit before trusted-proxy, trusted-host, HTTPS redirect, request-body, and application routing execution.
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
-  - reads:
-    - `packages/applications/skeleton/var/maintenance/enabled`
-    - `packages/applications/skeleton/var/maintenance/message.json` (optional)
-  - writes (via CLI commands only):
-    - `packages/applications/skeleton/var/maintenance/enabled`
-    - `packages/applications/skeleton/var/maintenance/message.json` (optional)
+  - N/A
+- Runtime state:
+  - directory: `<applicationRoot>/var/maintenance/`
+  - `enabled` — runtime existence flag
+  - `message.json` — optional validated public maintenance message
+  - `maintenance.lock` — persistent Foundation scoped-lock anchor
+  - temporary same-directory files used only during atomic state publication
+  - none of these runtime files are generated Kernel artifacts
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `packages/platform/http/src/Maintenance/MaintenanceStateReader.php` — reads flag + validates optional message schema (safe)
-- [ ] `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php` — returns deterministic 503 when enabled; bypass `/_alive`
-- [ ] `packages/platform/http/src/Maintenance/MaintenanceMessage.php` — VO schema `{schemaVersion,message,retryAfterSeconds?}`
-- [ ] `packages/platform/http/src/Maintenance/Exception/MaintenanceMessageInvalidException.php` — errorCode `CORETSIA_MAINTENANCE_MESSAGE_INVALID`
+- [x] `packages/platform/http/src/Maintenance/MaintenanceStateStore.php` — shared application-root-local maintenance state access
+  - [x] implement a `final readonly` service
+  - [x] inject `RuntimePathContext` and `ScopedFileLock` through mandatory constructor dependencies
+  - [x] derive the fixed `var/maintenance` directory from `RuntimePathContext::applicationRoot()`
+  - [x] own all internal flag, message, lock-anchor, and temporary-file path derivation
+  - [x] expose exactly the following state operations:
+    - [x] `read(): array`
+    - [x] `enable(?MaintenanceMessage $message): void`
+    - [x] `disable(): void`
+  - [x] return an invocation-local state snapshot with the exact shape `array{enabled: bool, messageState: 'absent'|'valid'|'invalid'|'ignored', message: MaintenanceMessage|null}`
+  - [x] enforce state snapshot invariants:
+    - [x] inactive state: `enabled=false`, `messageState='ignored'`, `message=null`
+    - [x] active state without a message: `enabled=true`, `messageState='absent'`, `message=null`
+    - [x] active state with a valid message: `enabled=true`, `messageState='valid'`, `message` contains the validated MaintenanceMessage
+    - [x] active state with an invalid message: `enabled=true`, `messageState='invalid'`, `message=null`
+  - [x] unavailable state MUST throw MaintenanceStateUnavailableException rather than return an ambiguous snapshot
+  - [x] MUST NOT expose raw message bytes or introduce another state snapshot service or runtime state abstraction
+  - [x] MUST NOT retain the previously observed flag or message state between invocations
+  - [x] MUST NOT perform filesystem I/O during service construction
+  - [x] validate the application root before performing state-access or state-mutation operations
+  - [x] reject non-absolute or drive-relative application roots without accessing maintenance state
+  - [x] require the supplied application root to exist as an accessible directory before state inspection or scoped-lock operations
+  - [x] distinguish an unavailable application root from a safely absent maintenance runtime directory
+  - [x] confirm absence through successful inspection of the relevant accessible parent directory
+  - [x] MUST NOT interpret an inaccessible parent directory as confirmed absence
+  - [x] MUST NOT create the application root through recursive directory creation
+  - [x] preserve filesystem-independent service construction and command discovery
+  - [x] handle filesystem-root path joining without introducing duplicate directory separators
+  - [x] read fresh filesystem state for every enabled middleware invocation and CLI status operation
+  - [x] clear relevant PHP stat/realpath cache entries before filesystem state checks
+  - [x] State recognition:
+    - [x] absence of the flag in a safely accessible state location means maintenance is inactive
+    - [x] a regular non-symlink `enabled` file means maintenance is active
+    - [x] flag contents MUST NOT affect active/inactive state
+    - [x] inactive-state snapshots MUST ignore any retained `message.json`
+    - [x] a safely absent maintenance directory means inactive state
+    - [x] inaccessible or ambiguous state MUST NOT be interpreted as confirmed inactive state
+    - [x] validate the existing `var` and `var/maintenance` directory components before filesystem operations
+    - [x] reject symlinked or non-directory runtime directory components through MaintenanceStateUnavailableException
+    - [x] reject a symlinked or non-regular `enabled` flag through MaintenanceStateUnavailableException
+    - [x] reject a symlinked or non-regular lock anchor before invoking ScopedFileLock whenever locking is required
+    - [x] classify a symlinked or non-regular optional message as invalid without following the symlink or reading the unsafe entry
+    - [x] read() MUST NOT inspect retained optional message entries while maintenance is inactive
+    - [x] disable() MUST NOT inspect or modify retained optional message entries
+    - [x] enable() MAY inspect retained optional message entries under the exclusive lock solely for safe message preparation and idempotent publication
+    - [x] unrelated directory entries MUST NOT influence maintenance state recognition
+    - [x] distinguish confirmed absence from failed filesystem inspection
+    - [x] MUST NOT use a failed `file_exists()`, `is_file()`, or `lstat()` check alone as proof of confirmed absence
+    - [x] assume an operator-controlled local filesystem directory not writable by untrusted users
+  - [x] State consistency:
+    - [x] reuse `ScopedFileLock::shared()` for active-state snapshots
+    - [x] reuse `ScopedFileLock::exclusive()` for enable/disable operations
+    - [x] use the fixed `maintenance.lock` anchor for all cooperating state operations
+    - [x] recheck flag existence after acquiring the shared lock
+    - [x] revalidate relevant state entries after acquiring the applicable lock before reading or mutating them
+    - [x] determine the complete active-state snapshot within one shared-lock operation
+    - [x] perform message preparation and flag publication within one exclusive-lock operation
+    - [x] perform flag removal within one exclusive-lock operation
+    - [x] preserve the existing blocking semantics of ScopedFileLock without introducing another lock implementation
+    - [x] conclusively absent flag state MAY return inactive without creating a lock anchor
+    - [x] MUST NOT implement `flock()` handling independently
+    - [x] MUST NOT retain lock resources after an operation completes
+    - [x] MUST NOT remove the persistent lock anchor
+    - [x] HTTP state reads MUST NOT modify `enabled` or `message.json`
+    - [x] Foundation lock-anchor creation and permission handling are permitted synchronization effects
+  - [x] Optional message reading:
+    - [x] read `message.json` only for active maintenance state
+    - [x] a conclusively absent message file yields the absent message state
+    - [x] ambiguous, inaccessible, symlinked, or non-regular message entries yield the invalid message state without unsafe file access
+    - [x] read at most 8192 bytes plus one overflow-detection byte
+    - [x] validate message contents through MaintenanceMessage
+    - [x] malformed, oversized, unreadable, or otherwise invalid optional message contents yield the invalid message state
+    - [x] invalid optional message state MUST NOT deactivate maintenance
+  - [x] Enable operation:
+    - [x] accept an explicitly supplied optional validated MaintenanceMessage
+    - [x] validate all requested state changes before publication
+    - [x] inspect an existing optional message entry under the exclusive lock before replacing or removing it
+    - [x] reject symlinked or non-regular optional message entries through MaintenanceStateUnavailableException during state mutation
+    - [x] MUST NOT follow unsafe optional message entries during state mutation
+    - [x] permit replacement or removal of malformed regular optional message files
+    - [x] MUST NOT require an existing regular optional message to contain valid JSON before replacing or removing it
+    - [x] create the state directory through the existing scoped-lock operation when required
+    - [x] publish the requested message atomically, or remove a retained message when no message is supplied
+    - [x] publish a new existence flag only after successful optional-message preparation when the flag is conclusively absent
+    - [x] newly published flags MUST be zero-byte regular files
+    - [x] preserve an existing regular non-symlink flag without reading or rewriting its contents
+    - [x] enabling an already enabled state with identical canonical message bytes MUST NOT rewrite the flag or message file
+    - [x] enabling an already enabled state without an optional message when message.json is already absent MUST NOT rewrite the flag
+    - [x] enabling an already enabled state with a different valid message MUST atomically publish the new message without rewriting the existing flag
+    - [x] enabling an already enabled state without a message MUST remove a retained regular message file without rewriting the existing flag
+  - [x] Disable operation:
+    - [x] remove the existence flag under the exclusive lock
+    - [x] disabling an already inactive state MUST succeed without changing logical state
+    - [x] retain the optional message file without exposing or applying it while inactive
+    - [x] MUST NOT recursively delete the state directory or unrelated runtime files
+  - [x] Atomic publication:
+    - [x] encode message maps exclusively through `StableJsonEncoder::encodeStableMap()`
+    - [x] preserve the encoder-provided final LF without appending a second newline
+    - [x] create exclusive temporary regular files in the same destination directory
+    - [x] verify complete byte writes and successful close before publication
+    - [x] publish through same-directory rename without an unlink-before-rename gap
+    - [x] remove operation-owned temporary files on failure
+    - [x] report failed write, rename, unlink, or lock operations through fixed safe diagnostics
+    - [x] MUST NOT report a successful toggle after an unsuccessful state operation
+    - [x] a failed optional-message preparation MUST prevent subsequent flag publication
+    - [x] a failed flag publication MAY leave successfully prepared optional-message bytes while maintenance remains inactive
+    - [x] a lock-release or close failure after publication MUST be reported as an operation failure
+    - [x] MUST NOT promise rollback of already completed filesystem mutations after an operation failure
+    - [x] subsequent status operations MUST report freshly observed filesystem state
+    - [x] successful cooperating operations MUST expose coherent maintenance state snapshots
+    - [x] MUST NOT claim crash-transactional multi-file publication or distributed filesystem consistency
+  - [x] Failure handling:
+    - [x] translate state-access and state-operation failures into MaintenanceStateUnavailableException
+    - [x] suppress raw filesystem warning output at the filesystem operation boundary
+    - [x] MUST NOT expose absolute paths, OS diagnostics, raw message bytes, or previous exception diagnostics
+  - [x] MUST NOT implement MiddlewareInterface or ResetInterface
+  - [x] MUST NOT read/write ContextStore, emit observability, or participate in a Kernel lifecycle
+  - [x] MUST NOT read or write generated artifacts
 
-- [ ] `packages/platform/http/src/Console/MaintenanceEnableCommand.php` — creates `enabled` + optional `message.json` (deterministic bytes)
-- [ ] `packages/platform/http/src/Console/MaintenanceDisableCommand.php` — removes `enabled` (atomic)
-- [ ] `packages/platform/http/src/Console/MaintenanceStatusCommand.php` — reads state safely (no secrets)
+- [x] `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php` — deterministic maintenance short-circuit middleware
+  - [x] implement `MiddlewareInterface` as a `final readonly` service
+  - [x] inject the shared MaintenanceStateStore, ResponseFactoryInterface, StreamFactoryInterface, MeterPortInterface, LoggerInterface, and validated scalar configuration through explicit constructor dependencies
+  - [x] consume:
+    - [x] `http.maintenance.enabled`
+    - [x] `http.maintenance.retry_after_default_seconds`
+    - [x] `http.metrics.enabled`
+    - [x] `http.access_log.enabled`
+  - [x] validate the configured default retry-after integer in `1..86400`
+  - [x] disabled middleware MUST delegate without observing filesystem state or emitting maintenance observability
+  - [x] disabled behavior MUST also apply to explicitly manually appended middleware
+  - [x] read a fresh maintenance state snapshot for every enabled invocation
+  - [x] inactive maintenance state MUST delegate unchanged
+  - [x] active maintenance state MUST bypass only the exact case-sensitive URI path `/_alive`
+  - [x] bypass MUST delegate exactly once and preserve downstream response or Throwable behavior
+  - [x] MUST NOT synthesize a liveness response
+  - [x] MUST NOT introduce debug bypass behavior
+  - [x] active non-bypassed maintenance MUST return a deterministic HTTP `503` response without downstream request execution
+  - [x] Response construction:
+    - [x] create the response through the existing ResponseFactoryInterface
+    - [x] apply `Content-Type: text/plain; charset=utf-8`
+    - [x] apply `Cache-Control: no-store`
+    - [x] apply `Retry-After` using the validated message override or configured default
+    - [x] represent Retry-After as canonical decimal seconds
+    - [x] use the validated public maintenance message when available
+    - [x] otherwise use the fixed body `Service Unavailable`
+    - [x] responses to the exact canonical `HEAD` request method MUST use an empty body
+    - [x] responses to all other request methods MUST contain the selected message followed by exactly one LF
+    - [x] preserve the same response status, Content-Type, Cache-Control, and Retry-After semantics for HEAD and non-HEAD responses
+    - [x] construct the body through the existing StreamFactoryInterface
+    - [x] use immutable PSR-7 mutations and consume each preceding mutation result
+    - [x] require every mutation result to implement ResponseInterface
+    - [x] reject an invalid mutation result through the fixed diagnostic token `http-maintenance-response-invalid`
+    - [x] MUST NOT derive response headers or message content from request-controlled values
+  - [x] Failure handling:
+    - [x] invalid optional message state MUST use the generic maintenance response and configured retry-after default
+    - [x] MaintenanceStateUnavailableException MUST select a fail-closed generic maintenance response for non-bypassed requests
+    - [x] the exact liveness bypass MUST continue to delegate when maintenance state is unavailable
+    - [x] filesystem-state fallback MUST catch only the maintenance state-access boundary
+    - [x] MUST NOT catch, normalize, or replace downstream application Throwables
+    - [x] response factory, stream factory, and PSR-7 mutation failures MUST retain canonical HTTP error-boundary behavior
+    - [x] MUST NOT construct a secondary fallback response after response construction failure
+  - [x] Observability:
+    - [x] emit `http.maintenance_total` only for completed served/bypassed maintenance decisions
+    - [x] labels MUST contain exactly `outcome=served|bypassed`
+    - [x] record a served decision only after successful response construction
+    - [x] record a bypassed decision before downstream invocation
+    - [x] bypassed means an active or fail-closed maintenance decision delegated through the exact liveness path
+    - [x] disabled or confirmed inactive state MUST NOT emit maintenance-decision observations
+    - [x] failed maintenance response construction MUST NOT emit a completed served decision
+    - [x] attempt exactly one metric increment per completed decision when `http.metrics.enabled=true`
+    - [x] when `http.access_log.enabled=true`, attempt exactly one info log with the fixed event identifier `http.maintenance.served` per completed served decision
+    - [x] served log context MUST contain exactly `outcome=served` and integer `status=503`
+    - [x] invalid message state MUST attempt the fixed warning event `http.maintenance.message_invalid` with `reason=invalid-message`
+    - [x] unavailable state MUST attempt the fixed warning event `http.maintenance.state_unavailable` with `reason=state-unavailable`
+    - [x] warning events MUST respect `http.access_log.enabled`
+    - [x] attempt exactly one applicable warning for an invalid optional message or unavailable maintenance state per enabled middleware invocation
+    - [x] warning emission applies independently of whether the maintenance decision serves a response or delegates through the liveness bypass
+    - [x] warning emission MUST NOT depend on successful maintenance response construction or downstream execution
+    - [x] disabled or confirmed inactive maintenance MUST NOT emit maintenance warning events
+    - [x] metric increments MUST use the exact increment value `1`
+    - [x] independently isolate every metric and log emission failure without retries
+    - [x] MUST NOT emit new spans or modify final-response observability semantics
+  - [x] return maintenance responses through the existing PSR-15 pipeline
+  - [x] MUST NOT perform response identity or security-header finalization independently
+  - [x] MUST NOT inspect or modify ContextKeys, ContextStore, or trusted-proxy attributes
+  - [x] MUST NOT introduce reset participation or retain request-local state
 
-- [ ] `packages/applications/skeleton/var/maintenance/.gitkeep` — runtime state dir placeholder; maintenance state files themselves are NOT committed deliverables
-  - [ ] Runtime state policy (MUST):
-    - [ ] `enabled` and `message.json` are runtime state written/removed by commands and MUST NOT be committed as repository deliverables
+- [x] `packages/platform/http/src/Maintenance/MaintenanceMessage.php` — immutable public maintenance message schema
+  - [x] implement a `final readonly` value object
+  - [x] expose an explicit constructor with mandatory parameters `int $schemaVersion`, `string $message`, and `?int $retryAfterSeconds`, without default values
+  - [x] explicitly supply `null` when the optional retry-after override is absent
+  - [x] expose `fromJson(string $json): self`
+  - [x] expose `toArray(): array` with the exact canonical version-1 message map
+  - [x] expose `message(): string` and `retryAfterSeconds(): ?int`
+  - [x] apply identical semantic validation to direct construction and JSON reconstruction
+  - [x] require the exact root JSON object schema:
+    - [x] `schemaVersion`: integer exactly `1`
+    - [x] `message`: non-empty public UTF-8 string, maximum 1024 bytes
+    - [x] `retryAfterSeconds`: optional integer in `1..86400`
+  - [x] require `schemaVersion` and `message`
+  - [x] reject every unknown field
+  - [x] reject an explicitly null optional retry-after value
+  - [x] reject non-object roots, duplicate JSON object keys, invalid UTF-8, malformed JSON, floats, and unsupported field types
+  - [x] reject empty messages, leading/trailing Unicode whitespace, Unicode line separators, and control characters
+  - [x] MUST apply validation without requiring the introduction of another PHP extension dependency
+  - [x] MUST NOT silently trim, coerce, truncate, normalize, or substitute configured message values
+  - [x] enforce the maximum encoded input size of 8192 bytes before decoding
+  - [x] reuse `StableJsonDecoder::decodeStableMap()` for syntactic validation and root-map decoding
+  - [x] invoke `StableJsonDecoder::assertNoDuplicateObjectKeys()` on the original syntactically validated JSON before accepting the decoded map
+  - [x] translate expected decoding and schema-validation failures into an InvalidArgumentException containing only `http-maintenance-message-invalid`
+  - [x] MUST NOT retain the original decoder exception as a previous exception
+  - [x] MUST NOT introduce a separate JSON parser or duplicate-key scanner
+  - [x] expose an exact canonical map suitable for `StableJsonEncoder::encodeStableMap()`
+  - [x] omit `retryAfterSeconds` from the canonical map when no override is supplied
+  - [x] expose the selected public message and optional retry-after value without retaining raw JSON bytes
+  - [x] reject invalid values through the fixed diagnostic token `http-maintenance-message-invalid`
+  - [x] MUST NOT expose decoder exception diagnostics or original invalid values
+  - [x] MUST NOT read/write files, inspect requests, emit observability, or access ContextStore
 
-- [ ] `docs/ops/maintenance-mode.md` — how to enable/disable + safety notes (no artifacts)
+- [x] `packages/platform/http/src/Exception/MaintenanceStateUnavailableException.php` — safe maintenance filesystem failure boundary
+  - [x] implement a final RuntimeException subtype following the existing platform/http exception construction pattern
+  - [x] declare `public const string ERROR_CODE = 'CORETSIA_MAINTENANCE_STATE_UNAVAILABLE'`
+  - [x] declare `public const string REASON_STATE_UNAVAILABLE = 'http-maintenance-state-unavailable'`
+  - [x] use a private parameterless constructor
+  - [x] expose the named constructor `unavailable(): self`
+  - [x] expose `errorCode(): string` and `reason(): string`
+  - [x] construct the exception message exclusively from its fixed error code and reason token
+  - [x] MUST NOT retain raw filesystem paths, OS errors, original exception messages, or previous exceptions
+  - [x] identify only maintenance state-access or state-mutation failures
+  - [x] MUST NOT introduce an HTTP exception mapper, public Problem Details descriptor, or additional error-normalization path
 
-- [ ] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-- [ ] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
-- [ ] `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
-- [ ] `packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
+- [x] `packages/platform/http/src/Console/MaintenanceEnableCommand.php`
+  - [x] implement CommandInterface as a `final readonly` service
+  - [x] inject the shared MaintenanceStateStore through a mandatory constructor dependency
+  - [x] implement `name(): string` returning `self::NAME`
+  - [x] implement `run(InputInterface $input, OutputInterface $output): int`
+  - [x] reject a command name different from `self::NAME` before performing state operations
+  - [x] consume parsed InputInterface accessors without parsing raw argv tokens
+  - [x] declare typed public command metadata constants:
+    - [x] `NAME = 'maintenance:enable'`
+    - [x] `SUMMARY = 'Enable maintenance mode.'`
+    - [x] `GROUP = 'maintenance'`
+    - [x] `HIDDEN = false`
+    - [x] `ARGUMENTS = []`
+    - [x] `OPTIONS` contains exactly two descriptors in the following order:
+      - [x] `['name' => 'message', 'summary' => 'Public maintenance message.', 'value' => 'required', 'repeatable' => false]`
+      - [x] `['name' => 'retry-after', 'summary' => 'Retry delay in seconds.', 'value' => 'required', 'repeatable' => false]`
+  - [x] option presence MUST be distinguished from explicitly invalid option values through InputInterface
+  - [x] accept `--message=<public-message>` as an optional command option
+  - [x] accept `--retry-after=<seconds>` only together with `--message`
+  - [x] require supplied message and retry-after option values to be strings
+  - [x] validate retry-after using canonical positive decimal integer syntax without signs, leading zeroes, whitespace, fractions, or exponent notation
+  - [x] validate retry-after bounds before integer conversion to prevent overflow-based acceptance
+  - [x] accept retry-after values only in `1..86400`
+  - [x] reject unsupported arguments, unknown options, invalid option types, and invalid message configuration before filesystem mutation
+  - [x] construct MaintenanceMessage using schema version `1`
+  - [x] enable maintenance through the shared state store
+  - [x] enabling without a message MUST select generic maintenance response behavior
+  - [x] output exactly `['enabled' => true]` through OutputInterface::json() after successful completion
+  - [x] return exit code `0` on success and `1` on command failure
+  - [x] emit only fixed safe CLI error codes and reason tokens:
+    - [x] `CORETSIA_MAINTENANCE_COMMAND_INVALID`
+    - [x] `CORETSIA_MAINTENANCE_MESSAGE_INVALID`
+    - [x] `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE`
+  - [x] MUST NOT echo the supplied message, paths, or rejected values
+  - [x] MUST NOT perform direct filesystem operations, configuration compilation, HTTP service resolution, or lifecycle orchestration
+
+- [x] `packages/platform/http/src/Console/MaintenanceDisableCommand.php`
+  - [x] implement CommandInterface as a `final readonly` service
+  - [x] inject the shared MaintenanceStateStore through a mandatory constructor dependency
+  - [x] implement `name(): string` returning `self::NAME`
+  - [x] implement `run(InputInterface $input, OutputInterface $output): int`
+  - [x] reject a command name different from `self::NAME` before performing state operations
+  - [x] consume parsed InputInterface accessors without parsing raw argv tokens
+  - [x] declare typed public command metadata constants:
+    - [x] `NAME = 'maintenance:disable'`
+    - [x] `SUMMARY = 'Disable maintenance mode.'`
+    - [x] `GROUP = 'maintenance'`
+    - [x] `HIDDEN = false`
+    - [x] `ARGUMENTS = []`
+    - [x] `OPTIONS = []`
+  - [x] reject unsupported arguments and options
+  - [x] disable maintenance exclusively through the shared state store
+  - [x] preserve idempotent disabling
+  - [x] output exactly `['enabled' => false]` through OutputInterface::json() after successful completion
+  - [x] return exit code `0` on success and `1` on command failure
+  - [x] use fixed safe `CORETSIA_MAINTENANCE_COMMAND_INVALID` and `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE` diagnostics
+  - [x] MUST NOT emit success output after a failed state operation
+  - [x] MUST NOT perform direct filesystem operations or artifact/cache operations
+
+- [x] `packages/platform/http/src/Console/MaintenanceStatusCommand.php`
+  - [x] implement CommandInterface as a `final readonly` service
+  - [x] inject the shared MaintenanceStateStore through a mandatory constructor dependency
+  - [x] implement `name(): string` returning `self::NAME`
+  - [x] implement `run(InputInterface $input, OutputInterface $output): int`
+  - [x] reject a command name different from `self::NAME` before performing state operations
+  - [x] consume parsed InputInterface accessors without parsing raw argv tokens
+  - [x] declare typed public command metadata constants:
+    - [x] `NAME = 'maintenance:status'`
+    - [x] `SUMMARY = 'Show maintenance mode status.'`
+    - [x] `GROUP = 'maintenance'`
+    - [x] `HIDDEN = false`
+    - [x] `ARGUMENTS = []`
+    - [x] `OPTIONS = []`
+  - [x] reject unsupported arguments and options
+  - [x] read a fresh application-root-local maintenance state snapshot
+  - [x] output only:
+    - [x] `enabled`: boolean runtime flag state
+    - [x] `message_state`: exactly `absent|valid|invalid|ignored`
+    - [x] `retry_after_seconds`: validated explicit override, present only when configured by a valid active message
+  - [x] inactive state MUST report `message_state=ignored`
+  - [x] emit the exact status snapshot through OutputInterface::json()
+  - [x] return exit code `0` for inactive state or active state with `message_state=absent|valid`
+  - [x] return exit code `1` for active state with `message_state=invalid` while preserving the structured status snapshot
+  - [x] unavailable state MUST produce `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE` rather than a fabricated inactive result
+  - [x] invalid command input and unavailable state MUST use OutputInterface::error() with fixed safe diagnostics and return exit code `1`
+  - [x] unavailable state MUST NOT emit a fabricated structured status snapshot
+  - [x] MUST NOT report message text, state paths, file contents, permissions, modification times, or environment values
+  - [x] MUST NOT claim that all target-local HTTP configurations have maintenance middleware enabled
+  - [x] MUST NOT mutate flag or message state
+
+- [x] `docs/ops/maintenance-mode.md` — maintenance mode operational guide
+  - [x] document maintenance:enable, maintenance:disable, and maintenance:status usage
+  - [x] document optional public message and retry-after arguments
+  - [x] distinguish static middleware feature configuration from dynamic maintenance activation
+  - [x] document application-root-relative runtime state location
+  - [x] document runtime directory and lock-anchor permission requirements
+  - [x] require HTTP and CLI processes to operate under the same filesystem identity or an equivalent access policy compatible with ScopedFileLock read/write opening and permission handling
+  - [x] document the existing blocking semantics of shared and exclusive maintenance-state operations
+  - [x] document that a reported filesystem-operation failure does not guarantee rollback of already completed filesystem mutations
+  - [x] document that maintenance status must be checked after an unsuccessful state-changing command
+  - [x] document idempotent enable/disable behavior
+  - [x] document retained optional message behavior after disabling
+  - [x] document invalid-message fallback and unavailable-state fail-closed behavior
+  - [x] document the exact `/_alive` bypass without promising a downstream HTTP status
+  - [x] document maintenance precedence over HTTPS redirect and downstream request processing
+  - [x] document that state changes require no config:compile or application restart
+  - [x] require retention of the existing maintenance fingerprint exclusion
+  - [x] document that state is local to cooperating processes using the same application root and filesystem
+  - [x] MUST NOT claim automatic distributed maintenance-state synchronization or crash-transactional durability
+  - [x] warn that maintenance message text is intentionally public HTTP response content and MUST NOT contain secrets
+  - [x] warn against supplying sensitive values through command-line message arguments
+  - [x] document unchanged Kernel artifact ownership
+  - [x] document shared application-root-local maintenance activation across participating HTTP targets
+  - [x] document target-local middleware feature participation
+  - [x] document that the runtime flag does not suspend CLI or Worker execution
+  - [x] document the absence of target-specific maintenance command options
+  - [x] document that status reports runtime flag state rather than effective target-local middleware participation
+
+Tests:
+- [x] `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
+  - [x] verify the exact version-1 JSON object schema
+  - [x] verify mandatory and optional field semantics
+  - [x] verify canonical stable JSON bytes and exactly one final LF
+  - [x] verify byte-identical encoding independently of input map key order
+  - [x] verify rejection of unsupported schema versions, unknown fields, duplicate keys, non-object roots, malformed JSON, floats, nulls, and invalid field types
+  - [x] verify rejection of invalid UTF-8, control characters, line breaks, surrounding whitespace, empty messages, and oversized input
+  - [x] verify message and retry-after boundary values
+  - [x] verify fixed safe validation diagnostics without raw rejected input
+  - [x] verify direct construction and JSON reconstruction enforce identical semantic constraints
+  - [x] verify escaped-equivalent duplicate JSON object keys are rejected
+  - [x] verify rejection of Unicode whitespace-only messages, surrounding Unicode whitespace, and Unicode line separators
+  - [x] verify constructor parameters are mandatory and have no default values
+  - [x] verify decoder failures do not retain previous exceptions or expose original decoder diagnostics
+
+- [x] `packages/platform/http/tests/Integration/MaintenanceStateStoreTest.php`
+  - [x] use isolated temporary application roots and the actual RuntimePathContext
+  - [x] use the existing Foundation ScopedFileLock and stable JSON primitives
+  - [x] verify inactive state when the runtime directory or flag is safely absent
+  - [x] verify enable/disable/status operations and idempotence
+  - [x] verify canonical message bytes
+  - [x] verify retained message handling after disabling
+  - [x] verify clearing a retained message when subsequently enabling without a message
+  - [x] verify fresh state visibility through an already constructed shared store
+  - [x] verify application-root isolation and current-working-directory independence
+  - [x] verify relative and drive-relative application roots fail through the fixed maintenance state-unavailable boundary
+  - [x] verify rejected application roots do not create or modify maintenance state relative to the current working directory
+  - [x] verify unsafe directory components, lock anchors, and flag entries fail through MaintenanceStateUnavailableException
+  - [x] verify unsafe optional message entries produce invalid active snapshots without unsafe file access
+  - [x] verify inactive state ignores malformed, unreadable, or unsafe retained optional message entries
+  - [x] verify failed filesystem inspection cannot be misclassified as confirmed absence
+  - [x] verify symlink and non-regular file cases where supported by the test platform
+  - [x] verify bounded optional message reads
+  - [x] verify invalid optional message state does not deactivate maintenance
+  - [x] verify failed filesystem operations do not report successful toggles
+  - [x] verify atomic same-directory publication and operation-owned temporary-file cleanup
+  - [x] verify cooperating readers and writers use the same scoped-lock anchor
+  - [x] MUST NOT use sleeps or timing races as proof of state consistency
+  - [x] MUST NOT modify real Skeleton runtime state
+  - [x] verify enable operations safely replace or remove retained malformed regular message files while maintenance is inactive
+  - [x] verify unsafe retained optional message entries prevent enable operations without publishing or modifying the flag
+  - [x] verify disable operations preserve retained optional message entries without inspecting their contents or type
+  - [x] verify a missing application root produces MaintenanceStateUnavailableException rather than an inactive snapshot
+  - [x] verify enable and disable operations do not create a missing application root
+  - [x] verify an existing application root without a var directory produces an inactive snapshot
+  - [x] verify enable can create missing runtime-state directory components beneath an existing application root
+  - [x] verify newly published flags contain exactly zero bytes
+  - [x] verify existing regular non-empty flags are recognized as active without reading or rewriting their contents
+  - [x] verify repeated identical enable operations preserve existing flag and message files
+  - [x] verify message replacement and removal during active maintenance preserve the existing flag
+  - [x] verify repeated disable operations preserve retained optional message entries and inactive logical state
+
+- [x] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+  - [x] exercise MaintenanceMiddleware through the existing canonical HTTP pipeline
+  - [x] use the actual maintenance state store and isolated application-root fixtures
+  - [x] verify inactive state delegates unchanged
+  - [x] verify active maintenance returns deterministic HTTP `503`
+  - [x] verify exact Content-Type, Cache-Control, Retry-After, and response body semantics
+  - [x] verify HEAD response body behavior
+  - [x] verify configured default and message-specific retry-after values
+  - [x] verify missing, malformed, oversized, and unreadable optional message fallback
+  - [x] verify fail-closed unavailable-state behavior
+  - [x] verify disabled middleware remains non-operative when manually appended
+  - [x] verify enabled tagged and same-slot manually appended middleware participates only once
+  - [x] verify active maintenance short-circuits before HTTPS redirect and downstream request middleware
+  - [x] verify applicable post-decorator traversal
+  - [x] verify correlation, request-id, and enabled security-header finalization on the returned maintenance response
+  - [x] verify normal request-level `handled_error` outcome with finalized status integer `503`
+  - [x] verify independent maintenance metric and log toggles
+  - [x] verify exact metric names, label keys, bounded values, and fixed log identifiers
+  - [x] verify malformed-message and unavailable-state warning events
+  - [x] verify noop compatibility and independent observability failure isolation
+  - [x] verify failed response construction or PSR-7 mutation emits no completed served decision
+  - [x] verify existing Problem Details boundary handles response construction failures without a second error pipeline
+  - [x] verify unhandled Throwables preserve canonical fatal completion behavior
+  - [x] verify one eligible Kernel reset attempt and existing after-UoW semantics per request
+  - [x] verify repeated requests through the same constructed HttpKernel observe enable, disable, and message updates without container rebuilding
+  - [x] verify an active maintenance response bypasses trusted-proxy, trusted-host, HTTPS redirect, request-context enrichment, request-body processing, and terminal application handling
+  - [x] verify exactly one completed served decision is recorded after successful maintenance response construction
+  - [x] verify maintenance metric and log failures do not trigger retries or duplicate emissions
+  - [x] verify invalid-message and unavailable-state warnings remain independent of response-construction failures
+  - [x] verify security-header finalization failure on a returned maintenance response retains the original Throwable and canonical fatal completion with status `unknown`
+  - [x] verify maintenance-decision observability remains independent of later post-decorator and response-finalization failures
+  - [x] verify maintenance state changes do not introduce ContextStore writes or additional reset attempts
+
+- [x] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [x] verify exact case-sensitive `/_alive` path bypass during active maintenance
+  - [x] verify query strings do not change exact path matching
+  - [x] verify no bypass for `/_alive/`, prefixed, suffixed, differently cased, or percent-encoded variants
+  - [x] verify no automatic `/_debug/*` bypass
+  - [x] verify exact liveness bypass remains available when maintenance state is unavailable
+  - [x] verify downstream invocation occurs exactly once
+  - [x] verify a test-only downstream liveness handler can return HTTP `200`
+  - [x] verify MaintenanceMiddleware returns the exact downstream response independently of its status
+  - [x] verify subsequent canonical post-decorator and final-response processing remains applicable
+  - [x] verify MaintenanceMiddleware propagates the original downstream Throwable without replacement
+  - [x] preserve the selected outermost error boundary's existing Throwable-conversion behavior
+  - [x] verify completed bypassed decision is recorded before downstream execution
+  - [x] verify disabled or inactive maintenance produces no maintenance-decision observations
+  - [x] MUST NOT introduce a production system endpoint implementation
+  - [x] verify exactly one bypassed metric increment when downstream execution throws
+  - [x] verify invalid-message and unavailable-state warning events during liveness bypass
+  - [x] verify observability failures do not prevent liveness delegation or duplicate downstream invocation
+
+- [x] `packages/platform/http/tests/Contract/MaintenanceCommandContractTest.php`
+  - [x] verify all three command classes implement CommandInterface
+  - [x] verify exact six-field typed command metadata constants
+  - [x] verify canonical command names and option descriptors
+  - [x] verify command name and provider metadata consistency
+  - [x] verify mandatory explicit constructor dependencies
+  - [x] verify accepted and rejected command input
+  - [x] verify invalid input performs no state mutation
+  - [x] verify exact structured success outputs and failure exit codes
+  - [x] verify status never includes message contents or filesystem paths
+  - [x] verify commands use only the existing InputInterface and OutputInterface contracts
+  - [x] verify no direct stdout/stderr or independent CLI lifecycle participation
+  - [x] verify commandName() mismatches are rejected without state access
+  - [x] verify rejection of explicitly null, boolean, repeated, and otherwise invalid option values
+  - [x] verify retry-after decimal syntax, integer overflow rejection, and exact range boundaries
+  - [x] verify active maintenance without an optional message reports successful status with `message_state=absent`
+  - [x] verify active maintenance with an invalid message reports `enabled=true`, `message_state=invalid`, and exit code `1`
+  - [x] verify unavailable state emits only the fixed safe command diagnostic without a fabricated status snapshot
+  - [x] verify target options and unsupported positional arguments are rejected
+  - [x] verify fixed command error codes and reason tokens
+
+- [x] `packages/platform/cli/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
+  - [x] reuse the existing installed-layout consumer fixture and canonical CLI entrypoint
+  - [x] execute actual CLI command discovery and command execution through the existing source-host lifecycle
+  - [x] verify all three maintenance commands are discoverable when `platform.http` is enabled for console
+  - [x] verify commands are absent when `platform.http` is not selected for console
+  - [x] verify list/help discovery does not create maintenance state or resolve executable HTTP services
+  - [x] verify maintenance commands execute without resolved HTTP PSR-17 factories
+  - [x] verify enable/disable/status work before any generated artifacts exist
+  - [x] verify command execution does not create artifacts
+  - [x] prepare an isolated application with valid compiled web artifacts using existing Kernel operations and test-only PSR-17 bindings
+  - [x] supply test-only PSR-17 bindings through canonical declarative provider discovery available to the actual CLI subprocess
+  - [x] MUST NOT rely on parent-process-only service instances or PHPUnit mocks for subprocess container compilation
+  - [x] obtain the baseline fingerprint, generation identity, and generated artifact bytes
+  - [x] execute real maintenance enable, message update, status, and disable commands
+  - [x] verify the web fingerprint and selected generation identity remain unchanged
+  - [x] verify all existing artifact bytes remain unchanged
+  - [x] verify cache:verify remains successful without recompiling configuration
+  - [x] verify repeated commands do not modify logical state unnecessarily
+  - [x] verify console and web runtime contexts address the same maintenance runtime directory
+  - [x] verify web and api runtime contexts consume the same application-root-local maintenance activation
+  - [x] verify HTTP target-local maintenance feature disablement remains independent of the shared runtime flag
+  - [x] verify maintenance enablement does not prevent subsequent CLI command execution
+  - [x] verify command discovery and runtime execution preserve the existing console ModulePlan
+  - [x] verify `--target` is rejected through the existing `CORETSIA_CLI_INPUT_INVALID` diagnostic with reason `cli-option-unknown`
+  - [x] verify unsupported positional arguments following the end-of-options marker are rejected through the existing `CORETSIA_CLI_INPUT_INVALID` diagnostic with reason `cli-argument-count-invalid`
+  - [x] verify rejected CLI input does not resolve executable maintenance command services or mutate maintenance state
+  - [x] verify maintenance-owned semantic validation failures retain their fixed maintenance diagnostics
+  - [x] verify structured command outputs remain inside the existing `coretsia.cli-output@1` JSON envelope
+  - [x] verify status output never claims effective maintenance participation for individual application targets
+  - [x] verify flag, message, lock-anchor, and temporary-file locations remain covered by the effective application fingerprint exclusion
+  - [x] verify command execution from a different working directory
+  - [x] verify another application root is unaffected
+  - [x] preserve exactly one canonical CLI UnitOfWork per executed command
+  - [x] MUST NOT use a mocked KernelOps result as the sole fingerprint/artifact evidence
 
 #### Modifies
 
-- [ ] `packages/platform/http/config/http.php` — add `http.maintenance.*` keys + defaults
-- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.maintenance.*`
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register middleware + add tag (system_pre) + register CLI commands (tag `cli.command`)
-- [ ] `packages/platform/http/README.md` — section “Maintenance” (slot/tag/priority, bypass rules, file paths + schema)
-- [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
-- [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock for `MaintenanceMiddleware` (`http.middleware.system_pre` priority `900`)
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-maintenance-mode-toggle.md`
+- [x] `packages/platform/http/config/http.php`
+  - [x] add the `maintenance` map under the existing `http` configuration root
+  - [x] declare `enabled=true`
+  - [x] declare `retry_after_default_seconds=60`
+  - [x] document that enabled controls feature participation, not active runtime state
+  - [x] preserve all existing HTTP defaults and nine middleware slots
+  - [x] MUST NOT declare configurable state-file paths, debug bypass rules, runtime-state values, or another configuration root
+  - [x] update the file-level baseline invariants to reflect implemented maintenance configuration
+  - [x] remove maintenance configuration from the list of unsupported HTTP features
+  - [x] extend metrics and access-log configuration descriptions with maintenance-decision observability
+  - [x] document the maintenance retry-after range and fixed runtime state location
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/config/rules.php`
+  - [x] require the `maintenance` map
+  - [x] reject unknown keys within the maintenance map
+  - [x] require `enabled` as a strict boolean
+  - [x] require `retry_after_default_seconds` as an integer in `1..86400`
+  - [x] apply validation independently of middleware enablement
+  - [x] preserve matching defaults/rules key order
+  - [x] reuse existing ConfigValidator declarative rules without introducing another validation DSL
+  - [x] extend the file-level validation contract with the strict maintenance feature boolean and retry-after integer range
 
-N/A (package `platform/http` already exists; this epic adds maintenance slice only)
+- [x] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - [x] add `http.maintenance.enabled` to the existing boolean middleware-toggle allowlist
+  - [x] preserve canonical TagRegistry ordering and toggle evaluation
+  - [x] preserve tagged/manual same-slot deduplication
+  - [x] preserve manual append semantics
+  - [x] MUST NOT inspect runtime maintenance state during middleware stack construction
+  - [x] MUST NOT dynamically rebuild the middleware stack when the runtime flag changes
+  - [x] MUST NOT introduce another slot, priority policy, or error boundary
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php` — declarative maintenance wiring
+  - [x] read the maintenance map through existing HttpServiceFactory configuration helpers
+  - [x] consume validated maintenance enablement and retry-after configuration
+  - [x] require the existing runtime-owned `RuntimePathContext` service
+  - [x] register the existing Foundation ScopedFileLock through declarative DI
+  - [x] register a shared MaintenanceStateStore with explicit RuntimePathContext and ScopedFileLock references
+  - [x] MUST NOT register, alias, replace, or construct RuntimePathContext within the HTTP provider
+  - [x] MUST NOT embed resolved application-root or state-file paths in container descriptors
+  - [x] MUST NOT perform filesystem access during definition production
+  - [x] register MaintenanceMiddleware as a shared service with explicit state-store, factory, observability, and scalar configuration arguments
+  - [x] register MaintenanceMiddleware through `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`, priority `900`, meta `['toggle' => 'http.maintenance.enabled']`
+  - [x] place the registration between TraceContextMiddleware and TrustedProxyMiddleware
+  - [x] preserve registration independently of static feature enablement and runtime flag existence
+  - [x] register the three maintenance command services independently of HTTP middleware enablement
+  - [x] inject the same shared MaintenanceStateStore into every command
+  - [x] register command services through `ReservedTags::CLI_COMMAND`
+  - [x] use actual command-class FQCNs as exact service IDs
+  - [x] use actual CLI tag priority `0`
+  - [x] derive exactly `name|summary|group|hidden|arguments|options` metadata from the corresponding typed public class constants
+  - [x] MUST NOT resolve command services during definition production
+  - [x] MUST NOT introduce a dependency from command services to HTTP response factories, middleware, pipeline, or HttpKernel
+  - [x] preserve source/compiled container parity and Foundation later-binding-wins semantics
+  - [x] preserve existing HttpKernel constructor arguments and its four completion services
+  - [x] MUST NOT introduce ContextStore bindings, lifecycle tags, or reset participation
+
+Tests:
+- [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] extend the exact canonical baseline from seven to eight HTTP-owned middleware registrations
+  - [x] assert MaintenanceMiddleware at priority `900` with exact maintenance toggle metadata
+  - [x] include the canonical Maintenance namespace in middleware service registration assertions
+  - [x] verify canonical relative ordering between TraceContextMiddleware and TrustedProxyMiddleware
+  - [x] verify enabled and disabled tagged participation
+  - [x] preserve exact ordering of unrelated middleware
+  - [x] preserve exclusive priority-`1000` Problem Details boundary
+
+- [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] extend exact HTTP root-key and default-value assertions with the maintenance map
+  - [x] verify strict required-key validation and rejection of unknown keys
+  - [x] verify exact boolean and bounded integer validation
+  - [x] verify maintenance defaults/rules key-order parity
+  - [x] preserve existing HTTP feature and middleware-slot assertions
+
+- [x] `packages/platform/http/tests/Contract/HttpMiddlewareTagMetadataContractTest.php`
+  - [x] add `http.maintenance.enabled` to canonical boolean-toggle coverage
+  - [x] verify missing, malformed, and non-boolean maintenance toggle values fail closed
+  - [x] preserve rejection of non-canonical metadata and non-middleware feature toggles
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] extend the exact selected service-descriptor baseline from nine to fifteen services
+  - [x] include ScopedFileLock, MaintenanceStateStore, MaintenanceMiddleware, MaintenanceEnableCommand, MaintenanceDisableCommand, and MaintenanceStatusCommand
+  - [x] assert exact shared class-service descriptors and constructor arguments for all six additional services
+  - [x] assert MaintenanceStateStore consumes the exact runtime-owned RuntimePathContext instance
+  - [x] assert MaintenanceStateStore and command services do not participate in HTTP middleware tags
+  - [x] extend exact middleware tag assertions from seven to eight registrations
+  - [x] assert exact CLI tag priorities, service IDs, and six-field metadata
+  - [x] verify command registrations remain independent of static maintenance enablement
+  - [x] verify explicit RuntimePathContext service references in declarative definitions
+  - [x] supply RuntimePathContext to existing source-container fixtures
+  - [x] reuse the existing RuntimePathContext compiled-container seed
+  - [x] use isolated real temporary application roots for maintenance-enabled runtime execution
+  - [x] disable maintenance explicitly in unrelated HTTP-only fixture scenarios where maintenance state access is not under test
+  - [x] verify all new production constructor parameters are mandatory and have no default values
+  - [x] verify new state services, middleware, and commands are readonly and shared
+  - [x] verify middleware and all commands receive the same maintenance state-store instance within each container
+  - [x] verify equivalent enabled/disabled middleware behavior in source and compiled container modes
+  - [x] verify both container modes observe runtime state mutation without rebuilding definitions or services
+  - [x] verify dynamically changing maintenance state does not change the declarative definition stream
+  - [x] verify dynamically changing maintenance state does not change the compiled container graph
+  - [x] verify distinct runtime application roots consume isolated maintenance state without changing the compiled graph
+  - [x] verify application-root paths and active maintenance state are absent from compiled graph descriptors
+  - [x] preserve existing exact finalizer dependencies and lifecycle-tag ownership assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] update the exact HTTP middleware-tag count from seven to eight
+  - [x] preserve exactly four existing final-response completion services
+  - [x] preserve existing HttpKernel constructor and lifecycle assertions
+  - [x] preserve independence of final-response observation from middleware decision observation
+
+- [x] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+  - [x] update exact registration counts to eight without and nine with the selected error boundary
+  - [x] supply RuntimePathContext to source-container fixtures corresponding to existing compiled runtime seed fixtures
+  - [x] explicitly disable maintenance in existing error-boundary-only behavior cases
+  - [x] preserve the exact exclusive outermost priority-`1000` error boundary position
+  - [x] preserve existing ordinary response, mapped error, emergency response, and Throwable propagation coverage
+
+- [x] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+  - [x] update the provider-based canonical middleware-ordering fixture to include MaintenanceMiddleware at priority `900`
+  - [x] verify maintenance precedes TrustedProxyMiddleware and HttpsRedirectMiddleware
+  - [x] disable maintenance explicitly before executing existing redirect-only container-resolution fixtures
+  - [x] preserve existing redirect same-slot deduplication, response construction, proxy handoff, and observability assertions
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] extend readonly-service assertions with the maintenance middleware and state store
+  - [x] verify neither participates in ResetInterface or kernel lifecycle tags
+  - [x] preserve the four canonical final-response completion-service assertions
+
+- [x] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+  - [x] assert the canonical `http.maintenance_total` counter catalog entry with exactly the `outcome` label
+  - [x] preserve the existing global metric-label allowlist
+  - [x] preserve all existing canonical metric catalog assertions
+
+Documentations:
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] extend the existing HTTP runtime decision with maintenance middleware activation and state ownership
+  - [x] document application-root resolution through RuntimePathContext
+  - [x] document reuse of Foundation scoped filesystem locking and stable JSON primitives
+  - [x] distinguish static configuration from mutable maintenance runtime state
+  - [x] document maintenance placement before trusted-proxy, trusted-host, and redirect processing
+  - [x] document preservation of the canonical error boundary, response finalization, and Kernel lifecycle
+  - [x] update the relevant Non-goals and verification statements
+  - [x] preserve system-endpoint ownership outside the maintenance implementation
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] activate the existing MaintenanceMiddleware reservation at priority `900`
+  - [x] document exact `http.maintenance.enabled` toggle metadata
+  - [x] update the implemented HTTP middleware count from seven to eight
+  - [x] document maintenance short-circuit and liveness bypass semantics
+  - [x] document maintenance-decision observability ownership
+  - [x] preserve all unrelated priorities, reservations, slots, and completion rules
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] extend the existing boolean metadata allowlist with `http.maintenance.enabled`
+  - [x] document the implemented priority-`900` middleware contribution
+  - [x] document static feature participation and dynamic runtime-state evaluation
+  - [x] document explicit runtime path-context, state-store, factory, and observability dependencies
+  - [x] document exact liveness bypass without system-endpoint response ownership
+  - [x] document maintenance precedence over downstream request processing and HTTPS redirect
+  - [x] document deterministic maintenance responses and state-failure fallback
+  - [x] preserve post-decorator traversal and canonical final-response hardening
+  - [x] preserve existing request identities, completion observability, Throwable precedence, and reset discipline
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `http.maintenance_total` under owner `platform/http` as a counter
+  - [x] declare exactly the `outcome` label with allowed values `served|bypassed`
+  - [x] document exact maintenance-decision metric and log emission conditions
+  - [x] document fixed served, invalid-message, and unavailable-state log event identifiers
+  - [x] document bounded producer-supplied log fields and independent observability failure isolation
+  - [x] preserve the existing HTTP completion outcome taxonomy and canonical metrics
+  - [x] preserve the existing global label allowlist
+  - [x] MUST NOT introduce maintenance-specific spans
+
+- [x] `docs/guides/commands.md`
+  - [x] document maintenance:enable, maintenance:disable, and maintenance:status
+  - [x] document exact supported options, structured output fields, exit codes, and safe error diagnostics
+  - [x] document discovery through the existing cli.command contract
+  - [x] document console ModulePlan participation requirements
+  - [x] document application-root-local shared maintenance state
+  - [x] preserve existing global CLI input/output and Kernel operation semantics
+
+- [x] `packages/platform/http/README.md`
+  - [x] update the implemented middleware baseline from seven to eight
+  - [x] extend the complete HTTP configuration example with maintenance defaults
+  - [x] document MaintenanceMiddleware placement, feature toggle, and dynamic state flag
+  - [x] document runtime state location and optional public message schema
+  - [x] document exact response status, headers, body, HEAD behavior, and retry-after selection
+  - [x] document liveness bypass and downstream response ownership
+  - [x] document maintenance precedence over HTTPS redirect
+  - [x] document maintenance CLI commands and safe outputs
+  - [x] document metric/log toggles and permitted diagnostic fields
+  - [x] document invalid-message fallback and unavailable-state behavior
+  - [x] document preservation of canonical finalization and reset discipline
+  - [x] update obsolete future-only maintenance statements and relevant non-goals
+  - [x] document application-root-wide runtime maintenance activation across participating web and api targets
+  - [x] document target-local static middleware participation through `http.maintenance.enabled`
+  - [x] document that maintenance activation does not suspend CLI command execution or Worker processing
+  - [x] document that maintenance commands do not accept a target override
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-- [ ] Keys (dot):
-  - [ ] `http.maintenance.enabled` = true
-  - [ ] `http.maintenance.flag_path` = 'packages/applications/skeleton/var/maintenance/enabled'
-  - [ ] `http.maintenance.message_path` = 'packages/applications/skeleton/var/maintenance/message.json'
-  - [ ] `http.maintenance.retry_after_default_seconds` = 60
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/http/config/http.php`
+  - [x] `packages/platform/http/config/rules.php`
+- [x] Keys (dot):
+  - [x] `http.maintenance.enabled` = `true`
+  - [x] `http.maintenance.retry_after_default_seconds` = `60`
+- [x] Rules:
+  - [x] maintenance is a required strict map
+  - [x] `enabled` MUST be boolean
+  - [x] `retry_after_default_seconds` MUST be an integer in `1..86400`
+  - [x] unknown keys MUST be rejected
+- [x] Runtime state location:
+  - [x] `<applicationRoot>/var/maintenance/enabled`
+  - [x] `<applicationRoot>/var/maintenance/message.json`
+  - [x] `<applicationRoot>/var/maintenance/maintenance.lock`
+- [x] Static/dynamic separation:
+  - [x] configuration enables or disables middleware participation
+  - [x] the runtime flag activates or deactivates maintenance mode
+  - [x] runtime state MUST NOT be represented by mutable configuration keys
+  - [x] MUST NOT introduce configurable runtime state paths
+  - [x] MUST NOT introduce another configuration root
+
+- [x] Application-target scope (MUST):
+  - [x] runtime maintenance activation is shared by participating HTTP targets within one application root
+  - [x] `web` and `api` consume the same runtime maintenance state when their effective `http.maintenance.enabled` configuration is `true`
+  - [x] `maintenance:enable` and `maintenance:disable` MUST operate on the shared application-root-local runtime state
+  - [x] `maintenance:status` MUST report the shared runtime state rather than infer effective target-local middleware participation
+  - [x] MUST NOT introduce target-specific runtime flags, a `--target` option, or target-specific runtime state directories
+  - [x] MUST NOT suspend console command execution or Worker processing
+  - [x] MUST preserve existing target-local ModulePlan and Phase B configuration semantics
 
 #### Wiring / DI tags (when applicable)
 
 - Tags introduced (this epic is the OWNER):
   - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Http\Maintenance\MaintenanceMiddleware`
-  - [ ] adds tag: `http.middleware.system_pre` priority `900` meta `{toggle:'http.maintenance.enabled'}`
-  - [ ] registers: `Coretsia\Http\Console\MaintenanceEnableCommand`
-  - [ ] registers: `Coretsia\Http\Console\MaintenanceDisableCommand`
-  - [ ] registers: `Coretsia\Http\Console\MaintenanceStatusCommand`
-  - [ ] adds tag: `cli.command` for each command using a package-local internal mirror constant
-    (for example a private constant in the wiring class; canonical string literal is allowed only as fallback; priority bands per CLI SSoT)
+- [x] Existing tag consumption:
+  - [x] `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`
+  - [x] `ReservedTags::CLI_COMMAND`
+- [x] ServiceProvider wiring evidence:
+  - [x] requires the existing Kernel RuntimePathContext runtime seed
+  - [x] registers Foundation ScopedFileLock
+  - [x] registers shared `Coretsia\Platform\Http\Maintenance\MaintenanceStateStore`
+  - [x] registers shared `Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware`
+  - [x] adds `http.middleware.system_pre`, priority `900`, meta `['toggle' => 'http.maintenance.enabled']`
+  - [x] registers `Coretsia\Platform\Http\Console\MaintenanceEnableCommand`
+  - [x] registers `Coretsia\Platform\Http\Console\MaintenanceDisableCommand`
+  - [x] registers `Coretsia\Platform\Http\Console\MaintenanceStatusCommand`
+  - [x] adds `cli.command` with priority `0` for each command
+  - [x] derives command metadata from the six canonical typed public constants
+  - [x] preserves tag registration independently of runtime maintenance activation
+- [x] MUST NOT introduce:
+  - [x] another tag identifier or registry
+  - [x] another middleware slot
+  - [x] another command catalog or dispatcher
+  - [x] another runtime path binding
+  - [x] `kernel.reset` or `kernel.stateful` participation
 
 #### Artifacts / outputs (if applicable)
 
-- [ ] Writes:
-  - [ ] `packages/applications/skeleton/var/maintenance/enabled` (existence flag)
-  - [ ] `packages/applications/skeleton/var/maintenance/message.json` (schemaVersion, deterministic bytes)
-- [ ] Reads:
-  - [ ] `packages/applications/skeleton/var/maintenance/message.json` schema is validated deterministically (schemaVersion int; safe fields only)
+- Artifacts:
+  - N/A
+- [x] Runtime maintenance state:
+  - [x] `var/maintenance/enabled` — regular existence flag
+  - [x] `var/maintenance/message.json` — optional canonical version-1 message map
+  - [x] `var/maintenance/maintenance.lock` — persistent scoped-lock anchor
+  - [x] operation-owned temporary files during atomic publication
+- [x] Runtime state ownership:
+  - [x] only maintenance state-store operations invoked by CLI commands may create, replace, or remove the flag and optional message
+  - [x] HTTP middleware may read state and participate in existing scoped-lock synchronization
+  - [x] runtime state files, lock anchors, and temporary files MUST NOT be committed
+  - [x] preserve the existing Skeleton `.gitkeep` and ignore policy
+- [x] Fingerprint and artifact independence:
+  - [x] preserve the existing effective `var/maintenance` fingerprint exclusion
+  - [x] runtime state MUST NOT enter config, module, container, or fingerprint artifact payloads
+  - [x] maintenance operations MUST NOT write artifact directories
+  - [x] maintenance operations MUST NOT change the selected artifact generation
+  - [x] maintenance operations MUST NOT trigger config:compile, cache invalidation, or container rebuilding
+  - [x] no Kernel artifact or fingerprint implementation modifications are required
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-N/A
+- [x] Context:
+  - [x] new maintenance services MUST NOT read or write ContextKeys or ContextStore
+  - [x] MUST NOT introduce request-local attributes or context enrichment
+  - [x] maintenance activation is application runtime state, not UnitOfWork context
+- [x] HTTP lifecycle:
+  - [x] maintenance middleware executes within the existing HTTP UnitOfWork
+  - [x] returned maintenance responses MUST follow existing response decoration, identity/security-header finalization, and completion observability
+  - [x] successful finalized HTTP `503` responses retain the existing `handled_error` outcome
+  - [x] response-construction and finalization failures retain existing Throwable precedence and fatal completion behavior
+  - [x] MUST NOT create another UnitOfWork or reset boundary
+- [x] CLI lifecycle:
+  - [x] each executed maintenance command participates in the existing canonical CLI UnitOfWork
+  - [x] command list/help discovery MUST NOT activate maintenance state operations
+  - [x] MUST NOT introduce command-local UoW management or a composite command execution path
+- [x] Reset discipline:
+  - [x] preserve existing Kernel after-UoW and reset ownership
+  - [x] no maintenance service implements ResetInterface
+  - [x] no new `kernel.reset` or `kernel.stateful` registration
+  - [x] no retained request-local or command-local mutable service state
+  - [x] enabling, disabling, and reading maintenance state MUST NOT invoke reset directly
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `http.maintenance_total` (labels: `outcome=served|bypassed`)
-- [ ] Logs:
-  - [ ] maintenance served → info (no request dump)
-  - [ ] message.json parse error → warn (no file contents)
+- [x] Metrics:
+  - [x] `http.maintenance_total` — counter
+  - [x] labels: exactly `outcome=served|bypassed`
+  - [x] emission controlled by `http.metrics.enabled`
+  - [x] exactly one increment attempt per completed maintenance decision
+  - [x] no completed maintenance-decision metric for disabled, inactive, or failed response-construction cases
+- [x] Logs:
+  - [x] `http.maintenance.served` — info, context `['outcome' => 'served', 'status' => 503]`
+  - [x] `http.maintenance.message_invalid` — warning, context `['reason' => 'invalid-message']`
+  - [x] `http.maintenance.state_unavailable` — warning, context `['reason' => 'state-unavailable']`
+  - [x] emission controlled by `http.access_log.enabled`
+  - [x] no raw message, request, path, filesystem, or exception diagnostics
+- Spans:
+  - N/A
+- [x] Ownership:
+  - [x] maintenance-decision observability is independent of canonical final-request observability
+  - [x] reuse existing injected meter and PSR-3 logger bindings, including Foundation noop implementations
+  - [x] isolate each metric and log emission failure independently without retries
+  - [x] preserve existing HTTP request spans, request counters, duration metrics, and completion logs
+  - [x] preserve existing CLI command observability
+  - [x] MUST NOT introduce another observer service, collector, logging backend, or redactor
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Http\Maintenance\Exception\MaintenanceMessageInvalidException` — errorCode `CORETSIA_MAINTENANCE_MESSAGE_INVALID`
-- [ ] Mapping:
-  - [ ] if message invalid → ignore message and serve generic 503 (preferred), log warn
+- [x] Maintenance state-access failure:
+  - [x] `Coretsia\Platform\Http\Exception\MaintenanceStateUnavailableException`
+  - [x] fixed diagnostic token `http-maintenance-state-unavailable`
+- [x] Invalid optional maintenance message:
+  - [x] fixed validation token `http-maintenance-message-invalid`
+  - [x] preserve active maintenance state
+  - [x] return the generic maintenance response using configured retry-after default
+  - [x] attempt the fixed message-invalid warning according to existing log enablement
+- [x] Unavailable maintenance state:
+  - [x] fail closed to the generic maintenance response for non-bypassed requests
+  - [x] preserve exact liveness bypass delegation
+- [x] CLI diagnostics:
+  - [x] preserve existing CLI parser, command-catalog, and descriptor-driven input-validation diagnostics before command execution
+  - [x] input rejected by the canonical CLI validation boundary MUST retain `CORETSIA_CLI_INPUT_INVALID` and its existing reason tokens
+  - [x] maintenance-owned command execution diagnostics:
+    - [x] `CORETSIA_MAINTENANCE_COMMAND_INVALID` — reason `http-maintenance-command-invalid`
+    - [x] `CORETSIA_MAINTENANCE_MESSAGE_INVALID` — reason `http-maintenance-message-invalid`
+    - [x] `CORETSIA_MAINTENANCE_STATE_UNAVAILABLE` — reason `http-maintenance-state-unavailable`
+  - [x] emit maintenance-owned command failures through the existing OutputInterface::error() contract
+  - [x] active status with an invalid optional message MUST emit only its structured status snapshot through OutputInterface::json() and return exit code `1`
+  - [x] MUST NOT replace canonical CLI validation diagnostics with maintenance-owned diagnostics
+  - [x] MUST NOT introduce another CLI input-validation pipeline, exception mapper, or output formatter
+- [x] Preserve canonical error handling:
+  - [x] maintenance HTTP `503` is an ordinary returned response, not an exception-normalization result
+  - [x] response factory, stream factory, and PSR-7 mutation failures retain the existing selected Problem Details boundary behavior
+  - [x] unhandled Throwables retain existing fatal completion behavior
+  - [x] MUST NOT introduce an exception mapper, second error handler, or emergency-response renderer
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] debug token, request headers/cookies
-- [ ] Allowed:
-  - [ ] safe status + retry-after seconds
+- [x] Runtime filesystem safety:
+  - [x] fixed application-root-relative state locations
+  - [x] no request-controlled or CLI-controlled filesystem paths
+  - [x] reject unsafe runtime directory components, required lock anchors, and flag entries through the maintenance state-unavailable boundary
+  - [x] classify unsafe optional message entries as invalid without following symlinks or reading non-regular files
+  - [x] inactive-state snapshots and disable operations MUST NOT inspect retained optional message entries
+  - [x] enable operations MAY inspect retained optional message entries under the exclusive lock for safe replacement or removal
+  - [x] unsafe optional message entries MUST NOT be followed, read, replaced, or removed by state mutation operations
+  - [x] use bounded reads and atomic state publication
+  - [x] require an operator-controlled runtime state directory
+- [x] Public maintenance message:
+  - [x] message text is explicitly intended for public HTTP response disclosure
+  - [x] use plain-text response content only
+  - [x] validate message shape, byte bounds, UTF-8, and prohibited control characters
+  - [x] MUST NOT interpolate request data, context values, environment values, exception messages, filesystem paths, or generated diagnostics into the message
+  - [x] documentation MUST prohibit operator-supplied secrets in public maintenance messages
+- [x] Diagnostics MUST NOT expose:
+  - [x] raw message contents or rejected JSON fields
+  - [x] message hashes, fragments, or lengths
+  - [x] raw request paths, query strings, headers, cookies, authorization values, or debug tokens
+  - [x] absolute paths, temporary filenames, filesystem contents, OS warnings, environment values, or exception diagnostics
+- [x] Allowed diagnostic values:
+  - [x] fixed error codes and reason tokens
+  - [x] bounded maintenance decision outcome
+  - [x] canonical integer response status
+  - [x] boolean runtime flag state
+  - [x] bounded CLI message-state classification
+  - [x] validated retry-after seconds in HTTP response headers and explicitly permitted CLI output
+- [x] MUST NOT introduce a duplicate redaction implementation
+- [x] MUST preserve existing canonical CLI output and PSR-3 logging redaction policies
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-- [ ] If redaction exists → `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
+- [x] Strict maintenance configuration defaults, required keys, types, and retry-after bounds.
+- [x] Strict version-1 maintenance message schema and deterministic canonical JSON bytes.
+- [x] Application-root-local state resolution and isolation.
+- [x] Fresh state visibility through already constructed shared services.
+- [x] Idempotent runtime enable/disable and deterministic optional-message behavior.
+- [x] Bounded state reads, unsafe file rejection, scoped locking, and atomic file publication.
+- [x] Exact declarative DI definitions and source/compiled container parity.
+- [x] Mandatory explicit constructor dependencies and absence of mutable retained lifecycle state.
+- [x] Canonical priority-`900` middleware placement and unchanged error-boundary ordering.
+- [x] Enabled/disabled tagged participation and manual append deduplication.
+- [x] Exact active maintenance HTTP `503` response contract.
+- [x] Configured retry-after fallback and optional validated override.
+- [x] Missing, malformed, oversized, and unreadable optional message fallback.
+- [x] Unavailable maintenance state fail-closed behavior.
+- [x] Exact `/_alive` bypass and preservation of downstream response/Throwable ownership.
+- [x] No automatic debug-path bypass.
+- [x] Maintenance precedence over HTTPS redirects and downstream request execution.
+- [x] Canonical post-decorator traversal and final-response identity/security-header finalization.
+- [x] Existing final-response observability and finalized `503` outcome semantics.
+- [x] Fixed maintenance metric/log identifiers, bounded values, and feature toggles.
+- [x] Independent noop and observability failure isolation.
+- [x] No sensitive request, message, path, or exception diagnostics.
+- [x] Canonical response-construction and fatal response-finalization behavior.
+- [x] Exact CLI command metadata, discovery, input validation, and structured outputs.
+- [x] Real CLI execution without pre-existing generated artifacts or HTTP PSR-17 service resolution.
+- [x] Application-root consistency between CLI and HTTP targets.
+- [x] Unchanged fingerprints, artifact generation identity, and artifact bytes after real command execution.
+- [x] Successful cache verification without recompilation after runtime state changes.
+- [x] No additional ContextStore state, lifecycle tags, UnitOfWork boundaries, or reset attempts.
+- [x] Existing HTTP long-running isolation regression remains green.
+- [x] Rejection of relative application roots without current-working-directory fallback.
+- [x] Confirmed filesystem absence distinguished from inaccessible or ambiguous state.
+- [x] Shared runtime maintenance activation across participating HTTP targets.
+- [x] Target-local static feature participation independent of runtime activation.
+- [x] CLI execution remains available during active maintenance.
+- [x] Exact CLI status semantics for absent, valid, invalid, and ignored optional messages.
+- [x] No target-specific runtime flags or command options.
+- [x] Maintenance observability remains independent of subsequent response-finalization and downstream execution failures.
+- [x] Filesystem-operation failure reporting without unsupported rollback guarantees.
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A
-
-### Tests (MUST)
-
-- Unit:
-  - N/A
-- Contract:
-  - [ ] `packages/platform/http/tests/Contract/MaintenanceMessageSchemaContractTest.php`
-- Integration:
-  - [ ] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
-  - [ ] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
-  - [ ] `packages/platform/http/tests/Integration/MaintenanceCommandsDoNotDirtyArtifactsTest.php`
-- Gates/Arch:
-  - [ ] deptrac green
+- [x] Reuse existing HTTP integration test construction patterns, canonical HttpKernel, KernelRuntime lifecycle, and declarative container fixtures.
+- [x] Reuse existing source/compiled container seed fixtures and provide the actual RuntimePathContext.
+- [x] Reuse existing PSR-7/17 test response and factory patterns.
+- [x] Use test-only downstream liveness handlers without introducing production system endpoints.
+- [x] Reuse existing CLI installed-layout consumer and subprocess execution fixtures.
+- [x] Reuse existing Kernel artifact integration patterns for actual fingerprint and cache-verification evidence.
+- [x] Use isolated temporary application roots for all writable maintenance state.
+- [x] Preserve existing HTTP long-running regression sequences and assertion strength.
+- [x] MUST NOT introduce another generic HTTP test harness, CLI dispatcher, runtime lifecycle manager, reset abstraction, or production test fixture.
+- [x] MUST NOT modify actual Skeleton maintenance runtime files during tests.
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Determinism: CLI enable/disable/status не роблять artifacts dirty; rerun-no-diff where applicable
-- [ ] Docs updated:
-  - [ ] `packages/platform/http/README.md`
-  - [ ] `docs/ops/maintenance-mode.md`
-  - [ ] ADR registered
-- [ ] CLI tag usage stays compliant with tag SSoT:
-  - [ ] no public owner-like `cli.command` API is introduced in `platform/http`
-  - [ ] command discovery prefers a package-local internal mirror constant in existing wiring code
-  - [ ] no extra non-owner `Tags.php` file is introduced for this slice
-- [ ] Deterministic message.json bytes policy (MUST)
-  - [ ] `message.json` bytes MUST be produced via `Coretsia\Foundation\Serialization\StableJsonEncoder` (no ad-hoc json_encode).
-  - [ ] Writer MUST:
-    - [ ] write LF-only + final newline,
-    - [ ] be atomic (write temp + rename),
-    - [ ] never include absolute paths/timestamps/env dumps in payload.
-  - [ ] Schema:
-    - [ ] `{ "schemaVersion": int, "message": string, "retryAfterSeconds"?: int }`
-    - [ ] floats/NaN/INF forbidden, arrays normalized per json-like policy.
+- [x] Spec locked (this epic text reviewed + no open questions)
+- [x] Implementation complete
+- [x] Tests green
+- [x] Gates/Arch green
+- [x] Docs complete
+- [x] Maintenance runtime state resolves exclusively from the existing Kernel RuntimePathContext.
+- [x] Existing Foundation scoped locking and stable JSON serialization are reused without duplicate implementations.
+- [x] Static maintenance middleware participation remains independent of runtime flag activation.
+- [x] Maintenance enable/disable changes become visible to already constructed shared HTTP services without config:compile or container rebuilding.
+- [x] Active maintenance returns deterministic HTTP `503` responses for non-bypassed requests.
+- [x] Exact `/_alive` bypass preserves downstream handling without introducing a production system endpoint.
+- [x] Optional maintenance messages satisfy the exact bounded version-1 schema.
+- [x] Invalid optional messages retain maintenance activation and produce generic safe responses.
+- [x] Unavailable maintenance state fails closed for non-bypassed requests.
+- [x] State updates are idempotent and use coherent scoped-lock coordination and atomic per-file publication.
+- [x] Middleware participation uses the existing system_pre slot at canonical priority `900`.
+- [x] Maintenance responses preserve canonical response decoration, request identity, security-header finalization, completion observability, Throwable precedence, and reset discipline.
+- [x] Maintenance commands are discovered through the existing cli.command tag with exact priority-zero and six-field metadata contracts.
+- [x] All maintenance commands operate through shared state storage without resolving executable HTTP services.
+- [x] CLI output and maintenance observability disclose only explicitly permitted safe fields.
+- [x] Source and compiled container behavior remains equivalent.
+- [x] All introduced constructor parameters are mandatory, explicitly supplied, and have no default values.
+- [x] All affected production DI definitions and existing test fixtures use the required runtime seed and constructor contracts.
+- [x] Runtime flag, message, lock-anchor, and temporary files remain outside compiled configuration and generated artifacts.
+- [x] Real maintenance command execution preserves fingerprints, artifact generation identity, and generated artifact bytes.
+- [x] Cache verification remains successful without configuration recompilation after runtime state changes.
+- [x] Existing Skeleton maintenance directory placeholder and ignore policy are preserved.
+- [x] No new middleware slots, reserved tags, configuration roots, generated artifacts, or runtime dependencies.
+- [x] No duplicate runtime path resolver, filesystem-lock implementation, JSON serializer, CLI dispatcher, error handler, response finalizer, or reset mechanism.
+- [x] Existing HTTP long-running isolation regression remains green.
+- [x] ADR-0041 and affected SSoT documents are synchronized with the implementation.
+- [x] Maintenance activation is shared across participating HTTP targets within one application root.
+- [x] Target-local HTTP middleware participation remains governed by the existing Phase B configuration.
+- [x] Maintenance activation does not suspend CLI command execution or Worker processing.
+- [x] No target-specific maintenance runtime state or duplicate target-resolution mechanism is introduced.
+- [x] Relative or ambiguous application-root paths cannot redirect maintenance state access to another working directory.
+- [x] Unsafe optional message entries preserve active maintenance without unsafe filesystem access.
+- [x] CLI status distinguishes absent, valid, invalid, and ignored optional message states.
 
 ---
 

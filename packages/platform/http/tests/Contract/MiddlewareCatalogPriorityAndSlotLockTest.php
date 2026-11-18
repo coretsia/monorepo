@@ -22,6 +22,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\HttpsRedirectMiddleware;
 use Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware;
@@ -33,6 +34,7 @@ use Coretsia\Platform\Http\Middleware\TrustedHostMiddleware;
 use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Server\MiddlewareInterface;
 
 final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
 {
@@ -41,6 +43,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
     /** @var array<string, array{priority: int, meta: array<string, string>}> */
     private const array BASELINE = [
         TraceContextMiddleware::class => ['priority' => 930, 'meta' => ['toggle' => 'http.tracing.enabled']],
+        MaintenanceMiddleware::class => ['priority' => 900, 'meta' => ['toggle' => 'http.maintenance.enabled']],
         TrustedProxyMiddleware::class => ['priority' => 880, 'meta' => ['toggle' => 'http.proxy.enabled']],
         RequestContextMiddleware::class => ['priority' => 870, 'meta' => ['toggle' => 'http.context.enrich.enabled']],
         TrustedHostMiddleware::class => ['priority' => 860, 'meta' => ['toggle' => 'http.hosts.enabled']],
@@ -49,7 +52,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         JsonBodyParserMiddleware::class => ['priority' => 800, 'meta' => ['toggle' => 'http.request.json.enabled']],
     ];
 
-    public function testPackageContributesOnlySevenCurrentMiddlewareAtExactCanonicalPriorities(): void
+    public function testPackageContributesOnlyEightCurrentMiddlewareAtExactCanonicalPriorities(): void
     {
         $operations = self::definitions();
         $actual = [];
@@ -72,7 +75,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         \ksort($expected);
         \ksort($actual);
         self::assertSame($expected, $actual);
-        self::assertCount(7, $actual);
+        self::assertCount(8, $actual);
         self::assertArrayNotHasKey(self::PROBLEM_DETAILS, $actual);
         self::assertArrayNotHasKey(
             'Coretsia\\Platform\\Http\\Middleware\\SecurityHeadersMiddleware',
@@ -90,7 +93,16 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
             }
 
             $id = $operation['id'] ?? null;
-            if (\is_string($id) && \str_starts_with($id, 'Coretsia\\Platform\\Http\\Middleware\\')) {
+            if (
+                \is_string($id)
+                && (
+                    \str_starts_with($id, 'Coretsia\\Platform\\Http\\Middleware\\')
+                    || (
+                        \str_starts_with($id, 'Coretsia\\Platform\\Http\\Maintenance\\')
+                        && \is_subclass_of($id, MiddlewareInterface::class)
+                    )
+                )
+            ) {
                 $registered[] = $id;
             }
         }
@@ -116,6 +128,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         $ordered = \array_map(static fn ($entry): string => $entry->id(), $tags->all($tag));
         self::assertSame([
             TraceContextMiddleware::class,
+            MaintenanceMiddleware::class,
             TrustedProxyMiddleware::class,
             RequestContextMiddleware::class,
             TrustedHostMiddleware::class,
@@ -127,12 +140,29 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         ], $ordered);
 
         $http = require __DIR__ . '/../../config/http.php';
+        $http['maintenance']['enabled'] = true;
         $http['proxy']['enabled'] = true;
         $http['hosts']['enabled'] = true;
         $http['https_redirect']['enabled'] = true;
         $http['https_redirect']['target_authority'] = 'example.test';
 
         $stack = new HttpMiddlewareStackBuilder($tags);
+        self::assertSame($ordered, $stack->build($http));
+
+        $http['maintenance']['enabled'] = false;
+
+        self::assertSame(
+            \array_values(
+                \array_filter(
+                    $ordered,
+                    static fn (string $id): bool => $id !== MaintenanceMiddleware::class,
+                ),
+            ),
+            $stack->build($http),
+        );
+
+        $http['maintenance']['enabled'] = true;
+
         self::assertSame($ordered, $stack->build($http));
 
         $http['https_redirect']['enabled'] = false;
@@ -158,6 +188,7 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         $tags->add(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_POST, 'App\\PostDecorator', 10);
 
         $http = require __DIR__ . '/../../config/http.php';
+        $http['maintenance']['enabled'] = true;
         $http['proxy']['enabled'] = true;
         $http['hosts']['enabled'] = true;
         $http['https_redirect']['enabled'] = true;

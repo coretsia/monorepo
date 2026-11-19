@@ -16,9 +16,9 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, a safe pre-routing terminal fallback, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, and bounded maintenance-decision, redirect-decision, and final-request observability.
+Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, and final-request observability, and canonical system-route declarations with concrete reserved-path matching.
 
-Out of scope: SAPI request creation and response emission, a packaged front controller, route matching and system endpoints, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
+Out of scope: SAPI request creation and response emission, a packaged front controller, general application route matching and system endpoint implementations, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
 This README is a consumer-oriented package summary. The normative wiring, lifecycle, and dependency contracts remain in the linked SSoT and ADR documents.
 
@@ -73,6 +73,8 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
 - `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
 - `FallbackRouterHandler` as the safe, routing-free terminal `RequestHandlerInterface`;
+- `SystemRouteTable` as the canonical HTTP-owned versioned system-route declaration registry;
+- `ReservedPathMatcher` for stateless concrete reserved-path matching against the canonical declarations;
 - eight implemented `system_pre` middleware and their HTTP-owned request-safety, maintenance, and HTTPS redirect policies;
 - `MaintenanceStateStore` and `MaintenanceMessage` for application-root-local maintenance activation and validated public message state;
 - `MaintenanceEnableCommand`, `MaintenanceDisableCommand`, and `MaintenanceStatusCommand` for application-local maintenance operations through canonical CLI command registration;
@@ -167,6 +169,47 @@ An explicitly selected, compatible `platform.problem-details` module may contrib
 `Pipeline` executes each entered PSR-15 middleware through the canonical handler contract with no shared mutable traversal cursor. When a request-phase middleware returns a response early, the outer post decorators already entered still decorate it, unwinding in `route_post`, `app_post`, `system_post` order. A post decorator may itself short-circuit, in which case only decorators already outside it execute on return. A downstream `Throwable` propagates unchanged through ordinary middleware; if the selected outer error boundary converts it to a response, that response does not pass through the decorators again. `HttpKernel` still finalizes it.
 
 The baseline terminal `FallbackRouterHandler` constructs a safe `404` with an empty body using the canonical PSR-17 factories. It provides no route matching, route metadata, reserved-path dispatch, or system endpoint behavior.
+
+## System route declarations and reserved-path matching
+
+`Coretsia\Platform\Http\System\SystemRouteTable` is the canonical HTTP-owned versioned registry of system-route declarations and reserved path ownership.
+
+`SystemRouteTable::entries()` returns the immutable canonical declaration list. Each entry contains exactly `owner`, `pattern`, `status`, and `type`. `SystemRouteTable::SCHEMA_VERSION` identifies the canonical declaration set, and `SystemRouteTable::ALIVE_PATH` identifies the exact liveness path `/_alive`.
+
+Declaration status identifies reserved ownership independently of runtime endpoint availability:
+
+- `active` identifies a materialized system-endpoint capability without implying unconditional runtime exposure;
+- `reserved` protects a route declaration without asserting that an endpoint implementation exists;
+- `dev_only` protects a development-only route declaration without activating its endpoint or authorizing access.
+
+Each declaration identifies its semantic owner package. Endpoint implementation, module participation, runtime exposure, and access policy remain separate responsibilities.
+
+`Coretsia\Platform\Http\System\ReservedPathMatcher` consumes `SystemRouteTable::entries()` as its only declaration source and exposes the canonical static API:
+
+```php
+public static function match(string $path): ?array
+```
+
+The input is an encoded concrete URI path component. The matcher returns the complete matching canonical declaration or `null` for a valid non-matching path.
+
+The matcher normalizes an empty path to `/`, ensures exactly one leading slash, collapses consecutive slashes, and preserves trailing slashes, case, and valid percent-encoded octets without decoding them.
+
+Matching semantics are:
+
+- `exact` matches the complete normalized path using strict case-sensitive equality;
+- `prefix` matches the complete slash-terminated canonical pattern as a segment-prefix boundary;
+- the exact `/` declaration reserves only the normalized root path;
+- `/health` and `/health/` are distinct exact and prefix declarations; `/healthz` does not match either declaration.
+
+Invalid concrete path input raises `InvalidArgumentException` with the fixed diagnostic `http-reserved-path-invalid`.
+
+Concrete reserved-path matching identifies reserved ownership only. It does not implement general application routing, route-template overlap analysis, route admission, endpoint dispatch, endpoint activation, authorization, or response construction.
+
+The routing-free `FallbackRouterHandler` does not invoke `ReservedPathMatcher` and returns the safe empty `404` response. The registry and matcher introduce no additional runtime wiring, mutable state, ContextStore participation, observability, or reset registration.
+
+Maintenance liveness bypass remains independent of reserved-path normalization and compares the original PSR-7 URI path directly against `SystemRouteTable::ALIVE_PATH`.
+
+Canonical declaration and versioning requirements are governed by the [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md). Concrete path normalization, matching, and consumer boundaries are governed by the [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md).
 
 ## Configuration
 
@@ -388,7 +431,7 @@ A missing, malformed, oversized, unreadable, or otherwise invalid optional messa
 
 Unavailable maintenance state fails closed using the same generic response and retry delay, rather than assuming inactive state.
 
-The only automatic bypass is the exact case-sensitive URI path `/_alive`. Query strings do not affect this comparison. Trailing slashes, additional segments, different casing, percent-encoded substitutes, and debug paths do not receive an automatic bypass.
+The only automatic bypass is the exact case-sensitive comparison of the original PSR-7 URI `getPath()` value against `SystemRouteTable::ALIVE_PATH` (`/_alive`). Maintenance does not invoke `ReservedPathMatcher` or normalize the path. Query strings do not affect this comparison. Missing or repeated leading slashes, trailing slashes, additional segments, different casing, percent-encoded substitutes, and debug paths do not receive an automatic bypass.
 
 The exact liveness bypass remains available when maintenance state is unavailable. It delegates exactly once to the downstream handler and returns its response unchanged or propagates its original Throwable.
 
@@ -783,7 +826,7 @@ A non-seekable inbound request body must arrive complete and unread from its own
 This package does not provide:
 
 - SAPI front controllers, request-from-globals adapters, response emitters, browser-serving instructions, or deployment transport selection;
-- route matching, routing artifacts, application routes, system endpoints, or a route-template extraction/handoff contract;
+- general application route matching, routing artifacts, application route admission, system endpoint implementations or dispatch, or a route-template extraction/handoff contract;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
 - CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
@@ -800,6 +843,8 @@ This package does not provide:
 - [Platform HTTP package source](https://github.com/coretsia/monorepo/tree/main/packages/platform/http)
 - [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md)
 - [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
+- [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
+- [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
 - [DI Tags and Middleware Ordering SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/di-tags-and-middleware-ordering.md)

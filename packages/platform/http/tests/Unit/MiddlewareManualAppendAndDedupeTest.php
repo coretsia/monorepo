@@ -392,16 +392,20 @@ class ManualMiddlewareBeta implements MiddlewareInterface
 }
 
 final class ManualMiddlewareGamma extends ManualMiddlewareBeta
-{}
+{
+}
 
 final class ManualMiddlewareDelta extends ManualMiddlewareBeta
-{}
+{
+}
 
 final class ManualMiddlewareEpsilon extends ManualMiddlewareBeta
-{}
+{
+}
 
 abstract class ManualAbstractMiddleware implements MiddlewareInterface
-{}
+{
+}
 
 final class ManualMiddlewareNeedsScalar implements MiddlewareInterface
 {

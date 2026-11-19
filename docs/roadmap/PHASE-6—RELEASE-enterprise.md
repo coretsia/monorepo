@@ -6311,7 +6311,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - 6.161.0 — graphql contracts exist
-  - 3.130.0 — routing/system routes exist (if HTTP endpoint is provided)
+  - 3.120.0 — routing/system routes exist (if HTTP endpoint is provided)
   - 1.10.0 — tags registry exists
 
 - Required tags:

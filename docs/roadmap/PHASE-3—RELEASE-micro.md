@@ -6953,7 +6953,7 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "HTTP runtime забезпечує PSR-15 pipeline, deterministic middleware stack, Kernel-owned UnitOfWork lifecycle, declarative DI wiring і безпечний terminal fallback без skeleton defaults; concrete system endpoints належать epic 3.110.0."
+goal: "HTTP runtime забезпечує PSR-15 pipeline, deterministic middleware stack, Kernel-owned UnitOfWork lifecycle, declarative DI wiring і безпечний terminal fallback без skeleton defaults; concrete system endpoints належать epic 3.100.0."
 provides:
 - "Inbound HTTP runtime: PSR-7/15 pipeline + deterministic stack builder + terminal handler (pre-routing)"
 - "UoW envelope: кожен request обгорнутий KernelRuntimeInterface begin/after + reset discipline"
@@ -6963,7 +6963,7 @@ provides:
 - "Cutline impact: blocks Phase 3 platform/runtime cutline"
 - "HTTP-owned runtime entrypoint compatibility guard reuses Kernel RuntimeDriverResolver without modifying Kernel driver matrix or introducing a second runtime capability registry."
 - "PSR-15 middleware response-decorator ordering preserves applicable post-slot execution for early short-circuit responses."
-- "Terminal fallback provides a safe pre-routing boundary; system endpoint behavior remains deferred to epic 3.110.0."
+- "Terminal fallback provides a safe pre-routing boundary; system endpoint behavior remains deferred to epic 3.100.0."
 
 tags_introduced: []
 config_roots_introduced: []
@@ -7131,22 +7131,22 @@ Forbidden:
 - CLI:
   - N/A (maintenance commands are owned by epic 3.80.0; not part of this epic)
 - HTTP:
-  - [x] request body boundary — HTTP runtime contract implemented and verified; consuming SAPI entrypoint integration delegated to epics 3.143.0 and 3.145.0:
-    - [x] consuming HTTP entrypoints MUST provide complete unread non-seekable PSR-7 request body streams; implementation delegated to the consumer-owned transport boundary in 3.143.0 and real HTTP bootstrap in 3.145.0
+  - [x] request body boundary — HTTP runtime contract implemented and verified; consuming SAPI entrypoint integration delegated to epics 3.133.0 and 3.135.0:
+    - [x] consuming HTTP entrypoints MUST provide complete unread non-seekable PSR-7 request body streams; implementation delegated to the consumer-owned transport boundary in 3.133.0 and real HTTP bootstrap in 3.135.0
     - [x] platform/http MUST NOT attempt to recover bytes consumed before the request entered the HTTP runtime
     - [x] seekable request bodies MAY have a nonzero initial cursor because HTTP body verification owns rewind and cursor restoration
     - [x] transport-specific stream construction and request-from-globals behavior remain outside platform/http
-  - [x] runtime readiness — `HttpRuntimeEntrypointGuard` implemented and integration-tested; production entrypoint invocation delegated to epic 3.145.0 through the shared HTTP bootstrap boundary defined by 3.143.0:
-    - [x] the owning HTTP entrypoint MUST invoke HttpRuntimeEntrypointGuard after canonical container composition but before resolving HttpKernelInterface or constructing the executable HTTP middleware pipeline; production integration delegated to 3.145.0
+  - [x] runtime readiness — `HttpRuntimeEntrypointGuard` implemented and integration-tested; production entrypoint invocation delegated to epic 3.135.0 through the shared HTTP bootstrap boundary defined by 3.133.0:
+    - [x] the owning HTTP entrypoint MUST invoke HttpRuntimeEntrypointGuard after canonical container composition but before resolving HttpKernelInterface or constructing the executable HTTP middleware pipeline; production integration delegated to 3.135.0
     - [x] readiness validation MAY resolve the required PSR-17 factory services through the existing canonical container without starting an HTTP UnitOfWork
-    - [x] failed readiness MUST prevent HTTP runtime construction and request execution without attempting fallback factory selection; production enforcement delegated to 3.145.0
-    - [x] pass the selected target's ModulePlan, canonical ConfigRepositoryInterface, effective PSR-17 bindings through the canonical container, and explicit owner-supplied RuntimeDriverContributions; production handoff delegated to 3.145.0
+    - [x] failed readiness MUST prevent HTTP runtime construction and request execution without attempting fallback factory selection; production enforcement delegated to 3.135.0
+    - [x] pass the selected target's ModulePlan, canonical ConfigRepositoryInterface, effective PSR-17 bindings through the canonical container, and explicit owner-supplied RuntimeDriverContributions; production handoff delegated to 3.135.0
     - [x] a successful HTTP module selection or Kernel driver matrix check alone MUST NOT imply that PSR-17 factories or transport adapters are executable
     - [x] the 3.50.0 integration harness MUST exercise this readiness boundary without introducing a production SAPI front controller
-    - [x] concrete SAPI and transport-specific readiness integration remains owned by epics 3.143.0 and 3.145.0
+    - [x] concrete SAPI and transport-specific readiness integration remains owned by epics 3.133.0 and 3.135.0
   - terminal fallback:
     - unmatched requests receive a deterministic safe fallback response before routing integration
-    - concrete `/`, `/ping`, `/_alive`, `/error`, `/health*`, and `/metrics` behavior is deferred to epic 3.110.0
+    - concrete `/`, `/ping`, `/_alive`, `/error`, `/health*`, and `/metrics` behavior is deferred to epic 3.100.0
     - route matching and reserved-path authority MUST NOT be reimplemented in this epic
   - middleware tags/slots/priorities (canonical tag registration + validated feature-specific toggles):
     - `http.middleware.system_pre`:
@@ -7578,11 +7578,11 @@ Terminal handler:
   - [x] provide exactly one safe HTTP 404 terminal response with an empty body for unmatched requests before routing is installed
   - [x] construct the response through the existing ResponseFactoryInterface; do not introduce SystemEndpointPayload solely for this fallback
   - [x] emit no request reflection, raw path, query, headers, cookies, or internal diagnostics
-  - [x] preserve the later 3.110.0 delegation seam without adding another terminal dispatch chain
+  - [x] preserve the later 3.100.0 delegation seam without adding another terminal dispatch chain
   - [x] consume the existing PSR response and stream factory interfaces
   - [x] do not implement `/`, `/ping`, `/_alive`, `/error`, `/health*`, `/metrics`, or debug endpoint dispatch in this epic
   - [x] reserve future integration with `SystemRouteTable` and `ReservedPathMatcher` without creating duplicate route-matching policy
-  - [x] actual system endpoint behavior remains owned by epic 3.110.0
+  - [x] actual system endpoint behavior remains owned by epic 3.100.0
 
 Errors (canonical format-neutral mapping):
 - [x] `packages/platform/http/src/Exception/BadJsonException.php`
@@ -7881,7 +7881,7 @@ Docs:
   - [x] clarify that built-in selections automatically contribute ResponseFactoryInterface and StreamFactoryInterface bindings without requiring a consumer-owned DI provider
   - [x] document `http.factory=external` as the explicit custom-provider mode requiring application-owned declarative PSR-17 bindings
   - [x] clarify that installing a Composer package alone does not select platform.http or enable HTTP request handling
-  - [x] keep complete HTTP target bootstrap, front-controller, SAPI request construction, response emission, and browser-serving instructions deferred to epics 3.143.0 and 3.145.0
+  - [x] keep complete HTTP target bootstrap, front-controller, SAPI request construction, response emission, and browser-serving instructions deferred to epics 3.133.0 and 3.135.0
   - [x] do not introduce skeleton HTTP defaults, new entrypoint files, application DI provider registries, or runtime implementation discovery in this epic
 
 - [x] `docs/architecture/DEPENDENCIES.md`
@@ -8153,7 +8153,7 @@ N/A
   - [x] one safe request completion record per enabled completion path
   - [x] permitted baseline fields: bounded method, status, duration_ms, outcome, canonical correlation_id, and fixed `route_template='unknown'`
   - [x] route template MUST NOT be inferred from the original immutable PSR-7 request after downstream middleware execution
-  - [x] future route-aware logging requires an explicit safe routing metadata handoff owned by epic 3.140.0
+  - [x] future route-aware logging requires an explicit safe routing metadata handoff owned by epic 3.130.0
   - [x] no headers, cookies, raw URI paths, query strings, request/response bodies, tokens, session ids, or private context
   - [x] `http.access_log.enabled=false` suppresses request completion logging
   - [x] optional logging failure never changes the HTTP response, UnitOfWork outcome, or primary Throwable
@@ -8500,7 +8500,7 @@ N/A (integration tests use minimal kernel/http harness)
 
 ### DoD (MUST)
 
-- [x] Spec locked (this epic text reviewed + no open questions; deferred production HTTP entrypoint responsibilities explicitly delegated to epics 3.143.0 and 3.145.0)
+- [x] Spec locked (this epic text reviewed + no open questions; deferred production HTTP entrypoint responsibilities explicitly delegated to epics 3.133.0 and 3.135.0)
 - [x] Implementation complete
 - [x] Tests green
 - [x] Gates/Arch green
@@ -8560,12 +8560,12 @@ N/A (integration tests use minimal kernel/http harness)
   - [x] 3.60.0 owns RequestId generation and propagation
   - [x] 3.70.0 owns security headers and HTTPS redirect behavior
   - [x] 3.80.0 owns maintenance state, commands, and 503 behavior
-  - [x] 3.90.0 and 3.100.0 own canonical system-route and reserved-path matching contracts
-  - [x] 3.110.0 owns full fallback routing and system endpoints
-  - [x] 3.120.0 owns development diagnostics endpoints
-  - [x] 3.130.0 and 3.140.0 own compiled routing and HTTP application dispatch
-  - [x] 3.143.0 and 3.145.0 own skeleton transport entrypoints and SAPI integration
-  - [x] 3.150.0, 3.170.0, and 3.180.0 own their respective optional HTTP middleware
+  - [x] 3.90.0 own canonical system-route and reserved-path matching contracts
+  - [x] 3.100.0 owns full fallback routing and system endpoints
+  - [x] 3.110.0 owns development diagnostics endpoints
+  - [x] 3.120.0 and 3.130.0 own compiled routing and HTTP application dispatch
+  - [x] 3.133.0 and 3.135.0 own skeleton transport entrypoints and SAPI integration
+  - [x] 3.140.0, 3.150.0, and 3.160.0 own their respective optional HTTP middleware
   - [x] 4.60.0 owns multipart upload parsing and quarantine
   - [x] 4.190.0 owns early and identity-aware rate limiting
   - [x] 3.50.0 MUST NOT implement any of these later capabilities merely because their middleware slots or configuration namespaces are reserved
@@ -8577,7 +8577,7 @@ N/A (integration tests use minimal kernel/http harness)
     - [x] If dedupe is needed, it MUST preserve first occurrence order (tagged first, then manual).
     - [x] MUST NOT re-sort anything (TagRegistry already sorted tagged portion).
 - [x] `HttpRuntimeEntrypointGuard` validates HTTP module participation through the existing ModulePlan and delegates driver matrix validation to RuntimeDriverResolver.
-- [x] HTTP entrypoint readiness contract is implemented and integration-tested before UnitOfWork begin with explicit owner-supplied RuntimeDriverContributions; incompatible Worker HTTP contributions are preserved and rejected through canonical Kernel driver matrix validation; production entrypoint invocation and enforcement are explicitly delegated to epic 3.145.0 through the shared transport boundary defined by epic 3.143.0.
+- [x] HTTP entrypoint readiness contract is implemented and integration-tested before UnitOfWork begin with explicit owner-supplied RuntimeDriverContributions; incompatible Worker HTTP contributions are preserved and rejected through canonical Kernel driver matrix validation; production entrypoint invocation and enforcement are explicitly delegated to epic 3.135.0 through the shared transport boundary defined by epic 3.133.0.
 - [x] Kernel contains no new platform/http module-id checks, runtime capability registry, or competing runtime entrypoint guard.
 - [x] no runtime service/container probing is used to establish HTTP module or driver availability.
 - [x] transport-specific extension, executable, and adapter readiness remain with their respective future runtime integration owners.
@@ -11817,7 +11817,7 @@ Documentations:
 
 ---
 
-### 3.90.0 SystemRouteTable reserved map (SSoT) (MUST) [DOC]
+### 3.90.0 System route table and reserved-path matching (SSoT) (MUST) [IMPL+DOC]
 
 ---
 type: package
@@ -11830,30 +11830,56 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "Reserved/system endpoints список є centralized, versioned і enforced у CI (single source of truth)."
+goal: "Establish a canonical versioned system-route registry with deterministic reserved-path matching and CI-enforced consistency as the foundation for subsequent compile-time route guards and runtime system-endpoint dispatch."
 provides:
 - "Єдине джерело правди для reserved/system endpoints (active/dev_only/reserved)"
 - "CI enforcement через gate: таблиця не може “поплисти” без оновлення правил/fixtures"
-- "База для compile-time guard у routing (ReservedRoutesGuard) та runtime FallbackRouter"
+- "Canonical versioned system-route declarations and deterministic reserved-path matching for subsequent route compilation guards and fallback HTTP dispatch"
+- "Єдина canonical реалізація matching правил (exact vs segment-prefix) для reserved endpoints"
+- "Спільна основа для подальшого використання у runtime (FallbackRouter) і compile-time guard (routing compiler)"
+- "Документовані normalization правила (leading/trailing slash, prefix boundary)"
 
 tags_introduced: []
 config_roots_introduced: []
 artifacts_introduced: []
 
-adr: "docs/adr/ADR-XXXX-system-route-table-reserved-map.md"
+adr: "docs/adr/ADR-0042-system-route-table-and-reserved-path-matching.md"
 ssot_refs:
 - "docs/ssot/system-route-table.md"
+- "docs/ssot/reserved-path-matching.md"
 ---
+
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - N/A
+  - 3.50.0 — canonical HTTP runtime and routing-free terminal handler exist.
+  - 3.80.0 — maintenance middleware and exact liveness-path bypass exist.
 
 - Required deliverables (exact paths):
-  - N/A
+  - `packages/platform/http/src/Routing/FallbackRouterHandler.php`
+  - `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php`
+  - `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - `packages/core/contracts/src/Routing/RouteDefinition.php`
+  - `packages/core/contracts/src/Routing/RouteMatch.php`
+  - `packages/core/contracts/src/Routing/RouterInterface.php`
+  - `packages/devtools/internal-toolkit/src/Json.php`
+  - `tools/support/GateRuntime.php`
+  - `tools/support/RepositoryContext.php`
+  - `tools/support/DeterministicFile.php`
+  - `tools/support/MarkdownSectionReader.php`
+  - `tools/support/PhpTokenStream.php`
+  - `tools/support/WorkspacePackageCatalog.php`
+  - `tools/support/ConsoleOutput.php`
+  - `tools/support/ErrorCodes.php`
+  - `composer.json`
 
 - Required config roots/keys:
   - N/A
@@ -11862,17 +11888,29 @@ ssot_refs:
   - N/A
 
 - Required contracts / ports:
-  - N/A (pure table + tooling gate)
+  - N/A (pure static registry, reserved-path matcher, and repository tooling gate)
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
 Depends on:
-- `core/foundation` (optional; deterministic ordering helpers if needed)
-- `core/contracts` (optional; no hard requirement)
+- `core/contracts` (existing package dependency; unchanged)
+- `core/foundation` (existing package dependency; unchanged)
+- `core/kernel` (existing package dependency; unchanged)
+
+Additional dependency constraints:
+- `SystemRouteTable` MUST remain dependency-free static metadata.
+- `ReservedPathMatcher` MUST depend only on `SystemRouteTable` and native PHP string operations.
+- MUST NOT introduce a matching interface, generic router abstraction, or dependency on HTTP messages, runtime containers, or configuration repositories.
+- Future compile-time guards MUST distinguish concrete reserved-path matching from route-template overlap analysis.
+- Future runtime consumers MUST preserve the same effective path representation between reserved-path matching and endpoint dispatch.
+- MUST NOT introduce new production Composer dependencies, module requirements, or Deptrac dependency edges.
+- Repository gate tooling MAY consume the existing internal-toolkit JSON implementation and repository support helpers.
+- Future routing consumers MUST preserve the canonical direct dependency matrix and MUST NOT introduce a reverse dependency or package cycle solely to access the system-route declarations.
 
 Forbidden:
-- any other `platform/*` runtime packages
+- any other `platform/*` runtime packages as new direct production source dependencies of `platform/http`
 - `integrations/*`
+- `devtools/*` and `tools/*` from production HTTP source
 
 #### Uses ports (API surface, NOT deps) (optional)
 
@@ -11881,11 +11919,18 @@ N/A
 ### Entry points / integration points (MUST)
 
 - Gates/CI:
-  - `tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
+  - `composer system-route-table:gate` — canonical standalone gate entrypoint.
+  - `tools/gates/system_route_table_gate.php` — validates the canonical PHP table, normative SSoT declarations, and committed version baseline.
+  - `composer gates` — MUST execute the named system-route-table gate immediately after `composer reserved-tags:gate`.
+  - preserve the existing `composer ci` orchestration by integrating through its existing `composer gates` rail.
+  - support deterministic fixture repository selection through `--root=<fixture-repo-root>`.
 - CLI:
   - N/A
 - HTTP:
-  - N/A
+  - existing maintenance liveness bypass consumes the canonical exact `/_alive` path identifier from `SystemRouteTable`.
+  - preserve the existing routing-free terminal `404` behavior.
+  - expose the canonical pure `ReservedPathMatcher` for concrete reserved-path matching without integrating it into the existing request pipeline.
+  - do not implement general application route matching, route-template compilation, reserved-route admission guards, system-endpoint dispatch, or endpoint responses.
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
@@ -11895,22 +11940,444 @@ N/A
 
 #### Creates
 
-- [ ] `packages/platform/http/src/System/SystemRouteTable.php` — entries + `SCHEMA_VERSION`
-- [ ] `tools/gates/system_route_table_gate.php` — validates table invariants + version bump policy
-- [ ] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php` — shape + invariants
-- [ ] `tools/gates/tests/SystemRouteTableGateTest.php` — fixture good/bad
-- [ ] `docs/ssot/system-route-table.md` — meaning of `active|reserved|dev_only` + how owners claim endpoints later
+- [x] `packages/platform/http/src/System/SystemRouteTable.php` — canonical versioned system-route declarations
+  - [x] namespace: `Coretsia\Platform\Http\System`
+  - [x] final non-instantiable metadata-only class with a private parameterless constructor
+  - [x] declare `public const int SCHEMA_VERSION = 1`
+  - [x] declare `public const string ALIVE_PATH = '/_alive'` as the canonical exact liveness-path identifier
+  - [x] declare `private const array ENTRIES` containing the canonical route entries
+  - [x] expose `public static function entries(): array`
+  - [x] return `self::ENTRIES` directly without transformations, filtering, sorting, or conditional logic
+  - [x] use literal canonical string values for registry fields except the required `self::ALIVE_PATH` reference
+  - [x] MUST NOT use dynamic constant expressions, external constants, array unpacking, or runtime-generated entries
+  - [x] return `list<array{owner: string, pattern: string, status: 'active'|'reserved'|'dev_only', type: 'exact'|'prefix'}>`
+  - [x] every entry MUST contain exactly one `owner`, `pattern`, `status`, and `type` field
+  - [x] preserve the canonical entry field order: `owner`, `pattern`, `status`, `type`
+  - [x] MUST NOT introduce alternative declaration representations or additional public registry accessors
+  - [x] preserve strict string field types without coercion
+  - [x] use canonical package identifiers in `owner`; an explicitly reserved future endpoint owner MAY be declared before its runtime implementation exists
+  - [x] use exactly the following initial version-1 declarations:
+
+    | pattern | type | status | owner |
+    |---|---|---|---|
+    | `/` | `exact` | `reserved` | `platform/http` |
+    | `/_alive` | `exact` | `reserved` | `platform/http` |
+    | `/_debug` | `exact` | `dev_only` | `platform/http` |
+    | `/_debug/` | `prefix` | `dev_only` | `platform/http` |
+    | `/error` | `exact` | `reserved` | `platform/http` |
+    | `/health` | `exact` | `reserved` | `platform/health` |
+    | `/health/` | `prefix` | `reserved` | `platform/health` |
+    | `/metrics` | `exact` | `reserved` | `platform/metrics` |
+    | `/ping` | `exact` | `reserved` | `platform/http` |
+
+  - [x] use `self::ALIVE_PATH` in the canonical liveness entry instead of duplicating its literal value
+  - [x] `active` identifies a materialized system-endpoint capability; it MUST NOT imply unconditional runtime exposure
+  - [x] `reserved` protects a system-route declaration without asserting that its endpoint implementation exists
+  - [x] `dev_only` protects a development-only route declaration without activating its endpoint or authorizing access
+  - [x] all three statuses represent reserved route ownership independently of endpoint availability
+  - [x] `exact` represents a complete case-sensitive URI path
+  - [x] `prefix` represents a case-sensitive slash-terminated namespace boundary
+  - [x] exact `/` represents the root path only and MUST NOT reserve every application path
+  - [x] the exact root-path declaration intentionally reserves `/` for `platform/http`; subsequent application-route admission guards MUST reject competing ownership of this exact path
+  - [x] prefix `/` is forbidden
+  - [x] prohibit wildcard expressions, regular expressions, route placeholders, query strings, fragments, percent-encoded substitutions, control characters, backslashes, dot segments, and empty interior path segments
+  - [x] use lowercase ASCII path segments composed of letters, digits, underscores, and hyphens
+  - [x] trailing slashes are forbidden for exact declarations except `/`; prefix declarations MUST end with exactly one slash
+  - [x] prohibit duplicate patterns and overlapping exact/prefix or prefix/prefix declarations
+  - [x] preserve canonical entry ordering by `pattern ASC` and then `type ASC` using byte-order `strcmp` semantics
+  - [x] store entries in their canonical order; MUST NOT depend on runtime sorting, discovery, configuration, or environment state
+  - [x] return deterministic value copies without exposing mutable shared state
+  - [x] MUST NOT consume ContextStore, configuration repositories, containers, filesystem services, or observability ports
+  - [x] MUST NOT implement route matching, route guards, system-endpoint dispatch, endpoint access policy, or response construction
+  - [x] MUST NOT implement ResetInterface or participate in Kernel lifecycle hooks
+
+- [x] `tools/config/system-route-table.json` — committed system-route version history
+  - [x] store the reviewed immutable snapshots of canonical system-route declarations
+  - [x] use a non-empty JSON list of version snapshots
+  - [x] each snapshot MUST contain exactly:
+    - `schemaVersion` — positive integer
+    - `entries` — canonical system-route entry list
+  - [x] the initial baseline MUST contain exactly the version-1 snapshot
+  - [x] require contiguous versions starting from `1`
+  - [x] preserve all previously approved version snapshots
+  - [x] additions, removals, or changes to any normative entry field MUST require incrementing `SCHEMA_VERSION` by exactly one and appending the corresponding snapshot
+  - [x] prohibit version increments without semantic table changes
+  - [x] prohibit replacement or removal of approved historical snapshots
+  - [x] treat historical snapshot immutability as a mandatory repository review invariant
+  - [x] require the approved baseline history to be preserved when reviewing registry changes
+  - [x] distinguish local baseline consistency verification from historical comparison against an independently trusted repository revision
+  - [x] MUST NOT claim that self-contained baseline validation can independently detect simultaneous rewriting or truncation of the table and its baseline history
+  - [x] keep matcher algorithm changes independent of registry `SCHEMA_VERSION` unless canonical route declarations also change
+  - [x] use the existing `Coretsia\Devtools\InternalToolkit\Json::encodeStable()` canonical serialization semantics and exactly one final LF
+  - [x] this file is repository tooling baseline data, not a generated Kernel artifact or production configuration source
+  - [x] production HTTP code MUST NOT read or depend on this baseline
+
+- [x] `tools/gates/system_route_table_gate.php` — canonical system-route registry enforcement
+  - [x] follow the existing repository gate structure
+  - [x] reuse `GateRuntime::execute()` for bootstrap, result classification, diagnostic ordering, and canonical output
+  - [x] reuse `RepositoryContext` for repository-root resolution, contained file access, and repository-relative diagnostic paths
+  - [x] reuse `DeterministicFile` for deterministic file reads
+  - [x] reuse `MarkdownSectionReader::sections()` to locate and verify the uniqueness of the normative SSoT registry section
+  - [x] MUST NOT introduce another Markdown heading or fenced-code-block parser
+  - [x] reuse `Coretsia\Devtools\InternalToolkit\Json::encodeStable()` for canonical baseline serialization verification
+  - [x] support exactly one optional `--root=<fixture-repo-root>` selector following the existing reserved-tags gate convention
+  - [x] reject malformed, repeated, empty, and unsupported arguments
+  - [x] inspect the exact `SystemRouteTable.php` file belonging to the selected repository context
+  - [x] inspect canonical PHP declarations without resolving the production class through Composer autoload
+  - [x] reuse `PhpTokenStream::fromParsedFile()` for syntax-aware inspection of the selected registry source
+  - [x] reuse existing `PhpTokenStream` token-navigation, delimiter-matching, class-inspection, method-inspection, and string-literal decoding helpers
+  - [x] implement only registry-specific declaration extraction and validation within the gate
+  - [x] MUST NOT introduce a duplicate PHP tokenizer, token-navigation helper, generic PHP parser, or PHP string-literal decoder
+  - [x] support the canonical `self::ALIVE_PATH` reference inside the immutable entries declaration
+  - [x] MUST NOT use `eval()` or execute arbitrary fixture source to reconstruct registry metadata
+  - [x] MUST NOT introduce another generic PHP parser or source-scanning framework
+  - [x] MUST NOT accidentally validate the main repository class through Composer autoload when validating a fixture repository
+  - [x] validate the exact namespace, class identity, static public API, constant types, and immutable declaration shape
+  - [x] validate the canonical `SCHEMA_VERSION`, `ALIVE_PATH`, and `ENTRIES` constant declarations
+  - [x] validate `SCHEMA_VERSION` as a positive decimal integer literal within the PHP integer range
+  - [x] validate that `entries()` returns `self::ENTRIES` directly
+  - [x] validate the private parameterless constructor and absence of additional runtime behavior
+  - [x] reject unexpected executable top-level statements, additional class declarations, inheritance, traits, mutable properties, and unsupported registry constant expressions
+  - [x] validate all required entry fields, strict field types, supported status/type values, package identifier grammar, path grammar, uniqueness, non-overlap, and canonical ordering
+  - [x] validate canonical layered package identifiers according to `docs/architecture/STRUCTURE.md`
+  - [x] reuse `WorkspacePackageCatalog::isLayeredRoot()` for canonical package-layer validation
+  - [x] MUST NOT require a reserved future endpoint owner's package to be installed or materialized in the selected repository
+  - [x] MUST NOT discover runtime packages to determine registry ownership
+  - [x] verify that `ALIVE_PATH` retains the canonical literal value `/_alive`
+  - [x] verify that `ALIVE_PATH` identifies an exact liveness declaration owned by `platform/http`
+  - [x] verify the mandatory exact `/_debug` and slash-terminated `/_debug/` declarations with `dev_only` status
+  - [x] MUST NOT permit an ordinary registry version increment to bypass mandatory liveness or development-only reservation invariants
+  - [x] validate the normative SSoT table and its declared system-route schema version
+  - [x] require exactly one normative registry section and one canonical registry table
+  - [x] require exactly one schema version declaration inside the normative registry section using the canonical Markdown form ``Schema version: `1` ``, where the integer is the current positive registry version
+  - [x] require the normative section to contain only the schema version declaration, canonical Markdown table, and optional blank lines
+  - [x] reject registry version declarations or table rows embedded in fenced code blocks
+  - [x] require the exact normative table columns `pattern`, `type`, `status`, and `owner`
+  - [x] reject malformed, missing, duplicated, or unexpected registry rows and version declarations
+  - [x] reuse normalized text reading for Markdown without weakening exact canonical JSON baseline byte verification
+  - [x] require exact semantic parity between the canonical PHP declarations and the SSoT table
+  - [x] reject missing, malformed, noncanonical, or inconsistent version baseline data
+  - [x] decode baseline JSON using native strict JSON decoding with `JSON_THROW_ON_ERROR`
+  - [x] validate the exact snapshot envelope, list semantics, strict field types, and positive integer versions
+  - [x] require the original baseline bytes to equal `Json::encodeStable($baseline) . "\n"`
+  - [x] reject duplicate JSON keys, unexpected fields, noncanonical map ordering, and noncanonical trailing bytes
+  - [x] normalize normative SSoT rows into the canonical registry entry field order before strict semantic comparison
+  - [x] preserve baseline entry-list ordering without sorting away declaration drift
+  - [x] compare the current table and `SCHEMA_VERSION` against the latest approved baseline snapshot
+  - [x] reject table changes without a corresponding version bump
+  - [x] reject skipped versions, duplicate version snapshots, and version bumps without semantic changes between adjacent snapshots
+  - [x] reject a current table version lower than the latest retained baseline version
+  - [x] enforce internal baseline consistency without claiming verification against historical revisions unavailable to the gate
+  - [x] use `CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT` for policy violations
+  - [x] use `CORETSIA_SYSTEM_ROUTE_TABLE_GATE_FAILED` for repository selection, file inspection, syntax parsing, or argument failures handled by `GateRuntime`
+  - [x] preserve existing canonical ultra-early tooling bootstrap diagnostics
+  - [x] reuse `GateRuntime::withSuppressedErrors()` where necessary to prevent native parser or filesystem warnings from bypassing canonical diagnostics
+  - [x] MUST NOT introduce a duplicate bootstrap or warning-handling boundary
+  - [x] classify successfully inspected but policy-invalid declarations, SSoT entries, and baseline snapshots as registry drift
+  - [x] use deterministic bounded reason tokens for registry shape, field validation, path grammar, duplicate patterns, overlaps, ordering, SSoT drift, baseline canonicality, version sequence, and baseline drift
+  - [x] use repository-relative file identifiers without embedding rejected field values in diagnostics
+  - [x] preserve the existing `GateRuntime` failure boundary without exposing parser or filesystem diagnostics
+  - [x] return exit code `0` with empty output on success
+  - [x] return exit code `1` with canonical deterministic diagnostics on failure
+  - [x] MUST NOT emit raw source snippets, exception messages, stack traces, absolute paths, or environment-dependent values
+  - [x] MUST NOT rewrite PHP declarations, SSoT documents, version baselines, or fixture files
+  - [x] MUST NOT introduce another gate runtime, repository resolver, generic JSON serializer, or routing matcher
+  - [x] resolve the committed version baseline from `tools/config/system-route-table.json` through the selected repository context
+
+- [x] `packages/platform/http/src/System/ReservedPathMatcher.php` — canonical concrete reserved-path matching
+  - [x] namespace: `Coretsia\Platform\Http\System`
+  - [x] final non-instantiable stateless class with a private parameterless constructor
+  - [x] expose `public static function match(string $path): ?array`
+  - [x] return the complete matching canonical entry from `SystemRouteTable::entries()` or `null` when no declaration matches
+  - [x] document the exact return shape as `array{owner: string, pattern: string, status: 'active'|'reserved'|'dev_only', type: 'exact'|'prefix'}|null`
+  - [x] consume the existing canonical table without duplicating reserved paths, owners, statuses, or declaration types
+  - [x] normalize the supplied concrete path exactly once per invocation
+  - [x] accept an encoded concrete URI path component, including an empty path and paths without a leading slash
+  - [x] accept only ASCII URI path characters and valid percent-encoded octets
+  - [x] allow ASCII unreserved characters, URI sub-delimiters, `:`, `@`, `/`, and valid `%HH` sequences
+  - [x] interpret repeated leading slashes as path data rather than URI authority syntax
+  - [x] MUST NOT parse complete URIs, request-target forms, query strings, fragments, or route templates
+  - [x] normalize an empty path to `/`
+  - [x] ensure exactly one leading slash
+  - [x] collapse every consecutive slash sequence into a single slash
+  - [x] preserve a trailing slash after slash normalization
+  - [x] preserve case sensitivity and the original encoded representation of valid percent-encoded octets
+  - [x] MUST NOT trim whitespace, lowercase paths, URL-decode percent escapes, or resolve dot segments
+  - [x] reject literal ASCII whitespace, control characters, DEL, non-ASCII bytes, backslashes, query and fragment delimiters, malformed percent escapes, URI scheme prefixes, raw route-template delimiters, and literal `.` or `..` path segments
+  - [x] reject characters outside the canonical encoded URI path grammar
+  - [x] reject the standalone asterisk request-target form `*`
+  - [x] preserve valid encoded octets without interpreting their decoded meaning
+  - [x] reject invalid matcher input through `InvalidArgumentException` with the fixed diagnostic token `http-reserved-path-invalid`
+  - [x] MUST NOT include rejected path values in exception diagnostics
+  - [x] match `exact` declarations using strict equality with the normalized path
+  - [x] match `prefix` declarations using the complete canonical slash-terminated pattern as the segment-prefix boundary
+  - [x] `/health` MUST match the exact `/health` declaration
+  - [x] `/health/` and `/health/ready` MUST match the `/health/` prefix declaration
+  - [x] `/healthz` and `/healthz/ready` MUST NOT match the `/health/` prefix declaration
+  - [x] apply identical exact and segment-prefix semantics to `/_debug` and `/_debug/`
+  - [x] exact `/` MUST NOT match unrelated paths
+  - [x] trailing-slash variants MUST NOT match non-root exact declarations
+  - [x] valid percent-encoded octets MUST remain opaque to matching and MUST NOT create implicit decoded aliases
+  - [x] return matching entries for every supported declaration status without treating the status as endpoint activation or access authorization
+  - [x] preserve deterministic matching without runtime sorting or mutable caches
+  - [x] use O(n) path normalization with at most O(n) additional memory, where n is the input path length
+  - [x] MUST NOT introduce recursive normalization or repeated URL decoding
+  - [x] MUST NOT consume PSR-7 messages, ContextStore, configuration repositories, containers, filesystem services, or observability ports
+  - [x] MUST NOT implement route-template overlap analysis, endpoint dispatch, endpoint authorization, or response construction
+  - [x] MUST NOT be used to normalize or expand the existing exact maintenance liveness bypass
+  - [x] MUST NOT implement ResetInterface or participate in Kernel lifecycle hooks
+
+Docs:
+- [x] `docs/ssot/system-route-table.md` — normative system-route registry and versioning policy
+  - [x] declare `ssotVersion: 1`, `status: pre-stable`, and `owner: platform/http`
+  - [x] distinguish document metadata `ssotVersion` from the system-route table `SCHEMA_VERSION`
+  - [x] document the canonical version-1 table with exact `pattern`, `type`, `status`, and `owner` fields
+  - [x] use the uniquely named normative section `## System Route Registry (MUST)` for gate consumption
+  - [x] declare the current registry version inside the normative registry section using the canonical Markdown form ``Schema version: `1` ``
+  - [x] keep explanatory policy prose outside the machine-consumed normative registry section
+  - [x] preserve the exact canonical table column order consumed by the repository gate
+  - [x] document exact and slash-terminated prefix declaration semantics
+  - [x] document path grammar, case sensitivity, duplicate/overlap prohibition, and deterministic ordering
+  - [x] document the meaning and security boundaries of `active`, `reserved`, and `dev_only`
+  - [x] distinguish reserved ownership from endpoint implementation, module participation, runtime exposure, and authorization
+  - [x] document endpoint-owner claim and activation requirements
+  - [x] document version baseline append policy and review requirements for historical snapshot immutability
+  - [x] document that development-only reservations do not activate development endpoints
+  - [x] document that maintenance bypass does not implement the liveness endpoint
+  - [x] prohibit competing production route registries
+  - [x] document repository gate enforcement and the canonical implemented reserved-path matcher
+  - [x] reference `docs/ssot/reserved-path-matching.md` for normalization and matching semantics
+  - [x] document that compile-time route admission guards and system-endpoint dispatch remain separate responsibilities
+  - [x] document the distinction between local baseline consistency enforcement and historical snapshot immutability review
+  - [x] document intentional exact root-path ownership without implying wildcard reservation
+  - [x] reference `docs/adr/ADR-0042-system-route-table-and-reserved-path-matching.md`
+  - [x] reference `docs/ssot/routing-and-http-app-contracts.md`
+
+- [x] `docs/adr/ADR-0042-system-route-table-and-reserved-path-matching.md` — canonical system-route registry and reserved-path matching decision
+  - [x] use the title `ADR-0042: System route table and reserved-path matching`
+  - [x] declare `adrVersion: 1`, `status: pre-accepted`, and `owner: platform/http`
+  - [x] establish HTTP ownership of the system-route declaration registry
+  - [x] distinguish the registry from existing Contracts routing descriptors and Foundation DI tag infrastructure
+  - [x] establish separate responsibilities for declarations, matching, compile-time admission, endpoint execution, and endpoint access policy
+  - [x] document the versioned table and committed baseline enforcement decision
+  - [x] document why an additional Contracts registry, Foundation registry, configuration root, generated artifact, or runtime discovery layer is not introduced
+  - [x] document preservation of existing HTTP runtime and maintenance semantics
+  - [x] establish `ReservedPathMatcher` as the canonical implementation of concrete reserved-path matching
+  - [x] define normalization, exact matching, slash-terminated segment-prefix matching, and invalid-input handling
+  - [x] distinguish concrete-path matching from future application route-template overlap analysis
+  - [x] require consistent path representation between future reserved-path matching and endpoint dispatch
+  - [x] document why maintenance liveness bypass retains exact unnormalized URI-path comparison
+  - [x] distinguish local version-baseline validation from historical snapshot immutability review
+  - [x] document that no additional routing runtime, dependency wiring, or endpoint access policy is introduced
+  - [x] reference `docs/ssot/system-route-table.md`
+  - [x] reference `docs/ssot/reserved-path-matching.md`
+
+- [x] `docs/ssot/reserved-path-matching.md` — canonical reserved-path matching and normalization policy
+  - [x] declare `ssotVersion: 1`, `status: pre-stable`, and `owner: platform/http`
+  - [x] establish `ReservedPathMatcher` as the canonical concrete reserved-path matching implementation
+  - [x] reference the canonical declarations from `SystemRouteTable`
+  - [x] document the exact matcher input and return-value contracts
+  - [x] document empty-path handling, leading-slash normalization, repeated-slash normalization, trailing-slash preservation, and case sensitivity
+  - [x] document strict exact matching and slash-terminated segment-prefix boundaries
+  - [x] document valid percent-encoded octets as opaque path data without implicit URL decoding
+  - [x] document prohibited inputs and the fixed invalid-path diagnostic
+  - [x] document matching and non-matching examples for `/`, `/_alive`, `/_debug`, `/_debug/`, `/health`, `/health/`, `/healthz`, `/ping`, and trailing-slash variants
+  - [x] distinguish canonical registry declarations from normalized matcher inputs
+  - [x] document that matching does not activate an endpoint or authorize access
+  - [x] document that a non-matching encoded path MUST NOT be treated as authorization to dispatch its decoded equivalent
+  - [x] require future runtime consumers to match and dispatch the same effective path representation
+  - [x] require future route compilation guards to analyze route-template overlap instead of treating concrete-path matching as sufficient admission validation
+  - [x] document preservation of exact unnormalized maintenance liveness bypass
+  - [x] document absence of runtime state, ContextStore participation, observability, and reset registration
+  - [x] reference `docs/ssot/system-route-table.md`
+  - [x] reference `docs/ssot/routing-and-http-app-contracts.md`
+  - [x] reference `docs/adr/ADR-0042-system-route-table-and-reserved-path-matching.md`
+  - [x] document the canonical encoded URI path grammar and distinction between concrete path input and route templates
+  - [x] document standalone asterisk rejection and path-only interpretation of repeated leading slashes
+
+Tests:
+- [x] `tools/tests/Unit/MarkdownSectionReaderTest.php`
+  - [x] verify existing first-matching-section behavior
+  - [x] verify extraction of all matching sections in document order
+  - [x] verify missing and empty matching sections
+  - [x] verify same-level and higher-level section termination
+  - [x] verify preservation of nested lower-level headings
+  - [x] verify that matching headings inside fenced code blocks are ignored
+  - [x] verify backtick and tilde fence handling
+  - [x] verify equivalent LF and CRLF input behavior
+  - [x] verify preservation of existing invalid-heading diagnostics
+  - [x] verify deterministic repeated section extraction
+
+- [x] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+  - [x] assert the exact class namespace, final class declaration, private parameterless constructor, and static public API
+  - [x] assert the exact typed `SCHEMA_VERSION` and `ALIVE_PATH` constants
+  - [x] assert the canonical initial nine-entry registry
+  - [x] assert the exact entry field names, strict field types, supported statuses and declaration types
+  - [x] assert the canonical entry field order
+  - [x] assert the immutable private typed entries constant and exact public registry API
+  - [x] assert that `/health` and `/health/` remain separate exact and prefix declarations
+  - [x] assert that `/_debug` and `/_debug/` remain separate `dev_only` declarations
+  - [x] assert canonical owner identifiers and path grammar
+  - [x] assert uniqueness, non-overlap, exact root semantics, and byte-order entry ordering
+  - [x] assert that repeated calls return identical declarations
+  - [x] assert that modification of a returned array does not change subsequent table results
+  - [x] assert that the registry exposes metadata only and does not implement endpoint activation, matching, dispatch, or response construction
+  - [x] assert that no ContextStore, ResetInterface, runtime configuration, or service-container dependency is introduced
+
+- [x] `tools/tests/Integration/SystemRouteTableGateTest.php`
+  - [x] execute the actual gate through isolated fixture repository roots
+  - [x] construct isolated fixture repositories satisfying the existing `RepositoryContext::fromRepoRoot()` repository-marker requirements
+  - [x] provide the required `composer.json`, `packages/`, and `tools/` repository markers
+  - [x] provide fixture-local registry PHP source, normative SSoT, and committed baseline data
+  - [x] execute the actual repository gate using `PHP_BINARY` and the existing `--root=` selector
+  - [x] reuse the existing subprocess stdout/stderr capture and temporary-directory cleanup pattern
+  - [x] MUST NOT execute fixture-local PHP registry source
+  - [x] MUST NOT require a duplicate Composer installation or copied tooling implementation inside fixture repositories
+  - [x] follow the existing `ReservedTagsRegistryGateTest` subprocess execution pattern
+  - [x] verify that the canonical version-1 fixture passes with exit code `0` and empty stdout/stderr
+  - [x] verify that fixture-local PHP declarations are inspected instead of the main repository class
+  - [x] verify rejection of missing or malformed fields, invalid types, statuses, owners, patterns, duplicate entries, overlaps, and noncanonical ordering
+  - [x] verify rejection of PHP/SSoT version or entry drift
+  - [x] verify rejection of malformed or duplicated normative sections, version declarations, table headers, and registry rows
+  - [x] verify rejection of incorrect registry class identity, API shape, and noncanonical declaration field ordering
+  - [x] verify correct reconstruction of the canonical `self::ALIVE_PATH` reference
+  - [x] verify rejection of missing, malformed, or noncanonical baseline data
+  - [x] verify rejection of duplicate JSON keys, invalid snapshot envelopes, unexpected fields, and noncanonical baseline bytes
+  - [x] verify rejection of simultaneous aligned PHP and SSoT declaration changes while the approved baseline remains unchanged
+  - [x] verify rejection of a semantic table change without a version bump and baseline append
+  - [x] verify acceptance of a valid next version with a corresponding baseline append
+  - [x] verify rejection of a current version lower than the latest retained baseline version
+  - [x] verify rejection of skipped versions, duplicate versions, and unnecessary version increments between adjacent snapshots
+  - [x] verify exact deterministic failure codes and reason tokens
+  - [x] verify malformed, repeated, empty, and unsupported gate arguments
+  - [x] verify that invalid fixture PHP source is not executed and cannot disclose raw source or exception diagnostics
+  - [x] verify sorted diagnostics, normalized relative paths, and absence of raw exception diagnostics
+  - [x] verify repeated gate runs produce identical results without modifying fixture contents
+  - [x] verify the canonical Composer gate script and aggregate rail registration
+  - [x] verify rejection of changes to the canonical `ALIVE_PATH` identifier even when PHP declarations, SSoT, and baseline are otherwise synchronized
+  - [x] verify rejection of missing mandatory debug declarations or changes to their required `dev_only` status
+  - [x] verify that fenced examples cannot satisfy the normative registry version or table requirements
+  - [x] verify rejection of unexpected content inside the machine-consumed normative registry section
+
+- [x] `tools/tests/Fixtures/SystemRouteTable/baseline.json`
+  - [x] contain the canonical non-empty version-history JSON list with exactly one version-1 snapshot
+  - [x] preserve the production baseline envelope, canonical serialization, exact entry field order, and final LF
+  - [x] serve as an independent committed fixture without reading the production baseline as the expected test oracle
+  - [x] derive invalid and version-transition cases from isolated copies of this fixture inside the gate integration test
+  - [x] MUST NOT modify the committed fixture during test execution
+
+- [x] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+  - [x] exercise the actual `ReservedPathMatcher` and canonical `SystemRouteTable`
+  - [x] verify exact returned entry fields, declaration type, status, and owner
+  - [x] verify `null` for non-matching concrete paths
+  - [x] verify exact root-path matching
+  - [x] verify empty-path normalization to `/`
+  - [x] verify missing and repeated leading slash normalization
+  - [x] verify repeated interior slash normalization
+  - [x] verify trailing slash preservation
+  - [x] verify case-sensitive matching
+  - [x] verify exact `/_alive`, `/_debug`, `/health`, `/metrics`, and `/ping` matching
+  - [x] verify `/_debug/` and `/health/` segment-prefix matching
+  - [x] verify that `/healthz`, `/healthz/ready`, and `/_debugger` do not match reserved prefixes
+  - [x] verify that trailing-slash variants do not match non-root exact declarations
+  - [x] verify that `//_alive` and `_alive` normalize to the canonical reserved path without changing maintenance bypass semantics
+  - [x] verify that valid percent-encoded octets remain opaque and do not create decoded aliases
+  - [x] verify rejection of malformed percent escapes, literal whitespace, control characters, backslashes, query strings, fragments, URI scheme prefixes, and literal dot segments
+  - [x] verify rejection of raw route-template delimiters, including `/{slug}` and `/health/{probe}`
+  - [x] verify rejection of literal non-ASCII bytes and DEL
+  - [x] verify rejection of the standalone asterisk request-target form
+  - [x] verify acceptance of valid percent-encoded non-ASCII octets without decoding
+  - [x] verify that percent-encoded dot segments remain opaque path data
+  - [x] verify repeated leading slashes are interpreted as path data rather than URI authority syntax
+  - [x] verify that `/health%2Fready` does not match the canonical `/health/` prefix
+  - [x] verify that `/%5Falive` does not match the canonical `/_alive` exact declaration
+  - [x] verify the exact invalid-path exception type and fixed diagnostic without raw input
+  - [x] verify matching of `reserved` and `dev_only` declarations without endpoint activation or access-policy interpretation
+  - [x] verify repeated matching produces identical results without retained mutable state
+  - [x] verify that modifying a returned entry cannot modify subsequent matcher results or canonical table entries
+  - [x] MUST NOT introduce production fixture declarations solely for testing status activation
+  - [x] MUST NOT rely on wall-clock timing or memory-consumption thresholds as proof of deterministic matching
 
 #### Modifies
 
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/system-route-table.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-system-route-table-reserved-map.md`
+- [x] `tools/support/MarkdownSectionReader.php`
+  - [x] introduce `public static function sections(string $markdown, string $heading): array`
+  - [x] return `list<string>` containing all matching section bodies in document order
+  - [x] return an empty list when no matching section exists
+  - [x] preserve empty matching section bodies
+  - [x] reuse the existing heading validation, normalized EOL handling, heading-boundary detection, and fenced-code-block semantics
+  - [x] ignore matching headings inside fenced code blocks
+  - [x] preserve section termination at the next heading of the same or higher level
+  - [x] preserve the existing `section()` signature and first-matching-section semantics
+  - [x] preserve `null` for missing sections through the existing `section()` API
+  - [x] share one canonical section-extraction implementation between both public methods
+  - [x] preserve all existing callers and exception behavior
+  - [x] MUST NOT introduce domain-specific registry or Markdown table parsing
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php`
+  - [x] replace the existing literal `/_alive` comparison with `SystemRouteTable::ALIVE_PATH`
+  - [x] preserve exact case-sensitive URI-path comparison
+  - [x] preserve direct comparison of the original URI `getPath()` value against `SystemRouteTable::ALIVE_PATH`
+  - [x] MUST NOT invoke `ReservedPathMatcher` or apply reserved-path normalization to maintenance bypass decisions
+  - [x] preserve active-maintenance and unavailable-state liveness bypass semantics
+  - [x] preserve downstream response and Throwable ownership
+  - [x] preserve all existing maintenance observability, response finalization, and lifecycle behavior
+  - [x] MUST NOT use declaration status as endpoint activation authority
+  - [x] MUST NOT introduce constructor dependencies or a route-matching service
 
-N/A (package `platform/http` already exists; this epic adds system table + gate + docs)
+- [x] `tools/support/ErrorCodes.php`
+  - [x] register `CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT`
+  - [x] register `CORETSIA_SYSTEM_ROUTE_TABLE_GATE_FAILED`
+  - [x] add both typed public string constants to the existing `REGISTRY`
+  - [x] preserve existing error-code registry semantics and deterministic public enumeration
+
+- [x] `composer.json`
+  - [x] register the named `system-route-table:gate` script using `@php tools/gates/system_route_table_gate.php`
+  - [x] add `@system-route-table:gate` immediately after `@reserved-tags:gate` in the existing `gates` aggregate
+  - [x] preserve all existing gate ordering and `ci` orchestration
+  - [x] do not introduce Composer dependencies or modify package installation metadata
+
+Tests:
+- [x] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [x] preserve all existing exact liveness bypass regression cases
+  - [x] extend the existing path data provider with repeated-leading-slash variants and the missing-leading-slash variant
+  - [x] verify that `//_alive`, `///_alive`, and `_alive` do not bypass active maintenance
+  - [x] preserve existing query-string, trailing-slash, case-sensitive, percent-encoded, prefixed, suffixed, and debug-path assertions
+  - [x] preserve existing canonical pipeline construction and actual maintenance-state fixtures
+  - [x] MUST NOT weaken existing response, observability, Throwable ownership, or lifecycle assertions
+
+Docs:
+- [x] `docs/guides/commands.md`
+  - [x] document the `composer system-route-table:gate` standalone tooling entrypoint
+  - [x] document its fixture repository selector, deterministic diagnostics, exit codes, and read-only behavior
+  - [x] extend the existing Tooling gates rail execution order immediately after `composer reserved-tags:gate`
+  - [x] preserve existing command documentation structure and unrelated command semantics
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `./system-route-table.md` exactly once under `## Registries`
+  - [x] register `./reserved-path-matching.md` exactly once under `## Runtime Invariants`
+  - [x] use `owner: platform/http`, `ssotVersion: 1`, and canonical scope metadata
+  - [x] preserve byte-order relative-path sorting
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register `./ADR-0042-system-route-table-and-reserved-path-matching.md` exactly once
+  - [x] use the canonical title `ADR-0042: System route table and reserved-path matching`
+  - [x] use `owner: platform/http`, `adrVersion: 1`, and canonical scope metadata
+  - [x] preserve deterministic ADR index ordering
+
+- [x] `packages/platform/http/README.md`
+  - [x] document the canonical system-route declaration registry and its ownership
+  - [x] reference the System Route Table SSoT
+  - [x] document the canonical `ReservedPathMatcher` API and its dependency on `SystemRouteTable`
+  - [x] reference the Reserved Path Matching SSoT
+  - [x] document exact and slash-terminated segment-prefix matching semantics
+  - [x] distinguish concrete reserved-path matching from general application routing and endpoint dispatch
+  - [x] document that the matcher is not integrated into the existing routing-free terminal handler
+  - [x] document that maintenance bypass retains exact unnormalized path comparison independently of reserved-path normalization
+  - [x] preserve existing HTTP pipeline, middleware ordering, observability, and Kernel lifecycle semantics
+  - [x] distinguish reserved declarations from implemented system endpoints
+  - [x] document that the existing maintenance liveness bypass consumes the canonical path identifier
+  - [x] preserve routing-free terminal handler behavior and existing runtime non-goals
 
 #### Configuration (keys + defaults)
 
@@ -11936,224 +12403,143 @@ N/A
 
 #### Errors
 
-N/A
+- [x] Invalid reserved-path matcher input:
+  - [x] `InvalidArgumentException`
+  - [x] fixed diagnostic token `http-reserved-path-invalid`
+  - [x] MUST NOT expose the rejected path or derived fragments
+- [x] Registry gate diagnostics:
+  - [x] `CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT`
+  - [x] `CORETSIA_SYSTEM_ROUTE_TABLE_GATE_FAILED`
+  - [x] preserve canonical `GateRuntime` and `ConsoleOutput` behavior
+- [x] MUST NOT introduce another HTTP error renderer, exception mapper, or request error boundary.
 
 #### Security / Redaction
 
-- [ ] Security:
-  - [ ] reserved endpoints MUST include `/_debug/` as `dev_only` (guarded by its owner policy)
-- [ ] Determinism:
-  - [ ] stable ordering of entries (if export exists): `pattern ASC, type ASC`
+- [x] Security:
+  - [x] `/_debug` and the slash-terminated `/_debug/` namespace MUST be declared as `dev_only`
+  - [x] reservation status MUST NOT authorize endpoint execution or request access
+  - [x] development-only endpoint exposure remains subject to its owning runtime access policy
+  - [x] no debug tokens, runtime configuration values, or request-derived data enter the registry
+  - [x] no raw request paths, query strings, headers, credentials, or environment values appear in gate diagnostics
+  - [x] preserve the existing maintenance exact liveness bypass without introducing additional bypass paths
+  - [x] matcher MUST use linear path normalization with at most O(n) additional memory and no retained input-dependent state
+  - [x] matcher MUST NOT expose raw or rejected request paths through diagnostics
+  - [x] matcher MUST NOT interpret a non-matching result as an endpoint access authorization decision
+  - [x] future routing consumers MUST prevent representation differences between reservation checks and effective endpoint dispatch
+  - [x] preserve responsibility for transport-level path-length limits at the existing or subsequent HTTP transport and routing boundaries
+  - [x] MUST NOT introduce a duplicate redaction implementation
+- [x] Determinism:
+  - [x] canonical entry ordering: `pattern ASC, type ASC` using byte-order `strcmp`
+  - [x] immutable static table declarations
+  - [x] deterministic version baseline representation
+  - [x] exact semantic parity between PHP declarations and normative SSoT entries
+  - [x] no filesystem, runtime configuration, module discovery, locale, or process-state inputs influence the production table
+  - [x] deterministic concrete-path normalization and matching
+  - [x] no locale-dependent comparisons, runtime discovery, or mutable matcher caches
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `N/A`
-- [ ] If redaction exists → `N/A`
-- [ ] Gate enforcement exists → `tools/gates/tests/SystemRouteTableGateTest.php`
+- [x] Exact immutable versioned system-route table shape.
+- [x] Canonical initial route declarations, statuses, and endpoint ownership.
+- [x] Strict path grammar, uniqueness, non-overlap, and deterministic ordering.
+- [x] Exact PHP/SSoT/version-baseline parity.
+- [x] Local version-baseline consistency, required version increments, and contiguous semantic snapshot transitions.
+- [x] Historical baseline preservation through mandatory review of committed version-history changes.
+- [x] Deterministic gate diagnostics and read-only repeated execution.
+- [x] Canonical Composer gate registration and aggregate execution.
+- [x] Existing maintenance exact liveness bypass semantics remain unchanged.
+- [x] Existing routing-free terminal handler continues returning the canonical safe HTTP `404`.
+- [x] No new ContextStore ownership, observability identifiers, lifecycle hooks, reset registrations, configuration roots, or generated artifacts.
+- [x] Exact matcher API and canonical matching-entry return shape.
+- [x] Deterministic empty-path, leading-slash, and repeated-slash normalization.
+- [x] Trailing-slash preservation and case-sensitive matching.
+- [x] Exact matching and slash-terminated segment-prefix boundaries.
+- [x] No implicit decoding of percent-encoded paths.
+- [x] Invalid matcher input rejection with fixed safe diagnostics.
+- [x] No mutable matcher state or competing reserved-path declarations.
+- [x] Reservation matching does not activate endpoints or authorize access.
+- [x] Normalized reserved-path matching does not expand exact maintenance liveness bypass.
+- [x] No general application-route matcher or route-template admission guard is introduced.
+- [x] Reuse of the canonical PHP token-stream inspection helpers.
+- [x] Unique normative Markdown section detection outside fenced code blocks.
+- [x] Backward-compatible shared Markdown section extraction.
+- [x] Exact registry constant and accessor implementation parity.
+- [x] Canonical encoded URI path grammar and route-template input rejection.
+- [x] Mandatory liveness and development-only declaration invariants across registry versions.
+- [x] Preservation of canonical ultra-early tooling bootstrap diagnostics.
 
 #### Test harness / fixtures (when integration is needed)
 
-- [ ] Gate fixtures:
-  - [ ] `tools/gates/tests/Fixtures/SystemRouteTable/*` (good/bad snapshots)
-
-### Tests (MUST)
-
-- Unit:
-  - N/A
-- Contract:
-  - [ ] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
-- Integration:
-  - N/A
-- Gates/Arch:
-  - [ ] `tools/gates/tests/SystemRouteTableGateTest.php`
+- [x] reuse the existing repository gate subprocess test pattern
+- [x] use isolated temporary repository roots for positive and negative gate scenarios
+- [x] use `tools/tests/Fixtures/SystemRouteTable/baseline.json` as the independent canonical fixture
+- [x] execute `tools/tests/Integration/SystemRouteTableGateTest.php`
+- [x] execute `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+- [x] execute `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+- [x] preserve and execute `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php` for existing terminal HTTP response and container parity regression evidence
+- [x] preserve and execute `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+- [x] verify fixture-local table inspection without resolving the main repository's production table
+- [x] MUST NOT introduce another generic gate test harness
+- [x] MUST NOT modify production registry declarations, committed fixtures, or actual runtime state during tests
+- [x] execute `tools/tests/Unit/MarkdownSectionReaderTest.php`
+- [x] preserve existing gate and build-tool regressions consuming `MarkdownSectionReader::section()`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable (gate test proves enforcement)
-- [ ] Docs updated:
-  - [ ] `docs/ssot/system-route-table.md`
-  - [ ] ADR registered
-- [ ] Gate output policy (MUST)
-  - [ ] Gate MUST use tools ConsoleOutput only (`tools/support/ConsoleOutput.php`).
-  - [ ] Output:
-    - [ ] line1: deterministic CODE
-    - [ ] line2+: diagnostics sorted `strcmp`, paths normalized (forward slashes), no absolute paths.
-  - [ ] Gate MUST be rerun-no-diff (no writes).
+- [x] Gates/Arch green
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Verification tests present where applicable (gate test proves enforcement)
+- [x] Docs updated:
+  - [x] `docs/ssot/system-route-table.md`
+  - [x] `docs/ssot/reserved-path-matching.md`
+  - [x] ADR-0042 registered
+  - [x] Both SSoT documents registered exactly once
+- [x] Spec locked.
+- [x] Implementation complete.
+- [x] Tests green.
+- [x] Docs complete.
+- [x] Exactly one production system-route declaration registry exists.
+- [x] The initial registry does not claim implementation of unavailable system endpoints.
+- [x] The registry remains independent of runtime configuration, module discovery, ContextStore, and Kernel lifecycle.
+- [x] Existing maintenance liveness bypass consumes the canonical path identifier without behavior changes.
+- [x] PHP declarations, normative SSoT entries, and the latest version baseline are synchronized.
+- [x] Semantic registry changes require a corresponding version increment and baseline append.
+- [x] Historical version snapshots remain preserved.
+- [x] `composer system-route-table:gate` is registered and executed through `composer gates`.
+- [x] No new production dependencies, DI definitions, tags, configuration roots, or generated artifacts are introduced.
+- [x] Exactly one canonical `ReservedPathMatcher` consumes the existing `SystemRouteTable` declarations.
+- [x] Reserved-path normalization and exact/segment-prefix matching follow the canonical SSoT.
+- [x] Invalid matcher inputs fail through the fixed safe diagnostic boundary.
+- [x] Matching does not activate endpoints or authorize access.
+- [x] Existing maintenance bypass remains an exact unnormalized URI-path comparison.
+- [x] No general application-route matcher, route-template compiler, route admission guard, duplicate fallback handler, system endpoint, or endpoint authorization policy is introduced.
+- [x] Gate output policy (MUST)
+  - [x] Gate MUST use tools ConsoleOutput only (`tools/support/ConsoleOutput.php`).
+  - [x] Output:
+    - [x] success: exit code `0` with empty output
+    - [x] failure: exit code `1`
+    - [x] failure line1: deterministic CODE
+    - [x] canonical ultra-early tooling bootstrap diagnostics remain authoritative when normal gate execution cannot begin
+    - [x] failure line2+ when applicable: diagnostics sorted `strcmp`, paths normalized (forward slashes), no absolute paths
+  - [x] Gate MUST be rerun-no-diff (no writes).
+- [x] The gate reuses the existing `PhpTokenStream`, `MarkdownSectionReader`, and repository tooling helpers.
+- [x] Normative registry section uniqueness is enforced without duplicate Markdown parsing.
+- [x] Existing Markdown section consumers retain their original behavior.
+- [x] Registry version increments preserve mandatory liveness and development-only reservation invariants.
+- [x] The matcher rejects unsupported concrete-path representations without introducing a general URI parser.
 
 ---
 
-### 3.100.0 Reserved path matching rules (SSoT) (MUST) [DOC]
+### 3.100.0 HTTP FallbackRouter + system endpoints (MUST) [IMPL]
 
 ---
 type: package
 phase: 3
 epic_id: "3.100.0"
-owner_path: "packages/platform/http/"
-
-package_id: "platform/http"
-composer: "coretsia/platform-http"
-kind: runtime
-module_id: "platform.http"
-
-goal: "Matching rules для reserved endpoints є canonical, стабільні й спільні для runtime та compile-time guard."
-provides:
-- "Єдина canonical реалізація matching правил (exact vs segment-prefix) для reserved endpoints"
-- "Спільне використання у runtime (FallbackRouter) і compile-time guard (routing compiler)"
-- "Документовані normalization правила (leading/trailing slash, prefix boundary)"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-
-adr: "docs/adr/ADR-XXXX-reserved-path-matching-rules.md"
-ssot_refs:
-- "docs/ssot/reserved-path-matching.md"
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - `3.90.0` — `SystemRouteTable` визначає reserved endpoints; matcher не додає endpoints
-
-- Required deliverables (exact paths):
-  - N/A
-
-- Required config roots/keys:
-  - N/A
-
-- Required tags:
-  - N/A
-
-- Required contracts / ports:
-  - N/A (works on `string $path`)
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- `core/foundation` (optional)
-
-Forbidden:
-- any other `platform/*` runtime packages
-- `integrations/*`
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-N/A
-
-### Entry points / integration points (MUST)
-
-N/A
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `packages/platform/http/src/System/ReservedPathMatcher.php` — segment-prefix matcher (exact vs prefix boundary)
-  - [ ] Matcher normalization invariants (MUST)
-    - [ ] Matching MUST be defined on a **normalized path**:
-      - [ ] collapse multiple slashes `//+` → `/` (single-choice),
-      - [ ] ensure leading slash,
-      - [ ] trailing slash semantics MUST be explicit in docs (`exact` vs `segment-prefix` boundary).
-    - [ ] Segment-prefix match MUST require boundary:
-      - [ ] `/health` matches `/health` and `/health/...`
-      - [ ] MUST NOT match `/healthz`
-    - [ ] Implementation MUST be pure string ops; no unbounded allocations proportional to input beyond O(n).
-
-- [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — edge cases (`//`, trailing slash, boundary)
-- [ ] `docs/ssot/reserved-path-matching.md` — exact vs prefix semantics + examples
-
-#### Modifies
-
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/reserved-path-matching.md`
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-reserved-path-matching-rules.md`
-
-#### Package skeleton (if type=package)
-
-N/A (package `platform/http` already exists; this epic adds matcher + docs)
-
-#### Configuration (keys + defaults)
-
-N/A
-
-#### Wiring / DI tags (when applicable)
-
-N/A
-
-#### Artifacts / outputs (if applicable)
-
-N/A
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-#### Context & UoW
-
-N/A
-
-#### Observability (policy-compliant)
-
-N/A
-
-#### Errors
-
-N/A
-
-#### Security / Redaction
-
-- [ ] Security:
-  - [ ] matcher MUST NOT allocate based on user input size unbounded (simple string ops only)
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-#### Required policy tests matrix
-
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `N/A`
-- [ ] If redaction exists → `N/A`
-- [ ] Semantic correctness proof → `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
-
-#### Test harness / fixtures (when integration is needed)
-
-N/A
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
-- Contract/Integration:
-  - N/A
-- Gates/Arch:
-  - [ ] deptrac green
-
-### DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable (unit test covers edge cases)
-- [ ] Docs updated:
-  - [ ] `docs/ssot/reserved-path-matching.md`
-  - [ ] ADR registered
-
----
-
-### 3.110.0 HTTP FallbackRouter + system endpoints (MUST) [IMPL]
-
----
-type: package
-phase: 3
-epic_id: "3.110.0"
 owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
@@ -12178,7 +12564,7 @@ ssot_refs:
 - "docs/ssot/http-system-endpoints.md"
 ---
 
-- [ ] update `3.110.0 HTTP FallbackRouter + system endpoints` to create SystemEndpointPayload only when implementing concrete system endpoints, reuse the existing FallbackRouterHandler terminal seam, and consume HttpKernel-owned access logging without reintroducing AccessLogMiddleware or a second request-observability pipeline.
+- [ ] update `3.100.0 HTTP FallbackRouter + system endpoints` to create SystemEndpointPayload only when implementing concrete system endpoints, reuse the existing FallbackRouterHandler terminal seam, and consume HttpKernel-owned access logging without reintroducing AccessLogMiddleware or a second request-observability pipeline.
 
 ### Dependencies (MUST)
 
@@ -12186,7 +12572,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - `3.90.0` — `SystemRouteTable` exists (reserved map)
-  - `3.100.0` — `ReservedPathMatcher` exists (matching semantics)
+  - `3.90.0` — `ReservedPathMatcher` exists (matching semantics)
 
 - Required deliverables (exact paths):
   - `packages/platform/http/src/Routing/FallbackRouterHandler.php` — terminal handler hook point (owner=http runtime)
@@ -12243,7 +12629,7 @@ Forbidden:
     - `/health` exact + `/health/` prefix → 501 JSON (owner missing)
     - `/metrics` exact → 501 text/plain (owner missing)
   - dev-only:
-    - `/_debug/` prefix delegates to dev diagnostics owner policy (see 3.120.0; if disabled → deterministic 404/403 by that policy)
+    - `/_debug/` prefix delegates to dev diagnostics owner policy (see 3.110.0; if disabled → deterministic 404/403 by that policy)
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
@@ -12277,7 +12663,7 @@ System payload helpers:
 - [ ] `packages/platform/http/src/System/SystemEndpointPayload.php`
   - [ ] provide only bounded, deterministic, safe payload construction helpers required by the later system endpoint implementation
   - [ ] do not own route matching, endpoint registration, clocks, HTTP dispatch, or exception normalization
-  - [ ] actual endpoint payloads and response behavior remain owned by epic 3.110.0
+  - [ ] actual endpoint payloads and response behavior remain owned by epic 3.100.0
 
 Docs:
 - [ ] `docs/ssot/http-system-endpoints.md` — owned vs reserved endpoints + owner-claim rules
@@ -12385,12 +12771,12 @@ N/A
 
 ---
 
-### 3.120.0 HTTP dev diagnostics endpoints (SHOULD) [IMPL]
+### 3.110.0 HTTP dev diagnostics endpoints (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.120.0"
+epic_id: "3.110.0"
 owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
@@ -12413,9 +12799,9 @@ ssot_refs:
 - "docs/ssot/system-route-table.md"
 ---
 
-- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
-- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to contribute `DebugExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata and canonical priority ordering, reusing Foundation `ReservedTags::ERROR_MAPPER` without a second handler or local tag constant.
-- [ ] update `3.120.0 HTTP dev diagnostics endpoints` to introduce and validate `http.debug.endpoints.enabled` under the existing `http` config root with default `false`, keeping debug endpoint activation and its security guards exclusively in this epic rather than predeclaring the key in 3.50.0.
+- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
+- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to contribute `DebugExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata and canonical priority ordering, reusing Foundation `ReservedTags::ERROR_MAPPER` without a second handler or local tag constant.
+- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to introduce and validate `http.debug.endpoints.enabled` under the existing `http` config root with default `false`, keeping debug endpoint activation and its security guards exclusively in this epic rather than predeclaring the key in 3.50.0.
 
 ### Dependencies (MUST)
 
@@ -12423,7 +12809,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - `3.90.0` — SystemRouteTable marks `/_debug/` as dev_only
-  - `3.110.0` — FallbackRouter dispatches `/_debug/` prefix to debug router (or equivalent hook)
+  - `3.100.0` — FallbackRouter dispatches `/_debug/` prefix to debug router (or equivalent hook)
 
 - Required deliverables (exact paths):
   - `packages/platform/http/config/http.php` — додаємо `http.debug.*` keys
@@ -12485,7 +12871,7 @@ Forbidden:
     - `GET /_debug/config?key=...`
     - `GET /_debug/cache`
   - dispatch model:
-    - dispatched from `FallbackRouter` (3.110.0) on `/_debug/` prefix, then routed by `DebugRouter` if `DebugGuard` passes
+    - dispatched from `FallbackRouter` (3.100.0) on `/_debug/` prefix, then routed by `DebugRouter` if `DebugGuard` passes
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
@@ -12659,12 +13045,12 @@ N/A
 
 ---
 
-### 3.130.0 Platform routing (compiled routes artifact + runtime router) (MUST) [IMPL]
+### 3.120.0 Platform routing (compiled routes artifact + runtime router) (MUST) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.130.0"
+epic_id: "3.120.0"
 owner_path: "packages/platform/routing/"
 
 package_id: "platform/routing"
@@ -12700,7 +13086,7 @@ ssot_refs:
 
 - Epic prerequisites:
   - `3.90.0` — `platform/http` `SystemRouteTable` exists (reserved endpoints SSoT)
-  - `3.100.0` — `platform/http` `ReservedPathMatcher` exists (matching semantics)
+  - `3.90.0` — `platform/http` `ReservedPathMatcher` exists (matching semantics)
 
 - Required deliverables (exact paths):
   - N/A
@@ -13022,12 +13408,12 @@ Tests:
 
 ---
 
-### 3.140.0 Platform http-app (RouterMiddleware + ActionInvoker) (MUST) [IMPL]
+### 3.130.0 Platform http-app (RouterMiddleware + ActionInvoker) (MUST) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.140.0"
+epic_id: "3.130.0"
 owner_path: "packages/platform/http-app/"
 
 package_id: "platform/http-app"
@@ -13051,14 +13437,14 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
 
-- [ ] update `3.140.0 Platform http-app` to consume `coretsia/platform-errors` through the shared `ExceptionMapperInterface`/`error.mapper` contract for 404/405 descriptors with empty `[]` tag metadata, reusing Foundation `ReservedTags::ERROR_MAPPER` without a local tag mirror or RFC7807 rendering.
+- [ ] update `3.130.0 Platform http-app` to consume `coretsia/platform-errors` through the shared `ExceptionMapperInterface`/`error.mapper` contract for 404/405 descriptors with empty `[]` tag metadata, reusing Foundation `ReservedTags::ERROR_MAPPER` without a local tag mirror or RFC7807 rendering.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.130.0` — `platform/routing` provides `RouterInterface` implementation (expected binding = `CompiledRouter`)
+  - `3.120.0` — `platform/routing` provides `RouterInterface` implementation (expected binding = `CompiledRouter`)
   - Phase 0 HTTP stack model exists in `platform/http` and executes `http.middleware.app` slot.
 
 - Required deliverables (exact paths):
@@ -13346,12 +13732,12 @@ N/A (consumes routing artifact via `RouterInterface`)
 
 ---
 
-### 3.143.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL] [REQUIRES REDESIGN]
+### 3.133.0 Target-aware skeleton HTTP front controllers + deterministic smoke (MUST) [IMPL] [REQUIRES REDESIGN]
 
 ---
 type: skeleton
 phase: 3
-epic_id: "3.143.0"
+epic_id: "3.133.0"
 owner_path: "packages/applications/skeleton/apps/"
 
 goal: "Надати стабільні target-aware HTTP front controllers для skeleton web/api та deterministic `composer serve` / `composer smoke:http` flow до появи platform/http; front-controller paths залишаються незмінними, а тимчасовий 503 fallback пізніше замінюється реальним HTTP runtime bootstrap."
@@ -13382,14 +13768,14 @@ ssot_refs:
 >
 > The primary execution target MUST be an installed consumer application created through `composer create-project coretsia/skeleton`, not the framework monorepo itself.
 >
-> Review this epic together with 3.145.0 to eliminate duplicated responsibilities, obsolete paths, temporary bootstrap assumptions, and unnecessary tooling.
+> Review this epic together with 3.135.0 to eliminate duplicated responsibilities, obsolete paths, temporary bootstrap assumptions, and unnecessary tooling.
 >
 > All existing deliverables, implementation details, prerequisites, and acceptance criteria are provisional until the redesign is completed.
 
-- [ ] update `3.143.0 Target-aware skeleton HTTP front controllers + deterministic smoke` to define the shared consumer-owned HTTP transport boundary for `web|api`, including PSR-7 request construction from SAPI/server globals and HTTP response emission, without duplicating transport logic in `platform/http` or Kernel.
-- [ ] update `3.143.0` to require every consuming HTTP entrypoint to provide a complete unread non-seekable PSR-7 request body stream before dispatch; already-consumed bytes MUST NOT be reconstructed by `platform/http`.
-- [ ] update `3.143.0` to establish one shared HTTP bootstrap seam that supports the `HttpRuntimeEntrypointGuard` readiness contract delegated to epic 3.145.0, without introducing an alternative HTTP runtime construction or UnitOfWork lifecycle.
-- [ ] update `3.143.0` together with epic 3.145.0 to resolve ownership of future real `api` runtime activation explicitly; the `api` entrypoint MUST NOT enable request dispatch until the same request-body and readiness contracts are implemented and verified.
+- [ ] update `3.133.0 Target-aware skeleton HTTP front controllers + deterministic smoke` to define the shared consumer-owned HTTP transport boundary for `web|api`, including PSR-7 request construction from SAPI/server globals and HTTP response emission, without duplicating transport logic in `platform/http` or Kernel.
+- [ ] update `3.133.0` to require every consuming HTTP entrypoint to provide a complete unread non-seekable PSR-7 request body stream before dispatch; already-consumed bytes MUST NOT be reconstructed by `platform/http`.
+- [ ] update `3.133.0` to establish one shared HTTP bootstrap seam that supports the `HttpRuntimeEntrypointGuard` readiness contract delegated to epic 3.135.0, without introducing an alternative HTTP runtime construction or UnitOfWork lifecycle.
+- [ ] update `3.133.0` together with epic 3.135.0 to resolve ownership of future real `api` runtime activation explicitly; the `api` entrypoint MUST NOT enable request dispatch until the same request-body and readiness contracts are implemented and verified.
 
 ### Dependencies (MUST)
 
@@ -14420,12 +14806,12 @@ Unexpected failure containment:
 
 ---
 
-### 3.145.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL] [REQUIRES REDESIGN]
+### 3.135.0 Web app entrypoint: real boot + module registration + browser-visible output (MUST) [IMPL] [REQUIRES REDESIGN]
 
 ---
 type: skeleton
 phase: 3
-epic_id: "3.145.0"
+epic_id: "3.135.0"
 owner_path: "packages/applications/skeleton/apps/web/"
 
 goal: "Замість Phase-2 stub (503 boot-not-ready) забезпечити реальну точку входу web-app: kernel boot → container → platform/http + platform/http-app, щоб можна було зайти в браузері і отримати 200 з demo output."
@@ -14446,21 +14832,21 @@ ssot_refs:
 
 > **REQUIRES REDESIGN BEFORE IMPLEMENTATION (MUST)**
 >
-> This epic MUST be redesigned together with 3.143.0 before implementation.
+> This epic MUST be redesigned together with 3.133.0 before implementation.
 >
 > Reconcile HTTP front-controller ownership, real application bootstrap, runtime module selection, consumer-facing serving commands, and deterministic smoke verification.
 >
 > All existing implementation details, prerequisites, and acceptance criteria are provisional until both epics have been reviewed against the current packaging architecture and completed HTTP runtime.
 
-- [ ] update `3.145.0 Web app entrypoint` to implement real PSR-7 request construction and HTTP response emission through the shared consumer-owned transport boundary established by epic 3.143.0, reusing `platform/http` PSR-15 request handling without introducing duplicate SAPI adapters, emitters, or runtime lifecycle ownership.
-- [ ] update `3.145.0` to ensure that PSR-7 request construction supplies a complete unread non-seekable request body stream before HTTP runtime dispatch, preserving the existing `platform/http` request-body verification and reconstruction contract.
-- [ ] update `3.145.0` to invoke `HttpRuntimeEntrypointGuard::assertEntrypointAllowed()` after canonical container composition but before resolving `HttpKernelInterface`, constructing the executable HTTP middleware pipeline, or beginning an HTTP UnitOfWork.
-- [ ] update `3.145.0` to pass the selected target's `ModulePlan`, canonical `ConfigRepositoryInterface`, canonical container containing the final effective PSR-17 bindings, and explicit owner-supplied `RuntimeDriverContributions` to the readiness guard.
-- [ ] update `3.145.0` to preserve all owner-supplied Worker HTTP driver contributions without silently replacing them with an empty contribution set; empty contributions are permitted only when the owning entrypoint has no additional selected drivers.
-- [ ] update `3.145.0` to fail deterministically before HTTP runtime construction and request execution when the selected factory implementation is unavailable, required PSR-17 bindings are missing or incompatible, effective factory identities differ from the configured built-in selection, or the Kernel-owned runtime driver matrix rejects the supplied contributions.
-- [ ] update `3.145.0` to prohibit fallback factory selection, alternative container construction, duplicate runtime-driver compatibility validation, or HTTP UnitOfWork startup before successful readiness validation; transport-specific adapter readiness remains owned by the corresponding transport integration.
-- [ ] update `3.145.0` integration tests to verify successful HTTP dispatch, complete unread non-seekable request bodies, fail-closed readiness before runtime construction and UnitOfWork begin, preservation of incompatible Worker HTTP contributions, and absence of fallback factory selection.
-- [ ] update `3.145.0 Web app entrypoint` to document the complete HTTP application setup in `packages/applications/skeleton/README.md`, including Composer installation, explicit target module selection, config-driven `http.factory` selection with automatic PSR-17 bindings for built-in implementations, application-owned declarative DI bindings only for `http.factory=external`, canonical container validation, implementation replacement, and real SAPI request/response handling without modifying Kernel or platform/http.
+- [ ] update `3.135.0 Web app entrypoint` to implement real PSR-7 request construction and HTTP response emission through the shared consumer-owned transport boundary established by epic 3.133.0, reusing `platform/http` PSR-15 request handling without introducing duplicate SAPI adapters, emitters, or runtime lifecycle ownership.
+- [ ] update `3.135.0` to ensure that PSR-7 request construction supplies a complete unread non-seekable request body stream before HTTP runtime dispatch, preserving the existing `platform/http` request-body verification and reconstruction contract.
+- [ ] update `3.135.0` to invoke `HttpRuntimeEntrypointGuard::assertEntrypointAllowed()` after canonical container composition but before resolving `HttpKernelInterface`, constructing the executable HTTP middleware pipeline, or beginning an HTTP UnitOfWork.
+- [ ] update `3.135.0` to pass the selected target's `ModulePlan`, canonical `ConfigRepositoryInterface`, canonical container containing the final effective PSR-17 bindings, and explicit owner-supplied `RuntimeDriverContributions` to the readiness guard.
+- [ ] update `3.135.0` to preserve all owner-supplied Worker HTTP driver contributions without silently replacing them with an empty contribution set; empty contributions are permitted only when the owning entrypoint has no additional selected drivers.
+- [ ] update `3.135.0` to fail deterministically before HTTP runtime construction and request execution when the selected factory implementation is unavailable, required PSR-17 bindings are missing or incompatible, effective factory identities differ from the configured built-in selection, or the Kernel-owned runtime driver matrix rejects the supplied contributions.
+- [ ] update `3.135.0` to prohibit fallback factory selection, alternative container construction, duplicate runtime-driver compatibility validation, or HTTP UnitOfWork startup before successful readiness validation; transport-specific adapter readiness remains owned by the corresponding transport integration.
+- [ ] update `3.135.0` integration tests to verify successful HTTP dispatch, complete unread non-seekable request bodies, fail-closed readiness before runtime construction and UnitOfWork begin, preservation of incompatible Worker HTTP contributions, and absence of fallback factory selection.
+- [ ] update `3.135.0 Web app entrypoint` to document the complete HTTP application setup in `packages/applications/skeleton/README.md`, including Composer installation, explicit target module selection, config-driven `http.factory` selection with automatic PSR-17 bindings for built-in implementations, application-owned declarative DI bindings only for `http.factory=external`, canonical container validation, implementation replacement, and real SAPI request/response handling without modifying Kernel or platform/http.
 
 ### Dependencies (MUST)
 
@@ -14470,12 +14856,12 @@ ssot_refs:
   - 1.280.0–1.340.0 — core/kernel boot/config/artifacts/container compile baseline exists
   - 3.10.0 + 3.40.0 — errors + problem-details exist (щоб 500/404 мали канонічний flow)
   - 3.50.0 — platform/http runtime exists
-  - 3.130.0 — platform/routing exists (routes artifact)
-  - 3.140.0 — platform/http-app exists (router middleware + action invoker)
-  - 3.143.0 — front controller stub exists (index.php + serve script)
+  - 3.120.0 — platform/routing exists (routes artifact)
+  - 3.130.0 — platform/http-app exists (router middleware + action invoker)
+  - 3.133.0 — front controller stub exists (index.php + serve script)
 
 - Required deliverables (exact paths):
-  - `packages/applications/skeleton/apps/web/public/index.php` (from 3.143.0)
+  - `packages/applications/skeleton/apps/web/public/index.php` (from 3.133.0)
 
 - Required config roots/keys:
   - `app.*`, `foundation.*`, `kernel.*`, `http.*`, `routing.*`, `http_app.*` — з відповідних пакетів / skeleton app config
@@ -14612,12 +14998,12 @@ Real boot:
 
 ---
 
-### 3.150.0 CORS middleware (inside platform/http) (MUST) [IMPL]
+### 3.140.0 CORS middleware (inside platform/http) (MUST) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.150.0"
+epic_id: "3.140.0"
 owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
@@ -14640,7 +15026,7 @@ ssot_refs:
 - "docs/ssot/http-middleware-catalog.md"
 ---
 
-- [ ] update `3.150.0 CORS middleware` to register `CorsExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata so blocked-origin failures use canonical normalization instead of ad-hoc HTTP responses or a local mirror of the Foundation tag constant.
+- [ ] update `3.140.0 CORS middleware` to register `CorsExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata so blocked-origin failures use canonical normalization instead of ad-hoc HTTP responses or a local mirror of the Foundation tag constant.
 
 ### Dependencies (MUST)
 
@@ -14868,149 +15254,12 @@ N/A
 
 ---
 
-### 3.160.0 Method override + Content negotiation (umbrella) (SHOULD) [DOC]
-
----
-type: docs
-phase: 3
-epic_id: "3.160.0"
-owner_path: "docs/ssot/http-middleware-catalog.md"
-
-goal: "Зафіксувати SSoT placement + priorities для MethodOverride (820) і ContentNegotiation (810) у `http.middleware.system_pre` та узгодити override recipes."
-provides:
-- "SSoT: middleware catalog rows for MethodOverrideMiddleware (820) + ContentNegotiationMiddleware (810)"
-- "SSoT: negotiation semantics `http.response.format` (`json|html`) і strict Accept behavior"
-- "SSoT: method override sources/allowlist + security notes"
-
-tags_introduced: []
-config_roots_introduced: []
-artifacts_introduced: []
-
-adr: none
-ssot_refs:
-- "docs/ssot/http-middleware-catalog.md"
-- "docs/ssot/http-negotiation.md"
-- "docs/ssot/http-method-override.md"
----
-
-### Dependencies (MUST)
-
-#### Preconditions (MUST)
-
-- Epic prerequisites:
-  - N/A
-
-- Required deliverables (exact paths):
-  - `docs/ssot/http-middleware-catalog.md` — catalog exists (this epic updates it)
-  - `packages/platform/http/README.md` — package docs exists (this epic updates it)
-
-- Required config roots/keys:
-  - N/A
-
-- Required tags:
-  - `http.middleware.system_pre` — referenced in docs (owner=`platform/http`)
-
-- Required contracts / ports:
-  - N/A
-
-#### Compile-time deps (deptrac-enforceable) (MUST)
-
-Depends on:
-- N/A
-
-Forbidden:
-- N/A
-
-#### Uses ports (API surface, NOT deps) (optional)
-
-N/A
-
-### Entry points / integration points (MUST)
-
-N/A
-
-### Deliverables (MUST)
-
-#### Creates
-
-- [ ] `docs/ssot/http-negotiation.md` — SSoT: `http.response.format` semantics + allowed values `json|html`
-- [ ] `docs/ssot/http-method-override.md` — SSoT: allowed sources + security notes
-  - [ ] Phase 3 implementation note:
-    - [ ] baseline implementation covers header/query sources only
-    - [ ] body-based override is reserved for a later epic with explicit placement/pipeline changes
-
-#### Modifies
-
-- [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
-  - [ ] `platform/http` `MethodOverrideMiddleware` priority `820`
-  - [ ] `platform/http` `ContentNegotiationMiddleware` priority `810`
-- [ ] `packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/http-negotiation.md`
-  - [ ] `docs/ssot/http-method-override.md`
-
-#### Package skeleton (if type=package)
-
-N/A
-
-#### Configuration (keys + defaults)
-
-N/A
-
-#### Wiring / DI tags (when applicable)
-
-N/A
-
-#### Artifacts / outputs (if applicable)
-
-N/A
-
-### Cross-cutting (only if applicable; otherwise `N/A`)
-
-N/A
-
-### Verification (TEST EVIDENCE) (MUST when applicable)
-
-N/A
-
-### Tests (MUST)
-
-N/A
-
-### DoD (MUST)
-
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] Docs updated and referenced by package README
-- [ ] Catalog priorities match runtime wiring (820 then 810)
-- [ ] Override/disable recipe documented (manual mode)
-- [ ] Canonical middleware placement and priorities are fully specified in `docs/ssot/http-middleware-catalog.md`
-- [ ] Implementation epics `3.170.0` and `3.180.0` MUST extend the shared `MiddlewareCatalogPriorityAndSlotLockTest.php` when runtime wiring is added
-- [ ] Taxonomy + ordering lock (MUST)
-  - [ ] Middleware catalog rows MUST use only allowed slots
-    - [ ] Add/confirm rows in `docs/ssot/http-middleware-catalog.md`:
-      - [ ] `ContentNegotiationMiddleware` → slot `http.middleware.system_pre`, priority `810`
-      - [ ] `MethodOverrideMiddleware`     → slot `http.middleware.system_pre`, priority `820`
-    - [ ] Also (if present in Phase 3 set):
-      - [ ] `CorsMiddleware`               → slot `http.middleware.system_pre`, priority `840`
-  - [ ] Ordering semantics MUST match Foundation TagRegistry
-    - [ ] Because ordering is `priority DESC, id ASC`, the effective execution order inside `system_pre` is:
-      - [ ] `840 (CORS) → 820 (MethodOverride) → 810 (Negotiation)`.
-- [ ] What problem this epic solves:
-  - [ ] Фіксує placement + priorities для MethodOverride (820) і ContentNegotiation (810) у `http.middleware.system_pre`.
-  - [ ] Забезпечує, що docs/каталог/override recipe оновлені синхронно з реалізаціями 3.170.0 і 3.180.0.
-- [ ] Non-goals / out of scope:
-  - [ ] Не містить коду (код у 3.170.0 і 3.180.0).
-- [ ] Cutline impact: none
-
----
-
-### 3.170.0 Method override middleware (inside platform/http) (SHOULD) [IMPL]
+### 3.150.0 Method override middleware (inside platform/http) (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.170.0"
+epic_id: "3.150.0"
 owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
@@ -15023,6 +15272,8 @@ provides:
 - "MethodOverrideMiddleware (system_pre 820) with allowlisted sources + deterministic behavior"
 - "Invalid override yields deterministic exception `CORETSIA_HTTP_METHOD_OVERRIDE_INVALID` via canonical error flow"
 - "Catalog lock: update middleware catalog + rails fixture in same PR"
+- "SSoT: middleware catalog rows for MethodOverrideMiddleware (820)"
+- "SSoT: method override sources/allowlist + security notes"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -15034,19 +15285,20 @@ ssot_refs:
 - "docs/ssot/http-method-override.md"
 ---
 
-- [ ] update `3.170.0 Method override middleware` to register `MethodOverrideExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata and let `platform/problem-details` render the normalized failure without a local mirror of the Foundation tag constant.
+- [ ] update `3.150.0 Method override middleware` to register `MethodOverrideExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata and let `platform/problem-details` render the normalized failure without a local mirror of the Foundation tag constant.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.160.0` — umbrella docs define placement and security policy
+  - `3.50.0` — umbrella docs define placement and security policy
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
   - `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
   - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
+  - `packages/platform/http/README.md` — package docs exists (this epic updates it)
 
 - Required config roots/keys:
   - `http.method_override.*` — method override policy keys (introduced by this epic)
@@ -15126,6 +15378,11 @@ Forbidden:
         - [ ] canonical string literal `'error.mapper'` is allowed only as fallback
         - [ ] MUST NOT import `platform/errors`, because it is a forbidden compile-time dependency here
 
+- [ ] `docs/ssot/http-method-override.md` — SSoT: allowed sources + security notes
+  - [ ] Phase 3 implementation note:
+    - [ ] baseline implementation covers header/query sources only
+    - [ ] body-based override is reserved for a later epic with explicit placement/pipeline changes
+
 Tests:
 - [ ] `packages/platform/http/tests/Integration/MethodOverrideAppliesBeforeRoutingTest.php`
 - [ ] `packages/platform/http/tests/Integration/InvalidMethodOverrideTriggersCanonicalErrorFlowTest.php`
@@ -15137,9 +15394,13 @@ Tests:
 - [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.method_override.*`
 - [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire middleware (system_pre 820)
 - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — extend shared catalog lock contract for `MethodOverrideMiddleware` (`system_pre` 820)
-- [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 820)
+- [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
+  - [ ] `platform/http` `MethodOverrideMiddleware` priority `820`
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-method-override-middleware.md`
+- [ ] `docs/ssot/INDEX.md` — register:
+  - [ ] `docs/ssot/http-method-override.md`
+- [ ] `packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
 
 #### Package skeleton (if type=package)
 
@@ -15260,15 +15521,37 @@ N/A
     - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] MethodOverride: `system_pre` prio 820
+- [ ] Deliverables complete (creates+modifies), paths exact
+- [ ] Preconditions satisfied (no forward references)
+- [ ] Docs updated and referenced by package README
+- [ ] Catalog priorities match runtime wiring (820 then 810)
+- [ ] Override/disable recipe documented (manual mode)
+- [ ] Canonical middleware placement and priorities are fully specified in `docs/ssot/http-middleware-catalog.md`
+- [ ] Implementation epics `3.150.0` and `3.160.0` MUST extend the shared `MiddlewareCatalogPriorityAndSlotLockTest.php` when runtime wiring is added
+- [ ] Taxonomy + ordering lock (MUST)
+  - [ ] Middleware catalog rows MUST use only allowed slots
+    - [ ] Add/confirm rows in `docs/ssot/http-middleware-catalog.md`:
+      - [ ] `MethodOverrideMiddleware`     → slot `http.middleware.system_pre`, priority `820`
+    - [ ] Also (if present in Phase 3 set):
+      - [ ] `CorsMiddleware`               → slot `http.middleware.system_pre`, priority `840`
+  - [ ] Ordering semantics MUST match Foundation TagRegistry
+    - [ ] Because ordering is `priority DESC, id ASC`, the effective execution order inside `system_pre` is:
+      - [ ] `840 (CORS) → 820 (MethodOverride)`.
+- [ ] What problem this epic solves:
+  - [ ] Фіксує placement + priorities для MethodOverride (820) і ContentNegotiation (810) у `http.middleware.system_pre`.
+  - [ ] Забезпечує, що docs/каталог/override recipe оновлені синхронно з реалізаціями 3.150.0 і 3.160.0.
+- [ ] Non-goals / out of scope:
+  - [ ] Не містить коду (код у 3.150.0 і 3.160.0).
+- [ ] Cutline impact: none
 
 ---
 
-### 3.180.0 Content negotiation middleware (inside platform/http) (SHOULD) [IMPL]
+### 3.160.0 Content negotiation middleware (inside platform/http) (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.180.0"
+epic_id: "3.160.0"
 owner_path: "packages/platform/http/"
 
 package_id: "platform/http"
@@ -15281,6 +15564,8 @@ provides:
 - "ContentNegotiationMiddleware (system_pre 810) sets `http.response.format` (`json|html`) deterministically"
 - "Strict Accept mode can yield deterministic 406 via canonical error flow"
 - "Catalog lock: update middleware catalog + rails fixture in same PR"
+- "SSoT: middleware catalog rows for ContentNegotiationMiddleware (810)"
+- "SSoT: negotiation semantics `http.response.format` (`json|html`) і strict Accept behavior"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -15292,19 +15577,20 @@ ssot_refs:
 - "docs/ssot/http-negotiation.md"
 ---
 
-- [ ] update `3.180.0 Content negotiation middleware` to register `NegotiationExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata for deterministic 406 descriptors, without local HTTP error rendering or a local mirror of the Foundation tag constant.
+- [ ] update `3.160.0 Content negotiation middleware` to register `NegotiationExceptionMapper` under the shared `error.mapper` tag with empty `[]` metadata for deterministic 406 descriptors, without local HTTP error rendering or a local mirror of the Foundation tag constant.
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.160.0` — umbrella docs define placement + negotiation semantics
+  - `3.50.0` — umbrella docs define placement + negotiation semantics
 
 - Required deliverables (exact paths):
   - `docs/ssot/http-middleware-catalog.md` — catalog (must be updated/locked)
   - `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php` — shared executable catalog lock created by `3.50.0`
   - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring point
+  - `packages/platform/http/README.md` — package docs exists (this epic updates it)
 
 - Required config roots/keys:
   - `http.negotiation.*` — negotiation policy keys (introduced by this epic)
@@ -15387,6 +15673,8 @@ Forbidden:
           - [ ] canonical string literal `'error.mapper'` is allowed only as fallback
           - [ ] MUST NOT import `platform/errors`, because it is a forbidden compile-time dependency here
 
+- [ ] `docs/ssot/http-negotiation.md` — SSoT: `http.response.format` semantics + allowed values `json|html`
+
 Tests:
 - [ ] `packages/platform/http/tests/Integration/NegotiationSetsContextFormatTest.php`
 - [ ] `packages/platform/http/tests/Integration/StrictAcceptTriggersCanonicalErrorFlowTest.php`
@@ -15405,6 +15693,11 @@ Tests:
 - [ ] `docs/ssot/http-middleware-catalog.md` — ensure row (system_pre 810)
 - [ ] `docs/adr/INDEX.md` — register:
   - [ ] `docs/adr/ADR-XXXX-content-negotiation-middleware.md`
+- [ ] `docs/ssot/http-middleware-catalog.md` — add/update rows:
+  - [ ] `platform/http` `ContentNegotiationMiddleware` priority `810`
+- [ ] `packages/platform/http/README.md` — sections updated for both middlewares (placement, override recipes)
+- [ ] `docs/ssot/INDEX.md` — register:
+  - [ ] `docs/ssot/http-negotiation.md`
 
 #### Package skeleton (if type=package)
 
@@ -15533,15 +15826,37 @@ N/A
     - [ ] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
   - [ ] Wiring MUST match priority table:
     - [ ] ContentNegotiation: `system_pre` prio 810
+- [ ] Deliverables complete (creates+modifies), paths exact
+- [ ] Preconditions satisfied (no forward references)
+- [ ] Docs updated and referenced by package README
+- [ ] Catalog priorities match runtime wiring (820 then 810)
+- [ ] Override/disable recipe documented (manual mode)
+- [ ] Canonical middleware placement and priorities are fully specified in `docs/ssot/http-middleware-catalog.md`
+- [ ] Implementation epics `3.150.0` and `3.160.0` MUST extend the shared `MiddlewareCatalogPriorityAndSlotLockTest.php` when runtime wiring is added
+- [ ] Taxonomy + ordering lock (MUST)
+  - [ ] Middleware catalog rows MUST use only allowed slots
+    - [ ] Add/confirm rows in `docs/ssot/http-middleware-catalog.md`:
+      - [ ] `ContentNegotiationMiddleware` → slot `http.middleware.system_pre`, priority `810`
+    - [ ] Also (if present in Phase 3 set):
+      - [ ] `CorsMiddleware`               → slot `http.middleware.system_pre`, priority `840`
+  - [ ] Ordering semantics MUST match Foundation TagRegistry
+    - [ ] Because ordering is `priority DESC, id ASC`, the effective execution order inside `system_pre` is:
+      - [ ] `840 (CORS) → 820 (MethodOverride) → 810 (Negotiation)`.
+- [ ] What problem this epic solves:
+  - [ ] Фіксує placement + priorities для MethodOverride (820) і ContentNegotiation (810) у `http.middleware.system_pre`.
+  - [ ] Забезпечує, що docs/каталог/override recipe оновлені синхронно з реалізаціями 3.150.0 і 3.160.0.
+- [ ] Non-goals / out of scope:
+  - [ ] Не містить коду (код у 3.150.0 і 3.160.0).
+- [ ] Cutline impact: none
 
 ---
 
-### 3.190.0 ProblemDetails HTML renderer + error pages (SHOULD) [IMPL]
+### 3.170.0 ProblemDetails HTML renderer + error pages (SHOULD) [IMPL]
 
 ---
 type: package
 phase: 3
-epic_id: "3.190.0"
+epic_id: "3.170.0"
 owner_path: "packages/platform/problem-details/"
 
 package_id: "platform/problem-details"
@@ -15563,8 +15878,8 @@ adr: "docs/adr/ADR-XXXX-problem-details-html-renderer-error-pages.md"
 ssot_refs: []
 ---
 
-- [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to consume `SensitiveDataRedactorInterface` for rendered diagnostics and local debug pages.
-- [ ] update `3.190.0 ProblemDetails HTML renderer + error pages` to reuse the `ErrorDescriptor` already returned by the canonical `ErrorHandlerInterface` in the existing HTTP error middleware, without another mapping pass when selecting HTML.
+- [ ] update `3.170.0 ProblemDetails HTML renderer + error pages` to consume `SensitiveDataRedactorInterface` for rendered diagnostics and local debug pages.
+- [ ] update `3.170.0 ProblemDetails HTML renderer + error pages` to reuse the `ErrorDescriptor` already returned by the canonical `ErrorHandlerInterface` in the existing HTTP error middleware, without another mapping pass when selecting HTML.
 
 ### Dependencies (MUST)
 

@@ -32,6 +32,32 @@ final class MarkdownSectionReader
 
     public static function section(string $markdown, string $heading): ?string
     {
+        foreach (self::extractSections($markdown, $heading) as $section) {
+            return $section;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function sections(string $markdown, string $heading): array
+    {
+        $sections = [];
+
+        foreach (self::extractSections($markdown, $heading) as $section) {
+            $sections[] = $section;
+        }
+
+        return $sections;
+    }
+
+    /**
+     * @return \Generator<int, string, void, void>
+     */
+    private static function extractSections(string $markdown, string $heading): \Generator
+    {
         $heading = trim($heading);
 
         if (preg_match('/\A(#{1,6})[ \t]+\S.*\z/', $heading, $match) !== 1) {
@@ -41,11 +67,11 @@ final class MarkdownSectionReader
         $headingLevel = strlen($match[1]);
         $normalized = str_replace(["\r\n", "\r"], "\n", $markdown);
         $lines = explode("\n", $normalized);
-        $bodyStart = null;
+        $body = null;
         $fenceChar = null;
         $fenceLength = 0;
 
-        foreach ($lines as $index => $line) {
+        foreach ($lines as $line) {
             $fence = self::fenceMarker($line);
 
             if ($fence !== null) {
@@ -61,51 +87,10 @@ final class MarkdownSectionReader
                     $fenceLength = 0;
                 }
 
-                continue;
-            }
-
-            if ($fenceChar !== null) {
-                continue;
-            }
-
-            if (
-                preg_match('/\A {0,3}(#{1,6})[ \t]+\S.*\z/', $line, $lineMatch) !== 1
-                || trim($line) !== $heading
-            ) {
-                continue;
-            }
-
-            $bodyStart = $index + 1;
-            break;
-        }
-
-        if ($bodyStart === null) {
-            return null;
-        }
-
-        $body = [];
-        $count = count($lines);
-        $fenceChar = null;
-        $fenceLength = 0;
-
-        for ($i = $bodyStart; $i < $count; $i++) {
-            $line = $lines[$i];
-            $fence = self::fenceMarker($line);
-
-            if ($fence !== null) {
-                if ($fenceChar === null) {
-                    $fenceChar = $fence['char'];
-                    $fenceLength = $fence['length'];
-                } elseif (
-                    $fence['char'] === $fenceChar
-                    && $fence['length'] >= $fenceLength
-                    && $fence['tail'] === ''
-                ) {
-                    $fenceChar = null;
-                    $fenceLength = 0;
+                if ($body !== null) {
+                    $body[] = $line;
                 }
 
-                $body[] = $line;
                 continue;
             }
 
@@ -114,13 +99,23 @@ final class MarkdownSectionReader
                 && preg_match('/\A {0,3}(#{1,6})[ \t]+\S/', $line, $lineMatch) === 1
                 && strlen($lineMatch[1]) <= $headingLevel
             ) {
-                break;
+                if ($body !== null) {
+                    yield implode("\n", $body);
+                }
+
+                $body = trim($line) === $heading ? [] : null;
+
+                continue;
             }
 
-            $body[] = $line;
+            if ($body !== null) {
+                $body[] = $line;
+            }
         }
 
-        return implode("\n", $body);
+        if ($body !== null) {
+            yield implode("\n", $body);
+        }
     }
 
     /**

@@ -391,7 +391,8 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
 
 /** Only marks the configured vendor FQCN autoloadable in isolated failure tests. */
 final class HttpBootstrapAutoloadFixture
-{}
+{
+}
 
 /** Test-only compatible implementation used to model an installed unselected provider. */
 final class HttpBootstrapCompatibleFactory implements ResponseFactoryInterface, StreamFactoryInterface

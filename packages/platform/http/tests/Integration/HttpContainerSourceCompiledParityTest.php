@@ -1770,10 +1770,12 @@ class HttpParityExternalFactory implements ResponseFactoryInterface, StreamFacto
 }
 
 final class HttpParityOverrideFactory extends HttpParityExternalFactory
-{}
+{
+}
 
 final class HttpParityVendorMarker
-{}
+{
+}
 
 /** Test-only KernelRuntime boundary; production KernelRuntime is not replaced. */
 final class HttpParityKernelRuntime implements KernelRuntimeInterface

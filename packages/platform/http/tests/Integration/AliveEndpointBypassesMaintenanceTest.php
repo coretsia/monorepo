@@ -115,7 +115,7 @@ final class AliveEndpointBypassesMaintenanceTest extends TestCase
         self::assertSame($bypass ? 200 : 503, $result->getStatusCode());
         self::assertSame(
             [['http.maintenance_total', 1, ['outcome' => $bypass ? 'bypassed' : 'served']]],
-            $this->counters
+            $this->counters,
         );
         self::assertSame($bypass ? ['bypassed', 'downstream'] : ['served'], $this->events);
         self::assertSame(
@@ -130,6 +130,9 @@ final class AliveEndpointBypassesMaintenanceTest extends TestCase
         yield 'exact' => ['/_alive', '', true];
         yield 'query' => ['/_alive', 'probe=1', true];
         yield 'trailing-slash' => ['/_alive/', '', false];
+        yield 'double-leading-slash' => ['//_alive', '', false];
+        yield 'triple-leading-slash' => ['///_alive', '', false];
+        yield 'missing-leading-slash' => ['_alive', '', false];
         yield 'prefix' => ['/prefix/_alive', '', false];
         yield 'suffix' => ['/_alive-extra', '', false];
         yield 'case' => ['/_Alive', '', false];

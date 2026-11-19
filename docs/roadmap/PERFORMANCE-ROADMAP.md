@@ -1578,9 +1578,9 @@ activation: explicit
 eligible_after:
 - "3.40.0"
 - "3.50.0"
+- "3.120.0"
 - "3.130.0"
-- "3.140.0"
-- "3.145.0"
+- "3.135.0"
 
 goal: "Забезпечити відкладене контрольоване вимірювання продуктивності HTTP runtime для canonical micro-сценаріїв, з незалежним pinned-runner baseline та regression gating після готовності необхідних production-компонентів, без блокування product releases."
 provides:
@@ -1606,9 +1606,9 @@ ssot_refs:
 - Epic prerequisites:
   - 3.40.0 — problem-details runtime exists for benchmark scenario
   - 3.50.0 — HTTP runtime pipeline exists
-  - 3.130.0 — routing runtime exists
-  - 3.140.0 — http-app runtime exists
-  - 3.145.0 — browser-visible web app entrypoint exists
+  - 3.120.0 — routing runtime exists
+  - 3.130.0 — http-app runtime exists
+  - 3.135.0 — browser-visible web app entrypoint exists
   - PERF.10.0 — shared benchmark toolkit foundation exists
 
 - Required deliverables (exact paths):
@@ -3010,7 +3010,7 @@ activation: explicit
 eligible_after:
 - "1.320.0"
 - "1.330.0"
-- "3.130.0"
+- "3.120.0"
 - "6.240.0"
 
 goal: "Розширити deterministic preload tooling так, щоб preload plan міг будуватися не лише статично, а й artifact-aware, з окремими advisory outputs для OPcache/JIT без втрати determinism і без залежності від недетермінованих production traces."
@@ -3041,7 +3041,7 @@ ssot_refs:
 - Epic prerequisites:
   - 1.320.0 — module/config artifacts exist
   - 1.330.0 — compiled container artifact exists
-  - 3.130.0 — routes artifact/runtime exists where route-aware weighting is used
+  - 3.120.0 — routes artifact/runtime exists where route-aware weighting is used
   - 6.240.0 — base deterministic preload generator exists
 
 - Required deliverables (exact paths):

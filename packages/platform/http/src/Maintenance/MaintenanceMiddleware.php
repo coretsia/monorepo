@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Http\Maintenance;
 
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Platform\Http\Exception\MaintenanceStateUnavailableException;
+use Coretsia\Platform\Http\System\SystemRouteTable;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -78,7 +79,7 @@ final readonly class MaintenanceMiddleware implements MiddlewareInterface
             $this->warn('http.maintenance.message_invalid', 'invalid-message');
         }
 
-        if ($request->getUri()->getPath() === '/_alive') {
+        if ($request->getUri()->getPath() === SystemRouteTable::ALIVE_PATH) {
             $this->recordDecision('bypassed');
 
             return $handler->handle($request);

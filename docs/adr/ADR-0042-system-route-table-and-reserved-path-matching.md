@@ -1,0 +1,173 @@
+<!--
+  Coretsia Framework (Monorepo)
+
+  Project: Coretsia Framework (Monorepo)
+  Authors: Vladyslav Mudrichenko and contributors
+  Copyright (c) 2026 Vladyslav Mudrichenko
+
+  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
+  SPDX-License-Identifier: Apache-2.0
+
+  For contributors list, see git history.
+  See LICENSE and NOTICE in the project root for full license information.
+-->
+
+# ADR-0042: System route table and reserved-path matching
+
+```yaml
+adrVersion: 1
+status: pre-accepted
+owner: platform/http
+```
+
+## Context
+
+Coretsia needs deterministic ownership of system HTTP paths independently of endpoint implementation, package installation, module participation, runtime exposure, and authorization. Application route admission and system-endpoint dispatch need a common declaration source without acquiring each other's responsibilities.
+
+Routing and HttpApp contracts define format-neutral routing descriptors and ports. Foundation owns generic DI tag discovery, registration, and ordering. Neither boundary owns the concrete HTTP system-route vocabulary or its path matching semantics.
+
+HTTP maintenance also has an exact liveness bypass that must not acquire additional bypass paths through reserved-path normalization. Concrete path matching, route-template overlap analysis, endpoint execution, and endpoint access decisions therefore require distinct ownership boundaries.
+
+## Decision
+
+### Decision 1: HTTP owns one canonical versioned declaration registry
+
+`Coretsia\Platform\Http\System\SystemRouteTable` is the sole production system-route declaration registry. It exposes the typed `SCHEMA_VERSION` and `ALIVE_PATH` constants and the static `entries()` API over immutable declaration metadata.
+
+Each declaration contains exactly `owner`, `pattern`, `status`, and `type`. The canonical list is deterministic, ordered by `pattern` and then `type` using byte-order comparison, and forbids duplicates and overlapping declarations. Declaration grammar, owner identity, and the complete versioned table are governed by `docs/ssot/system-route-table.md`.
+
+All three statuses reserve ownership: `active` identifies a materialized endpoint capability, `reserved` protects a path without asserting implementation, and `dev_only` protects a development-only declaration without enabling it. A declaration may name an owner package that is not yet materialized. Only the declared owner may claim the endpoint, and actual exposure remains subject to its applicable implementation, module, configuration, and access policy.
+
+The root `/` reservation is deliberately exact, not a wildcard. The exact `/_alive` declaration belongs to `platform/http`, and the exact `/_debug` and prefix `/_debug/` reservations retain `dev_only` status. Neither the liveness declaration nor the debug reservations establish endpoint availability.
+
+### Decision 2: Keep declarations, matching, admission, and execution separate
+
+The ownership boundaries are:
+
+- `SystemRouteTable` owns immutable route declarations and canonical path identifiers.
+- `Coretsia\Platform\Http\System\ReservedPathMatcher` owns concrete reserved-path normalization and matching against those declarations.
+- Application route compilation guards must analyze route-template overlap against the canonical exact paths and prefix namespaces.
+- System-endpoint runtime owners own endpoint selection and execution independently of reservation matching.
+- The declared endpoint owner retains responsibility for access policy and exposure eligibility, including development-only restrictions.
+
+A concrete-path match is reserved ownership metadata, not an endpoint dispatch decision, route-template admission proof, or authorization outcome.
+
+Contracts routing descriptors remain transport-neutral under `docs/ssot/routing-and-http-app-contracts.md`. Foundation DI tag infrastructure remains generic and does not acquire HTTP path semantics. Consumers must preserve the canonical direct package dependency matrix; reservation access must not introduce a reverse dependency or package cycle.
+
+### Decision 3: Enforce registry consistency through a committed version baseline
+
+The canonical registry schema version is `SystemRouteTable::SCHEMA_VERSION`, independently of SSoT document metadata versions. The PHP declarations, the uniquely named normative registry section in the System Route Table SSoT, and the latest committed snapshot in `tools/config/system-route-table.json` must agree exactly on version and declaration values.
+
+The baseline contains complete canonical snapshots in contiguous version order starting at `1`. A semantic change to any declaration field requires incrementing the registry version by exactly one, updating the normative table, and appending the corresponding full snapshot. Every approved historical snapshot must remain unchanged. A matcher-only or documentation-formatting change does not justify a registry version increment.
+
+The read-only `composer system-route-table:gate` command participates in the repository gates and CI rails. It inspects PHP declarations without executing registry source and validates the normative Markdown table, canonical JSON serialization, contiguous snapshot history, semantic version transitions, and latest-snapshot equality. Presentation-only table alignment does not alter declaration semantics. Mandatory liveness and development-only invariants apply regardless of registry version.
+
+The gate enforces local baseline consistency; it cannot independently establish historical immutability if the declarations and retained history are rewritten together. Repository review must compare all previously approved snapshots against an independently trusted revision and reject historical replacement, removal, or reordering.
+
+Baseline history is repository tooling data, not production configuration or a generated Kernel artifact. Runtime consumers depend on the canonical PHP declarations only.
+
+### Decision 4: Match concrete encoded URI paths through one canonical implementation
+
+`ReservedPathMatcher::match(string $path): ?array` consumes `SystemRouteTable::entries()` directly and returns a complete canonical entry or `null` for a valid path without a reservation match. It is independent of status-based endpoint activation.
+
+The input is a concrete encoded URI path component, not a complete URI, request-target parser input, or route template. Canonical declaration grammar is intentionally stricter than the concrete path input grammar.
+
+Normalization must:
+
+- accept the canonical ASCII URI path character set and valid `%HH` octets;
+- normalize an empty path to `/`, ensure one leading slash, and collapse consecutive slash sequences without authority parsing;
+- preserve trailing slashes, case, and the exact encoded octet representation;
+- reject literal dot segments instead of resolving them;
+- remain non-recursive and linear in input length with at most linear additional memory.
+
+The matcher must not trim whitespace, lowercase, URL-decode, or reinterpret valid encoded data. It rejects literal whitespace, control characters, DEL, non-ASCII bytes, backslashes, query and fragment delimiters, malformed escapes, URI scheme prefixes, raw route-template delimiters, the standalone `*` request-target form, literal dot segments, and other invalid path characters.
+
+Invalid input raises `InvalidArgumentException` with the fixed diagnostic `http-reserved-path-invalid`, without the rejected path or derived raw values. Invalid input is not a non-match.
+
+An `exact` declaration matches by strict equality with the normalized path. A `prefix` declaration matches the complete slash-terminated prefix as a segment boundary. `/health` and `/health/` are distinct declarations, and `/healthz` does not match `/health/`. Valid encoded octets remain opaque: `/%5Falive` does not match the exact `/_alive` declaration, and `/health%2Fready` does not match the `/health/` prefix.
+
+The normative path grammar, normalization, matching semantics, and consumer obligations are defined by `docs/ssot/reserved-path-matching.md`.
+
+### Decision 5: Preserve path representation consistency at consumer boundaries
+
+Any runtime consumer that integrates reserved-path matching with endpoint dispatch must use the same effective path representation for both operations. A non-matching encoded path must not authorize dispatch of its decoded equivalent. No case folding, slash reinterpretation, percent decoding, or other representation change may occur between the reservation decision and the corresponding dispatch decision.
+
+Application route compilation must separately analyze route-template overlap, including dynamic templates that could match an exact reservation or enter a reserved prefix namespace. Passing a route template or a sample concrete path to `ReservedPathMatcher` is not a sufficient admission check.
+
+### Decision 6: Preserve the exact maintenance liveness bypass and HTTP pipeline
+
+`MaintenanceMiddleware` compares the original PSR-7 URI `getPath()` value directly and case-sensitively with `SystemRouteTable::ALIVE_PATH`. Active maintenance or unavailable maintenance state returns the canonical maintenance response except for this exact `/_alive` bypass.
+
+The maintenance decision must not call `ReservedPathMatcher`. Its general slash normalization would otherwise extend bypass eligibility to inputs such as `_alive`, `//_alive`, and `///_alive`. Trailing-slash variants, different case, encoded substitutes, and debug paths must not bypass maintenance. Query strings do not affect the URI path comparison.
+
+The exact bypass delegates once to the downstream handler and preserves its response or original Throwable. It does not implement a liveness endpoint, synthesize a liveness response, establish a downstream status, or authorize access.
+
+The routing-free `FallbackRouterHandler` remains a terminal handler returning an empty `404` response without inspecting request data. It does not integrate reserved-path matching, routing delegation, or system-endpoint dispatch. HTTP middleware ordering, response decoration and finalization, observability, and Kernel UnitOfWork and reset ownership remain unchanged.
+
+### Decision 7: Keep the registry and matcher free of runtime dependencies
+
+`SystemRouteTable` is dependency-free static metadata. `ReservedPathMatcher` depends only on the table and native PHP operations. Both are final, non-instantiable classes without mutable runtime state.
+
+Neither requires a service binding, additional Composer dependency, new DI tag, configuration root, module discovery, filesystem access, runtime container, ContextStore, observability port, generated artifact, or `kernel.reset` registration. No request-derived values enter the registry, and the matcher does not emit logs, spans, metrics, or raw-input diagnostics.
+
+## Consequences
+
+### Positive consequences
+
+- one HTTP-owned declaration registry provides deterministic reserved ownership without coupling it to endpoint availability;
+- concrete reserved-path matching has a single stateless implementation and preserves segment boundaries and encoded path identity;
+- the repository gate checks synchronized declarations and version history while review retains authority over historical immutability;
+- maintenance liveness bypass remains exact and independent of general reserved-path normalization;
+- future admission and dispatch consumers have explicit representation and ownership obligations without expanding the current HTTP runtime.
+
+### Trade-offs
+
+- semantic declaration changes require a coordinated PHP, SSoT, and baseline update;
+- local consistency checks require a separate trusted-revision review to establish historical immutability;
+- concrete-path matching cannot substitute for template overlap analysis or endpoint access policy;
+- encoded path aliases are intentionally not inferred, and consumers must preserve consistent path semantics through dispatch.
+
+## Rejected alternatives
+
+### Put the system-route registry in Contracts or Foundation
+
+HTTP-specific ownership declarations would expand the format-neutral routing contracts or generic DI infrastructure with platform-specific knowledge. The existing descriptors, ports, and tag infrastructure remain independent of concrete HTTP reservation semantics.
+
+### Derive reservations from configuration, module discovery, or generated artifacts
+
+Endpoint ownership would vary with installed packages, runtime selection, or the availability of generated state. A competing configuration root or discovery layer would duplicate the canonical declarations and make reservation checks environment-dependent.
+
+### Treat version-baseline equality as proof of immutable history
+
+A self-contained gate cannot establish a trusted prior history. Coordinated rewriting of declarations and snapshots may satisfy local consistency checks while violating historical review requirements.
+
+### Reuse concrete matching as a routing compiler or endpoint dispatcher
+
+A single concrete path cannot represent the complete match domain of a route template. Matching metadata also cannot establish endpoint implementation, availability, or authorization. Combining these concerns would obscure ownership and introduce unsupported routing runtime behavior.
+
+### Decode paths during reservation matching or reuse normalization for maintenance bypass
+
+Decoding creates implicit aliases and permits divergence from effective dispatch semantics. Reusing general normalization for maintenance would expand an exact liveness exception to additional URI path representations.
+
+## Non-goals
+
+- General application routing, route-template compiler or admission guard implementation, routing delegation, system-endpoint dispatch, endpoint response construction, or endpoint access policy implementation.
+- Activation of liveness, health, metrics, debug, or other reserved endpoints solely through declarations or matching.
+- An additional Contracts or Foundation registry, configuration root, generated artifact, runtime discovery layer, DI binding, or public matching port.
+- Changes to middleware participation, HTTP pipeline ordering, terminal response behavior, Kernel lifecycle, context, observability, or reset orchestration.
+
+## Related SSoT
+
+- `docs/ssot/system-route-table.md`
+- `docs/ssot/reserved-path-matching.md`
+- `docs/ssot/routing-and-http-app-contracts.md`
+- `docs/ssot/http-middleware-catalog.md`
+- `docs/ssot/http-middleware-wiring.md`
+- `docs/ssot/tags.md`
+- `docs/ssot/di-tags-and-middleware-ordering.md`
+
+## Related ADRs
+
+- `docs/adr/ADR-0005-routing-httpapp-ports.md`
+- `docs/adr/ADR-0014-di-container-tags-deterministic-order-reset-orchestration.md`
+- `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`

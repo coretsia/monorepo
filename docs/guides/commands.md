@@ -1354,21 +1354,22 @@ Notes:
   4) `composer no-skeleton-modules-default:gate`
   5) `composer contracts-only-ports:gate`
   6) `composer reserved-tags:gate`
-  7) `composer observability-naming:gate`
-  8) `composer observability-span-naming:gate`
-  9) `composer observability-metric-catalog:gate`
-  10) `composer artifact-header-schema:gate`
-  11) `composer cross-cutting-contract:gate`
-  12) `composer kernel-public-api:gate`
-  13) `composer toolkit:gate`
-  14) `composer tools:ia`
-  15) `composer repo:text:gate`
-  16) `composer no-runtime-tooling-artifacts:gate`
-  17) `composer package-compliance:gate`
-  18) `composer package-publish-safety:gate`
-  19) `composer atomic-write:gate`
-  20) `composer doc-version-drift:gate`
-  21) `composer license-header:gate`
+  7) `composer system-route-table:gate`
+  8) `composer observability-naming:gate`
+  9) `composer observability-span-naming:gate`
+  10) `composer observability-metric-catalog:gate`
+  11) `composer artifact-header-schema:gate`
+  12) `composer cross-cutting-contract:gate`
+  13) `composer kernel-public-api:gate`
+  14) `composer toolkit:gate`
+  15) `composer tools:ia`
+  16) `composer repo:text:gate`
+  17) `composer no-runtime-tooling-artifacts:gate`
+  18) `composer package-compliance:gate`
+  19) `composer package-publish-safety:gate`
+  20) `composer atomic-write:gate`
+  21) `composer doc-version-drift:gate`
+  22) `composer license-header:gate`
 - Implementation detail: aggregate `gates` script in root `composer.json`.
 - Policy:
   - order of invoked gates inside the aggregate rail MUST be deterministic
@@ -1896,6 +1897,57 @@ Notes:
 Usage (repo root):
 - `composer reserved-tags:gate`
 - `composer reserved-tags:gate -- --root=<fixture-repo-root>`
+
+---
+
+### System route table gate
+
+Id: `tool.system_route_table_gate` \
+Entrypoint: `composer system-route-table:gate` \
+Category: repo policy / guard \
+Outputs:
+- none on success
+- deterministic diagnostics on system-route registry drift or gate failure
+
+Determinism:
+
+| Mode / flags                                                     | Determinism   | Notes                                                                                                  |
+|------------------------------------------------------------------|---------------|--------------------------------------------------------------------------------------------------------|
+| `composer system-route-table:gate`                               | deterministic | Validates the canonical system-route declarations, normative SSoT registry, and version baseline.      |
+| `composer system-route-table:gate -- --root=<fixture-repo-root>` | deterministic | Test/fixture repository-root override; the replacement root must satisfy canonical repository markers. |
+
+Notes:
+- Purpose: enforces the canonical system-route declaration registry and versioning policy defined in `docs/ssot/system-route-table.md`.
+- The canonical code-level registry is:
+  - `Coretsia\Platform\Http\System\SystemRouteTable`
+  - file: `packages/platform/http/src/System/SystemRouteTable.php`
+- The committed version baseline is `tools/config/system-route-table.json`.
+- `--root=<fixture-repo-root>` replaces the repository context for integration/fixture testing; it is not a scan-subtree selector.
+  - the replacement root must contain `composer.json`, `packages/`, and `tools/`;
+  - the registry source, normative SSoT, and version baseline are resolved within the selected repository;
+  - only one non-empty `--root=` argument is permitted;
+  - malformed, repeated, empty, or unsupported arguments are rejected.
+- Enforces the system-route registry policy:
+  - canonical PHP registry declaration shape, field types, ownership identifiers, path grammar, uniqueness, non-overlap, and ordering;
+  - mandatory liveness and development-only reservation invariants;
+  - exactly one normative `System Route Registry (MUST)` section with the declared schema version and canonical registry table;
+  - semantic equality between the PHP declarations, normative SSoT registry, and latest baseline snapshot;
+  - canonical baseline serialization, contiguous registry versions, and semantic changes between adjacent snapshots.
+- Historical snapshot immutability remains a repository review invariant requiring comparison with an independently trusted repository revision. Local baseline validation does not independently establish historical immutability.
+- Exit codes and output policy:
+  - exit code `0`: successful validation with empty stdout and stderr;
+  - exit code `1`: registry drift or gate failure;
+  - on policy drift, the first stderr line is `CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT`, followed by repository-root-relative violating paths and short reason tokens sorted by `strcmp`;
+  - repository selection, file inspection, syntax parsing, and argument failures emit `CORETSIA_SYSTEM_ROUTE_TABLE_GATE_FAILED`;
+  - shared tooling bootstrap diagnostics remain authoritative for bootstrap failures;
+  - no exception messages, stack traces, absolute paths, raw source snippets, rejected field values, or environment-specific diagnostics are emitted.
+- The gate is read-only: it inspects registry source without executing it and does not rewrite the PHP registry, SSoT document, version baseline, or fixture files.
+- Implementation detail: `@php tools/gates/system_route_table_gate.php`
+- CI/rails policy: `composer gates` MUST execute this gate immediately after `composer reserved-tags:gate` through the named composer script, not by raw PHP path.
+
+Usage (repo root):
+- `composer system-route-table:gate`
+- `composer system-route-table:gate -- --root=<fixture-repo-root>`
 
 ---
 

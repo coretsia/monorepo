@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Context
 
-An HTTP target needs one PSR-7/15 request-processing boundary with deterministic middleware ordering, a safe pre-routing terminal handler, and Kernel-owned UnitOfWork completion. Foundation already owns the tag registry and declarative container definitions; Kernel already owns the UnitOfWork and runtime-driver compatibility matrix. Reimplementing any of those mechanisms in `platform/http` would introduce competing ordering, state, or lifecycle semantics.
+An HTTP target needs one PSR-7/15 request-processing boundary with deterministic middleware ordering, a canonical terminal system-endpoint handler with a safe unmatched response, and Kernel-owned UnitOfWork completion. Foundation already owns the tag registry and declarative container definitions; Kernel already owns the UnitOfWork and runtime-driver compatibility matrix. Reimplementing any of those mechanisms in `platform/http` would introduce competing ordering, state, or lifecycle semantics.
 
 The nine reserved `http.middleware.*` slots separate system, application, and route request processing from response decoration. A conventional sequence that puts `_post` middleware after the request slots would skip decorators when a request-phase middleware returns early. Conversely, treating response decorators as HTTP request-completion observers would expose intermediate responses and obscure the final outcome. Optional Problem Details handling must remain a selected, outermost exception boundary rather than an HTTP-owned normalization implementation.
 
@@ -30,7 +30,7 @@ The runtime also needs concrete PSR-17 response and stream factories, but its pr
 
 When enabled, HTTP request identity must be established after successful Kernel UnitOfWork begin and before the entire PSR-15 chain executes.
 
-The independently enabled correlation, request-id, and security-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the finalized HTTP result. The HTTP runtime has no route matching or route-template handoff in this baseline. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
+The independently enabled correlation, request-id, and security-header policies must be applied after the entire PSR-15 chain returns, including an error response returned by an outermost boundary. Request-level metrics, access logging, and span completion must consume the successfully finalized response or the canonical fatal completion result. Canonical terminal system-endpoint matching and dispatch are independent of general application routing and do not establish a route-template handoff contract. Endpoint decisions require separate bounded observability without changing final-response measurement semantics. The Logging sink already defines a producer-neutral PSR-3 admission, redaction, and serialization boundary, and must not be recreated by an HTTP logging implementation.
 
 The HTTP runtime also needs application-root-local maintenance activation that can change independently of compiled configuration and process lifetime. Static middleware participation belongs to effective target-local configuration; mutable maintenance state belongs to the HTTP runtime and must be shared by cooperating HTTP and CLI processes without introducing another filesystem-locking or serialization mechanism.
 
@@ -56,7 +56,15 @@ The logical request-phase order is `system_pre`, `system`, `app_pre`, `app`, `ro
   -> terminal RequestHandlerInterface
 ```
 
-The pre-routing terminal is `FallbackRouterHandler`, returning a safe empty-body HTTP `404` through the selected PSR-17 factories. It does not match routes, implement system endpoints, inspect URLs, or infer route metadata.
+The canonical terminal is `FallbackRouterHandler`, exposed through the existing `RequestHandlerInterface` alias. It delegates exactly once to the shared `FallbackRouter` and returns a dispatched response unchanged or delegates unmatched response construction to `FallbackResponses`, preserving the safe empty-body HTTP `404`.
+
+`FallbackRouter` consumes the canonical declarations through `ReservedPathMatcher` and implements only explicitly supported system endpoints and reserved endpoint fallback responses. `FallbackResponses` owns deterministic response construction through the selected PSR-17 factories and canonical Foundation JSON serialization.
+
+`HttpServiceProvider` registers these services through canonical declarative DI with explicit mandatory dependencies, including the existing Foundation-owned clock and canonical meter port. Source and compiled containers preserve equivalent shared service identities and effective binding precedence.
+
+Terminal dispatch occurs only when the middleware chain delegates to the terminal handler. Earlier middleware responses retain precedence. Returned terminal responses and original Throwables follow the existing decorator, error-boundary, and `HttpKernel` completion semantics.
+
+The canonical terminal behavior is defined by `docs/ssot/http-system-endpoints.md`. It does not introduce general application routing, routing delegation, route admission, endpoint authorization, or inferred route metadata.
 
 `TagRegistry::all()` remains the sole tagged-discovery and ordering authority: priority descending, then service id ascending by byte-order comparison. Each slot appends configured manual service ids after its tagged entries and preserves their configured order. The first effective occurrence within one slot wins; participation in multiple effective slots is rejected. HTTP does not create another sorter, registry, deduplication service, or container-specific middleware resolver. HTTP metadata and conditional participation remain defined in `docs/ssot/http-middleware-wiring.md`.
 
@@ -151,15 +159,21 @@ Inbound `TraceContextMiddleware` reuses `ContextPropagationInterface` to extract
 
 ### Decision 6: Keep HTTP completion logging producer-owned and sink-neutral
 
-`HttpAccessLogWriter` is the producer of the static `http.request.completed` event through the canonical PSR-3 `LoggerInterface`. It receives only the bounded completion method, status, outcome, integer-millisecond duration, and optional Kernel-owned correlation id from `HttpKernel`. It emits at most one safe completion record for an enabled request, with `route_template='unknown'` fixed in this routing-free baseline.
+`HttpAccessLogWriter` is the producer of the static `http.request.completed` event through the canonical PSR-3 `LoggerInterface`. It receives only the bounded completion method, status, outcome, integer-millisecond duration, and optional Kernel-owned correlation id from `HttpKernel`. It emits at most one safe completion record for an enabled request, with `route_template='unknown'` fixed independently of terminal system-endpoint dispatch.
 
-There is no route matching, route metadata extraction, inferred path template, request-attribute handoff, or new route-template registry in `platform/http`. The writer never reconstructs a route from a raw URI, path, query, handler result, `ContextStore`, or an original immutable request. It does not log request/response headers, cookies, credentials, bodies, raw exception messages, or arbitrary request context.
+There is no general application route matching, route metadata extraction, inferred path template, request-attribute handoff, or route-template registry in `platform/http`. Canonical system-endpoint dispatch does not supply route-template metadata to the access-log writer. The writer never reconstructs a route from a raw URI, path, query, handler result, `ContextStore`, or an original immutable request. It does not log request/response headers, cookies, credentials, bodies, raw exception messages, or arbitrary request context.
 
 `docs/ssot/logging-policy.md` remains authoritative for the producer-neutral sink contract: accepted context shapes, canonical admission, redaction, formatting, and failure behavior. The HTTP producer must supply safe values; the sink does not derive or reinterpret HTTP status/outcome relationships. `HttpAccessLogWriter` does not import concrete `platform/logging` classes, create another logging pipeline or redaction owner, or bypass the Foundation noop logger when Logging is unselected.
 
 `HttpsRedirectMiddleware` owns redirect-decision observations independently of final HTTP request completion. It uses the existing meter and PSR-3 logger through the respective `http.metrics.enabled` and `http.access_log.enabled` settings. Redirect decisions do not establish the final HTTP request outcome or introduce another completion observer. Canonical metric names, bounded event fields, enablement, failure isolation, and redaction requirements remain defined by `docs/ssot/observability.md`.
 
 `MaintenanceMiddleware` owns maintenance-decision observations independently of redirect decisions and final HTTP request completion. It uses the existing meter and PSR-3 logger through `http.metrics.enabled` and `http.access_log.enabled`. Completed maintenance decisions and safe state-failure warnings follow `docs/ssot/observability.md` without introducing additional spans, completion observers, or lifecycle hooks.
+
+`FallbackRouter` owns terminal system-endpoint decision observability through `MeterPortInterface`. The validated `http.metrics.enabled` setting controls the canonical `http.system_endpoint_total` counter with exactly the `operation`, `status`, and `outcome` labels.
+
+When metrics are enabled, completed response decisions trigger a counter increment attempt after successful response construction. The intentional error decision triggers a counter increment attempt immediately before throwing, with status `unknown`. Emission failures are isolated without retries, replacement of a completed response, or suppression of the intentional Throwable.
+
+Terminal endpoint decisions remain independent of subsequent response decoration, finalization, request completion, and Kernel lifecycle outcomes. They do not introduce another completion observer, access-log event, request span, or reset boundary. Canonical metric semantics remain defined by `docs/ssot/observability.md` and `docs/ssot/http-system-endpoints.md`.
 
 ### Decision 7: Use declarative, target-local PSR-17 factory selection
 
@@ -242,6 +256,8 @@ Successfully returned maintenance responses follow applicable post-decorator tra
 ### Positive consequences
 
 - One deterministic PSR-15 chain preserves ordinary short-circuit response decorators and keeps error conversion outside their response-unwind path.
+- Canonical terminal system endpoints reuse reserved-path matching, explicit shared dependencies, deterministic response construction, and the existing error boundary without introducing general application routing or another route registry.
+- Terminal endpoint decisions remain independently observable without changing finalized HTTP request status, outcome, or Kernel lifecycle semantics.
 - `HttpKernel` observes only finalized response state, including selected Problem Details responses, without introducing another observer pipeline.
 - When enabled, HTTP request identity is available before middleware execution and remains independent of middleware ordering, Kernel correlation identity, and correlation response-header enablement.
 - Exact invocation-local identity verification prevents substituted context identifiers from being emitted as finalized request-id response headers.
@@ -262,7 +278,7 @@ Successfully returned maintenance responses follow applicable post-decorator tra
 - A built-in selection whose vendor classes are not autoloadable can be represented declaratively but cannot pass HTTP executable readiness.
 - Middleware that short-circuits within a post slot can prevent inner middleware from running, as required by standard PSR-15 semantics.
 - Inbound traceparent extraction cannot automatically establish a request span's parent without a future change to the tracing port contract.
-- The baseline has no routing-derived access-log template: `route_template` remains `unknown` until a separate explicit integration contract exists.
+- Terminal system-endpoint dispatch does not establish application route-template metadata; the canonical access-log value remains `route_template='unknown'`.
 - Participating HTTP and CLI processes require compatible filesystem access to the application-local maintenance directory and shared lock anchor. Scoped lock operations may block while another cooperating operation holds an incompatible lock.
 - Maintenance state is local to cooperating processes using the same application root and filesystem; it does not provide distributed synchronization or crash-transactional durability.
 
@@ -310,7 +326,7 @@ Rejected because `external` means both PSR-17 interface bindings are owned by th
 
 ### Infer routing metadata from HTTP requests for completion logging
 
-Rejected because raw paths, request attributes, and untrusted route parameters are not reliable canonical route templates. The safe producer value is `route_template='unknown'` until routing supplies an explicit contract.
+Rejected because raw paths, request attributes, and untrusted route parameters are not reliable canonical route templates. System-endpoint decisions do not provide an application route-template handoff. The canonical producer value remains `route_template='unknown'`.
 
 ### Write HTTP access logs through a separate logging backend or redactor
 
@@ -328,7 +344,7 @@ The effective target-local configuration controls middleware participation and t
 
 ## Non-goals
 
-This decision does not implement routing or system endpoints, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, or rate limiting. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
+This decision does not implement general application routing, route admission, endpoint authorization, routing delegation contracts, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, or rate limiting. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
 
 Maintenance does not implement system endpoints, distributed maintenance-state synchronization, crash-transactional filesystem updates, target-specific activation, CLI or Worker suspension, or another generated-artifact lifecycle.
 
@@ -336,7 +352,7 @@ Maintenance does not implement system endpoints, distributed maintenance-state s
 
 Verification must cover the exact outer-to-inner pipeline order, priority-`1000` selected/unselected error boundary, tagged priority and manual append behavior, same-slot deduplication, cross-slot rejection, toggle metadata validation, normal and early-return decorator unwind, and Throwable precedence. It must separately verify that outer error conversion completes through `HttpKernel` finalization, not through an additional post-decorator traversal.
 
-Source and compiled container tests must compare service definitions, effective aliases, factory sharing/distinction, final provider overrides, middleware tag metadata and ordering, terminal handling, and HTTP lifecycle outcomes. Factory readiness tests must distinguish declarative selection from missing autoloadable classes, missing external ports, incompatible implementations, and overwritten built-in identities; they must confirm failure before UnitOfWork, `HttpKernel`, terminal construction, and pipeline execution. Completion tests must cover safe final-response metrics/logging/span handling, independent optional failures, primary Throwable precedence, and the fixed routing-free `route_template` value.
+Source and compiled container tests must compare service definitions, effective aliases, factory sharing/distinction, final provider overrides, middleware tag metadata and ordering, terminal handling, and HTTP lifecycle outcomes. Factory readiness tests must distinguish declarative selection from missing autoloadable classes, missing external ports, incompatible implementations, and overwritten built-in identities; they must confirm failure before UnitOfWork, `HttpKernel`, terminal construction, and pipeline execution. Completion tests must cover safe final-response metrics/logging/span handling, independent optional failures, primary Throwable precedence, and the fixed `route_template='unknown'` value independently of terminal system-endpoint dispatch.
 
 Request identity verification must cover disabled policy behavior, trusted upstream acceptance, canonical Foundation ULID generation, pre-pipeline context availability, exact final-response identity verification, independent identity-header enablement, deterministic fatal completion, shared declarative policy wiring, and canonical UnitOfWork reset isolation.
 
@@ -348,6 +364,8 @@ HTTPS redirect verification must cover canonical priority and conditional partic
 
 Maintenance verification must cover exact priority and toggle metadata, static participation and dynamic activation independence, same-slot deduplication, application-root resolution, shared declarative state-store wiring, source/compiled container parity, strict version-1 message validation, safe filesystem operations, idempotent mutations, retained-message handling, and runtime-state visibility without rebuilding services.
 
+Terminal integration verification must cover canonical system-endpoint eligibility and response contracts, reserved endpoint fallback semantics, earlier middleware precedence, unmatched empty-body `404` responses, mandatory shared endpoint dependencies, clock and PSR-17 binding overrides, canonical matcher consumption, intentional Throwable propagation, and independently isolated endpoint-decision observability. Endpoint decisions must not alter canonical response finalization, request-level observations, UnitOfWork completion, or reset discipline.
+
 HTTP integration verification must cover deterministic maintenance responses, retry-delay selection, HEAD behavior, exact liveness bypass, invalid-message fallback, unavailable-state fail-closed behavior, precedence over downstream request processing, bounded decision observability, applicable post-decorator traversal, canonical finalization, Throwable precedence, and unchanged Kernel completion and reset discipline.
 
 CLI integration verification must cover command discovery, safe structured output, application-root isolation, target-independent runtime activation, and unchanged Kernel fingerprint, generation identity, and generated artifact bytes across maintenance mutations.
@@ -358,6 +376,7 @@ Sequential HTTP isolation verification follows the requirements defined by `docs
 
 - [HTTP Middleware Wiring SSoT](../ssot/http-middleware-wiring.md)
 - [HTTP Middleware Catalog SSoT](../ssot/http-middleware-catalog.md)
+- [HTTP System Endpoints SSoT](../ssot/http-system-endpoints.md)
 - [Tag Registry](../ssot/tags.md)
 - [DI Tags and Middleware Ordering SSoT](../ssot/di-tags-and-middleware-ordering.md)
 - [Runtime Container Definitions (SSoT)](../ssot/runtime-container-definitions.md)

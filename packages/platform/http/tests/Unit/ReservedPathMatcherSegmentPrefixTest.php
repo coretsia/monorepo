@@ -58,7 +58,7 @@ final class ReservedPathMatcherSegmentPrefixTest extends TestCase
     public function testReturnsTheCompleteCanonicalDeclaration(string $path, string $pattern): void
     {
         [$owner, $status, $type] = match ($pattern) {
-            '/', '/_alive', '/error', '/ping' => ['platform/http', 'reserved', 'exact'],
+            '/', '/_alive', '/error', '/ping' => ['platform/http', 'active', 'exact'],
             '/_debug' => ['platform/http', 'dev_only', 'exact'],
             '/_debug/' => ['platform/http', 'dev_only', 'prefix'],
             '/health' => ['platform/health', 'reserved', 'exact'],

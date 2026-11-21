@@ -26,6 +26,8 @@ use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Foundation\Clock\FrozenClock;
+use Coretsia\Foundation\Clock\SystemClock;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
@@ -61,6 +63,7 @@ use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
+use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
@@ -83,6 +86,8 @@ use Coretsia\Platform\Http\Provider\HttpServiceFactory;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\Routing\FallbackResponses;
+use Coretsia\Platform\Http\Routing\FallbackRouter;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
@@ -90,6 +95,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -107,6 +113,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         HttpRequestMetricsRecorder::class,
         HttpAccessLogWriter::class,
         HttpRequestSpanRecorder::class,
+    ];
+
+    /** @var list<class-string> */
+    private const array TERMINAL_SERVICES = [
+        FallbackResponses::class,
+        FallbackRouter::class,
+        FallbackRouterHandler::class,
     ];
 
     /** @var list<class-string> */
@@ -168,15 +181,22 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
                 self::assertFalse($context->has(ContextKeys::REQUEST_ID));
 
+                $uri = $this->createStub(UriInterface::class);
+                $uri->method('getPath')->willReturn('/unmatched');
+
                 $request = $this->createStub(ServerRequestInterface::class);
                 $request->method('getMethod')->willReturn('GET');
+                $request->method('getUri')->willReturn($uri);
                 $request->method('getBody')->willReturn($stream);
                 $request->method('getHeader')->willReturn([]);
                 $request->method('hasHeader')->willReturn(false);
 
                 $response = $this->createMock(ResponseInterface::class);
                 $response->method('getStatusCode')->willReturn(404);
-                $response->method('withBody')->willReturnSelf();
+                $response->expects(self::exactly(2))
+                    ->method('withBody')
+                    ->with(self::identicalTo($stream))
+                    ->willReturnSelf();
                 $response->expects(self::never())->method('withAddedHeader');
                 $response->expects(self::never())->method('withoutHeader');
                 HttpParityExternalFactory::$response = $response;
@@ -228,7 +248,26 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
                 $terminal = $container->get(RequestHandlerInterface::class);
                 self::assertInstanceOf(FallbackRouterHandler::class, $terminal);
+                self::assertSame(
+                    $container->get(FallbackRouterHandler::class),
+                    $terminal,
+                );
+
+                $clock = $container->get(ClockInterface::class);
+                self::assertInstanceOf(SystemClock::class, $clock);
+                self::assertSame($container->get(SystemClock::class), $clock);
+
+                $this->assertTerminalServiceBindings(
+                    $container,
+                    $config['http']['metrics']['enabled'],
+                );
+
                 self::assertSame($response, $terminal->handle($request));
+
+                $factory = $container->get(HttpParityExternalFactory::class);
+                self::assertInstanceOf(HttpParityExternalFactory::class, $factory);
+                self::assertSame(404, $factory->lastResponseCode);
+                self::assertSame('', $factory->lastStreamContent);
                 self::assertInstanceOf(
                     HttpMiddlewareStackBuilder::class,
                     $container->get(HttpMiddlewareStackBuilder::class),
@@ -290,6 +329,8 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertSame(1, $runtime->completions);
                 self::assertSame('handled_error', $runtime->lastOutcome);
                 self::assertSame(404, $actual->getStatusCode());
+                self::assertSame(404, $factory->lastResponseCode);
+                self::assertSame('', $factory->lastStreamContent);
             }
         } finally {
             HttpParityExternalFactory::$response = null;
@@ -486,6 +527,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $graph = self::compiler()->compile($set)->toArray();
         self::assertNotEmpty($graph['services']);
         self::assertContains(RuntimePathContext::class, $set->requiredServiceIds());
+        self::assertContains(ClockInterface::class, $set->requiredServiceIds());
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['services']);
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['aliases']);
 
@@ -500,6 +542,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             ...self::MAINTENANCE_COMMANDS,
             HttpKernel::class,
             ...self::COMPLETION_SERVICES,
+            ...self::TERMINAL_SERVICES,
         ];
 
         $services = [];
@@ -524,6 +567,11 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             if (($operation['kind'] ?? null) !== 'tag') {
                 continue;
             }
+
+            self::assertNotContains(
+                $operation['serviceId'],
+                self::TERMINAL_SERVICES,
+            );
 
             if (\str_starts_with($operation['tag'], 'http.middleware.')) {
                 $tags[] = $operation;
@@ -558,7 +606,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             }
         }
 
-        self::assertCount(15, $services);
+        self::assertCount(18, $services);
         self::assertCount(8, $tags);
         self::assertCount(3, $cliTags);
         self::assertSame(
@@ -645,6 +693,32 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
         $requestId = $config['http']['request_id'];
+        $terminalArguments = [
+            FallbackResponses::class => [
+                $ref(ResponseFactoryInterface::class),
+                $ref(StreamFactoryInterface::class),
+            ],
+            FallbackRouter::class => [
+                $ref(FallbackResponses::class),
+                $ref(ClockInterface::class),
+                $ref(MeterPortInterface::class),
+                $config['http']['metrics']['enabled'],
+            ],
+            FallbackRouterHandler::class => [
+                $ref(FallbackRouter::class),
+                $ref(FallbackResponses::class),
+            ],
+        ];
+
+        foreach ($terminalArguments as $id => $arguments) {
+            self::assertSame([
+                'arguments' => $arguments,
+                'class' => $id,
+                'id' => $id,
+                'kind' => 'service.class',
+                'shared' => true,
+            ], $services[$id]);
+        }
 
         $maintenanceArguments = [
             ScopedFileLock::class => [],
@@ -741,6 +815,23 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         self::assertSame(UuidGenerator::class, $graph['aliases'][IdGeneratorInterface::class]);
         self::assertSame(ContextStore::class, $graph['aliases'][ContextAccessorInterface::class]);
+        self::assertSame(
+            FallbackRouterHandler::class,
+            $graph['aliases'][RequestHandlerInterface::class],
+        );
+        self::assertSame(
+            SystemClock::class,
+            $graph['aliases'][ClockInterface::class],
+        );
+
+        foreach ($graph['tags'] as $taggedServices) {
+            foreach ($taggedServices as $taggedService) {
+                self::assertNotContains(
+                    $taggedService['id'],
+                    self::TERMINAL_SERVICES,
+                );
+            }
+        }
 
         $compiledContextStores = [];
         foreach ($graph['services'] as $id => $service) {
@@ -979,6 +1070,14 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             HttpAccessLogWriter::class => ['logger', 'enabled'],
             HttpRequestSpanRecorder::class => ['tracer', 'enabled'],
             Pipeline::class => ['middleware', 'terminal'],
+            FallbackResponses::class => ['responses', 'streams'],
+            FallbackRouter::class => [
+                'responses',
+                'clock',
+                'meter',
+                'metricsEnabled',
+            ],
+            FallbackRouterHandler::class => ['router', 'responses'],
         ];
 
         foreach ($expectedProperties as $class => $names) {
@@ -1065,6 +1164,49 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             self::assertNotNull($constructor);
 
             foreach ($constructor->getParameters() as $parameter) {
+                self::assertFalse($parameter->allowsNull());
+                self::assertFalse($parameter->isOptional());
+                self::assertFalse($parameter->isDefaultValueAvailable());
+            }
+        }
+    }
+
+    public function testTerminalServicesHaveOnlyMandatoryConstructorDependencies(): void
+    {
+        $expectedTypes = [
+            FallbackResponses::class => [
+                ResponseFactoryInterface::class,
+                StreamFactoryInterface::class,
+            ],
+            FallbackRouter::class => [
+                FallbackResponses::class,
+                ClockInterface::class,
+                MeterPortInterface::class,
+                'bool',
+            ],
+            FallbackRouterHandler::class => [
+                FallbackRouter::class,
+                FallbackResponses::class,
+            ],
+        ];
+
+        foreach ($expectedTypes as $class => $types) {
+            $reflection = new \ReflectionClass($class);
+
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->isReadOnly());
+
+            $constructor = $reflection->getConstructor();
+            self::assertNotNull($constructor);
+
+            $parameters = $constructor->getParameters();
+            self::assertCount(\count($types), $parameters);
+
+            foreach ($parameters as $index => $parameter) {
+                self::assertSame(
+                    $types[$index],
+                    (string) $parameter->getType(),
+                );
                 self::assertFalse($parameter->allowsNull());
                 self::assertFalse($parameter->isOptional());
                 self::assertFalse($parameter->isDefaultValueAvailable());
@@ -1458,7 +1600,15 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         );
         self::assertNotSame($a['aliases'][StreamFactoryInterface::class], $b['aliases'][StreamFactoryInterface::class]);
         self::assertSame($a['tags'], $b['tags']);
-        foreach ([HttpKernel::class, RequestIdPolicy::class, ...self::COMPLETION_SERVICES, Pipeline::class] as $id) {
+        foreach (
+            [
+                HttpKernel::class,
+                RequestIdPolicy::class,
+                ...self::COMPLETION_SERVICES,
+                ...self::TERMINAL_SERVICES,
+                Pipeline::class,
+            ] as $id
+        ) {
             self::assertSame($a['services'][$id], $b['services'][$id]);
         }
     }
@@ -1483,9 +1633,12 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
     public function testLaterBindingWinsForExternalServicesAndAliasesInSourceAndCompiledContainers(): void
     {
         $config = self::config();
+        $config['http']['metrics']['enabled'] = false;
+
         $definitions = new ContainerDefinitionBuilder();
         new FoundationServiceProvider()->define($definitions, new ContainerDefinitionContext($config));
         new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext($config));
+
         $definitions
             ->classService(KernelRuntimeInterface::class, HttpParityKernelRuntime::class)
             ->classService(RuntimeDriverResolver::class, RuntimeDriverResolver::class)
@@ -1494,14 +1647,100 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             ->alias(ResponseFactoryInterface::class, HttpParityExternalFactory::class)
             ->alias(StreamFactoryInterface::class, HttpParityExternalFactory::class)
             ->alias(ResponseFactoryInterface::class, HttpParityOverrideFactory::class)
-            ->alias(StreamFactoryInterface::class, HttpParityOverrideFactory::class);
+            ->alias(StreamFactoryInterface::class, HttpParityOverrideFactory::class)
+            ->classMethodFactory(
+                FrozenClock::class,
+                HttpParityClockFixture::class,
+                'create',
+            )
+            ->alias(ClockInterface::class, FrozenClock::class);
+
         [$source, $compiled] = self::containers($definitions->build(), $config);
-        foreach ([$source, $compiled] as $container) {
-            self::assertInstanceOf(HttpParityOverrideFactory::class, $container->get(ResponseFactoryInterface::class));
-            self::assertSame(
-                $container->get(ResponseFactoryInterface::class),
-                $container->get(StreamFactoryInterface::class),
-            );
+
+        try {
+            foreach ([$source, $compiled] as $container) {
+                $factory = $container->get(ResponseFactoryInterface::class);
+                self::assertInstanceOf(HttpParityOverrideFactory::class, $factory);
+                self::assertSame(
+                    $factory,
+                    $container->get(StreamFactoryInterface::class),
+                );
+                self::assertSame(
+                    $factory,
+                    $container->get(HttpParityOverrideFactory::class),
+                );
+
+                $originalFactory = $container->get(HttpParityExternalFactory::class);
+                self::assertInstanceOf(HttpParityExternalFactory::class, $originalFactory);
+                self::assertNotSame($originalFactory, $factory);
+
+                $clock = $container->get(ClockInterface::class);
+                self::assertInstanceOf(FrozenClock::class, $clock);
+                self::assertSame($container->get(FrozenClock::class), $clock);
+                self::assertNotSame($container->get(SystemClock::class), $clock);
+                self::assertSame(1700000000, $clock->now()->getTimestamp());
+
+                $this->assertTerminalServiceBindings($container, false);
+
+                $terminal = $container->get(RequestHandlerInterface::class);
+                self::assertInstanceOf(FallbackRouterHandler::class, $terminal);
+
+                foreach (
+                    [
+                        ['/', 200, 'text/html; charset=utf-8', "<h1>Hello Coretsia</h1>\n"],
+                        ['/ping', 200, 'application/json', "{\"ok\":true,\"ts\":1700000000}\n"],
+                        ['/_alive', 200, 'text/plain; charset=utf-8', 'ALIVE'],
+                        ['/health', 501, 'application/json', "{\"error\":\"owner missing\"}\n"],
+                        ['/health/ready', 501, 'application/json', "{\"error\":\"owner missing\"}\n"],
+                        ['/metrics', 501, 'text/plain; charset=utf-8', "owner missing\n"],
+                        ['/unmatched', 404, null, ''],
+                        ['/_debug/toolbar', 404, null, ''],
+                    ] as [$path, $status, $contentType, $body]
+                ) {
+                    $this->assertTerminalEndpointParityResponse(
+                        $terminal,
+                        $factory,
+                        $path,
+                        $status,
+                        $contentType,
+                        $body,
+                    );
+                }
+
+                $factory->lastResponseCode = null;
+                $factory->lastStreamContent = null;
+                HttpParityExternalFactory::$response = null;
+                HttpParityExternalFactory::$stream = null;
+
+                $uri = $this->createStub(UriInterface::class);
+                $uri->method('getPath')->willReturn('/error');
+
+                $request = $this->createStub(ServerRequestInterface::class);
+                $request->method('getMethod')->willReturn('GET');
+                $request->method('getUri')->willReturn($uri);
+
+                try {
+                    $terminal->handle($request);
+                    self::fail('The intentional endpoint failure must be propagated.');
+                } catch (IntentionalErrorException $exception) {
+                    self::assertSame(
+                        'CORETSIA_HTTP_INTENTIONAL_ERROR',
+                        $exception->errorCode(),
+                    );
+                    self::assertSame('http-intentional-error', $exception->reason());
+                    self::assertNull($exception->getPrevious());
+                }
+
+                self::assertNull($factory->lastResponseCode);
+                self::assertNull($factory->lastStreamContent);
+                self::assertNull($originalFactory->lastResponseCode);
+                self::assertNull($originalFactory->lastStreamContent);
+
+                $this->assertTerminalServiceBindings($container, false);
+            }
+        } finally {
+            HttpParityExternalFactory::$response = null;
+            HttpParityExternalFactory::$stream = null;
         }
     }
 
@@ -1534,6 +1773,126 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             self::assertInstanceOf(HttpParityExternalFactory::class, $container->get($selected));
             $this->expectFactoryMismatch($container, $config);
         }
+    }
+
+    private function assertTerminalServiceBindings(
+        Container $container,
+        bool $metricsEnabled,
+    ): void {
+        $responses = $container->get(FallbackResponses::class);
+        $router = $container->get(FallbackRouter::class);
+        $handler = $container->get(FallbackRouterHandler::class);
+
+        self::assertInstanceOf(FallbackResponses::class, $responses);
+        self::assertInstanceOf(FallbackRouter::class, $router);
+        self::assertInstanceOf(FallbackRouterHandler::class, $handler);
+
+        self::assertSame($responses, $container->get(FallbackResponses::class));
+        self::assertSame($router, $container->get(FallbackRouter::class));
+        self::assertSame($handler, $container->get(FallbackRouterHandler::class));
+        self::assertSame($handler, $container->get(RequestHandlerInterface::class));
+
+        self::assertSame(
+            $container->get(ResponseFactoryInterface::class),
+            new \ReflectionProperty(FallbackResponses::class, 'responses')->getValue($responses),
+        );
+        self::assertSame(
+            $container->get(StreamFactoryInterface::class),
+            new \ReflectionProperty(FallbackResponses::class, 'streams')->getValue($responses),
+        );
+
+        self::assertSame(
+            $responses,
+            new \ReflectionProperty(FallbackRouter::class, 'responses')->getValue($router),
+        );
+        self::assertSame(
+            $container->get(ClockInterface::class),
+            new \ReflectionProperty(FallbackRouter::class, 'clock')->getValue($router),
+        );
+        self::assertSame(
+            $container->get(MeterPortInterface::class),
+            new \ReflectionProperty(FallbackRouter::class, 'meter')->getValue($router),
+        );
+        self::assertSame(
+            $metricsEnabled,
+            new \ReflectionProperty(FallbackRouter::class, 'metricsEnabled')->getValue($router),
+        );
+
+        self::assertSame(
+            $responses,
+            new \ReflectionProperty(FallbackRouterHandler::class, 'responses')->getValue($handler),
+        );
+        self::assertSame(
+            $router,
+            new \ReflectionProperty(FallbackRouterHandler::class, 'router')->getValue($handler),
+        );
+    }
+
+    private function assertTerminalEndpointParityResponse(
+        RequestHandlerInterface $terminal,
+        HttpParityExternalFactory $factory,
+        string $path,
+        int $status,
+        ?string $contentType,
+        string $body,
+    ): void {
+        $uri = $this->createStub(UriInterface::class);
+        $uri->method('getPath')->willReturn($path);
+
+        $request = $this->createStub(ServerRequestInterface::class);
+        $request->method('getMethod')->willReturn('GET');
+        $request->method('getUri')->willReturn($uri);
+
+        $stream = $this->createStub(StreamInterface::class);
+        $stream->method('__toString')->willReturn($body);
+
+        $response = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createStub(ResponseInterface::class);
+        $finalResponse->method('getStatusCode')->willReturn($status);
+        $finalResponse->method('getBody')->willReturn($stream);
+
+        if ($contentType === null) {
+            $response->expects(self::never())->method('withHeader');
+            $response->expects(self::once())
+                ->method('withBody')
+                ->with(self::identicalTo($stream))
+                ->willReturn($finalResponse);
+        } else {
+            $typedResponse = $this->createMock(ResponseInterface::class);
+            $cacheControlledResponse = $this->createMock(ResponseInterface::class);
+
+            $response->expects(self::once())
+                ->method('withHeader')
+                ->with('Content-Type', $contentType)
+                ->willReturn($typedResponse);
+            $response->expects(self::never())->method('withBody');
+
+            $typedResponse->expects(self::once())
+                ->method('withHeader')
+                ->with('Cache-Control', 'no-store')
+                ->willReturn($cacheControlledResponse);
+            $typedResponse->expects(self::never())->method('withBody');
+
+            $cacheControlledResponse->expects(self::never())->method('withHeader');
+            $cacheControlledResponse->expects(self::once())
+                ->method('withBody')
+                ->with(self::identicalTo($stream))
+                ->willReturn($finalResponse);
+        }
+
+        $factory->lastResponseCode = null;
+        $factory->lastStreamContent = null;
+        HttpParityExternalFactory::$stream = $stream;
+        HttpParityExternalFactory::$response = $response;
+
+        $actual = $terminal->handle($request);
+
+        self::assertSame($finalResponse, $actual);
+        self::assertSame($status, $actual->getStatusCode());
+        self::assertSame($status, $factory->lastResponseCode);
+        self::assertSame($stream, $actual->getBody());
+        self::assertSame($body, $factory->lastStreamContent);
+        self::assertSame($body, (string) $actual->getBody());
     }
 
     private function assertMaintenanceParityResponse(
@@ -1771,6 +2130,14 @@ class HttpParityExternalFactory implements ResponseFactoryInterface, StreamFacto
 
 final class HttpParityOverrideFactory extends HttpParityExternalFactory
 {
+}
+
+final class HttpParityClockFixture
+{
+    public static function create(): FrozenClock
+    {
+        return new FrozenClock(new \DateTimeImmutable('@1700000000'));
+    }
 }
 
 final class HttpParityVendorMarker

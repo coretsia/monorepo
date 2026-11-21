@@ -12547,11 +12547,13 @@ composer: "coretsia/platform-http"
 kind: runtime
 module_id: "platform.http"
 
-goal: "FallbackRouter забезпечує deterministic pre-routing endpoints і reserved endpoints behavior до встановлення owners."
+goal: "FallbackRouter забезпечує deterministic terminal system endpoints і reserved endpoint fallback behavior без впровадження general application routing."
 provides:
-- "Deterministic “pre-routing” endpoints: `/`, `/ping`, `/_alive`, `/error`"
-- "Reserved endpoints behavior (до owners): `/health*` → 501 JSON, `/metrics` → 501 text/plain"
+- "Deterministic terminal system endpoints: `/`, `/ping`, `/_alive`, `/error`"
+- "Reserved endpoint fallback behavior: `/health` exact + `/health/` prefix → 501 JSON, `/metrics` exact → 501 text/plain"
 - "Single source of truth: використовує `SystemRouteTable` + `ReservedPathMatcher` (NO DUPES)"
+- "Canonical endpoint activation metadata through a versioned system-route registry transition"
+- "Preservation of existing HTTP pipeline, error handling, maintenance, request finalization, and Kernel UnitOfWork semantics"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -12562,28 +12564,65 @@ ssot_refs:
 - "docs/ssot/system-route-table.md"
 - "docs/ssot/reserved-path-matching.md"
 - "docs/ssot/http-system-endpoints.md"
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/problem-details.md"
+- "docs/ssot/errors-boundary.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/time-ids-and-duration.md"
 ---
 
-- [ ] update `3.100.0 HTTP FallbackRouter + system endpoints` to create SystemEndpointPayload only when implementing concrete system endpoints, reuse the existing FallbackRouterHandler terminal seam, and consume HttpKernel-owned access logging without reintroducing AccessLogMiddleware or a second request-observability pipeline.
+- [x] Pre-stable versioning discipline (MUST):
+  - [x] preserve all existing schema, SSoT, and ADR versions at `1`
+  - [x] update existing versioned baselines in place without appending new version snapshots
+  - [x] preserve synthetic version-transition fixtures where applicable
+  - [x] MUST NOT document this internal implementation constraint in project documentation
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.90.0` — `SystemRouteTable` exists (reserved map)
-  - `3.90.0` — `ReservedPathMatcher` exists (matching semantics)
+  - `3.10.0` — canonical ErrorHandler and shared `error.mapper` registry exist
+  - `3.40.0` — canonical RFC9457 Problem Details HTTP boundary exists
+  - `3.50.0` — canonical HTTP runtime, PSR-15 pipeline, terminal handler, and request completion services exist
+  - `3.80.0` — application-local maintenance mode and exact liveness bypass exist
+  - `3.90.0` — canonical versioned `SystemRouteTable`, `ReservedPathMatcher`, and registry enforcement gate exist
 
 - Required deliverables (exact paths):
-  - `packages/platform/http/src/Routing/FallbackRouterHandler.php` — terminal handler hook point (owner=http runtime)
-  - `packages/platform/http/src/System/SystemEndpointPayload.php` — canonical payload helper (can be introduced earlier; this epic may extend it)
-  - `packages/platform/http/src/Provider/HttpServiceProvider.php` — wiring terminal handler to pipeline
+  - `packages/platform/http/src/Routing/FallbackRouterHandler.php`
+  - `packages/platform/http/src/System/SystemRouteTable.php`
+  - `packages/platform/http/src/System/ReservedPathMatcher.php`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/http/src/Error/HttpExceptionMapper.php`
+  - `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php`
+  - `packages/platform/http/src/HttpKernel.php`
+  - `packages/platform/http/src/Observability/HttpAccessLogWriter.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Clock/SystemClock.php`
+  - `packages/core/foundation/src/Clock/FrozenClock.php`
+  - `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - `tools/gates/system_route_table_gate.php`
+  - `tools/config/system-route-table.json`
+  - `docs/ssot/system-route-table.md`
+  - `docs/ssot/reserved-path-matching.md`
+  - `docs/ssot/observability.md`
 
 - Required config roots/keys:
-  - N/A
+  - existing `http.metrics.enabled`
+  - existing `http.access_log.enabled`
+  - existing `http.maintenance.enabled`
+  - existing `http.factory`
+  - no new config roots or keys
 
 - Required tags:
-  - N/A
+  - existing `ReservedTags::ERROR_MAPPER`
+  - existing canonical HTTP middleware tags remain unchanged
 
 - Required contracts / ports:
   - `Psr\Http\Server\RequestHandlerInterface`
@@ -12592,6 +12631,8 @@ ssot_refs:
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
   - `Psr\Clock\ClockInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -12604,7 +12645,14 @@ Forbidden:
 - any other `platform/*` runtime packages (особливо `platform/metrics|platform/health|platform/http-app|platform/routing`)
 - `integrations/*`
 
-#### Uses ports (API surface, NOT deps) (optional)
+Production source restrictions:
+- cross-platform runtime implementation imports remain forbidden
+- explicitly selected Problem Details, Errors, Metrics, and Redaction implementations may participate through their existing canonical contracts and provider composition
+- cross-package integration test fixtures MAY exercise existing selected runtime providers without introducing production dependency edges
+- do not introduce package-installation detection, module discovery, endpoint availability discovery, or container probing
+- add the direct `psr/clock` Composer dependency without changing Coretsia package dependency edges
+
+#### Uses ports (API surface, NOT deps) (MUST)
 
 - PSR:
   - `Psr\Http\Server\RequestHandlerInterface`
@@ -12612,89 +12660,657 @@ Forbidden:
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Http\Message\ResponseFactoryInterface`
   - `Psr\Http\Message\StreamFactoryInterface`
-- Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Clock\SystemClock` (optional; або інший canonical clock)
+  - `Psr\Clock\ClockInterface`
+
+- Contracts:
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
+
+- Foundation stable APIs:
+  - `Coretsia\Foundation\Serialization\StableJsonEncoder`
+  - canonical `ClockInterface` binding through `FoundationServiceProvider`
+  - `Coretsia\Foundation\Clock\FrozenClock` for deterministic test fixtures only
+  - existing declarative container definition APIs
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A
 - HTTP:
-  - terminal routes (owner=`platform/http`):
-    - `GET /` → 200 HTML “Hello Coretsia”
-    - `GET /ping` → 200 JSON `{"ok":true,"ts":<unix>}`
-    - `GET /_alive` → 200 text `ALIVE`
-    - `GET /error` → throws deterministic exception for RFC7807 flow
-  - reserved until owners installed:
-    - `/health` exact + `/health/` prefix → 501 JSON (owner missing)
-    - `/metrics` exact → 501 text/plain (owner missing)
-  - dev-only:
-    - `/_debug/` prefix delegates to dev diagnostics owner policy (see 3.110.0; if disabled → deterministic 404/403 by that policy)
+  - active terminal system endpoints (owner=`platform/http`):
+    - `GET /` → `200`, HTML `Hello Coretsia`
+    - `GET /ping` → `200`, JSON `{"ok":true,"ts":<unix>}`
+    - `GET /_alive` → `200`, text `ALIVE`
+    - `GET /error` → throws `IntentionalErrorException`
+  - reserved endpoint fallback responses:
+    - `GET /health` exact + `GET /health/` segment-prefix namespace → `501`, JSON
+    - `GET /metrics` exact → `501`, text/plain
+  - development-only reservations:
+    - `/_debug` exact and `/_debug/` segment-prefix namespace remain `dev_only`
+    - no development endpoint implementation, dispatch delegation, or dev access policy is introduced
+    - requests reaching the terminal handler for these reservations remain unmatched and receive the canonical safe `404`
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
   - N/A
 
 - Precedence rule (MUST):
-  - `FallbackRouter` is terminal fallback only.
-  - If an earlier middleware/app routing layer already produced a response, `FallbackRouter` MUST NOT run.
-  - Therefore the built-in `/` response applies only when no earlier route handled `/`.
+  - `FallbackRouter` is a terminal system-endpoint dispatcher only
+  - if an earlier middleware returns a response without delegating, `FallbackRouter` MUST NOT execute
+  - earlier owner-controlled middleware MAY implement its own explicitly authorized system endpoint behavior
+  - terminal reserved endpoint fallback responses MUST NOT replace an earlier owner response
+  - earlier response precedence MUST NOT be interpreted as permission for application routes to claim canonical reserved paths
+  - preserve the canonical exact root-path ownership and future route admission requirements
 
 - Method claim policy (MUST):
-  - built-in system endpoints in this epic are claimed only for the exact method+path pairs listed above
-  - `FallbackRouter` MUST NOT synthesize package-local `405` handling in this epic
-  - unsupported methods for those paths fall through as not matched
+  - active built-in system endpoints and reserved endpoint fallback responses are claimed only for exact case-sensitive method `GET`
+  - method filtering applies to terminal dispatch only and MUST NOT alter earlier middleware behavior
+  - unsupported methods, including `HEAD`, MUST return a non-matching dispatch result
+  - MUST NOT introduce implicit `HEAD` aliases, automatic `OPTIONS`, `Allow` headers, or package-local `405` handling
+
+- Path dispatch policy (MUST):
+  - consume the original PSR-7 URI `getPath()` value through `ReservedPathMatcher::match()`
+  - use the returned canonical declaration as the sole reserved-path matching result
+  - dispatch using the matched declaration's canonical pattern, owner, type, and status
+  - MUST NOT repeat path normalization, prefix matching, URL decoding, or route declaration matching
+  - invalid matcher inputs MUST fall through safely as not matched
+  - unrelated exceptions MUST propagate through the existing HTTP error boundary
+  - preserve canonical `404` behavior for valid unmatched paths
+  - query strings MUST NOT participate in reserved-path matching
+  - matching and dispatch MUST use the same effective path representation
+  - normalized terminal liveness matching MUST NOT expand the exact unnormalized maintenance bypass
+
+- Reserved endpoint ownership policy (MUST):
+  - `501` means that the reserved endpoint capability has not produced an owner-controlled response before terminal fallback
+  - it MUST NOT be interpreted as proof that the owner Composer package is missing
+  - installing or selecting `platform.metrics` does not activate a metrics HTTP endpoint
+  - reserved fallback responses are HTTP-owned terminal diagnostics, not implementation or activation of the reserved owner's endpoint
+  - MUST NOT probe Composer installation, `ModulePlan`, container services, renderer availability, or runtime capabilities to decide endpoint fallback behavior
+  - declaration status MUST NOT be interpreted as endpoint authorization
+
+### System-route registry transition (MUST)
+
+- [x] consume the existing canonical `SystemRouteTable` without introducing another declaration registry
+- [x] transition exactly four materialized `platform/http` declarations from `reserved` to `active`:
+  - [x] `/`
+  - [x] `/_alive`
+  - [x] `/error`
+  - [x] `/ping`
+- [x] preserve `SystemRouteTable::SCHEMA_VERSION = 1`
+- [x] preserve all nine existing declarations, their owners, patterns, types, and canonical ordering
+- [x] preserve `reserved` status for `/health`, `/health/`, and `/metrics`
+- [x] preserve `dev_only` status for `/_debug` and `/_debug/`
+- [x] preserve `SystemRouteTable::ALIVE_PATH` without modification
+- [x] preserve schema version `1` in the normative registry SSoT
+- [x] update the existing unreleased version-1 baseline snapshot to match the materialized endpoint declarations
+- [x] preserve exactly one production baseline snapshot
+- [x] update PHP declarations, normative SSoT entries, and the production baseline as one coordinated change
+- [x] MUST NOT append a new version snapshot or introduce duplicate version-1 snapshots
+- [x] preserve the current registry gate implementation and canonical diagnostics
+- [x] preserve the independent version-1 gate test fixture unchanged as a synthetic registry baseline
+- [x] preserve synthetic future-version transition evidence independently of the production pre-stable versioning policy
+- [x] MUST NOT interpret the `active` declaration status as unconditional runtime exposure or authorization
 
 ### Deliverables (MUST)
 
 #### Creates
 
-- [ ] `packages/platform/http/src/Routing/FallbackRouter.php` — endpoint dispatch (uses SystemRouteTable + ReservedPathMatcher)
+- [x] `packages/platform/http/src/Routing/FallbackRouter.php` — canonical terminal system-endpoint dispatch
+  - [x] namespace `Coretsia\Platform\Http\Routing`
+  - [x] implement a final readonly stateless service
+  - [x] require explicit constructor dependencies:
+    - [x] `FallbackResponses`
+    - [x] `Psr\Clock\ClockInterface`
+    - [x] `MeterPortInterface`
+    - [x] `bool $metricsEnabled`
+  - [x] expose `dispatch(ServerRequestInterface $request): ?ResponseInterface`
+  - [x] reject unsupported methods before endpoint dispatch
+  - [x] obtain the original URI path of an eligible request before entering the matcher exception boundary
+  - [x] invoke `ReservedPathMatcher::match()` exactly once for the obtained path
+  - [x] catch only the canonical `InvalidArgumentException` with diagnostic `http-reserved-path-invalid` raised by the matcher and return `null`
+  - [x] propagate unrelated invalid-argument exceptions unchanged
+  - [x] MUST NOT include request URI access, response construction, clock access, or endpoint dispatch inside the invalid matcher input catch boundary
+  - [x] distinguish valid unmatched paths from matched canonical declarations
+  - [x] select implemented endpoint behavior using the returned canonical declaration
+  - [x] require the expected declaration owner, type, and status for each explicit endpoint handler
+  - [x] require the expected canonical declaration pattern for each explicit endpoint handler
+  - [x] MUST NOT dispatch arbitrary future declarations based solely on owner or status
+  - [x] return `null` for matched declarations without explicitly implemented endpoint behavior
+  - [x] MUST NOT return a reserved fallback response for a declaration that is no longer `reserved`
+  - [x] reuse `SystemRouteTable::ALIVE_PATH` as the canonical liveness identifier
+  - [x] do not maintain a second route declaration array or independent prefix rules
+  - [x] dispatch `/` through `FallbackResponses::home()`
+  - [x] obtain `/ping` timestamp through `ClockInterface::now()->getTimestamp()` and dispatch through `FallbackResponses::ping()`
+  - [x] obtain the logical clock value exactly once per claimed `/ping` request
+  - [x] dispatch `/_alive` through `FallbackResponses::alive()`
+  - [x] throw the fixed `IntentionalErrorException` for `/error`
+  - [x] dispatch matched reserved health declarations through `FallbackResponses::healthUnavailable()`
+  - [x] dispatch the reserved metrics declaration through `FallbackResponses::metricsUnavailable()`
+  - [x] return `null` for unsupported methods, unmatched paths, invalid matcher inputs, and development-only reservations
+  - [x] MUST NOT construct a separate fallback `404` response
+  - [x] observe completed endpoint dispatch decisions through `MeterPortInterface`
+  - [x] attempt exactly one `MeterPortInterface::increment()` call for `http.system_endpoint_total` with value `1` per completed claimed endpoint decision when `http.metrics.enabled=true`
+  - [x] MUST NOT retry emission or assume successful backend recording when the metrics port throws
+  - [x] use exactly the labels `operation`, `status`, and `outcome`
+  - [x] use fixed operation values `home`, `ping`, `alive`, `error`, `health`, and `metrics`
+  - [x] record completed `200` responses with integer `status=200` and `outcome=served`
+  - [x] record completed reserved fallback responses with integer `status=501` and `outcome=owner_unavailable`
+  - [x] record the intentional error decision immediately before throwing with `operation=error`, `status=unknown`, and `outcome=intentional_error`
+  - [x] MUST NOT classify clock or response construction failures as completed endpoint decisions
+  - [x] isolate meter failures without retrying, replacing a completed response, or suppressing the intentional exception
+  - [x] MUST NOT emit endpoint metrics for unmatched requests, unsupported methods, development-only reservations, or requests short-circuited by earlier middleware
+  - [x] MUST NOT emit request completion metrics, spans, access logs, or additional lifecycle signals
+  - [x] MUST NOT consume ContextStore, ModulePlan, ConfigRepositoryInterface, or ContainerInterface
+  - [x] MUST NOT instantiate clocks, factories, observability ports, or fallback dependencies internally
+  - [x] MUST NOT implement ResetInterface or participate in reset or Kernel lifecycle tags
+  - [x] MUST NOT implement application route matching, route-template analysis, route admission, or endpoint authorization
 
-- [ ] `packages/platform/http/src/Routing/FallbackResponses.php` — helpers for deterministic response bodies/headers
-  - [ ] JSON bodies produced here MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder`
-  - [ ] map keys MUST be recursively sorted by `strcmp`; lists preserve order
-  - [ ] MUST NOT emit floats/NaN/INF
-  - [ ] MUST NOT use ad-hoc `json_encode` directly in response helpers
+- [x] `packages/platform/http/src/Routing/FallbackResponses.php` — deterministic terminal response construction
+  - [x] namespace `Coretsia\Platform\Http\Routing`
+  - [x] implement a final readonly stateless service
+  - [x] require explicit `ResponseFactoryInterface` and `StreamFactoryInterface` constructor dependencies
+  - [x] expose `home(): ResponseInterface`
+    - [x] HTTP `200`
+    - [x] `Content-Type: text/html; charset=utf-8`
+    - [x] exact body `<h1>Hello Coretsia</h1>` followed by one LF
+  - [x] expose `ping(int $timestamp): ResponseInterface`
+    - [x] HTTP `200`
+    - [x] `Content-Type: application/json`
+    - [x] exact JSON map containing only `ok=true` and integer `ts`
+  - [x] expose `alive(): ResponseInterface`
+    - [x] HTTP `200`
+    - [x] `Content-Type: text/plain; charset=utf-8`
+    - [x] exact body `ALIVE` without a trailing newline
+  - [x] expose `healthUnavailable(): ResponseInterface`
+    - [x] HTTP `501`
+    - [x] `Content-Type: application/json`
+    - [x] exact JSON map `{"error":"owner missing"}`
+  - [x] expose `metricsUnavailable(): ResponseInterface`
+    - [x] HTTP `501`
+    - [x] `Content-Type: text/plain; charset=utf-8`
+    - [x] exact body `owner missing` followed by one LF
+  - [x] expose `notFound(): ResponseInterface`
+    - [x] preserve the existing safe HTTP `404` response
+    - [x] preserve the exact empty response body
+    - [x] MUST NOT add endpoint-specific headers to the unmatched response
+  - [x] apply `Cache-Control: no-store` to all matched endpoint responses constructed by this service
+  - [x] serialize JSON maps through `StableJsonEncoder::encodeStableMap()`
+  - [x] preserve canonical recursive byte-order map sorting and caller list ordering through the existing encoder
+  - [x] preserve exactly one final LF produced by the canonical encoder
+  - [x] MUST NOT introduce direct `json_encode()` calls or duplicate JSON normalization
+  - [x] MUST NOT emit floats, NaN, INF, or unsupported payload values
+  - [x] consume the result of every immutable PSR-7 response mutation
+  - [x] validate that immutable mutation results remain `ResponseInterface` instances
+  - [x] reject incompatible mutation results through `RuntimeException` with the fixed safe diagnostic `http-fallback-response-invalid`
+  - [x] apply the same response-interface validation to matched and unmatched response construction
+  - [x] MUST NOT include response implementation names, payload values, or raw exception diagnostics in the generated exception message
+  - [x] preserve original PSR factory and response mutation Throwables
+  - [x] MUST NOT construct alternate PSR-7 response or stream implementations
+  - [x] MUST NOT add Date, Server, Content-Length, correlation-id, request-id, or security headers independently
+  - [x] preserve canonical HttpKernel-owned response finalization
+  - [x] MUST NOT own clocks, path matching, route declarations, endpoint selection, observability, ContextStore, or reset behavior
+  - [x] MUST NOT construct `503` maintenance responses or Problem Details responses
 
-- [ ] `packages/platform/http/src/Exception/IntentionalErrorException.php` — thrown on `/error` (`CORETSIA_HTTP_INTENTIONAL_ERROR`)
-
-System payload helpers:
-- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php`
-  - [ ] provide only bounded, deterministic, safe payload construction helpers required by the later system endpoint implementation
-  - [ ] do not own route matching, endpoint registration, clocks, HTTP dispatch, or exception normalization
-  - [ ] actual endpoint payloads and response behavior remain owned by epic 3.100.0
+- [x] `packages/platform/http/src/Exception/IntentionalErrorException.php` — canonical safe intentional endpoint failure
+  - [x] namespace `Coretsia\Platform\Http\Exception`
+  - [x] implement a final class extending `RuntimeException`
+  - [x] declare `ERROR_CODE = 'CORETSIA_HTTP_INTENTIONAL_ERROR'`
+  - [x] declare `REASON_INTENTIONAL_ERROR = 'http-intentional-error'`
+  - [x] use a private parameterless constructor
+  - [x] expose `public static function intentional(): self`
+  - [x] construct the fixed exception message from the canonical code and reason token
+  - [x] expose `errorCode(): string` and `reason(): string`
+  - [x] MUST NOT accept caller-provided messages, request data, or previous Throwables
+  - [x] MUST NOT implement ErrorDescriptor construction, exception rendering, reporting, or observability
 
 Docs:
-- [ ] `docs/ssot/http-system-endpoints.md` — owned vs reserved endpoints + owner-claim rules
+- [x] `docs/ssot/http-system-endpoints.md` — canonical terminal system-endpoint behavior
+  - [x] declare `ssotVersion: 1`, `status: pre-stable`, and `owner: platform/http`
+  - [x] document exact endpoint methods, status codes, content types, response bodies, and cache policy
+  - [x] distinguish active owner implementations from reserved endpoint fallback responses
+  - [x] reference the canonical registry without duplicating the route declaration table
+  - [x] document terminal precedence and owner-claim restrictions
+  - [x] document canonical matcher consumption and invalid-path handling
+  - [x] document unmatched and unsupported-method `404` behavior
+  - [x] document exact `/ping` payload and injected clock semantics
+  - [x] document `/error` propagation and the selected canonical RFC9457 Problem Details boundary
+  - [x] document canonical endpoint decision metrics and bounded label values
+  - [x] distinguish endpoint decision metrics from finalized HTTP request observability
+  - [x] document maintenance precedence and exact unnormalized liveness bypass
+  - [x] document development-only reservations without claiming development endpoint implementation
+  - [x] document absence of general application routing, route admission, additional ContextStore ownership, and lifecycle hooks
+  - [x] reference existing system-route, reserved-path, middleware wiring, observability, errors, and Problem Details SSoT documents
 
 Tests:
-- [ ] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
-- [ ] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
-- [ ] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
-- [ ] `packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
-- [ ] `packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
-- [ ] `packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
+- [x] `packages/platform/http/tests/Support/SystemEndpointRuntimeFixture.php` — shared endpoint integration fixture
+  - [x] reuse canonical Foundation and HTTP declarative providers
+  - [x] construct the actual HttpKernel, Pipeline, and terminal handler
+  - [x] provide equivalent source and compiled container fixture modes
+  - [x] use explicitly supplied test-owned external PSR-17 factory fixtures
+  - [x] capture exact response status, immutable header mutations, and stream body bytes
+  - [x] support PSR-7 request fixtures preserving exact supplied method and URI path bytes
+  - [x] MUST NOT normalize, decode, encode, or otherwise rewrite matcher test inputs inside test fixtures
+  - [x] use explicit later-binding-wins clock definitions for deterministic timestamp assertions
+  - [x] construct `FrozenClock` through a test-owned declarative class-method factory accepting a canonical scalar timestamp or datetime string
+  - [x] expose the resulting clock through the canonical `ClockInterface` alias
+  - [x] support test-owned recording, sequential, and throwing `ClockInterface` implementations
+  - [x] support recording and throwing meter and logger fixtures through canonical declarative service definitions
+  - [x] use equivalent test service definitions in source and compiled container fixtures
+  - [x] do not embed runtime objects, PHPUnit mocks, closures, or DateTimeImmutable instances into compiled container descriptors
+  - [x] preserve the exact canonical `RuntimeContainerSeedSet` identities
+  - [x] MUST NOT extend Kernel runtime seed allowlists for test-only service injection
+  - [x] preserve fixture isolation between requests, container modes, and test cases
+  - [x] support explicit selection and absence of the canonical Problem Details boundary
+  - [x] reuse existing Errors and Redaction providers when the canonical error flow is required
+  - [x] reuse the existing `MetricsServiceProvider` when testing explicitly selected `platform.metrics` participation
+  - [x] ensure fixture module selection and composed provider definitions describe the same effective runtime participation
+  - [x] supply the existing validated configuration subtrees required by selected fixture providers
+  - [x] support an explicitly bound test-owned recording `ErrorReporterPortInterface` for canonical normalized descriptor assertions
+  - [x] enable deterministic error reporting through existing `errors.reporting` configuration only in fixtures requiring reporter evidence
+  - [x] preserve the actual canonical ErrorHandler, mapper registry, mandatory redaction, and Problem Details implementations
+  - [x] support test-owned earlier middleware responses through existing HTTP middleware composition mechanisms
+  - [x] MUST NOT introduce production endpoint owners solely to simulate earlier owner-controlled responses
+  - [x] support isolated application-local maintenance state fixtures
+  - [x] preserve deterministic temporary fixture cleanup
+  - [x] MUST NOT implement another router, reserved-path matcher, response renderer, or production container
+
+- [x] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
+  - [x] execute the actual canonical terminal handler through HttpKernel
+  - [x] assert exact status, HTML content type, body bytes, and cache policy
+  - [x] verify normalized root matching for empty and repeated-slash paths
+  - [x] verify query strings do not alter matching
+  - [x] verify an earlier middleware response bypasses terminal execution
+  - [x] verify canonical final-response observability and exactly one UnitOfWork
+
+- [x] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
+  - [x] assert exact JSON body bytes and one final LF
+  - [x] assert exactly `ok=true` and integer `ts`
+  - [x] assert exact timestamp with an explicitly bound `FrozenClock`
+  - [x] verify the clock is consumed exactly once per claimed endpoint request
+  - [x] verify successive requests through the same resolved router consume distinct logical timestamps supplied by an explicit test-owned sequential `ClockInterface`
+  - [x] verify the router does not retain the previous timestamp
+  - [x] isolate clock invocation-count assertions from unrelated clock-consuming observability services
+  - [x] MUST NOT modify `FrozenClock` or introduce another production clock implementation
+  - [x] verify normalized aliases follow the canonical matcher
+  - [x] verify trailing slash, case variants, and percent-encoded aliases remain unmatched
+  - [x] verify clock and response construction failures preserve the canonical error boundary
+  - [x] verify clock and PSR factory failures using `InvalidArgumentException` with diagnostic `http-reserved-path-invalid` are not interpreted as matcher input rejection
+  - [x] verify original failure identity is preserved when no canonical error boundary is selected
+  - [x] verify endpoint response does not disclose request, configuration, or environment data
+
+- [x] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
+  - [x] assert HTTP `200`, canonical text content type, cache policy, and exact `ALIVE` body
+  - [x] verify canonical exact liveness matching and query-string independence
+  - [x] verify normalized liveness matching when maintenance does not short-circuit
+  - [x] verify exact `GET /_alive` reaches the terminal liveness endpoint under active maintenance and unavailable maintenance state when no other middleware short-circuits the request
+  - [x] verify maintenance bypass does not bypass unrelated HTTP middleware policies
+  - [x] verify unsupported methods using the exact liveness path retain existing maintenance bypass semantics but remain unmatched by terminal dispatch
+  - [x] verify repeated or missing leading slashes do not expand maintenance bypass eligibility
+  - [x] verify non-liveness requests retain existing maintenance `503` behavior
+  - [x] preserve canonical response finalization and request completion semantics
+
+- [x] `packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerAvailableTest.php`
+  - [x] verify `GET /health`, `GET /health/`, and descendant paths return the canonical JSON `501` response
+  - [x] assert exact body schema, content type, cache policy, and final LF
+  - [x] verify normalized slash variants follow canonical matching
+  - [x] verify `/healthz` and `/healthz/ready` remain unmatched
+  - [x] verify encoded slash aliases do not create implicit prefix matches
+  - [x] verify earlier owner-controlled responses take precedence over the terminal fallback
+  - [x] verify no owner discovery or request-data disclosure occurs
+
+- [x] `packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerAvailableTest.php`
+  - [x] verify exact `GET /metrics` returns the canonical plaintext `501`
+  - [x] assert exact response body, content type, cache policy, and final LF
+  - [x] verify `/metrics/` and descendant paths remain unmatched
+  - [x] verify selecting the existing `platform.metrics` module alone does not activate a metrics HTTP endpoint
+  - [x] verify Foundation NoopMeter and selected metrics implementations do not alter endpoint dispatch behavior
+  - [x] verify an earlier owner-controlled response takes precedence
+  - [x] verify no renderer or backend availability probing occurs
+
+- [x] `packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
+  - [x] execute `GET /error` through the actual terminal dispatcher and HttpKernel
+  - [x] verify the existing `error.mapper` registry resolves `HttpExceptionMapper`
+  - [x] verify the canonical ErrorHandler normalizes the intentional exception to `CORETSIA_HTTP_INTENTIONAL_ERROR`
+  - [x] capture the normalized descriptor produced during the actual `GET /error` request through the existing `ErrorReporterPortInterface`
+  - [x] configure deterministic reporting with `errors.reporting.enabled=true`, `sample_rate=10000`, and no excluded intentional-error code
+  - [x] assert exactly one reported descriptor containing the canonical code, reason, severity, HTTP status hint `500`, and empty extensions
+  - [x] verify successful canonical mapping independently of the resulting public HTTP response
+  - [x] MUST NOT treat the canonical emergency HTTP `500` response alone as proof of successful exception normalization
+  - [x] MUST NOT replace the canonical ErrorHandler with a test implementation
+  - [x] verify selected Problem Details produces HTTP `500` with `Content-Type: application/problem+json`
+  - [x] verify the canonical RFC9457 public body contains only `status`, `title`, and `type`
+  - [x] verify fixed `Internal Server Error` title and `about:blank` type
+  - [x] verify public output does not expose exception code, reason, trace, request data, or configuration
+  - [x] verify absence of Problem Details selection preserves the intentional Throwable
+  - [x] verify canonical handled-error and fatal-error UnitOfWork outcomes
+  - [x] verify meter failures cannot suppress the intentional error
+
+- [x] `packages/platform/http/tests/Integration/UnsupportedMethodForSystemEndpointFallsThroughAsNotMatchedTest.php`
+  - [x] exercise unsupported methods against all active and reserved terminal endpoint families
+  - [x] verify unsupported methods return the canonical empty `404` when they reach terminal dispatch
+  - [x] include `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, and differently cased methods
+  - [x] verify no implicit GET aliases, `405`, or `Allow` headers
+  - [x] verify invalid concrete matcher inputs fall through without leaking raw paths
+  - [x] verify unsupported methods do not invoke URI access or reserved-path matching at the terminal dispatcher boundary
+  - [x] verify exceptions raised by `getUri()` or `getPath()` are not converted into unmatched dispatch results
+  - [x] include URI access failures using `InvalidArgumentException` with the same `http-reserved-path-invalid` diagnostic
+  - [x] verify unrelated URI access Throwables propagate unchanged when no canonical error boundary is selected
+  - [x] verify valid unmatched paths retain the original safe empty-body response
+  - [x] verify both development-only reservations remain unmatched
+  - [x] verify unsupported and unmatched requests emit no endpoint decision metrics
+  - [x] verify earlier maintenance responses retain precedence
+
+- [x] `packages/platform/http/tests/Integration/SystemEndpointObservabilityTest.php`
+  - [x] verify the exact `http.system_endpoint_total` counter and canonical label sets for all completed claimed endpoint decisions
+  - [x] verify metrics-disabled behavior through the existing `http.metrics.enabled` configuration
+  - [x] verify NoopMeter behavior
+  - [x] verify meter failures are isolated and never retried
+  - [x] verify failures during response construction do not emit completed endpoint decisions
+  - [x] verify response header and body mutation results remain `ResponseInterface` instances
+  - [x] verify incompatible immutable mutation results fail through `RuntimeException` with diagnostic `http-fallback-response-invalid`
+  - [x] verify original PSR factory and mutation Throwables propagate without replacement
+  - [x] verify completed endpoint decisions are not recorded after any failed response construction step
+  - [x] verify each eligible completed decision causes exactly one metrics increment attempt when enabled
+  - [x] verify no endpoint metrics for unsupported, invalid, unmatched, or earlier short-circuited requests
+  - [x] verify completed endpoint decisions are independent of subsequent response finalization failures
+  - [x] verify one canonical HttpKernel-owned request completion record
+  - [x] verify existing request counters, duration metric, and request span semantics remain unchanged
+  - [x] verify no raw path, query string, header, credential, or Throwable data enters endpoint labels
+  - [x] verify no additional request lifecycle or reset registration
 
 #### Modifies
 
-- [ ] `packages/platform/http/src/Routing/FallbackRouterHandler.php` — delegate to `FallbackRouter` (single dispatch point)
-- [ ] `packages/platform/http/src/System/SystemEndpointPayload.php` — add/align canonical payloads for 501/503 (no secrets)
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — wire router into terminal handler (if not already)
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/http-system-endpoints.md`
+- [x] `packages/core/kernel/src/DependencySync/Process/DependencySyncProcessRunner.php`
+  - [x] resolve Composer executable identities consistently on native Windows and POSIX environments
+  - [x] preserve existing POSIX executable resolution
+  - [x] preserve supported explicit Composer executable paths
+  - [x] support explicit executable paths containing spaces
+  - [x] honor supported Windows `COMPOSER_BINARY` targets
+  - [x] resolve Windows Composer candidates through the PHP process `PATH` and supported `PATHEXT` entries
+  - [x] discover supported Composer executable and script extensions independently of missing `PATHEXT` entries
+  - [x] continue discovery after unsupported or unresolved candidates
+  - [x] resolve `.bat` and `.cmd` launchers through existing sibling `.phar` or `.php` scripts
+  - [x] execute Composer PHP scripts through the current `PHP_BINARY`
+  - [x] preserve exact argv execution and `bypass_shell`
+  - [x] reject unresolved Windows Composer executable identities before process execution
+  - [x] preserve canonical `COMPOSER_EXECUTION_FAILED` diagnostics
+  - [x] preserve existing timeout, bounded process output, and recovery semantics
+  - [x] MUST NOT introduce shell fallback, shell command construction, Composer process retries, or another process execution abstraction
 
-#### Package skeleton (if type=package)
+- [x] `packages/core/kernel/tests/Unit/DependencySyncProcessRunnerTest.php`
+  - [x] verify deterministic Windows Composer executable discovery
+  - [x] verify supported `COMPOSER_BINARY` precedence and unresolved-candidate fallback
+  - [x] verify supported `PATH` and `PATHEXT` resolution
+  - [x] verify unsupported executable extensions do not prevent valid Composer discovery
+  - [x] verify `.bat` and `.cmd` resolution through existing sibling PHP scripts
+  - [x] verify standalone `.phar` discovery independently of `PATHEXT`
+  - [x] verify explicitly supplied executable paths containing spaces
+  - [x] verify exact PHP binary, argv, and stdin consumption
+  - [x] verify unresolved Windows Composer discovery fails canonically before process execution
+  - [x] preserve all existing process execution, timeout, output capture, and shell injection regression evidence
+  - [x] restore original process environment and remove temporary fixtures after test execution
 
-N/A (package `platform/http` already exists; this epic adds fallback routing slice)
+- [x] `docs/ssot/application-dependency-sync.md`
+  - [x] document canonical Windows Composer executable discovery
+  - [x] document supported executable, launcher, and PHP script resolution
+  - [x] preserve exact argv and no-shell execution policy
+  - [x] document unresolved executable failure before process execution
+  - [x] preserve existing synchronization authorization, recovery, and installed verification contracts
+  - [x] preserve existing SSoT metadata and document version
+
+- [x] `packages/platform/http/config/http.php`
+  - [x] update the existing `http.metrics.enabled` documentation to include terminal system-endpoint decision metrics
+  - [x] distinguish request completion, HTTPS redirect, maintenance, and system-endpoint decision metric ownership
+  - [x] preserve every existing configuration key, default value, and configuration structure
+  - [x] MUST NOT introduce endpoint-specific enablement flags or additional metrics configuration
+
+- [x] `packages/platform/http/composer.json`
+  - [x] add the direct runtime dependency `"psr/clock": "^1.0"`
+  - [x] preserve canonical Composer dependency ordering
+  - [x] preserve existing Coretsia dependency constraints, module requirements, and release-line versions
+  - [x] MUST NOT introduce dependencies on other platform runtime packages or PSR-7 implementations
+
+- [x] `packages/platform/http/src/System/SystemRouteTable.php`
+  - [x] preserve `SCHEMA_VERSION = 1`
+  - [x] transition exactly `/`, `/_alive`, `/error`, and `/ping` to `active`
+  - [x] preserve all remaining declarations and canonical ordering
+  - [x] preserve existing typed constants, immutable entries, and static API
+  - [x] MUST NOT introduce executable endpoint metadata, methods, handlers, or runtime dependencies
+
+- [x] `tools/config/system-route-table.json`
+  - [x] update the single unreleased version-1 snapshot to reflect exactly four `reserved` to `active` status transitions
+  - [x] preserve `schemaVersion: 1`
+  - [x] preserve all nine canonical declarations, owners, patterns, types, and ordering
+  - [x] preserve exactly one production snapshot
+  - [x] preserve canonical stable JSON serialization and exactly one final LF
+  - [x] maintain exact semantic equality with the PHP registry and normative SSoT
+  - [x] MUST NOT append a version-2 snapshot or duplicate version-1 snapshots
+  - [x] MUST NOT modify the independent committed gate test fixture
+
+- [x] `packages/platform/http/src/Routing/FallbackRouterHandler.php` — canonical terminal dispatch integration
+  - [x] preserve `RequestHandlerInterface` implementation
+  - [x] preserve final readonly stateless service semantics
+  - [x] update the class documentation to describe canonical terminal system-endpoint dispatch and unmatched response delegation
+  - [x] preserve the internal service boundary without claiming general application routing support
+  - [x] replace direct PSR-17 factory constructor dependencies with mandatory `FallbackRouter` and `FallbackResponses` dependencies
+  - [x] delegate the request to `FallbackRouter::dispatch()` exactly once
+  - [x] return the dispatched response unchanged when non-null
+  - [x] delegate unmatched response construction to `FallbackResponses::notFound()`
+  - [x] preserve the existing empty-body HTTP `404` contract for unmatched requests
+  - [x] propagate original Throwables without rendering or normalization
+  - [x] MUST NOT duplicate method filtering, path matching, response construction, or observability
+  - [x] MUST NOT introduce another terminal handler
+
+- [x] `packages/platform/http/src/Error/HttpExceptionMapper.php`
+  - [x] extend the existing mapper with `IntentionalErrorException`
+  - [x] align the class documentation with exactly four supported HTTP-owned exception mappings
+  - [x] preserve the canonical exception code and reason token
+  - [x] map the exception to `ErrorSeverity::Error`
+  - [x] use HTTP status hint `500`
+  - [x] return empty extensions
+  - [x] preserve all existing HTTP-owned exception mappings
+  - [x] preserve `null` for unrelated Throwables
+  - [x] preserve stateless mapper semantics
+  - [x] MUST NOT introduce another mapper, renderer, error handler, or redaction implementation
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - [x] require the existing Foundation-owned `ClockInterface` service
+  - [x] register one shared `FallbackResponses` service with explicit PSR-17 factory references
+  - [x] register one shared `FallbackRouter` service with explicit response helper, clock, and meter references
+  - [x] supply the existing validated `http.metrics.enabled` boolean to `FallbackRouter`
+  - [x] update the existing `FallbackRouterHandler` definition to consume the two explicit dependencies
+  - [x] preserve the canonical `RequestHandlerInterface` alias to `FallbackRouterHandler`
+  - [x] preserve existing Pipeline and HttpKernel wiring
+  - [x] preserve final application-owned clock and PSR-17 binding overrides
+  - [x] retain the existing `HttpExceptionMapper` registration and `error.mapper` tag
+  - [x] preserve priority `100` and empty mapper metadata
+  - [x] MUST NOT introduce additional middleware, lifecycle, reset, or stateful tags
+  - [x] MUST NOT duplicate Foundation clock registration or add an HTTP-owned clock binding
+  - [x] MUST NOT resolve executable services during declarative definition production
+
+- [x] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+  - [x] preserve the exact expected registry schema version `1`
+  - [x] verify the current pre-stable registry independently of the historical synthetic gate test fixture
+  - [x] update the four materialized HTTP declarations to `active`
+  - [x] preserve exact nine-entry registry assertions
+  - [x] preserve declaration order, immutability, path grammar, ownership, and API shape assertions
+
+- [x] `tools/tests/Integration/SystemRouteTableGateTest.php`
+  - [x] preserve the committed synthetic version-1 baseline fixture unchanged
+  - [x] update the existing semantic registry transition test naming to reflect local baseline consistency rather than unconditional version increment requirements
+  - [x] verify that coordinated PHP and normative SSoT changes without an aligned baseline remain rejected
+  - [x] verify that coordinated same-version PHP, normative SSoT, and baseline changes pass local consistency validation
+  - [x] verify that duplicate version-1 snapshots remain rejected
+  - [x] preserve successful synthetic version-2 append transition evidence
+  - [x] preserve all existing invalid version sequence, unchanged snapshot, ownership, declaration, and serialization assertions
+  - [x] preserve existing deterministic diagnostics and read-only gate behavior assertions
+  - [x] MUST NOT modify the production registry or committed baseline during test execution
+  - [x] MUST NOT introduce a gate-side stable release detection mechanism
+
+- [x] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+  - [x] update expected status values for the four active HTTP declarations
+  - [x] preserve reserved and development-only expected statuses
+  - [x] preserve all existing path normalization, matching, invalid-input, opacity, and statelessness assertions
+
+- [x] `packages/platform/http/tests/Unit/HttpExceptionMapperTest.php`
+  - [x] extend the existing data provider with `IntentionalErrorException`
+  - [x] assert the exact canonical code, reason, severity, HTTP status hint `500`, and empty extensions
+  - [x] update the three-exception test naming to include the fourth supported exception
+  - [x] preserve unrelated Throwable rejection and safe descriptor assertions
+  - [x] preserve mapper statelessness and forbidden renderer dependency assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] explicitly provide an unmatched URI path in existing terminal `404` fixtures
+  - [x] preserve existing safe empty-body `404` identity and finalization assertions
+  - [x] verify equivalent source and compiled registrations for `FallbackRouter`, `FallbackResponses`, and `FallbackRouterHandler`
+  - [x] verify mandatory constructor dependencies and exact shared service identity
+  - [x] verify the canonical Foundation clock binding and later-binding overrides
+  - [x] verify equivalent endpoint status, body bytes, and response construction in both container modes
+  - [x] verify new endpoint services remain readonly and retain no request-local state
+  - [x] extend existing descriptor and immutable service shape assertions without weakening them
+  - [x] verify no new middleware, reset, stateful, or lifecycle tags
+  - [x] preserve existing maintenance-state, security-header, factory-readiness, and request-id parity evidence
+
+- [x] `packages/platform/http/tests/Integration/HttpPsrFactoryBootstrapReadinessTest.php`
+  - [x] preserve failure-before-execution assertions for missing and incompatible PSR-17 factory bindings
+  - [x] verify endpoint response construction uses the final selected factory identities
+  - [x] verify no additional PSR-17 implementation fallback is introduced
+  - [x] verify `ClockInterface` is included in the HTTP provider's explicit required service identities
+  - [x] verify a missing clock binding fails canonical graph completeness validation independently of valid PSR-17 factory bindings
+  - [x] verify the canonical Foundation clock binding satisfies the required service dependency
+  - [x] verify the final explicitly overridden clock binding is consumed by the resolved `FallbackRouter`
+  - [x] MUST NOT introduce a separate HTTP clock readiness mechanism
+
+- [x] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+  - [x] assert that `http.system_endpoint_total` is registered as a `platform/http` counter
+  - [x] assert the exact metric-specific label set `operation`, `status`, and `outcome`
+  - [x] preserve the existing global label allowlist unchanged
+  - [x] preserve all existing metric catalog assertions
+  - [x] MUST NOT introduce HTTP-specific metric admission into production Metrics code
+
+- [x] `docs/ssot/system-route-table.md`
+  - [x] preserve `ssotVersion: 1` and `status: pre-stable`
+  - [x] preserve normative registry schema version `1`
+  - [x] change exactly the four materialized HTTP declarations to `active`
+  - [x] preserve canonical normative table shape, column order, ownership, and declaration ordering
+  - [x] document active system endpoint materialization independently of runtime exposure and authorization
+  - [x] document the reserved endpoint fallback response boundary without granting another package ownership of reserved endpoints
+  - [x] require semantic changes to released registry declarations to increment the registry version by exactly one and append a complete snapshot
+  - [x] prohibit replacement, removal, or reordering of previously released snapshots
+  - [x] preserve the requirement that registry version increments correspond to semantic declaration changes
+  - [x] preserve existing canonical gate diagnostics and local consistency enforcement
+  - [x] distinguish repository review enforcement of released historical immutability from gate-enforced local consistency
+  - [x] MUST NOT infer release maturity from Composer versions, Git tags, runtime state, or package discovery inside the registry gate
+  - [x] reference `docs/ssot/http-system-endpoints.md`
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `http.system_endpoint_total` in the canonical metrics catalog:
+    - [x] owner: `platform/http`
+    - [x] type: `counter`
+    - [x] labels: `operation`, `status`, `outcome`
+  - [x] document the exact bounded operation, status, and outcome values
+  - [x] document `status=unknown` for the intentional-error dispatch decision before final HTTP error rendering
+  - [x] document completed-construction and intentional-throw measurement boundaries
+  - [x] document existing `http.metrics.enabled` enablement
+  - [x] document isolated, non-retried emission failures
+  - [x] distinguish endpoint decision counters from finalized HTTP request observability
+  - [x] preserve the global label allowlist and all existing metric families
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] update the canonical terminal handler description to reflect system-endpoint dispatch
+  - [x] preserve safe unmatched empty-body `404` behavior
+  - [x] document explicit declarative wiring of the endpoint services
+  - [x] preserve existing middleware ordering, error boundary, response decoration, and finalization
+  - [x] preserve existing exact maintenance bypass semantics
+  - [x] reference `docs/ssot/http-system-endpoints.md`
+  - [x] MUST NOT introduce general application routing or routing delegation contracts
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] document system-endpoint decision observability as terminal-owned behavior rather than middleware behavior
+  - [x] reference the canonical metric policy in `docs/ssot/observability.md`
+  - [x] preserve existing middleware catalog entries, priorities, slots, and toggle metadata
+  - [x] preserve existing request observability ownership
+  - [x] MUST NOT register the terminal dispatcher as middleware
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] align terminal fallback behavior with the implemented system endpoints
+  - [x] preserve the canonical PSR-15 terminal seam and unmatched `404` behavior
+  - [x] document separate endpoint decision observability
+  - [x] preserve HttpKernel-owned final-response observability and fixed `route_template='unknown'`
+  - [x] preserve existing lifecycle, error-boundary, finalization, and middleware ownership decisions
+  - [x] distinguish implemented terminal system endpoints from general application routing non-goals
+  - [x] reference `docs/ssot/http-system-endpoints.md`
+
+- [x] `docs/adr/ADR-0042-system-route-table-and-reserved-path-matching.md`
+  - [x] document terminal consumption of the canonical registry and matcher
+  - [x] remove current-state statements asserting that the terminal handler never performs system endpoint dispatch
+  - [x] preserve the separation of declaration, matching, dispatch, admission, and authorization responsibilities
+  - [x] preserve `adrVersion: 1`
+  - [x] align the registry versioning decision with the canonical System Route Table SSoT
+  - [x] document append-only semantic version transitions and released historical snapshot immutability
+  - [x] preserve the existing distinction between gate-enforced local consistency and repository review of released historical immutability
+  - [x] preserve exact unnormalized maintenance bypass
+  - [x] distinguish stateless matcher behavior from its terminal dispatch consumer
+  - [x] reference `docs/ssot/http-system-endpoints.md`
+
+- [x] `docs/guides/commands.md`
+  - [x] align the existing `composer system-route-table:gate` documentation with the canonical registry versioning policy
+  - [x] document released historical snapshot immutability as a repository review invariant
+  - [x] preserve existing gate invocation, fixture-root selection, diagnostics, exit codes, and read-only guarantees
+  - [x] MUST NOT describe local gate validation as independent verification of released registry history
+  - [x] document cross-platform Composer executable discovery for `php coretsia apply`
+  - [x] document native Windows executable and Composer PHP script support
+  - [x] preserve canonical dependency synchronization execution and authorization semantics
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `./http-system-endpoints.md` exactly once under `Runtime Invariants`
+  - [x] use title `HTTP System Endpoints SSoT`
+  - [x] use `owner: platform/http`
+  - [x] use `ssotVersion: 1`
+  - [x] use scope `endpoints,http,ownership,routing,runtime`
+  - [x] preserve canonical byte-order relative-path sorting
+
+- [x] `packages/platform/http/README.md`
+  - [x] document the implemented terminal system endpoints and exact response contracts
+  - [x] document `FallbackRouter`, `FallbackResponses`, and existing terminal handler integration
+  - [x] document the mandatory injected clock and canonical JSON encoder
+  - [x] document reserved endpoint fallback semantics independently of package installation
+  - [x] document canonical endpoint decision metrics
+  - [x] document the fourth HTTP-owned exception mapping
+  - [x] preserve canonical request finalization, observability, maintenance, and lifecycle behavior
+  - [x] remove current-state descriptions of a routing-free terminal returning only `404`
+  - [x] preserve unmatched empty-body `404` behavior
+  - [x] preserve general application routing and route admission non-goals
+  - [x] reference `docs/ssot/http-system-endpoints.md`
 
 #### Configuration (keys + defaults)
 
-N/A
+- [x] reuse existing configuration without introducing new keys or defaults:
+  - [x] `http.metrics.enabled` controls endpoint decision metric emission
+  - [x] `http.access_log.enabled` retains existing HttpKernel-owned access logging behavior
+  - [x] `http.maintenance.enabled` retains existing maintenance participation semantics
+  - [x] `http.factory` retains existing explicit PSR-17 selection semantics
+- [x] MUST NOT add endpoint enablement flags, owner installation selectors, clock selectors, route registries, or fallback configuration
+- [x] preserve existing configuration keys, default values, and structures in `config/http.php`
+- [x] update only the applicable documentation comments in `config/http.php`
+- [x] preserve `config/rules.php` unchanged
 
-#### Wiring / DI tags (when applicable)
+#### Wiring / DI tags (MUST)
 
-N/A (terminal handler is wired by http runtime; no new tags introduced)
+- [x] reuse the canonical Foundation declarative container definition APIs
+- [x] wire `FallbackResponses`, `FallbackRouter`, and `FallbackRouterHandler` through the existing `HttpServiceProvider`
+- [x] preserve the existing `RequestHandlerInterface` alias and terminal handler seam
+- [x] consume the canonical Foundation-provided `ClockInterface` binding
+- [x] consume existing PSR-17 factory and meter bindings
+- [x] preserve later-binding-wins semantics
+- [x] preserve source and compiled container parity
+- [x] reuse the existing `HttpExceptionMapper` and its canonical `error.mapper` tag
+- [x] no new tags, middleware participation, reset registrations, Kernel hooks, or discovery mechanisms
+- [x] Constructor dependency discipline (MUST):
+  - [x] all introduced dependencies MUST be explicitly supplied, mandatory, non-nullable, and without default values
+  - [x] MUST NOT introduce compatibility constructors, `= null`, internally created clocks, default policy instances, or fallback dependencies
+  - [x] update all affected production DI definitions and test construction sites
+  - [x] preserve unrelated existing constructor contracts
 
 #### Artifacts / outputs (if applicable)
 
@@ -12704,70 +13320,198 @@ N/A
 
 #### Context & UoW
 
-N/A
+- [x] preserve exactly one existing Kernel UnitOfWork per HTTP request
+- [x] preserve HttpKernel ownership of begin, after, response finalization, and request completion
+- [x] terminal dispatch and response construction MUST remain stateless
+- [x] no ContextStore reads or writes introduced by endpoint services
+- [x] no new ContextKeys or request attributes
+- [x] no `ResetInterface`, `kernel.reset`, `kernel.stateful`, or lifecycle hooks
+- [x] MUST NOT create a nested UnitOfWork or secondary HTTP execution boundary
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `http.system_endpoint_total` (labels: `operation`, `status`, `outcome`)
-- [ ] Logs:
-  - [ ] reuse HttpKernel-coordinated HttpAccessLogWriter for one safe request-level completion record; do not introduce AccessLogMiddleware, router-owned access logging, or another request-observability pipeline
+- [x] Metrics:
+  - [x] register `http.system_endpoint_total` in `docs/ssot/observability.md`
+  - [x] owner: `platform/http`
+  - [x] type: `counter`
+  - [x] producer: `FallbackRouter`
+  - [x] enablement: existing `http.metrics.enabled`
+  - [x] increment value: exactly `1`
+  - [x] emission cardinality: exactly one increment attempt per completed claimed endpoint decision when enabled
+  - [x] labels: exactly `operation`, `status`, `outcome`
+  - [x] canonical label combinations:
+    - [x] `operation=home|ping|alive`, `status=200`, `outcome=served`
+    - [x] `operation=health|metrics`, `status=501`, `outcome=owner_unavailable`
+    - [x] `operation=error`, `status=unknown`, `outcome=intentional_error`
+  - [x] `200` and `501` status labels MUST be integers
+  - [x] intentional-error status MUST be the fixed string `unknown`
+  - [x] completed response decisions require successful response construction
+  - [x] intentional-error decisions are recorded immediately before throwing
+  - [x] no emission for unsupported methods, unmatched paths, invalid matcher inputs, or earlier short-circuits
+  - [x] emission failures MUST remain isolated and MUST NOT be retried
+  - [x] endpoint decision metrics MUST NOT reinterpret final HTTP request outcomes
+  - [x] preserve existing `http.request_total` and `http.request_duration_ms`
+- [x] Spans:
+  - [x] preserve the existing `http.request` span
+  - [x] no new endpoint span or independent tracing pipeline
+- [x] Logs:
+  - [x] preserve HttpKernel-coordinated `HttpAccessLogWriter`
+  - [x] preserve at most one canonical `http.request.completed` record per enabled request
+  - [x] preserve fixed `route_template='unknown'`
+  - [x] preserve existing finalized method, status, outcome, duration, and correlation identity semantics
+  - [x] MUST NOT introduce AccessLogMiddleware, router-owned access logs, endpoint log events, or another request-observability pipeline
 
 #### Errors
 
-- [ ] `/error` throws deterministic exception; rendering handled by RFC7807 middleware (owner problem-details)
+- [x] `/error` throws `IntentionalErrorException`
+  - [x] fixed error code `CORETSIA_HTTP_INTENTIONAL_ERROR`
+  - [x] fixed reason `http-intentional-error`
+  - [x] canonical HTTP status hint `500`
+  - [x] `ErrorSeverity::Error`
+  - [x] empty descriptor extensions
+- [x] reuse the existing HTTP exception mapper and canonical `error.mapper` registry
+- [x] preserve canonical ErrorHandler ownership of error normalization
+- [x] preserve RFC9457 Problem Details rendering with RFC7807-compatible baseline members when the Problem Details boundary is explicitly selected
+- [x] preserve original Throwable propagation when no Problem Details boundary is selected
+- [x] invalid concrete matcher input falls through to the existing safe empty-body `404`
+- [x] preserve unrelated clock, factory, response mutation, and finalization Throwables
+- [x] MUST NOT introduce another exception mapper, renderer, error handler, or HTTP error boundary
 
 #### Security / Redaction
 
-- [ ] `/ping` payload contains only `{ok, ts}` (no env/config details)
-- [ ] `/health|/metrics` 501 payload must not leak configs (only “owner missing”)
+- [x] `/ping` payload contains exactly `ok` and integer `ts`
+- [x] reserved endpoint fallback responses contain only the fixed public `owner missing` diagnostic
+- [x] MUST NOT disclose package installation, module selection, backend configuration, environment values, or runtime service availability
+- [x] preserve canonical case-sensitive matching and opaque percent-encoded path semantics
+- [x] MUST NOT decode paths or reinterpret non-matching encoded paths as matched endpoint aliases
+- [x] invalid matcher inputs MUST NOT disclose raw paths or derived fragments
+- [x] both development-only reservations remain inactive and unmatched
+- [x] reservation status MUST NOT authorize endpoint execution or access
+- [x] preserve exact unnormalized maintenance liveness bypass
+- [x] apply canonical no-store endpoint response policy
+- [x] preserve existing response finalization and security-header policy
+- [x] no raw request paths, query strings, headers, credentials, Throwable messages, or environment values in endpoint metric labels
+- [x] preserve canonical shared error and logging redaction boundaries
+- [x] MUST NOT introduce duplicate redaction, debug access policy, or endpoint authorization implementations
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → covered implicitly by endpoint integration tests (no extra emission required here)
-- [ ] If redaction exists → endpoint integration tests assert bodies do not contain config/env secrets
+- [x] Exact immutable runtime version-1 system-route registry shape.
+- [x] Coordinated pre-stable version-1 PHP, normative SSoT, and production baseline updates.
+- [x] Exactly one unreleased production registry snapshot.
+- [x] Independent synthetic version-transition fixtures preserve future append-only versioning enforcement.
+- [x] Released historical immutability remains a repository review invariant.
+- [x] Exact PHP/SSoT/version-baseline semantic parity.
+- [x] Existing registry gate remains unchanged and green.
+- [x] Canonical terminal endpoint dispatch through the existing ReservedPathMatcher.
+- [x] Exact method claim semantics and safe unmatched `404`.
+- [x] Canonical normalization, segment-prefix boundaries, case sensitivity, and opaque encoded paths.
+- [x] Invalid matcher input falls through safely without raw input disclosure.
+- [x] Earlier middleware and owner-controlled response precedence.
+- [x] Exact deterministic response headers and body bytes.
+- [x] Canonical injected clock and integer `/ping` timestamp.
+- [x] Reserved health and metrics fallback independently of package installation and module selection.
+- [x] Development-only reservations remain inactive.
+- [x] Exact maintenance liveness bypass remains unchanged.
+- [x] Actual liveness endpoint remains reachable through the exact maintenance bypass when no unrelated HTTP middleware short-circuits the request.
+- [x] Compiled endpoint fixtures use canonical declarative service definitions without extending runtime seed ownership.
+- [x] Fixed, sequential, and throwing clock behavior without wall-clock-dependent assertions.
+- [x] Invalid matcher input handling does not suppress unrelated request, clock, factory, or endpoint failures.
+- [x] Canonical intentional error normalization and selected RFC9457 rendering.
+- [x] Original Throwable propagation without the selected error boundary.
+- [x] Source and compiled container parity.
+- [x] Mandatory constructor dependencies and final PSR-17 binding ownership.
+- [x] Deterministic bounded endpoint decision metrics.
+- [x] Metrics-disabled, noop, and throwing-port behavior.
+- [x] No completed-decision metrics for incomplete response construction.
+- [x] Independence from subsequent response finalization failures.
+- [x] Existing canonical request completion metrics, access logging, and tracing semantics.
+- [x] Exactly one HTTP UnitOfWork per request.
+- [x] No additional ContextStore ownership, request attributes, lifecycle hooks, or reset registrations.
+- [x] No duplicate route registry, matcher, payload subsystem, renderer, or routing runtime.
+- [x] Canonical Composer executable discovery on native Windows and POSIX environments.
+- [x] Windows Composer launcher resolution without shell execution.
+- [x] Composer PHP script discovery independently of `PATHEXT`.
+- [x] Literal executable paths containing spaces and exact argv execution.
+- [x] Unresolved Composer executable failure before process execution.
+- [x] Existing DependencySync execution authorization, installed verification, and recovery semantics remain unchanged.
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A
-
-### Tests (MUST)
-
-- Unit/Contract:
-  - N/A
-- Integration:
-  - [ ] `packages/platform/http/tests/Integration/HomeReturns200HtmlTest.php`
-  - [ ] `packages/platform/http/tests/Integration/PingReturns200JsonTest.php`
-  - [ ] `packages/platform/http/tests/Integration/AliveReturns200TextTest.php`
-  - [ ] `packages/platform/http/tests/Integration/SystemHealthEndpointsReturn501UntilOwnerInstalledTest.php`
-  - [ ] `packages/platform/http/tests/Integration/SystemMetricsEndpointReturns501PlaintextUntilOwnerInstalledTest.php`
-  - [ ] `packages/platform/http/tests/Integration/ErrorRouteTriggersCanonicalErrorFlowTest.php`
-  - [ ] `packages/platform/http/tests/Integration/UnsupportedMethodForSystemEndpointFallsThroughAsNotMatchedTest.php`
-- Gates/Arch:
-  - [ ] deptrac green
+- [x] reuse the existing canonical provider composition and HTTP runtime integration patterns
+- [x] use explicit test-owned external PSR-17 factory fixtures
+- [x] use deterministic `FrozenClock` fixtures without wall-clock tolerance assertions
+- [x] verify equivalent source and compiled container execution
+- [x] exercise the existing explicitly selected Problem Details boundary and canonical ErrorHandler
+- [x] preserve and execute `tools/tests/Integration/SystemRouteTableGateTest.php`
+- [x] preserve the committed version-1 registry gate fixture unchanged
+- [x] preserve and execute `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+- [x] preserve and execute `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+- [x] preserve and execute `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+- [x] preserve and execute `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+- [x] preserve existing middleware catalog, request-id, security-header, response finalization, no-op port, and lifecycle regression evidence
+- [x] use isolated temporary maintenance-state fixtures
+- [x] MUST NOT modify actual application runtime state, committed fixtures, or production declarations during test execution
+- [x] MUST NOT require new production PSR-7 implementations or optional runtime package dependencies
+- [x] preserve and execute `packages/core/kernel/tests/Unit/DependencySyncProcessRunnerTest.php`
+- [x] preserve and execute `packages/core/kernel/tests/Unit/ComposerSyncCoordinatorTest.php`
+- [x] preserve and execute `tools/tests/Integration/DependencySyncConsumerProjectTest.php`
+- [x] preserve and execute `tools/tests/Integration/DependencySyncFailureRecoveryTest.php`
+- [x] preserve and execute `tools/tests/Integration/DependencySyncFreshProcessVerificationTest.php`
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Deterministic outputs (stable headers + body)
-- [ ] System endpoint claim semantics are locked:
-  - [ ] only the listed method+path pairs are handled by `FallbackRouter`
-  - [ ] unsupported methods fall through as not matched
-- [ ] `/error` proves RFC7807 flow (when problem-details installed)
-- [ ] Docs updated:
-  - [ ] `docs/ssot/http-system-endpoints.md`
-- [ ] /ping time source policy (MUST)
-  - [ ] `/ping` MUST obtain time via DI clock (no `time()` in core logic):
-    - [ ] prefer `Psr\Clock\ClockInterface` binding provided by Foundation (`SystemClock` prod, `FrozenClock` tests).
-  - [ ] Integration tests MUST assert:
-    - [ ] `ts` is int,
-    - [ ] not exact value (unless FrozenClock is used in fixture boot).
+- [x] Gates/Arch green
+- [x] deptrac green
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Deterministic outputs (stable headers + body)
+- [x] System endpoint claim semantics are locked:
+  - [x] only the listed method+path pairs are handled by `FallbackRouter`
+  - [x] unsupported methods fall through as not matched
+- [x] `/error` proves canonical ErrorHandler normalization and RFC9457 Problem Details flow with RFC7807-compatible baseline members when the Problem Details boundary is explicitly selected.
+- [x] Without Problem Details selection, the original intentional exception propagates through the existing HTTP lifecycle.
+- [x] Docs updated:
+  - [x] `docs/ssot/http-system-endpoints.md`
+- [x] `/ping` time source policy (MUST):
+  - [x] consume the mandatory `Psr\Clock\ClockInterface` dependency
+  - [x] reuse the canonical Foundation production clock binding
+  - [x] honor explicit later-binding clock overrides
+  - [x] obtain the logical timestamp exactly once per claimed `/ping` request
+  - [x] MUST NOT call `time()` or construct another clock
+  - [x] integration tests MUST use `FrozenClock` for fixed deterministic timestamp assertions
+  - [x] use explicit test-owned sequential and throwing clock implementations for repeated-request and failure-isolation evidence
+- [x] The production system-route registry retains schema version `1`.
+- [x] Exactly four materialized HTTP declarations are `active`.
+- [x] The single unreleased version-1 registry snapshot is aligned with the materialized declarations.
+- [x] No production version-2 snapshot or duplicate version-1 snapshot is introduced.
+- [x] Released registry history remains subject to append-only semantic version transitions and mandatory repository review.
+- [x] Existing synthetic version-transition evidence remains intact.
+- [x] Existing SSoT and ADR document metadata versions remain unchanged.
+- [x] Canonical compiled container seed ownership remains unchanged.
+- [x] All endpoint fixture clock and observability overrides use existing declarative container definition mechanisms.
+- [x] Invalid matcher input handling remains isolated from unrelated Throwable propagation.
+- [x] Canonical registry gate passes without changing its enforcement implementation.
+- [x] Reserved health and metrics declarations retain their original owners and statuses.
+- [x] Both development-only reservations remain unmatched by terminal dispatch.
+- [x] Exactly one canonical terminal handler and exactly one canonical reserved-path matcher exist.
+- [x] No duplicate production payload abstraction, JSON encoder, clock implementation, or route registry is introduced.
+- [x] Existing maintenance response construction and exact liveness bypass remain unchanged.
+- [x] Reserved endpoint fallback behavior is independent of Composer installation and module discovery.
+- [x] Unsupported methods and invalid matcher inputs preserve safe unmatched behavior.
+- [x] Canonical endpoint decision metrics are registered, bounded, optional, and failure-isolated.
+- [x] Existing HttpKernel-owned request observability, response finalization, and Kernel lifecycle semantics remain unchanged.
+- [x] No new configuration roots, configuration keys, middleware tags, context keys, reset registrations, or generated artifacts are introduced.
+- [x] Existing HTTP-owned exception mappings remain unchanged except for the explicit intentional-error addition.
+- [x] All affected source and compiled DI graphs retain equivalent endpoint behavior.
+- [x] Existing authoritative SSoT, ADR, and package documentation remains consistent with the implemented runtime.
+- [x] Repeated dependency synchronization preserves stable no-op behavior.
+- [x] Composer execution retains exact argv without shell fallback.
+- [x] Existing DependencySync authorization, installed verification, and recovery semantics remain unchanged.
+- [x] Spec locked.
 
 ---
 

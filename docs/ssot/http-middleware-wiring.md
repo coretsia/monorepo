@@ -22,7 +22,7 @@ owner: platform/http
 
 ## Scope
 
-This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, outermost error-boundary placement, optional HTTP request identity preparation, application-local maintenance policy, HTTPS redirect policy, security-header finalization, and the boundary between middleware execution and `HttpKernel` final-response completion.
+This document is the Single Source of Truth for the `platform/http` execution semantics of the existing nine HTTP middleware slots: canonical PSR-15 composition, deterministic tagged and manual service-id ordering, HTTP-owned tag metadata, response decoration, canonical terminal system-endpoint integration, outermost error-boundary placement, optional HTTP request identity preparation, application-local maintenance policy, HTTPS redirect policy, security-header finalization, and the boundary between middleware execution and `HttpKernel` final-response completion.
 
 The implementation boundary is:
 
@@ -31,6 +31,9 @@ packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php
 packages/platform/http/src/Middleware/Pipeline.php
 packages/platform/http/src/Provider/HttpServiceFactory.php
 packages/platform/http/src/Provider/HttpServiceProvider.php
+packages/platform/http/src/Routing/FallbackResponses.php
+packages/platform/http/src/Routing/FallbackRouter.php
+packages/platform/http/src/Routing/FallbackRouterHandler.php
 packages/platform/http/src/HttpKernel.php
 packages/platform/http/src/RequestId/RequestIdPolicy.php
 packages/platform/http/src/Maintenance/MaintenanceMessage.php
@@ -58,9 +61,9 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 A selected HTTP target MUST execute one deterministic PSR-15 middleware chain when Kernel UnitOfWork begin and pre-pipeline request preparation succeed.
 
-The runtime MUST preserve applicable response decorators for ordinary short-circuit responses and observe the completed HTTP result only after successful pipeline return and response finalization.
+The runtime MUST preserve applicable response decorators for ordinary short-circuit responses. Request-level observability MUST consume the successfully finalized response or the canonical fatal completion result, independently of terminal system-endpoint decision observability.
 
-Uncaught failures MUST follow the canonical fatal completion path.
+Uncaught failures during request preparation, pipeline execution, response finalization, or final response status validation MUST follow the canonical fatal completion path.
 
 The runtime MUST reuse Foundation tagged-service discovery and declarative DI, Kernel-owned UnitOfWork hooks, and the optional canonical Problem Details boundary without introducing another observer pipeline or request lifecycle.
 
@@ -68,6 +71,7 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 
 - `docs/ssot/tags.md` owns the reserved HTTP middleware tag names. `Coretsia\Foundation\Tag\ReservedTags` is their sole code-level identifier registry.
 - `docs/ssot/http-middleware-catalog.md` owns middleware taxonomy, catalog placement, optional owner participation, and cross-cutting HTTP policy. This document owns the concrete composition and execution semantics of those slots.
+- `docs/ssot/http-system-endpoints.md` owns canonical terminal system-endpoint dispatch, reserved endpoint fallback responses, unmatched response semantics, and endpoint-decision measurement boundaries. This document owns their integration into the canonical PSR-15 pipeline and declarative HTTP service graph.
 - `docs/ssot/di-tags-and-middleware-ordering.md` owns `TagRegistry::all()` ordering and Foundation's first-registration-wins tag deduplication.
 - `docs/ssot/runtime-container-definitions.md` owns declarative container operations, service binding precedence, and source/compiled container construction semantics.
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
@@ -151,7 +155,15 @@ terminal or ordinary short-circuit response
 
 The diagrams express nesting and return flow; they MUST NOT be interpreted as authorization to re-sort the nine reserved tags or move a post decorator into a request-phase slot.
 
-`Pipeline` MUST execute the resolved `MiddlewareInterface` sequence through PSR-15 `RequestHandlerInterface`, using invocation-local traversal state and the selected terminal handler. The baseline terminal fallback returns a safe empty-body HTTP `404` before routing integration. Pipeline traversal MUST NOT discover services, sort tags, manage UnitOfWork, or store a mutable cursor across invocations.
+`Pipeline` MUST execute the resolved `MiddlewareInterface` sequence through PSR-15 `RequestHandlerInterface`, using invocation-local traversal state and the selected terminal handler. Pipeline traversal MUST NOT discover services, sort tags, manage UnitOfWork, or store a mutable cursor across invocations.
+
+`FallbackRouterHandler` is the canonical terminal `RequestHandlerInterface`. It MUST delegate the request exactly once to `FallbackRouter` and return a non-null dispatched response unchanged. A non-matching dispatch result MUST delegate to `FallbackResponses::notFound()`, preserving the safe empty-body HTTP `404` response.
+
+`FallbackRouter` consumes the canonical system-route declarations through `ReservedPathMatcher` and implements only the explicitly supported system-endpoint dispatch behavior defined by `docs/ssot/http-system-endpoints.md`. The dispatcher MUST NOT implement general application routing, route admission, or endpoint authorization.
+
+Terminal execution MUST occur only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses MUST retain precedence over terminal dispatch.
+
+Terminal responses remain subject to applicable response decorators and canonical `HttpKernel` final-response completion. Terminal Throwables MUST propagate unchanged to the existing error and lifecycle boundaries.
 
 ## Outermost error boundary (MUST)
 
@@ -239,6 +251,12 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 `HttpServiceProvider` MUST register HTTP-owned services, middleware tags, and the pipeline construction definition through the canonical Foundation declarative DI operations. `HttpMiddlewareStackBuilder` consumes the final `TagRegistry` and validated HTTP configuration; `HttpServiceFactory` constructs `Pipeline` from effective service ids resolved through the final canonical container.
 
 - Source and compiled containers MUST retain equivalent middleware service definitions, tag metadata and priorities, effective ordering, factory bindings, and terminal-handler resolution.
+- `HttpServiceProvider` MUST require the existing Foundation-owned `Psr\Clock\ClockInterface` service without registering an HTTP-owned clock or replacing the canonical binding.
+- `HttpServiceProvider` MUST register one shared immutable `FallbackResponses` service with explicit references to the canonical `ResponseFactoryInterface` and `StreamFactoryInterface` services.
+- `HttpServiceProvider` MUST register one shared immutable `FallbackRouter` service with explicit references to `FallbackResponses`, `ClockInterface`, and `MeterPortInterface`, together with the validated `http.metrics.enabled` boolean.
+- `FallbackRouterHandler` MUST consume the shared `FallbackRouter` and `FallbackResponses` services through mandatory non-nullable constructor dependencies. The canonical `RequestHandlerInterface` alias MUST resolve to `FallbackRouterHandler`.
+- Source and compiled containers MUST preserve equivalent terminal service definitions and shared dependency identities, including final application-owned clock and PSR-17 factory binding overrides under the existing canonical binding and readiness policies.
+- Terminal endpoint service registration MUST remain independent of observability enablement. These services MUST NOT participate in middleware tags, Kernel lifecycle hooks, ContextStore ownership, or reset registration.
 - `HttpServiceProvider` MUST register one shared `RequestIdPolicy` through canonical declarative DI independently of `http.request_id.enabled`.
 - `HttpKernel` and `HttpResponseFinalizer` MUST consume the same `RequestIdPolicy` instance as a mandatory non-nullable constructor dependency.
 - `RequestIdPolicy` MUST consume the existing shared Foundation `ContextStore` and the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`.
@@ -816,6 +834,8 @@ KernelRuntimeInterface::beginUnitOfWork('http')
 
 A response returned by the selected outermost error boundary is a completed pipeline response and MUST pass through the same `HttpResponseFinalizer` and request-level observability sequence as any normally returned or short-circuit response.
 
+Terminal system-endpoint decisions are observed independently by `FallbackRouter` through the canonical meter port according to `docs/ssot/http-system-endpoints.md` and `docs/ssot/observability.md`. These decisions MUST NOT establish the final HTTP status or request outcome, replace request-level observability, or introduce another lifecycle boundary.
+
 The finalizer owns independently enabled application of the Kernel-owned correlation response header, the HTTP-owned request-id response header, and configured security headers through immutable PSR-7 `withHeader()`.
 
 Correlation response-header finalization MUST precede request-id identity verification and response-header finalization. Security-header application MUST follow successful identity-header finalization and precede final HTTP status derivation and request-level observability.
@@ -870,6 +890,8 @@ Maintenance runtime state MUST remain filesystem-backed and application-root-loc
 ## Enforcement rails
 
 Integration verification MUST cover deterministic per-slot ordering and deduplication, cross-slot failures, exact metadata and toggles, selected/unselected priority-`1000` boundary placement, returned short-circuit response unwind, exception conversion as a separate path, final-response completion and outcome classification, and source/compiled container parity.
+
+Terminal integration verification MUST cover canonical system-endpoint dispatch, unmatched empty-body `404` responses, earlier middleware precedence, exact maintenance liveness bypass, mandatory shared endpoint service wiring, source/compiled container parity, effective clock and PSR-17 factory bindings, original Throwable propagation, and independent endpoint-decision observability according to `docs/ssot/http-system-endpoints.md`.
 
 Tests MUST distinguish an intermediate middleware result from the completed `HttpKernel` result and MUST NOT treat optional observability failures as permission to change responses or primary Throwables.
 
@@ -937,7 +959,7 @@ Existing middleware ordering, outermost error-boundary placement, completed-resp
 This SSoT does not introduce or redefine:
 
 - reserved tags, priority registries, config roots, or `http.middleware.auto.*` flags;
-- route matching, application endpoints, transport-specific request creation, or response emission;
+- general application route matching, application endpoints, route admission, endpoint authorization, routing delegation contracts, transport-specific request creation, or response emission;
 - a second DI container, middleware resolver, observer pipeline, lifecycle hook registry, or reset implementation;
 - a replacement canonical error handler, `ErrorDescriptor` model, Problem Details renderer, or diagnostic redaction boundary;
 - metrics aggregation, logging backend, tracing exporter, span-parent linkage contract, or mutable request cache;
@@ -948,6 +970,7 @@ This SSoT does not introduce or redefine:
 
 - [SSoT Index](./INDEX.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP System Endpoints SSoT](./http-system-endpoints.md)
 - [Tag Registry](./tags.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md)

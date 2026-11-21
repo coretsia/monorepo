@@ -26,6 +26,14 @@ final readonly class DependencySyncProcessRunner
 {
     private const int MAX_CAPTURED_STDOUT_BYTES = 65_536;
     private const int MAX_CAPTURED_STDERR_BYTES = 65_536;
+    private const array WINDOWS_COMPOSER_EXTENSIONS = [
+        '.com',
+        '.exe',
+        '.bat',
+        '.cmd',
+        '.phar',
+        '.php',
+    ];
 
     public function __construct(
         private string $composerExecutable = 'composer',
@@ -115,18 +123,20 @@ final readonly class DependencySyncProcessRunner
         $executable = $this->composerExecutable;
         $isExplicit = \str_contains($executable, '/') || \str_contains($executable, '\\');
 
-        if (!$isExplicit) {
-            if (\PHP_OS_FAMILY !== 'Windows') {
-                return [$executable];
-            }
-
-            $resolved = self::resolveWindowsExecutableToken($executable);
+        if (\PHP_OS_FAMILY === 'Windows') {
+            $resolved = $isExplicit
+                ? self::resolveWindowsComposerFile($executable)
+                : self::resolveWindowsExecutableToken($executable);
 
             if ($resolved === null) {
-                return [$executable];
+                throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
             }
 
             return self::resolvedComposerArgv($resolved);
+        }
+
+        if (!$isExplicit) {
+            return [$executable];
         }
 
         $resolved = @\realpath($executable);
@@ -139,14 +149,10 @@ final readonly class DependencySyncProcessRunner
     }
 
     /** @return non-empty-list<string> */
-    private static function resolvedComposerArgv(
-        string $resolved,
-    ): array {
+    private static function resolvedComposerArgv(string $resolved): array
+    {
         $extension = \strtolower(
-            (string) \pathinfo(
-                $resolved,
-                \PATHINFO_EXTENSION,
-            ),
+            (string) \pathinfo($resolved, \PATHINFO_EXTENSION),
         );
 
         if ($extension === 'php' || $extension === 'phar') {
@@ -157,53 +163,15 @@ final readonly class DependencySyncProcessRunner
             return [\PHP_BINARY, $resolved];
         }
 
-        if (
-            \PHP_OS_FAMILY === 'Windows'
-            && ($extension === 'bat' || $extension === 'cmd')
-        ) {
-            if (!\is_file(\PHP_BINARY)) {
-                throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
-            }
-
-            $directory = \dirname($resolved);
-            $filename = (string) \pathinfo(
-                $resolved,
-                \PATHINFO_FILENAME,
-            );
-
-            foreach (['phar', 'php'] as $scriptExtension) {
-                $candidate = @\realpath(
-                    $directory
-                    . \DIRECTORY_SEPARATOR
-                    . $filename
-                    . '.'
-                    . $scriptExtension,
-                );
-
-                if (
-                    \is_string($candidate)
-                    && \is_file($candidate)
-                ) {
-                    return [\PHP_BINARY, $candidate];
-                }
-            }
-
-            throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
-        }
-
-        if (
-            \DIRECTORY_SEPARATOR !== '\\'
-            && !\is_executable($resolved)
-        ) {
+        if (\DIRECTORY_SEPARATOR !== '\\' && !\is_executable($resolved)) {
             throw DependencySyncException::forCode(DependencySyncErrorCodes::COMPOSER_EXECUTION_FAILED);
         }
 
         return [$resolved];
     }
 
-    private static function resolveWindowsExecutableToken(
-        string $executable,
-    ): ?string {
+    private static function resolveWindowsExecutableToken(string $executable): ?string
+    {
         $composerBinary = \getenv('COMPOSER_BINARY');
 
         if (
@@ -211,29 +179,9 @@ final readonly class DependencySyncProcessRunner
             && \is_string($composerBinary)
             && $composerBinary !== ''
         ) {
-            $resolved = @\realpath($composerBinary);
+            $resolved = self::resolveWindowsComposerFile($composerBinary);
 
-            if (
-                \is_string($resolved)
-                && \is_file($resolved)
-                && \in_array(
-                    \strtolower(
-                        (string) \pathinfo(
-                            $resolved,
-                            \PATHINFO_EXTENSION,
-                        ),
-                    ),
-                    [
-                        'com',
-                        'exe',
-                        'bat',
-                        'cmd',
-                        'php',
-                        'phar',
-                    ],
-                    true,
-                )
-            ) {
+            if ($resolved !== null) {
                 return $resolved;
             }
         }
@@ -250,14 +198,9 @@ final readonly class DependencySyncProcessRunner
         $pathExtensions = \getenv('PATHEXT');
 
         if (!$hasExtension) {
-            if (
-                \is_string($pathExtensions)
-                && $pathExtensions !== ''
-            ) {
-                foreach (
-                    \explode(';', $pathExtensions) as $extension
-                ) {
-                    $extension = \trim($extension);
+            if (\is_string($pathExtensions) && $pathExtensions !== '') {
+                foreach (\explode(';', $pathExtensions) as $extension) {
+                    $extension = \strtolower(\trim($extension));
 
                     if ($extension === '') {
                         continue;
@@ -267,21 +210,19 @@ final readonly class DependencySyncProcessRunner
                         $extension = '.' . $extension;
                     }
 
-                    $extensions[] = $extension;
+                    if (\in_array($extension, self::WINDOWS_COMPOSER_EXTENSIONS, true)) {
+                        $extensions[] = $extension;
+                    }
                 }
-            } else {
-                $extensions = [
-                    '.COM',
-                    '.EXE',
-                    '.BAT',
-                    '.CMD',
-                ];
             }
+
+            $extensions = \array_unique([
+                ...$extensions,
+                ...self::WINDOWS_COMPOSER_EXTENSIONS,
+            ]);
         }
 
-        foreach (
-            \explode(\PATH_SEPARATOR, $path) as $directory
-        ) {
+        foreach (\explode(\PATH_SEPARATOR, $path) as $directory) {
             $directory = \trim($directory, " \t\n\r\0\x0B\"");
 
             if ($directory === '') {
@@ -289,19 +230,51 @@ final readonly class DependencySyncProcessRunner
             }
 
             foreach ($extensions as $extension) {
-                $resolved = @\realpath(
-                    $directory
-                    . \DIRECTORY_SEPARATOR
-                    . $executable
-                    . $extension,
+                $resolved = self::resolveWindowsComposerFile(
+                    $directory . \DIRECTORY_SEPARATOR . $executable . $extension,
                 );
 
-                if (
-                    \is_string($resolved)
-                    && \is_file($resolved)
-                ) {
+                if ($resolved !== null) {
                     return $resolved;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    private static function resolveWindowsComposerFile(string $candidate): ?string
+    {
+        $resolved = @\realpath($candidate);
+
+        if (!\is_string($resolved) || !\is_file($resolved)) {
+            return null;
+        }
+
+        $extension = \strtolower(
+            (string) \pathinfo($resolved, \PATHINFO_EXTENSION),
+        );
+
+        if (\in_array($extension, ['com', 'exe', 'php', 'phar'], true)) {
+            return $resolved;
+        }
+
+        if ($extension !== 'bat' && $extension !== 'cmd') {
+            return null;
+        }
+
+        $directory = \dirname($resolved);
+        $filename = (string) \pathinfo($resolved, \PATHINFO_FILENAME);
+
+        foreach (['phar', 'php'] as $scriptExtension) {
+            $script = @\realpath($directory . \DIRECTORY_SEPARATOR . $filename . '.' . $scriptExtension);
+
+            if (
+                \is_string($script)
+                && \is_file($script)
+                && \strtolower((string) \pathinfo($script, \PATHINFO_EXTENSION)) === $scriptExtension
+            ) {
+                return $script;
             }
         }
 
@@ -312,8 +285,10 @@ final readonly class DependencySyncProcessRunner
      * @param list<string> $arguments
      * @return list<string>
      */
-    private static function validateArguments(array $arguments, string $errorCode): array
-    {
+    private static function validateArguments(
+        array $arguments,
+        string $errorCode,
+    ): array {
         if (!\array_is_list($arguments)) {
             throw DependencySyncException::forCode($errorCode);
         }
@@ -332,7 +307,7 @@ final readonly class DependencySyncProcessRunner
         if (
             $value === ''
             || \trim($value) !== $value
-            || \preg_match('/[\x00-\x20\x7F]/', $value) === 1
+            || \preg_match('/[\x00-\x1F\x7F]/', $value) === 1
             || \preg_match('~\A[A-Za-z][A-Za-z0-9+.-]*://~', $value) === 1
             || \preg_match('/[;&|<>`]/', $value) === 1
         ) {
@@ -417,10 +392,7 @@ final readonly class DependencySyncProcessRunner
         while (true) {
             if (!$stdinClosed) {
                 if ($stdinOffset < $stdinLength) {
-                    $written = @\fwrite(
-                        $pipes[0],
-                        \substr($stdin, $stdinOffset, 8192),
-                    );
+                    $written = @\fwrite($pipes[0], \substr($stdin, $stdinOffset, 8192));
 
                     if (\is_int($written) && $written > 0) {
                         $stdinOffset += $written;
@@ -436,16 +408,8 @@ final readonly class DependencySyncProcessRunner
                 }
             }
 
-            self::drain(
-                $pipes[1],
-                $stdout,
-                self::MAX_CAPTURED_STDOUT_BYTES,
-            );
-            self::drain(
-                $pipes[2],
-                $stderr,
-                self::MAX_CAPTURED_STDERR_BYTES,
-            );
+            self::drain($pipes[1], $stdout, self::MAX_CAPTURED_STDOUT_BYTES);
+            self::drain($pipes[2], $stderr, self::MAX_CAPTURED_STDERR_BYTES);
 
             $status = @\proc_get_status($process);
 
@@ -478,16 +442,8 @@ final readonly class DependencySyncProcessRunner
             @\fclose($pipes[0]);
         }
 
-        self::drain(
-            $pipes[1],
-            $stdout,
-            self::MAX_CAPTURED_STDOUT_BYTES,
-        );
-        self::drain(
-            $pipes[2],
-            $stderr,
-            self::MAX_CAPTURED_STDERR_BYTES,
-        );
+        self::drain($pipes[1], $stdout, self::MAX_CAPTURED_STDOUT_BYTES);
+        self::drain($pipes[2], $stderr, self::MAX_CAPTURED_STDERR_BYTES);
 
         @\fclose($pipes[1]);
         @\fclose($pipes[2]);
@@ -556,27 +512,17 @@ final readonly class DependencySyncProcessRunner
             while ($stdinOffset < $stdinLength) {
                 $written = @\fwrite(
                     $stdinFile,
-                    \substr(
-                        $stdin,
-                        $stdinOffset,
-                        8192,
-                    ),
+                    \substr($stdin, $stdinOffset, 8192),
                 );
 
-                if (
-                    !\is_int($written)
-                    || $written <= 0
-                ) {
+                if (!\is_int($written) || $written <= 0) {
                     throw DependencySyncException::forCode($startFailureCode);
                 }
 
                 $stdinOffset += $written;
             }
 
-            if (
-                !@\fflush($stdinFile)
-                || !@\rewind($stdinFile)
-            ) {
+            if (!@\fflush($stdinFile) || !@\rewind($stdinFile)) {
                 throw DependencySyncException::forCode($startFailureCode);
             }
 
@@ -621,10 +567,7 @@ final readonly class DependencySyncProcessRunner
                     break;
                 }
 
-                if (
-                    (\microtime(true) - $startedAt)
-                    >= $timeoutSeconds
-                ) {
+                if ((\microtime(true) - $startedAt) >= $timeoutSeconds) {
                     $timedOut = true;
 
                     @\proc_terminate($process);
@@ -651,21 +594,12 @@ final readonly class DependencySyncProcessRunner
                 $exitCode = 1;
             }
 
-            if (
-                !@\rewind($stdoutFile)
-                || !@\rewind($stderrFile)
-            ) {
+            if (!@\rewind($stdoutFile) || !@\rewind($stderrFile)) {
                 throw DependencySyncException::forCode($startFailureCode);
             }
 
-            $stdout = @\fread(
-                $stdoutFile,
-                self::MAX_CAPTURED_STDOUT_BYTES,
-            );
-            $stderr = @\fread(
-                $stderrFile,
-                self::MAX_CAPTURED_STDERR_BYTES,
-            );
+            $stdout = @\fread($stdoutFile, self::MAX_CAPTURED_STDOUT_BYTES);
+            $stderr = @\fread($stderrFile, self::MAX_CAPTURED_STDERR_BYTES);
 
             return [
                 'exitCode' => $exitCode,
@@ -686,8 +620,11 @@ final readonly class DependencySyncProcessRunner
     }
 
     /** @param resource $pipe */
-    private static function drain($pipe, string &$capture, int $limit): void
-    {
+    private static function drain(
+        $pipe,
+        string &$capture,
+        int $limit,
+    ): void {
         while (true) {
             $chunk = @\fread($pipe, 8192);
 
@@ -699,8 +636,11 @@ final readonly class DependencySyncProcessRunner
         }
     }
 
-    private static function appendBounded(string &$capture, string $chunk, int $limit): void
-    {
+    private static function appendBounded(
+        string &$capture,
+        string $chunk,
+        int $limit,
+    ): void {
         $remaining = $limit - \strlen($capture);
 
         if ($remaining > 0) {

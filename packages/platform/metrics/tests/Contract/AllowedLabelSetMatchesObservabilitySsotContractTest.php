@@ -119,6 +119,15 @@ final class AllowedLabelSetMatchesObservabilitySsotContractTest extends TestCase
             $source,
         );
         self::assertSame(
+            ['type' => 'counter', 'labels' => ['operation', 'status', 'outcome']],
+            $catalog['http.system_endpoint_total'] ?? null,
+        );
+        self::assertMatchesRegularExpression(
+            '/^\|\h*http\.system_endpoint_total\h*\|\h*`platform\/http`\h*\|\h*counter\h*\|\h*'
+            . '`operation`,\h*`status`,\h*`outcome`\h*\|$/m',
+            $source,
+        );
+        self::assertSame(
             ['type' => 'observe', 'labels' => ['outcome']],
             $catalog['foundation.reset_duration_ms'] ?? null,
         );

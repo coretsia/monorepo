@@ -49,6 +49,8 @@ declare(strict_types=1);
  * - request-level final-response observability is not middleware configuration;
  * - redirect-decision observability is owned by HTTPS redirect middleware;
  * - maintenance-decision observability is owned by maintenance middleware;
+ * - system-endpoint decision metrics are owned by the terminal FallbackRouter
+ *   and remain independent of finalized request observability;
  * - maintenance configuration controls static middleware participation and
  *   the default Retry-After policy, not runtime maintenance activation;
  * - maintenance runtime state is application-root-local and independent of
@@ -186,15 +188,18 @@ return [
     ],
 
     /*
-     * HTTP request-level, HTTPS redirect-decision, and maintenance-decision
-     * metric recording.
+     * HTTP request-level, HTTPS redirect-decision, maintenance-decision,
+     * and terminal system-endpoint decision metric recording.
      *
-     * Request-level metrics consume the finalized request outcome through
-     * the existing MeterPortInterface, outside the PSR-15 middleware pipeline.
+     * HttpKernel coordinates request-level metrics using the finalized
+     * request outcome through the existing MeterPortInterface, outside
+     * the PSR-15 middleware pipeline.
      * HTTPS redirect and maintenance middleware record their respective
      * completed decisions independently through the same metrics port.
+     * FallbackRouter records completed system-endpoint dispatch decisions
+     * independently of finalized request outcomes.
      *
-     * This toggle governs all three metric boundaries.
+     * This toggle governs all four metric boundaries.
      */
     'metrics' => [
         'enabled' => true,

@@ -24,11 +24,12 @@ use Coretsia\Contracts\Observability\Errors\ErrorSeverity;
 use Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface;
 use Coretsia\Platform\Http\Exception\BadJsonException;
 use Coretsia\Platform\Http\Exception\BodyTooLargeException;
+use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\Exception\TrustedHostRejectedException;
 use Throwable;
 
 /**
- * Format-neutral error descriptors for the three HTTP-owned failures.
+ * Format-neutral error descriptors for the four HTTP-owned failures.
  *
  * The canonical errors module owns mapper discovery and resolution through
  * ReservedTags::ERROR_MAPPER. HTTP's declarative provider contributes this
@@ -47,6 +48,8 @@ final class HttpExceptionMapper implements ExceptionMapperInterface
             $status = 413;
         } elseif ($throwable instanceof TrustedHostRejectedException) {
             $status = 400;
+        } elseif ($throwable instanceof IntentionalErrorException) {
+            $status = 500;
         } else {
             return null;
         }

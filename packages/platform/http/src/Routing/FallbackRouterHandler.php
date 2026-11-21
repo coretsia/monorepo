@@ -18,30 +18,28 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Http\Routing;
 
-use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Routing-free safe terminal handler for unmatched HTTP requests.
+ * Canonical terminal handler for supported system endpoints and unmatched requests.
  *
- * System endpoints and the eventual routing delegation seam have separate
- * owners. No request data is consulted or reflected into the response.
+ * Delegates endpoint dispatch and safe unmatched response construction to
+ * their canonical owners. General application routing remains separate.
  *
  * @internal
  */
 final readonly class FallbackRouterHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private ResponseFactoryInterface $responses,
-        private StreamFactoryInterface $streams,
+        private FallbackRouter $router,
+        private FallbackResponses $responses,
     ) {
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        return $this->responses->createResponse(404)->withBody($this->streams->createStream(''));
+        return $this->router->dispatch($request) ?? $this->responses->notFound();
     }
 }

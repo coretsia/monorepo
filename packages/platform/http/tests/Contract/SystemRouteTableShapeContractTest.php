@@ -133,18 +133,18 @@ final class SystemRouteTableShapeContractTest extends TestCase
         }
     }
 
-    public function testInitialRegistryContainsExactlyTheNineCanonicalDeclarations(): void
+    public function testCurrentRegistryContainsExactlyTheNineCanonicalDeclarations(): void
     {
         self::assertSame([
-            ['owner' => 'platform/http', 'pattern' => '/', 'status' => 'reserved', 'type' => 'exact'],
-            ['owner' => 'platform/http', 'pattern' => '/_alive', 'status' => 'reserved', 'type' => 'exact'],
+            ['owner' => 'platform/http', 'pattern' => '/', 'status' => 'active', 'type' => 'exact'],
+            ['owner' => 'platform/http', 'pattern' => '/_alive', 'status' => 'active', 'type' => 'exact'],
             ['owner' => 'platform/http', 'pattern' => '/_debug', 'status' => 'dev_only', 'type' => 'exact'],
             ['owner' => 'platform/http', 'pattern' => '/_debug/', 'status' => 'dev_only', 'type' => 'prefix'],
-            ['owner' => 'platform/http', 'pattern' => '/error', 'status' => 'reserved', 'type' => 'exact'],
+            ['owner' => 'platform/http', 'pattern' => '/error', 'status' => 'active', 'type' => 'exact'],
             ['owner' => 'platform/health', 'pattern' => '/health', 'status' => 'reserved', 'type' => 'exact'],
             ['owner' => 'platform/health', 'pattern' => '/health/', 'status' => 'reserved', 'type' => 'prefix'],
             ['owner' => 'platform/metrics', 'pattern' => '/metrics', 'status' => 'reserved', 'type' => 'exact'],
-            ['owner' => 'platform/http', 'pattern' => '/ping', 'status' => 'reserved', 'type' => 'exact'],
+            ['owner' => 'platform/http', 'pattern' => '/ping', 'status' => 'active', 'type' => 'exact'],
         ], SystemRouteTable::entries());
     }
 
@@ -219,7 +219,7 @@ final class SystemRouteTableShapeContractTest extends TestCase
         self::assertSame($expected, $copy);
 
         $copy[0]['pattern'] = '/changed';
-        $copy[1]['status'] = 'active';
+        $copy[1]['status'] = 'reserved';
         unset($copy[2]);
         $copy[] = ['owner' => 'platform/http', 'pattern' => '/extra', 'status' => 'reserved', 'type' => 'exact'];
 

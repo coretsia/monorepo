@@ -63,9 +63,12 @@ use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
+use Coretsia\Platform\Http\Routing\FallbackResponses;
+use Coretsia\Platform\Http\Routing\FallbackRouter;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
+use Psr\Clock\ClockInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -96,10 +99,10 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
     ): void {
         $http = $context->configRoot('http');
         $selection = $http['factory'] ?? null;
-        if (!\is_string($selection) || (
-            $selection !== 'external'
-                && !isset(HttpRuntimeEntrypointGuard::BUILTIN_FACTORY_CLASSES[$selection])
-        )) {
+        if (
+            !\is_string($selection)
+            || ($selection !== 'external' && !isset(HttpRuntimeEntrypointGuard::BUILTIN_FACTORY_CLASSES[$selection]))
+        ) {
             throw new \InvalidArgumentException('http-factory-selection-invalid');
         }
 
@@ -151,6 +154,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(KernelRuntimeInterface::class)
             ->requireService(RuntimeDriverResolver::class)
             ->requireService(RuntimePathContext::class)
+            ->requireService(ClockInterface::class)
             ->requireService(Stopwatch::class)
             ->requireService(ContextStore::class)
             ->requireService(UlidGenerator::class)
@@ -214,9 +218,24 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 [self::ref(RuntimeDriverResolver::class)],
             )
             ->classService(
-                FallbackRouterHandler::class,
-                FallbackRouterHandler::class,
+                FallbackResponses::class,
+                FallbackResponses::class,
                 [self::ref(ResponseFactoryInterface::class), self::ref(StreamFactoryInterface::class)],
+            )
+            ->classService(
+                FallbackRouter::class,
+                FallbackRouter::class,
+                [
+                    self::ref(FallbackResponses::class),
+                    self::ref(ClockInterface::class),
+                    self::ref(MeterPortInterface::class),
+                    $metricsEnabled,
+                ],
+            )
+            ->classService(
+                FallbackRouterHandler::class,
+                FallbackRouterHandler::class,
+                [self::ref(FallbackRouter::class), self::ref(FallbackResponses::class)],
             )
             ->alias(RequestHandlerInterface::class, FallbackRouterHandler::class)
             ->classService(

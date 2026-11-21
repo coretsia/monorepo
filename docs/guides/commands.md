@@ -1917,11 +1917,12 @@ Determinism:
 | `composer system-route-table:gate -- --root=<fixture-repo-root>` | deterministic | Test/fixture repository-root override; the replacement root must satisfy canonical repository markers. |
 
 Notes:
-- Purpose: enforces the canonical system-route declaration registry and versioning policy defined in `docs/ssot/system-route-table.md`.
+- Purpose: enforces local consistency of the canonical system-route declaration registry and version baseline according to `docs/ssot/system-route-table.md`.
 - The canonical code-level registry is:
   - `Coretsia\Platform\Http\System\SystemRouteTable`
   - file: `packages/platform/http/src/System/SystemRouteTable.php`
 - The committed version baseline is `tools/config/system-route-table.json`.
+- Registry versioning and released snapshot immutability are governed by `docs/ssot/system-route-table.md`.
 - `--root=<fixture-repo-root>` replaces the repository context for integration/fixture testing; it is not a scan-subtree selector.
   - the replacement root must contain `composer.json`, `packages/`, and `tools/`;
   - the registry source, normative SSoT, and version baseline are resolved within the selected repository;
@@ -1933,7 +1934,8 @@ Notes:
   - exactly one normative `System Route Registry (MUST)` section with the declared schema version and canonical registry table;
   - semantic equality between the PHP declarations, normative SSoT registry, and latest baseline snapshot;
   - canonical baseline serialization, contiguous registry versions, and semantic changes between adjacent snapshots.
-- Historical snapshot immutability remains a repository review invariant requiring comparison with an independently trusted repository revision. Local baseline validation does not independently establish historical immutability.
+- Repository review enforces released historical snapshot immutability. Historical verification requires comparison with an independently trusted repository revision and rejects replacement, removal, or reordering of released snapshots.
+- The gate validates local registry and baseline consistency only. It does not independently establish released historical immutability or depend on Composer package versions, Git tags, runtime state, or package discovery.
 - Exit codes and output policy:
   - exit code `0`: successful validation with empty stdout and stderr;
   - exit code `1`: registry drift or gate failure;
@@ -2853,6 +2855,9 @@ Notes:
 - Apply uses persistent effective bootstrap presets and module overrides. Temporary fixed presets are not accepted even when they match configuration.
 - Under the project lock, a configuration-driven replan re-resolves the full application set and canonical installation-relevant bootstrap identity before Composer effects.
 - Only `apply` is authorized to execute Composer dependency effects.
+- Composer execution supports native Windows and POSIX PHP environments without requiring a particular interactive shell.
+- On Windows, Composer executable discovery supports native executables, standard Composer launchers with sibling PHP scripts, and directly discoverable `.phar` or `.php` files.
+- Composer execution uses exact argv without shell fallback according to [Application Dependency Sync SSoT](../ssot/application-dependency-sync.md).
 - Composer scripts and plugins are disabled by default unless separately authorized through `--allow-composer-scripts` or `--allow-composer-plugins`.
 - `--allow-broad-update` does not automatically widen a healthy constrained update.
 - `--allow-repair` permits repair only for incomplete installed vendor state, not arbitrary module-plan or metadata divergence.

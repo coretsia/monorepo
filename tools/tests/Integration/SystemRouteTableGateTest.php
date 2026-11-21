@@ -468,21 +468,43 @@ final class SystemRouteTableGateTest extends TestCase
         $this->assertFailure($this->runGate($root), [self::FAILED]);
     }
 
-    public function testAlignedSourceAndSsotChangesRequireBothVersionBumpAndBaselineAppend(): void
+    public function testAlignedRegistryChangesRequireLocalBaselineConsistency(): void
     {
+        $fixtureBytes = $this->fixtureBytes();
         $history = $this->fixtureHistory();
         $changed = $this->nextSnapshot($history[0]);
         $changed['schemaVersion'] = 1;
 
         $root = $this->createFixtureRoot($changed, $history);
-        $this->assertDrift($this->runGate($root), [self::BASELINE_PATH . ': baseline-registry-drift']);
+        $this->assertDrift($this->runGate($root), [
+            self::BASELINE_PATH . ': baseline-registry-drift',
+        ]);
+
+        $root = $this->createFixtureRoot($changed, [$changed]);
+        $before = $this->snapshotTree($root);
+
+        $first = $this->runGate($root);
+        $second = $this->runGate($root);
+
+        self::assertSame(['exitCode' => 0, 'stdout' => '', 'stderr' => ''], $first);
+        self::assertSame($first, $second);
+        self::assertSame($before, $this->snapshotTree($root));
+
+        $root = $this->createFixtureRoot($changed, [...$history, $changed]);
+        $this->assertDrift($this->runGate($root), [
+            self::BASELINE_PATH . ': baseline-version-sequence-invalid',
+        ]);
 
         $changed['schemaVersion'] = 2;
         $root = $this->createFixtureRoot($changed, $history);
-        $this->assertDrift($this->runGate($root), [self::BASELINE_PATH . ': baseline-registry-drift']);
+        $this->assertDrift($this->runGate($root), [
+            self::BASELINE_PATH . ': baseline-registry-drift',
+        ]);
 
         $root = $this->createFixtureRoot($changed, [...$history, $changed]);
         self::assertSame(['exitCode' => 0, 'stdout' => '', 'stderr' => ''], $this->runGate($root));
+
+        self::assertSame($fixtureBytes, $this->fixtureBytes());
     }
 
     #[DataProvider('invalidVersionTransitions')]

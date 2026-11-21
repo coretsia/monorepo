@@ -38,7 +38,7 @@ Each declaration contains exactly `owner`, `pattern`, `status`, and `type`. The 
 
 All three statuses reserve ownership: `active` identifies a materialized endpoint capability, `reserved` protects a path without asserting implementation, and `dev_only` protects a development-only declaration without enabling it. A declaration may name an owner package that is not yet materialized. Only the declared owner may claim the endpoint, and actual exposure remains subject to its applicable implementation, module, configuration, and access policy.
 
-The root `/` reservation is deliberately exact, not a wildcard. The exact `/_alive` declaration belongs to `platform/http`, and the exact `/_debug` and prefix `/_debug/` reservations retain `dev_only` status. Neither the liveness declaration nor the debug reservations establish endpoint availability.
+The root `/` reservation is deliberately exact, not a wildcard. The exact `/`, `/_alive`, `/error`, and `/ping` declarations belong to `platform/http` and identify active terminal system-endpoint capabilities. The exact `/_debug` and prefix `/_debug/` reservations retain `dev_only` status. Neither declaration status nor a matching result establishes runtime exposure or authorization.
 
 ### Decision 2: Keep declarations, matching, admission, and execution separate
 
@@ -48,6 +48,7 @@ The ownership boundaries are:
 - `Coretsia\Platform\Http\System\ReservedPathMatcher` owns concrete reserved-path normalization and matching against those declarations.
 - Application route compilation guards must analyze route-template overlap against the canonical exact paths and prefix namespaces.
 - System-endpoint runtime owners own endpoint selection and execution independently of reservation matching.
+- `FallbackRouter` consumes the canonical matcher result for terminal system-endpoint dispatch. `FallbackResponses` owns terminal response construction, including reserved fallback responses and unmatched responses.
 - The declared endpoint owner retains responsibility for access policy and exposure eligibility, including development-only restrictions.
 
 A concrete-path match is reserved ownership metadata, not an endpoint dispatch decision, route-template admission proof, or authorization outcome.
@@ -58,11 +59,13 @@ Contracts routing descriptors remain transport-neutral under `docs/ssot/routing-
 
 The canonical registry schema version is `SystemRouteTable::SCHEMA_VERSION`, independently of SSoT document metadata versions. The PHP declarations, the uniquely named normative registry section in the System Route Table SSoT, and the latest committed snapshot in `tools/config/system-route-table.json` must agree exactly on version and declaration values.
 
-The baseline contains complete canonical snapshots in contiguous version order starting at `1`. A semantic change to any declaration field requires incrementing the registry version by exactly one, updating the normative table, and appending the corresponding full snapshot. Every approved historical snapshot must remain unchanged. A matcher-only or documentation-formatting change does not justify a registry version increment.
+The baseline contains complete canonical snapshots in contiguous version order starting at `1`.
+
+A semantic change to a released registry declaration set requires incrementing the registry version by exactly one, updating the PHP declarations and normative table, and appending the corresponding full snapshot. Every released snapshot must remain unchanged. A matcher-only or documentation-formatting change does not justify a registry version increment.
 
 The read-only `composer system-route-table:gate` command participates in the repository gates and CI rails. It inspects PHP declarations without executing registry source and validates the normative Markdown table, canonical JSON serialization, contiguous snapshot history, semantic version transitions, and latest-snapshot equality. Presentation-only table alignment does not alter declaration semantics. Mandatory liveness and development-only invariants apply regardless of registry version.
 
-The gate enforces local baseline consistency; it cannot independently establish historical immutability if the declarations and retained history are rewritten together. Repository review must compare all previously approved snapshots against an independently trusted revision and reject historical replacement, removal, or reordering.
+The gate enforces local baseline consistency; it cannot independently establish released historical immutability if the declarations and retained history are rewritten together. Repository review must compare all previously released snapshots against an independently trusted revision and reject historical replacement, removal, or reordering. Gate validation remains independent of Composer package versions, Git tags, runtime state, and package discovery.
 
 Baseline history is repository tooling data, not production configuration or a generated Kernel artifact. Runtime consumers depend on the canonical PHP declarations only.
 
@@ -92,6 +95,10 @@ The normative path grammar, normalization, matching semantics, and consumer obli
 
 Any runtime consumer that integrates reserved-path matching with endpoint dispatch must use the same effective path representation for both operations. A non-matching encoded path must not authorize dispatch of its decoded equivalent. No case folding, slash reinterpretation, percent decoding, or other representation change may occur between the reservation decision and the corresponding dispatch decision.
 
+`FallbackRouter` filters the exact case-sensitive method `GET` before URI access, passes the original URI path to `ReservedPathMatcher::match()` exactly once, and selects explicitly implemented behavior using the returned canonical declaration's owner, pattern, type, and status. It treats only the canonical matcher invalid-input exception as unmatched; URI access and endpoint execution failures propagate unchanged.
+
+The terminal dispatcher delegates construction of a safe HTTP-owned `501` fallback to `FallbackResponses` for explicitly supported reserved health and metrics declarations when no earlier owner-controlled response has short-circuited the pipeline. This diagnostic does not claim, implement, or authorize the reserved owner's endpoint and does not establish package installation or backend availability. No independent registry, matcher, or owner-discovery mechanism is introduced.
+
 Application route compilation must separately analyze route-template overlap, including dynamic templates that could match an exact reservation or enter a reserved prefix namespace. Passing a route template or a sample concrete path to `ReservedPathMatcher` is not a sufficient admission check.
 
 ### Decision 6: Preserve the exact maintenance liveness bypass and HTTP pipeline
@@ -102,7 +109,9 @@ The maintenance decision must not call `ReservedPathMatcher`. Its general slash 
 
 The exact bypass delegates once to the downstream handler and preserves its response or original Throwable. It does not implement a liveness endpoint, synthesize a liveness response, establish a downstream status, or authorize access.
 
-The routing-free `FallbackRouterHandler` remains a terminal handler returning an empty `404` response without inspecting request data. It does not integrate reserved-path matching, routing delegation, or system-endpoint dispatch. HTTP middleware ordering, response decoration and finalization, observability, and Kernel UnitOfWork and reset ownership remain unchanged.
+`FallbackRouterHandler` is the canonical PSR-15 terminal handler. It delegates to `FallbackRouter` and returns the dispatched response unchanged or obtains the safe empty-body HTTP `404` from `FallbackResponses` for unmatched requests. Earlier middleware responses retain precedence. Terminal system-endpoint behavior is governed by `docs/ssot/http-system-endpoints.md`; general application routing remains a separate responsibility.
+
+HTTP middleware ordering, response decoration and finalization, finalized request observability, and Kernel UnitOfWork and reset ownership remain unchanged. Terminal endpoint-decision observability belongs to `FallbackRouter` and remains independent of the finalized request outcome.
 
 ### Decision 7: Keep the registry and matcher free of runtime dependencies
 
@@ -110,20 +119,22 @@ The routing-free `FallbackRouterHandler` remains a terminal handler returning an
 
 Neither requires a service binding, additional Composer dependency, new DI tag, configuration root, module discovery, filesystem access, runtime container, ContextStore, observability port, generated artifact, or `kernel.reset` registration. No request-derived values enter the registry, and the matcher does not emit logs, spans, metrics, or raw-input diagnostics.
 
+The terminal dispatcher is a separate stateless runtime consumer with explicit dependencies on response construction, the canonical injected clock and meter, and the validated HTTP metrics toggle. It owns endpoint decisions and their bounded counter emission, without transferring runtime dependencies or observability responsibilities into the registry or matcher.
+
 ## Consequences
 
 ### Positive consequences
 
 - one HTTP-owned declaration registry provides deterministic reserved ownership without coupling it to endpoint availability;
 - concrete reserved-path matching has a single stateless implementation and preserves segment boundaries and encoded path identity;
-- the repository gate checks synchronized declarations and version history while review retains authority over historical immutability;
+- the repository gate checks synchronized declarations and local version history while repository review retains authority over released historical immutability;
 - maintenance liveness bypass remains exact and independent of general reserved-path normalization;
-- future admission and dispatch consumers have explicit representation and ownership obligations without expanding the current HTTP runtime.
+- terminal system-endpoint dispatch consumes canonical declarations and matching results without conflating dispatch, application route admission, or authorization.
 
 ### Trade-offs
 
 - semantic declaration changes require a coordinated PHP, SSoT, and baseline update;
-- local consistency checks require a separate trusted-revision review to establish historical immutability;
+- local consistency checks require a separate trusted-revision review to establish released historical immutability;
 - concrete-path matching cannot substitute for template overlap analysis or endpoint access policy;
 - encoded path aliases are intentionally not inferred, and consumers must preserve consistent path semantics through dispatch.
 
@@ -151,10 +162,10 @@ Decoding creates implicit aliases and permits divergence from effective dispatch
 
 ## Non-goals
 
-- General application routing, route-template compiler or admission guard implementation, routing delegation, system-endpoint dispatch, endpoint response construction, or endpoint access policy implementation.
+- General application routing, route-template compiler or admission guard implementation, or endpoint access policy implementation. The terminal dispatcher and response services retain their separate system-endpoint responsibilities.
 - Activation of liveness, health, metrics, debug, or other reserved endpoints solely through declarations or matching.
 - An additional Contracts or Foundation registry, configuration root, generated artifact, runtime discovery layer, DI binding, or public matching port.
-- Changes to middleware participation, HTTP pipeline ordering, terminal response behavior, Kernel lifecycle, context, observability, or reset orchestration.
+- A competing middleware topology, HTTP execution boundary, Kernel lifecycle, context owner, request-observability pipeline, or reset orchestration.
 
 ## Related SSoT
 
@@ -163,6 +174,7 @@ Decoding creates implicit aliases and permits divergence from effective dispatch
 - `docs/ssot/routing-and-http-app-contracts.md`
 - `docs/ssot/http-middleware-catalog.md`
 - `docs/ssot/http-middleware-wiring.md`
+- `docs/ssot/http-system-endpoints.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/di-tags-and-middleware-ordering.md`
 

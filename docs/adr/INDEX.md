@@ -81,4 +81,3 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 ## Cross-references
 
 - [SSoT Index](../ssot/INDEX.md) — owner: repo — scope: navigation
-- [Roadmap](../roadmap/ROADMAP.md) — owner: repo — scope: navigation

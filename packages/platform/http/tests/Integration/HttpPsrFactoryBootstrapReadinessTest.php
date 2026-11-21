@@ -23,35 +23,50 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Foundation\Clock\FrozenClock;
+use Coretsia\Foundation\Clock\SystemClock;
+use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
+use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Logging\NoopLogger;
 use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Observability\Tracing\NoopTracer;
+use Coretsia\Foundation\Provider\FoundationServiceProvider;
+use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
+use Coretsia\Kernel\Container\Exception\ContainerCompileFailedException;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
+use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\Http\Routing\FallbackResponses;
+use Coretsia\Platform\Http\Routing\FallbackRouter;
+use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
+use Psr\Clock\ClockInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 
 final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
 {
@@ -198,6 +213,7 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         $required = $providerDefinitions->build()->requiredServiceIds();
         self::assertContains(ResponseFactoryInterface::class, $required);
         self::assertContains(StreamFactoryInterface::class, $required);
+        self::assertContains(ClockInterface::class, $required);
         $definitions = new ContainerDefinitionBuilder();
         $definitions->requireService(ResponseFactoryInterface::class);
         $definitions->requireService(StreamFactoryInterface::class);
@@ -221,6 +237,277 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         yield 'both-missing' => [false, false];
         yield 'response-missing' => [false, true];
         yield 'stream-missing' => [true, false];
+    }
+
+    public function testMissingClockFailsCanonicalGraphCompletenessWithValidExternalFactories(): void
+    {
+        $http = require __DIR__ . '/../../config/http.php';
+        $providerDefinitions = new ContainerDefinitionBuilder();
+
+        new HttpServiceProvider()->define(
+            $providerDefinitions,
+            new ContainerDefinitionContext(['http' => $http]),
+        );
+
+        $required = $providerDefinitions->build()->requiredServiceIds();
+        self::assertContains(ClockInterface::class, $required);
+        self::assertContains(ResponseFactoryInterface::class, $required);
+        self::assertContains(StreamFactoryInterface::class, $required);
+
+        $definitions = new ContainerDefinitionBuilder();
+        $definitions
+            ->requireService(ClockInterface::class)
+            ->requireService(ResponseFactoryInterface::class)
+            ->requireService(StreamFactoryInterface::class)
+            ->classService(
+                ResponseFactoryInterface::class,
+                HttpBootstrapCompatibleFactory::class,
+            )
+            ->classService(
+                StreamFactoryInterface::class,
+                HttpBootstrapCompatibleFactory::class,
+            );
+
+        $set = $definitions->build();
+        $graph = new ContainerCompiler(
+            new NoopTracer(),
+            new NoopMeter(),
+            new NoopLogger(),
+            new Stopwatch(),
+        )->compile($set);
+
+        $services = $graph->toArray()['services'];
+
+        self::assertSame(
+            HttpBootstrapCompatibleFactory::class,
+            $services[ResponseFactoryInterface::class]['construction']['class'],
+        );
+        self::assertSame(
+            HttpBootstrapCompatibleFactory::class,
+            $services[StreamFactoryInterface::class]['construction']['class'],
+        );
+        self::assertArrayNotHasKey(ClockInterface::class, $services);
+        self::assertArrayNotHasKey(ClockInterface::class, $graph->toArray()['aliases']);
+
+        try {
+            new ContainerGraphCompletenessValidator()->validate($graph, $set);
+            self::fail('A missing required clock binding must be rejected.');
+        } catch (ContainerDefinitionInvalidException $exception) {
+            self::assertSame(
+                ContainerDefinitionInvalidException::REASON_REQUIRED_SERVICE_INVALID,
+                $exception->reason(),
+            );
+        }
+    }
+
+    public function testFoundationClockAndFinalExternalBindingsAreConsumedByTerminalServices(): void
+    {
+        $http = require __DIR__ . '/../../config/http.php';
+        $http['factory'] = 'external';
+        $http['metrics']['enabled'] = false;
+
+        $config = [
+            'foundation' => require \dirname(__DIR__, 4) . '/core/foundation/config/foundation.php',
+            'http' => $http,
+            'kernel' => ['runtime' => ['http_driver' => 'http.classic']],
+        ];
+
+        $definitions = new ContainerDefinitionBuilder();
+        $context = new ContainerDefinitionContext($config);
+
+        new FoundationServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
+
+        // The lifecycle boundary is not executed by these terminal tests.
+        $definitions
+            ->classService(KernelRuntimeInterface::class, \stdClass::class)
+            ->classService(RuntimeDriverResolver::class, RuntimeDriverResolver::class)
+            ->classService(
+                HttpBootstrapCompatibleFactory::class,
+                HttpBootstrapCompatibleFactory::class,
+            )
+            ->alias(
+                ResponseFactoryInterface::class,
+                HttpBootstrapCompatibleFactory::class,
+            )
+            ->alias(
+                StreamFactoryInterface::class,
+                HttpBootstrapCompatibleFactory::class,
+            );
+
+        $set = $definitions->build();
+        $compiler = new ContainerCompiler(
+            new NoopTracer(),
+            new NoopMeter(),
+            new NoopLogger(),
+            new Stopwatch(),
+        );
+
+        $graph = $compiler->compile($set);
+        new ContainerGraphCompletenessValidator()->validate($graph, $set);
+
+        self::assertContains(ClockInterface::class, $set->requiredServiceIds());
+        self::assertSame(
+            SystemClock::class,
+            $graph->toArray()['aliases'][ClockInterface::class],
+        );
+        self::assertSame(
+            HttpBootstrapCompatibleFactory::class,
+            $graph->toArray()['aliases'][ResponseFactoryInterface::class],
+        );
+        self::assertSame(
+            HttpBootstrapCompatibleFactory::class,
+            $graph->toArray()['aliases'][StreamFactoryInterface::class],
+        );
+
+        $withoutClock = ContainerDefinitionSet::fromValidatedState(
+            \array_values(
+                \array_filter(
+                    $set->toDescriptorStream(),
+                    static fn (array $operation): bool => $operation['kind'] !== 'alias'
+                        || $operation['alias'] !== ClockInterface::class,
+                ),
+            ),
+            $set->requiredServiceIds(),
+        );
+
+        try {
+            $compiler->compile($withoutClock);
+            self::fail('The HTTP graph must not compile without its clock binding.');
+        } catch (ContainerCompileFailedException $exception) {
+            self::assertSame(
+                ContainerCompileFailedException::REASON_GRAPH_INVALID,
+                $exception->reason(),
+            );
+        }
+
+        $builder = new ContainerBuilder($config);
+        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $builder->instance(TagRegistry::class, $builder->tagRegistry());
+        $builder->instance(
+            RuntimePathContext::class,
+            new RuntimePathContext('/test', '/test/var/cache'),
+        );
+        $builder->applyDefinitions($set);
+
+        $baseline = $builder->build();
+
+        $systemClock = $baseline->get(ClockInterface::class);
+        self::assertInstanceOf(SystemClock::class, $systemClock);
+        self::assertSame(
+            $baseline->get(SystemClock::class),
+            $systemClock,
+        );
+
+        $baselineRouter = $baseline->get(FallbackRouter::class);
+        self::assertInstanceOf(FallbackRouter::class, $baselineRouter);
+        self::assertSame(
+            $systemClock,
+            new \ReflectionProperty(FallbackRouter::class, 'clock')->getValue($baselineRouter),
+        );
+
+        $clock = new FrozenClock(new \DateTimeImmutable('@1700000000'));
+
+        $stream = $this->createStub(StreamInterface::class);
+        $stream->method('__toString')->willReturn("{\"ok\":true,\"ts\":1700000000}\n");
+
+        $streams = $this->createMock(StreamFactoryInterface::class);
+        $streams->expects(self::once())
+            ->method('createStream')
+            ->with("{\"ok\":true,\"ts\":1700000000}\n")
+            ->willReturn($stream);
+
+        $response = $this->createMock(ResponseInterface::class);
+        $typedResponse = $this->createMock(ResponseInterface::class);
+        $cacheControlledResponse = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createStub(ResponseInterface::class);
+
+        $finalResponse->method('getStatusCode')->willReturn(200);
+        $finalResponse->method('getBody')->willReturn($stream);
+
+        $response->expects(self::once())
+            ->method('withHeader')
+            ->with('Content-Type', 'application/json')
+            ->willReturn($typedResponse);
+        $response->expects(self::never())->method('withBody');
+
+        $typedResponse->expects(self::once())
+            ->method('withHeader')
+            ->with('Cache-Control', 'no-store')
+            ->willReturn($cacheControlledResponse);
+        $typedResponse->expects(self::never())->method('withBody');
+
+        $cacheControlledResponse->expects(self::never())->method('withHeader');
+        $cacheControlledResponse->expects(self::once())
+            ->method('withBody')
+            ->with(self::identicalTo($stream))
+            ->willReturn($finalResponse);
+
+        $responses = $this->createMock(ResponseFactoryInterface::class);
+        $responses->expects(self::once())
+            ->method('createResponse')
+            ->with(200)
+            ->willReturn($response);
+
+        $builder->instance(ResponseFactoryInterface::class, $responses);
+        $builder->instance(StreamFactoryInterface::class, $streams);
+        $builder->instance(ClockInterface::class, $clock);
+
+        $container = $builder->build();
+
+        self::guard()->assertEntrypointAllowed(
+            new ArrayConfigRepository($config),
+            self::modulePlan(),
+            RuntimeDriverContributions::fromDrivers([], []),
+            $container,
+        );
+
+        self::assertSame($responses, $container->get(ResponseFactoryInterface::class));
+        self::assertSame($streams, $container->get(StreamFactoryInterface::class));
+        self::assertSame($clock, $container->get(ClockInterface::class));
+
+        $router = $container->get(FallbackRouter::class);
+        $fallbackResponses = $container->get(FallbackResponses::class);
+        $handler = $container->get(RequestHandlerInterface::class);
+
+        self::assertInstanceOf(FallbackRouter::class, $router);
+        self::assertInstanceOf(FallbackResponses::class, $fallbackResponses);
+        self::assertInstanceOf(FallbackRouterHandler::class, $handler);
+
+        self::assertSame($container->get(FallbackRouterHandler::class), $handler);
+        self::assertSame(
+            $router,
+            new \ReflectionProperty(FallbackRouterHandler::class, 'router')->getValue($handler),
+        );
+        self::assertSame(
+            $clock,
+            new \ReflectionProperty(FallbackRouter::class, 'clock')->getValue($router),
+        );
+        self::assertSame(
+            $fallbackResponses,
+            new \ReflectionProperty(FallbackRouter::class, 'responses')->getValue($router),
+        );
+        self::assertSame(
+            $responses,
+            new \ReflectionProperty(FallbackResponses::class, 'responses')->getValue($fallbackResponses),
+        );
+        self::assertSame(
+            $streams,
+            new \ReflectionProperty(FallbackResponses::class, 'streams')->getValue($fallbackResponses),
+        );
+
+        $uri = $this->createStub(UriInterface::class);
+        $uri->method('getPath')->willReturn('/ping');
+
+        $request = $this->createStub(ServerRequestInterface::class);
+        $request->method('getMethod')->willReturn('GET');
+        $request->method('getUri')->willReturn($uri);
+
+        $actual = $handler->handle($request);
+
+        self::assertSame($finalResponse, $actual);
+        self::assertSame(200, $actual->getStatusCode());
+        self::assertSame("{\"ok\":true,\"ts\":1700000000}\n", (string) $actual->getBody());
     }
 
     public function testReadinessUsesExplicitKernelDriverContributionsWithoutRewritingDriverSelection(): void

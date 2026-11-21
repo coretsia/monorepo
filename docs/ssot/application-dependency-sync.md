@@ -578,6 +578,26 @@ Composer scripts and plugins are disabled unless their dedicated policy flags ar
 
 Composer and verifier processes MUST execute through exact argv without shell fallback, with bounded stdin/stdout/stderr handling and configured timeouts.
 
+On Windows, DependencySync MUST resolve Composer to a supported executable file or PHP script before process execution.
+
+Supported Windows Composer file extensions are `.com`, `.exe`, `.bat`, `.cmd`, `.phar`, and `.php`.
+
+For a bare executable token:
+
+- a supported existing `COMPOSER_BINARY` target takes precedence for the default `composer` token;
+- executable discovery follows the directory order of the PHP process `PATH`;
+- an extension-qualified token is searched as supplied;
+- an extensionless token uses supported `PATHEXT` entries in their declared order, followed by missing supported extensions in the canonical order `.com`, `.exe`, `.bat`, `.cmd`, `.phar`, `.php`;
+- unsupported or unresolved executable candidates MUST NOT prevent discovery of a subsequent supported candidate.
+
+Windows `.bat` and `.cmd` Composer launchers MUST be resolved to an existing sibling `.phar` or `.php` script, in that order, without executing the launcher through a command shell.
+
+Resolved Composer `.phar` and `.php` scripts MUST run through the current `PHP_BINARY`. Explicit executable paths containing spaces remain literal argv values.
+
+POSIX bare executable tokens retain direct executable lookup without Windows-specific resolution.
+
+Unresolved Windows Composer executables MUST fail with `COMPOSER_EXECUTION_FAILED` before process execution. Composer discovery MUST NOT retry an already started Composer process or alter dependency synchronization execution authorization and recovery semantics.
+
 ## Configuration-owned approval and locked replan
 
 Effectful synchronization MUST use one approved `ProjectPackagePlan` derived from current configuration-owned application membership and one approved `BootstrapSourceSnapshot`.

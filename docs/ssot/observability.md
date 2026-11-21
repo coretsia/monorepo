@@ -178,39 +178,40 @@ The method/type mapping is canonical:
 - `MeterPortInterface::increment(...)` MUST be used only with `counter` metrics.
 - `MeterPortInterface::observe(...)` MUST be used only with `observe` metrics.
 
-| Metric name                              | Owner             | Type    | Labels                        |
-|------------------------------------------|-------------------|---------|-------------------------------|
-| http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome` |
-| http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome` |
-| http.https_redirect_total                | `platform/http`   | counter | `outcome`                     |
-| http.maintenance_total                   | `platform/http`   | counter | `outcome`                     |
-| cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`        |
-| cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`        |
-| error.map_total                          | `platform/errors` | counter | `operation`, `outcome`        |
-| error.map_duration_ms                    | `platform/errors` | observe | `operation`, `outcome`        |
-| foundation.reset_total                   | `core/foundation` | counter | `outcome`                     |
-| foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                     |
-| kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.uow_duration_ms                   | `core/kernel`     | observe | `operation`, `outcome`        |
-| kernel.modules_resolve_total             | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.modules_resolve_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`        |
-| kernel.operation_total                   | `core/kernel`     | counter | `operation`, `outcome`        |
-| kernel.operation_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`        |
-| kernel.config_merge_total                | `core/kernel`     | counter | `outcome`                     |
-| kernel.config_merge_duration_ms          | `core/kernel`     | observe | `outcome`                     |
-| kernel.config_explain_total              | `core/kernel`     | counter | `outcome`                     |
-| kernel.config_explain_duration_ms        | `core/kernel`     | observe | `outcome`                     |
-| kernel.artifacts_write_total             | `core/kernel`     | counter | `outcome`                     |
-| kernel.artifacts_write_duration_ms       | `core/kernel`     | observe | `outcome`                     |
-| kernel.fingerprint_calculate_total       | `core/kernel`     | counter | `outcome`                     |
-| kernel.fingerprint_calculate_duration_ms | `core/kernel`     | observe | `outcome`                     |
-| kernel.container_compile_total           | `core/kernel`     | counter | `outcome`                     |
-| kernel.container_compile_duration_ms     | `core/kernel`     | observe | `outcome`                     |
-| kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                     |
-| kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                     |
-| worker.process_total                     | `platform/worker` | counter | `status`                      |
-| worker.task_total                        | `platform/worker` | counter | `operation`, `outcome`        |
-| worker.task_duration_ms                  | `platform/worker` | observe | `operation`, `outcome`        |
+| Metric name                              | Owner             | Type    | Labels                           |
+|------------------------------------------|-------------------|---------|----------------------------------|
+| http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome`    |
+| http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome`    |
+| http.https_redirect_total                | `platform/http`   | counter | `outcome`                        |
+| http.maintenance_total                   | `platform/http`   | counter | `outcome`                        |
+| http.system_endpoint_total               | `platform/http`   | counter | `operation`, `status`, `outcome` |
+| cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`           |
+| cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`           |
+| error.map_total                          | `platform/errors` | counter | `operation`, `outcome`           |
+| error.map_duration_ms                    | `platform/errors` | observe | `operation`, `outcome`           |
+| foundation.reset_total                   | `core/foundation` | counter | `outcome`                        |
+| foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                        |
+| kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`           |
+| kernel.uow_duration_ms                   | `core/kernel`     | observe | `operation`, `outcome`           |
+| kernel.modules_resolve_total             | `core/kernel`     | counter | `operation`, `outcome`           |
+| kernel.modules_resolve_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`           |
+| kernel.operation_total                   | `core/kernel`     | counter | `operation`, `outcome`           |
+| kernel.operation_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`           |
+| kernel.config_merge_total                | `core/kernel`     | counter | `outcome`                        |
+| kernel.config_merge_duration_ms          | `core/kernel`     | observe | `outcome`                        |
+| kernel.config_explain_total              | `core/kernel`     | counter | `outcome`                        |
+| kernel.config_explain_duration_ms        | `core/kernel`     | observe | `outcome`                        |
+| kernel.artifacts_write_total             | `core/kernel`     | counter | `outcome`                        |
+| kernel.artifacts_write_duration_ms       | `core/kernel`     | observe | `outcome`                        |
+| kernel.fingerprint_calculate_total       | `core/kernel`     | counter | `outcome`                        |
+| kernel.fingerprint_calculate_duration_ms | `core/kernel`     | observe | `outcome`                        |
+| kernel.container_compile_total           | `core/kernel`     | counter | `outcome`                        |
+| kernel.container_compile_duration_ms     | `core/kernel`     | observe | `outcome`                        |
+| kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                        |
+| kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                        |
+| worker.process_total                     | `platform/worker` | counter | `status`                         |
+| worker.task_total                        | `platform/worker` | counter | `operation`, `outcome`           |
+| worker.task_duration_ms                  | `platform/worker` | observe | `operation`, `outcome`           |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -636,6 +637,56 @@ Maintenance-decision metrics and logs MUST NOT contain:
 - Throwable messages, previous Throwable messages, or stack traces.
 
 Maintenance middleware MUST NOT emit an additional span, duration metric, request completion event, or Kernel lifecycle signal. Maintenance commands retain canonical CLI command observability without emitting HTTP maintenance-decision signals.
+
+### HTTP system endpoint observability policy
+
+System-endpoint decision observability is owned by `platform/http` through `FallbackRouter` at the terminal dispatch boundary, not an HTTP middleware. Terminal behavior is defined by [HTTP System Endpoints SSoT](./http-system-endpoints.md).
+
+The canonical metric is:
+
+```text
+http.system_endpoint_total
+```
+
+This metric is a `counter` and MUST use exactly the following label keys:
+
+```text
+operation
+status
+outcome
+```
+
+The allowed label combinations are exactly:
+
+- `operation` = `home`, `ping`, or `alive`; `status` = integer `200`; `outcome` = `served`.
+- `operation` = `health` or `metrics`; `status` = integer `501`; `outcome` = `owner_unavailable`.
+- `operation` = `error`; `status` = string `unknown`; `outcome` = `intentional_error`.
+
+The `served` and `owner_unavailable` outcomes require successful endpoint response construction, including all required immutable response mutations. Clock or response construction failures MUST NOT be classified as completed endpoint decisions.
+
+When `http.metrics.enabled` is `true`, `FallbackRouter` MUST attempt the counter increment for the `intentional_error` decision immediately before throwing the canonical intentional exception. Its status MUST be the fixed string `unknown`, not integer `500`, because no HTTP response has been constructed by the terminal dispatcher. Subsequent error rendering belongs to the selected canonical error boundary.
+
+`FallbackRouter` MUST attempt exactly one `MeterPortInterface::increment()` call with value `1` per completed claimed endpoint decision when `http.metrics.enabled` is `true`.
+
+Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and requests short-circuited before terminal dispatch MUST NOT produce system-endpoint decision metrics.
+
+Metric emission failures MUST be observability-isolated and MUST NOT be retried, replace a completed response, suppress the intentional Throwable, or interfere with canonical HTTP request completion. An increment attempt does not establish successful backend recording.
+
+System-endpoint decision telemetry is independent of finalized HTTP request observability.
+
+The canonical request metrics `http.request_total` and `http.request_duration_ms`, the `http.request` span, and the `http.request.completed` log event remain coordinated by `HttpKernel` and retain their finalized request outcome semantics:
+
+```text
+success
+handled_error
+fatal_error
+```
+
+Endpoint-decision outcomes MUST NOT replace or reinterpret finalized HTTP request outcomes. A successfully finalized `501` or rendered `500` response retains outcome `handled_error`. A completed endpoint decision MUST NOT be invalidated or reclassified by subsequent middleware response decoration, response finalization, or HTTP request completion failures.
+
+System-endpoint decision labels MUST NOT contain raw paths, query strings, headers, credentials, request or correlation identifiers, Throwable messages, configuration, environment values, or backend availability data.
+
+Terminal endpoint services MUST NOT emit additional spans, duration metrics, logs, request completion events, or Kernel lifecycle signals.
 
 ### CLI command observability policy
 
@@ -1129,5 +1180,6 @@ This document does not add reset logging payload fields beyond the reset summary
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
+- [HTTP System Endpoints SSoT](./http-system-endpoints.md) — terminal system-endpoint behavior and endpoint-decision measurement boundary.
 - [Observability and errors](./observability-and-errors.md) — reset observability safety policy, sanitized reset exception recording, and summary-only reset logs/metrics/spans.
 - [Sensitive Data Redaction SSoT](./sensitive-data-redaction.md) — canonical shared redaction mechanics, summaries, hashing, and disclosure policy.

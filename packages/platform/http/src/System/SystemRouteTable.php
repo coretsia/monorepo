@@ -46,13 +46,13 @@ final class SystemRouteTable
         [
             'owner' => 'platform/http',
             'pattern' => '/',
-            'status' => 'reserved',
+            'status' => 'active',
             'type' => 'exact',
         ],
         [
             'owner' => 'platform/http',
             'pattern' => self::ALIVE_PATH,
-            'status' => 'reserved',
+            'status' => 'active',
             'type' => 'exact',
         ],
         [
@@ -70,7 +70,7 @@ final class SystemRouteTable
         [
             'owner' => 'platform/http',
             'pattern' => '/error',
-            'status' => 'reserved',
+            'status' => 'active',
             'type' => 'exact',
         ],
         [
@@ -94,7 +94,7 @@ final class SystemRouteTable
         [
             'owner' => 'platform/http',
             'pattern' => '/ping',
-            'status' => 'reserved',
+            'status' => 'active',
             'type' => 'exact',
         ],
     ];

@@ -300,6 +300,10 @@ The implemented `platform/http` baseline consists of eight `http.middleware.syst
 
 The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
 
+`FallbackRouterHandler` provides canonical terminal system-endpoint handling through the shared `FallbackRouter` and `FallbackResponses` services. These services execute outside the nine middleware slots and MUST NOT be registered as middleware, assigned middleware priorities or toggle metadata, or introduce additional catalog entries.
+
+Terminal system-endpoint behavior and reserved endpoint fallback responses are governed by `docs/ssot/http-system-endpoints.md`. Earlier middleware responses retain their ordinary PSR-15 precedence over terminal execution.
+
 `Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware` owns application-local HTTP maintenance short-circuiting.
 
 It participates in `http.middleware.system_pre` at priority `900`, after `TraceContextMiddleware` and before trusted-proxy, request-context, trusted-host, HTTPS redirect, and request-body processing.
@@ -553,6 +557,20 @@ It MUST be a counter with exactly the `outcome` label and allowed values `served
 Maintenance-decision metrics and logs MUST remain independent of HTTPS redirect decisions and final HTTP request completion.
 
 Completed-decision semantics, fixed log event identifiers, bounded producer-supplied fields, independent observability enablement, failure isolation, and redaction requirements are governed by `docs/ssot/observability.md`.
+
+System-endpoint decision observability is separately owned by `platform/http` through `FallbackRouter` at the canonical terminal dispatch boundary.
+
+The canonical system-endpoint decision metric is:
+
+```text
+http.system_endpoint_total
+```
+
+It MUST be a counter with exactly the `operation`, `status`, and `outcome` labels.
+
+Metric enablement, bounded label combinations, completed-decision measurement boundaries, and isolated non-retried emission failures are governed by `docs/ssot/observability.md`.
+
+Terminal endpoint decisions MUST remain independent of middleware decision observations and final HTTP request completion. They MUST NOT introduce middleware registrations, additional request spans, completion events, or lifecycle hooks.
 
 The global metric label allowlist remains:
 
@@ -1137,6 +1155,7 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [HTTP System Endpoints SSoT](./http-system-endpoints.md)
 - [Context Keys SSoT](./context-keys.md)
 - [Context Store SSoT](./context-store.md)
 - [Context Lifecycle SSoT](./context-lifecycle.md)

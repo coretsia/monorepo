@@ -14,11 +14,11 @@
 
 # coretsia/platform-http
 
-`platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, a safe pre-routing terminal fallback, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
+`platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, canonical terminal system-endpoint dispatch with safe unmatched responses, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, and final-request observability, and canonical system-route declarations with concrete reserved-path matching.
+Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, endpoint-decision, and final-request observability, canonical system-route declarations with concrete reserved-path matching, and deterministic terminal system-endpoint responses.
 
-Out of scope: SAPI request creation and response emission, a packaged front controller, general application route matching and system endpoint implementations, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
+Out of scope: SAPI request creation and response emission, a packaged front controller, general application routing, application route admission, and endpoint authorization, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
 This README is a consumer-oriented package summary. The normative wiring, lifecycle, and dependency contracts remain in the linked SSoT and ADR documents.
 
@@ -52,6 +52,7 @@ This package is runtime-safe and transport-neutral.
   - `psr/http-factory` (`^1.0`) for PSR-17 interfaces
   - `psr/http-server-middleware` (`^1.0`) and `psr/http-server-handler` (`^1.0`) for PSR-15 interfaces
   - `psr/container` (`^2.0`) and `psr/log` (`^3.0`) for canonical container and logging ports
+  - `psr/clock` (`^1.0`) for the canonical injected clock contract
 - Forbidden:
   - any `core/*` package other than `core/contracts`, `core/foundation`, and `core/kernel`
   - other `platform/*` packages
@@ -72,7 +73,9 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `HttpRuntimeEntrypointGuard` for selected-module, Kernel-driver, and effective PSR-17 factory readiness;
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
 - `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
-- `FallbackRouterHandler` as the safe, routing-free terminal `RequestHandlerInterface`;
+- `FallbackRouterHandler` as the canonical terminal `RequestHandlerInterface` for system-endpoint dispatch and unmatched response delegation;
+- `FallbackRouter` for explicit canonical system-endpoint dispatch and endpoint-decision metrics;
+- `FallbackResponses` for deterministic endpoint and unmatched response construction through the selected PSR-17 factories;
 - `SystemRouteTable` as the canonical HTTP-owned versioned system-route declaration registry;
 - `ReservedPathMatcher` for stateless concrete reserved-path matching against the canonical declarations;
 - eight implemented `system_pre` middleware and their HTTP-owned request-safety, maintenance, and HTTPS redirect policies;
@@ -81,7 +84,7 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `RequestIdPolicy` for optional HTTP request identity preparation and owner-local final-response identity verification outside the PSR-15 middleware chain;
 - `SecurityHeadersPolicy` for immutable configured security-header values and deterministic application through `HttpResponseFinalizer`;
 - the four stateless HTTP response-finalization and request-observability services;
-- `HttpExceptionMapper` for the three HTTP-owned safe failure types through the existing `error.mapper` tag.
+- `HttpExceptionMapper` for the four HTTP-owned safe failure types through the existing `error.mapper` tag.
 
 The package does not create a separate module resolver, DI layer, middleware registry, exception handler, request context store, or UnitOfWork lifecycle.
 
@@ -168,7 +171,11 @@ An explicitly selected, compatible `platform.problem-details` module may contrib
 
 `Pipeline` executes each entered PSR-15 middleware through the canonical handler contract with no shared mutable traversal cursor. When a request-phase middleware returns a response early, the outer post decorators already entered still decorate it, unwinding in `route_post`, `app_post`, `system_post` order. A post decorator may itself short-circuit, in which case only decorators already outside it execute on return. A downstream `Throwable` propagates unchanged through ordinary middleware; if the selected outer error boundary converts it to a response, that response does not pass through the decorators again. `HttpKernel` still finalizes it.
 
-The baseline terminal `FallbackRouterHandler` constructs a safe `404` with an empty body using the canonical PSR-17 factories. It provides no route matching, route metadata, reserved-path dispatch, or system endpoint behavior.
+The canonical terminal `FallbackRouterHandler` delegates each request exactly once to `FallbackRouter`. It returns a non-null dispatched response unchanged or delegates unmatched response construction to `FallbackResponses::notFound()`, preserving the safe empty-body HTTP `404`.
+
+Terminal execution occurs only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses retain precedence over terminal dispatch. Returned responses remain subject to applicable post decorators and canonical `HttpKernel` finalization; original Throwables propagate through the existing error and lifecycle boundaries.
+
+Terminal dispatch does not implement general application routing, route admission, endpoint authorization, or route-template metadata handoff.
 
 ## System route declarations and reserved-path matching
 
@@ -205,11 +212,121 @@ Invalid concrete path input raises `InvalidArgumentException` with the fixed dia
 
 Concrete reserved-path matching identifies reserved ownership only. It does not implement general application routing, route-template overlap analysis, route admission, endpoint dispatch, endpoint activation, authorization, or response construction.
 
-The routing-free `FallbackRouterHandler` does not invoke `ReservedPathMatcher` and returns the safe empty `404` response. The registry and matcher introduce no additional runtime wiring, mutable state, ContextStore participation, observability, or reset registration.
+`FallbackRouter` consumes `ReservedPathMatcher` as the canonical concrete path-matching authority. It accepts only the exact case-sensitive method `GET`, obtains the original URI path, and invokes the matcher exactly once for each eligible request.
+
+The returned declaration's canonical owner, pattern, type, and status determine whether an explicitly implemented terminal behavior may be selected. Unsupported methods, unmatched paths, invalid matcher inputs, and declarations without implemented terminal behavior remain unmatched.
+
+Only the matcher's `InvalidArgumentException` with diagnostic `http-reserved-path-invalid` is treated as an unmatched result. URI access, clock access, response construction, and unrelated Throwables remain outside that exception boundary.
+
+The registry and matcher remain stateless and do not own response construction, observability, ContextStore participation, or reset registration. Those explicitly supported endpoint decisions and responses belong to the terminal services.
 
 Maintenance liveness bypass remains independent of reserved-path normalization and compares the original PSR-7 URI path directly against `SystemRouteTable::ALIVE_PATH`.
 
 Canonical declaration and versioning requirements are governed by the [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md). Concrete path normalization, matching, and consumer boundaries are governed by the [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md).
+
+## Terminal system endpoints
+
+`platform/http` materializes the explicitly supported active system endpoints and provides deterministic fallback responses for the reserved health and metrics declarations.
+
+Terminal dispatch uses the canonical registry and matcher without maintaining an independent route table or path normalization policy. All normally constructed matched endpoint responses use `Cache-Control: no-store`.
+
+The response contracts below describe terminal responses before applicable middleware response decoration and canonical finalization.
+
+### Active HTTP endpoints
+
+The active declarations owned by `platform/http` provide:
+
+- `GET /`:
+  - HTTP status `200`;
+  - `Content-Type: text/html; charset=utf-8`;
+  - exact body `<h1>Hello Coretsia</h1>` followed by one LF.
+- `GET /ping`:
+  - HTTP status `200`;
+  - `Content-Type: application/json`;
+  - a compact JSON map containing only boolean `ok=true` and integer `ts`;
+  - exactly one final LF.
+- `GET /_alive`:
+  - HTTP status `200`;
+  - `Content-Type: text/plain; charset=utf-8`;
+  - exact body `ALIVE` without a trailing newline.
+- `GET /error`:
+  - throws the fixed `IntentionalErrorException` without constructing a terminal response;
+  - uses the existing canonical error normalization and selected Problem Details boundary.
+
+For a logical Unix timestamp of `1700000000`, the ping response body is:
+
+```json
+{"ok":true,"ts":1700000000}
+```
+
+Each claimed ping request obtains its timestamp exactly once through the injected `Psr\Clock\ClockInterface::now()->getTimestamp()` call. The dispatcher does not cache timestamps, construct its own clock, or derive time from request data.
+
+When `platform.problem-details` is explicitly selected, a successfully constructed response from the canonical outer error boundary uses HTTP `500` with `Content-Type: application/problem+json` and `Cache-Control: no-store`.
+
+The exact public JSON body is followed by one LF:
+
+```json
+{"status":500,"title":"Internal Server Error","type":"about:blank"}
+```
+
+The public representation does not disclose the exception code, reason, trace, request data, or configuration.
+
+Without the selected Problem Details boundary, the original intentional Throwable propagates through the canonical HTTP execution and completion boundary.
+
+If the selected Problem Details boundary cannot construct a valid error response, it preserves and rethrows the original intentional Throwable according to the canonical Problem Details failure policy.
+
+### Reserved endpoint fallback responses
+
+If no earlier owner-controlled response is returned and the corresponding canonical declarations remain reserved:
+
+- `GET /health`, `GET /health/`, and descendants matched by the canonical health prefix return:
+  - HTTP status `501`;
+  - `Content-Type: application/json`;
+  - exact body `{"error":"owner missing"}` followed by one LF.
+- `GET /metrics` returns:
+  - HTTP status `501`;
+  - `Content-Type: text/plain; charset=utf-8`;
+  - exact body `owner missing` followed by one LF.
+
+These responses preserve the declared ownership of `platform/health` and `platform/metrics`. They do not implement or activate those owners' endpoints.
+
+The `501` response indicates that the reserved capability has not produced an owner-controlled response before terminal fallback. It does not establish that a Composer package is missing, a module is unselected, or an observability backend is unavailable.
+
+Selecting `platform.metrics` alone does not activate an HTTP metrics endpoint. Terminal dispatch does not inspect package installation, module availability, renderer services, or backend state.
+
+The canonical health segment-prefix boundary excludes `/healthz`, `/healthz/ready`, and encoded slash aliases such as `/health%2Fready`. The exact metrics declaration excludes `/metrics/` and descendant paths.
+
+### Unmatched requests
+
+Unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and declarations without explicitly implemented terminal behavior produce the safe HTTP `404` response with exactly an empty body.
+
+Terminal dispatch does not introduce implicit HEAD aliases, automatic OPTIONS handling, HTTP `405` responses, or `Allow` headers.
+
+The unmatched response receives no endpoint-specific `Content-Type` or `Cache-Control` header from `FallbackResponses`. Canonical response finalization remains applicable.
+
+The development-only `/_debug` and `/_debug/` declarations remain reserved without a terminal endpoint implementation.
+
+### Declarative service wiring and response construction
+
+`HttpServiceProvider` registers the following shared stateless services through canonical Foundation declarative DI:
+
+- `FallbackResponses`, consuming the canonical `ResponseFactoryInterface` and `StreamFactoryInterface`;
+- `FallbackRouter`, consuming `FallbackResponses`, `ClockInterface`, `MeterPortInterface`, and the validated `http.metrics.enabled` boolean;
+- `FallbackRouterHandler`, consuming `FallbackRouter` and `FallbackResponses`.
+
+The existing `RequestHandlerInterface` alias resolves to `FallbackRouterHandler`.
+
+The clock is a mandatory dependency. The canonical Foundation clock binding and explicit application-owned overrides remain governed by the existing declarative service and alias precedence. The terminal services consume the final effective PSR-17 factory bindings under the canonical HTTP readiness policy.
+
+`FallbackResponses` constructs responses and body streams exclusively through the injected PSR-17 factories. JSON maps reuse the canonical Foundation `StableJsonEncoder::encodeStableMap()` serialization with deterministic map ordering and exactly one final LF.
+
+Every immutable response mutation consumes and validates its returned `ResponseInterface`. Incompatible mutation results fail with the fixed diagnostic `http-fallback-response-invalid`; original factory and mutation Throwables propagate unchanged.
+
+The terminal services do not construct alternative PSR implementations, maintenance responses, or Problem Details responses. They do not independently apply correlation, request-id, or security headers.
+
+Terminal dispatch introduces no middleware registrations, additional ContextStore ownership, request-local service state, UnitOfWork hooks, or reset responsibilities.
+
+The normative endpoint behavior is governed by the [HTTP System Endpoints SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-system-endpoints.md).
 
 ## Configuration
 
@@ -413,7 +530,7 @@ Maintenance message text is intentionally public HTTP response content. It must 
 
 Confirmed inactive maintenance delegates to the downstream handler without maintenance-decision observations.
 
-Active maintenance short-circuits ordinary requests before downstream middleware and terminal application handling, including HTTPS redirects.
+Active maintenance short-circuits ordinary requests before subsequent request-processing middleware and terminal system-endpoint dispatch, including downstream HTTPS redirect processing.
 
 The maintenance response has:
 
@@ -436,6 +553,10 @@ The only automatic bypass is the exact case-sensitive comparison of the original
 The exact liveness bypass remains available when maintenance state is unavailable. It delegates exactly once to the downstream handler and returns its response unchanged or propagates its original Throwable.
 
 Maintenance does not implement the liveness endpoint or guarantee its response status.
+
+If subsequent middleware delegates an exact `GET /_alive` request to the terminal handler, the canonical liveness endpoint returns HTTP `200` with body `ALIVE`. The maintenance bypass applies independently of the request method and does not bypass unrelated downstream HTTP policies.
+
+Unsupported methods using the exact liveness path retain maintenance bypass eligibility but remain unmatched by terminal dispatch. Terminal matcher normalization does not expand maintenance bypass eligibility.
 
 Successfully returned maintenance responses remain subject to applicable post decorators and canonical `HttpKernel` correlation, request-id, and security-header finalization. A successfully finalized `503` response retains the canonical `handled_error` outcome.
 
@@ -797,13 +918,44 @@ Metric and log failures are isolated independently without retries or duplicate 
 
 Redirect-decision observations contain no raw URL, path, query, authority, Location, request headers, cookies, credentials, URL-derived hashes or lengths, or exception diagnostics.
 
+### System-endpoint decisions
+
+`FallbackRouter` observes completed claimed terminal endpoint decisions independently of middleware decision observations and final HTTP request completion.
+
+`http.metrics.enabled` controls the canonical `http.system_endpoint_total` counter with exactly the `operation`, `status`, and `outcome` labels.
+
+The allowed label combinations are:
+
+- `operation` = `home`, `ping`, or `alive`; `status` = integer `200`; `outcome` = `served`.
+- `operation` = `health` or `metrics`; `status` = integer `501`; `outcome` = `owner_unavailable`.
+- `operation` = `error`; `status` = string `unknown`; `outcome` = `intentional_error`.
+
+Response decisions are recorded only after successful response construction and required immutable response mutations. Clock and response construction failures do not produce completed endpoint decisions.
+
+When metrics are enabled, the dispatcher attempts the counter increment for the intentional error decision immediately before throwing the canonical intentional exception. Its status remains `unknown` because HTTP error rendering has not yet produced a response.
+
+When metrics are enabled, the dispatcher attempts exactly one counter increment with value `1` per completed claimed endpoint decision. Meter failures are isolated without retries, replacement of a completed response, or suppression of the intentional Throwable. An increment attempt does not establish successful backend recording.
+
+Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and requests short-circuited before terminal dispatch do not produce endpoint-decision metrics.
+
+Completed endpoint decisions remain independent of subsequent response decoration, response finalization, and request completion failures.
+
+The canonical `http.request_total` and `http.request_duration_ms` metrics, `http.request` span, and `http.request.completed` log event retain their existing `HttpKernel`-owned completion semantics. Endpoint decisions do not introduce additional request observations, span handles, raw route labels, or lifecycle registrations.
+
+Endpoint-decision labels contain no raw paths, query strings, headers, credentials, identifiers, configuration, environment values, backend diagnostics, or Throwable data.
+
+System-endpoint observability remains governed by the [Observability SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md).
+
 ## Errors
 
 The HTTP-owned `HttpExceptionMapper` implements the existing `ExceptionMapperInterface` and is contributed under `ReservedTags::ERROR_MAPPER` (`error.mapper`) at priority `100` with metadata `[]`. It maps only:
 
 - `BadJsonException` to HTTP `400` with `CORETSIA_HTTP_BAD_JSON`;
 - `BodyTooLargeException` to HTTP `413` with `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`;
-- `TrustedHostRejectedException` to HTTP `400` with `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`.
+- `TrustedHostRejectedException` to HTTP `400` with `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`;
+- `IntentionalErrorException` to HTTP `500` with `CORETSIA_HTTP_INTENTIONAL_ERROR`.
+
+The intentional error descriptor uses the fixed reason `http-intentional-error`, severity `ErrorSeverity::Error`, HTTP status hint `500`, and empty extensions. The intentional exception accepts no caller-provided message, request data, or previous Throwable.
 
 Other Throwables return `null` from this mapper. Descriptor codes and messages are fixed and safe; raw parser errors, rejected hosts, request bodies, and untrusted header values are not exported. The canonical Errors subsystem owns exception normalization and mapper resolution; an explicitly selected Problem Details integration owns safe HTTP error adaptation and rendering. Without that outer boundary, downstream Throwables propagate. HTTP does not construct an independent `ErrorHandlerInterface`, exception registry, emergency response renderer, or replacement normalization path.
 
@@ -817,7 +969,7 @@ Request identity remains separate from generic middleware context enrichment. It
 
 HTTP does not directly execute reset, discover reset tags, retry reset, or separately remove request identity from `ContextStore`. A failed reset does not establish successful context cleanup.
 
-Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
+Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, endpoint-decision, and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
 
 A non-seekable inbound request body must arrive complete and unread from its owning transport adapter; already consumed bytes cannot be recovered by HTTP middleware. Accepted bounded body verification and JSON parsing preserve downstream body availability without an unbounded buffering layer, spooling subsystem, or shared request cache. HTTP-owned policies do not rely on superglobals or mutable process-global request state.
 
@@ -826,7 +978,7 @@ A non-seekable inbound request body must arrive complete and unread from its own
 This package does not provide:
 
 - SAPI front controllers, request-from-globals adapters, response emitters, browser-serving instructions, or deployment transport selection;
-- general application route matching, routing artifacts, application route admission, system endpoint implementations or dispatch, or a route-template extraction/handoff contract;
+- general application route matching, routing artifacts, application route admission, endpoint authorization, routing delegation contracts, or a route-template extraction/handoff contract;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
 - CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
@@ -843,6 +995,7 @@ This package does not provide:
 - [Platform HTTP package source](https://github.com/coretsia/monorepo/tree/main/packages/platform/http)
 - [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md)
 - [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
+- [HTTP System Endpoints SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-system-endpoints.md)
 - [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
 - [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)

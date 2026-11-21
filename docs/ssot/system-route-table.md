@@ -74,7 +74,7 @@ Owners MUST use canonical layered `package_id` values according to [Architecture
 
 All supported statuses represent reserved route ownership:
 
-- `active` identifies a materialized system-endpoint capability. It does not imply unconditional runtime exposure.
+- `active` identifies a materialized system-endpoint capability. It does not imply unconditional runtime exposure or authorization.
 - `reserved` protects a system-route declaration without asserting that its endpoint implementation exists.
 - `dev_only` protects a development-only system-route declaration without activating its endpoint or authorizing access.
 
@@ -84,6 +84,8 @@ Only the declared owner MAY claim the endpoint. Claiming a reservation for runti
 
 Actual endpoint exposure MUST require the applicable module participation, endpoint registration, configuration, and access policy of the owner. Non-owner packages MUST NOT claim a competing route, independently activate an endpoint, or bypass its access policy because a reservation exists.
 
+The active exact `/`, `/_alive`, `/error`, and `/ping` declarations identify materialized terminal system endpoints owned by `platform/http`. HTTP-owned terminal `501` fallback responses for explicitly supported reserved health and metrics declarations MUST NOT be interpreted as owner endpoint implementation, activation, availability discovery, or transfer of reserved ownership. Their behavior is governed by [HTTP System Endpoints SSoT](./http-system-endpoints.md).
+
 Development-only endpoints MUST remain subject to explicit development-mode eligibility and owner-controlled access policy. The `dev_only` reservations themselves do not enable development endpoints.
 
 ## System Route Registry (MUST)
@@ -92,21 +94,23 @@ Schema version: `1`
 
 | pattern    | type     | status     | owner              |
 |------------|----------|------------|--------------------|
-| `/`        | `exact`  | `reserved` | `platform/http`    |
-| `/_alive`  | `exact`  | `reserved` | `platform/http`    |
+| `/`        | `exact`  | `active`   | `platform/http`    |
+| `/_alive`  | `exact`  | `active`   | `platform/http`    |
 | `/_debug`  | `exact`  | `dev_only` | `platform/http`    |
 | `/_debug/` | `prefix` | `dev_only` | `platform/http`    |
-| `/error`   | `exact`  | `reserved` | `platform/http`    |
+| `/error`   | `exact`  | `active`   | `platform/http`    |
 | `/health`  | `exact`  | `reserved` | `platform/health`  |
 | `/health/` | `prefix` | `reserved` | `platform/health`  |
 | `/metrics` | `exact`  | `reserved` | `platform/metrics` |
-| `/ping`    | `exact`  | `reserved` | `platform/http`    |
+| `/ping`    | `exact`  | `active`   | `platform/http`    |
 
 ## Matching and runtime boundaries (MUST)
 
 Concrete reserved-path matching is owned by `Coretsia\Platform\Http\System\ReservedPathMatcher` according to [Reserved Path Matching SSoT](./reserved-path-matching.md).
 
 The matcher consumes the canonical table and identifies reserved ownership for any supported declaration status. It does not implement route-template overlap analysis, route admission, endpoint dispatch, authorization, or response construction.
+
+`FallbackRouter` MUST consume the matching canonical declaration to select explicitly supported terminal behavior according to its owner, pattern, type, and status. It MUST NOT introduce another declaration registry or reserved-path matcher. Endpoint dispatch, response construction, and applicable owner access policy remain independent of the declaration registry.
 
 Compile-time route admission guards MUST analyze competing route templates against the canonical declarations. System-endpoint dispatch and access decisions remain separate responsibilities of the applicable runtime owners.
 
@@ -120,7 +124,7 @@ The exact `/_debug` and prefix `/_debug/` declarations MUST retain `dev_only` st
 
 The document metadata `ssotVersion` identifies the SSoT document version. It is independent of `SystemRouteTable::SCHEMA_VERSION`, which identifies the canonical system-route declaration set.
 
-The version declared in the normative registry section MUST equal `SystemRouteTable::SCHEMA_VERSION` and the latest approved snapshot version in:
+The version declared in the normative registry section MUST equal `SystemRouteTable::SCHEMA_VERSION` and the latest committed snapshot version in:
 
 ```text
 tools/config/system-route-table.json
@@ -128,16 +132,16 @@ tools/config/system-route-table.json
 
 The committed baseline is a non-empty JSON list of snapshots. Each snapshot contains exactly `entries` and `schemaVersion`. Versions MUST be positive integers, contiguous from `1`, with one snapshot per version. Entries MUST preserve canonical field and list ordering. The baseline MUST use `Coretsia\Devtools\InternalToolkit\Json::encodeStable()` serialization semantics with exactly one final LF.
 
-Any addition, removal, or change to a normative entry field MUST:
+Any addition, removal, or change to a normative entry field in a released registry declaration set MUST:
 
 1. Update the canonical PHP declarations and normative registry table together.
 2. Increment `SCHEMA_VERSION` by exactly one and align the version declared in this document.
 3. Append the corresponding complete snapshot to the committed baseline.
-4. Preserve every previously approved snapshot unchanged.
+4. Preserve every previously released snapshot unchanged.
 
 Version increments without a semantic declaration change are forbidden. Documentation-only edits and matcher algorithm changes MUST NOT increment the registry version unless the canonical declarations also change.
 
-Historical snapshot immutability is a mandatory repository review invariant. Review MUST compare the retained history against an independently trusted repository revision and reject replacement, removal, or reordering of approved snapshots.
+Released historical snapshot immutability is a mandatory repository review invariant. Review MUST compare the retained released history against an independently trusted repository revision and reject replacement, removal, or reordering of released snapshots.
 
 The baseline is repository tooling data only. Production HTTP code MUST NOT read it or depend on repository tooling for route declarations.
 
@@ -151,7 +155,9 @@ The machine-consumed registry section MUST occur exactly once and contain only t
 
 Policy drift is reported with `CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT`. Repository selection, file inspection, syntax parsing, and argument failures are reported with `CORETSIA_SYSTEM_ROUTE_TABLE_GATE_FAILED`. Successful validation emits no output and does not rewrite files.
 
-Local baseline validation does not independently prove historical immutability. Simultaneous rewriting or truncation of the declarations and baseline history may be internally consistent; comparison with an independently trusted revision remains a review obligation.
+Local baseline validation does not independently prove released historical immutability. Simultaneous rewriting or truncation of the declarations and baseline history may be internally consistent; comparison with an independently trusted revision remains a repository review obligation.
+
+The gate MUST validate local registry and baseline consistency independently of Composer package versions, Git tags, runtime state, or package discovery.
 
 ## Non-goals
 
@@ -165,6 +171,7 @@ Local baseline validation does not independently prove historical immutability. 
 - [Reserved Path Matching SSoT](./reserved-path-matching.md)
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP System Endpoints SSoT](./http-system-endpoints.md)
 - [Modules and Manifests SSoT](./modules-and-manifests.md)
 - [Architecture Structure](../architecture/STRUCTURE.md)
 - [ADR-0042: System route table and reserved-path matching](../adr/ADR-0042-system-route-table-and-reserved-path-matching.md)

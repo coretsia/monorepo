@@ -25,6 +25,7 @@ use Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Http\Exception\BadJsonException;
 use Coretsia\Platform\Http\Exception\BodyTooLargeException;
+use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\Exception\TrustedHostRejectedException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +33,7 @@ use PHPUnit\Framework\TestCase;
 final class HttpExceptionMapperTest extends TestCase
 {
     #[DataProvider('httpExceptions')]
-    public function testExactlyThreeHttpOwnedExceptionsMapToFixedSafeDescriptors(
+    public function testExactlyFourHttpOwnedExceptionsMapToFixedSafeDescriptors(
         \Throwable $failure,
         string $code,
         string $reason,
@@ -76,6 +77,12 @@ final class HttpExceptionMapperTest extends TestCase
             'CORETSIA_HTTP_TRUSTED_HOST_REJECTED',
             'http-trusted-host-rejected',
             400,
+        ];
+        yield 'intentional-error' => [
+            IntentionalErrorException::intentional(),
+            'CORETSIA_HTTP_INTENTIONAL_ERROR',
+            'http-intentional-error',
+            500,
         ];
     }
 

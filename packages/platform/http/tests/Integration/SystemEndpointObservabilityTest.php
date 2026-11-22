@@ -25,6 +25,7 @@ use Coretsia\Foundation\Observability\Metrics\NoopMeter;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Platform\Http\Debug\DebugRouter;
 use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\Middleware\Pipeline;
@@ -267,7 +268,7 @@ final class SystemEndpointObservabilityTest extends TestCase
                 self::assertSame([], $fixture->recordingMeter()->incrementsFor(self::COUNTER));
                 self::assertSame(
                     [[$fixture->runtime()->begins[0], 'fatal_error', $failure]],
-                    $fixture->runtime()->completions
+                    $fixture->runtime()->completions,
                 );
                 self::assertSame([
                     ['http.request_total', 1, ['method' => 'GET', 'status' => 'unknown', 'outcome' => 'fatal_error']],
@@ -297,7 +298,7 @@ final class SystemEndpointObservabilityTest extends TestCase
                     self::assertNull($failure->getPrevious());
                     self::assertSame(
                         [[$fixture->runtime()->begins[0], 'fatal_error', $failure]],
-                        $fixture->runtime()->completions
+                        $fixture->runtime()->completions,
                     );
                 }
 
@@ -336,7 +337,7 @@ final class SystemEndpointObservabilityTest extends TestCase
                 self::assertSame('http-fallback-response-invalid', $failure->getMessage());
                 self::assertSame(
                     [[$fixture->runtime()->begins[0], 'fatal_error', $failure]],
-                    $fixture->runtime()->completions
+                    $fixture->runtime()->completions,
                 );
             }
 
@@ -356,7 +357,13 @@ final class SystemEndpointObservabilityTest extends TestCase
 
         try {
             [$responses, $final] = $this->responseChain();
-            $router = new FallbackRouter($responses, $fixture->clock(), $fixture->meter(), true);
+            $router = new FallbackRouter(
+                $responses,
+                $fixture->clock(),
+                $fixture->meter(),
+                true,
+                $fixture->container->get(DebugRouter::class),
+            );
             self::assertSame($final, $router->dispatch($fixture->request('GET', '/ping')));
             self::assertSame([
                 self::decision('ping', 200, 'served'),
@@ -389,7 +396,7 @@ final class SystemEndpointObservabilityTest extends TestCase
 
             self::assertSame(
                 [self::decision('ping', 200, 'served')],
-                $fixture->recordingMeter()->incrementsFor(self::COUNTER)
+                $fixture->recordingMeter()->incrementsFor(self::COUNTER),
             );
             self::assertSame(
                 [['http.request_total', 1, ['method' => 'GET', 'status' => 'unknown', 'outcome' => 'fatal_error']]],
@@ -399,7 +406,7 @@ final class SystemEndpointObservabilityTest extends TestCase
             self::assertCount(1, $fixture->runtime()->begins);
             self::assertSame(
                 [[$fixture->runtime()->begins[0], 'fatal_error', $failure]],
-                $fixture->runtime()->completions
+                $fixture->runtime()->completions,
             );
             $logs = $fixture->logger()->recordsFor('http.request.completed');
             self::assertCount(1, $logs);
@@ -442,7 +449,7 @@ final class SystemEndpointObservabilityTest extends TestCase
                 foreach ([ReservedTags::KERNEL_RESET, ReservedTags::KERNEL_STATEFUL] as $tag) {
                     self::assertSame(
                         [ContextStore::class],
-                        \array_map(static fn ($entry): string => $entry->id, $registry->all($tag))
+                        \array_map(static fn ($entry): string => $entry->id, $registry->all($tag)),
                     );
                 }
                 self::assertSame([], $registry->all(ReservedTags::KERNEL_HOOK_BEFORE_UOW));
@@ -526,7 +533,13 @@ final class SystemEndpointObservabilityTest extends TestCase
     private function pipeline(SystemEndpointRuntimeFixture $fixture, FallbackResponses $responses): Pipeline
     {
         return new Pipeline([], new FallbackRouterHandler(
-            new FallbackRouter($responses, $fixture->clock(), $fixture->meter(), true),
+            new FallbackRouter(
+                $responses,
+                $fixture->clock(),
+                $fixture->meter(),
+                true,
+                $fixture->container->get(DebugRouter::class),
+            ),
             $responses,
         ));
     }

@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Config;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\Source\EffectiveConfigSourceSelector;
 
 /**
  * Read-only ConfigRepositoryInterface adapter over an already validated config tree.
@@ -27,6 +28,10 @@ use Coretsia\Contracts\Config\ConfigValueSource;
  * This adapter does not provide runtime defaults. Missing values are missing.
  * The get() default parameter exists only because ConfigRepositoryInterface owns
  * that method signature; production runtime guards must not pass fallback values.
+ *
+ * Canonical config source metadata is supplied explicitly from the completed
+ * config compilation or validated artifact hydration boundary.
+ * The repository does not synthesize provenance or execute config formation.
  *
  * @internal Kernel runtime config snapshot adapter. Runtime adapters should
  * receive ConfigRepositoryInterface and must not depend on this implementation.
@@ -39,15 +44,39 @@ final readonly class ArrayConfigRepository implements ConfigRepositoryInterface
     private array $config;
 
     /**
-     * @param array<string, mixed> $config
+     * @var list<ConfigValueSource>
      */
-    public function __construct(array $config)
-    {
+    private array $sources;
+
+    /**
+     * @param array<string, mixed> $config
+     * @param list<ConfigValueSource> $sources
+     */
+    public function __construct(
+        array $config,
+        array $sources,
+    ) {
         if (!self::isMapArray($config)) {
             throw new \InvalidArgumentException('array-config-root-invalid');
         }
 
+        if (!\array_is_list($sources)) {
+            throw new \InvalidArgumentException('array-config-sources-invalid');
+        }
+
+        foreach ($sources as $source) {
+            if (!$source instanceof ConfigValueSource) {
+                throw new \InvalidArgumentException('array-config-sources-invalid');
+            }
+        }
+
         $this->config = $config;
+        $this->sources = \array_map(
+            static fn (array $source): ConfigValueSource => $source['source'],
+            EffectiveConfigSourceSelector::normalizeSources(
+                EffectiveConfigSourceSelector::sourceListToMap($sources),
+            ),
+        );
     }
 
     public function has(string $keyPath): bool
@@ -73,14 +102,19 @@ final readonly class ArrayConfigRepository implements ConfigRepositoryInterface
 
     public function sourceOf(string $keyPath): ?ConfigValueSource
     {
-        self::segments($keyPath);
+        if (!$this->has($keyPath)) {
+            return null;
+        }
 
-        return null;
+        return EffectiveConfigSourceSelector::select(
+            path: $keyPath,
+            sources: $this->sources,
+        );
     }
 
     public function explain(): array
     {
-        return [];
+        return $this->sources;
     }
 
     /**

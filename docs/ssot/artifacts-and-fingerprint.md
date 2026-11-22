@@ -488,12 +488,41 @@ services
 tags
 ```
 
-`CompiledContainerBuilder` MUST NOT emit the unsupported transitional stub payload:
+`CompiledContainerBuilder` MUST NOT emit any other `kind` or `compiled` value.
+
+### Canonical `config@1` Payload Shape (MUST)
+
+`CompiledConfigBuilder` MUST emit a deterministic payload map with exactly these keys in byte-order:
 
 ```text
-kind = stub
-compiled = false
+appEnv
+config
+configSourceFiles
+envOverlayMappings
+owners
+sources
+validation
+validationSubjects
 ```
+
+`CompiledConfigBuilder::PAYLOAD_KEYS` is the single implementation authority for this key set. Artifact construction, schema validation, runtime hydration, and fingerprint input construction MUST consume that same declaration.
+
+The payload fields mean:
+
+- `appEnv`: authoritative frozen application environment from `BootstrapConfig::appEnv()`;
+- `config`: full merged global config, including user-owned/custom roots;
+- `configSourceFiles`: safe source-file metadata;
+- `envOverlayMappings`: safe resolved env-overlay mapping metadata;
+- `owners`: safe config owner metadata;
+- `sources`: canonical safe `ConfigValueSource` exports;
+- `validation`: canonical `ConfigValidationResult::toArray()` export;
+- `validationSubjects`: validated and unvalidated subject metadata.
+
+`ArtifactCompiler` and `CacheVerifier` MUST explicitly supply the same resolved bootstrap environment to `CompiledConfigBuilder` for their respective operations. The environment MUST be a non-empty trimmed single-line string satisfying canonical artifact schema validation. It is payload metadata outside the merged config tree; neither merged config defaults nor env overlays may replace it.
+
+The payload MUST NOT contain the optional structured explain result, runtime objects, raw env values in provenance metadata, or absolute source paths.
+
+`ArtifactSchemaValidator` MUST validate the exact key set and source records before runtime hydration. The internal `ConfigValueSourceArtifactHydrator` reconstructs canonical `ConfigValueSource` instances from the `sources` list, rejects malformed or unsupported records, and preserves list order. Artifact-only boot MUST hydrate the runtime repository with these records and the merged `config` without re-running config formation or inferring provenance from values. Runtime repository semantics are owned by `docs/ssot/config-and-env.md`.
 
 ### Platform-Owned Config Data Linkage (MUST)
 
@@ -724,12 +753,7 @@ kind = compiled
 compiled = true
 ```
 
-The validator MUST reject unsupported transitional stub payloads:
-
-```text
-kind = stub
-compiled = false
-```
+The validator MUST reject any other `kind` or `compiled` value.
 
 The validator MUST validate `aliases`, `parameters`, `services`, and `tags` as deterministic maps. Empty maps are valid.
 
@@ -833,6 +857,22 @@ Raw value influence MAY be represented only through safe deterministic metadata 
 - safe root;
 - safe key path;
 - safe count.
+
+## Compiled Config Payload Shape Fingerprint Linkage (MUST)
+
+`ConfigFingerprintInputBuilder` MUST include the exact canonical config artifact payload key set under:
+
+```text
+compiledConfig.payloadKeys
+```
+
+Its value MUST be the byte-order-sorted list declared by `CompiledConfigBuilder::PAYLOAD_KEYS`, not a separately maintained key list or the keys of an arbitrary ConfigKernel result. It participates in the existing `compiledConfig` fingerprint bucket together with roots, value fingerprints, sources, owners, validation, and validation subjects.
+
+The frozen application environment participates through `bootstrap.appEnv`, derived from the same resolved `BootstrapConfig` that supplies the artifact payload metadata.
+
+Distinct canonical config artifact payload shapes MUST produce distinct shared artifact fingerprints and therefore distinct immutable generation identities, even when all other fingerprint inputs are identical. The publication set MUST NOT reuse one generation identity for different artifact bytes.
+
+This linkage uses the existing fingerprint input and artifact identities. It MUST NOT introduce a separate payload-shape digest, artifact fingerprint, generation identifier, or schema version. Runtime diagnostics objects and loaded-generation status MUST NOT enter fingerprint input.
 
 ## Container Graph Fingerprint Bucket (MUST)
 
@@ -947,6 +987,7 @@ Fingerprint input MUST include safe deterministic representation of:
 - ModulePlan identity;
 - canonical compiled runtime container graph identity through the `containerGraph` bucket;
 - compiled config roots;
+- canonical config artifact payload key set through `compiledConfig.payloadKeys`;
 - compiled config value fingerprints;
 - config source metadata;
 - config ownership metadata;
@@ -1397,9 +1438,7 @@ This document does not redefine config root ownership.
 - Detailed runtime seed hydration and compiled-container construction are owned by `docs/ssot/compiled-container.md`.
 - Detailed Worker launcher and process lifecycle semantics are owned by `docs/architecture/worker.md`.
 - This document does not define generation retention or garbage collection.
-- Kernel artifact production MUST NOT produce `container@1` as a deterministic stub artifact.
-- Kernel-produced `container@1` artifacts use the REAL compiled-container payload shape: `kind = compiled` and `compiled = true`.
-- Stub container payloads (`kind = stub`, `compiled = false`) are invalid for Kernel-produced `container@1` artifacts.
+- Kernel-produced `container@1` artifacts MUST use the canonical compiled-container payload shape: `kind = compiled` and `compiled = true`. Other values are invalid.
 
 ## Cross-references
 

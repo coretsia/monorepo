@@ -43,7 +43,7 @@ final class RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTes
                     'http_driver' => $configuredHttpDriver,
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [HttpDriver::WORKER],
@@ -68,7 +68,7 @@ final class RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTes
         }
 
         self::fail(
-            'RuntimeDriverResolver::resolve() must reject http.worker with a non-classic configured HTTP runtime driver.'
+            'RuntimeDriverResolver::resolve() must reject http.worker with a non-classic configured HTTP runtime driver.',
         );
     }
 

@@ -19,10 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Integration;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
-use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
+use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
+use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
+use Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException;
-use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -86,7 +89,17 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
                 );
             }
 
-            $envelope['payload'] = $payload;
+            \ksort($payload['services'], \SORT_STRING);
+            \ksort($payload['aliases'], \SORT_STRING);
+
+            $invalidEnvelope = $envelope;
+            $invalidEnvelope['payload'] = $payload;
+
+            new ArtifactSchemaValidator()->validateExpected(
+                envelope: $invalidEnvelope,
+                expectedName: ArtifactEnvelopeFactory::ARTIFACT_CONTAINER,
+                expectedSchemaVersion: 1,
+            );
 
             $configPayload =
                 ArtifactPipelineTestSupport::configPayloadFromArtifact(
@@ -96,23 +109,34 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
 
             self::assertIsArray($compiledConfig);
 
-            $seeds = new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class =>
-                    new ArrayConfigRepository($compiledConfig),
-                ModulePlan::class => $moduleResolution->plan(),
-                RuntimePathContext::class =>
-                    new RuntimePathContext(
-                        applicationRoot: $root,
-                        artifactRoot: $artifactRoot,
-                    ),
-            ]);
+            $seedFactory = new ArtifactRuntimeSeedFactory();
+            $seeds = $seedFactory->create(
+                input: new ArtifactRuntimeInput(
+                    applicationRoot: $root,
+                    artifactRoot: $artifactRoot,
+                ),
+                configRepository: $seedFactory->hydrateConfigRepository($configPayload),
+                modulePlan: $moduleResolution->plan(),
+                configPayload: $configPayload,
+                artifactGenerationLoaded: false,
+            );
+
+            $factory = ArtifactPipelineTestSupport::compiledContainerFactory();
+            $container = $factory->buildFromEnvelope(
+                containerEnvelope: $envelope,
+                seeds: $seeds,
+            );
+
+            self::assertSame(
+                $seeds->instances()[$runtimeSeedId],
+                $container->get($runtimeSeedId),
+            );
 
             try {
-                ArtifactPipelineTestSupport::compiledContainerFactory()
-                    ->buildFromEnvelope(
-                        containerEnvelope: $envelope,
-                        seeds: $seeds,
-                    );
+                $factory->buildFromEnvelope(
+                    containerEnvelope: $invalidEnvelope,
+                    seeds: $seeds,
+                );
 
                 self::fail(
                     'Expected compiled runtime seed override rejection.',
@@ -165,6 +189,15 @@ final class CompiledContainerFactoryRejectsSeedOverrideTest extends TestCase
         yield 'alias overrides runtime path seed' => [
             'bindingKind' => 'alias',
             'runtimeSeedId' => RuntimePathContext::class,
+        ];
+        yield 'service overrides runtime diagnostics seed' => [
+            'bindingKind' => 'service',
+            'runtimeSeedId' => RuntimeDiagnosticsInput::class,
+        ];
+
+        yield 'alias overrides runtime diagnostics seed' => [
+            'bindingKind' => 'alias',
+            'runtimeSeedId' => RuntimeDiagnosticsInput::class,
         ];
     }
 }

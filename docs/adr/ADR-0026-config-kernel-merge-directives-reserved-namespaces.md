@@ -80,6 +80,8 @@ per-file normalization
 
 `ConfigExplainer` receives source traces after merge and produces safe explain metadata without raw values.
 
+The internal `EffectiveConfigSourceSelector` owns shared effective source selection over those traces. Both `ConfigExplainer` and the Kernel runtime config repository consume that policy without reapplying merge directives or independently determining precedence. The canonical selection rules are owned by `docs/ssot/config-precedence-matrix.md`.
+
 ## Detailed decision
 
 ### 1. ConfigKernel is orchestration-only
@@ -382,7 +384,7 @@ unvalidated
 
 ### 11. Explain is a baseline capability, not a feature flag
 
-Config explain is a baseline kernel facility.
+Structured config explain is a baseline kernel facility.
 
 Explain output is produced only when requested by the caller/entrypoint.
 
@@ -391,6 +393,10 @@ Explain MUST NOT be feature-disabled through runtime config.
 Explain output MUST NOT affect merge, validation, or env overlay behavior.
 
 Explain output MUST NOT expose raw config values or raw env values.
+
+Effective source records MUST be produced during canonical Phase B config formation independently of whether structured explain output is requested. The source-host runtime repository consumes the resulting source list directly. Artifact-only boot reconstructs the same canonical source records from validated `config@1` payload metadata; it MUST NOT re-run Phase B or infer provenance from the merged config.
+
+Runtime `ConfigRepositoryInterface::sourceOf()` uses the shared selector for an existing concrete path and returns `null` for a missing key or unavailable applicable source metadata. Consumers distinguish those cases through `has()`. Runtime `ConfigRepositoryInterface::explain()` returns a deterministic list of retained safe `ConfigValueSource` records, not the optional structured explain output. The runtime repository MUST NOT synthesize unknown-source records; the structured ConfigExplainer output may use its safe unknown-source representation. Runtime port semantics are owned by `docs/ssot/config-and-env.md`.
 
 ## Consequences
 
@@ -573,10 +579,11 @@ The following invariants are accepted by this ADR.
 
 ### Explain invariants
 
-- Explain is caller-controlled.
+- Structured explain is caller-controlled; effective source trace formation is independent of that choice.
 - Explain is not a runtime feature flag.
 - Explain contains safe metadata only.
 - Explain does not contain raw config or env values.
+- Effective runtime source selection and structured explain use the same canonical source-selection policy.
 
 ## Security and diagnostics
 
@@ -658,6 +665,8 @@ packages/core/kernel/src/Config/Validation/ConfigNamespaceGuard.php
 packages/core/kernel/src/Config/ConfigRulesLoader.php
 packages/core/kernel/src/Config/ConfigValidator.php
 packages/core/kernel/src/Config/Explain/ConfigExplainer.php
+packages/core/kernel/src/Config/Source/EffectiveConfigSourceSelector.php
+packages/core/kernel/src/Config/ArrayConfigRepository.php
 packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
 packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
 packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php

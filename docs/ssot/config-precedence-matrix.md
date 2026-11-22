@@ -60,7 +60,7 @@ It defines:
 
 `ConfigMerger` owns only the deterministic two-node merge operation.
 
-`ConfigExplainer` consumes effective source precedence/order metadata after merge.
+`EffectiveConfigSourceSelector` owns canonical effective source selection over the source records produced during merge. `ConfigExplainer` and `ArrayConfigRepository` consume this shared policy; neither owns an independent precedence rule.
 
 The canonical runtime implementation paths are:
 
@@ -68,6 +68,8 @@ The canonical runtime implementation paths are:
 packages/core/kernel/src/Config/ConfigKernel.php
 packages/core/kernel/src/Config/ConfigMerger.php
 packages/core/kernel/src/Config/Explain/ConfigExplainer.php
+packages/core/kernel/src/Config/Source/EffectiveConfigSourceSelector.php
+packages/core/kernel/src/Config/ArrayConfigRepository.php
 packages/core/kernel/src/Config/Loaders/PackageDefaultsConfigLoader.php
 packages/core/kernel/src/Config/Loaders/ApplicationConfigLoader.php
 packages/core/kernel/src/Config/Loaders/EnvironmentOverlayLoader.php
@@ -586,6 +588,19 @@ A user-owned/custom root MAY receive env overlays only when one of the following
 ## Explain source implications
 
 Config explain output MUST record effective source metadata from concrete `ConfigValueSource` entries.
+
+Runtime `sourceOf()` and structured config explain MUST use the same effective-source selection rule. Selection operates on the source records produced by the canonical merge; it MUST NOT infer precedence from source type, inspect config values, or perform another merge.
+
+Only records with the requested root and an applicable logical path are candidates. The applicable path is the record's `keyPath`, or its root when `keyPath` is absent. A record applies to that exact path or a descendant at a dot or list-index (`[`) boundary, not an arbitrary string prefix. List-index boundaries support structured explain paths and do not extend runtime repository traversal into lists.
+
+Among applicable candidates, the stronger source is determined in the following order:
+
+1. Higher explicit `precedence`.
+2. Higher recorded `meta.sourceOrder`, interpreted as a non-negative integer (otherwise `0`).
+3. Greater applicable logical-path specificity (path length, using the root for a root-level record).
+4. Byte-order comparison of `sourceId`, then source type, then directive (an absent directive compares as an empty string), with the greater value winning each remaining tie.
+
+Runtime `sourceOf()` MUST return `null` for a missing config key or unavailable applicable source metadata. Structured config explain retains its safe unknown-source representation when no candidate applies; this representation MUST NOT become a synthesized runtime `ConfigValueSource`.
 
 Explain output MAY expose safe metadata such as:
 

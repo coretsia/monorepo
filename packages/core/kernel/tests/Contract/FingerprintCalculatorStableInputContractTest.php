@@ -22,6 +22,7 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\FingerprintCalculator;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use PHPUnit\Framework\TestCase;
@@ -113,6 +114,23 @@ final class FingerprintCalculatorStableInputContractTest extends TestCase
 
         $second['containerGraph'] = self::containerGraphBucket(
             \str_repeat('d', 64),
+        );
+
+        self::assertNotSame(
+            $calculator->calculate($first),
+            $calculator->calculate($second),
+        );
+    }
+
+    public function testCompiledConfigPayloadKeysAffectFingerprint(): void
+    {
+        $calculator = self::calculator($this);
+        $first = self::fingerprintInputFixture();
+        $first['compiledConfig']['payloadKeys'] = CompiledConfigBuilder::PAYLOAD_KEYS;
+
+        $second = $first;
+        $second['compiledConfig']['payloadKeys'] = \array_values(
+            \array_diff(CompiledConfigBuilder::PAYLOAD_KEYS, ['appEnv']),
         );
 
         self::assertNotSame(

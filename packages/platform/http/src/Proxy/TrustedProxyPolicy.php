@@ -261,7 +261,10 @@ final readonly class TrustedProxyPolicy
         return true;
     }
 
-    private static function canonicalIp(string $value): ?string
+    /**
+     * Canonicalizes an exact IPv4 or IPv6 address for HTTP-owned policies.
+     */
+    public static function canonicalIp(string $value): ?string
     {
         if ($value === '' || \strlen($value) > 45) {
             return null;

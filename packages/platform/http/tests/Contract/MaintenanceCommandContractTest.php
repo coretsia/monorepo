@@ -32,6 +32,7 @@ use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
 use Coretsia\Platform\Http\Maintenance\MaintenanceMessage;
 use Coretsia\Platform\Http\Maintenance\MaintenanceStateStore;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -155,7 +156,9 @@ final class MaintenanceCommandContractTest extends TestCase
             $http = require __DIR__ . '/../../config/http.php';
             $http['maintenance']['enabled'] = $enabled;
             $definitions = new ContainerDefinitionBuilder();
-            new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+            $context = new ContainerDefinitionContext(['http' => $http]);
+            new RedactionServiceProvider()->define($definitions, $context);
+            new HttpServiceProvider()->define($definitions, $context);
             $actual = [];
             foreach ($definitions->build()->toDescriptorStream() as $operation) {
                 if (($operation['kind'] ?? null) !== 'tag' || ($operation['tag'] ?? null) !== ReservedTags::CLI_COMMAND) {

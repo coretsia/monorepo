@@ -300,9 +300,9 @@ The implemented `platform/http` baseline consists of eight `http.middleware.syst
 
 The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
 
-`FallbackRouterHandler` provides canonical terminal system-endpoint handling through the shared `FallbackRouter` and `FallbackResponses` services. These services execute outside the nine middleware slots and MUST NOT be registered as middleware, assigned middleware priorities or toggle metadata, or introduce additional catalog entries.
+`FallbackRouterHandler` provides canonical terminal system-endpoint handling through the shared `FallbackRouter` and `FallbackResponses` services. Guarded development-only endpoint dispatch belongs to `DebugRouter`, `DebugGuard`, and the four diagnostic handlers within this same terminal boundary. These services execute outside the nine middleware slots and MUST NOT be registered as middleware, assigned middleware priorities or toggle metadata, added to manual append lists, or introduce additional catalog entries.
 
-Terminal system-endpoint behavior and reserved endpoint fallback responses are governed by `docs/ssot/http-system-endpoints.md`. Earlier middleware responses retain their ordinary PSR-15 precedence over terminal execution.
+Terminal system-endpoint behavior, reserved endpoint fallback responses, and development-only endpoint eligibility, authorization, and response contracts are governed by `docs/ssot/http-system-endpoints.md`. Earlier middleware responses retain their ordinary PSR-15 precedence over terminal execution. Debug activation MUST NOT change middleware participation, priorities, or error-boundary placement.
 
 `Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware` owns application-local HTTP maintenance short-circuiting.
 
@@ -312,7 +312,7 @@ Static participation is controlled by the validated target-local `http.maintenan
 
 Active maintenance MUST return a deterministic HTTP `503` response without invoking downstream request middleware or terminal handling, except for the exact case-sensitive URI path `/_alive`. Unavailable maintenance state MUST follow the same short-circuit and bypass policy.
 
-The liveness bypass delegates to the downstream handler without implementing a system endpoint, generating a liveness response, or determining its status.
+The liveness bypass delegates to the downstream handler without implementing a system endpoint, generating a liveness response, or determining its status. Development-only endpoint paths MUST NOT receive an automatic maintenance bypass.
 
 Maintenance responses remain subject to applicable response decorators and canonical `HttpKernel` final-response completion. Exact execution, state access, response construction, and failure semantics are governed by `docs/ssot/http-middleware-wiring.md`.
 
@@ -569,6 +569,10 @@ http.system_endpoint_total
 It MUST be a counter with exactly the `operation`, `status`, and `outcome` labels.
 
 Metric enablement, bounded label combinations, completed-decision measurement boundaries, and isolated non-retried emission failures are governed by `docs/ssot/observability.md`.
+
+Debug-decision observability is separately owned by `platform/http` through `DebugRouter` at the same terminal boundary. The canonical metric `http.debug_total` MUST be a counter with exactly `operation` (`headers`, `modules`, `config`, or `cache`) and `outcome` (`allowed` or `blocked`). The fixed PSR-3 warning event `http.debug.blocked` MUST contain only the bounded producer-supplied `operation` field.
+
+The metric and warning MUST independently honor `http.metrics.enabled` and `http.access_log.enabled` with isolated non-retried emission failures. Debug decisions MUST NOT be duplicated through `http.system_endpoint_total`. Completed-decision semantics and disclosure policy are governed by `docs/ssot/http-system-endpoints.md` and `docs/ssot/observability.md`.
 
 Terminal endpoint decisions MUST remain independent of middleware decision observations and final HTTP request completion. They MUST NOT introduce middleware registrations, additional request spans, completion events, or lifecycle hooks.
 
@@ -833,6 +837,8 @@ System-pre middleware runs before the main system, application, and route middle
 | `800`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\JsonBodyParserMiddleware::class`       | `['toggle' => 'http.request.json.enabled']`   |
 | `790`    | `platform/http`  | `\Coretsia\Platform\Http\Middleware\EarlyRateLimitMiddleware::class`       | future-only; not registered                   |
 | `580`    | `platform/http`  | `\Coretsia\Platform\Http\Debug\DebugEndpointsMiddleware::class`            | future-only; not registered                   |
+
+The priority-`580` reservation does not implement or activate terminal debug endpoints. Their canonical terminal services MUST NOT occupy this reservation or participate in any middleware slot.
 
 ### Optional package entries
 

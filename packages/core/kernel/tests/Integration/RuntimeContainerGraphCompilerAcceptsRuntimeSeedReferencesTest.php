@@ -28,6 +28,7 @@ use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Provider\KernelServiceFactory;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -56,6 +57,7 @@ final class RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest extend
                 ConfigRepositoryInterface::class,
                 ModulePlan::class,
                 RuntimePathContext::class,
+                RuntimeDiagnosticsInput::class,
             ],
             \array_column(
                 $payload['services'][RuntimeContainerGraphCompilerRuntimeSeedReferencesSubject::class]['arguments'],
@@ -83,6 +85,8 @@ final class RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest extend
         self::assertArrayNotHasKey(AppTargetProviderInterface::class, $payload['aliases']);
         self::assertArrayNotHasKey(ModulePlan::class, $payload['services']);
         self::assertArrayNotHasKey(ModulePlan::class, $payload['aliases']);
+        self::assertArrayNotHasKey(RuntimeDiagnosticsInput::class, $payload['services']);
+        self::assertArrayNotHasKey(RuntimeDiagnosticsInput::class, $payload['aliases']);
     }
 }
 
@@ -99,6 +103,7 @@ final class RuntimeContainerGraphCompilerRuntimeSeedReferencesProvider implement
             ConfigRepositoryInterface::class,
             ModulePlan::class,
             RuntimePathContext::class,
+            RuntimeDiagnosticsInput::class,
         ];
 
         $definitions->classService(

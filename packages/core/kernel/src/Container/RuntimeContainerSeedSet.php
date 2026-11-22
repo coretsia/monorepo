@@ -20,6 +20,7 @@ namespace Coretsia\Kernel\Container;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 
 /**
@@ -101,6 +102,7 @@ final readonly class RuntimeContainerSeedSet
                 ConfigRepositoryInterface::class => $instance instanceof ConfigRepositoryInterface,
                 ModulePlan::class => $instance instanceof ModulePlan,
                 RuntimePathContext::class => $instance instanceof RuntimePathContext,
+                RuntimeDiagnosticsInput::class => $instance instanceof RuntimeDiagnosticsInput,
                 default => false,
             };
 

@@ -21,6 +21,7 @@ namespace Coretsia\Kernel\Config\Explain;
 use Coretsia\Contracts\Config\ConfigSourceType;
 use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\Source\EffectiveConfigSourceSelector;
 
 /**
  * Safe config explain trace builder.
@@ -49,6 +50,8 @@ use Coretsia\Contracts\Config\ConfigValueSource;
  * ConfigSourceType values are vocabulary only. Effective precedence is recorded
  * from each concrete ConfigValueSource entry.
  *
+ * @phpstan-import-type NormalizedSource from EffectiveConfigSourceSelector
+ *
  * @internal
  */
 final readonly class ConfigExplainer
@@ -56,27 +59,6 @@ final readonly class ConfigExplainer
     public const int SCHEMA_VERSION = 1;
 
     private const string SOURCE_TYPE_UNKNOWN = 'unknown';
-
-    /**
-     * @var array<string, true>
-     */
-    private const array SAFE_META_KEYS = [
-        'appEnv' => true,
-        'appTarget' => true,
-        'envName' => true,
-        'envSourceId' => true,
-        'envSourceType' => true,
-        'hash' => true,
-        'hashAlgorithm' => true,
-        'kind' => true,
-        'layer' => true,
-        'length' => true,
-        'mappingKind' => true,
-        'moduleId' => true,
-        'packageId' => true,
-        'sourceOrder' => true,
-        'valueType' => true,
-    ];
 
     /**
      * Builds a safe explanation for the final merged global config.
@@ -182,7 +164,7 @@ final readonly class ConfigExplainer
         array $envOverlayMappings = [],
         array $owners = [],
     ): array {
-        $normalizedSources = self::normalizeSources($sources);
+        $normalizedSources = EffectiveConfigSourceSelector::normalizeSources($sources);
         $subjectsByRoot = self::normalizeValidationSubjects($config, $validationSubjects);
         $paths = self::collectConfigPaths($config);
         $envMappings = self::normalizeEnvOverlayMappings($envOverlayMappings);
@@ -192,7 +174,22 @@ final readonly class ConfigExplainer
 
         foreach ($paths as $path => $valueShape) {
             $root = self::rootFromPath($path);
-            $source = self::effectiveSourceForPath($path, $root, $normalizedSources);
+            $source = EffectiveConfigSourceSelector::selectNormalized(
+                path: $path,
+                root: $root,
+                sources: $normalizedSources,
+            ) ?? [
+                'directive' => null,
+                'keyPath' => null,
+                'meta' => [],
+                'order' => 0,
+                'path' => null,
+                'precedence' => 0,
+                'redacted' => true,
+                'root' => $root,
+                'sourceId' => 'unknown/' . $root,
+                'type' => self::SOURCE_TYPE_UNKNOWN,
+            ];
             $subject = $subjectsByRoot[$root] ?? [
                 'ownership' => 'user_owned',
                 'root' => $root,
@@ -241,73 +238,6 @@ final readonly class ConfigExplainer
                 'subjects' => \array_values($subjectsByRoot),
             ],
         ];
-    }
-
-    /**
-     * @param array<array-key, ConfigValueSource> $sources
-     *
-     * @return list<array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * }>
-     */
-    private static function normalizeSources(array $sources): array
-    {
-        $normalized = [];
-
-        foreach ($sources as $source) {
-            if (!$source instanceof ConfigValueSource) {
-                continue;
-            }
-
-            $meta = self::sanitizeMeta($source->meta());
-
-            $normalized[] = [
-                'directive' => $source->directive(),
-                'keyPath' => $source->keyPath(),
-                'meta' => $meta,
-                'order' => self::sourceOrderFromMeta($meta),
-                'path' => $source->path(),
-                'precedence' => $source->precedence(),
-                'redacted' => $source->isRedacted(),
-                'root' => $source->root(),
-                'sourceId' => $source->sourceId(),
-                'type' => $source->type()->value,
-            ];
-        }
-
-        \usort(
-            $normalized,
-            static function (array $a, array $b): int {
-                return ($a['precedence'] <=> $b['precedence'])
-                    ?: \strcmp($a['keyPath'] ?? $a['path'] ?? $a['root'], $b['keyPath'] ?? $b['path'] ?? $b['root'])
-                        ?: \strcmp($a['sourceId'], $b['sourceId'])
-                            ?: \strcmp($a['type'], $b['type'])
-                                ?: \strcmp($a['directive'] ?? '', $b['directive'] ?? '')
-                                    ?: ($a['order'] <=> $b['order']);
-            },
-        );
-
-        return $normalized;
-    }
-
-    private static function sourceOrderFromMeta(array $meta): int
-    {
-        $sourceOrder = $meta['sourceOrder'] ?? null;
-
-        if (!\is_int($sourceOrder) || $sourceOrder < 0) {
-            return 0;
-        }
-
-        return $sourceOrder;
     }
 
     /**
@@ -446,7 +376,7 @@ final readonly class ConfigExplainer
 
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -460,169 +390,6 @@ final readonly class ConfigExplainer
                 paths: $paths,
             );
         }
-    }
-
-    /**
-     * @param list<array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * }> $sources
-     *
-     * @return array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * }
-     */
-    private static function effectiveSourceForPath(
-        string $path,
-        string $root,
-        array $sources,
-    ): array {
-        $best = null;
-
-        foreach ($sources as $source) {
-            if ($source['root'] !== $root) {
-                continue;
-            }
-
-            if (!self::sourceAppliesToPath($source, $path, $root)) {
-                continue;
-            }
-
-            if ($best === null) {
-                $best = $source;
-
-                continue;
-            }
-
-            if (self::compareEffectiveSources($source, $best, $path, $root) > 0) {
-                $best = $source;
-            }
-        }
-
-        if ($best !== null) {
-            return $best;
-        }
-
-        return [
-            'directive' => null,
-            'keyPath' => null,
-            'meta' => [],
-            'order' => 0,
-            'path' => null,
-            'precedence' => 0,
-            'redacted' => true,
-            'root' => $root,
-            'sourceId' => 'unknown/' . $root,
-            'type' => self::SOURCE_TYPE_UNKNOWN,
-        ];
-    }
-
-    /**
-     * @param array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * } $candidate
-     * @param array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * } $current
-     */
-    private static function compareEffectiveSources(
-        array $candidate,
-        array $current,
-        string $path,
-        string $root,
-    ): int {
-        return ($candidate['precedence'] <=> $current['precedence'])
-            ?: ($candidate['order'] <=> $current['order'])
-                ?: (
-                    self::sourceSpecificityForPath($candidate, $path, $root)
-                    <=> self::sourceSpecificityForPath($current, $path, $root)
-                )
-                    ?: \strcmp($candidate['sourceId'], $current['sourceId'])
-                        ?: \strcmp($candidate['type'], $current['type'])
-                            ?: \strcmp($candidate['directive'] ?? '', $current['directive'] ?? '');
-    }
-
-    /**
-     * @param array{
-     *     keyPath: non-empty-string|null,
-     *     root: non-empty-string
-     * } $source
-     */
-    private static function sourceSpecificityForPath(
-        array $source,
-        string $path,
-        string $root,
-    ): int {
-        $keyPath = $source['keyPath'];
-
-        if ($keyPath === null) {
-            return \strlen($root);
-        }
-
-        if (
-            $path === $keyPath
-            || \str_starts_with($path, $keyPath . '.')
-            || \str_starts_with($path, $keyPath . '[')
-        ) {
-            return \strlen($keyPath);
-        }
-
-        return 0;
-    }
-
-    /**
-     * @param array{
-     *     keyPath: non-empty-string|null,
-     *     root: non-empty-string
-     * } $source
-     */
-    private static function sourceAppliesToPath(
-        array $source,
-        string $path,
-        string $root,
-    ): bool {
-        $keyPath = $source['keyPath'];
-
-        if ($keyPath === null) {
-            return $path === $root || \str_starts_with($path, $root . '.') || \str_starts_with($path, $root . '[');
-        }
-
-        return $path === $keyPath || \str_starts_with($path, $keyPath . '.') || \str_starts_with($path, $keyPath . '[');
     }
 
     /**
@@ -743,18 +510,7 @@ final readonly class ConfigExplainer
     }
 
     /**
-     * @param list<array{
-     *     directive: non-empty-string|null,
-     *     keyPath: non-empty-string|null,
-     *     meta: array<string,mixed>,
-     *     order: int,
-     *     path: non-empty-string|null,
-     *     precedence: int,
-     *     redacted: bool,
-     *     root: non-empty-string,
-     *     sourceId: non-empty-string,
-     *     type: non-empty-string
-     * }> $sources
+     * @param list<NormalizedSource> $sources
      *
      * @return list<array{
      *     directive: non-empty-string|null,
@@ -792,7 +548,7 @@ final readonly class ConfigExplainer
     }
 
     /**
-     * @param list<array{type: non-empty-string}> $sources
+     * @param list<NormalizedSource> $sources
      *
      * @return list<non-empty-string>
      */
@@ -879,10 +635,7 @@ final readonly class ConfigExplainer
     }
 
     /**
-     * @param list<array{
-     *     keyPath: non-empty-string|null,
-     *     type: non-empty-string
-     * }> $sources
+     * @param list<NormalizedSource> $sources
      * @param list<array{path: non-empty-string}> $envMappings
      *
      * @return list<non-empty-string>
@@ -906,77 +659,6 @@ final readonly class ConfigExplainer
         \ksort($mappedPaths, \SORT_STRING);
 
         return \array_keys($mappedPaths);
-    }
-
-    /**
-     * @param array<string,mixed> $meta
-     *
-     * @return array<string, null|bool|int|string>
-     */
-    private static function sanitizeMeta(array $meta): array
-    {
-        $out = [];
-
-        foreach ($meta as $key => $value) {
-            if (!isset(self::SAFE_META_KEYS[$key])) {
-                continue;
-            }
-
-            $safeValue = self::sanitizeMetaValue($key, $value);
-
-            if ($safeValue === null && $value !== null) {
-                continue;
-            }
-
-            $out[$key] = $safeValue;
-        }
-
-        \ksort($out, \SORT_STRING);
-
-        return $out;
-    }
-
-    private static function sanitizeMetaValue(
-        string $key,
-        mixed $value,
-    ): null|bool|int|string {
-        if ($key === 'length') {
-            if (!\is_int($value) || $value < 0) {
-                return null;
-            }
-
-            return $value;
-        }
-
-        if ($key === 'hash') {
-            if (!\is_string($value) || \preg_match('/\A[a-f0-9]{32,128}\z/', $value) !== 1) {
-                return null;
-            }
-
-            return $value;
-        }
-
-        if ($key === 'hashAlgorithm') {
-            if (!\is_string($value) || !self::isSafeToken($value)) {
-                return null;
-            }
-
-            return $value;
-        }
-
-        if ($value === null || \is_bool($value) || \is_int($value)) {
-            return $value;
-        }
-
-        if (!\is_string($value)) {
-            return null;
-        }
-
-        if (!self::isSafeMetadataString($value)) {
-            return null;
-        }
-
-        return $value;
     }
 
     private static function valueShape(mixed $value): string

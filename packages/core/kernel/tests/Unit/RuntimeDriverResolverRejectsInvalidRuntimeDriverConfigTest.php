@@ -32,7 +32,7 @@ final class RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest extends T
             'kernel' => [
                 'runtime' => [],
             ],
-        ]);
+        ], []);
 
         $this->expectException(RuntimeDriverInvalidConfigException::class);
         $this->expectExceptionMessage(
@@ -58,7 +58,7 @@ final class RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest extends T
                     'http_driver' => ['http.classic'],
                 ],
             ],
-        ]);
+        ], []);
 
         $this->expectException(RuntimeDriverInvalidConfigException::class);
         $this->expectExceptionMessage(
@@ -84,7 +84,7 @@ final class RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest extends T
                     'http_driver' => 'http.unknown',
                 ],
             ],
-        ]);
+        ], []);
 
         $this->expectException(RuntimeDriverInvalidConfigException::class);
         $this->expectExceptionMessage(

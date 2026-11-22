@@ -457,7 +457,7 @@ final class AliveEndpointBypassesMaintenanceTest extends TestCase
         $container->method('get')->willReturnCallback(static fn (string $id): MiddlewareInterface => $services[$id]);
         return HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             new HttpMiddlewareStackBuilder($tags),
             $terminal,
         );

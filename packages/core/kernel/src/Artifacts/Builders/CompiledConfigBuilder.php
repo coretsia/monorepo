@@ -34,6 +34,7 @@ use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
  * Payload shape:
  *
  *     [
+ *         'appEnv' => <authoritative frozen application environment>,
  *         'config' => <full merged global config>,
  *         'configSourceFiles' => <safe source-file metadata>,
  *         'envOverlayMappings' => <safe env-overlay mapping metadata>,
@@ -47,6 +48,10 @@ use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
  * user-owned/custom roots. Validation/source metadata is converted to scalar
  * json-like arrays so PHP objects are never stored directly in the artifact
  * payload.
+ *
+ * The authoritative application environment is supplied explicitly by the
+ * caller from the resolved bootstrap configuration. It remains outside the
+ * merged global config and cannot be overridden by application config values.
  *
  * This builder MUST NOT:
  *
@@ -63,6 +68,25 @@ use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
  */
 final readonly class CompiledConfigBuilder
 {
+    /**
+     * Canonical sorted config@1 payload keys.
+     *
+     * Shared by artifact construction, validation, runtime hydration, and
+     * fingerprint input construction.
+     *
+     * @var list<non-empty-string>
+     */
+    public const array PAYLOAD_KEYS = [
+        'appEnv',
+        'config',
+        'configSourceFiles',
+        'envOverlayMappings',
+        'owners',
+        'sources',
+        'validation',
+        'validationSubjects',
+    ];
+
     public function __construct(
         private ArtifactEnvelopeFactory $envelopeFactory,
     ) {
@@ -84,6 +108,7 @@ final readonly class CompiledConfigBuilder
      *         validated: list<array{root: non-empty-string, ownership: string, validation: string}>
      *     }
      * } $compiledConfig ConfigKernel::compile(...) result.
+     * @param non-empty-string $appEnv Authoritative resolved bootstrap environment.
      *
      * @return array{_meta: array<string, mixed>, payload: array<string, mixed>}
      *
@@ -93,31 +118,40 @@ final readonly class CompiledConfigBuilder
     public function build(
         array $compiledConfig,
         string $fingerprint,
+        string $appEnv,
     ): array {
         return $this->envelopeFactory->config(
             fingerprint: $fingerprint,
-            payload: self::payload($compiledConfig),
+            payload: self::payload($compiledConfig, $appEnv),
         );
     }
 
     /**
      * @param array<string,mixed> $compiledConfig
+     * @param non-empty-string $appEnv
      *
      * @return array<string,mixed>
      */
-    private static function payload(array $compiledConfig): array
-    {
+    private static function payload(
+        array $compiledConfig,
+        string $appEnv,
+    ): array {
         self::assertCompiledConfigShape($compiledConfig);
 
-        $payload = [
-            'config' => self::normalizeArray($compiledConfig['config']),
-            'configSourceFiles' => self::configSourceFiles($compiledConfig['configSourceFiles']),
-            'envOverlayMappings' => self::envOverlayMappings($compiledConfig['envOverlayMappings']),
-            'owners' => self::owners($compiledConfig['owners']),
-            'sources' => self::sources($compiledConfig['sources']),
-            'validation' => $compiledConfig['validation']->toArray(),
-            'validationSubjects' => self::validationSubjects($compiledConfig['validationSubjects']),
-        ];
+        $payload = [];
+
+        foreach (self::PAYLOAD_KEYS as $key) {
+            $payload[$key] = match ($key) {
+                'appEnv' => $appEnv,
+                'config' => self::normalizeArray($compiledConfig['config']),
+                'configSourceFiles' => self::configSourceFiles($compiledConfig['configSourceFiles']),
+                'envOverlayMappings' => self::envOverlayMappings($compiledConfig['envOverlayMappings']),
+                'owners' => self::owners($compiledConfig['owners']),
+                'sources' => self::sources($compiledConfig['sources']),
+                'validation' => $compiledConfig['validation']->toArray(),
+                'validationSubjects' => self::validationSubjects($compiledConfig['validationSubjects']),
+            };
+        }
 
         \ksort($payload, \SORT_STRING);
 
@@ -138,7 +172,7 @@ final readonly class CompiledConfigBuilder
         }
 
         if (!isset($compiledConfig['sources']) || !\is_array($compiledConfig['sources']) || !\array_is_list(
-            $compiledConfig['sources']
+            $compiledConfig['sources'],
         )) {
             throw new \InvalidArgumentException('compiled-config-result-sources-missing');
         }
@@ -260,11 +294,11 @@ final readonly class CompiledConfigBuilder
         \usort(
             $out,
             static fn (array $a, array $b): int => ($a['precedence'] <=> $b['precedence'])
-                ?: \strcmp((string)$a['root'], (string)$b['root'])
-                    ?: \strcmp((string)($a['keyPath'] ?? ''), (string)($b['keyPath'] ?? ''))
-                        ?: \strcmp((string)$a['sourceId'], (string)$b['sourceId'])
-                            ?: \strcmp((string)$a['type'], (string)$b['type'])
-                                ?: \strcmp((string)($a['directive'] ?? ''), (string)($b['directive'] ?? '')),
+                ?: \strcmp((string) $a['root'], (string) $b['root'])
+                    ?: \strcmp((string) ($a['keyPath'] ?? ''), (string) ($b['keyPath'] ?? ''))
+                        ?: \strcmp((string) $a['sourceId'], (string) $b['sourceId'])
+                            ?: \strcmp((string) $a['type'], (string) $b['type'])
+                                ?: \strcmp((string) ($a['directive'] ?? ''), (string) ($b['directive'] ?? '')),
         );
 
         return $out;
@@ -367,9 +401,9 @@ final readonly class CompiledConfigBuilder
 
         \usort(
             $out,
-            static fn (array $a, array $b): int => \strcmp((string)$a['path'], (string)$b['path'])
-                ?: \strcmp((string)$a['env'], (string)$b['env'])
-                    ?: \strcmp((string)$a['sourceId'], (string)$b['sourceId']),
+            static fn (array $a, array $b): int => \strcmp((string) $a['path'], (string) $b['path'])
+                ?: \strcmp((string) $a['env'], (string) $b['env'])
+                    ?: \strcmp((string) $a['sourceId'], (string) $b['sourceId']),
         );
 
         return $out;
@@ -411,7 +445,10 @@ final readonly class CompiledConfigBuilder
                 'layer' => self::safeToken($sourceFile['layer'], 'compiled-config-source-file-layer-invalid'),
                 'path' => self::safeRelativePath($sourceFile['path'], 'compiled-config-source-file-path-invalid'),
                 'readable' => $sourceFile['readable'],
-                'sourceId' => self::safeLogicalIdentifier($sourceFile['sourceId'], 'compiled-config-source-file-source-id-invalid'),
+                'sourceId' => self::safeLogicalIdentifier(
+                    $sourceFile['sourceId'],
+                    'compiled-config-source-file-source-id-invalid',
+                ),
             ];
 
             if (isset($sourceFile['root'])) {
@@ -445,11 +482,11 @@ final readonly class CompiledConfigBuilder
 
         \usort(
             $out,
-            static fn (array $a, array $b): int => \strcmp((string)$a['sourceId'], (string)$b['sourceId'])
-                ?: \strcmp((string)$a['path'], (string)$b['path'])
-                    ?: \strcmp((string)($a['root'] ?? ''), (string)($b['root'] ?? ''))
-                        ?: \strcmp((string)$a['layer'], (string)$b['layer'])
-                            ?: \strcmp((string)$a['kind'], (string)$b['kind']),
+            static fn (array $a, array $b): int => \strcmp((string) $a['sourceId'], (string) $b['sourceId'])
+                ?: \strcmp((string) $a['path'], (string) $b['path'])
+                    ?: \strcmp((string) ($a['root'] ?? ''), (string) ($b['root'] ?? ''))
+                        ?: \strcmp((string) $a['layer'], (string) $b['layer'])
+                            ?: \strcmp((string) $a['kind'], (string) $b['kind']),
         );
 
         return $out;
@@ -505,9 +542,15 @@ final readonly class CompiledConfigBuilder
             }
 
             $entry = [
-                'ownership' => self::safeToken($subject['ownership'], 'compiled-config-validation-subject-ownership-invalid'),
+                'ownership' => self::safeToken(
+                    $subject['ownership'],
+                    'compiled-config-validation-subject-ownership-invalid',
+                ),
                 'root' => self::safeRoot($subject['root'], 'compiled-config-validation-subject-root-invalid'),
-                'validation' => self::safeToken($subject['validation'], 'compiled-config-validation-subject-validation-invalid'),
+                'validation' => self::safeToken(
+                    $subject['validation'],
+                    'compiled-config-validation-subject-validation-invalid',
+                ),
             ];
 
             \ksort($entry, \SORT_STRING);
@@ -638,7 +681,7 @@ final readonly class CompiledConfigBuilder
             || \strlen($path) > 256
             || \preg_match(
                 '/\A[A-Za-z_][A-Za-z0-9_]{0,63}(?:\.[A-Za-z_][A-Za-z0-9_]{0,63}|\[[0-9]{1,9}])*\z/',
-                $path
+                $path,
             ) !== 1
         ) {
             throw new \InvalidArgumentException($reason);

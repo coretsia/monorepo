@@ -290,6 +290,7 @@ final readonly class CacheVerifier
         $configEnvelope = $this->compiledConfigBuilder->build(
             compiledConfig: $compiledConfig,
             fingerprint: $fingerprint,
+            appEnv: $bootstrapConfig->appEnv(),
         );
 
         $containerEnvelope = $this->compiledContainerBuilder->build(
@@ -410,9 +411,7 @@ final readonly class CacheVerifier
             }
 
             try {
-                $currentBytes = $this->artifactReader->readExactBytes(
-                    $currentPath,
-                );
+                $currentBytes = $this->artifactReader->readExactBytes($currentPath);
             } catch (\Throwable) {
                 $results[] = self::artifactResult(
                     expectedArtifact: $expectedArtifact,

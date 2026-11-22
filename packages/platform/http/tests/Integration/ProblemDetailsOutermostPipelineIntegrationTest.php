@@ -42,6 +42,7 @@ use Coretsia\Kernel\Container\ContainerGraphCompletenessValidator;
 use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Http\Exception\BadJsonException;
@@ -55,6 +56,7 @@ use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdap
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Provider\ProblemDetailsServiceProvider;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -131,9 +133,13 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
             'http' => $http,
         ];
         $paths = new RuntimePathContext('/test', '/test/var/cache');
+        $plan = new ModulePlan('web', [], [], [], []);
+        $diagnostics = new RuntimeDiagnosticsInput('test', false);
         $sourceBuilder = new ContainerBuilder($config);
-        $sourceBuilder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $sourceBuilder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $sourceBuilder->instance(TagRegistry::class, $sourceBuilder->tagRegistry());
+        $sourceBuilder->instance(ModulePlan::class, $plan);
+        $sourceBuilder->instance(RuntimeDiagnosticsInput::class, $diagnostics);
         $sourceBuilder->instance(RuntimePathContext::class, $paths);
         $source = $sourceBuilder->applyDefinitions($set)->build();
         $graph = new ContainerCompiler(new NoopTracer(), new NoopMeter(), new NoopLogger(), new Stopwatch())
@@ -146,8 +152,9 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $envelope,
             new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
-                ModulePlan::class => new ModulePlan('web', [], [], [], []),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
+                ModulePlan::class => $plan,
+                RuntimeDiagnosticsInput::class => $diagnostics,
                 RuntimePathContext::class => $paths,
             ]),
         );
@@ -364,7 +371,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
 
         return HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             new HttpMiddlewareStackBuilder($tags),
             $terminal,
         );
@@ -388,6 +395,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
         $definitions = new ContainerDefinitionBuilder();
         $context = new ContainerDefinitionContext($config);
         new FoundationServiceProvider()->define($definitions, $context);
+        new RedactionServiceProvider()->define($definitions, $context);
         new HttpServiceProvider()->define($definitions, $context);
         if ($selected) {
             new ProblemDetailsServiceProvider()->define($definitions, $context);

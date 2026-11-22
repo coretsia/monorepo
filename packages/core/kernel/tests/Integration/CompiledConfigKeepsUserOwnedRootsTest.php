@@ -225,8 +225,9 @@ final class CompiledConfigKeepsUserOwnedRootsTest extends TestCase
      */
     private static function compiledConfigArtifact(string $applicationRoot, array $splitRoots): array
     {
+        $bootstrapConfig = self::bootstrapConfig($applicationRoot);
         $loaded = self::loader()->load(
-            bootstrapConfig: self::bootstrapConfig($applicationRoot),
+            bootstrapConfig: $bootstrapConfig,
             splitRoots: $splitRoots,
         );
 
@@ -252,12 +253,18 @@ final class CompiledConfigKeepsUserOwnedRootsTest extends TestCase
             ]),
         ];
 
-        return new CompiledConfigBuilder(
+        $artifact = new CompiledConfigBuilder(
             new ArtifactEnvelopeFactory(new PayloadNormalizer()),
         )->build(
             compiledConfig: $compiledConfig,
             fingerprint: \str_repeat('a', 64),
+            appEnv: $bootstrapConfig->appEnv(),
         );
+
+        self::assertSame(CompiledConfigBuilder::PAYLOAD_KEYS, \array_keys($artifact['payload']));
+        self::assertSame($bootstrapConfig->appEnv(), $artifact['payload']['appEnv']);
+
+        return $artifact;
     }
 
     /**

@@ -274,7 +274,7 @@ final class SecurityHeadersAppliedToAllResponsesTest extends TestCase
         }
         $pipeline = HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
         );

@@ -50,6 +50,7 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModuleResolution;
 use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Metrics\Default\DefaultMeter;
 use Coretsia\Platform\Metrics\Labels\AllowedLabelSet;
@@ -327,9 +328,13 @@ final class MetricsSelectedModuleBindingParityTest extends TestCase
         $source = $builder->build();
         $graph = self::compiler()->compile($resolution, $config);
         $seeds = new RuntimeContainerSeedSet([
-            ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+            ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
             ModulePlan::class => $resolution->plan(),
             RuntimePathContext::class => new RuntimePathContext('/coretsia-test', '/coretsia-test/var/cache'),
+            RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                appEnv: 'test',
+                artifactGenerationLoaded: false,
+            ),
         ]);
         $envelope = new ArtifactEnvelopeFactory()->container(
             \str_repeat('a', 64),

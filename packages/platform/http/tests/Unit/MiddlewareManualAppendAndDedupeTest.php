@@ -37,6 +37,7 @@ use Coretsia\Kernel\Container\CompiledContainerFactory;
 use Coretsia\Kernel\Container\ContainerCompiler;
 use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\Pipeline;
@@ -231,9 +232,13 @@ final class MiddlewareManualAppendAndDedupeTest extends TestCase
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $envelope,
             new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
                 ModulePlan::class => new ModulePlan('web', [], [], [], []),
                 RuntimePathContext::class => new RuntimePathContext('/app', '/app/var/cache'),
+                RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                    appEnv: 'test',
+                    artifactGenerationLoaded: false,
+                ),
             ]),
         );
 
@@ -320,7 +325,7 @@ final class MiddlewareManualAppendAndDedupeTest extends TestCase
     ): Pipeline {
         return HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             new HttpMiddlewareStackBuilder(new TagRegistry()),
             $terminal ?? new class() implements RequestHandlerInterface {
                 public function handle(ServerRequestInterface $request): ResponseInterface
@@ -363,9 +368,13 @@ final class MiddlewareManualAppendAndDedupeTest extends TestCase
         return new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $envelope,
             new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
                 ModulePlan::class => new ModulePlan('web', [], [], [], []),
                 RuntimePathContext::class => new RuntimePathContext('/app', '/app/var/cache'),
+                RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                    appEnv: 'test',
+                    artifactGenerationLoaded: false,
+                ),
             ]),
         );
     }

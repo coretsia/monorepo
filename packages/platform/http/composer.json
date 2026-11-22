@@ -36,6 +36,7 @@
     "coretsia/core-contracts": "^0.13.0",
     "coretsia/core-foundation": "^0.13.0",
     "coretsia/core-kernel": "^0.13.0",
+    "coretsia/platform-redaction": "^0.13.0",
     "psr/clock": "^1.0",
     "psr/container": "^2.0",
     "psr/http-factory": "^1.0",
@@ -70,7 +71,8 @@
       ],
       "requires": [
         "core.foundation",
-        "core.kernel"
+        "core.kernel",
+        "platform.redaction"
       ],
       "conflicts": [],
       "defaultsConfigPath": "config/http.php"

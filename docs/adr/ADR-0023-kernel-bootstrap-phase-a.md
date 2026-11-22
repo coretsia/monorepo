@@ -1011,6 +1011,10 @@ Artifact-only runtime boot is a separate entrypoint boundary.
 
 It does not re-run Bootstrap Phase A and does not consume `BootstrapInput` or `BootstrapConfig` as runtime container seeds.
 
+The authoritative application environment remains the frozen `BootstrapConfig::appEnv()` value resolved by Phase A. Artifact compilation and expected-artifact construction by cache verification preserve that value as mandatory `config@1` payload metadata `appEnv`. It is not a merged global config value and MUST NOT be derived from config defaults, env overlays, request data, or module selection.
+
+Source-host Kernel runtime construction supplies an immutable `RuntimeDiagnosticsInput` from the already-resolved `BootstrapConfig` with loaded-generation state `false`. Artifact-only boot constructs that input from the validated artifact metadata with loaded-generation state `true` for the successfully validated and loaded generation. Neither runtime path performs another environment resolution. Subsequent process environment or `current` changes MUST NOT change the existing runtime input. Phase A owns environment resolution; Kernel artifact-only boot owns runtime hydration.
+
 The public entrypoint-owned input is:
 
 ```text
@@ -1043,8 +1047,9 @@ ArtifactRuntimeInput
   -> one validated ArtifactGeneration
   -> exact read of all four generation files
   -> generation manifest, byte-length, SHA-256, schema, and fingerprint validation
-  -> ArrayConfigRepository
+  -> ArrayConfigRepository (merged config and canonical source records)
   -> ModulePlan
+  -> RuntimeDiagnosticsInput
   -> RuntimePathContext
   -> RuntimeContainerSeedSet
   -> CompiledContainerFactory::buildFromEnvelope(...)
@@ -1058,13 +1063,14 @@ It MUST:
 1. locate `current` through `ArtifactGenerationLocator`;
 2. require one valid selected generation;
 3. read the exact bytes and envelopes of all four generation files;
-4. validate `artifact-generation@1`;
-5. require every artifact envelope fingerprint to equal the selected generation id;
-6. hydrate `ConfigRepositoryInterface` from `config@1`;
+4. validate `module-manifest@1`, `config@1`, `container@1`, and `artifact-generation@1`;
+5. require every artifact envelope fingerprint to equal the selected generation id and the generation-manifest byte-length and SHA-256 metadata to match the exact runtime artifact bytes;
+6. hydrate `ConfigRepositoryInterface` from `config@1` merged config and canonical source records;
 7. hydrate `ModulePlan` from `module-manifest@1`;
-8. create `RuntimePathContext` from `ArtifactRuntimeInput`;
-9. create the exact `RuntimeContainerSeedSet`;
-10. build the runtime container from the already-read `container@1` envelope.
+8. create `RuntimeDiagnosticsInput` from the validated `config@1` payload's `appEnv` and loaded-generation state;
+9. create `RuntimePathContext` from `ArtifactRuntimeInput`;
+10. create the exact `RuntimeContainerSeedSet`;
+11. build the runtime container from the already-read `container@1` envelope.
 
 The exact entrypoint-owned runtime seeds are:
 
@@ -1072,6 +1078,7 @@ The exact entrypoint-owned runtime seeds are:
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
 ```
 
 The explicit law is:
@@ -1156,7 +1163,7 @@ Phase A boot code is isolated from runtime lifecycle/reset infrastructure.
 
 Artifact-only runtime boot does not re-run Bootstrap Phase A or ConfigKernel Phase B.
 
-`ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext` can be restored as runtime objects without source-provider execution.
+`ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `RuntimeDiagnosticsInput` can be materialized as runtime objects without source-provider execution.
 
 Absolute runtime path state remains outside generated artifacts, compiled graphs, and fingerprint input.
 
@@ -1491,7 +1498,8 @@ Verification must prove:
 - artifact-only runtime hydration does not execute Bootstrap Phase A;
 - artifact-only runtime hydration does not execute ConfigKernel Phase B;
 - `ArtifactRuntimeInput` is an entrypoint input rather than an artifact payload;
-- artifact-only runtime hydration produces exactly `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+- artifact-only runtime hydration produces exactly `ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `RuntimeDiagnosticsInput`;
+- the runtime diagnostics environment is the frozen bootstrap environment preserved in validated `config@1` metadata, not a newly resolved environment;
 - runtime seed ids cannot be supplied arbitrarily;
 - absolute runtime path state is absent from generated artifacts, compiled graphs, and fingerprint input;
 - `ArtifactRuntimeBooter` accepts only an artifact root and cannot accept caller-selected individual artifact paths;

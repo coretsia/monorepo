@@ -50,6 +50,7 @@ use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
 use Coretsia\Platform\Http\HttpKernel;
@@ -117,7 +118,13 @@ final readonly class SystemEndpointRuntimeFixture
             $http['context']['enrich']['enabled'] = false;
             $http['request']['json']['enabled'] = false;
             $http['security_headers']['enabled'] = true;
-            $http = \array_replace_recursive($http, $options['http'] ?? []);
+            $overrides = $options['http'] ?? [];
+            $debug = $http['debug'];
+            $http = \array_replace_recursive($http, $overrides);
+
+            if (\array_key_exists('debug', $overrides)) {
+                $http['debug'] = self::replaceDebugConfiguration($debug, $overrides['debug']);
+            }
             if ($options['earlier'] ?? false) {
                 $http['middleware']['app_pre'][] = SystemEndpointEarlierMiddleware::class;
             }
@@ -133,7 +140,12 @@ final readonly class SystemEndpointRuntimeFixture
             $providers = [
                 ['core.foundation', new FoundationServiceProvider(), []],
                 ['core.kernel', new KernelServiceProvider(), ['core.foundation']],
-                ['platform.http', new HttpServiceProvider(), ['core.foundation', 'core.kernel']],
+                ['platform.redaction', new RedactionServiceProvider(), ['core.foundation']],
+                [
+                    'platform.http',
+                    new HttpServiceProvider(),
+                    ['core.foundation', 'core.kernel', 'platform.redaction'],
+                ],
             ];
             if ($metricsModule) {
                 $config['metrics'] = require $packages . '/platform/metrics/config/metrics.php';
@@ -142,7 +154,6 @@ final readonly class SystemEndpointRuntimeFixture
             if ($problemDetails || $reporter) {
                 $config['errors'] = require $packages . '/platform/errors/config/errors.php';
                 $config['errors']['reporting']['enabled'] = $reporter;
-                $providers[] = ['platform.redaction', new RedactionServiceProvider(), ['core.foundation']];
                 $providers[] = [
                     'platform.errors',
                     new ErrorsServiceProvider(),
@@ -238,12 +249,24 @@ final readonly class SystemEndpointRuntimeFixture
 
             $set = $definitions->build();
             $paths = new RuntimePathContext($root, $root . '/var/cache');
-            $repository = new ArrayConfigRepository($config);
+            $repository = new ArrayConfigRepository($config, $options['sources'] ?? []);
+
+            // Compiled graph reconstruction alone does not load an artifact generation.
+            // A loaded-generation state is an explicitly supplied synthetic fixture input.
+            $diagnostics = new RuntimeDiagnosticsInput(
+                $options['appEnv'] ?? 'test',
+                $options['artifactGenerationLoaded'] ?? false,
+            );
+
+            if ($mode === 'source' && $diagnostics->artifactGenerationLoaded()) {
+                throw new \InvalidArgumentException('http-endpoint-fixture-generation-state-invalid');
+            }
             if ($mode === 'source') {
                 $builder = new ContainerBuilder($config);
                 $builder->instance(ConfigRepositoryInterface::class, $repository);
                 $builder->instance(TagRegistry::class, $builder->tagRegistry());
                 $builder->instance(ModulePlan::class, $plan);
+                $builder->instance(RuntimeDiagnosticsInput::class, $diagnostics);
                 $builder->instance(RuntimePathContext::class, $paths);
                 $container = $builder->applyDefinitions($set)->build();
             } elseif ($mode === 'compiled') {
@@ -259,6 +282,7 @@ final readonly class SystemEndpointRuntimeFixture
                     new RuntimeContainerSeedSet([
                         ConfigRepositoryInterface::class => $repository,
                         ModulePlan::class => $plan,
+                        RuntimeDiagnosticsInput::class => $diagnostics,
                         RuntimePathContext::class => $paths,
                     ]),
                 );
@@ -328,15 +352,19 @@ final readonly class SystemEndpointRuntimeFixture
 
     public function makeMaintenanceUnavailable(): void
     {
-        if (!\mkdir($this->root . '/var', 0700) || \file_put_contents(
-            $this->root . '/var/maintenance',
-            'blocked',
-        ) === false) {
+        if (
+            !\mkdir($this->root . '/var', 0700)
+            || \file_put_contents($this->root . '/var/maintenance', 'blocked') === false
+        ) {
             throw new \RuntimeException('http-endpoint-fixture-maintenance-failed');
         }
     }
 
-    /** @param array<string, list<string>> $headers */
+    /**
+     * @param array<string, list<string>> $headers
+     * @param array<string, mixed> $serverParams
+     * @param array<string, mixed> $attributes
+     */
     public function request(
         string $method,
         string $path,
@@ -344,6 +372,8 @@ final readonly class SystemEndpointRuntimeFixture
         array $headers = [],
         ?\Throwable $uriFailure = null,
         ?\Throwable $pathFailure = null,
+        array $serverParams = [],
+        array $attributes = [],
     ): ServerRequestInterface {
         $uri = ($this->stub)(UriInterface::class);
         $uri->method('getPath')->willReturnCallback(static function () use ($path, $pathFailure): string {
@@ -360,6 +390,37 @@ final readonly class SystemEndpointRuntimeFixture
 
         $request = ($this->stub)(ServerRequestInterface::class);
         $request->method('getMethod')->willReturn($method);
+        $request->method('getServerParams')->willReturn($serverParams);
+        $request->method('getAttributes')->willReturn($attributes);
+        $request->method('getAttribute')->willReturnCallback(
+            static fn (string $name, mixed $default = null): mixed => \array_key_exists($name, $attributes)
+                ? $attributes[$name]
+                : $default,
+        );
+        $request->method('withAttribute')->willReturnCallback(
+            fn (string $name, mixed $value): ServerRequestInterface => $this->request(
+                $method,
+                $path,
+                $query,
+                $headers,
+                $uriFailure,
+                $pathFailure,
+                $serverParams,
+                \array_replace($attributes, [$name => $value]),
+            ),
+        );
+        $request->method('withoutAttribute')->willReturnCallback(
+            fn (string $name): ServerRequestInterface => $this->request(
+                $method,
+                $path,
+                $query,
+                $headers,
+                $uriFailure,
+                $pathFailure,
+                $serverParams,
+                \array_diff_key($attributes, [$name => true]),
+            ),
+        );
         $request->method('getUri')->willReturnCallback(static function () use ($uri, $uriFailure): UriInterface {
             if ($uriFailure !== null) {
                 throw $uriFailure;
@@ -376,6 +437,26 @@ final readonly class SystemEndpointRuntimeFixture
     public function close(): void
     {
         self::removeTree($this->root);
+    }
+
+    /**
+     * @param array<string, mixed> $defaults
+     */
+    private static function replaceDebugConfiguration(array $defaults, mixed $overrides): mixed
+    {
+        if (!\is_array($overrides) || \array_is_list($overrides)) {
+            return $overrides;
+        }
+
+        foreach ($overrides as $key => $value) {
+            $current = $defaults[$key] ?? null;
+
+            $defaults[$key] = \is_array($current) && !\array_is_list($current)
+                ? self::replaceDebugConfiguration($current, $value)
+                : $value;
+        }
+
+        return $defaults;
     }
 
     private static function removeTree(string $path): void

@@ -19,10 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Boot;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Config\Source\ConfigValueSourceArtifactHydrator;
 use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanArtifactHydrator;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 
 /**
@@ -37,19 +40,6 @@ use Coretsia\Kernel\Runtime\RuntimePathContext;
  */
 final readonly class ArtifactRuntimeSeedFactory
 {
-    /**
-     * @var list<string>
-     */
-    private const array CONFIG_PAYLOAD_KEYS = [
-        'config',
-        'configSourceFiles',
-        'envOverlayMappings',
-        'owners',
-        'sources',
-        'validation',
-        'validationSubjects',
-    ];
-
     public function __construct(
         private ModulePlanArtifactHydrator $modulePlanHydrator = new ModulePlanArtifactHydrator(),
     ) {
@@ -61,11 +51,13 @@ final readonly class ArtifactRuntimeSeedFactory
      *
      * @param array<string, mixed> $configPayload
      */
-    public function hydrateConfigRepository(
-        array $configPayload,
-    ): ArrayConfigRepository {
+    public function hydrateConfigRepository(array $configPayload): ArrayConfigRepository
+    {
+        $config = self::configFromPayload($configPayload);
+
         return new ArrayConfigRepository(
-            self::configFromPayload($configPayload),
+            config: $config,
+            sources: ConfigValueSourceArtifactHydrator::hydrate($configPayload['sources']),
         );
     }
 
@@ -75,21 +67,41 @@ final readonly class ArtifactRuntimeSeedFactory
      *
      * @param array<string, mixed> $moduleManifestPayload
      */
-    public function hydrateModulePlan(
-        array $moduleManifestPayload,
-    ): ModulePlan {
+    public function hydrateModulePlan(array $moduleManifestPayload): ModulePlan
+    {
         return $this->modulePlanHydrator->hydrate($moduleManifestPayload);
     }
 
     /**
      * Creates the exact runtime seed set from already hydrated runtime
-     * instances.
+     * instances and the validated config payload. The boot caller supplies
+     * the loaded-generation status explicitly after generation validation.
+     *
+     * @param array<string, mixed> $configPayload
      */
     public function create(
         ArtifactRuntimeInput $input,
         ConfigRepositoryInterface $configRepository,
         ModulePlan $modulePlan,
+        array $configPayload,
+        bool $artifactGenerationLoaded,
     ): RuntimeContainerSeedSet {
+        self::assertExactKeys(
+            map: $configPayload,
+            expectedKeys: CompiledConfigBuilder::PAYLOAD_KEYS,
+        );
+
+        $appEnv = $configPayload['appEnv'];
+
+        if (!\is_string($appEnv) || $appEnv === '') {
+            throw new \InvalidArgumentException('artifact-runtime-config-payload-invalid');
+        }
+
+        $runtimeDiagnosticsInput = new RuntimeDiagnosticsInput(
+            appEnv: $appEnv,
+            artifactGenerationLoaded: $artifactGenerationLoaded,
+        );
+
         $runtimePathContext = new RuntimePathContext(
             applicationRoot: $input->applicationRoot(),
             artifactRoot: $input->artifactRoot(),
@@ -99,6 +111,7 @@ final readonly class ArtifactRuntimeSeedFactory
             ConfigRepositoryInterface::class => $configRepository,
             ModulePlan::class => $modulePlan,
             RuntimePathContext::class => $runtimePathContext,
+            RuntimeDiagnosticsInput::class => $runtimeDiagnosticsInput,
         ]);
     }
 
@@ -111,7 +124,7 @@ final readonly class ArtifactRuntimeSeedFactory
     {
         self::assertExactKeys(
             map: $configPayload,
-            expectedKeys: self::CONFIG_PAYLOAD_KEYS,
+            expectedKeys: CompiledConfigBuilder::PAYLOAD_KEYS,
         );
 
         $config = $configPayload['config'] ?? null;

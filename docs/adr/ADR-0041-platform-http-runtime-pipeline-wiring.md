@@ -58,13 +58,19 @@ The logical request-phase order is `system_pre`, `system`, `app_pre`, `app`, `ro
 
 The canonical terminal is `FallbackRouterHandler`, exposed through the existing `RequestHandlerInterface` alias. It delegates exactly once to the shared `FallbackRouter` and returns a dispatched response unchanged or delegates unmatched response construction to `FallbackResponses`, preserving the safe empty-body HTTP `404`.
 
-`FallbackRouter` consumes the canonical declarations through `ReservedPathMatcher` and implements only explicitly supported system endpoints and reserved endpoint fallback responses. `FallbackResponses` owns deterministic response construction through the selected PSR-17 factories and canonical Foundation JSON serialization.
+`FallbackRouter` consumes the canonical declarations through `ReservedPathMatcher` and implements only explicitly supported system endpoints, reserved endpoint fallback responses, and delegation to `DebugRouter` for the canonical `dev_only` prefix `/_debug/`. `FallbackResponses` owns deterministic response construction through the selected PSR-17 factories and canonical Foundation JSON serialization.
 
 `HttpServiceProvider` registers these services through canonical declarative DI with explicit mandatory dependencies, including the existing Foundation-owned clock and canonical meter port. Source and compiled containers preserve equivalent shared service identities and effective binding precedence.
 
 Terminal dispatch occurs only when the middleware chain delegates to the terminal handler. Earlier middleware responses retain precedence. Returned terminal responses and original Throwables follow the existing decorator, error-boundary, and `HttpKernel` completion semantics.
 
-The canonical terminal behavior is defined by `docs/ssot/http-system-endpoints.md`. It does not introduce general application routing, routing delegation, route admission, endpoint authorization, or inferred route metadata.
+The canonical terminal behavior is defined by `docs/ssot/http-system-endpoints.md`. It does not introduce general application routing, application routing delegation, application route admission or authorization, or inferred route metadata.
+
+`DebugRouter` claims only the exact case-sensitive `GET` requests for `/_debug/headers`, `/_debug/modules`, `/_debug/config`, and `/_debug/cache` using the original URI path. The exact `/_debug` declaration and unsupported paths remain unmatched. `DebugGuard` requires enabled debug configuration, the authoritative frozen `local` or `dev` environment from the Kernel-owned `RuntimeDiagnosticsInput`, and explicitly selected `platform.problem-details` in the runtime `ModulePlan`. Ineligible requests remain unmatched; eligible denied requests throw the fixed `DebugForbiddenException` for canonical normalization and selected Problem Details rendering.
+
+The guard owns exact client-IP, trusted-proxy, token-digest, operation and config-key admission for these diagnostics only. The handlers consume canonical redaction ports, module plan, config provenance and boot-selected generation status, without source discovery or artifact inspection. Redaction is a required runtime module dependency of HTTP; HTTP consumes its contracts-level ports rather than concrete Redaction implementation classes.
+
+The debug services are shared declarative terminal dependencies, not middleware. They do not participate in the nine slots, alter the error boundary, bypass maintenance or other earlier middleware, construct an additional routing registry, or introduce another lifecycle or response-finalization boundary.
 
 `TagRegistry::all()` remains the sole tagged-discovery and ordering authority: priority descending, then service id ascending by byte-order comparison. Each slot appends configured manual service ids after its tagged entries and preserves their configured order. The first effective occurrence within one slot wins; participation in multiple effective slots is rejected. HTTP does not create another sorter, registry, deduplication service, or container-specific middleware resolver. HTTP metadata and conditional participation remain defined in `docs/ssot/http-middleware-wiring.md`.
 
@@ -173,7 +179,13 @@ There is no general application route matching, route metadata extraction, infer
 
 When metrics are enabled, completed response decisions trigger a counter increment attempt after successful response construction. The intentional error decision triggers a counter increment attempt immediately before throwing, with status `unknown`. Emission failures are isolated without retries, replacement of a completed response, or suppression of the intentional Throwable.
 
-Terminal endpoint decisions remain independent of subsequent response decoration, finalization, request completion, and Kernel lifecycle outcomes. They do not introduce another completion observer, access-log event, request span, or reset boundary. Canonical metric semantics remain defined by `docs/ssot/observability.md` and `docs/ssot/http-system-endpoints.md`.
+Ordinary system-endpoint decisions remain independent of subsequent response decoration, finalization, request completion, and Kernel lifecycle outcomes. They do not introduce another completion observer, access-log event, request span, or reset boundary.
+
+`DebugRouter` owns separate debug-decision observability. The validated `http.metrics.enabled` setting controls `http.debug_total` with exactly the `operation` and `outcome` labels. Operations are `headers`, `modules`, `config`, and `cache`; outcomes are `allowed` and `blocked`. When enabled, each completed eligible decision attempts exactly one increment with value `1`. Independently, `http.access_log.enabled` controls the PSR-3 warning event `http.debug.blocked` with exactly the producer-supplied field `operation` for a blocked decision.
+
+An allowed decision completes after successful diagnostic response construction; a blocked decision completes before the fixed forbidden exception propagates. Unmatched or ineligible requests, missing authorized config keys, and unrelated handler or response-construction failures do not complete debug decisions. Meter and logger failures are isolated independently without retries. Debug decisions are not duplicated through `http.system_endpoint_total` and remain independent of subsequent response finalization and request completion. They do not introduce additional request spans, route metadata, completion observers, or lifecycle ownership.
+
+Canonical decision observability remains defined by `docs/ssot/observability.md` and `docs/ssot/http-system-endpoints.md`.
 
 ### Decision 7: Use declarative, target-local PSR-17 factory selection
 
@@ -344,7 +356,7 @@ The effective target-local configuration controls middleware participation and t
 
 ## Non-goals
 
-This decision does not implement general application routing, route admission, endpoint authorization, routing delegation contracts, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, or rate limiting. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
+This decision does not implement general application routing, application route admission or authorization, application routing delegation contracts, request-from-globals transport adapters, or SAPI response emission. It does not perform application/distribution Composer package installation or introduce a new driver matrix, HTTP capability registry, alternate DI container, PSR request/response implementation, provider-discovery mechanism, runtime factory fallback, or additional middleware tags. It does not define a second error normalization, Problem Details renderer, redaction owner, logging backend, metrics collector, span-parent linkage mechanism, observer registry, UnitOfWork lifecycle, or reset implementation. It does not infer route templates or implement CORS, uploads, or rate limiting. It does not implement HSTS, CSP nonce generation, request-dependent security headers, TLS termination, or transport-level HTTPS enforcement.
 
 Maintenance does not implement system endpoints, distributed maintenance-state synchronization, crash-transactional filesystem updates, target-specific activation, CLI or Worker suspension, or another generated-artifact lifecycle.
 
@@ -365,6 +377,8 @@ HTTPS redirect verification must cover canonical priority and conditional partic
 Maintenance verification must cover exact priority and toggle metadata, static participation and dynamic activation independence, same-slot deduplication, application-root resolution, shared declarative state-store wiring, source/compiled container parity, strict version-1 message validation, safe filesystem operations, idempotent mutations, retained-message handling, and runtime-state visibility without rebuilding services.
 
 Terminal integration verification must cover canonical system-endpoint eligibility and response contracts, reserved endpoint fallback semantics, earlier middleware precedence, unmatched empty-body `404` responses, mandatory shared endpoint dependencies, clock and PSR-17 binding overrides, canonical matcher consumption, intentional Throwable propagation, and independently isolated endpoint-decision observability. Endpoint decisions must not alter canonical response finalization, request-level observations, UnitOfWork completion, or reset discipline.
+
+Debug integration verification must cover exact original-path dispatch, authoritative environment and selected-module eligibility, fail-closed IP and token admission, operation and config-key allowlists, bounded safe response projections, mandatory shared redaction dependencies, source/compiled runtime parity, boot-selected generation status, canonical forbidden normalization and public rendering, earlier middleware precedence, and independently isolated debug decisions without altering finalized request observations or UnitOfWork completion.
 
 HTTP integration verification must cover deterministic maintenance responses, retry-delay selection, HEAD behavior, exact liveness bypass, invalid-message fallback, unavailable-state fail-closed behavior, precedence over downstream request processing, bounded decision observability, applicable post-decorator traversal, canonical finalization, Throwable precedence, and unchanged Kernel completion and reset discipline.
 
@@ -391,6 +405,7 @@ Sequential HTTP isolation verification follows the requirements defined by `docs
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](../ssot/observability.md)
 - [Logging Policy SSoT](../ssot/logging-policy.md)
 - [Problem Details SSoT](../ssot/problem-details.md)
+- [Sensitive Data Redaction SSoT](../ssot/sensitive-data-redaction.md)
 - [Artifacts and Fingerprint Behavior](../ssot/artifacts-and-fingerprint.md)
 
 ## Related ADRs

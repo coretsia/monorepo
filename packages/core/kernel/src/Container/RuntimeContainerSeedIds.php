@@ -22,6 +22,7 @@ use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 
@@ -52,6 +53,7 @@ final class RuntimeContainerSeedIds
         ConfigRepositoryInterface::class,
         ModulePlan::class,
         RuntimePathContext::class,
+        RuntimeDiagnosticsInput::class,
     ];
 
     private function __construct()

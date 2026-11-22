@@ -19,8 +19,10 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Artifacts\Verifier;
 
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
+use Coretsia\Kernel\Config\Source\ConfigValueSourceArtifactHydrator;
 use Coretsia\Kernel\Container\Definition\TagMetadataNormalizer;
 
 /**
@@ -122,19 +124,6 @@ final readonly class ArtifactSchemaValidator
         'conflicts',
         'moduleId',
         'requires',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    private const array CONFIG_PAYLOAD_KEYS = [
-        'config',
-        'configSourceFiles',
-        'envOverlayMappings',
-        'owners',
-        'sources',
-        'validation',
-        'validationSubjects',
     ];
 
     /**
@@ -463,7 +452,22 @@ final readonly class ArtifactSchemaValidator
             );
         }
 
-        self::assertExactMapKeys($payload, self::CONFIG_PAYLOAD_KEYS);
+        self::assertExactMapKeys($payload, CompiledConfigBuilder::PAYLOAD_KEYS);
+
+        $appEnv = $payload['appEnv'];
+
+        if (
+            !\is_string($appEnv)
+            || $appEnv === ''
+            || \trim($appEnv) !== $appEnv
+            || \str_contains($appEnv, "\r")
+            || \str_contains($appEnv, "\n")
+            || \preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $appEnv) === 1
+        ) {
+            throw ArtifactInvalidException::withReason(
+                ArtifactInvalidException::REASON_SCHEMA_INVALID,
+            );
+        }
 
         if (!\is_array($payload['config']) || \array_is_list($payload['config'])) {
             throw ArtifactInvalidException::withReason(
@@ -475,7 +479,7 @@ final readonly class ArtifactSchemaValidator
         $this->validateConfigSourceFiles($payload['configSourceFiles']);
         $this->validateEnvOverlayMappings($payload['envOverlayMappings']);
         $this->validateOwners($payload['owners']);
-        $this->validateSources($payload['sources']);
+        ConfigValueSourceArtifactHydrator::hydrate($payload['sources']);
         self::assertJsonLikeMapValue($payload['validation']);
         $this->validateValidationSubjects($payload['validationSubjects']);
     }
@@ -669,105 +673,6 @@ final readonly class ArtifactSchemaValidator
             }
 
             self::assertSafeMetadataMap($owner);
-        }
-    }
-
-    /**
-     * @throws ArtifactInvalidException
-     */
-    private function validateSources(mixed $sources): void
-    {
-        if (!\is_array($sources) || !\array_is_list($sources)) {
-            throw ArtifactInvalidException::withReason(
-                ArtifactInvalidException::REASON_SCHEMA_INVALID,
-            );
-        }
-
-        foreach ($sources as $source) {
-            if (!\is_array($source) || \array_is_list($source)) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-
-            foreach (['precedence', 'redacted', 'root', 'schemaVersion', 'sourceId', 'type'] as $required) {
-                if (!\array_key_exists($required, $source)) {
-                    throw ArtifactInvalidException::withReason(
-                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                    );
-                }
-            }
-
-            if (
-                !\is_int($source['precedence'])
-                || $source['precedence'] < 0
-                || !\is_bool($source['redacted'])
-                || !\is_string($source['root'])
-                || !self::isSafeRoot($source['root'])
-                || !\is_int($source['schemaVersion'])
-                || $source['schemaVersion'] < 1
-                || !\is_string($source['sourceId'])
-                || !self::isSafeLogicalIdentifier($source['sourceId'])
-                || !\is_string($source['type'])
-                || !self::isSafeToken($source['type'])
-            ) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-
-            if (\array_key_exists('path', $source) && (
-                !\is_string($source['path'])
-                    || !self::isSafeRelativePath($source['path'])
-            )) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-
-            if (\array_key_exists('keyPath', $source) && (
-                !\is_string($source['keyPath'])
-                    || \preg_match(self::CONFIG_PATH_PATTERN, $source['keyPath']) !== 1
-            )) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-
-            if (\array_key_exists('directive', $source) && (
-                !\is_string($source['directive'])
-                    || !self::isSafeToken($source['directive'])
-            )) {
-                throw ArtifactInvalidException::withReason(
-                    ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                );
-            }
-
-            if (\array_key_exists('meta', $source)) {
-                if (!\is_array($source['meta']) || \array_is_list($source['meta'])) {
-                    throw ArtifactInvalidException::withReason(
-                        ArtifactInvalidException::REASON_SCHEMA_INVALID,
-                    );
-                }
-
-                self::assertSafeMetadataMap($source['meta']);
-            }
-
-            self::assertNoUnknownKeys(
-                $source,
-                [
-                    'directive',
-                    'keyPath',
-                    'meta',
-                    'path',
-                    'precedence',
-                    'redacted',
-                    'root',
-                    'schemaVersion',
-                    'sourceId',
-                    'type'
-                ],
-            );
         }
     }
 

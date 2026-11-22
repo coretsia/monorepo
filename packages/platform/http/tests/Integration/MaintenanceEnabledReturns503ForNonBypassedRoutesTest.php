@@ -69,6 +69,7 @@ use Coretsia\Platform\Http\Tests\Support\FilesystemPermissionTestSupport;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -377,7 +378,7 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
             [],
             \array_values(
                 \array_filter($this->counters, static fn (array $row): bool => $row[0] === 'http.maintenance_total'),
-            )
+            ),
         );
     }
 
@@ -438,7 +439,7 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
         self::assertCount(2, $this->counters);
         self::assertSame(
             [['info', 'http.maintenance.served', ['outcome' => 'served', 'status' => 503]]],
-            $this->maintenanceLogs()
+            $this->maintenanceLogs(),
         );
     }
 
@@ -668,7 +669,9 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
         $http['request']['json']['enabled'] = true;
         $http['tracing']['enabled'] = true;
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
         $tags = new TagRegistry();
         $services = [MaintenanceMiddleware::class => $middleware];
         foreach ($definitions->build()->toDescriptorStream() as $operation) {
@@ -788,7 +791,7 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
         );
         return HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
         );

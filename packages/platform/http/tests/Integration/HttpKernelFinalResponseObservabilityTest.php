@@ -53,6 +53,7 @@ use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdapter;
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -80,7 +81,9 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         $http['request_id']['enabled'] = $requestIdEnabled;
 
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
         $operations = $definitions->build()->toDescriptorStream();
 
         $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
@@ -171,7 +174,9 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
 
         $http['request_id']['enabled'] = !$requestIdEnabled;
         $opposite = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($opposite, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($opposite, $context);
+        new HttpServiceProvider()->define($opposite, $context);
 
         foreach ($operations as &$operation) {
             if (
@@ -725,7 +730,9 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         $http[$disabled]['enabled'] = false;
         $http['request_id']['enabled'] = $flags['request_id'];
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
         $expectedFlags = [
             HttpResponseFinalizer::class => $flags['correlation'],
             HttpRequestMetricsRecorder::class => $flags['metrics'],

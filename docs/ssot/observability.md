@@ -185,6 +185,7 @@ The method/type mapping is canonical:
 | http.https_redirect_total                | `platform/http`   | counter | `outcome`                        |
 | http.maintenance_total                   | `platform/http`   | counter | `outcome`                        |
 | http.system_endpoint_total               | `platform/http`   | counter | `operation`, `status`, `outcome` |
+| http.debug_total                         | `platform/http`   | counter | `operation`, `outcome`           |
 | cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`           |
 | cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`           |
 | error.map_total                          | `platform/errors` | counter | `operation`, `outcome`           |
@@ -668,7 +669,7 @@ When `http.metrics.enabled` is `true`, `FallbackRouter` MUST attempt the counter
 
 `FallbackRouter` MUST attempt exactly one `MeterPortInterface::increment()` call with value `1` per completed claimed endpoint decision when `http.metrics.enabled` is `true`.
 
-Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and requests short-circuited before terminal dispatch MUST NOT produce system-endpoint decision metrics.
+Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, debug operations, and requests short-circuited before terminal dispatch MUST NOT produce `http.system_endpoint_total` observations.
 
 Metric emission failures MUST be observability-isolated and MUST NOT be retried, replace a completed response, suppress the intentional Throwable, or interfere with canonical HTTP request completion. An increment attempt does not establish successful backend recording.
 
@@ -686,7 +687,44 @@ Endpoint-decision outcomes MUST NOT replace or reinterpret finalized HTTP reques
 
 System-endpoint decision labels MUST NOT contain raw paths, query strings, headers, credentials, request or correlation identifiers, Throwable messages, configuration, environment values, or backend availability data.
 
-Terminal endpoint services MUST NOT emit additional spans, duration metrics, logs, request completion events, or Kernel lifecycle signals.
+Ordinary system-endpoint services MUST NOT emit additional spans, duration metrics, logs, request completion events, or Kernel lifecycle signals.
+
+### HTTP debug observability policy
+
+Debug-decision observability is owned by `platform/http` through `DebugRouter` at the canonical terminal dispatch boundary, not an HTTP middleware. Eligibility, guard decisions, diagnostic response construction, and unmatched behavior are governed by [HTTP System Endpoints SSoT](./http-system-endpoints.md).
+
+The canonical metric is:
+
+```text
+http.debug_total
+```
+
+This metric is a `counter` and MUST use exactly the following label keys and allowed values:
+
+- `operation`: `headers`, `modules`, `config`, or `cache`;
+- `outcome`: `allowed` or `blocked`.
+
+No other label keys or values are permitted. Each operation permits both outcomes.
+
+When `http.metrics.enabled` is `true`, `DebugRouter` MUST attempt exactly one `MeterPortInterface::increment()` call with value `1` for each completed eligible debug decision. When disabled, it MUST NOT attempt the counter increment.
+
+An `allowed` decision requires successful diagnostic response construction, including all required immutable response mutations. A `blocked` decision is observed immediately before throwing or rethrowing the canonical forbidden exception for an access or config-key policy denial.
+
+When `http.access_log.enabled` is `true`, `DebugRouter` MUST attempt exactly one PSR-3 `warning` log per completed blocked decision using the fixed event identifier:
+
+```text
+http.debug.blocked
+```
+
+Its producer-supplied context MUST contain exactly the `operation` field with the same bounded operation value as the counter. Allowed decisions MUST NOT emit this warning. Disabled access logging MUST NOT attempt warning emission. Canonical Logging admission, enrichment, redaction, and sink ownership remain unchanged.
+
+Unsupported methods, invalid matcher inputs, unmatched paths, disabled or ineligible diagnostics, missing authorized config keys, and earlier middleware short-circuits MUST NOT produce debug-decision metrics or warning events. Unrelated diagnostic handler failures and failed response construction MUST NOT be recorded as completed allowed or blocked decisions.
+
+Metric and warning emission MUST be independently failure-isolated, without retries. A failure of one observation MUST NOT prevent the other attempt when enabled, replace the completed response, suppress the canonical forbidden exception, or interfere with HTTP completion. Canonical noop ports remain valid and an attempted observation does not guarantee backend recording.
+
+Debug-decision observations MUST NOT be duplicated through `http.system_endpoint_total`. Completed decisions remain independent of subsequent response decoration, error rendering, finalization, and HTTP completion failures. The canonical request metrics, `http.request` span, `http.request.completed` event, and UnitOfWork outcome retain their finalized request semantics. A successfully finalized forbidden response has outcome `handled_error`.
+
+Debug labels and warning context MUST NOT contain raw paths, queries, headers, IP addresses, credentials, token digests, config keys or values, module or generation metadata, request identifiers, guard reasons, or Throwable data. No debug-specific span, duration metric, additional request completion event, or lifecycle signal is permitted.
 
 ### CLI command observability policy
 

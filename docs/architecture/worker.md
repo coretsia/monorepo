@@ -481,15 +481,16 @@ WorkerTaskSourceResolver
 WorkerTaskSourceInterface
 ```
 
-The allowed external runtime seeds are:
+The canonical Kernel entrypoint-owned external runtime seeds are:
 
 ```text
 ConfigRepositoryInterface
 ModulePlan
 RuntimePathContext
+RuntimeDiagnosticsInput
 ```
 
-The remaining required ids must be supplied by the complete runtime graph.
+The Worker contribution requires the first three of these seeds; `RuntimeDiagnosticsInput` is supplied by Kernel boot as part of the complete shared runtime seed set, not as an additional Worker-specific required service. The remaining Worker required ids must be supplied by the complete runtime graph.
 
 `WorkerProcessDriverResolverInterface` is required because `WorkerSupervisor` performs a deferred lookup of only the selected concrete process driver.
 
@@ -1051,10 +1052,11 @@ with that input only.
 2. validates one selected generation;
 3. reads exact snapshots for all four generation files;
 4. validates generation metadata and fingerprints;
-5. hydrates `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
-6. builds the compiled runtime container.
+5. hydrates `ConfigRepositoryInterface` with merged config and canonical source records, and hydrates `ModulePlan`;
+6. creates `RuntimePathContext` and `RuntimeDiagnosticsInput`;
+7. supplies the exact runtime seed set and builds the compiled runtime container.
 
-These three objects form the exact entrypoint-owned runtime seed set.
+These four objects form the exact Kernel entrypoint-owned runtime seed set. Kernel hydrates `RuntimeDiagnosticsInput` from the authoritative `appEnv` in the validated `config@1` payload and the successfully loaded generation state. The input is immutable; it does not resolve the environment or rediscover artifacts. Worker does not construct a separate diagnostics input or hydrate its own seed set.
 
 The process-child artifact-only boot path MUST NOT:
 

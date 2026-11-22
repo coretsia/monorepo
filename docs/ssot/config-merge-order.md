@@ -342,6 +342,8 @@ The active Phase B pipeline is:
 13. Return final config plus safe Phase B provenance metadata.
 ```
 
+Effective source traces are constructed in lockstep with merging, using the recorded merge-entry order and the resulting concrete path changes. `ConfigMerger` remains responsible for applying merge directives to base values. Effective source selection consumes the resulting traces and MUST NOT reapply directives or independently merge config values.
+
 The active Phase B invariant is:
 
 ```text
@@ -997,6 +999,10 @@ Explain output MUST NOT control merge behavior.
 Explain output MUST NOT be feature-disabled through config.
 
 Explain is a baseline kernel capability, but whether it is produced is decided by the caller.
+
+The effective `sources` list is produced independently of the optional structured explain output. The source-host runtime repository consumes this list directly; artifact-only boot restores it from the validated `config@1` payload together with the merged config. Runtime hydration MUST NOT repeat Phase B or reconstruct provenance from merged values.
+
+`ConfigExplainer` and runtime `ConfigRepositoryInterface::sourceOf()` consume the shared effective-source selection policy defined by [Config Precedence Matrix](./config-precedence-matrix.md). Runtime `ConfigRepositoryInterface::explain()` returns the retained source records in deterministic order, not the structured ConfigKernel explain result. See [Config and env SSoT](./config-and-env.md) for the runtime port contract.
 
 ## Determinism rules
 

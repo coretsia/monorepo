@@ -36,6 +36,7 @@ use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Kernel\Ops\KernelOpsHostSeedConfigLoader;
 use Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -224,6 +225,18 @@ final class KernelOpsSourceHostServicesAreNotRuntimeDefinitionsContractTest exte
             self::assertNotContains($serviceId, $descriptorStrings);
             self::assertNotContains($serviceId, $requiredServiceIds);
         }
+    }
+
+    public function testSourceHostDiagnosticsFactoryNeverEntersRuntimeDefinitionDescriptors(): void
+    {
+        $definitions = self::completeRuntimeDefinitionSet(self::validConfig());
+        $descriptorStrings = self::stringsFromValue($definitions->toDescriptorStream());
+
+        self::assertContains(RuntimeDiagnosticsInput::class, RuntimeContainerSeedIds::entrypointOwned());
+        self::assertNotContains(RuntimeDiagnosticsInput::class, self::SOURCE_OPERATIONS_HOST_SERVICE_IDS);
+        self::assertNotContains(RuntimeDiagnosticsInput::class, $descriptorStrings);
+        self::assertNotContains(RuntimeDiagnosticsInput::class, $definitions->requiredServiceIds());
+        self::assertNotContains('runtimeDiagnosticsInput', $descriptorStrings);
     }
 
     private static function assertRejected(

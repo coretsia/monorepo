@@ -47,6 +47,7 @@ use Coretsia\Kernel\Module\ModuleSelectionFactory;
 use Coretsia\Kernel\Module\Preset\PresetNamespaceResolver;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Kernel\Runtime\UnitOfWorkType;
 use Coretsia\Kernel\Tests\Fixtures\LifecycleFixturePackage\LifecycleFailingObservability;
@@ -260,6 +261,7 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
 
             $configPayload = ArtifactPipelineTestSupport::configPayloadFromArtifact($temporaryApplicationRoot);
 
+            self::assertSame('test', $configPayload['appEnv'] ?? null);
             self::assertSame(
                 'fixture-package-default',
                 $configPayload['config']['lifecycle_fixture']['seed'] ?? null,
@@ -294,6 +296,20 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
             $containerPayload = $containerEnvelope['payload'] ?? null;
 
             self::assertIsArray($containerPayload);
+            self::assertIsArray($containerPayload['services'] ?? null);
+            self::assertIsArray($containerPayload['aliases'] ?? null);
+
+            foreach (
+                [
+                    ConfigRepositoryInterface::class,
+                    ModulePlan::class,
+                    RuntimePathContext::class,
+                    RuntimeDiagnosticsInput::class,
+                ] as $runtimeSeedId
+            ) {
+                self::assertArrayNotHasKey($runtimeSeedId, $containerPayload['services']);
+                self::assertArrayNotHasKey($runtimeSeedId, $containerPayload['aliases']);
+            }
 
             $statefulDefinition = $containerPayload['services'][LifecycleStatefulService::class] ?? null;
 
@@ -522,6 +538,13 @@ final class KernelCompileArtifactBootUowResetE2ETest extends TestCase
                 ),
                 $runtimePathContext->artifactRoot(),
             );
+
+            $runtimeDiagnosticsInput = $container->get(RuntimeDiagnosticsInput::class);
+
+            self::assertInstanceOf(RuntimeDiagnosticsInput::class, $runtimeDiagnosticsInput);
+            self::assertSame($configPayload['appEnv'], $runtimeDiagnosticsInput->appEnv());
+            self::assertTrue($runtimeDiagnosticsInput->artifactGenerationLoaded());
+            self::assertSame($runtimeDiagnosticsInput, $container->get(RuntimeDiagnosticsInput::class));
 
             $runtime = $container->get(KernelRuntime::class);
 

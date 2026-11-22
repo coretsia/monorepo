@@ -124,7 +124,10 @@ final class ArtifactGenerationManifestShapeContractTest extends TestCase
         $configEnvelope = new CompiledConfigBuilder($factory)->build(
             compiledConfig: self::compiledConfig(),
             fingerprint: $fingerprint,
+            appEnv: 'prod',
         );
+        self::assertSame(CompiledConfigBuilder::PAYLOAD_KEYS, \array_keys($configEnvelope['payload']));
+        self::assertSame('prod', $configEnvelope['payload']['appEnv']);
         $containerEnvelope = new CompiledContainerBuilder($factory)->build(
             graph: DefinitionGraph::empty(),
             fingerprint: $fingerprint,

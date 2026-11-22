@@ -22,6 +22,7 @@ use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\FingerprintSymlinkForbiddenException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
@@ -178,9 +179,7 @@ final readonly class ConfigFingerprintInputBuilder
         $modePresetSourceCandidates = $configSources->modePresetSourceCandidates();
 
         $applicationRoot = self::normalizeApplicationRoot($bootstrapConfig->applicationRoot());
-        $configuredApplicationIgnorePrefixes = self::applicationIgnorePrefixes(
-            $kernelConfig,
-        );
+        $configuredApplicationIgnorePrefixes = self::applicationIgnorePrefixes($kernelConfig);
 
         $effectiveApplicationIgnorePrefixes = self::mergeApplicationIgnorePrefixes(
             configuredPrefixes: $configuredApplicationIgnorePrefixes,
@@ -237,6 +236,7 @@ final readonly class ConfigFingerprintInputBuilder
                 $containerGraph,
             ),
             'compiledConfig' => [
+                'payloadKeys' => CompiledConfigBuilder::PAYLOAD_KEYS,
                 'roots' => self::compiledConfigRoots($compiledConfig[self::KEY_CONFIG]),
                 'valueFingerprints' => $this->compiledConfigValueFingerprints($compiledConfig[self::KEY_CONFIG]),
                 'sources' => self::sourceList($compiledConfig[self::KEY_SOURCES]),
@@ -864,10 +864,7 @@ final readonly class ConfigFingerprintInputBuilder
             || !@\is_dir($root)
             || (
                 $sourceId !== ('core/kernel:' . $relative)
-                && (
-                    $sourceId !== ('application:' . $relative)
-                    || $resolvedRoot !== @\realpath($applicationRoot)
-                )
+                && ($sourceId !== ('application:' . $relative) || $resolvedRoot !== @\realpath($applicationRoot))
             )
         ) {
             throw FingerprintSymlinkForbiddenException::withReason();
@@ -890,10 +887,7 @@ final readonly class ConfigFingerprintInputBuilder
             if (
                 $resolved === false
                 || !@\is_dir($resolved)
-                || (
-                    $resolved !== $root
-                    && !\str_starts_with($resolved, $prefix)
-                )
+                || ($resolved !== $root && !\str_starts_with($resolved, $prefix))
             ) {
                 throw FingerprintSymlinkForbiddenException::withReason();
             }
@@ -1800,49 +1794,66 @@ final readonly class ConfigFingerprintInputBuilder
      */
     private static function assertCompiledConfigShape(array $compiledConfig): void
     {
-        if (!isset($compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS]) || !\is_array(
-            $compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS],
-        )) {
+        if (
+            !isset($compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS])
+            || !\is_array($compiledConfig[self::KEY_ENV_OVERLAY_MAPPINGS])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-env-overlay-mappings-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_CONFIG_SOURCE_FILES]) || !\is_array(
-            $compiledConfig[self::KEY_CONFIG_SOURCE_FILES],
-        )) {
+        if (
+            !isset($compiledConfig[self::KEY_CONFIG_SOURCE_FILES])
+            || !\is_array($compiledConfig[self::KEY_CONFIG_SOURCE_FILES])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-config-source-files-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_CONFIG]) || !\is_array($compiledConfig[self::KEY_CONFIG])) {
+        if (
+            !isset($compiledConfig[self::KEY_CONFIG])
+            || !\is_array($compiledConfig[self::KEY_CONFIG])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-config-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_SOURCES]) || !\is_array($compiledConfig[self::KEY_SOURCES])) {
+        if (
+            !isset($compiledConfig[self::KEY_SOURCES])
+            || !\is_array($compiledConfig[self::KEY_SOURCES])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-sources-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_OWNERS]) || !\is_array($compiledConfig[self::KEY_OWNERS])) {
+        if (
+            !isset($compiledConfig[self::KEY_OWNERS])
+            || !\is_array($compiledConfig[self::KEY_OWNERS])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-owners-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_VALIDATION]) || !$compiledConfig[self::KEY_VALIDATION] instanceof ConfigValidationResult) {
+        if (
+            !isset($compiledConfig[self::KEY_VALIDATION])
+            || !$compiledConfig[self::KEY_VALIDATION] instanceof ConfigValidationResult
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS],
-        )) {
+        if (
+            !isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS])
+            || !\is_array($compiledConfig[self::KEY_VALIDATION_SUBJECTS])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-missing');
         }
 
-        if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated']) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated'],
-        )) {
+        if (
+            !isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated'])
+            || !\is_array($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['validated'])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-invalid');
         }
 
-        if (!isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated']) || !\is_array(
-            $compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated'],
-        )) {
+        if (
+            !isset($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated'])
+            || !\is_array($compiledConfig[self::KEY_VALIDATION_SUBJECTS]['unvalidated'])
+        ) {
             throw new \InvalidArgumentException('fingerprint-compiled-validation-subjects-invalid');
         }
     }

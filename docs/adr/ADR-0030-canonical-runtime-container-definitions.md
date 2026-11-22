@@ -218,7 +218,7 @@ It must not expose:
 - a container instance;
 - runtime services.
 
-`RuntimePathContext` is not part of `ContainerDefinitionContext`.
+`RuntimePathContext` and `RuntimeDiagnosticsInput` are not part of `ContainerDefinitionContext`. Neither the authoritative runtime environment nor the loaded-generation state may be supplied as an additional definition-production input.
 
 Absolute application or artifact roots must not be passed through definition context config roots, parameters, literal values, provider state, or descriptor fields.
 
@@ -567,15 +567,16 @@ artifact readers and writers
 ContainerCompiler
 ```
 
-`KernelServiceProvider::register()` may also register a source-host factory for:
+`KernelServiceProvider::register()` and Kernel source-host orchestration may also register source-host factories for:
 
 ```text
 RuntimePathContext
+RuntimeDiagnosticsInput
 ```
 
-The factory constructs `RuntimePathContext` from an already-resolved `BootstrapConfig`.
+These factories consume an already-resolved `BootstrapConfig`. The path-context factory constructs `RuntimePathContext`; the diagnostics factory constructs immutable `RuntimeDiagnosticsInput` with the frozen `BootstrapConfig::appEnv()` and loaded-generation state `false`. Neither factory executes Bootstrap Phase A or inspects artifacts for diagnostics.
 
-This factory is source-host wiring, not a Kernel runtime definition contribution.
+These factories are source-host wiring, not Kernel runtime definition contributions. Kernel Ops host orchestration reserves both ids as host-owned wiring and rejects runtime participation tags targeting them.
 
 `RuntimePathContext`:
 
@@ -588,17 +589,40 @@ This factory is source-host wiring, not a Kernel runtime definition contribution
 - must not be contributed as a service definition by `KernelServiceProvider::define()`;
 - must not be resolved from `BootstrapConfig` by Worker definitions.
 
-Its canonical service id may appear in required-service declarations and typed service references.
+`RuntimeDiagnosticsInput` follows the same external runtime-seed boundary:
+
+- it is immutable and carries only the authoritative environment and loaded-generation state;
+- it is not part of `ContainerDefinitionContext`;
+- it MUST NOT be defined or replaced by a runtime provider;
+- its instance MUST NOT enter definition values, descriptors, artifact payloads, or fingerprint input;
+- runtime diagnostics properties MUST NOT be exported from the seed into definition values, descriptors, artifact payloads, or fingerprint input;
+- the loaded-generation state MUST NOT participate in artifact payloads or fingerprint input.
+
+The authoritative `appEnv` is supplied independently by `BootstrapConfig::appEnv()` during artifact construction and fingerprint input construction. It MUST participate in `config@1` payload metadata and `bootstrap.appEnv` fingerprint input as defined by `docs/ssot/artifacts-and-fingerprint.md`. This compile-host metadata is not derived from `RuntimeDiagnosticsInput`.
+
+The canonical external runtime-seed service-id allowlist is:
+
+```text
+Coretsia\Foundation\Container\Container
+Psr\Container\ContainerInterface
+Coretsia\Foundation\Tag\TagRegistry
+Coretsia\Contracts\Config\ConfigRepositoryInterface
+Coretsia\Kernel\Module\ModulePlan
+Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
+```
+
+The first three ids are container-owned support ids. The remaining four ids constitute the exact entrypoint-owned runtime seed set. Providers may use external runtime seed ids in required-service declarations and canonical service argument references. They MUST NOT define or shadow those ids, use them as alias targets, service-method factory services, or tagged services.
+
+A provider consuming `RuntimeDiagnosticsInput` declares `requireService(RuntimeDiagnosticsInput::class)` and passes `ContainerValueReference::service(RuntimeDiagnosticsInput::class)` as the canonical service argument reference. Definition production does not resolve the input.
 
 Artifact representation of external runtime-seed service ids remains owned by the compiled-container SSoT.
 
-Source mode constructs it from already-resolved Phase A values.
-
-Artifact mode constructs it from explicit runtime input.
+Source mode constructs the path context and diagnostics input from already-resolved Phase A values. Artifact mode constructs the path context from explicit `ArtifactRuntimeInput` and the diagnostics input from validated `config@1` payload metadata and successfully loaded-generation state supplied by Kernel boot. Artifact mode does not resolve `BootstrapConfig`, invoke the source-host factories, or rediscover generations.
 
 The complete Worker runtime graph consumes `RuntimePathContext` as an external runtime seed and must not depend on `BootstrapConfig`.
 
-`KernelServiceProvider::define()` must not contribute compile-host services or the source-host `RuntimePathContext` factory to the canonical runtime definition graph.
+`KernelServiceProvider::define()` must not contribute compile-host services or either source-host runtime seed factory to the canonical runtime definition graph.
 
 The explicit law is:
 
@@ -860,6 +884,9 @@ This decision should be locked by tests covering:
 - `WorkerSupervisorInterface` remains unresolved until after runtime entrypoint validation;
 - only the selected matching task source is resolved;
 - `RuntimePathContext::class` remains present as a required runtime service id;
+- `RuntimeDiagnosticsInput::class` is accepted as an external required service id and service argument reference without entering canonical definitions;
+- the exact entrypoint-owned runtime seed set preserves source-host and artifact-only hydration ownership;
+- source-host diagnostics construction and host-owned tag protection do not leak into the compiled runtime graph;
 - the runtime context object and its path values never become definition values, generated artifact payload values, or fingerprint input;
 - production artifact compilation consumes complete provider-produced definition sets through `RuntimeContainerGraphCompiler`;
 - cache verification uses the same graph-production path as artifact compilation;

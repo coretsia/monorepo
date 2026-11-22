@@ -300,9 +300,13 @@ The returned tree MUST contain config data only.
 
 It MUST NOT contain closures, objects, resources, service instances, executable validators, filesystem handles, or runtime wiring objects.
 
-`sourceOf()` returns safe source metadata for a concrete key path when available.
+`sourceOf()` returns the effective `ConfigValueSource` for an existing concrete key path when authoritative source metadata is available. Effective source selection MUST follow the shared Kernel policy defined by [Config Precedence Matrix](./config-precedence-matrix.md).
 
-`explain()` returns a deterministic safe explain trace.
+`sourceOf()` MUST return `null` when the key is missing or no applicable source record is available. Consumers MUST use `has()` to distinguish these cases. An existing key whose value is `null` is present; unavailable provenance MUST NOT change its presence or value.
+
+`explain()` returns the deterministic list of safe `ConfigValueSource` records retained by the runtime repository. It is not the structured, caller-requested ConfigKernel explain output. An explicitly empty source list represents unavailable source metadata; the repository MUST NOT synthesize source records for missing keys or unknown provenance.
+
+Kernel source-host repository construction consumes the effective source records produced by ConfigKernel Phase B. Artifact-only runtime boot MUST restore the authoritative source records from the validated `config@1` payload's `sources` list as canonical `ConfigValueSource` instances, together with the merged config from `config`. Hydration MUST reject malformed or unsupported source records and MUST NOT rerun source discovery, merge, environment resolution, or explain generation. The source-host and artifact-only repositories MUST select equivalent effective sources for the same concrete paths and source records.
 
 `sourceOf()` and `explain()` MUST NOT expose raw config values, raw env values, secrets, absolute local paths, timestamps, random values, or host-specific bytes.
 

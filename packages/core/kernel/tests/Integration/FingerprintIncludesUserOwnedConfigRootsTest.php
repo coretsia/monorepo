@@ -144,7 +144,11 @@ final class FingerprintIncludesUserOwnedConfigRootsTest extends TestCase
         )->build(
             compiledConfig: $compiledConfig,
             fingerprint: \str_repeat('a', 64),
+            appEnv: self::bootstrapConfig()->appEnv(),
         );
+
+        self::assertSame(CompiledConfigBuilder::PAYLOAD_KEYS, \array_keys($artifact['payload']));
+        self::assertSame('prod', $artifact['payload']['appEnv']);
 
         self::assertSame(
             [

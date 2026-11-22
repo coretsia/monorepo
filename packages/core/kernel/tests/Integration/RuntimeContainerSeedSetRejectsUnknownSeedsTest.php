@@ -24,7 +24,9 @@ use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Container\RuntimeContainerSeedSet;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
@@ -36,6 +38,7 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         $expectedIds = [
             ConfigRepositoryInterface::class,
             ModulePlan::class,
+            RuntimeDiagnosticsInput::class,
             RuntimePathContext::class,
         ];
 
@@ -62,10 +65,11 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         new RuntimeContainerSeedSet($instances);
     }
 
-    public function testRejectsMissingSeedId(): void
+    #[DataProvider('runtimeSeedIdProvider')]
+    public function testRejectsMissingSeedId(string $runtimeSeedId): void
     {
         $instances = self::validInstances();
-        unset($instances[ModulePlan::class]);
+        unset($instances[$runtimeSeedId]);
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('runtime-container-seed-set-ids-invalid');
@@ -83,15 +87,27 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         );
     }
 
-    public function testRejectsObjectThatDoesNotMatchItsServiceId(): void
+    #[DataProvider('runtimeSeedIdProvider')]
+    public function testRejectsObjectThatDoesNotMatchItsServiceId(string $runtimeSeedId): void
     {
         $instances = self::validInstances();
-        $instances[ConfigRepositoryInterface::class] = new \stdClass();
+        $instances[$runtimeSeedId] = new \stdClass();
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('runtime-container-seed-set-instance-invalid');
 
         new RuntimeContainerSeedSet($instances);
+    }
+
+    /**
+     * @return iterable<string, array{class-string}>
+     */
+    public static function runtimeSeedIdProvider(): iterable
+    {
+        yield 'config repository' => [ConfigRepositoryInterface::class];
+        yield 'module plan' => [ModulePlan::class];
+        yield 'runtime diagnostics input' => [RuntimeDiagnosticsInput::class];
+        yield 'runtime path context' => [RuntimePathContext::class];
     }
 
     /**
@@ -103,11 +119,14 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
         $root = self::runtimeRoot();
 
         return [
-            ConfigRepositoryInterface::class => new ArrayConfigRepository([
-                'kernel' => [
-                    'runtime' => [],
+            ConfigRepositoryInterface::class => new ArrayConfigRepository(
+                config: [
+                    'kernel' => [
+                        'runtime' => [],
+                    ],
                 ],
-            ]),
+                sources: [],
+            ),
             ModulePlan::class => new ModulePlan(
                 app: 'worker',
                 enabled: [
@@ -127,6 +146,10 @@ final class RuntimeContainerSeedSetRejectsUnknownSeedsTest extends TestCase
             RuntimePathContext::class => new RuntimePathContext(
                 applicationRoot: $root,
                 artifactRoot: $root . '/var/cache/worker',
+            ),
+            RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                appEnv: 'prod',
+                artifactGenerationLoaded: false,
             ),
         ];
     }

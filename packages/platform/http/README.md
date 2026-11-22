@@ -16,9 +16,9 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, canonical terminal system-endpoint dispatch with safe unmatched responses, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, endpoint-decision, and final-request observability, canonical system-route declarations with concrete reserved-path matching, and deterministic terminal system-endpoint responses.
+Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and final-request observability, canonical system-route declarations with concrete reserved-path matching, deterministic terminal system-endpoint responses, and guarded development-only diagnostics.
 
-Out of scope: SAPI request creation and response emission, a packaged front controller, general application routing, application route admission, and endpoint authorization, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
+Out of scope: SAPI request creation and response emission, a packaged front controller, general application routing, application route admission and authorization, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
 This README is a consumer-oriented package summary. The normative wiring, lifecycle, and dependency contracts remain in the linked SSoT and ADR documents.
 
@@ -38,7 +38,7 @@ Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
 Per-package independent versions MUST NOT be used.
 
-Installing the Composer package makes its classes and metadata available; it does not select the `platform.http` module or activate HTTP handling. The consuming target must explicitly select `platform.http` through the existing Kernel module-selection process. The module declares only `core.foundation` and `core.kernel` as required runtime modules. Selection of optional Logging, Tracing, Metrics, or Problem Details modules is independent.
+Installing the Composer package makes its classes and metadata available; it does not select the `platform.http` module or activate HTTP handling. The consuming target must explicitly select `platform.http` through the existing Kernel module-selection process. The module declares `core.foundation`, `core.kernel`, and `platform.redaction` as required runtime modules. Selection of optional Logging, Tracing, Metrics, or Problem Details modules is independent. Debug endpoint eligibility additionally requires explicitly selected `platform.problem-details` in the runtime `ModulePlan`.
 
 ## Dependency policy
 
@@ -48,6 +48,7 @@ This package is runtime-safe and transport-neutral.
   - `core/contracts`
   - `core/foundation`
   - `core/kernel`
+  - `platform/redaction` (runtime-only Composer and module dependency)
   - `psr/http-message` (`^2.0`) for PSR-7 interfaces
   - `psr/http-factory` (`^1.0`) for PSR-17 interfaces
   - `psr/http-server-middleware` (`^1.0`) and `psr/http-server-handler` (`^1.0`) for PSR-15 interfaces
@@ -55,15 +56,15 @@ This package is runtime-safe and transport-neutral.
   - `psr/clock` (`^1.0`) for the canonical injected clock contract
 - Forbidden:
   - any `core/*` package other than `core/contracts`, `core/foundation`, and `core/kernel`
-  - other `platform/*` packages
+  - direct PHP source dependencies on other `platform/*` packages
   - `integrations/*`
   - `enterprise/*`
   - `devtools/*`
   - `presets/*`
 
-Production Composer requirements include PHP `^8.4` and the canonical release-line constraints for the three Coretsia core packages. The PSR requirements above are interface-only; `platform/http` MUST NOT require a concrete PSR-7/17 implementation or provide its own PSR message classes. The consuming application or distribution installs a compatible implementation. Neither HTTP bootstrap nor container compilation runs Composer.
+Production Composer requirements include PHP `^8.4`, the canonical release-line constraints for the three Coretsia core packages, and the runtime-only `coretsia/platform-redaction` dependency. The `platform.redaction` module supplies `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` through `core/contracts`. This runtime dependency does not grant a direct layered PHP source dependency on Redaction. The PSR requirements above are interface-only; `platform/http` MUST NOT require a concrete PSR-7/17 implementation or provide its own PSR message classes. The consuming application or distribution installs a compatible implementation. Neither HTTP bootstrap nor container compilation runs Composer.
 
-`platform/http` MUST NOT import or consume repository machinery under `tools/**`. It consumes the existing Kernel runtime-driver resolver without owning the driver matrix and MUST NOT depend on concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, or `platform/metrics` implementations. Optional integrations use existing contracts and tags, not direct source dependencies or required runtime modules.
+`platform/http` MUST NOT import or consume repository machinery under `tools/**`. It consumes the existing Kernel runtime-driver resolver without owning the driver matrix and MUST NOT import concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, or `platform/metrics` implementation classes. Optional integrations use existing contracts and tags, not direct source dependencies or required runtime modules.
 
 ## Runtime responsibilities
 
@@ -76,6 +77,7 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `FallbackRouterHandler` as the canonical terminal `RequestHandlerInterface` for system-endpoint dispatch and unmatched response delegation;
 - `FallbackRouter` for explicit canonical system-endpoint dispatch and endpoint-decision metrics;
 - `FallbackResponses` for deterministic endpoint and unmatched response construction through the selected PSR-17 factories;
+- `DebugRouter`, `DebugGuard`, `DebugHeadersHandler`, `DebugModuleListHandler`, `DebugConfigHandler`, and `DebugCacheHandler` for guarded terminal diagnostics and separate debug-decision observability;
 - `SystemRouteTable` as the canonical HTTP-owned versioned system-route declaration registry;
 - `ReservedPathMatcher` for stateless concrete reserved-path matching against the canonical declarations;
 - eight implemented `system_pre` middleware and their HTTP-owned request-safety, maintenance, and HTTPS redirect policies;
@@ -84,7 +86,7 @@ Production Composer requirements include PHP `^8.4` and the canonical release-li
 - `RequestIdPolicy` for optional HTTP request identity preparation and owner-local final-response identity verification outside the PSR-15 middleware chain;
 - `SecurityHeadersPolicy` for immutable configured security-header values and deterministic application through `HttpResponseFinalizer`;
 - the four stateless HTTP response-finalization and request-observability services;
-- `HttpExceptionMapper` for the four HTTP-owned safe failure types through the existing `error.mapper` tag.
+- `HttpExceptionMapper` for the five HTTP-owned safe failure types through the existing `error.mapper` tag.
 
 The package does not create a separate module resolver, DI layer, middleware registry, exception handler, request context store, or UnitOfWork lifecycle.
 
@@ -175,7 +177,7 @@ The canonical terminal `FallbackRouterHandler` delegates each request exactly on
 
 Terminal execution occurs only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses retain precedence over terminal dispatch. Returned responses remain subject to applicable post decorators and canonical `HttpKernel` finalization; original Throwables propagate through the existing error and lifecycle boundaries.
 
-Terminal dispatch does not implement general application routing, route admission, endpoint authorization, or route-template metadata handoff.
+Terminal dispatch does not implement general application routing, application route admission or authorization, or route-template metadata handoff. The development-only diagnostic guard applies exclusively to the four explicitly implemented debug operations.
 
 ## System route declarations and reserved-path matching
 
@@ -226,7 +228,7 @@ Canonical declaration and versioning requirements are governed by the [System Ro
 
 ## Terminal system endpoints
 
-`platform/http` materializes the explicitly supported active system endpoints and provides deterministic fallback responses for the reserved health and metrics declarations.
+`platform/http` materializes the explicitly supported active system endpoints, provides deterministic fallback responses for the reserved health and metrics declarations, and dispatches guarded development-only diagnostics under the canonical `/_debug/` prefix declaration.
 
 Terminal dispatch uses the canonical registry and matcher without maintaining an independent route table or path normalization policy. All normally constructed matched endpoint responses use `Cache-Control: no-store`.
 
@@ -296,25 +298,84 @@ Selecting `platform.metrics` alone does not activate an HTTP metrics endpoint. T
 
 The canonical health segment-prefix boundary excludes `/healthz`, `/healthz/ready`, and encoded slash aliases such as `/health%2Fready`. The exact metrics declaration excludes `/metrics/` and descendant paths.
 
+### Development-only debug endpoints
+
+The canonical exact `/_debug` and prefix `/_debug/` declarations retain status `dev_only`. Only the canonical prefix permits delegation from `FallbackRouter` to `DebugRouter`. The router accepts exactly the case-sensitive method `GET` and original URI paths `/_debug/headers`, `/_debug/modules`, `/_debug/config`, and `/_debug/cache`. The reserved root, unknown operations, trailing or repeated slashes, and encoded aliases remain unmatched.
+
+Debug eligibility requires all of the following:
+
+- `http.debug.endpoints.enabled=true`;
+- the authoritative frozen `RuntimeDiagnosticsInput::appEnv()` value is exactly `local` or `dev`;
+- the runtime `ModulePlan` contains enabled `platform.problem-details`.
+
+The environment comes from Kernel's resolved bootstrap environment in source mode and validated `config@1` metadata in artifact-only mode. Process environment changes, merged kernel defaults, and subsequent generation selection do not override it. Installing Problem Details without selecting its module is insufficient.
+
+An ineligible request remains unmatched. An eligible recognized operation must be individually enabled, have an allowlisted client IP, and supply exactly one valid `X-Debug-Token` header value. The token consists of 64 lowercase hexadecimal characters representing 32 cryptographically secure random bytes; the configured non-empty digest consists of 64 lowercase hexadecimal characters and is compared against the SHA-256 digest of the token with `hash_equals()`. Only the digest belongs in configuration. An empty digest or IP allowlist denies access.
+
+The client identity is resolved through the existing trusted-proxy policy. An untrusted immediate peer must have a canonical `REMOTE_ADDR` in the exact debug IP allowlist; forwarded metadata cannot authorize that peer. A configured trusted immediate peer requires enabled proxy processing and a valid canonical `client_ip` from the canonical trusted-proxy request attribute. That client IP must match the allowlist. Missing or invalid peer/client identity, disabled trusted-proxy processing for a trusted peer, and missing trusted-proxy client metadata deny access.
+
+Denied recognized eligible operations throw the fixed `DebugForbiddenException`; the selected canonical error boundary renders the normal forbidden response with status `403`, `Content-Type: application/problem+json`, `Cache-Control: no-store`, and the following exact JSON body followed by one LF:
+
+```json
+{"status":403,"title":"Forbidden","type":"about:blank"}
+```
+
+The public response contains no internal guard reason, token, digest, or request diagnostics. Canonical error-boundary failure handling remains applicable.
+
+Every successful diagnostic response has status `200`, `Content-Type: application/json`, `Cache-Control: no-store`, and a compact stable JSON map followed by exactly one LF.
+
+- `GET /_debug/headers` returns exactly one `headers` map. The fixed members `accept`, `content-type`, and `user-agent` contain boolean presence flags. The fixed members `authorization`, `cookie`, `set-cookie`, and `x-debug-token` contain `null` when absent or the canonical Placeholder summary when present. Header matching is case-insensitive. A present Authorization header, for example, produces:
+
+  ```json
+  {"hash":null,"kind":"authorization","length":null,"mode":"placeholder","redacted":true,"schemaVersion":1}
+  ```
+
+  The corresponding kinds are `authorization`, `cookie`, `cookie`, and `token`. No header values, arbitrary header names, sensitive lengths, hashes, or cardinalities are disclosed.
+- `GET /_debug/modules` returns only `{"modules":[...]}`, containing the unique enabled module ids from the current runtime `ModulePlan` in byte order. Excluded and unselected modules are absent. The handler performs no Composer or manifest discovery.
+- `GET /_debug/config?key=<logical-path>` returns only `{"source":null,"type":"int"}` for an existing integer value with unavailable applicable source metadata, or the same two-member map with a safe source projection, for example:
+
+  ```json
+  {"source":{"precedence":0,"redacted":false,"type":"package_default"},"type":"int"}
+  ```
+
+  The public value type is one of `null`, `bool`, `int`, `string`, `list`, or `map`. A non-null source contains exactly integer `precedence`, boolean `redacted`, and the canonical `ConfigSourceType` string `type`. The repository's `sourceOf()` supplies effective source metadata from canonical source-host or hydrated artifact records. No config values, source identifiers, source paths, value lengths, hashes, or collection counts are returned. The original URI query must contain exactly one literal `key=<logical-path>` selector. Encoded, repeated, malformed, array-valued, additional, or unauthorized selectors are forbidden. The entire `http.debug` subtree and sensitive key segments are denied before value access. A missing authorized key remains unmatched without a completed debug decision.
+- `GET /_debug/cache` returns exactly one `artifacts` map, for example for a successfully booted artifact-only runtime:
+
+  ```json
+  {"artifacts":{"config":"loaded","container":"loaded","generation-manifest":"loaded","module-manifest":"loaded"}}
+  ```
+
+  All four fixed members contain `unavailable` in source-host runtime. The status is read only from the immutable Kernel-owned `RuntimeDiagnosticsInput`. The handler does not read `current`, scan or inspect artifacts, disclose generation ids, fingerprints, paths or file hashes, or write cache state.
+
+The header and config handlers reuse the canonical redaction ports with `RedactionMode::Placeholder`. Redaction failures or incompatible output fail closed through the existing error boundary. No alternate disclosure or redaction mechanism is introduced.
+
+Debug endpoints are intended only for private development access. Do not expose them publicly, reuse credentials, log raw tokens, store raw tokens in configuration or artifacts, or allow shared caching. Earlier middleware responses, including active maintenance responses, retain precedence; debug paths receive no maintenance bypass.
+
 ### Unmatched requests
 
-Unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and declarations without explicitly implemented terminal behavior produce the safe HTTP `404` response with exactly an empty body.
+Unsupported methods, invalid matcher inputs, unmatched paths, ineligible diagnostics, missing authorized config keys, and declarations without explicitly implemented terminal behavior produce the safe HTTP `404` response with exactly an empty body.
 
 Terminal dispatch does not introduce implicit HEAD aliases, automatic OPTIONS handling, HTTP `405` responses, or `Allow` headers.
 
 The unmatched response receives no endpoint-specific `Content-Type` or `Cache-Control` header from `FallbackResponses`. Canonical response finalization remains applicable.
-
-The development-only `/_debug` and `/_debug/` declarations remain reserved without a terminal endpoint implementation.
 
 ### Declarative service wiring and response construction
 
 `HttpServiceProvider` registers the following shared stateless services through canonical Foundation declarative DI:
 
 - `FallbackResponses`, consuming the canonical `ResponseFactoryInterface` and `StreamFactoryInterface`;
-- `FallbackRouter`, consuming `FallbackResponses`, `ClockInterface`, `MeterPortInterface`, and the validated `http.metrics.enabled` boolean;
+- `DebugGuard`, constructed by `HttpServiceFactory::debugGuard()` from `ConfigRepositoryInterface`, `RuntimeDiagnosticsInput`, `ModulePlan`, and the shared `TrustedProxyPolicy`;
+- `DebugHeadersHandler`, consuming `SensitiveDataRedactorInterface` and `FallbackResponses`;
+- `DebugModuleListHandler`, consuming `ModulePlan` and `FallbackResponses`;
+- `DebugConfigHandler`, consuming `ConfigRepositoryInterface`, `DebugGuard`, `SensitiveDataRedactorInterface`, `SensitiveKeyClassifierInterface`, and `FallbackResponses`;
+- `DebugCacheHandler`, consuming `RuntimeDiagnosticsInput` and `FallbackResponses`;
+- `DebugRouter`, consuming the guard, all four handlers, `MeterPortInterface`, `LoggerInterface`, and the validated metrics and access-log enablement booleans;
+- `FallbackRouter`, consuming `FallbackResponses`, `ClockInterface`, `MeterPortInterface`, the validated `http.metrics.enabled` boolean, and `DebugRouter`;
 - `FallbackRouterHandler`, consuming `FallbackRouter` and `FallbackResponses`.
 
 The existing `RequestHandlerInterface` alias resolves to `FallbackRouterHandler`.
+
+All debug services and their mandatory dependencies participate in the same declarative source and compiled runtime graph independently of debug activation. Kernel supplies the runtime seeds; HTTP does not construct them or expose bootstrap services to definition production. The guard validates policy semantics even when debug activation is disabled.
 
 The clock is a mandatory dependency. The canonical Foundation clock binding and explicit application-owned overrides remain governed by the existing declarative service and alias precedence. The terminal services consume the final effective PSR-17 factory bindings under the canonical HTTP readiness policy.
 
@@ -385,6 +446,19 @@ Baseline defaults include:
     'access_log' => [
         'enabled' => true,
     ],
+    'debug' => [
+        'endpoints' => [
+            'enabled' => false,
+        ],
+        'allowlist' => ['127.0.0.1', '::1'],
+        'token_sha256' => '',
+        'paths' => [
+            'enabled' => ['headers', 'modules', 'config', 'cache'],
+        ],
+        'config' => [
+            'allowlist' => [],
+        ],
+    ],
     'maintenance' => [
         'enabled' => true,
         'retry_after_default_seconds' => 60,
@@ -437,7 +511,13 @@ Important config rules:
 - `http.request_id.max_length=128` by default and must be an integer within the inclusive range `26..128`, measured in bytes for accepted upstream identifiers.
 - `http.request_id.enabled` controls request identity preparation and response-header application only. It does not activate middleware, change declarative service registrations, alter middleware ordering, or introduce an additional reset lifecycle.
 - `http.tracing.enabled=true` controls both inbound `TraceContextMiddleware` participation and the optional `http.request` span.
-- `http.metrics.enabled=true` and `http.access_log.enabled=true` independently control request-level completion observability, HTTPS redirect-decision observations, and maintenance-decision observations.
+- `http.metrics.enabled=true` and `http.access_log.enabled=true` independently control request-level completion observability, HTTPS redirect-decision observations, maintenance-decision observations, and debug-decision observations. Ordinary system-endpoint counters are controlled only by `http.metrics.enabled`.
+- `http.debug.endpoints.enabled=false` by default; activation does not change middleware participation or declarative service registration.
+- `http.debug.allowlist` defaults to `['127.0.0.1', '::1']` and accepts at most 64 unique canonical IPv4 or IPv6 addresses using the existing trusted-proxy normalization policy. CIDRs, wildcards, hostnames, ports, duplicates, and noncanonical spellings are invalid. An empty list denies all clients.
+- `http.debug.token_sha256=''` by default; a non-empty digest must contain exactly 64 lowercase hexadecimal characters.
+- `http.debug.paths.enabled` defaults to `['headers', 'modules', 'config', 'cache']`; only unique names from that list are valid. An empty list denies every recognized eligible operation.
+- `http.debug.config.allowlist=[]` by default; it accepts at most 64 unique logical key prefixes. Both prefixes and requested paths use a lowercase root matching `[a-z][a-z0-9_]{0,63}`, followed by zero or more dot-separated segments matching `[A-Za-z_][A-Za-z0-9_]{0,63}`, with a total limit of 256 bytes. An entry authorizes only its exact key and dot-separated descendants. An empty list denies config diagnostics.
+- Invalid debug policy values are rejected even when debug endpoints are disabled. Configuration changes require booting the runtime with the intended effective configuration.
 - `http.maintenance.enabled=true` by default; it controls target-local maintenance middleware participation independently of the application-local runtime flag.
 - `http.maintenance.retry_after_default_seconds=60` by default and must be an integer within the inclusive range `1..86400`. A valid public message may supply an explicit retry-delay override within the same range.
 - `http.proxy.enabled=false` by default; `http.proxy.trusted_proxies` is an empty list of trusted immediate-peer IP/CIDR entries.
@@ -936,7 +1016,7 @@ When metrics are enabled, the dispatcher attempts the counter increment for the 
 
 When metrics are enabled, the dispatcher attempts exactly one counter increment with value `1` per completed claimed endpoint decision. Meter failures are isolated without retries, replacement of a completed response, or suppression of the intentional Throwable. An increment attempt does not establish successful backend recording.
 
-Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, development-only reservations, and requests short-circuited before terminal dispatch do not produce endpoint-decision metrics.
+Disabled metrics, unsupported methods, invalid matcher inputs, unmatched paths, debug operations, and requests short-circuited before terminal dispatch do not produce `http.system_endpoint_total` observations.
 
 Completed endpoint decisions remain independent of subsequent response decoration, response finalization, and request completion failures.
 
@@ -946,6 +1026,20 @@ Endpoint-decision labels contain no raw paths, query strings, headers, credentia
 
 System-endpoint observability remains governed by the [Observability SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md).
 
+### Debug decisions
+
+`DebugRouter` observes completed eligible debug decisions independently of ordinary system-endpoint decisions and final HTTP request completion.
+
+- `http.metrics.enabled` controls `http.debug_total` with exactly the `operation` and `outcome` labels.
+- Allowed operation values are `headers`, `modules`, `config`, and `cache`; allowed outcomes are `allowed` and `blocked`.
+- `http.access_log.enabled` independently controls the PSR-3 warning event `http.debug.blocked` with exactly the producer-supplied context field `operation`.
+
+When enabled, the router attempts exactly one counter increment with value `1` per completed eligible decision and exactly one warning per blocked decision. Allowed decisions complete only after successful response construction; blocked decisions complete before throwing the canonical forbidden exception. Unmatched or ineligible requests, missing authorized config keys, earlier middleware responses, and unrelated diagnostic handler or response-construction failures do not complete debug decisions.
+
+Metric and logger failures are isolated independently without retries. Completed debug decisions remain independent of subsequent response decoration, finalization, and request completion. They are not duplicated through `http.system_endpoint_total` and do not add request spans, route metadata, lifecycle hooks, or completion observers.
+
+Debug observations contain no request paths, query selectors, client IPs, token values or digests, headers, config values, source metadata, artifact metadata, or Throwable diagnostics. Canonical decision observability remains governed by the [Observability SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md).
+
 ## Errors
 
 The HTTP-owned `HttpExceptionMapper` implements the existing `ExceptionMapperInterface` and is contributed under `ReservedTags::ERROR_MAPPER` (`error.mapper`) at priority `100` with metadata `[]`. It maps only:
@@ -953,9 +1047,12 @@ The HTTP-owned `HttpExceptionMapper` implements the existing `ExceptionMapperInt
 - `BadJsonException` to HTTP `400` with `CORETSIA_HTTP_BAD_JSON`;
 - `BodyTooLargeException` to HTTP `413` with `CORETSIA_HTTP_PAYLOAD_TOO_LARGE`;
 - `TrustedHostRejectedException` to HTTP `400` with `CORETSIA_HTTP_TRUSTED_HOST_REJECTED`;
-- `IntentionalErrorException` to HTTP `500` with `CORETSIA_HTTP_INTENTIONAL_ERROR`.
+- `IntentionalErrorException` to HTTP `500` with `CORETSIA_HTTP_INTENTIONAL_ERROR`;
+- `DebugForbiddenException` to HTTP `403` with `CORETSIA_HTTP_DEBUG_FORBIDDEN`.
 
 The intentional error descriptor uses the fixed reason `http-intentional-error`, severity `ErrorSeverity::Error`, HTTP status hint `500`, and empty extensions. The intentional exception accepts no caller-provided message, request data, or previous Throwable.
+
+The debug forbidden descriptor uses the fixed reason `http-debug-forbidden`, severity `ErrorSeverity::Error`, HTTP status hint `403`, and empty extensions. The exception accepts no caller-provided message, request data, or previous Throwable. A successfully finalized forbidden response retains the canonical handled-error UnitOfWork outcome.
 
 Other Throwables return `null` from this mapper. Descriptor codes and messages are fixed and safe; raw parser errors, rejected hosts, request bodies, and untrusted header values are not exported. The canonical Errors subsystem owns exception normalization and mapper resolution; an explicitly selected Problem Details integration owns safe HTTP error adaptation and rendering. Without that outer boundary, downstream Throwables propagate. HTTP does not construct an independent `ErrorHandlerInterface`, exception registry, emergency response renderer, or replacement normalization path.
 
@@ -969,7 +1066,7 @@ Request identity remains separate from generic middleware context enrichment. It
 
 HTTP does not directly execute reset, discover reset tags, retry reset, or separately remove request identity from `ContextStore`. A failed reset does not establish successful context cleanup.
 
-Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, endpoint-decision, and request-completion fields. Canonical PSR-3 Logging owns shared sink-side redaction and serialization; HTTP does not instantiate another redactor or depend directly on a concrete Logging implementation.
+Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and request-completion fields. Diagnostic responses expose only their explicitly bounded projections. HTTP consumes the shared Redaction ports for diagnostic redaction; canonical PSR-3 Logging retains sink-side admission, redaction, and serialization. HTTP does not instantiate another redactor or depend directly on concrete Redaction or Logging implementation classes.
 
 A non-seekable inbound request body must arrive complete and unread from its owning transport adapter; already consumed bytes cannot be recovered by HTTP middleware. Accepted bounded body verification and JSON parsing preserve downstream body availability without an unbounded buffering layer, spooling subsystem, or shared request cache. HTTP-owned policies do not rely on superglobals or mutable process-global request state.
 
@@ -978,7 +1075,7 @@ A non-seekable inbound request body must arrive complete and unread from its own
 This package does not provide:
 
 - SAPI front controllers, request-from-globals adapters, response emitters, browser-serving instructions, or deployment transport selection;
-- general application route matching, routing artifacts, application route admission, endpoint authorization, routing delegation contracts, or a route-template extraction/handoff contract;
+- general application route matching, routing artifacts, application route admission or authorization, application routing delegation contracts, or a route-template extraction/handoff contract;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
 - CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
@@ -1008,6 +1105,8 @@ This package does not provide:
 - [Observability SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md)
 - [Logging Policy SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/logging-policy.md)
 - [Problem Details SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/problem-details.md)
+- [Sensitive Data Redaction SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/sensitive-data-redaction.md)
+- [Artifact Generations SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifact-generations.md)
 - [Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
 - [ADR-0041: Platform HTTP runtime pipeline and wiring](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md)
 - [Compile-time package dependencies](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md)

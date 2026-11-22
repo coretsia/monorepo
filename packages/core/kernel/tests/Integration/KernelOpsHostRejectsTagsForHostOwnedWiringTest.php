@@ -24,9 +24,11 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
+use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Ops\KernelOpsFacade;
 use Coretsia\Kernel\Ops\KernelOpsHostBooter;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -40,17 +42,38 @@ final class KernelOpsHostRejectsTagsForHostOwnedWiringTest extends TestCase
             'assertNoHostOwnedTagTargets',
         );
 
-        foreach ([KernelOpsFacade::class, RuntimePathContext::class] as $forbiddenId) {
-            $builder = new ContainerBuilder();
-            $builder->registerProviders([
-                new KernelOpsTaggedProviderFixture($forbiddenId),
-            ]);
+        foreach (
+            [
+                KernelOpsFacade::class,
+                RuntimePathContext::class,
+                RuntimeDiagnosticsInput::class,
+            ] as $forbiddenId
+        ) {
+            foreach (
+                [
+                    'fixture.command',
+                    ReservedTags::KERNEL_STATEFUL,
+                    ReservedTags::KERNEL_RESET,
+                    ReservedTags::KERNEL_HOOK_BEFORE_UOW,
+                    ReservedTags::KERNEL_HOOK_AFTER_UOW,
+                ] as $tag
+            ) {
+                $builder = new ContainerBuilder();
+                $builder->registerProviders([
+                    new KernelOpsTaggedProviderFixture($forbiddenId, $tag),
+                ]);
 
-            try {
-                $guard->invoke(null, $builder);
-                self::fail('Expected host-owned tag target conflict.');
-            } catch (\UnexpectedValueException $exception) {
-                self::assertSame('kernel-ops-host-tag-target-conflict', $exception->getMessage());
+                $tagged = $builder->tagRegistry()->all($tag);
+
+                self::assertCount(1, $tagged);
+                self::assertSame($forbiddenId, $tagged[0]->id());
+
+                try {
+                    $guard->invoke(null, $builder);
+                    self::fail('Expected host-owned tag target conflict.');
+                } catch (\UnexpectedValueException $exception) {
+                    self::assertSame('kernel-ops-host-tag-target-conflict', $exception->getMessage());
+                }
             }
         }
 
@@ -58,6 +81,7 @@ final class KernelOpsHostRejectsTagsForHostOwnedWiringTest extends TestCase
         $builder->registerProviders([
             new KernelOpsTaggedProviderFixture(
                 KernelOpsExternalTaggedService::class,
+                'fixture.command',
                 17,
                 ['source' => 'fixture'],
             ),
@@ -118,6 +142,7 @@ final readonly class KernelOpsTaggedProviderFixture implements
      */
     public function __construct(
         private string $taggedServiceId,
+        private string $tag,
         private int $priority = 0,
         private array $meta = [],
     ) {
@@ -133,7 +158,7 @@ final readonly class KernelOpsTaggedProviderFixture implements
         ContainerDefinitionContext $context,
     ): void {
         $definitions->tag(
-            'fixture.command',
+            $this->tag,
             $this->taggedServiceId,
             $this->priority,
             $this->meta,

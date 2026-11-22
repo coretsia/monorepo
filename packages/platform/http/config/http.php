@@ -61,8 +61,12 @@ declare(strict_types=1);
  *   policy within HttpResponseFinalizer, after identity-header finalization;
  * - security-header and HTTPS redirect enablement are independent;
  * - upstream request-id acceptance requires an explicitly trusted ingress;
- * - no routing, system-endpoint, transport, CORS, rate-limit, upload,
- *   or debugging configuration is declared;
+ * - development diagnostics are disabled by default and governed by the
+ *   HTTP-owned DebugGuard using authoritative Kernel runtime input;
+ * - debug-decision observability is owned by DebugRouter and remains
+ *   independent of system-endpoint and finalized request observability;
+ * - no general application routing, transport, CORS, rate-limit, or upload
+ *   configuration is declared;
  * - keys beginning with `@` are reserved and rejected by config rules.
  */
 return [
@@ -189,7 +193,7 @@ return [
 
     /*
      * HTTP request-level, HTTPS redirect-decision, maintenance-decision,
-     * and terminal system-endpoint decision metric recording.
+     * terminal system-endpoint, and debug-decision metric recording.
      *
      * HttpKernel coordinates request-level metrics using the finalized
      * request outcome through the existing MeterPortInterface, outside
@@ -198,23 +202,26 @@ return [
      * completed decisions independently through the same metrics port.
      * FallbackRouter records completed system-endpoint dispatch decisions
      * independently of finalized request outcomes.
+     * DebugRouter records authorized and blocked development diagnostics
+     * decisions independently of system-endpoint decisions.
      *
-     * This toggle governs all four metric boundaries.
+     * This toggle governs all five metric boundaries.
      */
     'metrics' => [
         'enabled' => true,
     ],
 
     /*
-     * HTTP request completion, HTTPS redirect-decision, and maintenance
-     * logging.
+     * HTTP request completion, HTTPS redirect-decision, maintenance,
+     * and blocked debug-access logging.
      *
-     * Request completion, redirect-decision, and maintenance records are
-     * produced at independent HTTP-owned observability boundaries.
+     * Request completion, redirect-decision, maintenance, and blocked
+     * debug-access records are produced at independent HTTP-owned
+     * observability boundaries.
      *
      * All use the existing PSR-3 logger and shared redaction boundary;
      * this does not select or require an optional Logging module.
-     * This toggle governs all three logging boundaries, including safe
+     * This toggle governs all four logging boundaries, including safe
      * maintenance state failure diagnostics.
      */
     'access_log' => [
@@ -256,6 +263,44 @@ return [
     'proxy' => [
         'enabled' => false,
         'trusted_proxies' => [],
+    ],
+
+    /*
+     * Development-only HTTP diagnostics endpoints.
+     *
+     * Disabled by default. Activation requires an authoritative `local`
+     * or `dev` application environment and an explicitly selected canonical
+     * Problem Details boundary.
+     *
+     * The IP allowlist contains exact IPv4 or IPv6 addresses, not networks.
+     * An empty allowlist denies access.
+     *
+     * The debug token must be generated from 32 cryptographically secure
+     * random bytes and represented as 64 lowercase hexadecimal characters.
+     * Only its lowercase SHA-256 digest may be stored in `token_sha256`.
+     * The raw token is supplied exclusively through the fixed X-Debug-Token
+     * request header. An empty digest never authorizes access.
+     *
+     * Enabled paths select only the four canonical diagnostic operations.
+     * Config diagnostics require an explicitly allowlisted logical key prefix.
+     * An empty config allowlist denies config diagnostics.
+     *
+     * DebugGuard owns semantic validation, bounded allowlists, canonical IP
+     * matching, token verification, and logical key-prefix authorization.
+     * No raw configuration values or credentials may be disclosed.
+     */
+    'debug' => [
+        'endpoints' => [
+            'enabled' => false,
+        ],
+        'allowlist' => ['127.0.0.1', '::1'],
+        'token_sha256' => '',
+        'paths' => [
+            'enabled' => ['headers', 'modules', 'config', 'cache'],
+        ],
+        'config' => [
+            'allowlist' => [],
+        ],
     ],
 
     /*

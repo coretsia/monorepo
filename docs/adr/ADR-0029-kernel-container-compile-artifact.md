@@ -22,7 +22,7 @@ owner: core/kernel
 
 ## Context
 
-This decision defines the REAL Kernel-owned compiled-container artifact payload for the existing `container@1` artifact identity.
+This decision defines the Kernel-owned compiled-container payload for the `container@1` artifact identity.
 
 The global artifact registry contains the Kernel-owned `container@1` artifact identity. That registry, the canonical artifact envelope, canonical header fields, and deterministic serialization law are owned by:
 
@@ -30,21 +30,14 @@ The global artifact registry contains the Kernel-owned `container@1` artifact id
 docs/ssot/artifacts.md
 ```
 
-Current Kernel-produced `container@1` artifacts use REAL compiled-container semantics:
+Kernel-produced `container@1` artifacts use compiled-container semantics:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-The unsupported transitional stub payload shape is invalid for production artifact-only runtime boot:
-
-```text
-kind = stub
-compiled = false
-```
-
-The live payload law and artifact-only runtime boot semantics are owned by:
+The payload law and artifact-only runtime boot semantics are owned by:
 
 ```text
 docs/ssot/compiled-container.md
@@ -65,53 +58,34 @@ Graph-to-fingerprint construction remains owned by `docs/ssot/artifacts-and-fing
 
 ## Decision
 
-### Decision 1: Keep the existing `container@1` artifact identity
+### Decision 1: Use the canonical `container@1` artifact identity
 
-This decision keeps the existing artifact identity:
+The canonical compiled-container artifact identity is:
 
 ```text
 container@1
 ```
 
-This decision does not introduce:
+### Decision 2: Require the compiled-container payload
 
-```text
-container@2
-```
-
-This decision defines the REAL `container@1` payload schema for the registered `container@1` artifact identity.
-
-A future `container@2` is required only if a later change needs to preserve the REAL `container@1` payload contract while introducing an incompatible compiled-container payload format.
-
-### Decision 2: Reject the unsupported transitional stub payload
-
-The unsupported transitional payload shape is:
-
-```text
-kind = stub
-compiled = false
-```
-
-It is not a supported production runtime container format.
-
-Kernel-produced `container@1` artifacts use REAL compiled-container semantics:
+Kernel-produced `container@1` artifacts use exactly:
 
 ```text
 kind = compiled
 compiled = true
 ```
 
-Production artifact-only runtime boot must reject the unsupported transitional stub payload.
+Production artifact-only runtime boot MUST reject any other `kind` or `compiled` value.
 
-### Decision 3: Define the first REAL `container@1` payload schema in SSoT
+### Decision 3: Define the canonical `container@1` payload schema in SSoT
 
-The first REAL `container@1` payload schema is defined by:
+The canonical `container@1` payload schema is defined by:
 
 ```text
 docs/ssot/compiled-container.md
 ```
 
-This ADR records the architectural decision to introduce that REAL payload.
+This ADR records the architectural contract for that payload.
 
 It does not duplicate the full payload schema.
 
@@ -127,7 +101,7 @@ The SSoT owns:
 - closure/callable rejection semantics;
 - artifact-only runtime boot inputs;
 - missing/invalid artifact failure semantics;
-- unsupported stub rejection semantics.
+- rejection of noncanonical payloads.
 
 ### Decision 4: Compile the production graph from canonical provider definitions
 
@@ -208,6 +182,7 @@ Coretsia\Foundation\Tag\TagRegistry
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
 ```
 
 Runtime seeds may satisfy service argument references and required-service declarations.
@@ -230,6 +205,7 @@ Entrypoint-owned runtime seed ids are:
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
 ```
 
 These objects are materialized by the artifact-only runtime entrypoint and supplied through an exact immutable `RuntimeContainerSeedSet`.
@@ -318,8 +294,13 @@ ArtifactRuntimeInput
   -> exact read of config.php
   -> exact read of container.php
   -> exact read of generation-manifest.php
-  -> validate generation manifest, bytes, hashes, schemas, and fingerprints
-  -> hydrate runtime seeds
+  -> validate artifact schemas and generation manifest
+  -> validate envelope fingerprints and generation-manifest byte lengths and hashes
+  -> hydrate config repository with canonical source records
+  -> hydrate ModulePlan
+  -> create RuntimeDiagnosticsInput
+  -> create RuntimePathContext
+  -> create RuntimeContainerSeedSet
   -> build the Foundation container from the already-read container envelope
 ```
 
@@ -364,16 +345,25 @@ topologicalOrder
 
 ### Decision 6: Artifact-only runtime boot hydrates exact entrypoint-owned runtime seeds
 
+The canonical `config@1` payload contains exactly `appEnv`, `config`, `configSourceFiles`, `envOverlayMappings`, `owners`, `sources`, `validation`, and `validationSubjects` as defined by `docs/ssot/artifacts-and-fingerprint.md`. The mandatory `appEnv` metadata preserves the frozen `BootstrapConfig::appEnv()` value and is separate from the merged configuration.
+
 After one generation is selected and validated, artifact-only runtime boot hydrates these exact runtime objects:
 
 ```text
-config@1 payload.config
+config@1 payload.sources
+  -> ConfigValueSourceArtifactHydrator
+  -> canonical source records
+
+config@1 payload.config + canonical source records
   -> ArrayConfigRepository
   -> ConfigRepositoryInterface
 
 module-manifest@1 payload
   -> ModulePlanArtifactHydrator
   -> ModulePlan
+
+config@1 payload.appEnv + successfully validated and loaded generation state
+  -> RuntimeDiagnosticsInput
 
 ArtifactRuntimeInput
   -> RuntimePathContext
@@ -385,6 +375,7 @@ The final entrypoint-owned seed set is exactly:
 ConfigRepositoryInterface
 ModulePlan
 RuntimePathContext
+RuntimeDiagnosticsInput
 ```
 
 These objects are carried by:
@@ -392,6 +383,12 @@ These objects are carried by:
 ```text
 RuntimeContainerSeedSet
 ```
+
+`ArtifactRuntimeSeedFactory` constructs the immutable `RuntimeDiagnosticsInput` from the validated payload environment and the loaded-generation state explicitly supplied by `ArtifactRuntimeBooter` after successful generation validation. The successfully constructed artifact-only runtime reports `artifactGenerationLoaded() = true`. Source-host construction uses the already-resolved bootstrap environment and supplies `false`.
+
+The runtime input MUST NOT resolve `BootstrapConfig`, consult process environment, inspect artifact payloads or files, or rediscover generations. Subsequent process environment or `current` changes MUST NOT change the existing runtime input.
+
+The runtime repository consumes the canonical source records without repeating config formation or inferring provenance from values. Its `sourceOf()` and `explain()` semantics remain owned by `docs/ssot/config-and-env.md`.
 
 The seed set MUST reject:
 
@@ -422,17 +419,16 @@ It MUST NOT receive a separate config payload or container path.
 The runtime container construction order is:
 
 ```text
-ConfigRepositoryInterface seed
-  -> ContainerBuilder config snapshot
-
-entrypoint-owned runtime seeds
-  -> ContainerBuilder::instance(...)
-
-already-read REAL container@1 envelope
+already-read container@1 envelope + RuntimeContainerSeedSet
   -> validate compiled payload
+  -> obtain config snapshot from ConfigRepositoryInterface seed
+  -> validate runtime graph references and exact seeds
+  -> create TagRegistry from compiled tags
+  -> create ContainerBuilder with config snapshot and TagRegistry
+  -> register entrypoint-owned runtime seed instances
   -> register compiled service factories
-  -> register compiled aliases
-  -> create compiled TagRegistry
+  -> register compiled aliases as non-shared delegation factories
+  -> register TagRegistry instance
   -> ContainerBuilder::build()
 ```
 
@@ -521,11 +517,12 @@ Failure diagnostics MUST NOT expose:
 
 ### Positive consequences
 
-- `container@1` keeps a stable artifact identity while replacing the transitional stub semantics with the first REAL compiled-container payload.
+- `container@1` has one canonical compiled-container payload under its registered artifact identity.
 - Production runtime boot becomes explicit and deterministic.
-- `ConfigRepositoryInterface` is restored from `config@1` without ConfigKernel Phase B.
+- `ConfigRepositoryInterface` is restored from `config@1` with canonical source records without ConfigKernel Phase B.
 - `ModulePlan` is restored from `module-manifest@1` without Composer discovery.
 - `RuntimePathContext` is created from explicit entrypoint-owned runtime input.
+- `RuntimeDiagnosticsInput` preserves the authoritative environment and boot-selected generation status without runtime source resolution or generation rediscovery.
 - Compiled services can resolve all canonical external runtime dependencies without provider fallback.
 - Runtime seed objects and absolute runtime paths remain outside graph, artifact, and fingerprint identity.
 - A missing or invalid selected generation fails hard instead of silently switching to a different runtime construction mode.
@@ -549,7 +546,7 @@ Failure diagnostics MUST NOT expose:
 - Provider-based fallback is intentionally unavailable in production artifact-only boot.
 - Developer-mode fallback, if ever needed, must be designed explicitly in a separate ADR.
 - Every enabled provider selected for production graph compilation must implement `ContainerDefinitionProviderInterface` and produce definitions that pass final graph-completeness validation.
-- Descriptor export remains necessary inside the low-level normalizer, but it is no longer a production caller responsibility.
+- Descriptor export is an internal low-level normalization detail, not a production caller responsibility.
 - Runtime closures and raw PHP callable arrays cannot cross into the compiled graph.
 - Any semantic graph change invalidates the complete Kernel-owned artifact set through the shared graph-bound fingerprint.
 - Changes to canonical graph serialization or graph-bucket schema intentionally change fingerprint identity and require corresponding golden-hash updates.
@@ -568,25 +565,17 @@ Those responsibilities are intentionally separate.
 
 ## Rejected Alternatives
 
-### Alternative 1: Introduce `container@2` immediately
+### Alternative 1: Introduce another compiled-container artifact identity
 
 Rejected.
 
-The earlier `container@1` form was a transitional stub payload under the already-registered artifact identity, not a stable production compiled-container contract.
+The canonical artifact registry and compiled-container SSoT define one production compiled-container contract under `container@1`. A second identity would introduce unnecessary competing artifact selection and schema semantics.
 
-Introducing `container@2` for the first REAL compiled-container payload would incorrectly treat the transitional stub as if it were a stable production payload contract.
-
-The selected design keeps `container@1` and defines its first REAL production payload schema under that identity.
-
-### Alternative 2: Preserve the legacy stub payload as a supported production runtime format
+### Alternative 2: Accept a noncompiled container payload
 
 Rejected.
 
-The stub payload cannot build a real runtime container from compiled service definitions, aliases, parameters, and tags.
-
-Keeping it as a supported production runtime format would make `container@1` ambiguous and would weaken artifact-only boot semantics.
-
-The selected design treats the stub as transitional and unsupported for production runtime boot.
+A noncompiled payload cannot build a runtime container from compiled service definitions, aliases, parameters, and tags. The selected design requires `kind = compiled` and `compiled = true` for artifact-only runtime boot.
 
 ### Alternative 3: Serialize provider closures or PHP callables into the artifact
 
@@ -614,7 +603,7 @@ Runtime config snapshot input is `config@1`.
 
 Reading source config files during compiled-container runtime boot would violate artifact-only boot and duplicate config compilation responsibilities.
 
-The selected design requires the artifact-runtime facade to read and validate `config@1`, hydrate `ConfigRepositoryInterface`, and include that repository in the exact runtime seed set.
+The selected design requires the artifact-runtime facade to read and validate `config@1`, hydrate `ConfigRepositoryInterface` with canonical source records, and construct `RuntimeDiagnosticsInput` from the authoritative environment and loaded-generation state. Both objects belong to the exact runtime seed set.
 
 `CompiledContainerFactory` receives the seed set and uses the seeded repository as the Foundation container config snapshot without running ConfigKernel Phase B.
 
@@ -624,13 +613,16 @@ This decision should be locked by tests covering:
 
 - identical compiled-container inputs produce identical `container.php` bytes;
 - REAL `container@1` payload uses `kind = compiled` and `compiled = true`;
-- legacy `kind = stub`, `compiled = false` payloads are rejected for production runtime boot;
+- noncanonical `kind` or `compiled` values are rejected for production runtime boot;
 - absent or invalid current generation fails with `artifact-runtime-boot-generation-invalid`;
 - semantic module-manifest hydration failure fails with `artifact-runtime-boot-module-manifest-artifact-invalid`;
 - invalid compiled-container hydration fails with `artifact-runtime-boot-container-artifact-invalid`;
 - `CompiledContainerFactory` builds a runtime Foundation container from an already-read REAL `container@1` envelope and an exact `RuntimeContainerSeedSet`;
 - `RuntimeContainerSeedSet` rejects missing, additional, arbitrary, and type-invalid seeds;
-- compiled services resolve `ConfigRepositoryInterface`, `ModulePlan`, and `RuntimePathContext`;
+- compiled services resolve `ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `RuntimeDiagnosticsInput`;
+- runtime config provenance is restored from the canonical artifact source records;
+- artifact-only runtime diagnostics preserve the frozen environment and loaded-generation state across process environment and `current` changes;
+- absent or invalid authoritative environment metadata fails generation validation;
 - runtime graph services and aliases cannot define or shadow runtime seed ids;
 - `ModulePlanArtifactHydrator` rejects invalid dependency closure, enabled conflicts, cycles, and non-canonical topological order;
 - `ModulePlan` hydration does not read Composer metadata;

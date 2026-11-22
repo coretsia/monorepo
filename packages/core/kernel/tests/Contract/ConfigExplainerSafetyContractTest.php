@@ -21,7 +21,9 @@ namespace Coretsia\Kernel\Tests\Contract;
 use Coretsia\Contracts\Config\ConfigSourceType;
 use Coretsia\Contracts\Config\ConfigValidationResult;
 use Coretsia\Contracts\Config\ConfigValueSource;
+use Coretsia\Kernel\Config\ArrayConfigRepository;
 use Coretsia\Kernel\Config\Explain\ConfigExplainer;
+use Coretsia\Kernel\Config\Source\EffectiveConfigSourceSelector;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigExplainerSafetyContractTest extends TestCase
@@ -292,6 +294,92 @@ final class ConfigExplainerSafetyContractTest extends TestCase
             'replace',
             $defaultEnvPath['directive'],
         );
+    }
+
+    public function testExplainAndRepositoryShareCanonicalEffectiveSourceSelection(): void
+    {
+        $config = [
+            'kernel' => [
+                'boot' => [
+                    'default_env' => 'prod',
+                ],
+            ],
+            'custom' => [
+                'enabled' => true,
+            ],
+        ];
+
+        $older = new ConfigValueSource(
+            type: ConfigSourceType::AppConfig,
+            root: 'kernel',
+            sourceId: 'application-config/older',
+            keyPath: 'kernel.boot.default_env',
+            precedence: 400,
+            meta: ['sourceOrder' => 0],
+        );
+        $effective = new ConfigValueSource(
+            type: ConfigSourceType::AppConfig,
+            root: 'kernel',
+            sourceId: 'application-config/effective',
+            path: 'apps/main/config/kernel.php',
+            keyPath: 'kernel.boot',
+            directive: 'replace',
+            precedence: 400,
+            redacted: true,
+            meta: ['sourceOrder' => 1],
+        );
+
+        $sources = [$older, $effective];
+        $explainer = new ConfigExplainer();
+
+        foreach ([$sources, \array_reverse($sources)] as $sourceList) {
+            $repository = new ArrayConfigRepository($config, $sourceList);
+            $explain = $explainer->explain(config: $config, sources: $sourceList);
+
+            self::assertSame($effective, EffectiveConfigSourceSelector::select('kernel.boot.default_env', $sourceList));
+            self::assertSame($effective, $repository->sourceOf('kernel.boot.default_env'));
+            self::assertSame(
+                [
+                    'directive' => 'replace',
+                    'path' => 'kernel.boot.default_env',
+                    'redacted' => true,
+                    'root' => 'kernel',
+                    'sourceId' => 'application-config/effective',
+                    'sourceOrder' => 1,
+                    'sourcePath' => 'apps/main/config/kernel.php',
+                    'sourcePrecedence' => 400,
+                    'sourceType' => 'app_config',
+                    'validation' => [
+                        'ownership' => 'user_owned',
+                        'status' => 'unvalidated',
+                    ],
+                    'valueShape' => 'scalar:string',
+                ],
+                self::pathRow($explain, 'kernel.boot.default_env'),
+            );
+
+            self::assertNull(EffectiveConfigSourceSelector::select('custom.enabled', $sourceList));
+            self::assertNull($repository->sourceOf('custom.enabled'));
+            self::assertSame(
+                [
+                    'directive' => null,
+                    'path' => 'custom.enabled',
+                    'redacted' => true,
+                    'root' => 'custom',
+                    'sourceId' => 'unknown/custom',
+                    'sourceOrder' => 0,
+                    'sourcePath' => null,
+                    'sourcePrecedence' => 0,
+                    'sourceType' => 'unknown',
+                    'validation' => [
+                        'ownership' => 'user_owned',
+                        'status' => 'unvalidated',
+                    ],
+                    'valueShape' => 'scalar:bool',
+                ],
+                self::pathRow($explain, 'custom.enabled'),
+            );
+        }
     }
 
     /**

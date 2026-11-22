@@ -35,6 +35,7 @@ use Coretsia\Kernel\Config\Loaders\ApplicationConfigLoader;
 use Coretsia\Kernel\Config\Loaders\EnvironmentOverlayLoader;
 use Coretsia\Kernel\Config\Loaders\PackageDefaultsConfigLoader;
 use Coretsia\Kernel\Config\Source\ConfigSourceSet;
+use Coretsia\Kernel\Config\Source\EffectiveConfigSourceSelector;
 use Coretsia\Kernel\Module\ModulePlan;
 use Psr\Log\LoggerInterface;
 
@@ -173,7 +174,7 @@ final readonly class ConfigKernel
                     $bootstrapConfig,
                     $modulePlan,
                     $env,
-                    $configSources
+                    $configSources,
                 ): array {
                     $compiled = $this->compileWithoutExplain(
                         bootstrapConfig: $bootstrapConfig,
@@ -284,7 +285,7 @@ final readonly class ConfigKernel
                 attributes: [],
                 callback: fn (): array => $this->explainer->explain(
                     config: $config,
-                    sources: self::sourceListToMap($sources),
+                    sources: EffectiveConfigSourceSelector::sourceListToMap($sources),
                     validationSubjects: $validationSubjects,
                     validationResult: $validationResult,
                     envOverlayMappings: $envOverlayMappings,
@@ -630,7 +631,7 @@ final readonly class ConfigKernel
 
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -729,7 +730,7 @@ final readonly class ConfigKernel
 
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -836,7 +837,7 @@ final readonly class ConfigKernel
 
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -919,7 +920,7 @@ final readonly class ConfigKernel
 
         \usort(
             $keys,
-            static fn (int|string $a, int|string $b): int => \strcmp((string)$a, (string)$b),
+            static fn (int|string $a, int|string $b): int => \strcmp((string) $a, (string) $b),
         );
 
         foreach ($keys as $key) {
@@ -1696,34 +1697,6 @@ final readonly class ConfigKernel
             redacted: $source->isRedacted(),
             meta: $source->meta(),
         );
-    }
-
-    /**
-     * @param list<ConfigValueSource> $sources
-     *
-     * @return array<string, ConfigValueSource>
-     */
-    private static function sourceListToMap(array $sources): array
-    {
-        $map = [];
-
-        foreach ($sources as $source) {
-            if (!$source instanceof ConfigValueSource) {
-                continue;
-            }
-
-            $key = \str_pad((string)$source->precedence(), 10, '0', \STR_PAD_LEFT)
-                . "\0" . self::sourceTracePath($source)
-                . "\0" . $source->sourceId()
-                . "\0" . $source->type()->value
-                . "\0" . ($source->directive() ?? '');
-
-            $map[$key] = $source;
-        }
-
-        \ksort($map, \SORT_STRING);
-
-        return $map;
     }
 
     /**

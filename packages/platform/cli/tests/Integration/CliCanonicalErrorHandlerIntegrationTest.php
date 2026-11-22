@@ -59,6 +59,7 @@ use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Ops\KernelOpsHostBooter;
 use Coretsia\Kernel\Ops\KernelOpsHostInput;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Cli\Application\CliApplication;
 use Coretsia\Platform\Cli\Catalog\CommandCatalog;
@@ -394,9 +395,13 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
             ['kind' => 'compiled', 'compiled' => true, ...$graph],
         );
         $seeds = new RuntimeContainerSeedSet([
-            ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+            ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
             ModulePlan::class => self::modulePlan(),
             RuntimePathContext::class => new RuntimePathContext('/tmp/coretsia-cli-fixture', '/tmp/coretsia-cli-cache'),
+            RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                appEnv: 'test',
+                artifactGenerationLoaded: false,
+            ),
         ]);
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope($envelope, $seeds);
         $source = self::sourceContainer();
@@ -573,7 +578,7 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
     {
         $config = self::config();
         $builder = new ContainerBuilder($config);
-        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $builder->instance(KernelRuntimeInterface::class, new BoundaryScenarioRuntime());
         $builder->registerProviders(self::providers());
         return $builder;

@@ -125,7 +125,7 @@ final class CliApplicationFixtureHarness
                 ConfigRepositoryInterface::class,
                 new ArrayConfigRepository([
                     'errors' => require \dirname(__DIR__, 4) . '/errors/config/errors.php',
-                ]),
+                ], []),
             )
             ->instance(SensitiveDataRedactorInterface::class, $redactor)
             ->instance(ErrorReporterPortInterface::class, new NoopErrorReporter())

@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Tests\Contract;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -63,7 +64,9 @@ use Coretsia\Kernel\Artifacts\Php\PhpArtifactReader;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Artifacts\Verifier\CacheVerifier;
+use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
+use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\Boot\BootstrapOverridesLoader;
 use Coretsia\Kernel\Boot\BootstrapSourceResolver;
 use Coretsia\Kernel\Boot\BootstrapSourceSnapshot;
@@ -88,6 +91,7 @@ use Coretsia\Kernel\Container\Definition\DefinitionGraph;
 use Coretsia\Kernel\Container\Definition\ServiceDefinition;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlanResolver;
 use Coretsia\Kernel\Container\RuntimeContainerGraphCompiler;
+use Coretsia\Kernel\Container\RuntimeContainerSeedIds;
 use Coretsia\Kernel\Module\ComposerManifestReader;
 use Coretsia\Kernel\Module\ModePresetLoaderFactory;
 use Coretsia\Kernel\Module\ModePresetSchemaValidator;
@@ -108,6 +112,7 @@ use Coretsia\Kernel\Provider\KernelServiceProvider;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -200,6 +205,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
                 [
                     TagRegistry::class,
                     RuntimePathContext::class,
+                    RuntimeDiagnosticsInput::class,
                 ],
             ),
         );
@@ -258,7 +264,10 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
             [
                 ModuleSelection::class,
                 ResolvedModuleOverrides::class,
+                BootstrapConfig::class,
+                BootstrapInput::class,
                 BootstrapSourceSnapshot::class,
+                EnvRepositoryInterface::class,
                 CanonicalPresetSource::class,
                 CustomPresetSource::class,
             ] as $forbidden
@@ -331,6 +340,27 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
             self::COMPILE_HOST_SERVICE_IDS,
             'RuntimePathContext is a source-host runtime seed, not a compile-host service.',
         );
+    }
+
+    public function testRuntimeDiagnosticsInputIsRegisteredOnlyAsSourceHostRuntimeSeed(): void
+    {
+        $config = self::validConfig();
+        $runtimeDefinitions = self::completeRuntimeDefinitionSet($config);
+        $runtimeBindingIds = self::bindingIds(
+            $runtimeDefinitions->toDescriptorStream(),
+        );
+
+        $sourceBuilder = new ContainerBuilder(config: $config);
+        $sourceBuilder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+
+        self::assertContains(RuntimeDiagnosticsInput::class, $sourceBuilder->serviceIds());
+        self::assertContains(RuntimeDiagnosticsInput::class, RuntimeContainerSeedIds::entrypointOwned());
+        self::assertNotContains(RuntimeDiagnosticsInput::class, $runtimeBindingIds);
+        self::assertNotContains(RuntimeDiagnosticsInput::class, $runtimeDefinitions->requiredServiceIds());
+        self::assertNotContains(RuntimeDiagnosticsInput::class, self::COMPILE_HOST_SERVICE_IDS);
     }
 
     public function testKernelRuntimeDefinitionContributionContainsOnlyRuntimeBindings(): void

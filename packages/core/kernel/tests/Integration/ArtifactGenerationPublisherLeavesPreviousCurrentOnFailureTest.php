@@ -452,6 +452,7 @@ $moduleManifestEnvelope = new \Coretsia\Kernel\Artifacts\Builders\ModuleManifest
 $configEnvelope = new \Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder($envelopeFactory)->build(
     compiledConfig: $compiledConfig,
     fingerprint: $fingerprint,
+    appEnv: 'prod',
 );
 $containerEnvelope = new \Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder($envelopeFactory)->build(
     graph: \Coretsia\Kernel\Container\Definition\DefinitionGraph::empty(),
@@ -636,6 +637,7 @@ CHILD;
         $configEnvelope = new CompiledConfigBuilder($envelopeFactory)->build(
             compiledConfig: self::compiledConfig($configValue),
             fingerprint: $fingerprint,
+            appEnv: 'prod',
         );
 
         $containerEnvelope = new CompiledContainerBuilder($envelopeFactory)->build(

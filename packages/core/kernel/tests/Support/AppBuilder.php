@@ -543,6 +543,7 @@ final class AppBuilder
             self::MODULE_PLATFORM_HTTP => [
                 self::MODULE_CORE_FOUNDATION,
                 self::MODULE_CORE_KERNEL,
+                self::MODULE_PLATFORM_REDACTION,
             ],
             self::MODULE_PLATFORM_PROBLEM_DETAILS => [
                 self::MODULE_CORE_FOUNDATION,

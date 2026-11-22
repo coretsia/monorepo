@@ -80,6 +80,7 @@ return array(
       array(
         0 => 'core.foundation',
         1 => 'core.kernel',
+        2 => 'platform.redaction',
       ),
     ),
     'platform.logging' =>

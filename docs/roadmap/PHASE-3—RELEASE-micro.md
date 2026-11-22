@@ -13530,9 +13530,11 @@ module_id: "platform.http"
 
 goal: "У local/dev `/_debug/*` дає корисну діагностику без витоку секретів; у prod — недоступно/guarded deterministically."
 provides:
-- "Dev-only diagnostics endpoints під `/_debug/*` (handlers, не middleware у Phase 0/3 baseline)"
-- "Strict guard: local/allowlist/token; default disabled; **ніколи** не друкує секрети"
-- "Debug endpoints: safe headers, modules list, config formation trace (redacted), cache status summary"
+- "Dev-only diagnostics endpoints dispatched through the canonical HTTP terminal handler"
+- "Fail-closed development environment, IP allowlist, token, and endpoint access policy; disabled by default"
+- "Bounded header metadata, enabled module IDs, safe config provenance, and boot-selected artifact status summary"
+- "Canonical Kernel runtime diagnostics input derived from frozen bootstrap environment and the boot-selected artifact generation"
+- "Canonical runtime config source metadata hydration and effective source selection shared with ConfigExplainer"
 
 tags_introduced: []
 config_roots_introduced: []
@@ -13540,20 +13542,61 @@ artifacts_introduced: []
 
 adr: none
 ssot_refs:
+- "docs/ssot/artifacts-and-fingerprint.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/config-precedence-matrix.md"
 - "docs/ssot/system-route-table.md"
+- "docs/ssot/http-system-endpoints.md"
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/config-and-env.md"
+- "docs/ssot/compiled-container.md"
+- "docs/ssot/artifact-generations.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/error-descriptor.md"
+- "docs/ssot/errors-boundary.md"
+- "docs/ssot/problem-details.md"
+- "docs/ssot/sensitive-data-redaction.md"
 ---
 
-- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to consume `SensitiveDataRedactorInterface` and forbid raw config/env/request/session dumps.
-- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to contribute `DebugExceptionMapper` through the shared `error.mapper` tag with empty `[]` metadata and canonical priority ordering, reusing Foundation `ReservedTags::ERROR_MAPPER` without a second handler or local tag constant.
-- [ ] update `3.110.0 HTTP dev diagnostics endpoints` to introduce and validate `http.debug.endpoints.enabled` under the existing `http` config root with default `false`, keeping debug endpoint activation and its security guards exclusively in this epic rather than predeclaring the key in 3.50.0.
+- [x] Pre-stable versioning discipline (MUST):
+  - [x] preserve all existing schema, SSoT, and ADR versions at `1`
+  - [x] update existing versioned baselines in place without appending new version snapshots
+  - [x] preserve synthetic version-transition fixtures where applicable
+  - [x] MUST NOT document this internal implementation constraint in project documentation
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
+- [x] Pre-stable documentation discipline (MUST):
+  - [x] documents with `pre-stable` or `pre-accepted` status and all other current-state project documentation MUST describe only the current canonical implementation
+  - [x] replace superseded behavior, architecture decisions, contracts, examples, and implementation descriptions in place
+  - [x] remove obsolete requirements, references, diagrams, and descriptions of unsupported behavior
+  - [x] MUST NOT retain superseded and replacement implementations as parallel documentation
+  - [x] MUST NOT introduce migration guidance, legacy compatibility descriptions, or historical implementation notes for unreleased behavior
+  - [x] preserve unrelated valid requirements and normative references
+  - [x] MUST NOT reference internal epic identifiers or implementation planning documents in project documentation
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.90.0` — SystemRouteTable marks `/_debug/` as dev_only
-  - `3.100.0` — FallbackRouter dispatches `/_debug/` prefix to debug router (or equivalent hook)
+  - `3.90.0` — canonical SystemRouteTable and ReservedPathMatcher with immutable development-only reservations
+  - `3.100.0` — canonical terminal FallbackRouter, FallbackResponses, and FallbackRouterHandler integration
+
+- Prerequisites realized within this epic (MUST):
+  - [x] complete the `Realization of prerequisites` deliverables before implementing dependent HTTP services
+  - [x] extend the existing Kernel-owned `config@1` artifact with authoritative frozen bootstrap environment metadata
+  - [x] hydrate existing canonical config source metadata into the runtime ConfigRepositoryInterface
+  - [x] reuse canonical ConfigExplainer effective source selection
+  - [x] provide an immutable Kernel-owned RuntimeDiagnosticsInput
+  - [x] integrate RuntimeDiagnosticsInput into the existing canonical runtime seed mechanism
+  - [x] preserve source-host and artifact-only runtime composition
+  - [x] distinguish source-host execution from an actually loaded and validated artifact generation
+  - [x] preserve all existing artifact identities and schema versions
+  - [x] MUST NOT introduce another bootstrap, configuration merge, source resolution, artifact discovery, or runtime container layer
+  - [x] MUST NOT execute Bootstrap Phase A, ConfigKernel, KernelOpsInterface, module discovery, Composer discovery, cache verification, or artifact compilation during HTTP diagnostic requests
 
 - Required deliverables (exact paths):
   - `packages/platform/http/config/http.php` — додаємо `http.debug.*` keys
@@ -13561,23 +13604,40 @@ ssot_refs:
   - `packages/platform/http/src/Provider/HttpServiceProvider.php` — register debug services/handlers
 
 - Required config roots/keys:
-  - `http.debug.*` — enable/guard/token/allowlist/path allowlist
+  - existing `http` configuration root
+  - `http.debug.endpoints.enabled`
+  - `http.debug.allowlist`
+  - `http.debug.token_sha256`
+  - `http.debug.paths.enabled`
+  - `http.debug.config.allowlist`
+  - existing `http.proxy.enabled`
+  - existing `http.metrics.enabled`
+  - existing `http.access_log.enabled`
 
 - Existing root reuse note (MUST):
   - This epic extends an existing reserved config root with additional subkeys only.
   - It MUST NOT be treated as a config-root owner/introduction epic.
 
 - Required tags:
-  - N/A for middleware wiring (debug endpoints are dispatched by router, not via middleware tags)
-  - `error.mapper` — exception mapping for canonical 404/403 flow (owner=`platform/errors`; because owner package is a forbidden compile-time dependency here, runtime wiring SHOULD use a package-local internal mirror constant; canonical string literal is allowed only as fallback)
+  - existing `error.mapper` contribution through `ReservedTags::ERROR_MAPPER`
+  - reuse the existing HTTP-owned `HttpExceptionMapper`
+  - preserve priority `100` and empty metadata `[]`
+  - MUST NOT introduce another mapper tag constant or middleware contribution
 
 - Required contracts / ports:
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
-  - `Coretsia\Contracts\Config\ConfigRepositoryInterface` (for config debug)
-  - `ConfigValueSource` — source-tracking contract introduced by 1.80.0, used for deterministic redacted source info in debug config output
-  - `Coretsia\Contracts\Module\ManifestReaderInterface` (for modules list)
-  - `Coretsia\Contracts\Module\ModePresetLoaderInterface` (optional: show preset)
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Config\ConfigValueSource`
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - `Coretsia\Contracts\Security\SensitiveKeyClassifierInterface`
+  - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Psr\Log\LoggerInterface`
+
+- Required existing runtime services:
+  - `Coretsia\Kernel\Module\ModulePlan`
+  - `Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput` — realized by this epic before dependent HTTP services
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
@@ -13591,18 +13651,21 @@ Forbidden:
 - `platform/cli` (no dep)
 - `integrations/*`
 
+#### Runtime module dependencies (MUST)
+
+- require `platform.redaction` through canonical Composer and module dependency metadata
+- consume its contracts-level redaction and sensitive-key classification bindings
+- preserve the absence of direct PHP source dependencies on platform.redaction implementation classes
+- debug exposure requires explicitly selected canonical `platform.problem-details` error handling
+- MUST NOT automatically select Problem Details or introduce a compile-time dependency on platform.errors or platform.problem-details
+
 #### Uses ports (API surface, NOT deps) (optional)
 
 - PSR:
   - `Psr\Http\Message\ServerRequestInterface`
   - `Psr\Http\Message\ResponseInterface`
 - Contracts:
-  - `Coretsia\Contracts\Context\ContextAccessorInterface`
   - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
-  - `Coretsia\Contracts\Module\ManifestReaderInterface`
-  - `Coretsia\Contracts\Module\ModePresetLoaderInterface` (optional)
-- Foundation stable APIs (if used):
-  - `Coretsia\Contracts\Context\ContextKeys`
 
 ### Entry points / integration points (MUST)
 
@@ -13615,177 +13678,1454 @@ Forbidden:
     - `GET /_debug/config?key=...`
     - `GET /_debug/cache`
   - dispatch model:
-    - dispatched from `FallbackRouter` (3.100.0) on `/_debug/` prefix, then routed by `DebugRouter` if `DebugGuard` passes
+    - existing `FallbackRouterHandler` delegates to `FallbackRouter` exactly once
+    - `FallbackRouter` consumes the existing canonical `ReservedPathMatcher`
+    - delegate only declarations owned by `platform/http` with status `dev_only` and pattern `/_debug/`
+    - retain the exact `/_debug` reservation without an endpoint implementation
+    - `DebugRouter` claims only the four explicitly supported exact GET endpoint paths
+    - repeated-slash, trailing-slash, case-variant, and percent-encoded aliases MUST NOT activate debug handlers
+    - unsupported methods, invalid matcher inputs, and unrecognized debug paths remain unmatched
+    - development-only declaration matching MUST NOT establish authorization
+    - earlier middleware responses retain precedence
+    - MUST NOT introduce another general routing registry or middleware pipeline
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
-  - reads (safe summary only):
-    - may read `packages/applications/skeleton/var/cache/<appId>/*` only to show cache status summary (no values)
+  - runtime consumption:
+    - consume the canonical Kernel-provided artifact status summary
+    - describe only the immutable generation selected by the current runtime boot
+    - MUST NOT scan cache directories, re-read the current generation pointer, parse artifact payloads, or execute cache verification
+  - writes:
+    - N/A
 
 ### Deliverables (MUST)
 
+#### Realization of prerequisites
+
+Kernel production:
+- [x] [CREATE] `packages/core/kernel/src/Runtime/RuntimeDiagnosticsInput.php` — immutable Kernel-owned runtime diagnostics input
+  - [x] provide a final readonly runtime value object
+  - [x] require an explicitly supplied authoritative application environment
+  - [x] require an explicitly supplied boolean indicating whether the current runtime was created from a successfully loaded and validated artifact generation
+  - [x] expose `appEnv(): string`
+  - [x] expose `artifactGenerationLoaded(): bool`
+  - [x] preserve canonical frozen bootstrap environment semantics
+  - [x] reject invalid environment metadata without exposing its value
+  - [x] distinguish source-host execution from artifact-only runtime execution
+  - [x] MUST NOT contain BootstrapConfig, artifact payloads, generation identifiers, fingerprints, filesystem paths, raw environment repository values, or credentials
+  - [x] retain only the authoritative resolved application environment and loaded-generation status
+  - [x] MUST NOT resolve environments, inspect files, discover generations, or invoke Kernel services
+  - [x] MUST NOT introduce configuration keys, observability emissions, mutable state, or reset participation
+  - [x] preserve the existing RuntimePathContext and ArtifactRuntimeInput responsibilities
+  - [x] reuse the existing canonical runtime seed mechanism
+  - [x] MUST NOT introduce another runtime context registry, bootstrap input model, or seed hydration pipeline
+  - [x] expose the immutable runtime input as an explicitly declared Kernel public API
+
+- [x] [CREATE] `packages/core/kernel/src/Config/Source/EffectiveConfigSourceSelector.php` — shared canonical effective config source selection
+  - [x] extract existing effective source selection from ConfigExplainer
+  - [x] reuse canonical source applicability, precedence, source order, specificity, and deterministic tie-breaking semantics
+  - [x] reuse canonical source trace ordering and identity normalization
+  - [x] preserve exact root ownership and dotted segment-boundary matching
+  - [x] preserve existing list-path semantics used by ConfigExplainer without extending ConfigRepositoryInterface path addressing
+  - [x] return the selected canonical ConfigValueSource when provenance exists
+  - [x] return `null` when no applicable source exists
+  - [x] preserve deterministic selection across source-host and artifact-hydrated source ordering
+  - [x] MUST NOT introduce another precedence registry or merge algorithm
+  - [x] MUST NOT read configuration values, environment values, files, or services
+  - [x] MUST NOT introduce observability emissions, mutable caches, or reset participation
+  - [x] extract and reuse the existing ConfigExplainer source selection implementation
+  - [x] MUST NOT implement source selection independently of the existing canonical algorithm
+  - [x] remove relocated source selection logic from ConfigExplainer
+  - [x] maintain exactly one implementation of effective source selection
+  - [x] remain an internal Kernel implementation component marked with @internal
+
+- [x] [CREATE] `packages/core/kernel/src/Config/Source/ConfigValueSourceArtifactHydrator.php` — canonical config source artifact reconstruction
+  - [x] reconstruct ConfigValueSource instances from existing `config@1` payload source entries
+  - [x] consume the canonical ConfigSourceType vocabulary
+  - [x] preserve source identity, root, logical key path, relative source path, directive, precedence, redaction state, and permitted safe metadata
+  - [x] preserve canonical source-order metadata
+  - [x] validate required and optional source fields against the existing artifact source-entry shape
+  - [x] distinguish omitted optional artifact fields from required fields
+  - [x] reject unsupported schema versions, unknown source types, malformed fields, and unsafe metadata
+  - [x] reuse ConfigValueSource construction and validation
+  - [x] MUST NOT fabricate unknown sources or expose raw config/env values
+  - [x] MUST NOT load source files, execute config formation, or introduce another source metadata model
+  - [x] MUST NOT introduce observability emissions or reset participation
+  - [x] follow the existing ModulePlanArtifactHydrator ownership pattern
+  - [x] reuse existing ConfigValueSource constructor validation
+  - [x] share canonical artifact source-entry validation with ArtifactSchemaValidator
+  - [x] MUST NOT duplicate ConfigValueSource validation or introduce another source metadata representation
+  - [x] remain an internal Kernel implementation component marked with @internal
+
+- [x] [UPDATE] `packages/core/kernel/src/Config/Explain/ConfigExplainer.php`
+  - [x] delegate effective source selection to EffectiveConfigSourceSelector
+  - [x] preserve existing safe explain output shape and schema version
+  - [x] preserve existing source precedence, source order, specificity, and applicability semantics
+  - [x] preserve canonical unknown-source presentation within ConfigExplainer
+  - [x] preserve existing validation, ownership, env-overlay, and safe metadata presentation
+  - [x] preserve existing deterministic explain output and source-host responsibility
+  - [x] MUST NOT retain a second effective source selection implementation
+
+- [x] [UPDATE] `packages/core/kernel/src/Config/ConfigKernel.php`
+  - [x] reuse shared canonical source trace normalization where required by explainCompiled()
+  - [x] preserve existing effective source metadata production and compile result shape
+  - [x] preserve existing config loading, directives, merge precedence, validation, and source ownership
+  - [x] preserve existing explain spans, metrics, logging, and failure semantics
+  - [x] MUST NOT introduce a runtime diagnostics execution pipeline
+  - [x] MUST NOT move application environment selection into Phase B
+
+- [x] [UPDATE] `packages/core/kernel/src/Config/ArrayConfigRepository.php`
+  - [x] require explicitly supplied canonical ConfigValueSource metadata in the constructor
+  - [x] preserve immutable merged configuration storage
+  - [x] preserve existing `has()`, `get()`, and `all()` semantics
+  - [x] implement `sourceOf()` through the shared EffectiveConfigSourceSelector
+  - [x] verify that the requested concrete config key exists before resolving its source
+  - [x] preserve existing logical dotted-key addressing
+  - [x] return `null` for missing keys or unavailable provenance
+  - [x] implement `explain()` as a deterministic safe list of ConfigValueSource instances
+  - [x] preserve explicit empty-source construction for fixtures without provenance
+  - [x] MUST NOT return the ConfigExplainer CLI presentation shape from `explain()`
+  - [x] MUST NOT synthesize provenance from merged values, filesystem paths, or environment contents
+  - [x] MUST NOT execute config formation, perform filesystem access, or invoke compile-host services
+  - [x] MUST NOT introduce runtime defaults, mutable caches, observability emissions, or reset participation
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Builders/CompiledConfigBuilder.php`
+  - [x] require the canonical frozen application environment as an explicit build input
+  - [x] add required `appEnv` metadata to the existing `config@1` payload
+  - [x] preserve all existing config payload fields and their semantics
+  - [x] preserve the existing `sources` payload field and canonical source metadata serialization
+  - [x] preserve source-order metadata required for effective source selection after hydration
+  - [x] preserve stable key ordering and deterministic artifact bytes
+  - [x] retain `appEnv` outside `payload.config`
+  - [x] MUST NOT introduce a user-overridable environment configuration key
+  - [x] MUST NOT read process environment, resolve bootstrap inputs, or infer environment identity
+  - [x] MUST NOT introduce another artifact or change the existing artifact schema version
+  - [x] expose the canonical sorted config artifact payload key set for internal Kernel consumers
+  - [x] reuse the canonical payload key set across artifact construction, validation, hydration, and fingerprint input
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Fingerprint/ConfigFingerprintInputBuilder.php`
+  - [x] include the canonical config@1 payload key set in the existing compiledConfig fingerprint bucket
+  - [x] use the fixed metadata key `payloadKeys`
+  - [x] consume the canonical payload key set from CompiledConfigBuilder
+  - [x] preserve existing authoritative bootstrap environment fingerprint participation
+  - [x] preserve deterministic fingerprint input across equivalent environments and runtime graphs
+  - [x] ensure changes to the canonical config artifact payload shape affect the shared artifact fingerprint
+  - [x] preserve existing fingerprint exclusion, redaction, and observability semantics
+  - [x] MUST NOT introduce another fingerprint algorithm, fingerprint registry, or generation identity
+  - [x] MUST NOT include runtime object instances or runtime-only filesystem paths
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Compiler/ArtifactCompiler.php`
+  - [x] pass the existing resolved BootstrapConfig::appEnv() value to CompiledConfigBuilder
+  - [x] preserve canonical configuration compilation and provider composition
+  - [x] preserve existing fingerprint calculation, generation publication, and failure handling
+  - [x] preserve existing observability boundaries
+  - [x] MUST NOT introduce another environment resolution operation
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Verifier/CacheVerifier.php`
+  - [x] pass the same canonical frozen environment to CompiledConfigBuilder when reconstructing expected artifact bytes
+  - [x] preserve exact compiler/verifier artifact construction parity
+  - [x] preserve existing fingerprint, generation validation, and cache verification semantics
+  - [x] preserve existing observability boundaries
+  - [x] MUST NOT introduce another cache verification or environment resolution operation
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Verifier/ArtifactSchemaValidator.php`
+  - [x] extend the exact `config@1` payload field set with required `appEnv`
+  - [x] validate authoritative application environment metadata consistently with canonical bootstrap environment constraints
+  - [x] reject missing, malformed, or invalid environment metadata
+  - [x] preserve strict rejection of unknown config payload fields
+  - [x] validate config source entries consistently with ConfigValueSourceArtifactHydrator
+  - [x] preserve existing safe source metadata and artifact payload validation
+  - [x] preserve existing ArtifactInvalidException taxonomy and schema mismatch behavior
+  - [x] MUST NOT accept implicit fallback environment metadata
+  - [x] MUST NOT introduce another artifact schema registry or artifact version
+  - [x] consume the canonical config artifact payload key set from CompiledConfigBuilder
+
+- [x] [UPDATE] `packages/core/kernel/src/Container/RuntimeContainerSeedIds.php`
+  - [x] add RuntimeDiagnosticsInput::class to the canonical entrypoint-owned seed allowlist
+  - [x] preserve existing container-owned and entrypoint-owned seed identities
+  - [x] preserve the distinction between runtime seeds and compile-host services
+  - [x] MUST NOT introduce arbitrary externally supplied runtime seed IDs
+
+- [x] [UPDATE] `packages/core/kernel/src/Container/RuntimeContainerSeedSet.php`
+  - [x] validate the exact updated entrypoint-owned runtime seed map
+  - [x] require RuntimeDiagnosticsInput::class to contain a RuntimeDiagnosticsInput instance
+  - [x] preserve exact key-set validation and deterministic ordering
+  - [x] preserve existing missing, unknown, and mismatched seed rejection
+  - [x] MUST NOT introduce optional seed entries or compatibility seed maps
+
+- [x] [UPDATE] `packages/core/kernel/src/Boot/ArtifactRuntimeSeedFactory.php`
+  - [x] consume the exact updated validated `config@1` payload shape
+  - [x] hydrate the existing config payload source entries through ConfigValueSourceArtifactHydrator
+  - [x] explicitly pass hydrated source metadata to ArrayConfigRepository
+  - [x] construct RuntimeDiagnosticsInput from authoritative artifact environment metadata and successful artifact boot evidence
+  - [x] include RuntimeDiagnosticsInput in the exact canonical runtime seed map
+  - [x] preserve existing ConfigRepositoryInterface, ModulePlan, and RuntimePathContext hydration
+  - [x] MUST NOT infer the environment or inspect the filesystem
+  - [x] MUST NOT create another runtime container, source-host, or artifact reader
+  - [x] reuse the canonical config artifact payload key set for exact payload validation
+
+- [x] [UPDATE] `packages/core/kernel/src/Boot/ArtifactRuntimeBooter.php`
+  - [x] propagate authoritative `config@1` application environment metadata through the existing seed factory
+  - [x] establish artifact-generation-loaded status only after canonical generation selection and successful validation
+  - [x] preserve the exact selected immutable artifact generation
+  - [x] preserve existing artifact validation and boot exception mapping
+  - [x] preserve existing runtime container creation
+  - [x] MUST NOT resolve a second generation, re-read the current pointer, or trigger source-host execution
+  - [x] MUST NOT read process environment to override the artifact-associated environment
+
+- [x] [UPDATE] `packages/core/kernel/src/Container/CompiledContainerFactory.php`
+  - [x] validate and install RuntimeDiagnosticsInput through the existing exact runtime seed mechanism
+  - [x] preserve the canonical seed allowlist
+  - [x] preserve existing service, alias, parameter, and tag reconstruction
+  - [x] reject compiled definitions attempting to replace the RuntimeDiagnosticsInput seed
+  - [x] preserve existing container validation and failure semantics
+  - [x] MUST NOT serialize or reconstruct the runtime diagnostics object as an ordinary compiled service
+
+- [x] [UPDATE] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] provide construction of RuntimeDiagnosticsInput for the canonical source host
+  - [x] consume the already-resolved BootstrapConfig::appEnv()
+  - [x] set artifact-generation-loaded status to `false` for source-host execution
+  - [x] preserve existing source-host RuntimePathContext construction
+  - [x] MUST NOT resolve Bootstrap Phase A again
+  - [x] MUST NOT inspect artifacts or infer a loaded generation from cache directory existence
+
+- [x] [UPDATE] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] register the canonical source-host RuntimeDiagnosticsInput factory through the existing source-host registration boundary
+  - [x] preserve lazy source-host factory behavior
+  - [x] MUST NOT contribute the source-host factory to canonical compiled runtime definitions
+  - [x] preserve existing compile-host service ownership and exclusion policies
+
+- [x] [UPDATE] `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+  - [x] explicitly pass the already-produced ConfigKernel source metadata to ArrayConfigRepository
+  - [x] install RuntimeDiagnosticsInput through the existing host-owned wiring mechanism
+  - [x] consume the existing resolved source-host BootstrapConfig
+  - [x] preserve source-host artifact-generation-loaded status as `false`
+  - [x] protect RuntimeDiagnosticsInput against host-owned tag target overrides
+  - [x] preserve canonical provider order, runtime operations, and host failure semantics
+  - [x] MUST NOT execute another Kernel host or configuration compilation operation
+
+Tests:
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/ConfigFingerprintInputBuilderBuildsSafeBucketsTest.php`
+  - [x] verify the exact canonical config artifact payload key set in fingerprint input
+  - [x] verify deterministic payload key ordering
+  - [x] verify the canonical payload shape is included in the `compiledConfig.payloadKeys` fingerprint input
+  - [x] preserve existing environment, source metadata, and container graph fingerprint assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/FingerprintCalculatorStableInputContractTest.php`
+  - [x] verify changing only `compiledConfig.payloadKeys` in synthetic fingerprint input changes the shared artifact fingerprint
+  - [x] preserve the existing platform-independent SHA-256 fixture
+  - [x] preserve existing deterministic normalization and fingerprint assertions
+  - [x] MUST NOT introduce another production artifact payload shape or schema version
+
+- [x] [CREATE] `packages/core/kernel/tests/Unit/RuntimeDiagnosticsInputTest.php`
+  - [x] verify mandatory runtime diagnostics input construction
+  - [x] verify authoritative application environment preservation
+  - [x] verify loaded-generation and unavailable-generation states
+  - [x] verify invalid environment rejection
+  - [x] verify immutable runtime input without filesystem or process-environment access
+  - [x] verify the runtime input is declared in the canonical Kernel PUBLIC_API.md manifest
+
+- [x] [CREATE] `packages/core/kernel/tests/Unit/EffectiveConfigSourceSelectorTest.php`
+  - [x] verify canonical precedence and effective source selection
+  - [x] verify root-level and exact logical key-path matching
+  - [x] verify dotted segment and list boundaries
+  - [x] verify deterministic source ordering and tie resolution
+  - [x] verify missing source metadata returns null
+  - [x] verify source selection remains independent of configuration values
+
+- [x] [CREATE] `packages/core/kernel/tests/Unit/ConfigValueSourceArtifactHydratorTest.php`
+  - [x] verify reconstruction of canonical ConfigValueSource instances
+  - [x] verify required and optional artifact source fields
+  - [x] verify canonical source types, precedence, and redaction state
+  - [x] verify rejection of malformed or unsupported source records
+  - [x] verify deterministic source metadata hydration
+  - [x] verify no raw values or unsafe metadata enter hydrated source records
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/ArrayConfigRepositoryContractTest.php`
+  - [x] verify mandatory source metadata construction
+  - [x] verify canonical sourceOf() and explain() behavior
+  - [x] verify effective source selection for existing concrete config paths
+  - [x] verify missing keys and unavailable source metadata
+  - [x] preserve existing get(), has(), and all() contracts
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/ConfigExplainerSafetyContractTest.php`
+  - [x] verify source selection through the shared canonical selector
+  - [x] preserve exact existing config explanation output
+  - [x] preserve existing unknown-source and redaction behavior
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesConfigRepositoryTest.php`
+  - [x] verify actual config artifact source metadata hydration
+  - [x] verify sourceOf() and explain() on the booted runtime repository
+  - [x] verify package-default, application, and env-overlay source selection
+  - [x] verify effective source parity with the source-host repository
+  - [x] preserve existing merged configuration behavior
+
+- [x] [CREATE] `packages/core/kernel/tests/Integration/ArtifactOnlyBootHydratesRuntimeDiagnosticsInputTest.php`
+  - [x] exercise actual artifact compilation, generation publication, and artifact-only boot
+  - [x] verify the frozen bootstrap environment is restored from config@1
+  - [x] verify runtime environment does not depend on subsequent process environment changes
+  - [x] verify only a successfully validated and loaded generation produces loaded-generation status
+  - [x] verify subsequent current-pointer changes do not alter existing runtime diagnostics
+  - [x] verify missing or invalid environment metadata fails through canonical artifact validation
+  - [x] verify no compile-host services enter the runtime graph
+  - [x] use isolated temporary artifact generations
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/CompiledContainerFactoryResolvesRuntimeSeedsTest.php`
+  - [x] verify resolution of the exact four canonical runtime seeds
+  - [x] verify RuntimeDiagnosticsInput identity is preserved
+  - [x] verify runtime services consume the supplied seed
+  - [x] preserve existing compiled-container seed resolution evidence
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/CompiledContainerFactoryRejectsSeedOverrideTest.php`
+  - [x] verify compiled services and aliases cannot redefine RuntimeDiagnosticsInput
+  - [x] preserve existing seed collision diagnostics
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/RuntimeContainerSeedSetRejectsUnknownSeedsTest.php`
+  - [x] verify the exact extended runtime seed set
+  - [x] verify missing, incompatible, and unknown seed rejection
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerAcceptsRuntimeSeedReferencesTest.php`
+  - [x] verify canonical declarative RuntimeDiagnosticsInput references
+  - [x] preserve existing runtime seed reference rules
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/RuntimeContainerGraphCompilerRejectsRuntimeSeedOverrideTest.php`
+  - [x] include RuntimeDiagnosticsInput in reserved runtime seed collision coverage
+  - [x] preserve existing producer-side diagnostics
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php`
+  - [x] verify RuntimeDiagnosticsInput remains an external runtime seed
+  - [x] MUST NOT permit bootstrap or source-resolution services in runtime definitions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/KernelOpsSourceHostServicesAreNotRuntimeDefinitionsContractTest.php`
+  - [x] preserve source-host and compiled-runtime ownership separation
+  - [x] verify the source-host diagnostics factory is absent from compiled runtime definitions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/KernelOpsHostRejectsTagsForHostOwnedWiringTest.php`
+  - [x] verify RuntimeDiagnosticsInput remains host-owned
+  - [x] reject attempts to contribute runtime participation tags for the diagnostics input
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest.php`
+  - [x] verify source-host runtime diagnostics input resolution
+  - [x] verify the canonical bootstrap environment is preserved
+  - [x] preserve existing provider composition semantics
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/KernelCompileArtifactBootUowResetE2ETest.php`
+  - [x] verify the extended runtime seed contract through the actual runtime boot
+  - [x] preserve existing UnitOfWork and reset lifecycle evidence
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactPipelineTestSupport.php`
+  - [x] supply mandatory frozen application environment metadata
+  - [x] preserve canonical artifact compilation and hydration fixture behavior
+  - [x] supply the complete canonical runtime seed set
+
+- [x] [UPDATE] `packages/core/kernel/tests/Support/AppBuilder.php`
+  - [x] align the HTTP fixture module dependencies with the canonical module metadata
+  - [x] include the mandatory platform.redaction dependency
+  - [x] preserve existing fixture provider composition and preset boot behavior
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/BootExpressPresetTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/BootMicroPresetTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/RuntimeDriverResolverConflictDiagnosticsAreDeterministicallySortedTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/RuntimeDriverResolverIgnoresOwnerScopedRuntimeInputsTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsInvalidRuntimeDriverConfigTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/RuntimeDriverResolverRejectsWorkerHttpWithAnyConfiguredHttpDriverTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/core/kernel/tests/Unit/RuntimeDriverResolverResolvesRuntimeDriverContributionsTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/cli/tests/Integration/Support/CliApplicationFixtureHarness.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/http/tests/Integration/HttpEarlyShortCircuitPostDecoratorsTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/worker/tests/Contract/WorkerCommandExceptionTaxonomyContractTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/worker/tests/Contract/WorkerStartCommandContractTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/worker/tests/Fixtures/worker-command-harness.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/worker/tests/Unit/WorkerRuntimeEntrypointGuardTest.php`
+  - [x] supply the mandatory ConfigValueSource list explicitly
+  - [x] use an explicit empty source list where provenance is unrelated to the fixture
+  - [x] preserve existing behavioral assertions
+  - [x] MUST NOT introduce compatibility constructor defaults or synthetic production provenance
+
+- [x] [UPDATE] `packages/platform/cli/tests/Integration/CliCanonicalErrorHandlerIntegrationTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/platform/errors/tests/Integration/ErrorsModuleCompositionTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/platform/http/tests/Unit/MiddlewareManualAppendAndDedupeTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/platform/metrics/tests/Integration/MetricsSelectedModuleBindingParityTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/platform/problem-details/tests/Integration/ProblemDetailsSelectedModuleBindingParityTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/platform/tracing/tests/Integration/TracingProviderSourceCompiledParityTest.php`
+  - [x] supply mandatory repository source metadata
+  - [x] supply the complete canonical runtime seed set
+  - [x] use an explicitly constructed immutable RuntimeDiagnosticsInput
+  - [x] preserve existing provider selection and binding parity
+  - [x] preserve all unrelated behavioral assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/ArtifactGenerationManifestShapeContractTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Contract/KernelPhpArtifactsUseCanonicalEnvelopeContractTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactPublicationSetRejectsMixedFingerprintsTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactGenerationLocatorRejectsSymlinkTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactGenerationLocatorRejectsHashMismatchTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/FingerprintIncludesUserOwnedConfigRootsTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactGenerationPublisherReusesIdenticalGenerationTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+  - [x] preserve immutable generation reuse exclusively for byte-identical artifact sets
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/CompiledConfigKeepsUserOwnedRootsTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactGenerationPublisherLeavesPreviousCurrentOnFailureTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactGenerationPublisherRejectsIncompleteGenerationTest.php`
+  - [x] explicitly supply the mandatory application environment
+  - [x] align exact config@1 payload fixtures with the canonical payload shape
+  - [x] preserve existing generation integrity, fingerprint, publication, and failure-recovery assertions
+
+- [x] [DELETE] `packages/platform/worker/tests/Support/ArrayConfigRepository.php`
+  - [x] remove the obsolete test-only configuration repository
+  - [x] preserve all existing worker test coverage through the canonical Kernel `ArrayConfigRepository`
+  - [x] ensure no remaining references to the removed test helper
+
+Docs:
+- [x] [UPDATE] `packages/core/kernel/PUBLIC_API.md`
+  - [x] declare `Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput` as a public Kernel runtime input
+  - [x] preserve existing public Kernel API declarations
+  - [x] MUST NOT expose EffectiveConfigSourceSelector or ConfigValueSourceArtifactHydrator as public package APIs
+
+- [x] [UPDATE] `docs/ssot/artifacts-and-fingerprint.md`
+  - [x] document the exact config@1 payload including authoritative appEnv metadata
+  - [x] document canonical source metadata hydration
+  - [x] preserve existing fingerprint, artifact identity, and deterministic encoding contracts
+  - [x] document canonical config artifact payload key-set participation in the existing compiledConfig fingerprint bucket
+  - [x] require distinct canonical artifact payload shapes to produce distinct generation identities
+
+- [x] [UPDATE] `docs/ssot/compiled-container.md`
+  - [x] extend the exact canonical runtime seed set with RuntimeDiagnosticsInput
+  - [x] document entrypoint-owned diagnostics input hydration
+  - [x] document authoritative environment and loaded-generation status
+  - [x] preserve runtime seed collision, graph ownership, and reference restrictions
+  - [x] preserve artifact-only runtime boot isolation
+
+- [x] [UPDATE] `docs/ssot/runtime-container-definitions.md`
+  - [x] document external RuntimeDiagnosticsInput consumption
+  - [x] align all exact runtime seed declarations
+  - [x] preserve the canonical source-host and compiled-runtime ownership separation
+  - [x] MUST NOT expose BootstrapConfig through ContainerDefinitionContext
+
+- [x] [UPDATE] `docs/ssot/config-and-env.md`
+  - [x] document runtime config sourceOf() and explain() behavior
+  - [x] document authoritative effective source metadata hydration
+  - [x] distinguish unavailable provenance from missing configuration values
+
+- [x] [UPDATE] `docs/ssot/config-precedence-matrix.md`
+  - [x] document shared canonical effective source selection
+  - [x] preserve all existing source precedence and merge semantics
+
+- [x] [UPDATE] `docs/ssot/config-merge-order.md`
+  - [x] align runtime effective source selection with canonical config formation semantics
+  - [x] preserve existing merge ordering and directive behavior
+
+- [x] [UPDATE] `docs/ssot/artifact-generations.md`
+  - [x] document runtime diagnostics as a summary of the immutable boot-selected generation
+  - [x] preserve canonical generation validation and atomic selection
+  - [x] MUST NOT introduce runtime generation rediscovery
+
+- [x] [UPDATE] `docs/adr/ADR-0023-kernel-bootstrap-phase-a.md`
+  - [x] document authoritative frozen application environment propagation
+  - [x] preserve canonical bootstrap ownership
+
+- [x] [UPDATE] `docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md`
+  - [x] document shared effective configuration source selection
+  - [x] preserve existing formation, precedence, and redaction decisions
+
+- [x] [UPDATE] `docs/adr/ADR-0028-kernel-artifacts-fingerprint-cache-verify.md`
+  - [x] document canonical config artifact payload shape participation in fingerprint input
+  - [x] preserve shared artifact fingerprint and immutable generation identity semantics
+  - [x] preserve existing compiler, verifier, and publication ownership boundaries
+
+- [x] [UPDATE] `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
+  - [x] align config@1 payload and runtime seed hydration decisions
+  - [x] document RuntimeDiagnosticsInput as an entrypoint-owned runtime seed
+  - [x] preserve compiled graph and artifact-only runtime ownership boundaries
+
+- [x] [UPDATE] `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
+  - [x] align exact runtime seed ownership and reference rules
+  - [x] distinguish source-host diagnostics construction from artifact hydration
+  - [x] preserve compile-host exclusion from runtime definitions
+
+- [x] [UPDATE] `packages/core/kernel/README.md`
+  - [x] document RuntimeDiagnosticsInput and the exact runtime seed set
+  - [x] document authoritative runtime environment propagation
+  - [x] document runtime config provenance consumption
+  - [x] document boot-selected artifact generation status
+  - [x] preserve existing Kernel runtime, compilation, verification, and lifecycle contracts
+
+- [x] [UPDATE] `docs/architecture/worker.md`
+  - [x] align canonical artifact-only runtime boot with the complete Kernel runtime seed set
+  - [x] document RuntimeDiagnosticsInput hydration as an existing Kernel boot responsibility
+  - [x] preserve Worker-specific runtime dependencies and lifecycle ownership
+
+- [x] [UPDATE] `docs/adr/ADR-0017-persistent-worker-supervisor-application-worker.md`
+  - [x] align shared Kernel artifact-runtime seed declarations and boot sequence
+  - [x] preserve existing Worker-specific required-service declarations
+  - [x] MUST NOT introduce a Worker-specific diagnostics input or hydration mechanism
+
+- [x] [UPDATE] `packages/platform/worker/README.md`
+  - [x] align the canonical Kernel artifact-only boot sequence with RuntimeDiagnosticsInput hydration
+  - [x] preserve existing Worker process bootstrap, supervision, and lifecycle contracts
+
 #### Creates
 
-- [ ] `packages/platform/http/src/Debug/DebugGuard.php` — allowlist/token/local env guard
-- [ ] `packages/platform/http/src/Debug/DebugRouter.php` — routes `/_debug/*` to handlers deterministically
-- [ ] `packages/platform/http/src/Debug/DebugHeadersHandler.php` — outputs only safe headers (redacts Authorization/Cookie/Set-Cookie)
-- [ ] `packages/platform/http/src/Debug/DebugModuleListHandler.php` — lists enabled modules (safe)
-- [ ] `packages/platform/http/src/Debug/DebugConfigHandler.php` — formation trace + redacted value (no secrets)
-- [ ] `packages/platform/http/src/Debug/DebugCacheHandler.php` — cache artifact status summary (no values)
-  - [ ] Cache status MUST be summary-only:
-    - [ ] existence + byte size + sha256 (optional),
-    - [ ] MUST NOT parse artifacts payloads,
-    - [ ] MUST NOT output absolute paths or file contents.
-- [ ] `packages/platform/http/src/Debug/Redaction.php` — helper `hash/len`, header redaction map
+- [x] `packages/platform/http/src/Debug/DebugGuard.php` — immutable development endpoint access policy
+  - [x] consume the canonical Kernel runtime environment
+  - [x] consume existing ModulePlan for explicit Problem Details selection
+  - [x] require `http.debug.endpoints.enabled=true`
+  - [x] permit only exact development environments `local` and `dev`
+  - [x] treat every other environment as ineligible
+  - [x] consume mandatory immutable RuntimeDiagnosticsInput supplied by Kernel
+  - [x] MUST NOT infer environment eligibility from process environment, configuration defaults, request data, or module selection
+  - [x] require the explicitly selected canonical Problem Details boundary before exposing debug endpoints
+  - [x] validate configured exact IPv4 and IPv6 allowlist addresses
+  - [x] reuse TrustedProxyPolicy::canonicalIp() for configured allowlist entries and request client identities
+  - [x] require exact canonical IP identity matching without DNS resolution
+  - [x] MUST NOT implement another IP normalization algorithm
+  - [x] consume the existing TrustedProxyPolicy and http.proxy.enabled configuration
+  - [x] obtain the immediate peer exclusively from the REMOTE_ADDR server parameter
+  - [x] validate the immediate peer as a canonical IPv4 or IPv6 address
+  - [x] use the immediate peer directly when it is not a configured trusted proxy
+  - [x] require enabled trusted-proxy processing and validated client_ip metadata when the immediate peer is a configured trusted proxy
+  - [x] consume proxy metadata exclusively through TrustedProxyMiddleware::ATTRIBUTE
+  - [x] ignore proxy metadata for untrusted immediate peers
+  - [x] deny unresolved trusted-proxy requests
+  - [x] consume validated trusted-proxy metadata only through the existing TrustedProxyMiddleware handoff
+  - [x] reject missing or invalid client identity
+  - [x] reject unresolved client identity behind a trusted proxy
+  - [x] MUST NOT trust raw forwarding headers
+  - [x] require exactly one `X-Debug-Token` header value
+  - [x] require the supplied token to contain exactly 64 lowercase hexadecimal characters
+  - [x] require the configured token digest to be empty or exactly 64 lowercase hexadecimal characters
+  - [x] calculate the SHA-256 digest of the supplied token before constant-time comparison
+  - [x] MUST NOT authorize requests when the configured digest is empty
+  - [x] verify the configured token digest through constant-time `hash_equals()`
+  - [x] reject missing, empty, duplicate, malformed, or incorrect tokens
+  - [x] enforce the configured endpoint operation allowlist
+  - [x] validate semantic policy independently of feature activation
+  - [x] MUST NOT perform service discovery, environment lookup, filesystem access, ContextStore writes, logging, or metric emission
+  - [x] MUST NOT retain request-local authorization state
+  - [x] own validation of configured config-key allowlist prefixes
+  - [x] expose a stateless config-key eligibility decision
+  - [x] reuse one canonical logical dotted-path grammar for configured prefixes and requested keys
+  - [x] enforce exact prefix equality or dotted segment-boundary matching
+  - [x] MUST NOT read configuration values while evaluating config-key eligibility
 
-- [ ] `packages/platform/http/src/Debug/Exception/DebugForbiddenException.php` — errorCode `CORETSIA_HTTP_DEBUG_FORBIDDEN` (403)
-- [ ] `packages/platform/http/src/Debug/Exception/DebugDisabledException.php` — errorCode `CORETSIA_HTTP_DEBUG_DISABLED` (deterministic 404 when debug endpoints are disabled)
-- [ ] `packages/platform/http/src/Error/DebugExceptionMapper.php`
-  - [ ] implements `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
-  - [ ] maps:
-    - [ ] `DebugDisabledException` → `ErrorDescriptor` with optional HTTP hint `404`
-    - [ ] `DebugForbiddenException` → `ErrorDescriptor` with optional HTTP hint `403`
-  - [ ] MUST NOT import `platform/errors`, because it is a forbidden compile-time dependency here
-  - [ ] MUST be registered via DI tag `error.mapper` using a package-local internal mirror constant
-    - [ ] canonical string literal `'error.mapper'` is allowed only as fallback
+- [x] `packages/platform/http/src/Debug/DebugRouter.php` — terminal development endpoint dispatcher
+  - [x] consume mandatory DebugGuard and the four explicitly wired debug handlers
+  - [x] dispatch only `GET /_debug/headers`, `GET /_debug/modules`, `GET /_debug/config`, and `GET /_debug/cache`
+  - [x] require canonical development-only declaration ownership established by FallbackRouter
+  - [x] evaluate the original unnormalized URI path against the four explicit endpoint paths
+  - [x] check exact method and path claims before authorization
+  - [x] return the existing non-matching result for normalized aliases that are not exact debug endpoint paths
+  - [x] return the existing non-matching result for missing authorized config keys
+  - [x] MUST NOT emit allowed or blocked decisions for missing authorized config keys
+  - [x] MUST NOT convert unrelated handler, factory, encoding, or redaction failures into access-denial decisions
+  - [x] return a non-matching result for disabled or ineligible development endpoints
+  - [x] preserve safe unmatched behavior for unsupported methods and paths
+  - [x] throw DebugForbiddenException for recognized eligible endpoints denied by IP, token, endpoint, or config-key access policy
+  - [x] complete authorization before invoking diagnostic data access
+  - [x] emit the canonical `http.debug_total` decision metric through the existing MeterPortInterface
+  - [x] honor `http.metrics.enabled`
+  - [x] increment exactly once with value `1` per completed allowed response or intentional forbidden decision
+  - [x] emit the fixed blocked-access warning through the existing LoggerInterface
+  - [x] honor `http.access_log.enabled`
+  - [x] isolate metric and logging failures independently without retries
+  - [x] MUST NOT expose raw request data in metric labels or logs
+  - [x] MUST NOT introduce another route registry, request lifecycle, response finalizer, error renderer, span, or reset registration
 
-- [ ] `docs/guides/http-debug-endpoints.md` — how to enable in local + security warnings + redaction rules
+- [x] `packages/platform/http/src/Debug/DebugHeadersHandler.php` — bounded request header diagnostics
+  - [x] consume SensitiveDataRedactorInterface
+  - [x] expose exactly one top-level headers map
+  - [x] expose exactly the following ordinary header keys as boolean presence indicators:
+    - [x] accept
+    - [x] content-type
+    - [x] user-agent
+  - [x] expose exactly the following sensitive header keys:
+    - [x] authorization
+    - [x] cookie
+    - [x] set-cookie
+    - [x] x-debug-token
+  - [x] represent absent sensitive headers as null
+  - [x] represent present sensitive headers through canonical RedactedValue::toArray() Placeholder summaries
+  - [x] use RedactionKind::Authorization for authorization
+  - [x] use RedactionKind::Cookie for cookie and set-cookie
+  - [x] use RedactionKind::Token for x-debug-token
+  - [x] require canonical Placeholder mode with null length and hash
+  - [x] MUST NOT expose the number of header values
+  - [x] use fixed redaction scope `http.debug.headers`
+  - [x] MUST NOT enumerate arbitrary request header names
+  - [x] MUST NOT output raw header values, credentials, session identifiers, token values, lengths, or hashes
+  - [x] preserve deterministic response shape and ordering
+  - [x] construct the response through FallbackResponses
+  - [x] fail closed if required redaction fails
+  - [x] remain stateless and perform no ContextStore or lifecycle operations
 
-- [ ] `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-- [ ] `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
-- [ ] `packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
-- [ ] `packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
+- [x] `packages/platform/http/src/Debug/DebugModuleListHandler.php` — selected runtime module diagnostics
+  - [x] consume the existing Kernel-owned ModulePlan service
+  - [x] consume only ModulePlan::enabled()
+  - [x] convert canonical ModuleId instances to their string representations
+  - [x] return exactly one top-level modules list
+  - [x] preserve an empty JSON list when no enabled module IDs are present
+  - [x] expose only enabled module IDs as a unique byte-order sorted list
+  - [x] MUST NOT expose module manifests, filesystem paths, package installation locations, provider definitions, or module configuration
+  - [x] MUST NOT invoke ManifestReaderInterface, ModePresetLoaderInterface, Composer discovery, or module resolution
+  - [x] construct the response through FallbackResponses
+  - [x] remain stateless and perform no ContextStore or lifecycle operations
+
+- [x] `packages/platform/http/src/Debug/DebugConfigHandler.php` — bounded config source diagnostics
+  - [x] consume ConfigRepositoryInterface
+  - [x] consume SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface
+  - [x] accept exactly one bounded key selector from the original URI query
+  - [x] require the exact query form key=<logical-dotted-path>
+  - [x] restrict logical dotted paths to a maximum of 256 bytes
+  - [x] require a canonical lowercase config root followed by valid logical key segments
+  - [x] reject malformed, empty, repeated, array-valued, encoded, or ambiguous key selectors
+  - [x] MUST NOT rely exclusively on parsed query parameters that may discard duplicate selectors
+  - [x] MUST NOT support arbitrary configuration expressions or wildcard lookup
+  - [x] consume DebugGuard for canonical config-key allowlist authorization
+  - [x] deny access when the canonical config-key eligibility decision fails
+  - [x] MUST NOT duplicate config-key grammar, prefix matching, or allowlist validation
+  - [x] classify each relevant logical key segment through the canonical sensitive-key classifier
+  - [x] deny classified sensitive key paths before reading config values
+  - [x] MUST NOT expose the `http.debug` configuration subtree
+  - [x] use ConfigRepositoryInterface::has() before reading the authorized key
+  - [x] return safe unmatched behavior for missing authorized keys
+  - [x] use ConfigRepositoryInterface::sourceOf() for canonical effective source metadata
+  - [x] expose exactly the following top-level response members:
+    - [x] type: null|bool|int|string|list|map
+    - [x] source: null|map
+  - [x] represent type as a fixed string identifier
+  - [x] restrict the source map to exactly:
+    - [x] type: canonical ConfigSourceType string value
+    - [x] precedence: canonical non-negative integer
+    - [x] redacted: canonical boolean
+  - [x] represent missing provenance as source=null
+  - [x] reject unsupported configuration value types through the canonical error boundary
+  - [x] apply mandatory shared redaction only to the bounded diagnostic projection
+  - [x] validate the final diagnostic projection against the exact public response schema
+  - [x] MUST NOT pass the complete configuration value or subtree into the public response encoder
+  - [x] MUST NOT reconstruct unavailable source metadata
+  - [x] use fixed redaction scope `http.debug.config`
+  - [x] MUST NOT expose raw values, string lengths, hashes, collection counts, raw source metadata, absolute paths, env identifiers, or arbitrary source identifiers
+  - [x] expose source metadata exclusively through the explicitly defined public source projection
+  - [x] MUST NOT call ConfigRepositoryInterface::all(), execute ConfigKernel, reconstruct config precedence, or invoke KernelOpsInterface
+  - [x] construct the response through FallbackResponses
+  - [x] fail closed if required redaction fails
+  - [x] remain stateless and perform no ContextStore or lifecycle operations
+
+- [x] `packages/platform/http/src/Debug/DebugCacheHandler.php` — boot-selected artifact status diagnostics
+  - [x] consume the canonical Kernel runtime diagnostics input
+  - [x] describe only the artifact generation loaded by the current runtime
+  - [x] return exactly one top-level artifacts map
+  - [x] expose exactly the following fixed artifact identifiers:
+    - [x] config
+    - [x] container
+    - [x] generation-manifest
+    - [x] module-manifest
+  - [x] use the fixed status values loaded and unavailable
+  - [x] report loaded for all four identifiers when RuntimeDiagnosticsInput confirms a successfully validated and loaded immutable generation
+  - [x] report unavailable for all four identifiers when runtime execution does not use a loaded artifact generation
+  - [x] MUST NOT independently determine individual artifact availability during request execution
+  - [x] MUST NOT expose artifact contents, file paths, generation identifiers, fingerprints, hashes, or byte sizes
+  - [x] MUST NOT read arbitrary files, scan directories, follow symlinks, or resolve caller-supplied paths
+  - [x] MUST NOT invoke ArtifactGenerationLocator, CacheVerifier, artifact readers, compilation, publication, or repair operations
+  - [x] construct the response through FallbackResponses
+  - [x] remain stateless and perform no ContextStore or lifecycle operations
+
+- [x] `packages/platform/http/src/Exception/DebugForbiddenException.php` — canonical HTTP-owned debug access denial
+  - [x] follow the existing HTTP-owned exception construction and diagnostic conventions
+  - [x] fixed error code `CORETSIA_HTTP_DEBUG_FORBIDDEN`
+  - [x] fixed reason `http-debug-forbidden`
+  - [x] MUST NOT contain request paths, IP addresses, token values, config keys, or guard failure details
+  - [x] preserve canonical ErrorHandler normalization
+
+Docs:
+- [x] `docs/guides/http-debug-endpoints.md`
+  - [x] document local and dev activation
+  - [x] document cryptographically secure token generation and digest configuration
+  - [x] provide safe request examples using the fixed X-Debug-Token header
+  - [x] document exact IP and trusted-proxy requirements
+  - [x] document endpoint and config-key allowlists
+  - [x] document disabled and forbidden response behavior
+  - [x] document safe diagnostic output boundaries
+  - [x] warn against public exposure, credential reuse, shared caching, and logging debug tokens
+  - [x] reference canonical HTTP system endpoint and redaction SSoT documents
+
+Tests:
+- [x] `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
+  - [x] exercise all four debug endpoints through the canonical terminal HTTP pipeline
+  - [x] verify default-disabled empty-body `404`
+  - [x] verify enabled debug configuration in non-development environments remains unavailable
+  - [x] verify debug eligibility exclusively follows the supplied authoritative RuntimeDiagnosticsInput
+  - [x] verify process environment and kernel defaults cannot override the frozen runtime environment
+  - [x] verify absence of Problem Details selection keeps debug endpoints unavailable
+  - [x] verify authorized local and dev requests
+  - [x] verify missing, invalid, duplicated, and incorrect tokens
+  - [x] verify IPv4 and IPv6 allowlists
+  - [x] verify invalid and missing client identity
+  - [x] verify trusted-proxy metadata and spoofed forwarding headers
+  - [x] verify disabled diagnostic operations
+  - [x] verify unsupported methods, unknown paths, and encoded or slash aliases
+  - [x] verify maintenance and earlier middleware precedence
+  - [x] verify source and compiled container parity
+  - [x] verify trusted peers without validated client identity are denied
+  - [x] verify configured trusted peers are denied when trusted-proxy processing is disabled
+  - [x] verify untrusted peers cannot authorize requests through spoofed proxy metadata
+  - [x] verify malformed token and digest shapes fail closed
+  - [x] verify malformed, duplicate, and oversized configured IP allowlists are rejected
+  - [x] verify invalid, duplicate, and oversized configured endpoint operation lists are rejected
+  - [x] verify invalid, duplicate, and oversized configured config-key allowlists are rejected
+  - [x] verify semantic policy validation remains enforced when debug endpoints are disabled
+  - [x] verify empty IP allowlist and empty token digest deny access
+  - [x] verify canonical IPv4 and IPv6 comparison reuses the existing trusted-proxy normalization policy
+
+- [x] `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
+  - [x] verify exact bounded response schema, headers, stable JSON, and final LF
+  - [x] verify canonical Placeholder redaction
+  - [x] verify case-insensitive header consumption
+  - [x] verify Authorization, Cookie, Set-Cookie, and debug token non-disclosure
+  - [x] verify arbitrary and unsupported header names and values are excluded
+  - [x] verify malicious values in otherwise supported headers remain undisclosed
+  - [x] verify redaction failures fail closed
+  - [x] verify no sensitive lengths or hashes are emitted
+
+- [x] `packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
+  - [x] use the real canonical source-tracking runtime repository
+  - [x] verify compiled artifact source metadata hydration
+  - [x] verify package default, application override, and env-overlay provenance
+  - [x] verify exact and segment-boundary config allowlist behavior
+  - [x] verify malformed, repeated, array-valued, and unauthorized key rejection
+  - [x] verify empty config allowlist denial
+  - [x] verify sensitive key classification before value access
+  - [x] verify missing authorized key behavior
+  - [x] verify deterministic unavailable-source representation
+  - [x] verify no raw config values, secrets, source paths, lengths, hashes, or collection counts
+  - [x] verify source and compiled runtime parity
+  - [x] verify duplicate query selectors using the original URI query
+  - [x] verify exact public type and source response members
+  - [x] verify http.debug subtree denial before config value access
+  - [x] verify missing authorized keys produce an unmatched response without debug decision metrics
+  - [x] verify canonical effective source parity between source-host and hydrated artifact repositories
+
+- [x] `packages/platform/http/tests/Integration/DebugDisabledReturns404AndForbiddenTriggersCanonicalErrorFlowTest.php`
+  - [x] verify disabled requests produce the canonical unmatched `404` without exception normalization
+  - [x] execute enabled forbidden requests through the actual terminal dispatcher and HttpKernel
+  - [x] verify existing error.mapper registry resolves HttpExceptionMapper
+  - [x] capture the actual normalized forbidden descriptor through ErrorReporterPortInterface
+  - [x] configure deterministic reporting
+  - [x] assert exactly one canonical forbidden descriptor with HTTP status hint `403` and empty extensions
+  - [x] verify canonical RFC9457 public response independently of descriptor normalization
+  - [x] verify public error responses do not disclose internal diagnostics
+  - [x] preserve canonical handled-error UnitOfWork outcome
+
+- [x] `packages/platform/http/tests/Integration/DebugModuleListUsesRuntimeModulePlanTest.php`
+  - [x] verify exact enabled module IDs from the current runtime ModulePlan
+  - [x] verify unique deterministic byte-order sorting
+  - [x] verify excluded and unselected installed modules remain absent
+  - [x] verify no manifest or Composer discovery
+  - [x] verify exact safe response schema
+
+- [x] `packages/platform/http/tests/Integration/DebugCacheUsesBootSelectedGenerationTest.php`
+  - [x] verify canonical runtime artifact summary
+  - [x] verify exact fixed artifact identifiers
+  - [x] verify deterministic source-runtime unavailable metadata
+  - [x] verify current pointer changes do not change diagnostics for an already booted runtime
+  - [x] verify no artifact payload inspection, path disclosure, filesystem scanning, or writes
+
+- [x] `packages/platform/http/tests/Integration/DebugEndpointObservabilityTest.php`
+  - [x] verify exact counter name, increment value, and canonical bounded label combinations
+  - [x] verify exactly one attempt per completed eligible decision
+  - [x] verify disabled metrics and logging independently
+  - [x] verify Foundation noop ports
+  - [x] verify throwing meter and logger failure isolation without retries
+  - [x] verify no metrics or logs for unmatched or disabled requests
+  - [x] verify no completed allowed decision after failed response construction
+  - [x] verify no debug decision is duplicated through http.system_endpoint_total
+  - [x] verify unchanged canonical request metrics, request span, completion logging, and UnitOfWork semantics
+  - [x] verify missing authorized config keys do not emit debug decision metrics or blocked warning events
+  - [x] verify unrelated diagnostic handler failures do not become forbidden decisions
+  - [x] verify completed debug decisions remain independent of subsequent HTTP response finalization failures
 
 #### Modifies
 
-- [ ] `packages/platform/http/config/http.php` — add `http.debug.*` keys + defaults
-- [ ] `packages/platform/http/config/rules.php` — enforce shape for `http.debug.*`
-- [ ] `packages/platform/http/src/Provider/HttpServiceProvider.php` — register guard/router/handlers
-- [ ] `packages/platform/http/README.md` — section “Debug endpoints” (handlers dispatch model; why dev_only; redaction rules)
-- [ ] `docs/ssot/http-system-endpoints.md` — add dev-only `/_debug/*` endpoint set + guard/disabled behavior policy
+- [x] `packages/platform/http/config/http.php`
+  - [x] add the canonical `debug` subtree with all specified defaults
+  - [x] preserve exact existing configuration keys, defaults, and structures
+  - [x] document fixed default-disabled behavior
+  - [x] document the token digest configuration without storing raw credentials
+  - [x] preserve existing configuration root ownership
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/config/rules.php`
+  - [x] validate every declared debug configuration key as required
+  - [x] reject unknown keys at every debug map level
+  - [x] validate endpoint activation as an actual boolean
+  - [x] validate the IP allowlist as a list of non-empty whitespace-free strings
+  - [x] validate the token digest as a string
+  - [x] validate enabled operations as a list restricted to the four canonical operation names
+  - [x] validate config allowlist entries as non-empty logical key-prefix strings
+  - [x] preserve semantic IP, digest, uniqueness, grammar, and bounded-list validation in DebugGuard
+  - [x] preserve existing supported declarative rule types
+  - [x] MUST NOT introduce another validation DSL or ConfigValidator extension
 
-N/A (package `platform/http` already exists; this epic adds debug diagnostics slice)
+- [x] `packages/platform/http/src/Proxy/TrustedProxyPolicy.php`
+  - [x] expose the existing canonicalIp() implementation for package-internal policy reuse
+  - [x] preserve existing canonical IPv4 and IPv6 normalization behavior
+  - [x] preserve trusted-proxy network matching and forwarding metadata validation
+  - [x] MUST NOT introduce another IP normalization implementation or proxy trust mechanism
+
+- [x] `packages/platform/http/src/Routing/FallbackResponses.php`
+  - [x] add canonical debug JSON response construction for an authorized bounded payload
+  - [x] HTTP status `200`
+  - [x] `Content-Type: application/json`
+  - [x] `Cache-Control: no-store`
+  - [x] reuse StableJsonEncoder::encodeStableMap()
+  - [x] preserve compact deterministic JSON with exactly one final LF
+  - [x] reuse injected PSR-17 factories and existing ResponseInterface mutation checks
+  - [x] preserve original factory and mutation Throwables
+  - [x] preserve all existing system endpoint response contracts and unmatched empty-body `404`
+
+- [x] `packages/platform/http/src/Routing/FallbackRouter.php`
+  - [x] consume DebugRouter as a mandatory explicitly wired dependency
+  - [x] delegate only the canonical `platform/http` development-only `/_debug/` prefix declaration
+  - [x] preserve existing canonical matcher consumption and invalid-path handling
+  - [x] preserve exact method claim semantics
+  - [x] preserve all existing active and reserved system endpoint behavior
+  - [x] preserve unmatched behavior for the exact `/_debug` reservation
+  - [x] preserve separate `http.system_endpoint_total` observability
+  - [x] MUST NOT record debug decisions through `http.system_endpoint_total`
+  - [x] MUST NOT authorize endpoints solely through declaration matching
+
+- [x] `packages/platform/http/src/Error/HttpExceptionMapper.php`
+  - [x] preserve all four existing HTTP-owned exception mappings
+  - [x] map DebugForbiddenException to the canonical ErrorDescriptor
+  - [x] code `CORETSIA_HTTP_DEBUG_FORBIDDEN`
+  - [x] message `http-debug-forbidden`
+  - [x] severity `ErrorSeverity::Error`
+  - [x] HTTP status hint `403`
+  - [x] empty extensions
+  - [x] preserve existing unrelated Throwable behavior
+  - [x] MUST NOT introduce another mapper or rendering responsibility
+
+- [x] `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - [x] add canonical runtime construction of DebugGuard
+  - [x] consume ConfigRepositoryInterface, RuntimeDiagnosticsInput, ModulePlan, and TrustedProxyPolicy through mandatory arguments
+  - [x] read the validated http.debug configuration subtree through existing configuration access helpers
+  - [x] preserve mandatory DebugGuard constructor dependencies
+  - [x] add canonical runtime construction of TrustedProxyPolicy from validated http.proxy.trusted_proxies
+  - [x] preserve existing trusted-proxy and debug policy validation semantics
+  - [x] MUST NOT embed token digests, IP allowlists, or config-key allowlists in compiled definition arguments
+  - [x] MUST NOT introduce service-locator access, optional dependencies, or fallback configuration
+  - [x] preserve existing HTTP service construction responsibilities
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - [x] delegate consumption of validated `http.debug.*` policy configuration to HttpServiceFactory through ConfigRepositoryInterface
+  - [x] require the canonical ModulePlan and Kernel runtime diagnostics input
+  - [x] require SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface
+  - [x] register DebugGuard through the existing declarative class-method factory mechanism using HttpServiceFactory
+  - [x] register DebugRouter and all four debug handlers through existing declarative container definition APIs
+  - [x] construct TrustedProxyPolicy through the canonical HttpServiceFactory runtime configuration boundary
+  - [x] supply runtime configuration through ConfigRepositoryInterface rather than sensitive or IPv6-containing literal definition arguments
+  - [x] preserve existing canonical definition validation and security restrictions
+  - [x] update the existing FallbackRouter definition with the mandatory DebugRouter reference
+  - [x] reuse FallbackResponses and existing PSR-17 bindings
+  - [x] reuse existing MeterPortInterface and LoggerInterface bindings
+  - [x] preserve the existing HttpExceptionMapper contribution through ReservedTags::ERROR_MAPPER
+  - [x] preserve mapper priority `100` and empty metadata `[]`
+  - [x] preserve RequestHandlerInterface alias and FallbackRouterHandler integration
+  - [x] preserve source and compiled container parity
+  - [x] preserve later-binding-wins semantics
+  - [x] MUST NOT introduce middleware tags, reset registrations, runtime discovery, compatibility dependencies, or service-locator access
+  - [x] inject the existing TrustedProxyPolicy and validated http.proxy.enabled configuration into DebugGuard
+  - [x] consume RuntimeDiagnosticsInput exclusively through a canonical external runtime seed reference
+  - [x] MUST NOT construct, redefine, alias, or override RuntimeDiagnosticsInput
+  - [x] MUST NOT register Kernel bootstrap, artifact, or config source-resolution services
+
+Tests:
+- [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] lock the exact debug configuration subtree and defaults
+  - [x] verify required keys, unknown-key rejection, and existing declarative rule validation
+  - [x] supply the mandatory authoritative application environment to CompiledConfigBuilder
+  - [x] preserve config artifact payload validation and merged HTTP configuration assertions
+
+- [x] `packages/platform/http/tests/Unit/HttpExceptionMapperTest.php`
+  - [x] add exact DebugForbiddenException mapping coverage
+  - [x] preserve all existing HTTP-owned exception mappings
+
+- [x] `packages/platform/http/tests/Support/SystemEndpointRuntimeFixture.php`
+  - [x] supply mandatory canonical runtime diagnostics input
+  - [x] compose canonical Redaction bindings independently of Problem Details selection
+  - [x] support explicit debug configuration overrides
+  - [x] preserve existing external PSR-17 factories and lifecycle fixtures
+  - [x] supply mandatory canonical repository source metadata
+  - [x] supply the complete extended runtime seed set
+  - [x] MUST NOT redefine RuntimeDiagnosticsInput through provider definitions
+  - [x] distinguish explicit synthetic runtime seed fixtures from actual artifact-only boot evidence
+
+- [x] `packages/platform/http/tests/Integration/SystemEndpointObservabilityTest.php`
+  - [x] update existing direct FallbackRouter constructor calls
+  - [x] explicitly supply the mandatory DebugRouter dependency
+  - [x] preserve existing system-endpoint decision assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] supply mandatory debug service dependencies through the existing declarative DI graph
+  - [x] verify equivalent debug endpoint behavior
+  - [x] preserve existing system endpoint and middleware parity evidence
+  - [x] preserve the complete canonical runtime seed contract
+  - [x] verify identical guard, module, and config diagnostic behavior for equivalent runtime inputs
+  - [x] verify artifact status reflects the actual supplied runtime boot state
+  - [x] verify canonical source and compiled graph construction with the default IPv6 debug allowlist
+  - [x] verify configured IPv6 trusted proxies remain valid through runtime policy construction
+  - [x] verify debug token digests and config-key allowlists are absent from compiled definition arguments
+  - [x] verify no canonical definition validation restrictions are relaxed
+
+- [x] `packages/platform/http/tests/Integration/HttpPsrFactoryBootstrapReadinessTest.php`
+  - [x] update affected HTTP graph fixtures with mandatory debug dependencies
+  - [x] preserve existing PSR-17 readiness behavior and final binding ownership
+  - [x] supply mandatory config repository source metadata and the complete runtime seed set where applicable
+
+- [x] `packages/platform/metrics/tests/Contract/AllowedLabelSetMatchesObservabilitySsotContractTest.php`
+  - [x] verify http.debug_total catalog ownership, type, and exact label keys
+  - [x] preserve all existing metric catalog and global label allowlist assertions
+
+- [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+
+- [x] `packages/platform/http/tests/Contract/MaintenanceCommandContractTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+
+- [x] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+  - [x] supply mandatory config repository source metadata and the complete runtime seed set where applicable
+
+- [x] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+  - [x] supply mandatory config repository source metadata and the complete runtime seed set where applicable
+
+- [x] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+  - [x] supply mandatory config repository source metadata and the complete runtime seed set where applicable
+
+- [x] `packages/platform/http/tests/Unit/HttpPsrFactorySelectionTest.php`
+  - [x] supply newly required dependencies through the existing canonical provider composition or test-owned declarative fixtures
+  - [x] preserve all existing behavioral assertions and regression evidence
+
+- [x] `packages/core/kernel/tests/Integration/DependencySyncInstallationCatalogCoversCanonicalPresetsTest.php`
+  - [x] verify platform.http requires platform.redaction through canonical installation metadata
+  - [x] verify deterministic transitive Redaction inclusion for HTTP dependency synchronization
+  - [x] preserve existing canonical preset dependency coverage
+
+- [x] `packages/platform/http/composer.json`
+  - [x] declare `coretsia/platform-redaction` using the existing Composer release-line constraint
+  - [x] declare `platform.redaction` in `extra.coretsia.requires`
+  - [x] preserve existing HTTP package dependencies and module identity
+  - [x] MUST NOT introduce platform.errors or platform.problem-details implementation dependencies
+
+Docs:
+- [x] `docs/ssot/http-system-endpoints.md`
+  - [x] document development-only terminal dispatch and exact supported endpoint paths
+  - [x] preserve both canonical dev_only reservations
+  - [x] document exact guard eligibility and access restrictions
+  - [x] document disabled and ineligible unmatched `404` behavior
+  - [x] document canonical forbidden-error normalization and selected Problem Details rendering
+  - [x] document exact diagnostic response schemas, content type, cache policy, and deterministic JSON
+  - [x] document bounded safe diagnostic data ownership
+  - [x] remove statements prohibiting implemented terminal development endpoint dispatch
+  - [x] preserve existing active and reserved system endpoint behavior
+  - [x] distinguish debug decision observability from existing system endpoint and finalized HTTP request observability
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `http.debug_total` in the canonical metrics catalog
+  - [x] owner: `platform/http`
+  - [x] type: `counter`
+  - [x] labels: `operation`, `outcome`
+  - [x] document exact bounded values and completed-decision semantics
+  - [x] document fixed `http.debug.blocked` warning event and safe context
+  - [x] document existing metric and logging enablement
+  - [x] document independent failure isolation
+  - [x] preserve the global label allowlist and unrelated metric families
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] document declarative debug service wiring through the existing terminal dispatcher
+  - [x] preserve middleware priorities, ordering, slots, error boundary, and finalization
+  - [x] preserve exact maintenance bypass
+  - [x] reference canonical debug endpoint and observability policies
+  - [x] MUST NOT introduce debugging middleware
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] document terminal ownership of debug decision behavior and observability
+  - [x] preserve all existing middleware catalog entries and priorities
+  - [x] MUST NOT register debug services as middleware
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] align terminal system endpoint behavior with guarded development endpoints
+  - [x] preserve canonical terminal seam and general application routing non-goals
+  - [x] document separate debug decision observability
+  - [x] preserve lifecycle, response finalization, and middleware ownership decisions
+
+- [x] `packages/platform/http/README.md`
+  - [x] document all four diagnostic endpoints and exact response contracts
+  - [x] document configuration keys and defaults
+  - [x] document strict environment, IP, token, and endpoint guard behavior
+  - [x] document canonical Redaction runtime dependency
+  - [x] document explicitly selected Problem Details requirement
+  - [x] document safe module, config provenance, and artifact summary consumption
+  - [x] document the fifth HTTP-owned exception mapping
+  - [x] remove current-state statements asserting development-only endpoints are not implemented
+  - [x] preserve existing terminal routing, observability, maintenance, and lifecycle contracts
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] document the HTTP-to-Redaction runtime-only dependency without expanding PHP source permissions
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] distinguish reserved debugging middleware from implemented terminal debug endpoints
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http/config/http.php`
-- [ ] Keys (dot):
-  - [ ] `http.debug.enabled` = false
-  - [ ] `http.debug.allowlist` = ['127.0.0.1', '::1']
-  - [ ] `http.debug.token` = null
-  - [ ] `http.debug.token_header` = 'X-Debug-Token'
-  - [ ] `http.debug.paths.enabled` = ['headers','modules','config','cache']
-  - [ ] `http.debug.config.allowlist` = [] (default empty; when empty => endpoint disabled even if debug enabled)
-- [ ] Normative:
-  - [ ] raw config values MUST NEVER be returned by `DebugConfigHandler`
-  - [ ] therefore there MUST be no `http.debug.config.show_values` toggle
-  - [ ] debug config output is limited to:
-    - [ ] type (`string|int|bool|null|list|map`)
-    - [ ] `len(value)` / `sha256(value)` for strings
-    - [ ] counts for lists/maps
-    - [ ] source info (`ConfigValueSource`) without absolute paths
-- [ ] Rules:
-  - [ ] `packages/platform/http/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/http/config/http.php`
+- [x] Keys (dot):
+  - [x] `http.debug.endpoints.enabled` = false
+  - [x] `http.debug.allowlist` = ['127.0.0.1', '::1']
+  - [x] `http.debug.token_sha256` = ''
+  - [x] `http.debug.paths.enabled` = ['headers', 'modules', 'config', 'cache']
+  - [x] `http.debug.config.allowlist` = []
+- [x] Normative:
+  - [x] debug endpoint activation is disabled by default
+  - [x] activation requires an authoritative `local` or `dev` environment
+  - [x] the token MUST be a cryptographically generated 32-byte random value represented as 64 lowercase hexadecimal characters
+  - [x] `http.debug.token_sha256` stores only its lowercase SHA-256 digest
+  - [x] an empty digest MUST NOT authorize access
+  - [x] MUST NOT store the raw token in HTTP configuration or generated artifacts
+  - [x] require the fixed `X-Debug-Token` header
+  - [x] IP allowlist matching MUST be exact and fail closed
+  - [x] an empty IP allowlist MUST deny access
+  - [x] endpoint names MUST be restricted to the four canonical operations
+  - [x] an empty config allowlist MUST deny config diagnostics
+  - [x] config key prefixes and requested keys MUST follow the same canonical logical dotted-path grammar
+  - [x] require a lowercase config root matching `[a-z][a-z0-9_]{0,63}`
+  - [x] require subsequent segments matching `[A-Za-z_][A-Za-z0-9_]{0,63}`
+  - [x] restrict complete logical paths to a maximum of 256 bytes
+  - [x] restrict the IP allowlist to a maximum of 64 unique canonical addresses
+  - [x] restrict the config-key allowlist to a maximum of 64 unique logical prefixes
+  - [x] restrict the enabled endpoint list to a maximum of four unique canonical operations
+  - [x] MUST NOT introduce `http.debug.config.show_values` or equivalent disclosure toggles
+  - [x] MUST NOT expose raw values, lengths, hashes, or sensitive collection summaries
+- [x] Rules:
+  - [x] `packages/platform/http/config/rules.php` enforces shape
 
-#### Wiring / DI tags (when applicable)
+#### Wiring / DI tags (MUST)
 
-- Tags introduced (this epic is the OWNER):
-  - N/A
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Http\Debug\DebugGuard`
-  - [ ] registers: `Coretsia\Http\Debug\DebugRouter`
-  - [ ] registers debug handlers
-  - [ ] registers: `Coretsia\Http\Error\DebugExceptionMapper`
-  - [ ] adds tag: `error.mapper` using a package-local internal mirror constant
-    - [ ] canonical string literal `'error.mapper'` is allowed only as fallback
+- [x] reuse the canonical Foundation declarative container definition APIs
+- [x] register:
+  - [x] `Coretsia\Platform\Http\Debug\DebugGuard`
+  - [x] `Coretsia\Platform\Http\Debug\DebugRouter`
+  - [x] `Coretsia\Platform\Http\Debug\DebugHeadersHandler`
+  - [x] `Coretsia\Platform\Http\Debug\DebugModuleListHandler`
+  - [x] `Coretsia\Platform\Http\Debug\DebugConfigHandler`
+  - [x] `Coretsia\Platform\Http\Debug\DebugCacheHandler`
+- [x] update the existing FallbackRouter definition with the mandatory DebugRouter dependency
+- [x] preserve the existing RequestHandlerInterface alias and terminal handler integration
+- [x] consume canonical Kernel runtime seeds:
+  - [x] ConfigRepositoryInterface
+  - [x] ModulePlan
+  - [x] RuntimeDiagnosticsInput
+- [x] consume existing TrustedProxyPolicy, PSR-17 factory, meter, and logger bindings
+- [x] consume canonical Redaction contract bindings
+- [x] reuse the existing HttpExceptionMapper contribution through ReservedTags::ERROR_MAPPER
+  - [x] priority: 100
+  - [x] metadata: []
+- [x] preserve compiled runtime seed ownership and graph reference restrictions
+- [x] preserve source and compiled container parity
+- [x] preserve later-binding-wins semantics
+- [x] MUST NOT introduce another exception mapper, local tag mirror, middleware tag, reset registration, or runtime discovery mechanism
+- [x] use canonical HttpServiceFactory class-method factories for configuration-sensitive debug and trusted-proxy policy construction
+- [x] MUST NOT serialize debug token digests, IP allowlists, or config-key allowlists as compiled definition literals
+- [x] preserve canonical container definition security policy without introducing exceptions for debug services
 
-#### Artifacts / outputs (if applicable)
+#### Artifacts / outputs (MUST)
 
-N/A
+- [x] extend the existing config@1 artifact payload with authoritative frozen appEnv metadata
+- [x] preserve the exact canonical payload members:
+  - [x] appEnv
+  - [x] config
+  - [x] configSourceFiles
+  - [x] envOverlayMappings
+  - [x] owners
+  - [x] sources
+  - [x] validation
+  - [x] validationSubjects
+- [x] preserve canonical envelope metadata and deterministic payload encoding
+- [x] preserve existing environment fingerprint participation
+- [x] hydrate runtime config source metadata exclusively from validated config@1 data
+- [x] hydrate RuntimeDiagnosticsInput from authoritative environment metadata and actual boot-selected generation state
+- [x] reject missing or invalid required artifact metadata through canonical artifact validation
+- [x] preserve existing generation selection, publication, verification, and recovery semantics
+- [x] MUST NOT introduce another artifact type, artifact reader, generation locator, or runtime artifact discovery mechanism
+- [x] HTTP diagnostic endpoints MUST NOT write, compile, verify, repair, or publish artifacts
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-N/A
+- [x] preserve exactly one existing Kernel UnitOfWork per HTTP request
+- [x] preserve HttpKernel ownership of request lifecycle and response completion
+- [x] debug services MUST remain stateless
+- [x] MUST NOT introduce ContextStore reads or writes, new ContextKeys, or request attributes
+- [x] MUST NOT introduce ResetInterface, kernel.reset, kernel.stateful, or Kernel lifecycle hooks
+- [x] MUST NOT execute another Kernel host or create a nested UnitOfWork
 
 #### Observability (policy-compliant)
 
-- [ ] Metrics:
-  - [ ] `http.debug_total` (labels: `operation`, `outcome=allowed|blocked`)
-- [ ] Logs:
-  - [ ] blocked access → warn (no token dump; client_ip only if already safe in context)
+- [x] Metrics:
+  - [x] `http.debug_total`
+  - [x] owner: `platform/http`
+  - [x] type: `counter`
+  - [x] producer: `DebugRouter`
+  - [x] increment value: exactly `1`
+  - [x] enablement: existing `http.metrics.enabled`
+  - [x] labels:
+    - [x] `operation=headers|modules|config|cache`
+    - [x] `outcome=allowed|blocked`
+  - [x] `allowed` requires completed construction of an authorized diagnostic response
+  - [x] `blocked` records the intentional access-denial decision immediately before propagation
+  - [x] no emission for disabled or ineligible environments, unknown paths, unsupported methods, invalid matcher inputs, or earlier short-circuits
+  - [x] no completed allowed decision after failed response construction
+  - [x] emission failures MUST be isolated and MUST NOT be retried
+  - [x] MUST NOT duplicate decisions through `http.system_endpoint_total`
+- [x] Logs:
+  - [x] fixed PSR-3 warning event `http.debug.blocked`
+  - [x] producer: `DebugRouter`
+  - [x] enablement: existing `http.access_log.enabled`
+  - [x] exactly one attempt per eligible forbidden decision
+  - [x] context contains only the canonical bounded `operation`
+  - [x] MUST NOT include client IP, config key, token, request path, query string, headers, environment values, or Throwable data
+  - [x] logging failures MUST be isolated independently of metric emission and authorization outcome
+- [x] Spans:
+  - [x] preserve the existing HttpKernel-owned `http.request` span
+  - [x] MUST NOT introduce a debug-specific span or tracing pipeline
+- [x] preserve existing canonical request metrics, access logging, final-response observability, and request completion semantics
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Http\Debug\Exception\DebugForbiddenException` — errorCode `CORETSIA_HTTP_DEBUG_FORBIDDEN`
-  - [ ] `Coretsia\Http\Debug\Exception\DebugDisabledException` — errorCode `CORETSIA_HTTP_DEBUG_DISABLED`
-- [ ] Mapping:
-  - [ ] throw deterministic exceptions; RFC7807 middleware renders (no dupes)
-  - [ ] `DebugDisabledException` corresponds to the disabled case only (`404`)
-  - [ ] `DebugForbiddenException` corresponds to the enabled-but-blocked case only (`403`)
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Platform\Http\Exception\DebugForbiddenException`
+  - [x] fixed error code `CORETSIA_HTTP_DEBUG_FORBIDDEN`
+  - [x] fixed reason `http-debug-forbidden`
+- [x] Disabled or ineligible debug endpoints:
+  - [x] MUST remain unmatched
+  - [x] MUST return the existing terminal empty-body `404`
+  - [x] MUST NOT throw an exception solely because debug endpoints are disabled
+  - [x] MUST preserve identical unmatched behavior without Problem Details selection
+- [x] Enabled and eligible recognized endpoints denied by access policy:
+  - [x] throw DebugForbiddenException
+  - [x] reuse the existing HttpExceptionMapper
+  - [x] canonical HTTP status hint `403`
+  - [x] preserve canonical ErrorHandler normalization
+  - [x] use the explicitly selected canonical RFC9457 Problem Details boundary with RFC7807-compatible baseline members
+  - [x] public body contains only the canonical Problem Details members
+  - [x] MUST NOT disclose the internal error code, token validation details, denial reason, or request data
+- [x] preserve unrelated Throwables and existing HTTP finalization semantics
+- [x] MUST NOT introduce another exception mapper, error handler, renderer, or HTTP error boundary
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] Authorization/Cookie/Set-Cookie headers, debug token, session ids, any config secret values
-- [ ] Allowed:
-  - [ ] `hash(value)` / `len(value)` / safe ids (module ids)
+- [x] default-disabled and fail-closed development endpoint exposure
+- [x] require all environment, endpoint, client IP, token, and diagnostic-key access conditions to pass
+- [x] preserve canonical trusted-proxy metadata ownership
+- [x] MUST NOT authorize access through raw forwarding headers
+- [x] MUST NOT disclose Authorization, Cookie, Set-Cookie, debug tokens, credentials, session identifiers, or environment values
+- [x] MUST NOT disclose raw config values, arbitrary request headers, request bodies, or session data
+- [x] MUST NOT disclose hashes or lengths of sensitive runtime values
+- [x] MUST NOT disclose absolute paths, artifact fingerprints, generation identifiers, or file contents
+- [x] consume canonical SensitiveDataRedactorInterface and SensitiveKeyClassifierInterface
+- [x] use safe-by-construction bounded diagnostic response shapes
+- [x] use Placeholder redaction mode for sensitive values
+- [x] redaction failure MUST NOT produce unredacted fallback output
+- [x] preserve canonical no-store policy for constructed diagnostic responses
+- [x] preserve existing response finalization and security-header policies
+- [x] preserve exact maintenance liveness bypass without introducing a debug bypass
+- [x] MUST NOT introduce another redaction implementation, classifier, hashing helper, or authorization subsystem
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-- [ ] If redaction exists → `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
+- [x] Canonical system-route registry and matcher reuse.
+- [x] Both development-only declarations retain their canonical statuses.
+- [x] Exact supported debug method and path combinations.
+- [x] Default-disabled and non-development unmatched behavior.
+- [x] Authoritative frozen runtime environment consumption.
+- [x] Explicitly selected canonical Problem Details boundary.
+- [x] Exact client IP allowlist and trusted-proxy semantics.
+- [x] Mandatory token verification and constant-time digest comparison.
+- [x] Endpoint and segment-boundary config-key allowlists.
+- [x] Unsupported, invalid, encoded, and non-canonical path behavior.
+- [x] Earlier middleware response and maintenance precedence.
+- [x] Exact deterministic diagnostic response headers and body bytes.
+- [x] Canonical enabled ModulePlan consumption without rediscovery.
+- [x] Canonical runtime config source tracking with compiled artifact hydration.
+- [x] Safe boot-selected artifact generation status without runtime filesystem inspection.
+- [x] Mandatory canonical shared redaction and sensitive-key classification.
+- [x] Fail-closed redaction failures.
+- [x] No raw values, credentials, sensitive hashes, lengths, paths, or artifact disclosure.
+- [x] Canonical forbidden descriptor normalization and RFC9457 rendering.
+- [x] Separate bounded debug decision metrics and warning events.
+- [x] Noop and throwing observability port behavior.
+- [x] No duplicate system-endpoint metrics or request completion observability.
+- [x] Source and compiled container parity.
+- [x] Mandatory constructor dependencies.
+- [x] Exactly one HTTP UnitOfWork per request.
+- [x] No additional ContextStore ownership, lifecycle hooks, or reset registration.
+- [x] Authoritative application environment hydration from validated config@1.
+- [x] Canonical config artifact source metadata reconstruction.
+- [x] Shared effective source selection between ConfigExplainer and the runtime repository.
+- [x] Exact canonical runtime seed set and diagnostics input ownership.
+- [x] Runtime seed collision and missing-seed rejection.
+- [x] Source-host and artifact-only diagnostics input parity.
+- [x] Runtime environment independence from subsequent process environment changes.
+- [x] Loaded-generation status remains independent of subsequent current-pointer changes.
+- [x] Invalid required diagnostics artifact metadata fails through canonical artifact validation.
+- [x] Existing fingerprint and cache verification parity.
+- [x] Canonical installation catalog includes the HTTP-owned Redaction dependency.
+- [x] Missing authorized config keys remain unmatched without debug decision observability.
+- [x] Exact debug response schemas and bounded diagnostic projections.
+- [x] Existing Kernel compiler, source host, artifact runtime, and cross-package regression evidence.
+- [x] Canonical config artifact payload shape participates in the shared artifact fingerprint.
+- [x] Distinct artifact payload shapes cannot reuse the same immutable generation identity.
+- [x] Configuration-sensitive policies preserve canonical source and compiled container construction.
+- [x] Default IPv6 and configured IPv6 proxy addresses remain supported without relaxing definition security.
+- [x] Debug token digests and config-key allowlists do not enter compiled definition arguments.
+- [x] Canonical IP normalization is reused without introducing another implementation.
+- [x] Config-key eligibility has exactly one canonical policy owner.
+- [x] Kernel runtime diagnostics input is declared in the public API manifest.
 
 #### Test harness / fixtures (when integration is needed)
 
-N/A
-
-### Tests (MUST)
-
-- Unit/Contract:
-  - N/A
-- Integration:
-  - [ ] `packages/platform/http/tests/Integration/DebugEndpointsGuardTest.php`
-  - [ ] `packages/platform/http/tests/Integration/DebugHeadersRedactsSensitiveHeadersTest.php`
-  - [ ] `packages/platform/http/tests/Integration/DebugConfigShowsSourcesButNotSecretsTest.php`
-  - [ ] `packages/platform/http/tests/Integration/DebugDisabledAndForbiddenTriggerCanonicalErrorFlowTest.php`
-- Gates/Arch:
-  - [ ] deptrac green
+- [x] reuse the existing canonical HTTP integration fixture and provider composition
+- [x] use explicit source and compiled runtime diagnostics inputs
+- [x] use real Kernel artifact hydration for source-tracking evidence
+- [x] use canonical Redaction and explicitly selected Problem Details providers
+- [x] use existing test-owned external PSR-17 factory fixtures
+- [x] use deterministic isolated request and artifact fixtures
+- [x] preserve and execute existing system endpoint, maintenance, middleware, error mapping, observability, and lifecycle regression tests
+- [x] MUST NOT modify production runtime state, committed artifacts, actual credentials, or process environment during diagnostic request execution
+- [x] complete and verify Kernel runtime diagnostics prerequisites before introducing HTTP consumers
+- [x] preserve and execute the existing config explanation contract tests
+- [x] preserve and execute the existing compiled-container runtime seed tests
+- [x] preserve and execute the existing artifact schema, fingerprint, publication, generation selection, and verification tests
+- [x] preserve and execute the existing Kernel source-host and artifact-only runtime boot tests
+- [x] preserve and execute affected cross-package source and compiled container integration tests
+- [x] preserve and execute canonical installation catalog consistency checks
+- [x] verify actual artifact-only boot independently of synthetic runtime seed fixtures
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Default disabled; guard works (local/allowlist/token)
-- [ ] No secret leakage (tests)
-- [ ] Docs updated:
-  - [ ] `packages/platform/http/README.md`
-  - [ ] `docs/guides/http-debug-endpoints.md`
-  - [ ] `docs/ssot/http-system-endpoints.md`
-- [ ] Debug disabled/blocked response policy (single-choice) (MUST)
-  - [ ] If `http.debug.enabled=false`:
-    - [ ] MUST respond `404` (not found) for all `/_debug/*` endpoints.
-  - [ ] If enabled but guard fails (ip/token/path not allowed):
-    - [ ] MUST respond `403` with deterministic error code `CORETSIA_HTTP_DEBUG_FORBIDDEN`.
-  - [ ] This avoids ambiguous 404/403 behavior across environments.
-- [ ] DebugConfigHandler redaction + allowlist (MUST)
-  - [ ] allow only allowlisted key prefixes,
-    - [ ] never output raw values; only:
-      - [ ] type (`string|int|bool|null|list|map`),
-      - [ ] `len(value)` / `sha256(value)` for strings (no raw),
-      - [ ] counts for lists/maps,
-      - [ ] source info (ConfigValueSource) without absolute paths.
+- [x] Gates/Arch green
+- [x] deptrac green
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Verification tests present where applicable
+- [x] Default disabled; guard works (local/allowlist/token)
+- [x] No secret leakage (tests)
+- [x] Docs updated:
+  - [x] `packages/platform/http/README.md`
+  - [x] `docs/guides/http-debug-endpoints.md`
+  - [x] `docs/ssot/http-system-endpoints.md`
+- [x] Debug disabled/blocked response policy (MUST):
+  - [x] disabled debug endpoints remain unmatched and return the canonical empty-body `404`
+  - [x] non-development runtime environments remain unavailable
+  - [x] missing or invalid authoritative runtime environment metadata fails through canonical Kernel validation
+  - [x] absence of the explicitly selected canonical Problem Details boundary keeps debug endpoints unavailable
+  - [x] unknown paths and unsupported methods remain unmatched
+  - [x] eligible recognized endpoints denied by access policy trigger canonical forbidden-error normalization with HTTP status hint `403`
+  - [x] public Problem Details output MUST NOT expose the internal error code or guard failure details
+- [x] DebugConfigHandler redaction and allowlist (MUST):
+  - [x] permit only explicitly allowlisted logical key prefixes
+  - [x] enforce exact dotted segment boundaries
+  - [x] reject classified sensitive key paths before config value access
+  - [x] expose only bounded value type and canonical safe effective source metadata
+  - [x] consume hydrated runtime source metadata without source-host execution
+  - [x] MUST NOT return raw values, lengths, hashes, collection counts, arbitrary source metadata, or absolute paths
+- [x] Canonical Kernel runtime diagnostics prerequisites are fully implemented and verified.
+- [x] Debug guards consume the authoritative immutable runtime environment.
+- [x] Debug module diagnostics reuse the existing ModulePlan.
+- [x] Debug config diagnostics reuse canonical runtime source metadata.
+- [x] Debug cache diagnostics describe the boot-selected generation without filesystem rediscovery.
+- [x] Canonical Redaction runtime dependency is declared and consumed.
+- [x] Existing HttpExceptionMapper is extended without introducing another mapper.
+- [x] Canonical system-route registry, matcher, and schema version remain unchanged.
+- [x] No additional middleware, route registry, JSON encoder, redactor, or Kernel host is introduced.
+- [x] Existing system endpoint response and observability contracts remain unchanged.
+- [x] Source and compiled container parity is verified.
+- [x] Kernel runtime diagnostics prerequisites are implemented within this epic before HTTP diagnostic consumers.
+- [x] The canonical runtime seed set includes mandatory immutable RuntimeDiagnosticsInput.
+- [x] Authoritative frozen application environment metadata is preserved through artifact compilation and runtime hydration.
+- [x] The existing config@1 artifact payload remains deterministic and canonically validated.
+- [x] Runtime configuration provenance and ConfigExplainer reuse one canonical effective source selector.
+- [x] Source-host and artifact-runtime repositories preserve equivalent effective source semantics.
+- [x] Missing or invalid required runtime metadata fails through canonical Kernel validation.
+- [x] Runtime diagnostics input cannot be redefined by package providers or compiled graph definitions.
+- [x] Compile-host services remain excluded from the canonical runtime graph.
+- [x] The canonical installation catalog includes the platform.http Redaction dependency.
+- [x] Existing artifact generation, fingerprint, verification, and publication contracts remain unchanged.
+- [x] Existing cross-package runtime seed and constructor fixtures are aligned.
+- [x] No production schema version increment or new artifact type is introduced.
+- [x] No internal pre-stable implementation constraints are documented as public project policy.
+- [x] Canonical config artifact payload shape participates in the existing fingerprint mechanism.
+- [x] Immutable artifact generation identity and publication consistency are preserved.
+- [x] Debug and trusted-proxy policy construction preserves canonical declarative DI security.
+- [x] Canonical IP normalization and config-key authorization are not duplicated.
+- [x] RuntimeDiagnosticsInput is declared in the Kernel public API manifest.
+- [x] Internal source selection and artifact hydration components remain outside the public package API.
+- [x] All affected shared runtime documentation describes one current canonical implementation.
+- [x] Spec locked.
 
 ---
 

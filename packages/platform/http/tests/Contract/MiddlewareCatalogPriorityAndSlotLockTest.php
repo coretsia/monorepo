@@ -33,6 +33,7 @@ use Coretsia\Platform\Http\Middleware\TraceContextMiddleware;
 use Coretsia\Platform\Http\Middleware\TrustedHostMiddleware;
 use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Server\MiddlewareInterface;
 
@@ -219,7 +220,9 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
     {
         $http = require __DIR__ . '/../../config/http.php';
         $builder = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($builder, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($builder, $context);
+        new HttpServiceProvider()->define($builder, $context);
 
         return $builder->build()->toDescriptorStream();
     }

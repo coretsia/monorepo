@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Routing;
 
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Platform\Http\Debug\DebugRouter;
 use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\System\ReservedPathMatcher;
 use Coretsia\Platform\Http\System\SystemRouteTable;
@@ -31,8 +32,11 @@ use Psr\Http\Message\ServerRequestInterface;
  *
  * Reserved ownership comes from the canonical matcher. Only explicitly
  * implemented declarations are claimed; unmatched requests remain delegated
- * to the terminal handler's safe fallback. Endpoint decisions are observed
- * independently of final HTTP request completion.
+ * to the terminal handler's safe fallback. Development-only declarations
+ * delegate to DebugRouter for exact endpoint claims and authorization.
+ *
+ * System endpoint and debug decisions are observed independently of each
+ * other and of final HTTP request completion.
  *
  * @internal
  */
@@ -43,6 +47,7 @@ final readonly class FallbackRouter
         private ClockInterface $clock,
         private MeterPortInterface $meter,
         private bool $metricsEnabled,
+        private DebugRouter $debug,
     ) {
     }
 
@@ -66,6 +71,15 @@ final readonly class FallbackRouter
 
         if ($entry === null) {
             return null;
+        }
+
+        if (
+            $entry['owner'] === 'platform/http'
+            && $entry['pattern'] === '/_debug/'
+            && $entry['type'] === 'prefix'
+            && $entry['status'] === 'dev_only'
+        ) {
+            return $this->debug->dispatch($request);
         }
 
         if ($entry['owner'] === 'platform/http' && $entry['type'] === 'exact' && $entry['status'] === 'active') {

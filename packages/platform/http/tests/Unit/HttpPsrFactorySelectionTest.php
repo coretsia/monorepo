@@ -26,6 +26,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Kernel\Config\ConfigValidator;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -247,10 +248,11 @@ final class HttpPsrFactorySelectionTest extends TestCase
     public function testLaterBindingWinsWithoutProviderLocalCollisionRejection(): void
     {
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define(
-            $definitions,
-            new ContainerDefinitionContext(['http' => \array_replace(self::defaults(), ['factory' => 'nyholm'])]),
+        $context = new ContainerDefinitionContext(
+            ['http' => \array_replace(self::defaults(), ['factory' => 'nyholm'])],
         );
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
         $definitions->classService('App\\OverrideResponseFactory', \stdClass::class);
         $definitions->alias(ResponseFactoryInterface::class, 'App\\OverrideResponseFactory');
 
@@ -288,7 +290,9 @@ final class HttpPsrFactorySelectionTest extends TestCase
         $http = self::defaults();
         $http['factory'] = $selection;
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
 
         return $definitions->build();
     }

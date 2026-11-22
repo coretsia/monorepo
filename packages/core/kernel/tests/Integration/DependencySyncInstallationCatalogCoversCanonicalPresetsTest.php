@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Module\FoundationModule;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
@@ -25,14 +26,54 @@ use Coretsia\Kernel\Boot\AppTarget;
 use Coretsia\Kernel\Boot\BootstrapConfigResolver;
 use Coretsia\Kernel\Boot\BootstrapInput;
 use Coretsia\Kernel\DependencySync\Catalog\ReleaseInstallationCatalogLoader;
+use Coretsia\Kernel\DependencySync\ProjectApplicationSet;
+use Coretsia\Kernel\DependencySync\ProjectInstallationIntent;
+use Coretsia\Kernel\DependencySync\ProjectPackagePlanner;
 use Coretsia\Kernel\Module\KernelModule;
+use Coretsia\Kernel\Module\ModuleGraphResolver;
+use Coretsia\Kernel\Module\ModuleIdSetNormalizer;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
+use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\Preset\CanonicalPresetNames;
+use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends TestCase
 {
+    public function testHttpRequiresRedactionInCommittedInstallationCatalog(): void
+    {
+        $catalog = new ReleaseInstallationCatalogLoader()->load();
+        $http = ModuleId::fromString('platform.http');
+        $entry = $catalog->entry($http);
+
+        self::assertNotNull($entry);
+        self::assertSame('coretsia/platform-http', $entry->composerName());
+        self::assertSame(
+            ['core.foundation', 'core.kernel', 'platform.redaction'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $entry->requires()),
+        );
+        $redaction = $catalog->entry(ModuleId::fromString('platform.redaction'));
+        self::assertNotNull($redaction);
+        self::assertSame('coretsia/platform-redaction', $redaction->composerName());
+
+        $resolver = new ModuleGraphResolver(new TopologicalSorter());
+        $selection = new ModuleSelection([$http], []);
+        $entries = $catalog->entries();
+
+        foreach ([$entries, \array_reverse($entries)] as $available) {
+            $graph = $resolver->resolveEntries($available, $selection);
+            self::assertSame(
+                ['core.foundation', 'core.kernel', 'platform.http', 'platform.redaction'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $graph['enabled']),
+            );
+            self::assertSame(
+                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.http'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $graph['topologicalOrder']),
+            );
+        }
+    }
+
     public function testEveryCanonicalPhaseARootExistsInCommittedInstallationCatalog(): void
     {
         $kernelRoot = \dirname(__DIR__, 2);
@@ -74,7 +115,8 @@ final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends 
                 $orchestrator,
             );
 
-            $catalog = new ReleaseInstallationCatalogLoader()->load();
+            $catalogLoader = new ReleaseInstallationCatalogLoader();
+            $catalog = $catalogLoader->load();
 
             foreach (CanonicalPresetNames::all() as $preset) {
                 $config = $bootstrapConfigResolver->resolve(
@@ -96,6 +138,32 @@ final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends 
                     );
                 }
             }
+
+            $sourceResolver = $bootstrapConfigResolver->sourceResolver();
+            $planner = new ProjectPackagePlanner(
+                $bootstrapConfigResolver,
+                $orchestrator,
+                new ModuleGraphResolver(new TopologicalSorter()),
+                new ModuleIdSetNormalizer(),
+                $catalogLoader,
+                $kernelConfig,
+                $sourceResolver,
+            );
+            $intent = new ProjectInstallationIntent(
+                new ProjectApplicationSet([AppTarget::Web]),
+                ['web' => 'micro'],
+            );
+            $snapshot = $sourceResolver->resolveApplicationRoot($applicationRoot, $kernelConfig);
+            $first = $planner->plan($applicationRoot, $intent, $snapshot);
+            $second = $planner->plan($applicationRoot, $intent, $snapshot);
+
+            self::assertContains('platform.redaction', $first->enabledModuleIdsByTarget()['web']);
+            self::assertContains('platform.redaction', $first->unionModuleIds());
+            self::assertSame(
+                $catalog->publicConstraint(),
+                $first->desiredRootRequirements()['coretsia/platform-redaction'] ?? null,
+            );
+            self::assertTrue($first->equals($second));
         } finally {
             @\rmdir($applicationRoot);
         }

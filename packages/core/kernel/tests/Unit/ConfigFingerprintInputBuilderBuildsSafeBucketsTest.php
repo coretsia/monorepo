@@ -24,6 +24,7 @@ use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Env\EnvValue;
 use Coretsia\Foundation\Serialization\StableJsonEncoder;
+use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ConfigFingerprintInputBuilder;
 use Coretsia\Kernel\Artifacts\Fingerprint\ContainerGraphFingerprintBucketBuilder;
 use Coretsia\Kernel\Boot\AppTarget;
@@ -97,6 +98,27 @@ final class ConfigFingerprintInputBuilderBuildsSafeBucketsTest extends TestCase
             'custom.enabled',
             $input['compiledConfig']['valueFingerprints'],
         );
+    }
+
+    public function testIncludesExactCanonicalConfigArtifactPayloadKeys(): void
+    {
+        $expected = [
+            'appEnv',
+            'config',
+            'configSourceFiles',
+            'envOverlayMappings',
+            'owners',
+            'sources',
+            'validation',
+            'validationSubjects',
+        ];
+
+        $input = self::buildInput();
+
+        self::assertSame($expected, CompiledConfigBuilder::PAYLOAD_KEYS);
+        self::assertSame($expected, $input['compiledConfig']['payloadKeys']);
+        self::assertSame($expected, self::buildInput()['compiledConfig']['payloadKeys']);
+        self::assertSame('local', $input['bootstrap']['appEnv']);
     }
 
     public function testIncludesModulePlanIdentity(): void

@@ -102,6 +102,7 @@ use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -237,6 +238,30 @@ final class KernelServiceFactory
         return new RuntimePathContext(
             applicationRoot: $bootstrapConfig->applicationRoot(),
             artifactRoot: new ArtifactPathResolver()->artifactRoot($bootstrapConfig),
+        );
+    }
+
+    /**
+     * Creates runtime-only diagnostics input from an already-resolved BootstrapConfig.
+     *
+     * Source-host execution never represents a loaded artifact generation.
+     * This factory does not execute Bootstrap Phase A or inspect artifacts.
+     */
+    public static function runtimeDiagnosticsInput(
+        ContainerInterface $container,
+    ): RuntimeDiagnosticsInput {
+        $bootstrapConfig = self::bootService(
+            $container,
+            BootstrapConfig::class,
+        );
+
+        if (!$bootstrapConfig instanceof BootstrapConfig) {
+            throw new ContainerException('kernel-boot-dependency-invalid');
+        }
+
+        return new RuntimeDiagnosticsInput(
+            appEnv: $bootstrapConfig->appEnv(),
+            artifactGenerationLoaded: false,
         );
     }
 
@@ -1235,10 +1260,7 @@ final class KernelServiceFactory
             ContainerGraphCompletenessValidator::class,
         );
 
-        if (
-            !$completenessValidator
-                instanceof ContainerGraphCompletenessValidator
-        ) {
+        if (!$completenessValidator instanceof ContainerGraphCompletenessValidator) {
             throw new ContainerException('kernel-artifacts-dependency-invalid');
         }
 

@@ -508,23 +508,28 @@ That adapter MUST:
 
 The source-host adaptation MUST NOT introduce a second provider-discovery path, provider-plan resolution path, provider order, or production definition source.
 
-Kernel source-host orchestration MAY additionally register a factory for:
+Kernel source-host orchestration MAY additionally register factories for:
 
 ```text
 RuntimePathContext
+RuntimeDiagnosticsInput
 ```
 
-This factory:
+These factories:
 
-- consumes an already-resolved `BootstrapConfig`;
-- constructs runtime-only path context;
-- does not execute Bootstrap Phase A;
-- does not belong to `KernelServiceProvider::define()`;
-- does not enter the Kernel runtime descriptor stream;
-- does not enter generated artifacts;
-- does not enter fingerprint input.
+- consume an already-resolved `BootstrapConfig`;
+- construct runtime-only path context and diagnostics input respectively;
+- do not execute Bootstrap Phase A;
+- do not belong to `KernelServiceProvider::define()`;
+- do not enter the Kernel runtime descriptor stream;
+- do not enter generated artifacts;
+- do not enter fingerprint input.
 
-`RuntimePathContext` is an allowed external runtime seed, not a compile-host service and not a canonical definition value.
+`RuntimePathContext` and `RuntimeDiagnosticsInput` are allowed entrypoint-owned external runtime seeds, not compile-host service ids or canonical definition values.
+
+Source-host diagnostics construction uses the frozen `BootstrapConfig::appEnv()` and supplies `false` for the loaded-generation state. The source-host factory does not inspect artifacts. In artifact-only runtime, Kernel boot constructs the same immutable input from validated `config@1` payload metadata and the successfully loaded-generation state; it MUST NOT resolve `BootstrapConfig` or invoke the source-host factory. Runtime hydration is owned by `docs/ssot/compiled-container.md`.
+
+`KernelOpsHostBooter` owns the source-operations-host wiring of these seeds and MUST reject provider-contributed tags targeting them.
 
 `ModuleResolutionOrchestrator` owns the compile-host preset/selection/installed-discovery flow. Pure `ModulePlanResolver` consumes only precomputed `ModuleSelection` and `ModuleManifest`. `ModuleSelection`, `ResolvedModuleOverrides`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `CanonicalPresetSource`, `CustomPresetSource`, and the orchestrator MUST NOT become compiled runtime definitions, source-independent runtime seeds, runtime provider outputs, or Worker runtime dependencies. The validated `module-manifest@1` artifact hydrates `ModulePlan` as the approved immutable module-graph seed; Worker startup consumes it without preset loading, Composer discovery, or graph re-resolution.
 
@@ -653,6 +658,7 @@ The context MUST NOT expose:
 - a container;
 - service instances;
 - `RuntimePathContext`;
+- `RuntimeDiagnosticsInput`;
 - application runtime roots;
 - artifact runtime roots;
 - absolute runtime filesystem paths;
@@ -1274,7 +1280,7 @@ The following service reference resolves to the builder-owned Foundation runtime
 Coretsia\Foundation\Tag\TagRegistry
 ```
 
-`TagRegistry` is a runtime seed.
+`TagRegistry` is a container-owned runtime support seed, not an entrypoint-owned seed.
 
 A provider that references it MUST also declare:
 
@@ -1399,9 +1405,12 @@ Coretsia\Foundation\Tag\TagRegistry
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
 ```
 
-The Worker contribution currently relies on this subset:
+The first three ids are container-owned runtime support ids; the remaining four are the exact entrypoint-owned seed ids supplied by Kernel artifact-only boot.
+
+The Worker contribution requires this subset of entrypoint-owned runtime seeds:
 
 ```text
 ConfigRepositoryInterface
@@ -1410,6 +1419,10 @@ RuntimePathContext
 ```
 
 External-runtime-seed status does not authorize placing seed values into provider output.
+
+A provider consuming `RuntimeDiagnosticsInput` MUST declare `requireService(RuntimeDiagnosticsInput::class)` and use the canonical `ContainerValueReference::service(RuntimeDiagnosticsInput::class)` when supplying it as a service argument. It MUST NOT define or replace the seed, serialize its instance or properties into definition values, or resolve it during definition production. The consuming runtime service reads the authoritative environment and loaded-generation status from the supplied immutable instance.
+
+`ContainerDefinitionContext` remains limited to the compiled Phase B config snapshot. It MUST NOT expose `BootstrapConfig` or the diagnostics input as an additional definition-production input.
 
 A required service id records graph completeness only.
 
@@ -2036,6 +2049,7 @@ Additional tests SHOULD cover:
 - exact lazy selected-driver resolution without process-driver tags;
 - lazy exact-one selection of only the matching task-source service;
 - `RuntimePathContext::class` remaining visible as a required service id;
+- `RuntimeDiagnosticsInput::class` being accepted as an external required service id and service argument reference without becoming a canonical definition;
 - runtime context path values remaining absent from definition values, artifact payload values, and fingerprint input;
 - production artifact compilation consuming complete provider-produced definition sets;
 - compile and verify using the same graph-production path;

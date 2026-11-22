@@ -46,6 +46,7 @@ use Coretsia\Kernel\Module\KernelModule;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModuleResolutionOrchestrator;
 use Coretsia\Kernel\Provider\KernelServiceFactory;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -65,6 +66,7 @@ final class KernelOpsHostBooter
         ConfigRepositoryInterface::class => true,
         ModulePlan::class => true,
         RuntimePathContext::class => true,
+        RuntimeDiagnosticsInput::class => true,
         self::class => true,
         KernelOpsHostInput::class => true,
         KernelOpsHostSeedConfigLoader::class => true,
@@ -119,7 +121,10 @@ final class KernelOpsHostBooter
                 appTarget: AppTarget::Console,
                 preset: null,
             );
-            $consoleSnapshot = $bootstrapSourceResolver->resolve($consoleInput, $kernelConfig);
+            $consoleSnapshot = $bootstrapSourceResolver->resolve(
+                $consoleInput,
+                $kernelConfig,
+            );
             $consoleBootstrapConfig = $bootstrapConfigResolver->resolve(
                 $consoleInput,
                 $kernelConfig,
@@ -155,7 +160,10 @@ final class KernelOpsHostBooter
                 throw new \UnexpectedValueException('kernel-ops-host-compiled-config-invalid');
             }
 
-            $configRepository = new ArrayConfigRepository($completeConfig);
+            $configRepository = new ArrayConfigRepository(
+                config: $completeConfig,
+                sources: $compiledConfig['sources'],
+            );
             $providerPlan = $providerPlanResolver->resolve($consoleModuleResolution);
             $sourceProviders = self::sourceProviders($providerPlan);
 
@@ -282,6 +290,15 @@ final class KernelOpsHostBooter
             static fn (
                 Container $container,
             ): RuntimePathContext => KernelServiceFactory::runtimePathContext(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            RuntimeDiagnosticsInput::class,
+            static fn (
+                Container $container,
+            ): RuntimeDiagnosticsInput => KernelServiceFactory::runtimeDiagnosticsInput(
                 container: $container,
             ),
         );

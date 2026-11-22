@@ -170,6 +170,7 @@ This package provides the Kernel baseline runtime layer:
   - `Coretsia\Kernel\Boot\ArtifactRuntimeInput`
   - `Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory`
   - `Coretsia\Kernel\Runtime\RuntimePathContext`
+  - `Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput`
   - `Coretsia\Kernel\Container\RuntimeContainerSeedSet`
 - Kernel-owned immutable-generation files:
   - `module-manifest.php`
@@ -510,7 +511,7 @@ user_owned
 unvalidated
 ```
 
-Config explain is a baseline Kernel facility. It is caller-requested, not feature-disabled by config.
+Structured config explain is a baseline Kernel facility. It is caller-requested, not feature-disabled by config. Effective source records are produced independently of that optional explain output and retained by the runtime config repository.
 
 ConfigKernel emits safe observability:
 
@@ -867,8 +868,9 @@ ArtifactRuntimeInput
 → exact read of container.php
 → exact read of generation-manifest.php
 → generation manifest, byte-length, SHA-256, schema, and fingerprint validation
-→ hydrate ArrayConfigRepository
+→ hydrate ArrayConfigRepository with merged config and canonical source records
 → hydrate ModulePlan
+→ create RuntimeDiagnosticsInput from the frozen config artifact environment and loaded-generation state
 → create RuntimePathContext
 → create RuntimeContainerSeedSet
 → CompiledContainerFactory::buildFromEnvelope(...)
@@ -881,7 +883,18 @@ The exact entrypoint-owned runtime seeds are:
 Coretsia\Contracts\Config\ConfigRepositoryInterface
 Coretsia\Kernel\Module\ModulePlan
 Coretsia\Kernel\Runtime\RuntimePathContext
+Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput
 ```
+
+These four entrypoint-owned seeds are mandatory. Foundation container self-bindings and `TagRegistry` are container-owned runtime support services, not additional entrypoint-supplied seeds. Compiled service definitions and aliases MUST NOT redefine the runtime seeds.
+
+`RuntimeDiagnosticsInput` is a public immutable Kernel runtime input. Its `appEnv()` returns the authoritative frozen application environment; its `artifactGenerationLoaded()` reports whether this runtime loaded a successfully validated immutable artifact generation.
+
+Source-host construction supplies the environment from the already resolved `BootstrapConfig` and sets `artifactGenerationLoaded` to `false`. Artifact compilation supplies `BootstrapConfig::appEnv()` as the mandatory `config@1` payload field `appEnv`. Artifact-only boot hydrates the runtime input from that validated field and supplies `true` for the successfully selected and loaded generation.
+
+The input does not resolve environments, inspect files, select generations, or consult process environment variables. Subsequent changes to process environment or `current` MUST NOT change an existing runtime's diagnostics input. It contains no generation identifiers, artifact paths, or artifact payloads. Source-host diagnostics construction and artifact seed hydration remain outside compiled runtime definitions.
+
+The runtime input itself MUST NOT be serialized into compiled runtime definitions, artifact payloads, or fingerprint input. The frozen `appEnv` participates in the canonical config artifact and bootstrap fingerprint input as scalar metadata.
 
 `CompiledContainerFactory` receives:
 
@@ -897,6 +910,10 @@ It receives the already-read `container@1` envelope.
 It does not receive a container artifact path or a separate config payload.
 
 The Foundation container config snapshot is obtained from the seeded `ConfigRepositoryInterface`.
+
+Source-host repository construction consumes the merged config and effective source records produced by ConfigKernel. Artifact-only repository hydration restores `config` and canonical `ConfigValueSource` instances from `sources` in the validated `config@1` payload. Both repositories use the shared effective-source selection policy.
+
+`ConfigRepositoryInterface::sourceOf()` returns the effective source record for an existing concrete path, or `null` if the path or applicable provenance is unavailable. Consumers distinguish these cases with `has()`. `ConfigRepositoryInterface::explain()` returns the deterministic list of retained source records, independently of the optional structured ConfigKernel explain output. Neither operation reloads configuration, infers sources from values, or exposes raw config/env values in provenance records.
 
 Production runtime boot MUST NOT:
 

@@ -127,6 +127,8 @@ final readonly class ArtifactRuntimeBooter
                 input: $input,
                 configRepository: $configRepository,
                 modulePlan: $modulePlan,
+                configPayload: $configPayload,
+                artifactGenerationLoaded: true,
             );
         } catch (\Throwable) {
             throw ArtifactRuntimeBootException::runtimeContainerInvalid();
@@ -339,8 +341,7 @@ final readonly class ArtifactRuntimeBooter
         array $artifacts,
         string $generationId,
     ): void {
-        $payload = $generationManifestEnvelope['payload']
-            ?? null;
+        $payload = $generationManifestEnvelope['payload'] ?? null;
 
         $manifestGenerationId = \is_array($payload)
             ? ($payload['generationId'] ?? null)
@@ -399,10 +400,7 @@ final readonly class ArtifactRuntimeBooter
             !\is_int($expectedBytes)
             || !\is_string($expectedHash)
             || \strlen($bytes) !== $expectedBytes
-            || !\hash_equals(
-                $expectedHash,
-                \hash('sha256', $bytes),
-            )
+            || !\hash_equals($expectedHash, \hash('sha256', $bytes))
         ) {
             throw ArtifactRuntimeBootException::generationInvalid();
         }

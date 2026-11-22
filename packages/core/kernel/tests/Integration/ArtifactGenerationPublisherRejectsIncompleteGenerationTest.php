@@ -240,6 +240,7 @@ final class ArtifactGenerationPublisherRejectsIncompleteGenerationTest extends T
         $configEnvelope = new CompiledConfigBuilder($envelopeFactory)->build(
             compiledConfig: self::compiledConfig($configValue),
             fingerprint: $fingerprint,
+            appEnv: 'prod',
         );
 
         $containerEnvelope = new CompiledContainerBuilder($envelopeFactory)->build(

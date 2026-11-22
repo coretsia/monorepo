@@ -40,7 +40,7 @@ final class RuntimeDriverResolverIgnoresOwnerScopedRuntimeInputsTest extends Tes
             'worker' => [
                 'task_type' => 'queue',
             ],
-        ]);
+        ], []);
 
         $drivers = new RuntimeDriverResolver()->resolve(
             config: $cfg,

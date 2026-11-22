@@ -26,6 +26,7 @@ use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
+use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Config\ConfigValidator;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
@@ -52,6 +53,7 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'access_log',
             'maintenance',
             'proxy',
+            'debug',
             'context',
             'hosts',
             'security_headers',
@@ -83,8 +85,28 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
             'allow_methods' => ['GET', 'HEAD'],
             'target_authority' => '',
         ], $http['https_redirect']);
+        self::assertSame([
+            'endpoints' => [
+                'enabled' => false,
+            ],
+            'allowlist' => ['127.0.0.1', '::1'],
+            'token_sha256' => '',
+            'paths' => [
+                'enabled' => ['headers', 'modules', 'config', 'cache'],
+            ],
+            'config' => [
+                'allowlist' => [],
+            ],
+        ], $http['debug']);
 
-        foreach (['maintenance', 'security_headers', 'https_redirect'] as $section) {
+        foreach (['endpoints', 'paths', 'config'] as $section) {
+            self::assertSame(
+                \array_keys($http['debug'][$section]),
+                \array_keys($rules['keys']['debug']['keys'][$section]['keys']),
+            );
+        }
+
+        foreach (['maintenance', 'security_headers', 'https_redirect', 'debug'] as $section) {
             self::assertSame(
                 \array_keys($http[$section]),
                 \array_keys($rules['keys'][$section]['keys']),
@@ -539,6 +561,158 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
         self::assertTrue(self::validate($http)->isSuccess());
     }
 
+    public function testDebugMapsAndAllDeclaredKeysAreRequired(): void
+    {
+        $http = self::defaults();
+        unset($http['debug']);
+
+        self::assertTrue(self::validate($http)->isFailure());
+
+        foreach (\array_keys(self::defaults()['debug']) as $key) {
+            $http = self::defaults();
+            unset($http['debug'][$key]);
+
+            self::assertTrue(self::validate($http)->isFailure(), 'debug.' . $key);
+        }
+
+        foreach (
+            [
+                'endpoints' => 'enabled',
+                'paths' => 'enabled',
+                'config' => 'allowlist',
+            ] as $section => $key
+        ) {
+            $http = self::defaults();
+            unset($http['debug'][$section][$key]);
+
+            self::assertTrue(
+                self::validate($http)->isFailure(),
+                'debug.' . $section . '.' . $key,
+            );
+        }
+    }
+
+    public function testDebugMapsRejectUnknownKeysAndReservedDirectives(): void
+    {
+        foreach (['unknown', '@enabled', '@replace', '@append', '@remove'] as $key) {
+            $http = self::defaults();
+            $http['debug'][$key] = [];
+
+            self::assertTrue(self::validate($http)->isFailure());
+
+            foreach (['endpoints', 'paths', 'config'] as $section) {
+                $http = self::defaults();
+                $http['debug'][$section][$key] = [];
+
+                self::assertTrue(self::validate($http)->isFailure());
+            }
+        }
+    }
+
+    public function testDebugSectionsMustBeStrictMaps(): void
+    {
+        foreach ([null, false, 'disabled', [], [false]] as $value) {
+            $http = self::defaults();
+            $http['debug'] = $value;
+
+            self::assertTrue(self::validate($http)->isFailure());
+
+            foreach (['endpoints', 'paths', 'config'] as $section) {
+                $http = self::defaults();
+                $http['debug'][$section] = $value;
+
+                self::assertTrue(
+                    self::validate($http)->isFailure(),
+                    'debug.' . $section,
+                );
+            }
+        }
+    }
+
+    /**
+     * @param non-empty-list<string> $path
+     */
+    #[DataProvider('invalidDebugValues')]
+    public function testInvalidDebugValuesFailCanonicalValidationEvenWhenDisabled(
+        array $path,
+        mixed $value,
+    ): void {
+        $http = self::defaults();
+        $target = &$http['debug'];
+
+        foreach ($path as $segment) {
+            $target = &$target[$segment];
+        }
+
+        $target = $value;
+        unset($target);
+
+        $result = self::validate($http);
+
+        self::assertTrue($result->isFailure());
+        self::assertNotEmpty($result->violations());
+    }
+
+    /** @return iterable<string, array{non-empty-list<string>, mixed}> */
+    public static function invalidDebugValues(): iterable
+    {
+        yield 'enabled-string' => [['endpoints', 'enabled'], 'true'];
+        yield 'enabled-integer' => [['endpoints', 'enabled'], 1];
+        yield 'enabled-null' => [['endpoints', 'enabled'], null];
+        yield 'enabled-list' => [['endpoints', 'enabled'], []];
+
+        yield 'digest-null' => [['token_sha256'], null];
+        yield 'digest-boolean' => [['token_sha256'], false];
+        yield 'digest-integer' => [['token_sha256'], 123];
+        yield 'digest-list' => [['token_sha256'], []];
+
+        yield 'operations-string' => [['paths', 'enabled'], 'headers'];
+        yield 'operations-map' => [['paths', 'enabled'], ['first' => 'headers']];
+        yield 'operations-null' => [['paths', 'enabled'], null];
+        yield 'operations-integer' => [['paths', 'enabled'], [1]];
+        yield 'operations-unknown' => [['paths', 'enabled'], ['unknown']];
+        yield 'operations-uppercase' => [['paths', 'enabled'], ['HEADERS']];
+        yield 'operations-empty-name' => [['paths', 'enabled'], ['']];
+
+        foreach (
+            [
+                'ip-allowlist' => ['allowlist'],
+                'config-allowlist' => ['config', 'allowlist'],
+            ] as $name => $path
+        ) {
+            yield $name . '-null' => [$path, null];
+            yield $name . '-string' => [$path, 'invalid'];
+            yield $name . '-map' => [$path, ['first' => 'value']];
+            yield $name . '-integer-item' => [$path, [123]];
+            yield $name . '-array-item' => [$path, [[]]];
+            yield $name . '-empty-item' => [$path, ['']];
+            yield $name . '-space-item' => [$path, ['invalid value']];
+            yield $name . '-tab-item' => [$path, ["invalid\tvalue"]];
+            yield $name . '-newline-item' => [$path, ["invalid\nvalue"]];
+        }
+    }
+
+    public function testEmptyDebugAllowlistsPassDeclarativeValidation(): void
+    {
+        $http = self::defaults();
+        $http['debug']['allowlist'] = [];
+        $http['debug']['paths']['enabled'] = [];
+        $http['debug']['config']['allowlist'] = [];
+
+        self::assertTrue(self::validate($http)->isSuccess());
+    }
+
+    public function testDebugSemanticValidationRemainsOwnedByDebugGuard(): void
+    {
+        $http = self::defaults();
+        $http['debug']['allowlist'] = ['invalid-ip', 'invalid-ip'];
+        $http['debug']['token_sha256'] = 'invalid-digest';
+        $http['debug']['paths']['enabled'] = ['headers', 'headers'];
+        $http['debug']['config']['allowlist'] = ['http..factory'];
+
+        self::assertTrue(self::validate($http)->isSuccess());
+    }
+
     public function testFactoryChangeFlowsIntoCanonicalCompiledConfigAndContainerInputs(): void
     {
         $configBuilder = new CompiledConfigBuilder(new ArtifactEnvelopeFactory());
@@ -560,7 +734,13 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
                 'configSourceFiles' => [],
                 'validation' => ConfigValidationResult::success(),
                 'validationSubjects' => ['validated' => [], 'unvalidated' => []],
-            ], \str_repeat('a', 64));
+            ], \str_repeat('a', 64), 'test');
+
+            new ArtifactSchemaValidator()->validate($envelope);
+
+            self::assertSame('test', $envelope['payload']['appEnv']);
+            self::assertEquals($http, $envelope['payload']['config']['http']);
+
             $configPayloads[$selection] = $envelope['payload']['config'];
 
             $builder = new ContainerDefinitionBuilder();

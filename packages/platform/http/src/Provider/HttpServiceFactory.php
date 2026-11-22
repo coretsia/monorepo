@@ -19,9 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Provider;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
+use Coretsia\Platform\Http\Debug\DebugGuard;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\Pipeline;
+use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -99,6 +103,51 @@ final class HttpServiceFactory
             self::integer($values, 'status'),
             self::list($values, 'allow_methods'),
             self::string($values, 'target_authority'),
+        );
+    }
+
+    public static function trustedProxy(
+        ConfigRepositoryInterface $config,
+    ): TrustedProxyPolicy {
+        $root = $config->get('http');
+        if (!\is_array($root)) {
+            throw new \InvalidArgumentException('http-config-invalid');
+        }
+
+        $values = self::section($root, 'proxy');
+
+        return new TrustedProxyPolicy(
+            self::list($values, 'trusted_proxies'),
+        );
+    }
+
+    public static function debugGuard(
+        ConfigRepositoryInterface $config,
+        RuntimeDiagnosticsInput $runtime,
+        ModulePlan $modulePlan,
+        TrustedProxyPolicy $trustedProxy,
+    ): DebugGuard {
+        $root = $config->get('http');
+        if (!\is_array($root)) {
+            throw new \InvalidArgumentException('http-config-invalid');
+        }
+
+        $values = self::section($root, 'debug');
+        $endpoints = self::section($values, 'endpoints');
+        $paths = self::section($values, 'paths');
+        $configPolicy = self::section($values, 'config');
+        $proxy = self::section($root, 'proxy');
+
+        return new DebugGuard(
+            $runtime,
+            $modulePlan,
+            $trustedProxy,
+            self::boolean($proxy, 'enabled'),
+            self::boolean($endpoints, 'enabled'),
+            self::list($values, 'allowlist'),
+            self::string($values, 'token_sha256'),
+            self::list($paths, 'enabled'),
+            self::list($configPolicy, 'allowlist'),
         );
     }
 

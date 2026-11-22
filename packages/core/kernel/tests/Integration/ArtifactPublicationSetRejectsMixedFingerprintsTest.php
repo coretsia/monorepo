@@ -199,6 +199,7 @@ final class ArtifactPublicationSetRejectsMixedFingerprintsTest extends TestCase
             )->build(
                 compiledConfig: self::compiledConfig(),
                 fingerprint: $configFingerprint,
+                appEnv: 'prod',
             ),
             'container.php' => new CompiledContainerBuilder(
                 $factory,

@@ -47,6 +47,7 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModuleResolution;
 use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Tracing\Provider\TracingServiceProvider;
 use Coretsia\Platform\Tracing\W3c\W3cTraceContextPropagation;
@@ -126,9 +127,13 @@ final class TracingProviderSourceCompiledParityTest extends TestCase
             $graph = self::compiler()->compile($resolution, ['foundation' => []]);
 
             $seeds = new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository(['foundation' => []]),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository(['foundation' => []], []),
                 ModulePlan::class => $resolution->plan(),
                 RuntimePathContext::class => new RuntimePathContext('/coretsia-test', '/coretsia-test/var/cache'),
+                RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                    appEnv: 'test',
+                    artifactGenerationLoaded: false,
+                ),
             ]);
             $envelope = new ArtifactEnvelopeFactory()->container(
                 \str_repeat('a', 64),

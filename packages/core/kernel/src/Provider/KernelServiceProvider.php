@@ -99,6 +99,7 @@ use Coretsia\Kernel\Module\TopologicalSorter;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -241,17 +242,26 @@ final class KernelServiceProvider implements
         );
 
         /*
-         * Register the source-host runtime path seed.
+         * Register the source-host runtime path and diagnostics seeds.
          *
-         * RuntimePathContext is derived from an already-resolved BootstrapConfig.
-         * It is not a Bootstrap Phase A result and does not enter Kernel runtime
-         * definitions.
+         * Both are derived from an already-resolved BootstrapConfig.
+         * They are not Bootstrap Phase A results and do not enter Kernel
+         * runtime definitions.
          */
         $builder->factory(
             RuntimePathContext::class,
             static fn (
                 Container $container,
             ): RuntimePathContext => KernelServiceFactory::runtimePathContext(
+                container: $container,
+            ),
+        );
+
+        $builder->factory(
+            RuntimeDiagnosticsInput::class,
+            static fn (
+                Container $container,
+            ): RuntimeDiagnosticsInput => KernelServiceFactory::runtimeDiagnosticsInput(
                 container: $container,
             ),
         );

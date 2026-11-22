@@ -52,6 +52,16 @@ final readonly class FallbackResponses
         ]));
     }
 
+    /**
+     * Constructs a response from an already authorized bounded diagnostic payload.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function debugJson(array $payload): ResponseInterface
+    {
+        return $this->respond(200, 'application/json', StableJsonEncoder::encodeStableMap($payload));
+    }
+
     public function alive(): ResponseInterface
     {
         return $this->respond(200, 'text/plain; charset=utf-8', 'ALIVE');

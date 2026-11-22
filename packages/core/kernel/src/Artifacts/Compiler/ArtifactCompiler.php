@@ -140,6 +140,7 @@ final readonly class ArtifactCompiler
         $configEnvelope = $this->compiledConfigBuilder->build(
             compiledConfig: $compiledConfig,
             fingerprint: $fingerprint,
+            appEnv: $bootstrapConfig->appEnv(),
         );
 
         $containerEnvelope = $this->compiledContainerBuilder->build(
@@ -149,17 +150,11 @@ final readonly class ArtifactCompiler
 
         $publicationSet = new ArtifactPublicationSet(
             moduleManifestEnvelope: $moduleManifestEnvelope,
-            moduleManifestBytes: $this->phpArrayDumper->dumpEnvelope(
-                $moduleManifestEnvelope,
-            ),
+            moduleManifestBytes: $this->phpArrayDumper->dumpEnvelope($moduleManifestEnvelope),
             configEnvelope: $configEnvelope,
-            configBytes: $this->phpArrayDumper->dumpEnvelope(
-                $configEnvelope,
-            ),
+            configBytes: $this->phpArrayDumper->dumpEnvelope($configEnvelope),
             containerEnvelope: $containerEnvelope,
-            containerBytes: $this->phpArrayDumper->dumpEnvelope(
-                $containerEnvelope,
-            ),
+            containerBytes: $this->phpArrayDumper->dumpEnvelope($containerEnvelope),
         );
 
         $publishedGeneration = $this->generationPublisher->publish(

@@ -71,7 +71,7 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 
 - `docs/ssot/tags.md` owns the reserved HTTP middleware tag names. `Coretsia\Foundation\Tag\ReservedTags` is their sole code-level identifier registry.
 - `docs/ssot/http-middleware-catalog.md` owns middleware taxonomy, catalog placement, optional owner participation, and cross-cutting HTTP policy. This document owns the concrete composition and execution semantics of those slots.
-- `docs/ssot/http-system-endpoints.md` owns canonical terminal system-endpoint dispatch, reserved endpoint fallback responses, unmatched response semantics, and endpoint-decision measurement boundaries. This document owns their integration into the canonical PSR-15 pipeline and declarative HTTP service graph.
+- `docs/ssot/http-system-endpoints.md` owns canonical terminal system-endpoint dispatch, reserved endpoint fallback responses, guarded development-only diagnostics, unmatched response semantics, and endpoint-decision measurement boundaries. This document owns their integration into the canonical PSR-15 pipeline and declarative HTTP service graph.
 - `docs/ssot/di-tags-and-middleware-ordering.md` owns `TagRegistry::all()` ordering and Foundation's first-registration-wins tag deduplication.
 - `docs/ssot/runtime-container-definitions.md` owns declarative container operations, service binding precedence, and source/compiled container construction semantics.
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
@@ -159,7 +159,7 @@ The diagrams express nesting and return flow; they MUST NOT be interpreted as au
 
 `FallbackRouterHandler` is the canonical terminal `RequestHandlerInterface`. It MUST delegate the request exactly once to `FallbackRouter` and return a non-null dispatched response unchanged. A non-matching dispatch result MUST delegate to `FallbackResponses::notFound()`, preserving the safe empty-body HTTP `404` response.
 
-`FallbackRouter` consumes the canonical system-route declarations through `ReservedPathMatcher` and implements only the explicitly supported system-endpoint dispatch behavior defined by `docs/ssot/http-system-endpoints.md`. The dispatcher MUST NOT implement general application routing, route admission, or endpoint authorization.
+`FallbackRouter` consumes the canonical system-route declarations through `ReservedPathMatcher` and implements only the explicitly supported system-endpoint dispatch behavior defined by `docs/ssot/http-system-endpoints.md`. It delegates the canonical `dev_only` prefix declaration to `DebugRouter`, which consumes `DebugGuard` and the four diagnostic handlers. These services execute within the same terminal handler, outside all nine middleware slots. Their eligibility, authorization, unmatched and forbidden semantics MUST follow that SSoT. The dispatcher MUST NOT implement general application routing, route admission, or general application endpoint authorization.
 
 Terminal execution MUST occur only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses MUST retain precedence over terminal dispatch.
 
@@ -253,10 +253,14 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 - Source and compiled containers MUST retain equivalent middleware service definitions, tag metadata and priorities, effective ordering, factory bindings, and terminal-handler resolution.
 - `HttpServiceProvider` MUST require the existing Foundation-owned `Psr\Clock\ClockInterface` service without registering an HTTP-owned clock or replacing the canonical binding.
 - `HttpServiceProvider` MUST register one shared immutable `FallbackResponses` service with explicit references to the canonical `ResponseFactoryInterface` and `StreamFactoryInterface` services.
-- `HttpServiceProvider` MUST register one shared immutable `FallbackRouter` service with explicit references to `FallbackResponses`, `ClockInterface`, and `MeterPortInterface`, together with the validated `http.metrics.enabled` boolean.
+- `HttpServiceProvider` MUST register shared immutable `DebugGuard`, `DebugHeadersHandler`, `DebugModuleListHandler`, `DebugConfigHandler`, `DebugCacheHandler`, and `DebugRouter` services independently of debug activation, with the mandatory explicit dependencies defined by `docs/ssot/http-system-endpoints.md`.
+- `DebugGuard` MUST be constructed through `HttpServiceFactory::debugGuard()` from the effective `ConfigRepositoryInterface`, Kernel-owned `RuntimeDiagnosticsInput` and `ModulePlan`, and the shared `TrustedProxyPolicy`. Policy construction MUST validate the debug settings even when disabled. Configuration-sensitive policy input MUST NOT be serialized as compiled definition literals.
+- The header and config handlers MUST consume the required canonical Redaction ports through `core/contracts`. HTTP MUST NOT import concrete Redaction implementation classes. Guard eligibility MUST require explicit selection of Problem Details in the runtime module plan; installation alone is insufficient.
+- `DebugRouter` MUST consume the shared guard and diagnostic handlers, `MeterPortInterface`, PSR-3 `LoggerInterface`, and the validated `http.metrics.enabled` and `http.access_log.enabled` booleans.
+- `HttpServiceProvider` MUST register one shared immutable `FallbackRouter` service with explicit references to `FallbackResponses`, `ClockInterface`, `MeterPortInterface`, and `DebugRouter`, together with the validated `http.metrics.enabled` boolean.
 - `FallbackRouterHandler` MUST consume the shared `FallbackRouter` and `FallbackResponses` services through mandatory non-nullable constructor dependencies. The canonical `RequestHandlerInterface` alias MUST resolve to `FallbackRouterHandler`.
 - Source and compiled containers MUST preserve equivalent terminal service definitions and shared dependency identities, including final application-owned clock and PSR-17 factory binding overrides under the existing canonical binding and readiness policies.
-- Terminal endpoint service registration MUST remain independent of observability enablement. These services MUST NOT participate in middleware tags, Kernel lifecycle hooks, ContextStore ownership, or reset registration.
+- Terminal endpoint service registration MUST remain independent of observability enablement. These services MUST NOT participate in middleware tags, manual append lists, middleware priorities or toggle metadata, Kernel lifecycle hooks, ContextStore ownership, or reset registration. Debug activation MUST NOT alter middleware participation or ordering.
 - `HttpServiceProvider` MUST register one shared `RequestIdPolicy` through canonical declarative DI independently of `http.request_id.enabled`.
 - `HttpKernel` and `HttpResponseFinalizer` MUST consume the same `RequestIdPolicy` instance as a mandatory non-nullable constructor dependency.
 - `RequestIdPolicy` MUST consume the existing shared Foundation `ContextStore` and the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`.
@@ -834,7 +838,7 @@ KernelRuntimeInterface::beginUnitOfWork('http')
 
 A response returned by the selected outermost error boundary is a completed pipeline response and MUST pass through the same `HttpResponseFinalizer` and request-level observability sequence as any normally returned or short-circuit response.
 
-Terminal system-endpoint decisions are observed independently by `FallbackRouter` through the canonical meter port according to `docs/ssot/http-system-endpoints.md` and `docs/ssot/observability.md`. These decisions MUST NOT establish the final HTTP status or request outcome, replace request-level observability, or introduce another lifecycle boundary.
+Ordinary terminal system-endpoint decisions are observed by `FallbackRouter` through the canonical meter port. `DebugRouter` separately observes completed eligible debug decisions through `http.debug_total` and the fixed blocked warning `http.debug.blocked`, with independent metric and logging enablement and failure isolation. Both policies are governed by `docs/ssot/http-system-endpoints.md` and `docs/ssot/observability.md`. These decisions MUST NOT establish the final HTTP status or request outcome, replace request-level observability, or introduce another lifecycle boundary. Debug decisions MUST NOT be duplicated through `http.system_endpoint_total`.
 
 The finalizer owns independently enabled application of the Kernel-owned correlation response header, the HTTP-owned request-id response header, and configured security headers through immutable PSR-7 `withHeader()`.
 
@@ -891,7 +895,7 @@ Maintenance runtime state MUST remain filesystem-backed and application-root-loc
 
 Integration verification MUST cover deterministic per-slot ordering and deduplication, cross-slot failures, exact metadata and toggles, selected/unselected priority-`1000` boundary placement, returned short-circuit response unwind, exception conversion as a separate path, final-response completion and outcome classification, and source/compiled container parity.
 
-Terminal integration verification MUST cover canonical system-endpoint dispatch, unmatched empty-body `404` responses, earlier middleware precedence, exact maintenance liveness bypass, mandatory shared endpoint service wiring, source/compiled container parity, effective clock and PSR-17 factory bindings, original Throwable propagation, and independent endpoint-decision observability according to `docs/ssot/http-system-endpoints.md`.
+Terminal integration verification MUST cover canonical system-endpoint dispatch, guarded development diagnostics and canonical forbidden error flow, unmatched empty-body `404` responses, earlier middleware precedence, exact maintenance liveness bypass without a debug bypass, mandatory shared endpoint service wiring, source/compiled container parity, effective clock and PSR-17 factory bindings, original Throwable propagation, and independent system-endpoint and debug-decision observability according to `docs/ssot/http-system-endpoints.md`.
 
 Tests MUST distinguish an intermediate middleware result from the completed `HttpKernel` result and MUST NOT treat optional observability failures as permission to change responses or primary Throwables.
 
@@ -959,7 +963,8 @@ Existing middleware ordering, outermost error-boundary placement, completed-resp
 This SSoT does not introduce or redefine:
 
 - reserved tags, priority registries, config roots, or `http.middleware.auto.*` flags;
-- general application route matching, application endpoints, route admission, endpoint authorization, routing delegation contracts, transport-specific request creation, or response emission;
+- general application route matching, application endpoints, route admission, general application endpoint authorization, routing delegation contracts, transport-specific request creation, or response emission;
+- debugging middleware, debug-specific slots, priorities, or an alternative terminal dispatcher;
 - a second DI container, middleware resolver, observer pipeline, lifecycle hook registry, or reset implementation;
 - a replacement canonical error handler, `ErrorDescriptor` model, Problem Details renderer, or diagnostic redaction boundary;
 - metrics aggregation, logging backend, tracing exporter, span-parent linkage contract, or mutable request cache;

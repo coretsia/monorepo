@@ -220,7 +220,7 @@ final class HttpEarlyShortCircuitPostDecoratorsTest extends TestCase
 
         return HttpServiceFactory::pipeline(
             $container,
-            new ArrayConfigRepository(['http' => $http]),
+            new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
         );

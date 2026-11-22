@@ -49,6 +49,7 @@ use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -359,7 +360,9 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
     {
         $http = require __DIR__ . '/../../config/http.php';
         $builder = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($builder, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($builder, $context);
+        new HttpServiceProvider()->define($builder, $context);
         $observable = [
             HttpRequestMetricsRecorder::class,
             HttpAccessLogWriter::class,

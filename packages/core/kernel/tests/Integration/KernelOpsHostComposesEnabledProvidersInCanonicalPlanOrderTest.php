@@ -26,11 +26,14 @@ use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Module\FoundationModule;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
 use Coretsia\Foundation\Tag\TagRegistry;
+use Coretsia\Kernel\Boot\BootstrapConfig;
 use Coretsia\Kernel\Container\Provider\ContainerProviderPlan;
 use Coretsia\Kernel\Module\KernelModule;
 use Coretsia\Kernel\Ops\KernelOpsHostBooter;
+use Coretsia\Kernel\Ops\KernelOpsHostInput;
 use Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter;
 use Coretsia\Kernel\Provider\KernelServiceProvider;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -102,6 +105,7 @@ final class KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest extend
         foreach (
             [
                 'RuntimePathContext::class',
+                'RuntimeDiagnosticsInput::class',
                 'KernelOpsExecutionServices::class',
                 'KernelOpsFacade::class',
                 'KernelOpsInterface::class',
@@ -209,6 +213,52 @@ final class KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest extend
                 $tagRegistry->all('fixture.command'),
             ),
         );
+    }
+
+    public function testSourceHostResolvesRuntimeDiagnosticsFromCanonicalBootstrapEnvironment(): void
+    {
+        $root = ArtifactPipelineTestSupport::temporaryRoot('kernel-ops-host-runtime-diagnostics');
+
+        try {
+            $appConfig = [
+                'appEnv' => 'dev',
+                'moduleOverrides' => [
+                    'console' => [
+                        'include' => [],
+                        'exclude' => [
+                            'platform.http',
+                            'platform.problem-details',
+                        ],
+                    ],
+                ],
+            ];
+
+            ArtifactPipelineTestSupport::writePhpReturn($root . '/config/app.php', $appConfig);
+            ArtifactPipelineTestSupport::writePhpReturn(
+                $root . '/config/logging.php',
+                ['driver' => 'null'],
+            );
+
+            $container = new KernelOpsHostBooter()->boot(
+                new KernelOpsHostInput($root),
+            );
+            $bootstrapConfig = $container->get(BootstrapConfig::class);
+
+            self::assertInstanceOf(BootstrapConfig::class, $bootstrapConfig);
+            self::assertSame('dev', $bootstrapConfig->appEnv());
+
+            $appConfig['appEnv'] = 'local';
+            ArtifactPipelineTestSupport::writePhpReturn($root . '/config/app.php', $appConfig);
+
+            $diagnostics = $container->get(RuntimeDiagnosticsInput::class);
+
+            self::assertInstanceOf(RuntimeDiagnosticsInput::class, $diagnostics);
+            self::assertSame($bootstrapConfig->appEnv(), $diagnostics->appEnv());
+            self::assertFalse($diagnostics->artifactGenerationLoaded());
+            self::assertSame($diagnostics, $container->get(RuntimeDiagnosticsInput::class));
+        } finally {
+            ArtifactPipelineTestSupport::removeTree($root);
+        }
     }
 
     private static function source(): string

@@ -37,7 +37,7 @@ final class RuntimeDriverResolverResolvesRuntimeDriverContributionsTest extends 
                     'http_driver' => 'http.classic',
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [],
@@ -62,7 +62,7 @@ final class RuntimeDriverResolverResolvesRuntimeDriverContributionsTest extends 
                     'http_driver' => 'http.classic',
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [HttpDriver::WORKER],
@@ -87,7 +87,7 @@ final class RuntimeDriverResolverResolvesRuntimeDriverContributionsTest extends 
                     'http_driver' => 'http.roadrunner',
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [HttpDriver::WORKER],
@@ -118,7 +118,7 @@ final class RuntimeDriverResolverResolvesRuntimeDriverContributionsTest extends 
                     'http_driver' => $configuredHttpDriver,
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [],

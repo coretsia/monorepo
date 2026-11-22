@@ -24,7 +24,7 @@ Artifact location is resolved during Bootstrap Phase A and is consumed through `
 
 The artifact fingerprint binds the canonical compiled `DefinitionGraph` used to produce the REAL `container@1` artifact.
 
-Kernel-produced `container@1` artifacts use the REAL compiled-container payload emitted through `ContainerCompiler` and `CompiledContainerBuilder`. Transitional stub payloads are invalid.
+Kernel-produced `container@1` artifacts use the canonical compiled-container payload emitted through `ContainerCompiler` and `CompiledContainerBuilder`. Only `kind = compiled` and `compiled = true` are valid.
 
 Kernel artifact production publishes one immutable fingerprint-addressed generation and activates it through one locked `current` pointer replacement.
 
@@ -206,7 +206,7 @@ ArtifactGenerationPathResolver
 └─ generation.lock
 ```
 
-Production compilation MUST NOT dual-write the legacy flat layout.
+Production compilation MUST NOT write active artifacts directly under the artifact root.
 
 Artifact-only runtime receives only the artifact root, locates `current` through `ArtifactGenerationLocator`, and consumes one validated generation. Proc Worker children forward one application-root-relative artifact-root argument rather than individual artifact paths.
 
@@ -385,14 +385,7 @@ services
 tags
 ```
 
-Transitional stub payloads are invalid as current `container@1` artifacts:
-
-```text
-kind = stub
-compiled = false
-```
-
-The REAL compiled-container payload remains compatible with `container@1`; no `container@2` schema version is introduced by this decision.
+Any other `kind` or `compiled` value is invalid for `container@1`.
 
 ## Decision 6: Bind the compiled container graph into fingerprint input
 
@@ -411,6 +404,14 @@ The builder consumes already-resolved or already-produced inputs:
 The `ConfigSourceSet` passed to `ConfigFingerprintInputBuilder` MUST be the same instance that `ArtifactCompiler` or `CacheVerifier` passed to `ConfigKernel` for that operation.
 
 The operation MUST NOT compile config from source set A and fingerprint source set B.
+
+The canonical config artifact payload shape also participates in the shared fingerprint input. `ConfigFingerprintInputBuilder` includes the byte-order-sorted `CompiledConfigBuilder::PAYLOAD_KEYS` list as `compiledConfig.payloadKeys` in the existing compiled config bucket. The exact payload key set and metadata semantics remain owned by `docs/ssot/artifacts-and-fingerprint.md`.
+
+The compiler and verifier both supply `BootstrapConfig::appEnv()` to `CompiledConfigBuilder` as mandatory `config@1` payload metadata. The same frozen environment participates in the existing bootstrap fingerprint identity through `bootstrap.appEnv`. Runtime diagnostics objects and loaded-generation status are not fingerprint inputs.
+
+Distinct canonical config artifact payload shapes MUST produce distinct shared artifact fingerprints and therefore distinct immutable generation identities, including when only the canonical payload key set differs. This linkage uses the existing fingerprint calculator, artifact identities, schema versions, and generation-id derivation. It MUST NOT create a separate shape fingerprint or generation identifier.
+
+`ArtifactCompiler` and `CacheVerifier` consume the same canonical payload construction and fingerprint input rules. `ArtifactGenerationPublisher` remains the owner of immutable generation publication and may reuse an existing generation only when all four files are valid and exactly byte-identical to the staged generation. Payload shape participation MUST NOT permit replacing bytes under an existing generation id.
 
 Mode-preset source topology inside that source set contains **exactly one** deterministic namespace-owned candidate. A canonical name selects the Kernel-owned `CanonicalPresetSource` (`core/kernel:` source id, precedence `10`); a custom name selects application-owned `CustomPresetSource` (`application:` source id, precedence `20`). Candidate identity depends only on the configured namespace and selected name, not on incidental file presence or fallback. A missing declared custom candidate remains fingerprint-relevant without executing PHP. Reserved canonical application filenames and namespace-escaping existing paths fail validation before fingerprint reading.
 

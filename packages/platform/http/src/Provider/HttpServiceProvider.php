@@ -24,6 +24,8 @@ use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
@@ -36,11 +38,19 @@ use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
+use Coretsia\Platform\Http\Debug\DebugCacheHandler;
+use Coretsia\Platform\Http\Debug\DebugConfigHandler;
+use Coretsia\Platform\Http\Debug\DebugGuard;
+use Coretsia\Platform\Http\Debug\DebugHeadersHandler;
+use Coretsia\Platform\Http\Debug\DebugModuleListHandler;
+use Coretsia\Platform\Http\Debug\DebugRouter;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
 use Coretsia\Platform\Http\Host\TrustedHostPolicy;
 use Coretsia\Platform\Http\HttpKernel;
@@ -144,7 +154,6 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
         $jsonEnabled = HttpServiceFactory::boolean($json, 'enabled');
         $maxBodyBytes = HttpServiceFactory::integer($request, 'max_body_bytes');
         $maxJsonDepth = HttpServiceFactory::integer($json, 'max_depth');
-        $trustedProxies = HttpServiceFactory::list($proxy, 'trusted_proxies');
         $allowedHosts = HttpServiceFactory::list($hosts, 'allowed');
 
         $definitions
@@ -152,7 +161,9 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(ConfigRepositoryInterface::class)
             ->requireService(TagRegistry::class)
             ->requireService(KernelRuntimeInterface::class)
+            ->requireService(ModulePlan::class)
             ->requireService(RuntimeDriverResolver::class)
+            ->requireService(RuntimeDiagnosticsInput::class)
             ->requireService(RuntimePathContext::class)
             ->requireService(ClockInterface::class)
             ->requireService(Stopwatch::class)
@@ -163,6 +174,8 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(TracerPortInterface::class)
             ->requireService(MeterPortInterface::class)
             ->requireService(LoggerInterface::class)
+            ->requireService(SensitiveDataRedactorInterface::class)
+            ->requireService(SensitiveKeyClassifierInterface::class)
             ->requireService(ResponseFactoryInterface::class)
             ->requireService(StreamFactoryInterface::class);
 
@@ -185,10 +198,22 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 MaintenanceStateStore::class,
                 [self::ref(RuntimePathContext::class), self::ref(ScopedFileLock::class)],
             )
-            ->classService(
+            ->classMethodFactory(
                 TrustedProxyPolicy::class,
-                TrustedProxyPolicy::class,
-                [$trustedProxies],
+                HttpServiceFactory::class,
+                'trustedProxy',
+                [self::ref(ConfigRepositoryInterface::class)],
+            )
+            ->classMethodFactory(
+                DebugGuard::class,
+                HttpServiceFactory::class,
+                'debugGuard',
+                [
+                    self::ref(ConfigRepositoryInterface::class),
+                    self::ref(RuntimeDiagnosticsInput::class),
+                    self::ref(ModulePlan::class),
+                    self::ref(TrustedProxyPolicy::class),
+                ],
             )
             ->classService(
                 TrustedHostPolicy::class,
@@ -223,6 +248,56 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 [self::ref(ResponseFactoryInterface::class), self::ref(StreamFactoryInterface::class)],
             )
             ->classService(
+                DebugHeadersHandler::class,
+                DebugHeadersHandler::class,
+                [
+                    self::ref(SensitiveDataRedactorInterface::class),
+                    self::ref(FallbackResponses::class),
+                ],
+            )
+            ->classService(
+                DebugModuleListHandler::class,
+                DebugModuleListHandler::class,
+                [
+                    self::ref(ModulePlan::class),
+                    self::ref(FallbackResponses::class),
+                ],
+            )
+            ->classService(
+                DebugConfigHandler::class,
+                DebugConfigHandler::class,
+                [
+                    self::ref(ConfigRepositoryInterface::class),
+                    self::ref(DebugGuard::class),
+                    self::ref(SensitiveDataRedactorInterface::class),
+                    self::ref(SensitiveKeyClassifierInterface::class),
+                    self::ref(FallbackResponses::class),
+                ],
+            )
+            ->classService(
+                DebugCacheHandler::class,
+                DebugCacheHandler::class,
+                [
+                    self::ref(RuntimeDiagnosticsInput::class),
+                    self::ref(FallbackResponses::class),
+                ],
+            )
+            ->classService(
+                DebugRouter::class,
+                DebugRouter::class,
+                [
+                    self::ref(DebugGuard::class),
+                    self::ref(DebugHeadersHandler::class),
+                    self::ref(DebugModuleListHandler::class),
+                    self::ref(DebugConfigHandler::class),
+                    self::ref(DebugCacheHandler::class),
+                    self::ref(MeterPortInterface::class),
+                    self::ref(LoggerInterface::class),
+                    $metricsEnabled,
+                    $accessLogEnabled,
+                ],
+            )
+            ->classService(
                 FallbackRouter::class,
                 FallbackRouter::class,
                 [
@@ -230,6 +305,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                     self::ref(ClockInterface::class),
                     self::ref(MeterPortInterface::class),
                     $metricsEnabled,
+                    self::ref(DebugRouter::class),
                 ],
             )
             ->classService(

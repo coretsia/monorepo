@@ -759,6 +759,7 @@ final class ArtifactPipelineTestSupport
      *
      * This helper intentionally bypasses ArtifactRuntimeBooter so tests can
      * exercise compiled-container hydration in isolation.
+     * It does not establish validated artifact-generation boot evidence.
      *
      * @param array<string, mixed>|null $configPayload
      */
@@ -798,6 +799,8 @@ final class ArtifactPipelineTestSupport
             ),
             configRepository: $configRepository,
             modulePlan: $modulePlan,
+            configPayload: $configPayload,
+            artifactGenerationLoaded: false,
         );
 
         return self::compiledContainerFactory()->buildFromEnvelope(

@@ -337,6 +337,8 @@ The `platform/errors` → `platform/redaction` dependency is likewise a runtime-
 
 The `platform/logging` → `core/kernel` and `platform/logging` → `platform/redaction` edges are runtime-only Composer/module requirements. Kernel supplies the already selected app target through the contracts-level `AppTargetProviderInterface`; Redaction supplies the shared `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` services through contracts-level ports. `platform/logging` imports neither Kernel nor concrete Redaction implementation classes in production source. These runtime-only edges grant no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
 
+The `platform/http` → `platform/redaction` edge is a runtime-only Composer dependency backed by the direct `platform.redaction` module requirement. HTTP consumes `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` through `core/contracts`, not concrete Redaction implementation classes. This runtime-only edge grants no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
+
 ---
 
 ## 5) Completeness and consistency requirements (MUST)

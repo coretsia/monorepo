@@ -39,6 +39,7 @@ use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Provider\HttpServiceFactory;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -353,7 +354,9 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
         $http['https_redirect']['target_authority'] = 'secure.example';
         $http['request']['json']['enabled'] = false;
         $definitions = new ContainerDefinitionBuilder();
-        new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(['http' => $http]));
+        $context = new ContainerDefinitionContext(['http' => $http]);
+        new RedactionServiceProvider()->define($definitions, $context);
+        new HttpServiceProvider()->define($definitions, $context);
         $tags = new TagRegistry();
         foreach ($definitions->build()->toDescriptorStream() as $operation) {
             if (($operation['kind'] ?? null) === 'tag') {
@@ -432,7 +435,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
             );
             $pipeline = HttpServiceFactory::pipeline(
                 $container,
-                new ArrayConfigRepository(['http' => $http]),
+                new ArrayConfigRepository(['http' => $http], []),
                 $stack,
                 $terminal,
             );

@@ -31,9 +31,9 @@ declare(strict_types=1);
  *   id strings; class-string grammar and cross-slot duplicate checks remain
  *   owned by HttpMiddlewareStackBuilder;
  * - correlation, request-id, upstream request-id acceptance, tracing, metrics,
- *   access logging, maintenance, proxy, context enrichment, host validation,
- *   security headers, HTTPS redirect, and JSON parsing toggles must be actual
- *   booleans;
+ *   access logging, maintenance, proxy, debug endpoints, context enrichment,
+ *   host validation, security headers, HTTPS redirect, and JSON parsing
+ *   toggles must be actual booleans;
  * - `http.maintenance.retry_after_default_seconds` must be an integer
  *   in 1..86400;
  * - `http.correlation.header_name` and `http.request_id.header_name` must be
@@ -46,6 +46,14 @@ declare(strict_types=1);
  * - `http.https_redirect.status` must be exactly integer `307` or `308`;
  * - `http.https_redirect.allow_methods` must be a list of supported canonical
  *   uppercase HTTP method strings;
+ * - `http.debug.allowlist` must be a list of non-empty, whitespace-free strings;
+ * - `http.debug.token_sha256` must be a string;
+ * - `http.debug.paths.enabled` must be a list restricted to the four canonical
+ *   operations: headers, modules, config, and cache;
+ * - `http.debug.config.allowlist` must be a list of non-empty, whitespace-free
+ *   logical key-prefix strings;
+ * - DebugGuard owns semantic IP, token digest, logical key grammar, uniqueness,
+ *   and bounded-list validation independently of feature activation;
  * - HTTP-owned policies validate canonical header tokens, request identity
  *   semantics, IP/CIDR addresses, host syntax, entry lengths, bounded list
  *   limits, redirect method uniqueness, target authority semantics, and
@@ -61,8 +69,9 @@ declare(strict_types=1);
  * - `http.request.max_body_bytes` must be an integer in 1..16777216;
  * - `http.request.json.max_depth` must be an integer in 1..512;
  * - no `http.middleware.auto.*`, implicit factory selection, implementation
- *   class-name, Composer installation, optional module activation, route,
- *   endpoint, or environment-specific disclosure keys are declared.
+ *   class-name, Composer installation, optional module activation, general
+ *   application routing, or environment-specific disclosure override keys
+ *   are declared.
  *
  * These rules contain only existing declarative ConfigValidator types and
  * constraints. They MUST NOT inspect installed PSR-7/17 packages, resolve
@@ -267,6 +276,69 @@ return [
                     'type' => 'list',
                     'items' => [
                         'type' => 'non-empty-string-no-ws',
+                    ],
+                ],
+            ],
+        ],
+        'debug' => [
+            'required' => true,
+            'type' => 'map',
+            'additionalKeys' => false,
+            'keys' => [
+                'endpoints' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'bool',
+                        ],
+                    ],
+                ],
+                'allowlist' => [
+                    'required' => true,
+                    'type' => 'list',
+                    'items' => [
+                        'type' => 'non-empty-string-no-ws',
+                    ],
+                ],
+                'token_sha256' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+                'paths' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'enabled' => [
+                            'required' => true,
+                            'type' => 'list',
+                            'items' => [
+                                'type' => 'string',
+                                'allowedValues' => [
+                                    'headers',
+                                    'modules',
+                                    'config',
+                                    'cache',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'config' => [
+                    'required' => true,
+                    'type' => 'map',
+                    'additionalKeys' => false,
+                    'keys' => [
+                        'allowlist' => [
+                            'required' => true,
+                            'type' => 'list',
+                            'items' => [
+                                'type' => 'non-empty-string-no-ws',
+                            ],
+                        ],
                     ],
                 ],
             ],

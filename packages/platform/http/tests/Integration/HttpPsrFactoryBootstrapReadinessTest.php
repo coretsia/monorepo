@@ -23,6 +23,8 @@ use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
+use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Clock\FrozenClock;
 use Coretsia\Foundation\Clock\SystemClock;
 use Coretsia\Foundation\Container\ContainerBuilder;
@@ -46,13 +48,16 @@ use Coretsia\Kernel\Runtime\Driver\HttpDriver;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\Exception\RuntimeDriverConflictException;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
+use Coretsia\Platform\Http\Debug\DebugRouter;
 use Coretsia\Platform\Http\HttpKernelInterface;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
 use Coretsia\Platform\Http\Routing\FallbackResponses;
 use Coretsia\Platform\Http\Routing\FallbackRouter;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -214,6 +219,10 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         self::assertContains(ResponseFactoryInterface::class, $required);
         self::assertContains(StreamFactoryInterface::class, $required);
         self::assertContains(ClockInterface::class, $required);
+        self::assertContains(ModulePlan::class, $required);
+        self::assertContains(RuntimeDiagnosticsInput::class, $required);
+        self::assertContains(SensitiveDataRedactorInterface::class, $required);
+        self::assertContains(SensitiveKeyClassifierInterface::class, $required);
         $definitions = new ContainerDefinitionBuilder();
         $definitions->requireService(ResponseFactoryInterface::class);
         $definitions->requireService(StreamFactoryInterface::class);
@@ -316,6 +325,7 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         $context = new ContainerDefinitionContext($config);
 
         new FoundationServiceProvider()->define($definitions, $context);
+        new RedactionServiceProvider()->define($definitions, $context);
         new HttpServiceProvider()->define($definitions, $context);
 
         // The lifecycle boundary is not executed by these terminal tests.
@@ -382,8 +392,10 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         }
 
         $builder = new ContainerBuilder($config);
-        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $builder->instance(TagRegistry::class, $builder->tagRegistry());
+        $builder->instance(ModulePlan::class, self::modulePlan());
+        $builder->instance(RuntimeDiagnosticsInput::class, new RuntimeDiagnosticsInput('test', false));
         $builder->instance(
             RuntimePathContext::class,
             new RuntimePathContext('/test', '/test/var/cache'),
@@ -401,6 +413,10 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
 
         $baselineRouter = $baseline->get(FallbackRouter::class);
         self::assertInstanceOf(FallbackRouter::class, $baselineRouter);
+        self::assertSame(
+            $baseline->get(DebugRouter::class),
+            new \ReflectionProperty(FallbackRouter::class, 'debug')->getValue($baselineRouter),
+        );
         self::assertSame(
             $systemClock,
             new \ReflectionProperty(FallbackRouter::class, 'clock')->getValue($baselineRouter),
@@ -456,7 +472,7 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         $container = $builder->build();
 
         self::guard()->assertEntrypointAllowed(
-            new ArrayConfigRepository($config),
+            new ArrayConfigRepository($config, []),
             self::modulePlan(),
             RuntimeDriverContributions::fromDrivers([], []),
             $container,
@@ -659,19 +675,23 @@ final class HttpPsrFactoryBootstrapReadinessTest extends TestCase
         return new ArrayConfigRepository([
             'kernel' => ['runtime' => ['http_driver' => 'http.classic']],
             'http' => ['factory' => $factory],
-        ]);
+        ], []);
     }
 
     private static function modulePlan(): ModulePlan
     {
-        $id = ModuleId::fromString('platform.http');
+        $redaction = ModuleId::fromString('platform.redaction');
+        $http = ModuleId::fromString('platform.http');
 
         return new ModulePlan(
             app: 'web',
-            enabled: [$id],
+            enabled: [$redaction, $http],
             excluded: [],
-            topologicalOrder: [$id],
-            modules: [new ModulePlanEntry($id, 'coretsia/platform-http')],
+            topologicalOrder: [$redaction, $http],
+            modules: [
+                new ModulePlanEntry($redaction, 'coretsia/platform-redaction'),
+                new ModulePlanEntry($http, 'coretsia/platform-http', [$redaction]),
+            ],
         );
     }
 }

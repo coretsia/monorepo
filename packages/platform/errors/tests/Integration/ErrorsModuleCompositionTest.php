@@ -56,6 +56,7 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanResolver;
 use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Errors\ErrorHandler;
 use Coretsia\Platform\Errors\Module\ErrorsModule;
@@ -78,7 +79,7 @@ final class ErrorsModuleCompositionTest extends TestCase
         );
         self::assertSame(
             ['core.foundation', 'platform.errors', 'platform.redaction'],
-            \array_map(static fn (ModuleId $id): string => $id->value(), $plan->enabled())
+            \array_map(static fn (ModuleId $id): string => $id->value(), $plan->enabled()),
         );
         $topology = \array_map(static fn (ModuleId $id): string => $id->value(), $plan->topologicalOrder());
         self::assertLessThan(
@@ -147,7 +148,7 @@ final class ErrorsModuleCompositionTest extends TestCase
             ] as $missing
         ) {
             $builder = new ContainerBuilder(self::config());
-            $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository(self::config()));
+            $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository(self::config(), []));
             $supplied = [
                 SensitiveDataRedactorInterface::class => $this->createStub(SensitiveDataRedactorInterface::class),
                 ErrorReporterPortInterface::class => new NoopErrorReporter(),
@@ -228,9 +229,13 @@ final class ErrorsModuleCompositionTest extends TestCase
             new ModuleSelection([ModuleId::fromString('platform.errors')], []),
         );
         $seeds = new RuntimeContainerSeedSet([
-            ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+            ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
             ModulePlan::class => $plan,
             RuntimePathContext::class => new RuntimePathContext('/tmp/coretsia-app', '/tmp/coretsia-artifacts'),
+            RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                appEnv: 'test',
+                artifactGenerationLoaded: false,
+            ),
         ]);
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $compiledEnvelope,
@@ -289,7 +294,7 @@ final class ErrorsModuleCompositionTest extends TestCase
     {
         $config = self::config();
         $builder = new ContainerBuilder($config);
-        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $builder->registerProviders(self::providers());
         return $builder->build();
     }

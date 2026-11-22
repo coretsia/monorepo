@@ -23,6 +23,7 @@ use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\Builders\CompiledConfigBuilder;
 use Coretsia\Kernel\Artifacts\Builders\CompiledContainerBuilder;
 use Coretsia\Kernel\Artifacts\Builders\ModuleManifestBuilder;
+use Coretsia\Kernel\Artifacts\Exception\ArtifactGenerationPublishException;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGeneration;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLocator;
 use Coretsia\Kernel\Artifacts\Generation\ArtifactGenerationLock;
@@ -55,6 +56,7 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
             $publicationSet = self::publicationSet(
                 fingerprint: self::fingerprint('a'),
                 configValue: 'stable-value',
+                appEnv: 'prod',
             );
             $publisher = self::publisher($this);
 
@@ -146,6 +148,91 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
         }
     }
 
+    public function testRejectsSameFingerprintWhenFrozenApplicationEnvironmentChanges(): void
+    {
+        $root = ArtifactPipelineTestSupport::temporaryRoot('artifact-generation-env-conflict');
+        $artifactRoot = $root . '/var/cache/web';
+
+        try {
+            \mkdir($artifactRoot, 0777, true);
+
+            $firstPublicationSet = self::publicationSet(
+                fingerprint: self::fingerprint('a'),
+                configValue: 'stable-value',
+                appEnv: 'prod',
+            );
+            $secondPublicationSet = self::publicationSet(
+                fingerprint: self::fingerprint('a'),
+                configValue: 'stable-value',
+                appEnv: 'dev',
+            );
+
+            self::assertSame(
+                $firstPublicationSet->fingerprint(),
+                $secondPublicationSet->fingerprint(),
+            );
+            self::assertSame(
+                $firstPublicationSet->moduleManifestBytes(),
+                $secondPublicationSet->moduleManifestBytes(),
+            );
+            self::assertSame(
+                $firstPublicationSet->containerBytes(),
+                $secondPublicationSet->containerBytes(),
+            );
+            self::assertNotSame(
+                $firstPublicationSet->configBytes(),
+                $secondPublicationSet->configBytes(),
+            );
+
+            $publisher = self::publisher($this);
+            $first = $publisher->publish(
+                artifactRoot: $artifactRoot,
+                publicationSet: $firstPublicationSet,
+            );
+
+            self::validator()->validate($first);
+            $firstBytes = self::generationBytes($first);
+
+            try {
+                $publisher->publish(
+                    artifactRoot: $artifactRoot,
+                    publicationSet: $secondPublicationSet,
+                );
+
+                self::fail('Expected ArtifactGenerationPublishException was not thrown.');
+            } catch (ArtifactGenerationPublishException $exception) {
+                self::assertSame(
+                    ArtifactGenerationPublishException::REASON_GENERATION_CONFLICT,
+                    $exception->reason(),
+                );
+            }
+
+            $located = self::locator()->locate($artifactRoot);
+
+            self::assertInstanceOf(ArtifactGeneration::class, $located);
+            self::assertTrue(
+                $first->generationId()->equals(
+                    $located->generationId(),
+                ),
+            );
+            self::validator()->validate($located);
+            self::assertSame(
+                $firstBytes,
+                self::generationBytes($located),
+            );
+            self::assertSame(
+                [self::fingerprint('a')],
+                self::finalizedGenerationIds($artifactRoot),
+            );
+            self::assertSame(
+                [],
+                self::transientFiles($artifactRoot),
+            );
+        } finally {
+            ArtifactPipelineTestSupport::removeTree($root);
+        }
+    }
+
     private static function publisher(
         TestCase $testCase,
     ): ArtifactGenerationPublisher {
@@ -189,6 +276,7 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
     private static function publicationSet(
         string $fingerprint,
         string $configValue,
+        string $appEnv,
     ): ArtifactPublicationSet {
         $normalizer = new PayloadNormalizer();
         $envelopeFactory = new ArtifactEnvelopeFactory($normalizer);
@@ -202,6 +290,7 @@ final class ArtifactGenerationPublisherReusesIdenticalGenerationTest extends Tes
         $configEnvelope = new CompiledConfigBuilder($envelopeFactory)->build(
             compiledConfig: self::compiledConfig($configValue),
             fingerprint: $fingerprint,
+            appEnv: $appEnv,
         );
 
         $containerEnvelope = new CompiledContainerBuilder($envelopeFactory)->build(

@@ -29,6 +29,7 @@ use Coretsia\Kernel\Artifacts\Verifier\ArtifactSchemaValidator;
 use Coretsia\Kernel\Container\Definition\TagMetadataNormalizer;
 use Coretsia\Kernel\Container\Exception\ContainerArtifactInvalidException;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Psr\Container\ContainerInterface;
 
@@ -981,6 +982,7 @@ final readonly class CompiledContainerFactory
                 ConfigRepositoryInterface::class => $instance instanceof ConfigRepositoryInterface,
                 ModulePlan::class => $instance instanceof ModulePlan,
                 RuntimePathContext::class => $instance instanceof RuntimePathContext,
+                RuntimeDiagnosticsInput::class => $instance instanceof RuntimeDiagnosticsInput,
                 default => false,
             };
 

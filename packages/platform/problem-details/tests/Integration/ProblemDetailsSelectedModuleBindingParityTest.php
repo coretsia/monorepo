@@ -50,6 +50,7 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModuleResolution;
 use Coretsia\Kernel\Module\ModuleSelection;
 use Coretsia\Kernel\Module\TopologicalSorter;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Errors\ErrorHandler;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
@@ -223,7 +224,7 @@ final class ProblemDetailsSelectedModuleBindingParityTest extends TestCase
         $config = self::config();
         $providers = self::providers($resolution);
         $sourceBuilder = new ContainerBuilder($config);
-        $sourceBuilder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $sourceBuilder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $sourceBuilder->registerProviders($providers);
         $source = $sourceBuilder->build();
 
@@ -247,9 +248,13 @@ final class ProblemDetailsSelectedModuleBindingParityTest extends TestCase
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $envelope,
             new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
                 ModulePlan::class => $resolution->plan(),
                 RuntimePathContext::class => new RuntimePathContext('/coretsia-test', '/coretsia-test/var/cache'),
+                RuntimeDiagnosticsInput::class => new RuntimeDiagnosticsInput(
+                    appEnv: 'test',
+                    artifactGenerationLoaded: false,
+                ),
             ]),
         );
 

@@ -26,6 +26,7 @@ use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Kernel\Boot\ArtifactRuntimeInput;
 use Coretsia\Kernel\Boot\ArtifactRuntimeSeedFactory;
 use Coretsia\Kernel\Module\ModulePlan;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use PHPUnit\Framework\TestCase;
 
@@ -85,6 +86,18 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 input: $input,
                 configRepository: $configRepository,
                 modulePlan: $hydratedModulePlan,
+                configPayload: $configPayload,
+                artifactGenerationLoaded: false,
+            );
+
+            self::assertSame(
+                [
+                    ConfigRepositoryInterface::class,
+                    ModulePlan::class,
+                    RuntimeDiagnosticsInput::class,
+                    RuntimePathContext::class,
+                ],
+                $seeds->ids(),
             );
 
             $instances = $seeds->instances();
@@ -98,12 +111,18 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
             /** @var RuntimePathContext $paths */
             $paths = $instances[RuntimePathContext::class];
 
+            /** @var RuntimeDiagnosticsInput $diagnostics */
+            $diagnostics = $instances[RuntimeDiagnosticsInput::class];
+
             self::assertInstanceOf(
                 ConfigRepositoryInterface::class,
                 $config,
             );
             self::assertInstanceOf(ModulePlan::class, $modulePlan);
             self::assertInstanceOf(RuntimePathContext::class, $paths);
+            self::assertInstanceOf(RuntimeDiagnosticsInput::class, $diagnostics);
+            self::assertSame('prod', $diagnostics->appEnv());
+            self::assertFalse($diagnostics->artifactGenerationLoaded());
 
             self::assertSame(
                 $configPayload['config'],
@@ -140,6 +159,10 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
                 $paths,
                 $container->get(RuntimePathContext::class),
             );
+            self::assertSame(
+                $diagnostics,
+                $container->get(RuntimeDiagnosticsInput::class),
+            );
 
             /** @var CompiledContainerFactoryRuntimeSeedsSubject $subject */
             $subject = $container->get(
@@ -153,6 +176,7 @@ final class CompiledContainerFactoryResolvesRuntimeSeedsTest extends TestCase
             self::assertSame($config, $subject->config);
             self::assertSame($modulePlan, $subject->modulePlan);
             self::assertSame($paths, $subject->paths);
+            self::assertSame($diagnostics, $subject->diagnostics);
         } finally {
             ArtifactPipelineTestSupport::removeTree($root);
         }
@@ -169,6 +193,7 @@ final class CompiledContainerFactoryRuntimeSeedsProvider implements ContainerDef
             ->requireService(ConfigRepositoryInterface::class)
             ->requireService(ModulePlan::class)
             ->requireService(RuntimePathContext::class)
+            ->requireService(RuntimeDiagnosticsInput::class)
             ->classService(
                 id: CompiledContainerFactoryRuntimeSeedsSubject::class,
                 class: CompiledContainerFactoryRuntimeSeedsSubject::class,
@@ -182,6 +207,9 @@ final class CompiledContainerFactoryRuntimeSeedsProvider implements ContainerDef
                     ContainerValueReference::service(
                         RuntimePathContext::class,
                     ),
+                    ContainerValueReference::service(
+                        RuntimeDiagnosticsInput::class,
+                    ),
                 ],
             );
     }
@@ -193,6 +221,7 @@ final readonly class CompiledContainerFactoryRuntimeSeedsSubject
         public ConfigRepositoryInterface $config,
         public ModulePlan $modulePlan,
         public RuntimePathContext $paths,
+        public RuntimeDiagnosticsInput $diagnostics,
     ) {
     }
 }

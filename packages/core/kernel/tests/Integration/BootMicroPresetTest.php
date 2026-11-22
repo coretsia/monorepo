@@ -81,10 +81,10 @@ final class BootMicroPresetTest extends TestCase
                 [
                     'core.foundation',
                     'core.kernel',
-                    'platform.http',
                     'platform.redaction',
                     'platform.errors',
                     'platform.cli',
+                    'platform.http',
                     'platform.logging',
                     'platform.problem-details',
                 ],
@@ -223,7 +223,7 @@ final class BootMicroPresetTest extends TestCase
 
         foreach ([$source, $compiled] as $container) {
             $fileLogger = LoggingServiceFactory::createLogger(
-                new ArrayConfigRepository($fileConfig),
+                new ArrayConfigRepository($fileConfig, []),
                 $container->get(ContextAccessorInterface::class),
                 $container->get(CorrelationIdProviderInterface::class),
                 $container->get(SensitiveDataRedactorInterface::class),

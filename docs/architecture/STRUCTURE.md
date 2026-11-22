@@ -414,6 +414,7 @@ Conceptual layer-direction matrix:
     - `platform/redaction`
   - `platform/redaction`
 - `platform/http`
+  - `platform/redaction`
 - `platform/http-app`
 - `platform/logging`
   - `platform/redaction`
@@ -440,6 +441,7 @@ Conceptual layer-direction matrix:
 - `platform/filesystem`
 - `platform/hashing`
 - `platform/http`
+  - `platform/redaction`
 - `platform/http-app`
 - `platform/logging`
   - `platform/redaction`
@@ -471,6 +473,7 @@ Conceptual layer-direction matrix:
 - `platform/database-driver-sqlite`
 - `platform/events`
 - `platform/http`
+  - `platform/redaction`
 - `platform/http-app`
 - `platform/logging`
   - `platform/redaction`
@@ -501,6 +504,7 @@ Conceptual layer-direction matrix:
 - `platform/events`
 - `platform/health`
 - `platform/http`
+  - `platform/redaction`
 - `platform/http-app`
 - `platform/logging`
   - `platform/redaction`

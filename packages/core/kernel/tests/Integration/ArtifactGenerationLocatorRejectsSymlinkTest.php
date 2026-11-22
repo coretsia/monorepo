@@ -284,6 +284,7 @@ final class ArtifactGenerationLocatorRejectsSymlinkTest extends TestCase
         $configEnvelope = new CompiledConfigBuilder($envelopeFactory)->build(
             compiledConfig: self::compiledConfig($configValue),
             fingerprint: $fingerprint,
+            appEnv: 'prod',
         );
 
         $containerEnvelope = new CompiledContainerBuilder($envelopeFactory)->build(

@@ -122,7 +122,7 @@ This document MUST NOT redefine:
 - `current` and `generation.lock` MUST NOT be registered as artifacts.
 - Generation path diagnostics MUST NOT expose path values.
 - Production compilation MUST publish only through `ArtifactGenerationPublisher`.
-- Production compilation MUST NOT dual-write the legacy flat layout.
+- Production compilation MUST NOT write active artifacts directly under the artifact root.
 - The selected generation MUST change only through locked replacement of `current`.
 - Readers MUST locate and validate `current` while holding the shared generation lock.
 - The publisher MUST finalize, reuse, and switch `current` while holding the exclusive generation lock.
@@ -346,7 +346,7 @@ The canonical basename owner is:
 ArtifactGeneration
 ```
 
-`generation-manifest.php` MUST NOT be accepted as a legacy flat-layout artifact basename.
+`generation-manifest.php` MUST be accepted only within the canonical generation layout.
 
 ### Immutability
 
@@ -1265,6 +1265,14 @@ Detailed Worker child parsing and process lifecycle remain owned by `docs/archit
 
 The generation classes are production infrastructure governed by this SSoT.
 
+### Boot-selected runtime diagnostics summary (MUST)
+
+Kernel artifact-only boot supplies an immutable `RuntimeDiagnosticsInput` with `artifactGenerationLoaded() = true` only for a runtime constructed from one successfully validated and loaded generation. Source-host runtime construction supplies `false`.
+
+Runtime artifact diagnostics consume this captured status. The canonical public artifact summary uses exactly the identifiers `config`, `container`, `generation-manifest`, and `module-manifest`, each with status `loaded` for artifact-only boot or `unavailable` for source-host runtime.
+
+The summary describes the generation selected at the runtime's boot boundary, not the generation currently selected by later reads of `current`. It MUST NOT expose generation ids, fingerprints, paths, file hashes, or artifact payloads. Runtime diagnostics MUST NOT read `current`, locate or scan generations, inspect artifact files, validate artifacts again, write artifacts, or repair cache state. A later pointer switch MUST NOT change an existing runtime's diagnostics input.
+
 ### Recycled process-child generation selection (MUST)
 
 Every PCNTL and proc child spawn MUST perform an independent artifact-only runtime boot.
@@ -1494,6 +1502,7 @@ The test suite MUST cover at least:
 - concurrent publishers never expose mixed artifact generations;
 - artifact-only runtime selects `current` through `ArtifactGenerationLocator`;
 - artifact-only runtime validates and consumes all four files from one selected generation;
+- runtime diagnostics retain only the loaded-generation status captured at boot; subsequent pointer changes do not alter that status;
 - Worker child input contains one artifact root and no individual artifact paths;
 - each recycled process child performs a fresh `current` lookup;
 - replacement children consume one complete independently validated generation;

@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Tests\Integration;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Config\ConfigSourceType;
+use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
 use Coretsia\Contracts\Module\ModuleId;
@@ -26,6 +28,8 @@ use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
+use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
+use Coretsia\Contracts\Security\SensitiveKeyClassifierInterface;
 use Coretsia\Foundation\Clock\FrozenClock;
 use Coretsia\Foundation\Clock\SystemClock;
 use Coretsia\Foundation\Container\Container;
@@ -34,6 +38,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionSet;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
+use Coretsia\Foundation\Container\Exception\ContainerDefinitionInvalidException;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Filesystem\ScopedFileLock;
@@ -59,10 +64,18 @@ use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Module\ModulePlanEntry;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
+use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
+use Coretsia\Platform\Http\Debug\DebugCacheHandler;
+use Coretsia\Platform\Http\Debug\DebugConfigHandler;
+use Coretsia\Platform\Http\Debug\DebugGuard;
+use Coretsia\Platform\Http\Debug\DebugHeadersHandler;
+use Coretsia\Platform\Http\Debug\DebugModuleListHandler;
+use Coretsia\Platform\Http\Debug\DebugRouter;
+use Coretsia\Platform\Http\Exception\DebugForbiddenException;
 use Coretsia\Platform\Http\Exception\IntentionalErrorException;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\HttpKernelInterface;
@@ -84,6 +97,7 @@ use Coretsia\Platform\Http\Observability\HttpRequestMetricsRecorder;
 use Coretsia\Platform\Http\Observability\HttpRequestSpanRecorder;
 use Coretsia\Platform\Http\Provider\HttpServiceFactory;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
 use Coretsia\Platform\Http\Response\HttpResponseFinalizer;
 use Coretsia\Platform\Http\Routing\FallbackResponses;
@@ -91,6 +105,8 @@ use Coretsia\Platform\Http\Routing\FallbackRouter;
 use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
+use Coretsia\Platform\Http\Tests\Support\SystemEndpointRuntimeFixture;
+use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -120,6 +136,12 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         FallbackResponses::class,
         FallbackRouter::class,
         FallbackRouterHandler::class,
+        DebugGuard::class,
+        DebugRouter::class,
+        DebugHeadersHandler::class,
+        DebugModuleListHandler::class,
+        DebugConfigHandler::class,
+        DebugCacheHandler::class,
     ];
 
     /** @var list<class-string> */
@@ -531,10 +553,27 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['services']);
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['aliases']);
 
+        foreach (
+            [
+                ModulePlan::class,
+                RuntimeDiagnosticsInput::class,
+                SensitiveDataRedactorInterface::class,
+                SensitiveKeyClassifierInterface::class,
+            ] as $id
+        ) {
+            self::assertContains($id, $set->requiredServiceIds());
+        }
+
+        foreach ([ModulePlan::class, RuntimeDiagnosticsInput::class] as $id) {
+            self::assertArrayNotHasKey($id, $graph['services']);
+            self::assertArrayNotHasKey($id, $graph['aliases']);
+        }
+
         $expected = [
             RequestIdPolicy::class,
             SecurityHeadersPolicy::class,
             HttpsRedirectPolicy::class,
+            TrustedProxyPolicy::class,
             HttpsRedirectMiddleware::class,
             ScopedFileLock::class,
             MaintenanceStateStore::class,
@@ -606,7 +645,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             }
         }
 
-        self::assertCount(18, $services);
+        self::assertCount(25, $services);
         self::assertCount(8, $tags);
         self::assertCount(3, $cliTags);
         self::assertSame(
@@ -703,10 +742,41 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 $ref(ClockInterface::class),
                 $ref(MeterPortInterface::class),
                 $config['http']['metrics']['enabled'],
+                $ref(DebugRouter::class),
             ],
             FallbackRouterHandler::class => [
                 $ref(FallbackRouter::class),
                 $ref(FallbackResponses::class),
+            ],
+            DebugHeadersHandler::class => [
+                $ref(SensitiveDataRedactorInterface::class),
+                $ref(FallbackResponses::class),
+            ],
+            DebugModuleListHandler::class => [
+                $ref(ModulePlan::class),
+                $ref(FallbackResponses::class),
+            ],
+            DebugConfigHandler::class => [
+                $ref(ConfigRepositoryInterface::class),
+                $ref(DebugGuard::class),
+                $ref(SensitiveDataRedactorInterface::class),
+                $ref(SensitiveKeyClassifierInterface::class),
+                $ref(FallbackResponses::class),
+            ],
+            DebugCacheHandler::class => [
+                $ref(RuntimeDiagnosticsInput::class),
+                $ref(FallbackResponses::class),
+            ],
+            DebugRouter::class => [
+                $ref(DebugGuard::class),
+                $ref(DebugHeadersHandler::class),
+                $ref(DebugModuleListHandler::class),
+                $ref(DebugConfigHandler::class),
+                $ref(DebugCacheHandler::class),
+                $ref(MeterPortInterface::class),
+                $ref(LoggerInterface::class),
+                $config['http']['metrics']['enabled'],
+                $config['http']['access_log']['enabled'],
             ],
         ];
 
@@ -772,6 +842,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             [
                 SecurityHeadersPolicy::class => 'securityHeaders',
                 HttpsRedirectPolicy::class => 'httpsRedirect',
+                TrustedProxyPolicy::class => 'trustedProxy',
             ] as $id => $method
         ) {
             self::assertSame('service.factory.class-method', $services[$id]['kind']);
@@ -781,6 +852,16 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 $ref(ConfigRepositoryInterface::class),
             ], $services[$id]['arguments']);
         }
+
+        self::assertSame('service.factory.class-method', $services[DebugGuard::class]['kind']);
+        self::assertSame(HttpServiceFactory::class, $services[DebugGuard::class]['factoryClass']);
+        self::assertSame('debugGuard', $services[DebugGuard::class]['method']);
+        self::assertSame([
+            $ref(ConfigRepositoryInterface::class),
+            $ref(RuntimeDiagnosticsInput::class),
+            $ref(ModulePlan::class),
+            $ref(TrustedProxyPolicy::class),
+        ], $services[DebugGuard::class]['arguments']);
 
         self::assertSame(
             HttpsRedirectMiddleware::class,
@@ -1076,8 +1157,42 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 'clock',
                 'meter',
                 'metricsEnabled',
+                'debug',
             ],
             FallbackRouterHandler::class => ['router', 'responses'],
+            DebugGuard::class => [
+                'allowedIps',
+                'allowedOperations',
+                'configPrefixes',
+                'runtime',
+                'modulePlan',
+                'trustedProxy',
+                'proxyEnabled',
+                'enabled',
+                'tokenSha256',
+            ],
+            DebugRouter::class => [
+                'guard',
+                'headers',
+                'modules',
+                'config',
+                'cache',
+                'meter',
+                'logger',
+                'metricsEnabled',
+                'accessLogEnabled',
+            ],
+            DebugHeadersHandler::class => ['redactor', 'responses'],
+            DebugModuleListHandler::class => ['modulePlan', 'responses'],
+            DebugConfigHandler::class => [
+                'config',
+                'guard',
+                'redactor',
+                'keyClassifier',
+                'responses',
+            ],
+            DebugCacheHandler::class => ['runtime', 'responses'],
+            TrustedProxyPolicy::class => ['trustedNetworks'],
         ];
 
         foreach ($expectedProperties as $class => $names) {
@@ -1183,9 +1298,51 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 ClockInterface::class,
                 MeterPortInterface::class,
                 'bool',
+                DebugRouter::class,
             ],
             FallbackRouterHandler::class => [
                 FallbackRouter::class,
+                FallbackResponses::class,
+            ],
+            DebugGuard::class => [
+                RuntimeDiagnosticsInput::class,
+                ModulePlan::class,
+                TrustedProxyPolicy::class,
+                'bool',
+                'bool',
+                'array',
+                'string',
+                'array',
+                'array',
+            ],
+            DebugRouter::class => [
+                DebugGuard::class,
+                DebugHeadersHandler::class,
+                DebugModuleListHandler::class,
+                DebugConfigHandler::class,
+                DebugCacheHandler::class,
+                MeterPortInterface::class,
+                LoggerInterface::class,
+                'bool',
+                'bool',
+            ],
+            DebugHeadersHandler::class => [
+                SensitiveDataRedactorInterface::class,
+                FallbackResponses::class,
+            ],
+            DebugModuleListHandler::class => [
+                ModulePlan::class,
+                FallbackResponses::class,
+            ],
+            DebugConfigHandler::class => [
+                ConfigRepositoryInterface::class,
+                DebugGuard::class,
+                SensitiveDataRedactorInterface::class,
+                SensitiveKeyClassifierInterface::class,
+                FallbackResponses::class,
+            ],
+            DebugCacheHandler::class => [
+                RuntimeDiagnosticsInput::class,
                 FallbackResponses::class,
             ],
         ];
@@ -1569,6 +1726,279 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         yield 'maintenance-disabled' => [false];
     }
 
+    public function testSourceAndCompiledContainersResolveEquivalentDebugDiagnostics(): void
+    {
+        $token = \bin2hex(\random_bytes(32));
+        $digest = \hash('sha256', $token);
+
+        $options = [
+            'problemDetails' => true,
+            'appEnv' => 'dev',
+            'sources' => [
+                new ConfigValueSource(
+                    type: ConfigSourceType::PackageDefault,
+                    root: 'http',
+                    sourceId: 'platform/http/config/http.php',
+                    keyPath: 'http.factory',
+                    precedence: 10,
+                ),
+            ],
+            'http' => [
+                'debug' => [
+                    'endpoints' => ['enabled' => true],
+                    'token_sha256' => $digest,
+                    'config' => [
+                        'allowlist' => ['http.factory'],
+                    ],
+                ],
+                'proxy' => [
+                    'trusted_proxies' => ['2001:db8::/32'],
+                ],
+            ],
+        ];
+
+        $expected = [
+            'headers' => [
+                'headers' => [
+                    'accept' => true,
+                    'authorization' => null,
+                    'content-type' => false,
+                    'cookie' => null,
+                    'set-cookie' => null,
+                    'user-agent' => false,
+                    'x-debug-token' => [
+                        'hash' => null,
+                        'kind' => 'token',
+                        'length' => null,
+                        'mode' => 'placeholder',
+                        'redacted' => true,
+                        'schemaVersion' => 1,
+                    ],
+                ],
+            ],
+            'modules' => [
+                'modules' => [
+                    'core.foundation',
+                    'core.kernel',
+                    'platform.errors',
+                    'platform.http',
+                    'platform.problem-details',
+                    'platform.redaction',
+                ],
+            ],
+            'config' => [
+                'source' => [
+                    'precedence' => 10,
+                    'redacted' => false,
+                    'type' => ConfigSourceType::PackageDefault->value,
+                ],
+                'type' => 'string',
+            ],
+        ];
+
+        $referenceBodies = [];
+
+        foreach (
+            [
+                ['source', false],
+                ['compiled', false],
+                ['compiled', true],
+            ] as [$mode, $artifactGenerationLoaded]
+        ) {
+            $fixture = SystemEndpointRuntimeFixture::boot(
+                $mode,
+                fn (string $class): object => $this->createStub($class),
+                [
+                    ...$options,
+                    'artifactGenerationLoaded' => $artifactGenerationLoaded,
+                ],
+            );
+
+            try {
+                $diagnostics = $fixture->container->get(RuntimeDiagnosticsInput::class);
+
+                self::assertInstanceOf(RuntimeDiagnosticsInput::class, $diagnostics);
+                self::assertSame('dev', $diagnostics->appEnv());
+                self::assertSame(
+                    $artifactGenerationLoaded,
+                    $diagnostics->artifactGenerationLoaded(),
+                );
+
+                $repository = $fixture->container->get(ConfigRepositoryInterface::class);
+                self::assertSame(
+                    ['127.0.0.1', '::1'],
+                    $repository->get('http.debug.allowlist'),
+                );
+
+                $proxy = $fixture->container->get(TrustedProxyPolicy::class);
+                self::assertTrue($proxy->isTrustedPeer('2001:db8::1'));
+                self::assertFalse($proxy->isTrustedPeer('::1'));
+
+                $guard = $fixture->container->get(DebugGuard::class);
+                self::assertTrue($guard->isEligible());
+
+                $headers = [
+                    'Accept' => ['application/json'],
+                    'X-Debug-Token' => [$token],
+                ];
+                $serverParams = ['REMOTE_ADDR' => '::1'];
+
+                $status = $artifactGenerationLoaded ? 'loaded' : 'unavailable';
+                $payloads = [
+                    ...$expected,
+                    'cache' => [
+                        'artifacts' => [
+                            'config' => $status,
+                            'container' => $status,
+                            'generation-manifest' => $status,
+                            'module-manifest' => $status,
+                        ],
+                    ],
+                ];
+
+                foreach ($payloads as $operation => $payload) {
+                    $request = $fixture->request(
+                        'GET',
+                        '/_debug/' . $operation,
+                        query: $operation === 'config' ? 'key=http.factory' : '',
+                        headers: $headers,
+                        serverParams: $serverParams,
+                    );
+
+                    self::assertTrue($guard->allows($request, $operation));
+
+                    $response = $fixture->router()->dispatch($request);
+
+                    self::assertInstanceOf(ResponseInterface::class, $response);
+                    self::assertSame(200, $response->getStatusCode());
+                    self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
+                    self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+
+                    $body = (string) $response->getBody();
+
+                    self::assertSame(
+                        \json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES) . "\n",
+                        $body,
+                    );
+                    self::assertStringNotContainsString($token, $body);
+                    self::assertStringNotContainsString($digest, $body);
+
+                    if ($operation !== 'cache' || !$artifactGenerationLoaded) {
+                        if ($mode === 'source') {
+                            $referenceBodies[$operation] = $body;
+                        } else {
+                            self::assertSame($referenceBodies[$operation], $body);
+                        }
+                    }
+                }
+
+                $missing = $fixture->request(
+                    'GET',
+                    '/_debug/config',
+                    query: 'key=http.factory.missing',
+                    headers: $headers,
+                    serverParams: $serverParams,
+                );
+
+                self::assertNull($fixture->router()->dispatch($missing));
+
+                $denied = $fixture->request(
+                    'GET',
+                    '/_debug/headers',
+                    serverParams: $serverParams,
+                );
+
+                self::assertFalse($guard->allows($denied, 'headers'));
+
+                try {
+                    $fixture->router()->dispatch($denied);
+                    self::fail('A debug request without a token must be forbidden.');
+                } catch (DebugForbiddenException $exception) {
+                    self::assertSame('CORETSIA_HTTP_DEBUG_FORBIDDEN', $exception->errorCode());
+                    self::assertSame('http-debug-forbidden', $exception->reason());
+                }
+            } finally {
+                $fixture->close();
+            }
+        }
+    }
+
+    public function testDebugAndTrustedProxyConfigurationDoesNotBecomeCompiledDefinitionArguments(): void
+    {
+        $config = self::config();
+
+        self::assertSame(
+            ['127.0.0.1', '::1'],
+            $config['http']['debug']['allowlist'],
+        );
+
+        $baseline = self::compiler()->compile(self::definitions($config))->toArray();
+
+        $digest = \hash('sha256', \bin2hex(\random_bytes(32)));
+
+        $config['http']['debug']['endpoints']['enabled'] = true;
+        $config['http']['debug']['allowlist'] = ['2001:db8::123'];
+        $config['http']['debug']['token_sha256'] = $digest;
+        $config['http']['debug']['paths']['enabled'] = ['config'];
+        $config['http']['debug']['config']['allowlist'] = ['http.factory'];
+        $config['http']['proxy']['trusted_proxies'] = ['2001:db8::/32'];
+
+        $set = self::definitions($config);
+        $graph = self::compiler()->compile($set);
+
+        new ContainerGraphCompletenessValidator()->validate($graph, $set);
+
+        self::assertSame($baseline, $graph->toArray());
+
+        $serialized = \json_encode($graph->toArray(), \JSON_THROW_ON_ERROR);
+
+        foreach (
+            [
+                $digest,
+                '2001:db8::123',
+                '2001:db8::',
+                'http.factory',
+            ] as $literal
+        ) {
+            self::assertStringNotContainsString($literal, $serialized);
+        }
+
+        [$source, $compiled] = self::containers($set, $config);
+
+        foreach ([$source, $compiled] as $container) {
+            self::assertInstanceOf(DebugGuard::class, $container->get(DebugGuard::class));
+
+            $proxy = $container->get(TrustedProxyPolicy::class);
+
+            self::assertTrue($proxy->isTrustedPeer('2001:db8::1'));
+            self::assertFalse($proxy->isTrustedPeer('2001:db9::1'));
+        }
+    }
+
+    #[DataProvider('forbiddenDebugDefinitionLiterals')]
+    public function testDebugConfigurationDoesNotRelaxCanonicalDefinitionSecurity(
+        string $literal,
+    ): void {
+        $definitions = new ContainerDefinitionBuilder();
+
+        $this->expectException(ContainerDefinitionInvalidException::class);
+        $this->expectExceptionMessage(ContainerDefinitionInvalidException::REASON_DEFINITION_INVALID);
+
+        $definitions->classService(
+            TrustedProxyPolicy::class,
+            TrustedProxyPolicy::class,
+            [[$literal]],
+        );
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function forbiddenDebugDefinitionLiterals(): iterable
+    {
+        yield 'ipv6-loopback' => ['::1'];
+        yield 'ipv6-network' => ['2001:db8::/32'];
+        yield 'sensitive-literal' => ['token=secret'];
+    }
+
     public function testExternalDoesNotContributeAnyFactoryReplacementBeforeApplicationBindings(): void
     {
         $definitions = new ContainerDefinitionBuilder();
@@ -1617,6 +2047,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
     {
         $definitions = new ContainerDefinitionBuilder();
         new FoundationServiceProvider()->define($definitions, new ContainerDefinitionContext(self::config()));
+        new RedactionServiceProvider()->define($definitions, new ContainerDefinitionContext(self::config()));
         new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext(self::config()));
         $definitions
             ->classService(KernelRuntimeInterface::class, HttpParityKernelRuntime::class)
@@ -1637,6 +2068,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $definitions = new ContainerDefinitionBuilder();
         new FoundationServiceProvider()->define($definitions, new ContainerDefinitionContext($config));
+        new RedactionServiceProvider()->define($definitions, new ContainerDefinitionContext($config));
         new HttpServiceProvider()->define($definitions, new ContainerDefinitionContext($config));
 
         $definitions
@@ -1762,6 +2194,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $serviceDefinitions = new ContainerDefinitionBuilder();
         $context = new ContainerDefinitionContext($config);
         new FoundationServiceProvider()->define($serviceDefinitions, $context);
+        new RedactionServiceProvider()->define($serviceDefinitions, $context);
         new HttpServiceProvider()->define($serviceDefinitions, $context);
         $serviceDefinitions
             ->classService(KernelRuntimeInterface::class, HttpParityKernelRuntime::class)
@@ -1816,6 +2249,10 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         self::assertSame(
             $metricsEnabled,
             new \ReflectionProperty(FallbackRouter::class, 'metricsEnabled')->getValue($router),
+        );
+        self::assertSame(
+            $container->get(DebugRouter::class),
+            new \ReflectionProperty(FallbackRouter::class, 'debug')->getValue($router),
         );
 
         self::assertSame(
@@ -1986,7 +2423,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
     {
         try {
             $container->get(HttpRuntimeEntrypointGuard::class)->assertEntrypointAllowed(
-                new ArrayConfigRepository($config),
+                new ArrayConfigRepository($config, []),
                 self::plan(),
                 RuntimeDriverContributions::fromDrivers([], []),
                 $container,
@@ -2033,6 +2470,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $definitions = new ContainerDefinitionBuilder();
         $context = new ContainerDefinitionContext($config);
         new FoundationServiceProvider()->define($definitions, $context);
+        new RedactionServiceProvider()->define($definitions, $context);
         new HttpServiceProvider()->define($definitions, $context);
         $definitions
             ->classService(KernelRuntimeInterface::class, HttpParityKernelRuntime::class)
@@ -2058,10 +2496,14 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         ?RuntimePathContext $paths = null,
     ): array {
         $paths ??= new RuntimePathContext('/test', '/test/var/cache');
+        $plan = self::plan();
+        $diagnostics = new RuntimeDiagnosticsInput('test', false);
 
         $builder = new ContainerBuilder($config);
-        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config));
+        $builder->instance(ConfigRepositoryInterface::class, new ArrayConfigRepository($config, []));
         $builder->instance(TagRegistry::class, $builder->tagRegistry());
+        $builder->instance(ModulePlan::class, $plan);
+        $builder->instance(RuntimeDiagnosticsInput::class, $diagnostics);
         $builder->instance(RuntimePathContext::class, $paths);
         $source = $builder->applyDefinitions($set)->build();
         $graph = self::compiler()->compile($set);
@@ -2073,8 +2515,9 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         $compiled = new CompiledContainerFactory(new ArtifactSchemaValidator())->buildFromEnvelope(
             $envelope,
             new RuntimeContainerSeedSet([
-                ConfigRepositoryInterface::class => new ArrayConfigRepository($config),
-                ModulePlan::class => self::plan(),
+                ConfigRepositoryInterface::class => new ArrayConfigRepository($config, []),
+                ModulePlan::class => $plan,
+                RuntimeDiagnosticsInput::class => $diagnostics,
                 RuntimePathContext::class => $paths,
             ]),
         );
@@ -2084,14 +2527,18 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
     private static function plan(): ModulePlan
     {
-        $id = ModuleId::fromString('platform.http');
+        $redaction = ModuleId::fromString('platform.redaction');
+        $http = ModuleId::fromString('platform.http');
 
         return new ModulePlan(
             app: 'web',
-            enabled: [$id],
+            enabled: [$redaction, $http],
             excluded: [],
-            topologicalOrder: [$id],
-            modules: [new ModulePlanEntry($id, 'coretsia/platform-http')],
+            topologicalOrder: [$redaction, $http],
+            modules: [
+                new ModulePlanEntry($redaction, 'coretsia/platform-redaction'),
+                new ModulePlanEntry($http, 'coretsia/platform-http', [$redaction]),
+            ],
         );
     }
 }

@@ -52,6 +52,7 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
                 'envelope' => self::compiledConfigBuilder()->build(
                     compiledConfig: self::compiledConfig(),
                     fingerprint: self::fingerprint(),
+                    appEnv: 'prod',
                 ),
             ],
             'container.php' => [
@@ -86,6 +87,12 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
                 expectedName: $artifact['name'],
                 expectedSchemaVersion: $artifact['schemaVersion'],
             );
+
+            if ($artifact['name'] === ArtifactEnvelopeFactory::ARTIFACT_CONFIG) {
+                self::assertIsArray($envelope['payload']);
+                self::assertSame(CompiledConfigBuilder::PAYLOAD_KEYS, \array_keys($envelope['payload']));
+                self::assertSame('prod', $envelope['payload']['appEnv']);
+            }
         }
     }
 
@@ -99,6 +106,7 @@ final class KernelPhpArtifactsUseCanonicalEnvelopeContractTest extends TestCase
             self::compiledConfigBuilder()->build(
                 compiledConfig: self::compiledConfig(),
                 fingerprint: self::fingerprint(),
+                appEnv: 'prod',
             ),
             self::compiledContainerBuilder()->build(
                 graph: self::emptyContainerGraph(),

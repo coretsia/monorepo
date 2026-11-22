@@ -123,7 +123,7 @@ final class RuntimeDriverResolverConflictDiagnosticsAreDeterministicallySortedTe
                     'http_driver' => 'http.roadrunner',
                 ],
             ],
-        ]);
+        ], []);
 
         $contributions = RuntimeDriverContributions::fromDrivers(
             httpDrivers: [HttpDriver::WORKER],

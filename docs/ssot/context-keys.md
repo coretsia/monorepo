@@ -87,7 +87,7 @@ Coretsia\Contracts\Context\ContextKeys
 
 `ContextKeys` defines stable key identifiers only.
 
-Importing `ContextKeys` does not grant write ownership over context values.
+Importing `ContextKeys` or receiving `Coretsia\Contracts\Context\ContextWriterInterface` does not grant write ownership over context values. Explicitly authorized semantic writers MUST use the writer port and MUST set or remove only keys assigned to their owner boundary, with owner-approved safe values.
 
 Context storage, safe-write validation, lifecycle writes, reset behavior, propagation, logging, tracing, and export policy remain owned by their respective runtime packages.
 
@@ -313,7 +313,7 @@ The presence of a request metadata key in this registry does not allow raw heade
 
 The following keys are active in the canonical runtime context baseline.
 
-Optional context keys are populated only when the responsible owner policy is enabled.
+Optional context keys are populated only when the responsible owner policy permits the write and its lifecycle conditions are satisfied.
 
 | Constant         | Key              | Meaning                                                                                | Writer category | Lifecycle                                                                                                        | Safe-value notes                                                                                                                                                                                         |
 |------------------|------------------|----------------------------------------------------------------------------------------|-----------------|------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -326,6 +326,7 @@ Optional context keys are populated only when the responsible owner policy is en
 | `PATH`           | `path`           | Request path metadata when an owner deliberately writes it for runtime context.        | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | MUST NOT include query string. MUST NOT be exported to logs, spans, or metrics as raw path. Prefer `path_template` when available.                                                                       |
 | `USER_AGENT`     | `user_agent`     | User-agent metadata when an owner deliberately writes it for runtime context.          | `http`          | Written during HTTP request context preparation; cleared by `ContextStore::reset()`.                             | MAY be high-cardinality and privacy-sensitive. Writers SHOULD prefer omission, normalization, hashing, or length-only diagnostics when feasible.                                                         |
 | `REQUEST_ID`     | `request_id`     | Safe opaque HTTP request id distinct from correlation id and unit-of-work id.          | `http`          | Optional; set after successful Kernel begin-UoW and before PSR-15 execution; cleared by `ContextStore::reset()`. | Safe opaque id only. Generated locally or accepted from an explicitly trusted ingress boundary. MUST NOT encode credentials, tokens, cookies, session ids, direct user identifiers, or raw payload data. |
+| `PATH_TEMPLATE`  | `path_template`  | Stable declared route template suitable for low-cardinality diagnostics.               | `routing`       | Removed at match start; set only on successful match; absent on non-match; cleared by `ContextStore::reset()`.   | Complete validated declared template, never concrete user-controlled parameters. MUST NOT be used as a metric label.                                                                                     |
 
 ## Reserved future keys
 
@@ -335,7 +336,6 @@ They are part of the canonical registry to prevent name drift, but their concret
 
 | Constant               | Key                    | Meaning                                                                         | Future writer category | Lifecycle                                                                       | Safe-value notes                                                                                                                    |
 |------------------------|------------------------|---------------------------------------------------------------------------------|------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| `PATH_TEMPLATE`        | `path_template`        | Stable route/path template suitable for low-cardinality diagnostics.            | `routing`              | Future routing lifecycle; cleared by `ContextStore::reset()`.                   | Preferred over raw `path` for observability. MUST NOT include concrete user-controlled path parameters.                             |
 | `HTTP_RESPONSE_FORMAT` | `http_response_format` | Stable response format category selected by an HTTP owner.                      | `http`                 | Future HTTP response negotiation lifecycle; cleared by `ContextStore::reset()`. | Stable bounded string such as `html`, `json`, `problem_json`, or another owner-defined safe category.                               |
 | `ACTOR_ID`             | `actor_id`             | Safe actor id when auth introduces an explicitly non-PII actor identifier.      | `auth`                 | Future auth lifecycle; cleared by `ContextStore::reset()`.                      | MUST be an opaque safe id. MUST NOT be email, phone, full name, username, external account id, token, or session id.                |
 | `TENANT_ID`            | `tenant_id`            | Safe tenant id when tenancy introduces an explicitly non-PII tenant identifier. | `tenancy`              | Future tenancy lifecycle; cleared by `ContextStore::reset()`.                   | MUST be an opaque safe id. MUST NOT expose customer name, domain, billing id, external account id, token, or private customer data. |
@@ -365,6 +365,7 @@ request_id
 tenant_id
 user_id
 path
+path_template
 ```
 
 `correlation_id` is safe for correlation use and MAY be logged or used for tracing correlation according to owner policy, but it MUST NOT be emitted as a metric label under the baseline policy.
@@ -377,7 +378,7 @@ For error handling, `correlation_id` is represented through `ErrorHandlingContex
 
 It MUST NOT be added to existing HTTP request metrics, access-log context, or request span attributes.
 
-The HTTP owner-local read-back exception for final-response identity verification is governed by `docs/ssot/context-store.md`.
+The HTTP owner-local read-back of `REQUEST_ID` for final-response identity verification MUST use `ContextAccessorInterface` and is governed by `docs/ssot/context-store.md`.
 
 Raw `path`, raw query, headers, cookies, Authorization values, tokens, session ids, and payloads MUST NOT be exported even if a future owner accidentally attempts to write them.
 
@@ -439,7 +440,7 @@ Coretsia\Foundation\Tag\ReservedTags::KERNEL_STATEFUL
 
 Kernel runtime owns base context key writes at begin-UoW.
 
-Kernel runtime MUST set:
+Kernel runtime MUST set its base keys through `ContextWriterInterface`:
 
 ```text
 correlation_id
@@ -457,7 +458,7 @@ This document defines the key vocabulary and lifecycle policy only.
 
 HTTP context writers are owned by the responsible HTTP runtime packages.
 
-HTTP writers MAY write only safe keys declared in this registry and accepted by `ContextStorePolicy`.
+HTTP writers MAY write only safe keys declared in this registry, accepted by `ContextStorePolicy`, and assigned to their explicit owner boundary through `ContextWriterInterface`.
 
 `Coretsia\Platform\Http\RequestId\RequestIdPolicy` is the only authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`.
 
@@ -506,6 +507,14 @@ The detailed middleware-to-key map is governed by:
 ```text
 docs/ssot/middleware-context-keys-map.md
 ```
+
+## Routing lifecycle note
+
+`Coretsia\Platform\Routing\Runtime\CompiledRouter` is the sole authorized runtime writer of `ContextKeys::PATH_TEMPLATE` (`path_template`). It MUST remove the previous value through `ContextWriterInterface::remove()` at the start of every matching operation, before input validation or route evaluation.
+
+On a successful match, it MUST set the complete validated declared template through `ContextWriterInterface::set()` before routing completion observability. On a non-match, the key MUST remain absent. Unexpected matching or context mutation failures propagate; they do not constitute completed matches.
+
+Routing MUST NOT read context, mutate unrelated owner keys, or store raw paths, hosts, parameters, or handler identifiers. The template MUST NOT become a metric label. Routing does not start, finish, or reset a UnitOfWork. Successful canonical Foundation reset clears `PATH_TEMPLATE` together with all other unit-of-work-local keys. Matching and observability policy is governed by `docs/ssot/routing-artifact.md` and `docs/ssot/observability.md`.
 
 ## Stability contract
 
@@ -559,6 +568,7 @@ This SSoT does not define:
 - [Config and env SSoT](./config-and-env.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)

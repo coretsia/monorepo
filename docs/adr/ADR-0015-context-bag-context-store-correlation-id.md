@@ -110,6 +110,21 @@ get(string $key): mixed
 
 `get()` deliberately has no default parameter. Callers use `has()` to distinguish an absent key from a present key whose value is `null`.
 
+The separate format-neutral mutation port is:
+
+```text
+Coretsia\Contracts\Context\ContextWriterInterface
+```
+
+Its canonical shape is:
+
+```text
+set(string $key, mixed $value): void
+remove(string $key): void
+```
+
+It MUST NOT extend the accessor or reset interface or expose reads, snapshots, bulk mutation, clearing, or lifecycle operations. Only explicitly authorized semantic writers may mutate their assigned keys.
+
 The contracts layer also defines:
 
 ```text
@@ -143,6 +158,8 @@ The runtime context model uses one public key registry and one Foundation-owned 
 
 ```text
 Coretsia\Contracts\Context\ContextKeys
+Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 Coretsia\Foundation\Context\ContextBag
 Coretsia\Foundation\Context\ContextStore
 Coretsia\Foundation\Context\ContextStorePolicy
@@ -182,7 +199,7 @@ Keys beginning with `@` MUST be rejected deterministically.
 
 The `@*` namespace remains reserved for config directives and MUST NOT be used by runtime context keys.
 
-The active keys, including optional HTTP-owned context keys, are:
+The active keys, including optional HTTP-owned and Routing-owned context keys, are:
 
 ```text
 correlation_id
@@ -194,6 +211,7 @@ host
 path
 user_agent
 request_id
+path_template
 ```
 
 `request_id` is an active optional HTTP-owned context key. It represents HTTP request identity independently of the Kernel-owned `correlation_id` and `uow_id`.
@@ -205,10 +223,11 @@ docs/ssot/context-keys.md
 docs/ssot/http-middleware-wiring.md
 ```
 
+`path_template` is an active Routing-owned context key. `Coretsia\Platform\Routing\Runtime\CompiledRouter` is its sole authorized runtime writer through `ContextWriterInterface`. It removes the previous value at match start and sets the complete validated declared template only on success, before completion observability. On a non-match the key remains absent. Routing MUST NOT read context, mutate unrelated keys, or introduce context storage or a separate reset lifecycle. Successful canonical Foundation reset clears this key. See `docs/ssot/routing-artifact.md`.
+
 The reserved future keys are:
 
 ```text
-path_template
 http_response_format
 actor_id
 tenant_id
@@ -224,6 +243,7 @@ It MUST implement:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 Coretsia\Contracts\Runtime\ResetInterface
 ```
 
@@ -240,6 +260,8 @@ It MUST NOT add a default parameter to `get()`.
 ```text
 has(string $key): bool
 ```
+
+`ContextStore` implements both mutation operations through its existing structural validation and storage logic. The writer does not expose reset or snapshot operations.
 
 `ContextStore::reset()` MUST clear stored context deterministically between units of work.
 
@@ -279,7 +301,7 @@ Snapshot immutability is achieved by accepting only object-free json-like contex
 
 This is a Foundation runtime implementation responsibility.
 
-`core/contracts` owns the stable context key vocabulary and read-only accessor port only. It does not own mutable storage, mutation APIs, or context write-validation implementation.
+`core/contracts` owns the stable context key vocabulary and separate read-only accessor and mutation ports. Foundation owns mutable storage, mutation execution, structural write validation, and reset execution.
 
 Delegation from `ContextStorePolicy` to the Foundation-owned `JsonLikeNormalizer` is an intra-package implementation dependency, not a cross-package contract leak.
 
@@ -338,7 +360,7 @@ It cannot reliably infer whether an otherwise valid scalar string contains a pas
 
 Semantic value safety belongs to the owner writing a canonical context key.
 
-A writer MUST validate, normalize, omit, hash, or otherwise derive an owner-approved safe representation before calling `ContextStore::set()`.
+A writer MUST validate, normalize, omit, hash, or otherwise derive an owner-approved safe representation before calling `ContextWriterInterface::set()`. Only the semantic owner may set or remove its assigned keys.
 
 Acceptance by `ContextStorePolicy` does not make a value safe for export.
 
@@ -499,23 +521,16 @@ The following service ids MUST point to the same object instance:
 ```text
 Coretsia\Foundation\Context\ContextStore
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 ```
 
-General runtime context readers MUST depend on `ContextAccessorInterface` rather than concrete `ContextStore`.
+Both context ports MUST alias the concrete shared Foundation-owned service in source and compiled containers. Only the concrete service participates in its existing reset and stateful registration. The aliases MUST NOT introduce new external runtime seeds.
 
-`Coretsia\Platform\Http\RequestId\RequestIdPolicy` is an explicitly authorized HTTP context writer.
+Runtime context consumers outside Foundation MUST use `ContextAccessorInterface` for reads and `ContextWriterInterface` for authorized mutations, without concrete store dependencies or downcasting. `KernelRuntime` writes only its base keys, `RequestContextMiddleware` writes only its HTTP enrichment keys, and `CompiledRouter` mutates only `PATH_TEMPLATE`.
 
-As a narrowly scoped owner-local read-back exception, it MAY read its own `ContextKeys::REQUEST_ID` value through its existing authorized concrete `ContextStore` dependency solely for final-response identity verification.
+`Coretsia\Platform\Http\RequestId\RequestIdPolicy` writes only `REQUEST_ID` through the writer. Its narrowly scoped owner-local read-back is limited to `ContextAccessorInterface::get(ContextKeys::REQUEST_ID)` solely for final-response identity verification. This MUST NOT grant access to unrelated keys, complete snapshots, arbitrary exports, or modification or removal of the selected identifier during verification.
 
-This exception MUST NOT grant access to other context keys, complete context snapshots, or arbitrary context exports.
-
-It MUST NOT introduce additional concrete context store owners, independent context stores, context reader services, or accessor bindings.
-
-The canonical concrete context access boundary and owner-local read-back exception are defined by:
-
-```text
-docs/ssot/context-store.md
-```
+No runtime consumer MAY introduce additional concrete store owners, independent stores, or additional context port implementations or bindings. The canonical port and semantic ownership boundaries are defined by `docs/ssot/context-store.md`.
 
 Foundation provider wiring MUST register:
 
@@ -582,10 +597,11 @@ Runtime reset execution MUST discover `ContextStore` through the effective Found
 
 ### Positive
 
-Runtime packages can read context through a stable contracts-level port:
+Runtime packages read and perform authorized context mutations through separate stable contracts-level ports:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 ```
 
 Foundation owns one mutable context store and one reset discipline.
@@ -648,7 +664,7 @@ Rejected.
 
 Multiple stores would make reads inconsistent between packages and could leak or lose unit-of-work-local context.
 
-The accepted design requires one `ContextStore` instance per built container and binds the accessor interface to that same instance.
+The accepted design requires one `ContextStore` instance per built container and binds both context port aliases to that same instance.
 
 ### Alternative 4: Generate correlation ids inside CorrelationIdProvider reads
 
@@ -760,7 +776,7 @@ docs/ssot/observability-and-errors.md
 
 All ContextStore values are unit-of-work-local.
 
-Kernel runtime MUST set base keys at begin-UoW:
+Kernel runtime MUST set base keys at begin-UoW through `ContextWriterInterface`:
 
 ```text
 correlation_id
@@ -777,9 +793,9 @@ A reset attempt or failed reset execution MUST NOT be treated as proof of succes
 The accepted lifecycle with successful canonical reset is:
 
 1. unit of work begins;
-2. Kernel owner code sets base keys;
-3. optional owner packages write only declared safe keys;
-4. general runtime readers access context through `ContextAccessorInterface`; explicitly authorized owner-local read-back follows `docs/ssot/context-store.md`;
+2. Kernel owner code sets base keys through `ContextWriterInterface`;
+3. optional owner packages mutate only declared safe keys through `ContextWriterInterface`;
+4. runtime readers access approved keys through `ContextAccessorInterface`, including restricted HTTP owner-local request identity verification;
 5. unit of work finishes;
 6. reset orchestration discovers `ContextStore` through the effective Foundation reset tag;
 7. `ContextStore::reset()` clears context;
@@ -882,7 +898,7 @@ Verification MUST prove:
 - error messages do not expose raw values;
 - `ContextStore` is tagged with `kernel.stateful` through `ReservedTags::KERNEL_STATEFUL`;
 - `ContextStore` is tagged with the effective Foundation reset discovery tag;
-- provider wiring uses the same `ContextStore` instance for concrete and accessor bindings;
+- provider wiring uses the same `ContextStore` instance for the concrete service and both context port aliases;
 - correlation id format is stable uppercase ULID;
 - `CorrelationIdGenerator` delegates to `UlidGenerator`.
 - unsafe rejected context keys are represented by `<key>`;
@@ -903,6 +919,7 @@ Verification MUST prove:
 - `docs/ssot/config-and-env.md`
 - `docs/ssot/http-middleware-catalog.md`
 - `docs/ssot/http-middleware-wiring.md`
+- `docs/ssot/routing-artifact.md`
 - `docs/ssot/context-lifecycle.md`
 - `docs/ssot/observability.md`
 - `docs/ssot/observability-and-errors.md`

@@ -57,6 +57,8 @@ use Psr\Log\LoggerInterface;
  * The host is built entirely from source configuration and canonical provider
  * composition. It never boots generated runtime artifacts and never invokes a
  * Kernel operation, UnitOfWork lifecycle, hook, or reset orchestration itself.
+ * The default entrypoint selects Console; target-local hosts require an
+ * explicitly supplied application target.
  */
 final class KernelOpsHostBooter
 {
@@ -78,6 +80,13 @@ final class KernelOpsHostBooter
 
     public function boot(KernelOpsHostInput $input): ContainerInterface
     {
+        return $this->bootForTarget($input, AppTarget::Console);
+    }
+
+    public function bootForTarget(
+        KernelOpsHostInput $input,
+        AppTarget $target,
+    ): ContainerInterface {
         try {
             $seedConfigLoader = new KernelOpsHostSeedConfigLoader(
                 KernelServiceFactory::composerPackageInstallPathResolver(),
@@ -116,31 +125,31 @@ final class KernelOpsHostBooter
                 ContainerProviderPlanResolver::class,
             );
 
-            $consoleInput = new BootstrapInput(
+            $targetInput = new BootstrapInput(
                 applicationRoot: $input->applicationRoot(),
-                appTarget: AppTarget::Console,
+                appTarget: $target,
                 preset: null,
             );
-            $consoleSnapshot = $bootstrapSourceResolver->resolve(
-                $consoleInput,
+            $targetSnapshot = $bootstrapSourceResolver->resolve(
+                $targetInput,
                 $kernelConfig,
             );
-            $consoleBootstrapConfig = $bootstrapConfigResolver->resolve(
-                $consoleInput,
+            $targetBootstrapConfig = $bootstrapConfigResolver->resolve(
+                $targetInput,
                 $kernelConfig,
-                $consoleSnapshot,
+                $targetSnapshot,
             );
-            $consoleEnv = $consoleSnapshot->envRepository();
-            $consoleModuleResolution = $moduleResolutionOrchestrator->resolve($consoleBootstrapConfig);
-            $consoleConfigSources = $configSourceLocationBuilder->build(
-                $consoleBootstrapConfig,
-                $consoleModuleResolution,
+            $targetEnv = $targetSnapshot->envRepository();
+            $targetModuleResolution = $moduleResolutionOrchestrator->resolve($targetBootstrapConfig);
+            $targetConfigSources = $configSourceLocationBuilder->build(
+                $targetBootstrapConfig,
+                $targetModuleResolution,
             );
             $compiledConfig = $configKernel->compile(
-                bootstrapConfig: $consoleBootstrapConfig,
-                modulePlan: $consoleModuleResolution->plan(),
-                env: $consoleEnv,
-                configSources: $consoleConfigSources,
+                bootstrapConfig: $targetBootstrapConfig,
+                modulePlan: $targetModuleResolution->plan(),
+                env: $targetEnv,
+                configSources: $targetConfigSources,
                 explain: false,
             );
 
@@ -164,7 +173,7 @@ final class KernelOpsHostBooter
                 config: $completeConfig,
                 sources: $compiledConfig['sources'],
             );
-            $providerPlan = $providerPlanResolver->resolve($consoleModuleResolution);
+            $providerPlan = $providerPlanResolver->resolve($targetModuleResolution);
             $sourceProviders = self::sourceProviders($providerPlan);
 
             $finalBuilder = new ContainerBuilder(config: $completeConfig);
@@ -180,10 +189,10 @@ final class KernelOpsHostBooter
 
             $finalBuilder
                 ->instance(KernelOpsHostInput::class, $input)
-                ->instance(BootstrapConfig::class, $consoleBootstrapConfig)
-                ->instance(EnvRepositoryInterface::class, $consoleEnv)
+                ->instance(BootstrapConfig::class, $targetBootstrapConfig)
+                ->instance(EnvRepositoryInterface::class, $targetEnv)
                 ->instance(ConfigRepositoryInterface::class, $configRepository)
-                ->instance(ModulePlan::class, $consoleModuleResolution->plan());
+                ->instance(ModulePlan::class, $targetModuleResolution->plan());
 
             $container = $finalBuilder->build();
             $ops = $container->get(KernelOpsInterface::class);

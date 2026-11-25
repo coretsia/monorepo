@@ -136,8 +136,10 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $response->expects(self::never())->method('withHeader');
 
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',
@@ -173,8 +175,10 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
         CorrelationIdProviderInterface $provider,
         bool $enabled,
     ): HttpKernel {
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

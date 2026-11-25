@@ -16,7 +16,7 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, canonical terminal system-endpoint dispatch with safe unmatched responses, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation and factory readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and final-request observability, canonical system-route declarations with concrete reserved-path matching, deterministic terminal system-endpoint responses, and guarded development-only diagnostics.
+Scope: explicit target-local HTTP module participation, factory readiness, and conditional Routing artifact readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and final-request observability, consumption of Foundation-owned system-route declarations and concrete reserved-path matching, deterministic terminal system-endpoint responses, and guarded development-only diagnostics.
 
 Out of scope: SAPI request creation and response emission, a packaged front controller, general application routing, application route admission and authorization, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
@@ -71,15 +71,13 @@ Production Composer requirements include PHP `^8.4`, the canonical release-line 
 `platform/http` provides:
 
 - `HttpKernelInterface` as the PSR-15 HTTP request-handler entrypoint, implemented by `HttpKernel`;
-- `HttpRuntimeEntrypointGuard` for selected-module, Kernel-driver, and effective PSR-17 factory readiness;
+- `HttpRuntimeEntrypointGuard` for selected-module, Kernel-driver, effective PSR-17 factory, and conditional Routing artifact readiness;
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
 - `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
 - `FallbackRouterHandler` as the canonical terminal `RequestHandlerInterface` for system-endpoint dispatch and unmatched response delegation;
 - `FallbackRouter` for explicit canonical system-endpoint dispatch and endpoint-decision metrics;
 - `FallbackResponses` for deterministic endpoint and unmatched response construction through the selected PSR-17 factories;
 - `DebugRouter`, `DebugGuard`, `DebugHeadersHandler`, `DebugModuleListHandler`, `DebugConfigHandler`, and `DebugCacheHandler` for guarded terminal diagnostics and separate debug-decision observability;
-- `SystemRouteTable` as the canonical HTTP-owned versioned system-route declaration registry;
-- `ReservedPathMatcher` for stateless concrete reserved-path matching against the canonical declarations;
 - eight implemented `system_pre` middleware and their HTTP-owned request-safety, maintenance, and HTTPS redirect policies;
 - `MaintenanceStateStore` and `MaintenanceMessage` for application-root-local maintenance activation and validated public message state;
 - `MaintenanceEnableCommand`, `MaintenanceDisableCommand`, and `MaintenanceStatusCommand` for application-local maintenance operations through canonical CLI command registration;
@@ -129,7 +127,11 @@ For built-in factory selections, readiness requires that the exact selected fact
 
 Missing selected implementations, missing effective bindings, incompatible services, and mismatched built-in identities fail deterministically before HTTP construction or request execution. Canonical container completeness and resolution own the dependency-graph failure semantics. Foundation's later-binding-wins service/alias policy is unchanged: an overriding binding is not rejected merely for being later, but a final binding that violates the configured built-in identity is rejected at HTTP readiness. No other installed factory is substituted.
 
-HTTP module participation, Kernel driver compatibility, effective factory readiness, and transport-specific executable readiness are distinct checks. Transport adapters and their readiness remain the owning HTTP entrypoint's responsibility.
+After effective PSR-17 factory validation, if the selected `ModulePlan` enables `platform.routing`, the guard resolves `Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface` from the final container, verifies the port type, and invokes `assertReady()`. A missing binding fails through canonical container resolution; an incompatible binding fails with `http-routing-artifact-readiness-invalid`. Missing or invalid Routing artifacts prevent HTTP startup. If Routing is not enabled, the guard does not resolve the port or require `routes.php`. Installation alone does not activate this check.
+
+The readiness implementation validates the target-local Routing artifact through the same shared immutable route table used by the Routing router. This is an owner-artifact boundary, not a Kernel generation check or application matching operation. HTTP does not read, compile, repair, or validate Routing artifacts itself and has no direct source, Composer, or runtime-module dependency on `platform/routing`. See the [Routing Artifact SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md).
+
+HTTP module participation, Kernel driver compatibility, effective factory readiness, conditional Routing artifact readiness, and transport-specific executable readiness are distinct checks. Transport adapters and their readiness remain the owning HTTP entrypoint's responsibility.
 
 ## PSR-15 pipeline and middleware wiring
 
@@ -181,7 +183,7 @@ Terminal dispatch does not implement general application routing, application ro
 
 ## System route declarations and reserved-path matching
 
-`Coretsia\Platform\Http\System\SystemRouteTable` is the canonical HTTP-owned versioned registry of system-route declarations and reserved path ownership.
+`Coretsia\Foundation\Routing\SystemRouteTable` is the canonical Foundation-owned versioned registry of system-route declarations and reserved path ownership consumed by HTTP.
 
 `SystemRouteTable::entries()` returns the immutable canonical declaration list. Each entry contains exactly `owner`, `pattern`, `status`, and `type`. `SystemRouteTable::SCHEMA_VERSION` identifies the canonical declaration set, and `SystemRouteTable::ALIVE_PATH` identifies the exact liveness path `/_alive`.
 
@@ -193,13 +195,16 @@ Declaration status identifies reserved ownership independently of runtime endpoi
 
 Each declaration identifies its semantic owner package. Endpoint implementation, module participation, runtime exposure, and access policy remain separate responsibilities.
 
-`Coretsia\Platform\Http\System\ReservedPathMatcher` consumes `SystemRouteTable::entries()` as its only declaration source and exposes the canonical static API:
+`Coretsia\Foundation\Routing\ReservedPathMatcher` consumes `SystemRouteTable::entries()` as its only declaration source and exposes the canonical static API:
 
 ```php
+public static function normalize(string $path): string
 public static function match(string $path): ?array
 ```
 
-The input is an encoded concrete URI path component. The matcher returns the complete matching canonical declaration or `null` for a valid non-matching path.
+Both operations accept an encoded concrete URI path component. `normalize()` returns the validated normalized path without performing reservation matching. `match()` returns the complete matching canonical declaration or `null` for a valid non-matching path.
+
+Routing independently consumes the same Foundation-owned `normalize()` operation for canonical concrete application-path validation. A concrete application path is canonical only when the normalized result equals the supplied path byte-for-byte. Invalid or non-canonical input produces a non-match in Routing; reserved-path recognition remains independent of application route-template matching. Application route compilation and route-template matching remain outside HTTP.
 
 The matcher normalizes an empty path to `/`, ensures exactly one leading slash, collapses consecutive slashes, and preserves trailing slashes, case, and valid percent-encoded octets without decoding them.
 
@@ -207,7 +212,6 @@ Matching semantics are:
 
 - `exact` matches the complete normalized path using strict case-sensitive equality;
 - `prefix` matches the complete slash-terminated canonical pattern as a segment-prefix boundary;
-- the exact `/` declaration reserves only the normalized root path;
 - `/health` and `/health/` are distinct exact and prefix declarations; `/healthz` does not match either declaration.
 
 Invalid concrete path input raises `InvalidArgumentException` with the fixed diagnostic `http-reserved-path-invalid`.
@@ -238,10 +242,6 @@ The response contracts below describe terminal responses before applicable middl
 
 The active declarations owned by `platform/http` provide:
 
-- `GET /`:
-  - HTTP status `200`;
-  - `Content-Type: text/html; charset=utf-8`;
-  - exact body `<h1>Hello Coretsia</h1>` followed by one LF.
 - `GET /ping`:
   - HTTP status `200`;
   - `Content-Type: application/json`;
@@ -793,7 +793,7 @@ HTTP request identity does not replace or modify Kernel-owned identities. Disabl
 
 `HttpServiceProvider` registers one shared `RequestIdPolicy` through canonical Foundation declarative DI, independently of `http.request_id.enabled`. Both `HttpKernel` and `HttpResponseFinalizer` require the same policy instance as a mandatory non-nullable constructor dependency without a fallback or default instance.
 
-The policy consumes the existing shared Foundation-owned `ContextStore` and the explicitly selected Foundation `UlidGenerator` service through `IdGeneratorInterface`. Changes to `foundation.ids.default` do not change HTTP request-id generation.
+The policy consumes mandatory `Coretsia\Contracts\Context\ContextWriterInterface` and `Coretsia\Contracts\Context\ContextAccessorInterface` dependencies, in that constructor order, followed by the explicitly selected Foundation `UlidGenerator` service through `IdGeneratorInterface`. Both context ports alias the same shared Foundation-owned `ContextStore` in source and compiled containers. `HttpServiceProvider` requires both ports and MUST NOT require the concrete store or redefine either binding. Changes to `foundation.ids.default` do not change HTTP request-id generation.
 
 ### Trusted upstream acceptance
 
@@ -849,19 +849,19 @@ Invalid semantic configuration and invalid generator output fail deterministical
 
 `HttpKernel` invokes its mandatory shared `RequestIdPolicy::initialize()` after successful Kernel UnitOfWork begin and before the entire PSR-15 pipeline executes, including any selected outermost error boundary and post decorators.
 
-The policy is invoked regardless of `http.request_id.enabled`. When disabled, `initialize()` immediately returns `null` without reading request headers, accessing `ContextStore`, or generating an identifier.
+The policy is invoked regardless of `http.request_id.enabled`. When disabled, `initialize()` immediately returns `null` without reading request headers, accessing either context port, or generating an identifier.
 
-`RequestIdPolicy` is the sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`. After successful enabled identity selection, it writes the selected identifier exactly once to the existing shared `ContextStore` and returns that exact value to `HttpKernel`.
+`RequestIdPolicy` is the sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`. After successful enabled identity selection, it writes the selected identifier exactly once through `ContextWriterInterface` and returns that exact value to `HttpKernel`.
 
 `HttpKernel` retains the selected identifier only in an invocation-local variable and passes it to `HttpResponseFinalizer`.
 
-Subsequent middleware, terminal handlers, and lifecycle hooks must not modify, replace, or remove the selected identifier. The policy may read back only its own `ContextKeys::REQUEST_ID` for final-response identity verification under the narrow exception defined by the [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md).
+Subsequent middleware, terminal handlers, and lifecycle hooks must not modify, replace, or remove the selected identifier. The policy may read back only its own `ContextKeys::REQUEST_ID` through `ContextAccessorInterface` solely for final-response identity verification, as defined by the [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md). It MUST NOT read unrelated keys or change or remove the selected identifier during verification.
 
-Other runtime context consumers use the canonical `ContextAccessorInterface`.
+Other HTTP runtime context consumers use the appropriate contracts-level port for their authorized reads or mutations, without concrete store access.
 
 Request identity preparation is not PSR-15 middleware and does not occupy any of the nine middleware slots. It cannot be bypassed by a request-phase or post-decorator short-circuit response.
 
-When disabled, the policy does not read request headers, access `ContextStore`, generate an identifier, or apply a request-id response header. Application-owned response headers remain unchanged by the disabled request-id policy.
+When disabled, the policy does not read request headers, access either context port, generate an identifier, or apply a request-id response header. Application-owned response headers remain unchanged by the disabled request-id policy.
 
 The normative configuration, trust, validation, lifecycle, and response-header requirements are defined in the [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md).
 
@@ -1006,7 +1006,7 @@ Redirect-decision observations contain no raw URL, path, query, authority, Locat
 
 The allowed label combinations are:
 
-- `operation` = `home`, `ping`, or `alive`; `status` = integer `200`; `outcome` = `served`.
+- `operation` = `ping` or `alive`; `status` = integer `200`; `outcome` = `served`.
 - `operation` = `health` or `metrics`; `status` = integer `501`; `outcome` = `owner_unavailable`.
 - `operation` = `error`; `status` = string `unknown`; `outcome` = `intentional_error`.
 
@@ -1058,13 +1058,13 @@ Other Throwables return `null` from this mapper. Descriptor codes and messages a
 
 ## Security / Redaction
 
-HTTP request safety uses the selected and validated request policies: immediate-peer trust for forwarded metadata, bounded and canonical host admission, bounded body-size verification (including actual stream bytes), and JSON decoding only for eligible content types within the configured byte and depth limits. `RequestContextMiddleware` alone writes validated request-derived `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` to the existing request-local `ContextStore`; those values are not automatically exportable to observability sinks.
+HTTP request safety uses the selected and validated request policies: immediate-peer trust for forwarded metadata, bounded and canonical host admission, bounded body-size verification (including actual stream bytes), and JSON decoding only for eligible content types within the configured byte and depth limits. `RequestContextMiddleware` alone writes validated request-derived `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` through its mandatory `ContextWriterInterface` dependency; those values are not automatically exportable to observability sinks. `HttpServiceProvider` wires the shared writer, the validated `http.context.enrich.enabled` flag, and the validated `http.proxy.enabled` flag in constructor order. The middleware does not read context, write unrelated keys, or consume reset or lifecycle operations.
 
 `RequestIdPolicy` alone writes `ContextKeys::REQUEST_ID` when enabled. Accepted or generated identifiers must remain safe opaque values and must not encode credentials, tokens, cookies, session ids, direct user identifiers, or raw payload data.
 
 Request identity remains separate from generic middleware context enrichment. It is not exported as Kernel UnitOfWork context or result payload data. Successful canonical Foundation reset clears it together with all other UnitOfWork-local context values after eligible after-UoW handling.
 
-HTTP does not directly execute reset, discover reset tags, retry reset, or separately remove request identity from `ContextStore`. A failed reset does not establish successful context cleanup.
+HTTP does not directly execute reset, discover reset tags, retry reset, or remove request identity through `ContextWriterInterface`. A failed reset does not establish successful context cleanup.
 
 Request, response, and exception data must not disclose raw URLs, query strings, headers, cookies, Authorization values, credentials, tokens, payloads, parsed bodies, request-derived identifiers, private context, stack traces, or exception messages through public errors, metrics, access logs, or spans. HTTP emits only safe, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and request-completion fields. Diagnostic responses expose only their explicitly bounded projections. HTTP consumes the shared Redaction ports for diagnostic redaction; canonical PSR-3 Logging retains sink-side admission, redaction, and serialization. HTTP does not instantiate another redactor or depend directly on concrete Redaction or Logging implementation classes.
 
@@ -1095,6 +1095,7 @@ This package does not provide:
 - [HTTP System Endpoints SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-system-endpoints.md)
 - [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
 - [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
+- [Routing Artifact SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md)
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Context Store SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md)
 - [DI Tags and Middleware Ordering SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/di-tags-and-middleware-ordering.md)

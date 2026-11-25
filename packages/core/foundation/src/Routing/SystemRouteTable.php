@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Platform\Http\System;
+namespace Coretsia\Foundation\Routing;
 
 /**
  * Canonical versioned system-route declaration registry.
@@ -43,12 +43,6 @@ final class SystemRouteTable
      * }>
      */
     private const array ENTRIES = [
-        [
-            'owner' => 'platform/http',
-            'pattern' => '/',
-            'status' => 'active',
-            'type' => 'exact',
-        ],
         [
             'owner' => 'platform/http',
             'pattern' => self::ALIVE_PATH,

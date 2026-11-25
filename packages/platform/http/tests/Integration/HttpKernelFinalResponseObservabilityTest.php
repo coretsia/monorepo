@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Tests\Integration;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -92,7 +94,8 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                 $ref(ConfigRepositoryInterface::class),
             ],
             RequestIdPolicy::class => [
-                $ref(ContextStore::class),
+                $ref(ContextWriterInterface::class),
+                $ref(ContextAccessorInterface::class),
                 $ref(UlidGenerator::class),
                 $requestIdEnabled,
                 self::REQUEST_HEADER,
@@ -183,7 +186,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                 ($operation['kind'] ?? null) === 'service.class'
                 && $operation['id'] === RequestIdPolicy::class
             ) {
-                $operation['arguments'][2] = !$requestIdEnabled;
+                $operation['arguments'][3] = !$requestIdEnabled;
             }
         }
         unset($operation);
@@ -746,7 +749,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             if (($operation['kind'] ?? null) === 'service.class'
                 && \array_key_exists($operation['id'], $expectedFlags)
             ) {
-                $index = $operation['id'] === RequestIdPolicy::class ? 2 : 1;
+                $index = $operation['id'] === RequestIdPolicy::class ? 3 : 1;
                 $effectiveFlags[$operation['id']] = $operation['arguments'][$index] ?? null;
             }
         }
@@ -1439,6 +1442,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             HttpRequestSpanRecorder::class => ['tracer', 'enabled'],
             RequestIdPolicy::class => [
                 'context',
+                'contextAccessor',
                 'generator',
                 'enabled',
                 'headerName',
@@ -1524,8 +1528,11 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         ?IdGeneratorInterface $generator = null,
         bool $acceptFromUpstream = false,
     ): RequestIdPolicy {
+        $context = new ContextStore();
+
         return new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             $generator ?? new class() implements IdGeneratorInterface {
                 public function generate(): string
                 {

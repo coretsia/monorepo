@@ -159,7 +159,10 @@ coretsia/
 │   │   ├── contracts/
 │   │   ├── dto-attribute/
 │   │   ├── foundation/
-│   │   │   └── src/Filesystem/ScopedFileLock.php
+│   │   │   ├── src/Filesystem/ScopedFileLock.php
+│   │   │   └── src/Routing/
+│   │   │       ├── ReservedPathMatcher.php
+│   │   │       └── SystemRouteTable.php
 │   │   └── kernel/
 │   │       ├── bin/dependency-sync-verify.php
 │   │       ├── resources/
@@ -385,6 +388,8 @@ Conceptual layer-direction matrix:
 - Kernel artifact root: `<applicationRoot>/<artifactsCacheDir>/<appTarget>` (by default, `var/cache/<appTarget>` relative to the application root).
 - Finalized generation: `<artifact-root>/generations/<generation-id>/` containing `module-manifest.php`, `config.php`, `container.php`, and `generation-manifest.php`.
 - Generation selection and coordination: `<artifact-root>/current` and `<artifact-root>/generation.lock`. Runtime boot consumes one validated generation selected through `current`.
+- Routing owner artifact: `<artifact-root>/routes.php` (`routes@1`), with `<artifact-root>/routes.lock` for owner-local publication coordination. Both remain outside Kernel immutable generations and do not contribute to Kernel generation identity.
+- Routing owns target-local compilation, artifact publication and validation, source-only route grouping, and artifact-backed matching. HTTP checks Routing artifact readiness through `RoutingArtifactReadinessInterface` only when `platform.routing` is enabled in the target `ModulePlan`. See `docs/ssot/routing-artifact.md` and `docs/adr/ADR-0018-platform-routing-compiled-routes.md`.
 
 ---
 
@@ -407,21 +412,22 @@ Conceptual layer-direction matrix:
 
 **Direct preset roots:**
 
-- `core/foundation`
-- `core/kernel`
-- `platform/cli`
-  - `platform/errors`
-    - `platform/redaction`
-  - `platform/redaction`
-- `platform/http`
-  - `platform/redaction`
-- `platform/http-app`
-- `platform/logging`
-  - `platform/redaction`
-- `platform/problem-details`
-  - `platform/errors`
-    - `platform/redaction`
-- `platform/routing`
+- `core.foundation`
+- `core.kernel`
+- `platform.cli`
+  - `platform.errors`
+    - `platform.redaction`
+  - `platform.redaction`
+- `platform.http`
+  - `platform.redaction`
+- `platform.http-app`
+- `platform.logging`
+  - `platform.redaction`
+- `platform.problem-details`
+  - `platform.errors`
+    - `platform.redaction`
+- `platform.routing`
+  - `platform.redaction`
 
 **Capabilities:** HTTP runtime, routing, application dispatch, error handling, problem details, maintenance mode, CORS, and structured logging.
 
@@ -429,33 +435,34 @@ Conceptual layer-direction matrix:
 
 **Direct preset roots:**
 
-- `core/foundation`
-- `core/kernel`
-- `platform/auth`
-- `platform/cli`
-  - `platform/errors`
-    - `platform/redaction`
-  - `platform/redaction`
-- `platform/database`
-- `platform/database-driver-sqlite`
-- `platform/filesystem`
-- `platform/hashing`
-- `platform/http`
-  - `platform/redaction`
-- `platform/http-app`
-- `platform/logging`
-  - `platform/redaction`
-- `platform/migrations`
-- `platform/problem-details`
-  - `platform/errors`
-    - `platform/redaction`
-- `platform/routing`
-- `platform/secrets`
-- `platform/security`
-- `platform/session`
-- `platform/validation`
-- `platform/view`
-- `integrations/filesystem-local`
+- `core.foundation`
+- `core.kernel`
+- `platform.auth`
+- `platform.cli`
+  - `platform.errors`
+    - `platform.redaction`
+  - `platform.redaction`
+- `platform.database`
+- `platform.database-driver-sqlite`
+- `platform.filesystem`
+- `platform.hashing`
+- `platform.http`
+  - `platform.redaction`
+- `platform.http-app`
+- `platform.logging`
+  - `platform.redaction`
+- `platform.migrations`
+- `platform.problem-details`
+  - `platform.errors`
+    - `platform.redaction`
+- `platform.routing`
+  - `platform.redaction`
+- `platform.secrets`
+- `platform.security`
+- `platform.session`
+- `platform.validation`
+- `platform.view`
+- `integrations.filesystem-local`
 
 **Capabilities:** HTTP web applications with persistence, validation, filesystem, views, sessions, authentication, password hashing, secret resolution, and web security.
 
@@ -463,28 +470,29 @@ Conceptual layer-direction matrix:
 
 **Direct preset roots:**
 
-- `core/foundation`
-- `core/kernel`
-- `platform/cli`
-  - `platform/errors`
-    - `platform/redaction`
-  - `platform/redaction`
-- `platform/database`
-- `platform/database-driver-sqlite`
-- `platform/events`
-- `platform/http`
-  - `platform/redaction`
-- `platform/http-app`
-- `platform/logging`
-  - `platform/redaction`
-- `platform/migrations`
-- `platform/problem-details`
-  - `platform/errors`
-    - `platform/redaction`
-- `platform/queue`
-- `platform/routing`
-- `platform/validation`
-- `platform/worker`
+- `core.foundation`
+- `core.kernel`
+- `platform.cli`
+  - `platform.errors`
+    - `platform.redaction`
+  - `platform.redaction`
+- `platform.database`
+- `platform.database-driver-sqlite`
+- `platform.events`
+- `platform.http`
+  - `platform.redaction`
+- `platform.http-app`
+- `platform.logging`
+  - `platform.redaction`
+- `platform.migrations`
+- `platform.problem-details`
+  - `platform.errors`
+    - `platform.redaction`
+- `platform.queue`
+- `platform.routing`
+  - `platform.redaction`
+- `platform.validation`
+- `platform.worker`
 
 **Capabilities:** HTTP/API applications with persistence, workers, events, and queue processing. Background execution requires a configured async-capable driver.
 
@@ -492,35 +500,36 @@ Conceptual layer-direction matrix:
 
 **Direct preset roots:**
 
-- `core/foundation`
-- `core/kernel`
-- `platform/auth`
-- `platform/cli`
-  - `platform/errors`
-    - `platform/redaction`
-  - `platform/redaction`
-- `platform/database`
-- `platform/database-driver-sqlite`
-- `platform/events`
-- `platform/health`
-- `platform/http`
-  - `platform/redaction`
-- `platform/http-app`
-- `platform/logging`
-  - `platform/redaction`
-- `platform/metrics`
-- `platform/migrations`
-- `platform/observability`
-- `platform/problem-details`
-  - `platform/errors`
-    - `platform/redaction`
-- `platform/queue`
-- `platform/routing`
-- `platform/secrets`
-- `platform/tracing`
-- `platform/validation`
-- `platform/worker`
-- `enterprise/audit`
+- `core.foundation`
+- `core.kernel`
+- `platform.auth`
+- `platform.cli`
+  - `platform.errors`
+    - `platform.redaction`
+  - `platform.redaction`
+- `platform.database`
+- `platform.database-driver-sqlite`
+- `platform.events`
+- `platform.health`
+- `platform.http`
+  - `platform.redaction`
+- `platform.http-app`
+- `platform.logging`
+  - `platform.redaction`
+- `platform.metrics`
+- `platform.migrations`
+- `platform.observability`
+- `platform.problem-details`
+  - `platform.errors`
+    - `platform.redaction`
+- `platform.queue`
+- `platform.routing`
+  - `platform.redaction`
+- `platform.secrets`
+- `platform.tracing`
+- `platform.validation`
+- `platform.worker`
+- `enterprise.audit`
 
 **Capabilities:** HTTP/API and worker workloads with authentication, authorization, health checks, observability instrumentation, secret management, and auditing. Specialized governance and infrastructure integrations are opt-in.
 
@@ -532,77 +541,77 @@ The `micro+`, `express+`, and `hybrid+` labels indicate the earliest intended co
 
 **Optional runtime modules:**
 
-- `platform/ai` — `express+`.
-- `platform/ai-guardrails` — `express+`.
-- `platform/ai-vectorstore` — `express+`.
-- `platform/api-versioning` — `micro+`.
-- `platform/async` — `hybrid+`.
-- `platform/cache` — `micro+`.
-- `platform/cqrs` — `hybrid+`.
-- `platform/encryption` — `micro+`.
-- `platform/etl` — `hybrid+`.
-- `platform/event-sourcing` — `hybrid+`.
-- `platform/features` — `micro+`.
-- `platform/graphql` — `micro+`.
-- `platform/grpc` — `micro+`.
-- `platform/http-client` — `micro+`.
-- `platform/inbox` — `hybrid+`.
-- `platform/lock` — `micro+`.
-- `platform/mail` — `express+`.
-- `platform/orm` — `express+`.
-- `platform/outbox` — `hybrid+`.
-- `platform/reactive` — `micro+`.
-- `platform/scheduler` — `hybrid+`.
-- `platform/search` — `express+`.
-- `platform/streaming` — `micro+`.
-- `platform/translation` — `express+`.
-- `platform/uploads` — `express+`.
-- `platform/webhooks` — `express+`.
-- `platform/websocket` — `micro+`.
+- `platform.ai` — `express+`.
+- `platform.ai-guardrails` — `express+`.
+- `platform.ai-vectorstore` — `express+`.
+- `platform.api-versioning` — `micro+`.
+- `platform.async` — `hybrid+`.
+- `platform.cache` — `micro+`.
+- `platform.cqrs` — `hybrid+`.
+- `platform.encryption` — `micro+`.
+- `platform.etl` — `hybrid+`.
+- `platform.event-sourcing` — `hybrid+`.
+- `platform.features` — `micro+`.
+- `platform.graphql` — `micro+`.
+- `platform.grpc` — `micro+`.
+- `platform.http-client` — `micro+`.
+- `platform.inbox` — `hybrid+`.
+- `platform.lock` — `micro+`.
+- `platform.mail` — `express+`.
+- `platform.orm` — `express+`.
+- `platform.outbox` — `hybrid+`.
+- `platform.reactive` — `micro+`.
+- `platform.scheduler` — `hybrid+`.
+- `platform.search` — `express+`.
+- `platform.streaming` — `micro+`.
+- `platform.translation` — `express+`.
+- `platform.uploads` — `express+`.
+- `platform.webhooks` — `express+`.
+- `platform.websocket` — `micro+`.
 
 **Database drivers:**
 
-- `platform/database-driver-mariadb` — `express+`.
-- `platform/database-driver-mysql` — `express+`.
-- `platform/database-driver-pgsql` — `express+`.
-- `platform/database-driver-sqlserver` — `express+`.
+- `platform.database-driver-mariadb` — `express+`.
+- `platform.database-driver-mysql` — `express+`.
+- `platform.database-driver-pgsql` — `express+`.
+- `platform.database-driver-sqlserver` — `express+`.
 
 **Infrastructure and runtime adapters:**
 
-- `integrations/cache-apcu` — `micro+`.
-- `integrations/cache-redis` — `micro+`.
-- `integrations/lock-redis` — `micro+`.
-- `integrations/queue-redis` — `hybrid+`.
-- `integrations/runtime-frankenphp` — `micro+`.
-- `integrations/runtime-roadrunner` — `micro+`.
-- `integrations/runtime-swoole` — `micro+`.
-- `integrations/session-redis` — `express+`.
-- `integrations/tracing-zipkin` — `micro+`.
+- `integrations.cache-apcu` — `micro+`.
+- `integrations.cache-redis` — `micro+`.
+- `integrations.lock-redis` — `micro+`.
+- `integrations.queue-redis` — `hybrid+`.
+- `integrations.runtime-frankenphp` — `micro+`.
+- `integrations.runtime-roadrunner` — `micro+`.
+- `integrations.runtime-swoole` — `micro+`.
+- `integrations.session-redis` — `express+`.
+- `integrations.tracing-zipkin` — `micro+`.
 
 **Provider and protocol adapters:**
 
-- `integrations/mail-smtp` — `express+`.
-- `integrations/metrics-prometheus` — `micro+`.
-- `integrations/rate-limit-redis` — `micro+`.
-- `integrations/search-elastic` — `express+`.
-- `integrations/search-meilisearch` — `express+`.
-- `integrations/search-opensearch` — `express+`.
-- `integrations/secrets-aws` — `express+`.
-- `integrations/secrets-gcp` — `express+`.
-- `integrations/secrets-vault` — `express+`.
-- `integrations/tracing-otlp` — `micro+`.
-- `integrations/view-blade` — `express+`.
-- `integrations/view-twig` — `express+`.
-- `integrations/virus-scan-clamav` — `express+`.
+- `integrations.mail-smtp` — `express+`.
+- `integrations.metrics-prometheus` — `micro+`.
+- `integrations.rate-limit-redis` — `micro+`.
+- `integrations.search-elastic` — `express+`.
+- `integrations.search-meilisearch` — `express+`.
+- `integrations.search-opensearch` — `express+`.
+- `integrations.secrets-aws` — `express+`.
+- `integrations.secrets-gcp` — `express+`.
+- `integrations.secrets-vault` — `express+`.
+- `integrations.tracing-otlp` — `micro+`.
+- `integrations.view-blade` — `express+`.
+- `integrations.view-twig` — `express+`.
+- `integrations.virus-scan-clamav` — `express+`.
 
 **Enterprise extensions:**
 
-- `enterprise/compliance` — `enterprise`.
-- `enterprise/policy-engine` — `enterprise`.
-- `enterprise/scim` — `enterprise`.
-- `enterprise/sso-oidc` — `enterprise`.
-- `enterprise/sso-saml` — `enterprise`.
-- `enterprise/tenancy` — `enterprise`.
+- `enterprise.compliance` — `enterprise`.
+- `enterprise.policy-engine` — `enterprise`.
+- `enterprise.scim` — `enterprise`.
+- `enterprise.sso-oidc` — `enterprise`.
+- `enterprise.sso-saml` — `enterprise`.
+- `enterprise.tenancy` — `enterprise`.
 
 > Addons MUST satisfy their runtime dependencies and conflicts. Driver packages require their owning platform capabilities. Enabling addons MUST NOT modify the canonical default compositions.
 
@@ -631,114 +640,114 @@ The `micro+`, `express+`, and `hybrid+` labels indicate the earliest intended co
 
 ### 10.1. Core packages
 
-| Package ID           | Composer identity             | Responsibility                                         |
+| Module ID            | Composer identity             | Responsibility                                         |
 |----------------------|-------------------------------|--------------------------------------------------------|
-| `core/contracts`     | `coretsia/core-contracts`     | Cross-package ports and public contracts               |
-| `core/dto-attribute` | `coretsia/core-dto-attribute` | DTO attribute library                                  |
-| `core/foundation`    | `coretsia/core-foundation`    | Container, tags, context, deterministic primitives     |
-| `core/kernel`        | `coretsia/core-kernel`        | Boot, module planning, feature bundles, artifacts, UoW |
+| `core.contracts`     | `coretsia/core-contracts`     | Cross-package ports and public contracts               |
+| `core.dto-attribute` | `coretsia/core-dto-attribute` | DTO attribute library                                  |
+| `core.foundation`    | `coretsia/core-foundation`    | Container, tags, context, deterministic primitives     |
+| `core.kernel`        | `coretsia/core-kernel`        | Boot, module planning, feature bundles, artifacts, UoW |
 
 ### 10.2. Platform packages
 
-| Package ID                           | Composer identity                             | Responsibility                                                 |
+| Module ID                            | Composer identity                             | Responsibility                                                 |
 |--------------------------------------|-----------------------------------------------|----------------------------------------------------------------|
-| `platform/ai`                        | `coretsia/platform-ai`                        | AI service capability                                          |
-| `platform/ai-guardrails`             | `coretsia/platform-ai-guardrails`             | AI policy/guardrails extension                                 |
-| `platform/ai-vectorstore`            | `coretsia/platform-ai-vectorstore`            | Vector-store capability for AI                                 |
-| `platform/api-versioning`            | `coretsia/platform-api-versioning`            | API versioning and selection                                   |
-| `platform/async`                     | `coretsia/platform-async`                     | Optional async primitives                                      |
-| `platform/auth`                      | `coretsia/platform-auth`                      | Authentication and RBAC/REBAC authorization                    |
-| `platform/cache`                     | `coretsia/platform-cache`                     | Caching abstraction and reference stores                       |
-| `platform/cli`                       | `coretsia/platform-cli`                       | CLI commands and feature-bundle management                     |
-| `platform/cqrs`                      | `coretsia/platform-cqrs`                      | Command/query orchestration                                    |
-| `platform/database`                  | `coretsia/platform-database`                  | Database abstraction and connection management                 |
-| `platform/database-driver-mariadb`   | `coretsia/platform-database-driver-mariadb`   | Alternative MariaDB SQL driver                                 |
-| `platform/database-driver-mysql`     | `coretsia/platform-database-driver-mysql`     | Alternative MySQL SQL driver                                   |
-| `platform/database-driver-pgsql`     | `coretsia/platform-database-driver-pgsql`     | Alternative PostgreSQL SQL driver                              |
-| `platform/database-driver-sqlite`    | `coretsia/platform-database-driver-sqlite`    | SQLite reference database driver                               |
-| `platform/database-driver-sqlserver` | `coretsia/platform-database-driver-sqlserver` | Alternative SQL Server driver                                  |
-| `platform/encryption`                | `coretsia/platform-encryption`                | Encryption services                                            |
-| `platform/errors`                    | `coretsia/platform-errors`                    | Canonical Throwable normalization and reporting boundary       |
-| `platform/etl`                       | `coretsia/platform-etl`                       | ETL execution facilities                                       |
-| `platform/event-sourcing`            | `coretsia/platform-event-sourcing`            | Event-sourcing persistence model                               |
-| `platform/events`                    | `coretsia/platform-events`                    | Events and deferred dispatch                                   |
-| `platform/features`                  | `coretsia/platform-features`                  | Feature management and experiments                             |
-| `platform/filesystem`                | `coretsia/platform-filesystem`                | Filesystem service and path safety                             |
-| `platform/graphql`                   | `coretsia/platform-graphql`                   | GraphQL transport/integration                                  |
-| `platform/grpc`                      | `coretsia/platform-grpc`                      | gRPC transport/integration                                     |
-| `platform/hashing`                   | `coretsia/platform-hashing`                   | Password/data hashing services                                 |
-| `platform/health`                    | `coretsia/platform-health`                    | Health checks and owned endpoints                              |
-| `platform/http`                      | `coretsia/platform-http`                      | HTTP transport, middleware, rate limiting and caching policies |
-| `platform/http-app`                  | `coretsia/platform-http-app`                  | HTTP application dispatch wiring                               |
-| `platform/http-client`               | `coretsia/platform-http-client`               | Outbound HTTP client                                           |
-| `platform/inbox`                     | `coretsia/platform-inbox`                     | Inbox deduplication and delivery handling                      |
-| `platform/lock`                      | `coretsia/platform-lock`                      | Application locking primitives                                 |
-| `platform/logging`                   | `coretsia/platform-logging`                   | Logging pipeline with redaction                                |
-| `platform/mail`                      | `coretsia/platform-mail`                      | Mail transport abstraction and dispatch                        |
-| `platform/metrics`                   | `coretsia/platform-metrics`                   | Metrics validation, instrumentation and recording              |
-| `platform/migrations`                | `coretsia/platform-migrations`                | Schema migrations and execution                                |
-| `platform/observability`             | `coretsia/platform-observability`             | Observability composition and integration                      |
-| `platform/orm`                       | `coretsia/platform-orm`                       | Object-relational mapping                                      |
-| `platform/outbox`                    | `coretsia/platform-outbox`                    | Transactional outbox integration                               |
-| `platform/problem-details`           | `coretsia/platform-problem-details`           | RFC 9457 JSON and HTML error responses                         |
-| `platform/queue`                     | `coretsia/platform-queue`                     | Queue dispatch and synchronous/asynchronous execution          |
-| `platform/reactive`                  | `coretsia/platform-reactive`                  | Reactive application primitives                                |
-| `platform/redaction`                 | `coretsia/platform-redaction`                 | Shared sensitive-data redaction                                |
-| `platform/routing`                   | `coretsia/platform-routing`                   | Routing and route resolution                                   |
-| `platform/scheduler`                 | `coretsia/platform-scheduler`                 | Local and distributed scheduling                               |
-| `platform/search`                    | `coretsia/platform-search`                    | Search abstraction                                             |
-| `platform/secrets`                   | `coretsia/platform-secrets`                   | Secret resolution and safe access                              |
-| `platform/security`                  | `coretsia/platform-security`                  | CSRF, signing and security policies                            |
-| `platform/session`                   | `coretsia/platform-session`                   | Session state management                                       |
-| `platform/streaming`                 | `coretsia/platform-streaming`                 | Stream-oriented transport primitives                           |
-| `platform/tracing`                   | `coretsia/platform-tracing`                   | Trace context, sampling and instrumentation                    |
-| `platform/translation`               | `coretsia/platform-translation`               | Translations and locale support                                |
-| `platform/uploads`                   | `coretsia/platform-uploads`                   | Multipart upload handling and quarantine                       |
-| `platform/validation`                | `coretsia/platform-validation`                | Validation engine and rule composition                         |
-| `platform/view`                      | `coretsia/platform-view`                      | View rendering abstraction                                     |
-| `platform/webhooks`                  | `coretsia/platform-webhooks`                  | Webhook handling and delivery                                  |
-| `platform/websocket`                 | `coretsia/platform-websocket`                 | WebSocket transport and events                                 |
-| `platform/worker`                    | `coretsia/platform-worker`                    | Long-running worker runtime lifecycle                          |
+| `platform.ai`                        | `coretsia/platform-ai`                        | AI service capability                                          |
+| `platform.ai-guardrails`             | `coretsia/platform-ai-guardrails`             | AI policy/guardrails extension                                 |
+| `platform.ai-vectorstore`            | `coretsia/platform-ai-vectorstore`            | Vector-store capability for AI                                 |
+| `platform.api-versioning`            | `coretsia/platform-api-versioning`            | API versioning and selection                                   |
+| `platform.async`                     | `coretsia/platform-async`                     | Optional async primitives                                      |
+| `platform.auth`                      | `coretsia/platform-auth`                      | Authentication and RBAC/REBAC authorization                    |
+| `platform.cache`                     | `coretsia/platform-cache`                     | Caching abstraction and reference stores                       |
+| `platform.cli`                       | `coretsia/platform-cli`                       | CLI commands and feature-bundle management                     |
+| `platform.cqrs`                      | `coretsia/platform-cqrs`                      | Command/query orchestration                                    |
+| `platform.database`                  | `coretsia/platform-database`                  | Database abstraction and connection management                 |
+| `platform.database-driver-mariadb`   | `coretsia/platform-database-driver-mariadb`   | Alternative MariaDB SQL driver                                 |
+| `platform.database-driver-mysql`     | `coretsia/platform-database-driver-mysql`     | Alternative MySQL SQL driver                                   |
+| `platform.database-driver-pgsql`     | `coretsia/platform-database-driver-pgsql`     | Alternative PostgreSQL SQL driver                              |
+| `platform.database-driver-sqlite`    | `coretsia/platform-database-driver-sqlite`    | SQLite reference database driver                               |
+| `platform.database-driver-sqlserver` | `coretsia/platform-database-driver-sqlserver` | Alternative SQL Server driver                                  |
+| `platform.encryption`                | `coretsia/platform-encryption`                | Encryption services                                            |
+| `platform.errors`                    | `coretsia/platform-errors`                    | Canonical Throwable normalization and reporting boundary       |
+| `platform.etl`                       | `coretsia/platform-etl`                       | ETL execution facilities                                       |
+| `platform.event-sourcing`            | `coretsia/platform-event-sourcing`            | Event-sourcing persistence model                               |
+| `platform.events`                    | `coretsia/platform-events`                    | Events and deferred dispatch                                   |
+| `platform.features`                  | `coretsia/platform-features`                  | Feature management and experiments                             |
+| `platform.filesystem`                | `coretsia/platform-filesystem`                | Filesystem service and path safety                             |
+| `platform.graphql`                   | `coretsia/platform-graphql`                   | GraphQL transport/integration                                  |
+| `platform.grpc`                      | `coretsia/platform-grpc`                      | gRPC transport/integration                                     |
+| `platform.hashing`                   | `coretsia/platform-hashing`                   | Password/data hashing services                                 |
+| `platform.health`                    | `coretsia/platform-health`                    | Health checks and owned endpoints                              |
+| `platform.http`                      | `coretsia/platform-http`                      | HTTP transport, middleware, rate limiting and caching policies |
+| `platform.http-app`                  | `coretsia/platform-http-app`                  | HTTP application dispatch wiring                               |
+| `platform.http-client`               | `coretsia/platform-http-client`               | Outbound HTTP client                                           |
+| `platform.inbox`                     | `coretsia/platform-inbox`                     | Inbox deduplication and delivery handling                      |
+| `platform.lock`                      | `coretsia/platform-lock`                      | Application locking primitives                                 |
+| `platform.logging`                   | `coretsia/platform-logging`                   | Logging pipeline with redaction                                |
+| `platform.mail`                      | `coretsia/platform-mail`                      | Mail transport abstraction and dispatch                        |
+| `platform.metrics`                   | `coretsia/platform-metrics`                   | Metrics validation, instrumentation and recording              |
+| `platform.migrations`                | `coretsia/platform-migrations`                | Schema migrations and execution                                |
+| `platform.observability`             | `coretsia/platform-observability`             | Observability composition and integration                      |
+| `platform.orm`                       | `coretsia/platform-orm`                       | Object-relational mapping                                      |
+| `platform.outbox`                    | `coretsia/platform-outbox`                    | Transactional outbox integration                               |
+| `platform.problem-details`           | `coretsia/platform-problem-details`           | RFC 9457 JSON and HTML error responses                         |
+| `platform.queue`                     | `coretsia/platform-queue`                     | Queue dispatch and synchronous/asynchronous execution          |
+| `platform.reactive`                  | `coretsia/platform-reactive`                  | Reactive application primitives                                |
+| `platform.redaction`                 | `coretsia/platform-redaction`                 | Shared sensitive-data redaction                                |
+| `platform.routing`                   | `coretsia/platform-routing`                   | Target-local `routes@1`, source grouping, matching, readiness  |
+| `platform.scheduler`                 | `coretsia/platform-scheduler`                 | Local and distributed scheduling                               |
+| `platform.search`                    | `coretsia/platform-search`                    | Search abstraction                                             |
+| `platform.secrets`                   | `coretsia/platform-secrets`                   | Secret resolution and safe access                              |
+| `platform.security`                  | `coretsia/platform-security`                  | CSRF, signing and security policies                            |
+| `platform.session`                   | `coretsia/platform-session`                   | Session state management                                       |
+| `platform.streaming`                 | `coretsia/platform-streaming`                 | Stream-oriented transport primitives                           |
+| `platform.tracing`                   | `coretsia/platform-tracing`                   | Trace context, sampling and instrumentation                    |
+| `platform.translation`               | `coretsia/platform-translation`               | Translations and locale support                                |
+| `platform.uploads`                   | `coretsia/platform-uploads`                   | Multipart upload handling and quarantine                       |
+| `platform.validation`                | `coretsia/platform-validation`                | Validation engine and rule composition                         |
+| `platform.view`                      | `coretsia/platform-view`                      | View rendering abstraction                                     |
+| `platform.webhooks`                  | `coretsia/platform-webhooks`                  | Webhook handling and delivery                                  |
+| `platform.websocket`                 | `coretsia/platform-websocket`                 | WebSocket transport and events                                 |
+| `platform.worker`                    | `coretsia/platform-worker`                    | Long-running worker runtime lifecycle                          |
 
 ### 10.3. Integration packages
 
-| Package ID                        | Composer identity                          | Responsibility                    |
+| Module ID                         | Composer identity                          | Responsibility                    |
 |-----------------------------------|--------------------------------------------|-----------------------------------|
-| `integrations/cache-apcu`         | `coretsia/integrations-cache-apcu`         | APCu cache backend                |
-| `integrations/cache-redis`        | `coretsia/integrations-cache-redis`        | Redis cache backend               |
-| `integrations/filesystem-local`   | `coretsia/integrations-filesystem-local`   | Reference local filesystem driver |
-| `integrations/lock-redis`         | `coretsia/integrations-lock-redis`         | Redis distributed lock backend    |
-| `integrations/mail-smtp`          | `coretsia/integrations-mail-smtp`          | Reference SMTP mail transport     |
-| `integrations/metrics-prometheus` | `coretsia/integrations-metrics-prometheus` | Prometheus exporter/adapter       |
-| `integrations/queue-redis`        | `coretsia/integrations-queue-redis`        | Redis queue backend               |
-| `integrations/rate-limit-redis`   | `coretsia/integrations-rate-limit-redis`   | Redis rate-limit state backend    |
-| `integrations/runtime-frankenphp` | `coretsia/integrations-runtime-frankenphp` | FrankenPHP runtime adapter        |
-| `integrations/runtime-roadrunner` | `coretsia/integrations-runtime-roadrunner` | RoadRunner runtime adapter        |
-| `integrations/runtime-swoole`     | `coretsia/integrations-runtime-swoole`     | Swoole runtime adapter            |
-| `integrations/search-elastic`     | `coretsia/integrations-search-elastic`     | Elasticsearch search provider     |
-| `integrations/search-meilisearch` | `coretsia/integrations-search-meilisearch` | Meilisearch provider              |
-| `integrations/search-opensearch`  | `coretsia/integrations-search-opensearch`  | OpenSearch provider               |
-| `integrations/secrets-aws`        | `coretsia/integrations-secrets-aws`        | AWS secrets provider adapter      |
-| `integrations/secrets-gcp`        | `coretsia/integrations-secrets-gcp`        | GCP secrets provider adapter      |
-| `integrations/secrets-vault`      | `coretsia/integrations-secrets-vault`      | Vault secrets backend             |
-| `integrations/session-redis`      | `coretsia/integrations-session-redis`      | Redis session backend             |
-| `integrations/tracing-otlp`       | `coretsia/integrations-tracing-otlp`       | OTLP tracing exporter/adapter     |
-| `integrations/tracing-zipkin`     | `coretsia/integrations-tracing-zipkin`     | Optional Zipkin tracing adapter   |
-| `integrations/view-blade`         | `coretsia/integrations-view-blade`         | Blade view engine adapter         |
-| `integrations/view-twig`          | `coretsia/integrations-view-twig`          | Twig view engine adapter          |
-| `integrations/virus-scan-clamav`  | `coretsia/integrations-virus-scan-clamav`  | ClamAV upload-scanning adapter    |
+| `integrations.cache-apcu`         | `coretsia/integrations-cache-apcu`         | APCu cache backend                |
+| `integrations.cache-redis`        | `coretsia/integrations-cache-redis`        | Redis cache backend               |
+| `integrations.filesystem-local`   | `coretsia/integrations-filesystem-local`   | Reference local filesystem driver |
+| `integrations.lock-redis`         | `coretsia/integrations-lock-redis`         | Redis distributed lock backend    |
+| `integrations.mail-smtp`          | `coretsia/integrations-mail-smtp`          | Reference SMTP mail transport     |
+| `integrations.metrics-prometheus` | `coretsia/integrations-metrics-prometheus` | Prometheus exporter/adapter       |
+| `integrations.queue-redis`        | `coretsia/integrations-queue-redis`        | Redis queue backend               |
+| `integrations.rate-limit-redis`   | `coretsia/integrations-rate-limit-redis`   | Redis rate-limit state backend    |
+| `integrations.runtime-frankenphp` | `coretsia/integrations-runtime-frankenphp` | FrankenPHP runtime adapter        |
+| `integrations.runtime-roadrunner` | `coretsia/integrations-runtime-roadrunner` | RoadRunner runtime adapter        |
+| `integrations.runtime-swoole`     | `coretsia/integrations-runtime-swoole`     | Swoole runtime adapter            |
+| `integrations.search-elastic`     | `coretsia/integrations-search-elastic`     | Elasticsearch search provider     |
+| `integrations.search-meilisearch` | `coretsia/integrations-search-meilisearch` | Meilisearch provider              |
+| `integrations.search-opensearch`  | `coretsia/integrations-search-opensearch`  | OpenSearch provider               |
+| `integrations.secrets-aws`        | `coretsia/integrations-secrets-aws`        | AWS secrets provider adapter      |
+| `integrations.secrets-gcp`        | `coretsia/integrations-secrets-gcp`        | GCP secrets provider adapter      |
+| `integrations.secrets-vault`      | `coretsia/integrations-secrets-vault`      | Vault secrets backend             |
+| `integrations.session-redis`      | `coretsia/integrations-session-redis`      | Redis session backend             |
+| `integrations.tracing-otlp`       | `coretsia/integrations-tracing-otlp`       | OTLP tracing exporter/adapter     |
+| `integrations.tracing-zipkin`     | `coretsia/integrations-tracing-zipkin`     | Optional Zipkin tracing adapter   |
+| `integrations.view-blade`         | `coretsia/integrations-view-blade`         | Blade view engine adapter         |
+| `integrations.view-twig`          | `coretsia/integrations-view-twig`          | Twig view engine adapter          |
+| `integrations.virus-scan-clamav`  | `coretsia/integrations-virus-scan-clamav`  | ClamAV upload-scanning adapter    |
 
 ### 10.4. Enterprise packages
 
-| Package ID                 | Composer identity                   | Responsibility                        |
+| Module ID                  | Composer identity                   | Responsibility                        |
 |----------------------------|-------------------------------------|---------------------------------------|
-| `enterprise/audit`         | `coretsia/enterprise-audit`         | Audit logging and trails              |
-| `enterprise/compliance`    | `coretsia/enterprise-compliance`    | Compliance policies and gates         |
-| `enterprise/policy-engine` | `coretsia/enterprise-policy-engine` | Enterprise policy engine              |
-| `enterprise/scim`          | `coretsia/enterprise-scim`          | SCIM user provisioning extension      |
-| `enterprise/sso-oidc`      | `coretsia/enterprise-sso-oidc`      | OIDC single-sign-on extension         |
-| `enterprise/sso-saml`      | `coretsia/enterprise-sso-saml`      | SAML single-sign-on extension         |
-| `enterprise/tenancy`       | `coretsia/enterprise-tenancy`       | Tenant isolation and context policies |
+| `enterprise.audit`         | `coretsia/enterprise-audit`         | Audit logging and trails              |
+| `enterprise.compliance`    | `coretsia/enterprise-compliance`    | Compliance policies and gates         |
+| `enterprise.policy-engine` | `coretsia/enterprise-policy-engine` | Enterprise policy engine              |
+| `enterprise.scim`          | `coretsia/enterprise-scim`          | SCIM user provisioning extension      |
+| `enterprise.sso-oidc`      | `coretsia/enterprise-sso-oidc`      | OIDC single-sign-on extension         |
+| `enterprise.sso-saml`      | `coretsia/enterprise-sso-saml`      | SAML single-sign-on extension         |
+| `enterprise.tenancy`       | `coretsia/enterprise-tenancy`       | Tenant isolation and context policies |
 
 ### 10.5. Development tools
 

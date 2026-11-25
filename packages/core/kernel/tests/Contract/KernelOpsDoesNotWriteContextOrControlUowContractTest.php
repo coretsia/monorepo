@@ -29,6 +29,7 @@ final class KernelOpsDoesNotWriteContextOrControlUowContractTest extends TestCas
         );
 
         self::assertStringNotContainsString('ContextStore', $source);
+        self::assertDoesNotMatchRegularExpression('/\bContextWriterInterface\b/i', $source);
         self::assertStringNotContainsString('KernelRuntimeInterface', $source);
         self::assertStringNotContainsString('ResetOrchestrator', $source);
         self::assertStringNotContainsString('kernel.reset', $source);
@@ -67,6 +68,7 @@ final class KernelOpsDoesNotWriteContextOrControlUowContractTest extends TestCas
 
         self::assertStringNotContainsString('ResetOrchestrator', $source);
         self::assertStringNotContainsString('HookInvoker', $source);
+        self::assertDoesNotMatchRegularExpression('/\bContextWriterInterface\b/i', $source);
         self::assertStringNotContainsString('ReservedTags::KERNEL_RESET', $source);
         self::assertStringNotContainsString('kernel.reset', $source);
     }

@@ -63,6 +63,11 @@ final class ModuleSelectionFactoryTest extends TestCase
                 'platform.errors',
             ]),
             ModeInfrastructureTestSupport::descriptor('platform.redaction', ['core.foundation']),
+            ModeInfrastructureTestSupport::descriptor('platform.routing', [
+                'core.foundation',
+                'core.kernel',
+                'platform.redaction',
+            ]),
             ModeInfrastructureTestSupport::descriptor('platform.tracing', ['core.foundation']),
             ModeInfrastructureTestSupport::descriptor('platform.worker', ['core.kernel']),
         ]);
@@ -81,6 +86,7 @@ final class ModuleSelectionFactoryTest extends TestCase
                 'platform.logging',
                 ...($name === 'enterprise' ? ['platform.metrics'] : []),
                 'platform.problem-details',
+                'platform.routing',
                 ...($name === 'enterprise' ? ['platform.tracing'] : []),
                 ...(\in_array($name, ['hybrid', 'enterprise'], true) ? ['platform.worker'] : []),
             ];

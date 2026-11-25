@@ -39,7 +39,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Artifact Header and Schema Registry](./artifacts.md) — owner: repo — ssotVersion: 1 — scope: artifacts,determinism,envelope,registry,schema
 - [Config Roots Registry](./config-roots.md) — owner: repo — ssotVersion: 1 — scope: config,ownership,registry,roots
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md) — owner: repo — ssotVersion: 1 — scope: labels,metrics-catalog,observability,redaction,registry,spans
-- [System Route Table SSoT](./system-route-table.md) — owner: platform/http — ssotVersion: 1 — scope: http,ownership,registry,reserved-paths,routing,versioning
+- [System Route Table SSoT](./system-route-table.md) — owner: core/foundation — ssotVersion: 1 — scope: http,ownership,registry,reserved-paths,routing,versioning
 - [Tag Registry](./tags.md) — owner: repo — ssotVersion: 1 — scope: di,ownership,registry,tags
 
 ## Policies
@@ -91,8 +91,9 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [Metrics Policy SSoT](./metrics-policy.md) — owner: platform/metrics — ssotVersion: 1 — scope: admission,labels,metrics,noop,observability,runtime
 - [Middleware → ContextKeys map](./middleware-context-keys-map.md) — owner: platform/http — ssotVersion: 1 — scope: context,http,middleware,redaction,reference,runtime
 - [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md) — owner: repo — ssotVersion: 1 — scope: descriptors,exec,fork,process,runtime,safety
-- [Reserved Path Matching SSoT](./reserved-path-matching.md) — owner: platform/http — ssotVersion: 1 — scope: http,matching,normalization,reserved-paths,routing
+- [Reserved Path Matching SSoT](./reserved-path-matching.md) — owner: core/foundation — ssotVersion: 1 — scope: http,matching,normalization,reserved-paths,routing
 - [Reset Tags SSoT](./reset-tags.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,tags,uow
+- [Routing Artifact (SSoT)](./routing-artifact.md) — owner: platform/routing — ssotVersion: 1 — scope: artifacts,compilation,determinism,grouping,matching,readiness,routing
 - [Runtime Container Definitions (SSoT)](./runtime-container-definitions.md) — owner: core/foundation — ssotVersion: 1 — scope: container,definitions,di,foundation,runtime
 - [Runtime Drivers SSoT](./runtime-drivers.md) — owner: repo — ssotVersion: 1 — scope: background,drivers,http,long-running,matrix,runtime
 - [Stateful Services SSoT](./stateful-services.md) — owner: core/foundation — ssotVersion: 1 — scope: reset,runtime,stateful,uow,redaction

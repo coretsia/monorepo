@@ -72,6 +72,7 @@ Contract areas include:
 - runtime reset and UnitOfWork lifecycle ports;
 - runtime hook boundaries;
 - read-only runtime context access;
+- runtime context mutation ports;
 - public context key identifiers;
 - observability ports and shapes;
 - health and profiling boundaries;
@@ -293,13 +294,11 @@ Transport and runtime implementations remain outside `core/contracts`.
 
 Canonical task-source runtime semantics are defined by:
 
-```text
-docs/ssot/worker-task-sources.md
-```
+[docs/ssot/worker-task-sources.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/worker-task-sources.md)
 
 ## Context contracts
 
-Context contracts define the public vocabulary and read-only access boundary for runtime context data.
+Context contracts define the public vocabulary and separate access and mutation boundaries for runtime context data.
 
 The canonical public context key registry is:
 
@@ -319,12 +318,20 @@ Coretsia\Contracts\Context\ContextAccessorInterface
 
 Runtime readers SHOULD depend on `ContextAccessorInterface` when they need access to current context values.
 
-Runtime readers MAY import `ContextKeys` to avoid raw-string key drift.
+Runtime readers MAY import `ContextKeys` to avoid raw-string key drift. The access port exposes only `has(string $key): bool` and `get(string $key): mixed`; it does not expose mutation, snapshots, or lifecycle operations.
+
+The canonical context mutation port is:
+
+```text
+Coretsia\Contracts\Context\ContextWriterInterface
+```
+
+It exposes only `set(string $key, mixed $value): void` and `remove(string $key): void`. It does not extend `ContextAccessorInterface` or a reset port and does not expose reads, bulk replacement, snapshots, clearing, storage details, or lifecycle operations. Callers MUST mutate only keys assigned to their semantic owner boundary and supply owner-approved safe values.
 
 The contracts package does not own:
 
 - context storage;
-- mutable context writes;
+- execution of context mutations;
 - context write validation;
 - context reset behavior;
 - lifecycle writes;
@@ -333,7 +340,7 @@ The contracts package does not own:
 - tracing;
 - context export policy.
 
-Context vocabulary ownership and runtime write ownership are separate concerns. The contracts define the shared read/write shapes but do not construct context stores, bind services, or perform UnitOfWork-specific context mutations.
+Context vocabulary ownership and runtime write ownership are separate concerns. Contracts defines both ports without constructing context stores, binding services, or performing UnitOfWork-specific mutations. Foundation owns storage and structural validation; Kernel owns UnitOfWork lifecycle and reset orchestration.
 
 ## Config and environment contracts
 
@@ -378,6 +385,18 @@ Canonical module and manifest semantics are defined by the corresponding monorep
 ## Routing and HTTP application contracts
 
 Routing and HTTP application contracts define cross-package ports without owning concrete transport integration.
+
+The format-neutral routing boundary under `Coretsia\Contracts\Routing` contains `RouteDefinition`, `RouteMatch`, `RouteProviderInterface`, and `RouterInterface`. The provider returns a deterministic flat list of ordinary route descriptors; the router returns a match descriptor or `null`.
+
+The independent transport-neutral artifact readiness port is:
+
+```text
+Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface
+```
+
+Its only operation is `assertReady(): void`. Normal completion indicates readiness; failures use implementation-owned exceptions. It does not expose paths, payloads, filesystem APIs, or concrete router operations and does not extend `RouterInterface`.
+
+`platform/routing` owns route compilation, artifact validation and publication, and concrete matching. `Coretsia\Contracts\HttpApp\ArgumentResolverInterface` and `Coretsia\Contracts\HttpApp\ActionInvokerInterface` define the separate format-neutral action invocation boundary.
 
 The contracts package MUST NOT become the implementation owner for:
 
@@ -484,7 +503,7 @@ Contracts that expose diagnostic, context, observability, validation, or exporte
 - runtime service objects;
 - mutable runtime storage.
 
-Context contracts expose key identifiers and read-only access only.
+Context contracts expose key identifiers, read-only access, and a separate owner-scoped mutation port.
 
 They MUST NOT require exposing mutable context storage or implementation-owned context lifecycle state.
 

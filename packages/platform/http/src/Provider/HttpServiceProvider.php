@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Provider;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface;
@@ -32,7 +34,6 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
-use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Tag\ReservedTags;
@@ -167,7 +168,9 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->requireService(RuntimePathContext::class)
             ->requireService(ClockInterface::class)
             ->requireService(Stopwatch::class)
-            ->requireService(ContextStore::class)
+            ->requireService(ScopedFileLock::class)
+            ->requireService(ContextWriterInterface::class)
+            ->requireService(ContextAccessorInterface::class)
             ->requireService(UlidGenerator::class)
             ->requireService(CorrelationIdProviderInterface::class)
             ->requireService(ContextPropagationInterface::class)
@@ -192,7 +195,6 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
         }
 
         $definitions
-            ->classService(ScopedFileLock::class, ScopedFileLock::class)
             ->classService(
                 MaintenanceStateStore::class,
                 MaintenanceStateStore::class,
@@ -342,7 +344,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
             ->classService(
                 RequestContextMiddleware::class,
                 RequestContextMiddleware::class,
-                [self::ref(ContextStore::class), $contextEnabled, $proxyEnabled],
+                [self::ref(ContextWriterInterface::class), $contextEnabled, $proxyEnabled],
             )
             ->classService(
                 TrustedHostMiddleware::class,
@@ -496,7 +498,8 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                 RequestIdPolicy::class,
                 RequestIdPolicy::class,
                 [
-                    self::ref(ContextStore::class),
+                    self::ref(ContextWriterInterface::class),
+                    self::ref(ContextAccessorInterface::class),
                     self::ref(UlidGenerator::class),
                     $requestIdEnabled,
                     $requestIdHeader,

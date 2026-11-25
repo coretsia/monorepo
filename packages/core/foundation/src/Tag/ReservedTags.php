@@ -57,6 +57,8 @@ final class ReservedTags
     public const string KERNEL_RESET = 'kernel.reset';
     public const string KERNEL_STATEFUL = 'kernel.stateful';
 
+    public const string ROUTING_ROUTE_PROVIDER = 'routing.route_provider';
+
     public const string WORKER_TASK_SOURCE = 'worker.task_source';
 
     /**
@@ -79,6 +81,7 @@ final class ReservedTags
         self::KERNEL_HOOK_BEFORE_UOW,
         self::KERNEL_RESET,
         self::KERNEL_STATEFUL,
+        self::ROUTING_ROUTE_PROVIDER,
         self::WORKER_TASK_SOURCE,
     ];
 

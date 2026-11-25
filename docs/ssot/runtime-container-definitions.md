@@ -22,7 +22,7 @@ owner: core/foundation
 
 This document is the Single Source of Truth for the Foundation-owned canonical in-memory runtime container-definition model, declarative definition-provider SPI, ordered operation stream, deterministic value and reference law, source-runtime application semantics, and safe definition-validation failures.
 
-This document also defines the declarative runtime contribution rules used by Foundation, Kernel, and Worker providers.
+This document also defines the declarative runtime contribution rules used by Foundation, Kernel, Routing, and Worker providers.
 
 It does not define the Kernel-owned `container@1` payload schema or artifact-only runtime boot policy. Those remain owned by `docs/ssot/compiled-container.md`.
 
@@ -97,7 +97,7 @@ This document owns:
 - production collection of ordered provider definition sets;
 - the canonical definition-model side of final graph-completeness validation;
 - declarative provider adapter semantics;
-- Foundation, Kernel, and Worker runtime contribution boundaries;
+- Foundation, Kernel, Routing, and Worker runtime contribution boundaries;
 - the Kernel compile-host/runtime-graph separation law;
 - definition-validation exception taxonomy;
 - the boundary between the canonical model and artifacts.
@@ -122,7 +122,7 @@ This document does not own:
 - tag identifier ownership rows;
 - middleware slot ownership;
 - reset orchestration;
-- provider implementation policy outside the Foundation, Kernel, and Worker providers named by this document.
+- provider implementation policy outside the Foundation, Kernel, Routing, and Worker providers named by this document.
 
 ## Ownership boundary (MUST)
 
@@ -347,6 +347,7 @@ UuidGenerator
 IdGeneratorInterface alias
 ContextStore
 ContextAccessorInterface alias
+ContextWriterInterface alias
 CorrelationIdGenerator
 CorrelationIdProvider
 CorrelationIdProviderInterface alias
@@ -360,6 +361,8 @@ kernel.stateful tag
 The default ID-generator alias target is selected from the already-compiled Foundation config snapshot.
 
 Correlation-id generation remains ULID-backed independently of the selected default `IdGeneratorInterface` target.
+
+`ContextAccessorInterface` and `ContextWriterInterface` MUST alias the same shared Foundation-owned `ContextStore` service in both source and compiled containers. Only that concrete shared service participates in its existing effective reset discovery and `kernel.stateful` tags. The aliases MUST NOT create separate instances, introduce reset/stateful registrations, or become external runtime seeds. Consumers MUST use the port appropriate to their semantic read or mutation boundary. See `docs/ssot/context-store.md`.
 
 Noop implementations are defined directly under their public interface or port service ids.
 
@@ -376,6 +379,7 @@ The Foundation provider MUST NOT maintain a parallel imperative registration of 
 `KernelServiceProvider::define()` is the canonical source for:
 
 ```text
+AppTargetProviderInterface
 RuntimeDriverResolver
 HookInvoker
 KernelRuntime
@@ -400,7 +404,7 @@ The required Kernel runtime dependency set includes:
 ```text
 ContainerInterface
 TagRegistry
-ContextAccessorInterface
+ContextWriterInterface
 ResetOrchestrator
 Stopwatch
 IdGeneratorInterface
@@ -412,9 +416,9 @@ TracerPortInterface
 MeterPortInterface
 ```
 
-`KernelServiceProvider` declares the contracts-level `ContextAccessorInterface` binding.
+`KernelServiceProvider` declares the contracts-level `ContextWriterInterface` as a required service for `KernelRuntime`; it MUST NOT define or replace the binding. `KernelServiceFactory` resolves that port and validates the result against `ContextWriterInterface`, retaining `kernel-runtime-dependency-invalid` for an invalid runtime dependency. It MUST NOT resolve or downcast to concrete `ContextStore` when constructing `KernelRuntime`.
 
-`KernelServiceFactory` resolves that binding and requires the resolved service to be the canonical Foundation-owned `ContextStore` before constructing `KernelRuntime`.
+`ModulePlan` remains required for the separate `AppTargetProviderInterface` factory. The source-host-only `KernelOpsFacade` continues to consume `ContextAccessorInterface` for read-only diagnostics; this does not add an accessor requirement to `KernelRuntime` or an external runtime seed.
 
 Kernel compile-host services MUST remain in `KernelServiceProvider::register()` and MUST NOT be contributed by `define()`.
 
@@ -464,6 +468,10 @@ not a runtime definition
 These values MUST NOT appear in the Kernel runtime definition operations or compiled runtime graph.
 
 ### Kernel source-operations-host-only boundary (MUST)
+
+`KernelOpsHostBooter::boot(KernelOpsHostInput $input): ContainerInterface` selects `AppTarget::Console` by delegating to `bootForTarget(KernelOpsHostInput $input, AppTarget $target): ContainerInterface`. The latter builds an explicit target-local source host from the canonical Bootstrap Phase A, module resolution, ConfigKernel Phase B, and resolved provider plan using the same selected target snapshot. It MUST NOT infer the target, inherit the Console provider plan for Web or API, or read a current artifact generation.
+
+The final source host contains the selected target's effective configuration, `ModulePlan`, `RuntimePathContext`, and `RuntimeDiagnosticsInput`. Host-owned metadata and operations services remain source-host-only. Boot preserves host-owned service/tag restrictions and translates failures through `KernelOpsFailedException`. Source hosting MUST NOT invoke a Kernel operation, perform owner-artifact operations, or start another UnitOfWork.
 
 The existing Kernel compile-host service-id classification remains unchanged.
 
@@ -532,6 +540,54 @@ Source-host diagnostics construction uses the frozen `BootstrapConfig::appEnv()`
 `KernelOpsHostBooter` owns the source-operations-host wiring of these seeds and MUST reject provider-contributed tags targeting them.
 
 `ModuleResolutionOrchestrator` owns the compile-host preset/selection/installed-discovery flow. Pure `ModulePlanResolver` consumes only precomputed `ModuleSelection` and `ModuleManifest`. `ModuleSelection`, `ResolvedModuleOverrides`, `ModuleSelectionFactory`, `PresetNamespaceResolver`, `CanonicalPresetSource`, `CustomPresetSource`, and the orchestrator MUST NOT become compiled runtime definitions, source-independent runtime seeds, runtime provider outputs, or Worker runtime dependencies. The validated `module-manifest@1` artifact hydrates `ModulePlan` as the approved immutable module-graph seed; Worker startup consumes it without preset loading, Composer discovery, or graph re-resolution.
+
+## Routing runtime contribution and runtime-seed boundary (MUST)
+
+`RoutingServiceProvider::define()` is the sole canonical closure-free contribution for source and compiled containers. It consumes the validated `routing` config root and MUST contribute the shared services and aliases for:
+
+- route provider aggregation, template and reserved-domain admission, and `RoutesCompiler`;
+- Foundation `StablePhpArrayDumper`, `StablePhpArrayParser`, and `AtomicFileWriter` as shared stateless services;
+- `RoutesArtifactSchema`, `RoutesArtifactPath`, `RoutesArtifactWriter`, and `RoutesArtifactReader`;
+- `CompiledRouteTable`, `CompiledRouter`, and `RoutingArtifactReadiness`;
+- `RoutingMatchObserver` through `RoutingServiceFactory::matchObserver()`;
+- `RoutesCommandTargetResolver`, `RoutesCompileCommand`, and `RoutesValidateCommand` through the canonical stateless factory methods and `cli.command` tags.
+
+The aliases are:
+
+```text
+RouterInterface
+    -> CompiledRouter
+
+RoutingArtifactReadinessInterface
+    -> RoutingArtifactReadiness
+```
+
+The required service ids are:
+
+```text
+ContainerInterface
+ConfigRepositoryInterface
+TagRegistry
+ModulePlan
+RuntimePathContext
+RuntimeDiagnosticsInput
+ContextWriterInterface
+TracerPortInterface
+MeterPortInterface
+Stopwatch
+ScopedFileLock
+SensitiveDataRedactorInterface
+SensitiveKeyClassifierInterface
+LoggerInterface
+```
+
+Routing MUST consume the existing bindings through canonical service references. It MUST NOT register or replace runtime seeds, context port bindings, or concrete context storage. The observer reads its independent flags from the effective config repository. The path service derives artifact paths from the authoritative runtime path context; resolved paths and route payloads MUST NOT be embedded in definition values.
+
+Provider definition production MUST NOT resolve route providers, read artifacts, hydrate the route table, instantiate commands, or boot a source host. The router and readiness service MUST consume the same shared lazily hydrated validated immutable table. Route provider resolution occurs only during explicit target-local source compilation. The compiler MUST reject artifact-runtime invocation.
+
+The command target resolver receives the existing `RuntimePathContext`, `RuntimeDiagnosticsInput`, and `ModulePlan`; `RoutingServiceFactory::commandTargetResolver()` explicitly constructs the stateless public `KernelOpsHostBooter` without registering it in the graph. Only command execution from the Console source host may invoke the booter for explicit Web or API compilation. `KernelOpsHostBooter`, `KernelOpsHostInput`, `KernelOpsInterface`, and `BootstrapConfig` MUST NOT enter the Routing runtime service definitions, required ids, or external runtime seed set.
+
+Routing uses the same provider-plan resolution, ordered definition collection, graph merge, and completeness validation as other declarative providers. Artifact-only boot MUST NOT execute Routing providers as fallback. Owner artifact production and readiness remain governed by `docs/ssot/routing-artifact.md`, outside Kernel generation publication and verification.
 
 ## Worker runtime contribution and runtime-seed boundary (MUST)
 
@@ -1418,6 +1474,8 @@ ModulePlan
 RuntimePathContext
 ```
 
+The Routing contribution requires all four entrypoint-owned runtime seeds: `ConfigRepositoryInterface`, `ModulePlan`, `RuntimePathContext`, and `RuntimeDiagnosticsInput`, together with the existing container-owned `ContainerInterface` and `TagRegistry`. Context ports remain provider-defined aliases, not runtime seeds. No new external runtime seed is introduced.
+
 External-runtime-seed status does not authorize placing seed values into provider output.
 
 A provider consuming `RuntimeDiagnosticsInput` MUST declare `requireService(RuntimeDiagnosticsInput::class)` and use the canonical `ContainerValueReference::service(RuntimeDiagnosticsInput::class)` when supplying it as a service argument. It MUST NOT define or replace the seed, serialize its instance or properties into definition values, or resolve it during definition production. The consuming runtime service reads the authoritative environment and loaded-generation status from the supplied immutable instance.
@@ -1660,7 +1718,7 @@ Syntactic service-id validity MUST NOT be confused with diagnostic readability.
 
 The canonical model and source adapter define source-runtime application.
 
-Foundation, Kernel, and Worker source-runtime wiring uses provider-owned canonical definitions.
+Foundation, Kernel, Routing, and Worker source-runtime wiring uses provider-owned canonical definitions.
 
 Production artifact compilation also consumes provider-owned canonical definitions.
 
@@ -2067,10 +2125,10 @@ When a declarative runtime provider contributes canonical container definitions:
 1. orchestration supplies an already-compiled Phase-B config snapshot;
 2. source orchestration creates one shared `ContainerDefinitionContext`;
 3. declarative providers run in deterministic caller-supplied order;
-4. Foundation, Kernel, and Worker providers append operations to one shared `ContainerDefinitionBuilder`;
+4. Foundation, Kernel, Routing, and Worker providers append operations to one shared `ContainerDefinitionBuilder`;
 5. the shared builder produces one complete immutable definition set;
 6. source mode applies that set exactly once through `ContainerBuilder::applyDefinitions(...)`;
-7. Foundation, Kernel, and Worker `register()` methods do not maintain parallel runtime wiring;
+7. Foundation, Kernel, Routing, and Worker `register()` methods do not maintain parallel runtime wiring;
 8. Kernel compile-host services and runtime-only seeds remain outside runtime definition contributions;
 9. service, alias, and parameter collisions use later-wins behavior;
 10. duplicate tag pairs use first-wins behavior;
@@ -2098,6 +2156,8 @@ Step 21 remains the separate artifact-only runtime boot boundary.
 - [SSoT Index](./INDEX.md)
 - [DI Container, Tags, and Middleware Ordering](./di-tags-and-middleware-ordering.md)
 - [Compiled Container Payload and Artifact-Only Boot Semantics](./compiled-container.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
+- [Context Store SSoT](./context-store.md)
 - [Process-Exec Descriptor Safety](./process-exec-descriptor-safety.md)
 - [Worker Process Bootstrap SSoT](./worker-process-bootstrap.md)
 - [JSON-like Runtime Values](./json-like-runtime-values.md)

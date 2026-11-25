@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Http\Tests\Integration;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
@@ -148,14 +149,6 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
                 return $invocation === 0 ? self::FIRST_ID : self::SECOND_ID;
             },
         );
-        $requestIds = new RequestIdPolicy(
-            $context,
-            $generator,
-            $config['enabled'],
-            $headerName,
-            $config['accept_from_upstream'],
-            $config['max_length'],
-        );
 
         $after = $this->createMock(AfterUowHookInterface::class);
         $after->expects(self::exactly(2))->method('afterUow')->willReturnCallback(
@@ -192,7 +185,7 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
         $container = $this->createStub(ContainerInterface::class);
         $container->method('get')->willReturnCallback(
             static fn (string $id): mixed => match ($id) {
-                ContextStore::class, ContextAccessorInterface::class => $context,
+                ContextStore::class, ContextAccessorInterface::class, ContextWriterInterface::class => $context,
                 'App\\RequestIdAfterHook' => $after,
                 'App\\RequestIdResetProbe' => $resetProbe,
                 default => throw new \LogicException('unexpected-test-service'),
@@ -202,10 +195,32 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
             static fn (string $id): bool => \in_array($id, [
                 ContextStore::class,
                 ContextAccessorInterface::class,
+                ContextWriterInterface::class,
                 'App\\RequestIdAfterHook',
                 'App\\RequestIdResetProbe',
             ], true),
         );
+
+        self::assertTrue($container->has(ContextWriterInterface::class));
+        self::assertTrue($container->has(ContextAccessorInterface::class));
+        $writer = $container->get(ContextWriterInterface::class);
+        $accessor = $container->get(ContextAccessorInterface::class);
+        self::assertInstanceOf(ContextWriterInterface::class, $writer);
+        self::assertInstanceOf(ContextAccessorInterface::class, $accessor);
+        self::assertSame($context, $container->get(ContextStore::class));
+        self::assertSame($context, $writer);
+        self::assertSame($context, $accessor);
+
+        $requestIds = new RequestIdPolicy(
+            $writer,
+            $accessor,
+            $generator,
+            $config['enabled'],
+            $headerName,
+            $config['accept_from_upstream'],
+            $config['max_length'],
+        );
+
         $hookTags = new TagRegistry();
         $hookTags->add(ReservedTags::KERNEL_HOOK_AFTER_UOW, 'App\\RequestIdAfterHook');
         $tags = new TagRegistry();
@@ -232,7 +247,7 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
             },
         );
         $runtime = new KernelRuntime(
-            contextStore: $context,
+            contextStore: $writer,
             resetOrchestrator: $reset,
             stopwatch: new Stopwatch(),
             uowIds: $ids,
@@ -326,7 +341,7 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
                 return $response;
             },
         );
-        $middleware = [$first, new RequestContextMiddleware($context, true, false), $post, $requestPhase];
+        $middleware = [$first, new RequestContextMiddleware($writer, true, false), $post, $requestPhase];
         if (\in_array($scenario, ['problem-details', 'generator-failure'], true)) {
             $expectProblemResponse = $scenario === 'problem-details';
 

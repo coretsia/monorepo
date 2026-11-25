@@ -45,6 +45,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                         'platform.logging',
                         'platform.metrics',
                         'platform.problem-details',
+                        'platform.routing',
                         'platform.tracing',
                         'platform.worker',
                     ],
@@ -53,6 +54,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                         'platform.http',
                         'platform.logging',
                         'platform.problem-details',
+                        'platform.routing',
                         'platform.worker',
                     ],
                     default => [
@@ -60,6 +62,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                         'platform.http',
                         'platform.logging',
                         'platform.problem-details',
+                        'platform.routing',
                     ],
                 },
                 \array_map(static fn (ModuleId $id): string => $id->value(), $preset->modules()),
@@ -93,7 +96,13 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
         );
         self::assertSame($micro->toArray()['required'], $express->toArray()['required']);
         self::assertSame(
-            ['platform.cli', 'platform.http', 'platform.logging', 'platform.problem-details'],
+            [
+                'platform.cli',
+                'platform.http',
+                'platform.logging',
+                'platform.problem-details',
+                'platform.routing',
+            ],
             $micro->toArray()['modules'],
         );
         self::assertSame($micro->toArray()['modules'], $express->toArray()['modules']);

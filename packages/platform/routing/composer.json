@@ -1,0 +1,76 @@
+{
+  "name": "coretsia/platform-routing",
+  "type": "library",
+  "description": "Coretsia routing runtime package: deterministic route compilation, artifact-backed route matching, and reserved endpoint protection.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "routing",
+    "runtime",
+    "http",
+    "router",
+    "route-compiler",
+    "compiled-routes",
+    "route-groups",
+    "artifact",
+    "reserved-routes",
+    "deterministic",
+    "observability"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.14.0",
+    "coretsia/core-foundation": "^0.14.0",
+    "coretsia/core-kernel": "^0.14.0",
+    "coretsia/platform-redaction": "^0.14.0",
+    "psr/container": "^2.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\Routing\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\Routing\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.routing",
+      "moduleClass": "Coretsia\\Platform\\Routing\\Module\\RoutingModule",
+      "providers": [
+        "Coretsia\\Platform\\Routing\\Provider\\RoutingServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "core.kernel",
+        "platform.redaction"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/routing.php"
+    }
+  }
+}

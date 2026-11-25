@@ -103,6 +103,152 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.13.0 to v0.14.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- Introduced `coretsia/platform-routing` with deterministic route compilation, immutable route groups, and artifact-only runtime matching.
+- Extended HTTP runtime behavior with system endpoints, maintenance mode, request identity, response hardening, HTTPS redirects, and guarded development diagnostics.
+- Updated Kernel and HTTP context dependencies to use contracts-level context ports.
+- Rebuild existing Kernel runtime artifact generations because configuration payloads, fingerprint inputs, runtime seeds, and declarative container definitions have changed.
+- Package installation or module selection alone does not provide application route dispatch, controller resolution, or executable HTTP transport entrypoints.
+
+#### Routing runtime and module selection
+
+The new `platform.routing` runtime module requires `core.foundation`, `core.kernel`, and `platform.redaction`. Existing canonical preset roots do not automatically select Routing.
+
+- Enable `platform.routing` and the required route-contributing modules in each intended Web or API target.
+- Enable `platform.cli` and `platform.routing` in the effective Console ModulePlan when using Routing CLI commands.
+- Review custom presets, target-local module overrides, and effective dependency closures. Use DependencySync `plan`, `review`, and `apply` when additional runtime packages are required.
+
+HTTP and Routing remain independent runtime packages without direct dependencies on each other.
+
+#### Route providers and matching behavior
+
+Register `RouteProviderInterface` implementations through the canonical `routing.route_provider` DI tag.
+
+Matching follows TagRegistry ordering and the exact declaration order emitted by each provider. Do not sort routes by name unless that order is the intended matching precedence.
+
+Review existing declarations for:
+
+- canonical static and named-placeholder path segments;
+- supported placeholder requirements and case-sensitive HTTP methods;
+- duplicate provider identities, route names, and equivalent matching domains;
+- unsupported defaults, wildcard segments, optional segments, and arbitrary regular expressions;
+- intersections with canonical reserved system endpoint domains.
+
+Grouped declarations must be flattened into ordinary `RouteDefinition` descriptors before crossing the provider contract boundary.
+
+Runtime matching does not perform percent decoding, implicit path aliasing, automatic GET-to-HEAD fallback, or handler invocation.
+
+Use stable logical route and handler identifiers. Exclude request-derived values, credentials, raw environment-derived values, private customer data, and unsafe filesystem path metadata. Successful redaction validation does not establish safe declaration provenance.
+
+See [Routing artifact policy](docs/ssot/routing-artifact.md) and [Routing guide](docs/guides/routing.md).
+
+#### Artifact preparation and runtime readiness
+
+Rebuild Kernel artifact generations using the upgraded code. The `config@1`, `container@1`, and `artifact-generation@1` schema versions remain unchanged, but previously generated artifacts must not be reused.
+
+For a Routing-enabled Web target:
+
+```bash
+php coretsia config:compile --target=web
+php coretsia routes:validate --app=web
+php coretsia routes:compile --app=web
+php coretsia cache:verify --target=web
+```
+
+Use the corresponding `api` target values for API deployments.
+
+- `routes:validate` performs read-only source validation.
+- `routes:compile` validates and atomically publishes the target-local `routes.php` artifact.
+- Both commands support the CLI-global `--format=json` option and use exit code `0` for success or `1` for failure.
+- Routing owns `routes.php` and `routes.lock` independently of Kernel immutable generations. Kernel compilation and cache verification do not produce or verify route artifacts.
+- Deployment tooling must prepare the intended route artifact using the correct environment, effective configuration, and module selection before runtime startup.
+
+Custom HTTP entrypoints must enforce canonical module, runtime driver, PSR-17 factory, and conditional Routing readiness checks before executable pipeline construction or UnitOfWork execution.
+
+Restart or recycle affected long-running runtimes after artifact publication. Existing routers retain their immutable route tables without runtime reloading.
+
+Custom runtime container composition must provide the canonical Kernel-owned `RuntimeDiagnosticsInput`. Custom source-host integrations may use `KernelOpsHostBooter::bootForTarget()`; the existing `boot()` entrypoint retains its Console behavior.
+
+#### Context access and mutation
+
+Replace concrete `ContextStore` dependencies in runtime consumers with the contracts-level ports:
+
+- `ContextAccessorInterface` for permitted reads;
+- `ContextWriterInterface` for authorized `set()` and `remove()` operations.
+
+Both ports resolve to the same shared Foundation-owned context storage.
+
+Update affected constructor arguments, service definitions, decorators, and test fixtures:
+
+- `KernelRuntime` and `RequestContextMiddleware` consume `ContextWriterInterface`.
+- `RequestIdPolicy` consumes `ContextWriterInterface` followed by `ContextAccessorInterface`.
+- `CompiledRouter` owns `PATH_TEMPLATE` mutation through `ContextWriterInterface`.
+
+Custom HTTP middleware and terminal handlers must not mutate `PATH_TEMPLATE` or overwrite selected request identity values. Port availability does not grant semantic ownership of arbitrary context keys.
+
+Foundation storage, structural validation, Kernel UnitOfWork lifecycle, and reset orchestration remain authoritative.
+
+#### HTTP runtime behavior and configuration
+
+Review custom HTTP middleware, terminal handlers, service bindings, and configuration against the following changes:
+
+- System endpoints now provide canonical responses for `GET /`, `GET /ping`, `GET /_alive`, and `GET /error`. Reserved health and metrics endpoints return HTTP 501 when no owning integration produces a response.
+- `http.request_id` is disabled by default and remains independent of Kernel correlation identity. Enable upstream acceptance only behind a trusted ingress boundary. Custom `HttpKernel` and `HttpResponseFinalizer` construction must share the mandatory `RequestIdPolicy` instance.
+- `http.security_headers` is disabled by default. Configured non-empty headers are applied during final response processing and replace existing values case-insensitively.
+- `http.https_redirect` is disabled by default. Enabling redirects requires an explicit `target_authority`, an appropriate method allowlist, and trusted proxy configuration where applicable. HTTPS redirect middleware executes at priority `850`.
+- `http.maintenance.enabled` controls middleware participation and is enabled by default. Maintenance middleware executes at priority `900`, returns HTTP 503 while maintenance is active, and preserves exact `/_alive` bypass.
+- HTTP now requires the canonical Redaction module and PSR clock interface. Review custom module definitions and Composer requirements.
+
+Maintenance state is shared across participating HTTP targets through the application-root-relative `var/maintenance/` directory. Ensure HTTP runtimes and maintenance CLI processes use the same authoritative application root and appropriate filesystem permissions.
+
+```bash
+php coretsia maintenance:enable
+php coretsia maintenance:status --format=json
+php coretsia maintenance:disable
+```
+
+Maintenance transitions do not require artifact recompilation, container rebuilding, or suspension of CLI and Worker execution. Keep private operational data out of public maintenance messages.
+
+#### Guarded development diagnostics
+
+Development diagnostics remain disabled by default through `http.debug.endpoints.enabled=false`.
+
+Enabling diagnostics requires:
+
+- an authoritative frozen application environment of exactly `local` or `dev`;
+- explicit Problem Details module selection;
+- exact IPv4 or IPv6 addresses in `http.debug.allowlist`;
+- a valid token digest in `http.debug.token_sha256`;
+- explicit operation selection through `http.debug.paths.enabled`;
+- authorized configuration key prefixes through `http.debug.config.allowlist` for configuration diagnostics.
+
+Configure trusted proxy handling where applicable. Generate debug tokens from 32 cryptographically secure random bytes encoded as 64 lowercase hexadecimal characters. Store only the SHA-256 digest and supply the raw token through `X-Debug-Token`.
+
+Do not enable development diagnostics in production or expose debug credentials through output, logs, or artifacts.
+
+#### Observability and platform integration
+
+Review custom tracing, metrics, and logging integrations for Routing match observations and new HTTP decision events.
+
+Routing tracing, metrics, and diagnostic logging are enabled by default and independently configurable under `routing.*`. Validated route templates may appear in permitted tracing and logging fields but must not be used as metric labels.
+
+Native Windows Composer executable discovery now supports `COMPOSER_BINARY`, `PATH`, and `PATHEXT`, including supported PHP scripts and standard launchers. Exact argv execution and existing POSIX behavior remain unchanged.
+
+#### Migration steps
+
+1. Update Coretsia Composer dependencies to the `0.14` release line and refresh application lockfiles intentionally.
+2. Review application targets, presets, module overrides, and runtime dependencies. Run DependencySync `plan` and `review` before authorizing `apply` when required.
+3. Update custom context dependencies, HTTP policy construction, and runtime container composition.
+4. Review route declarations, reserved endpoint ownership, middleware ordering, and optional HTTP security and diagnostics configuration.
+5. Rebuild Kernel artifact generations and prepare route artifacts for every Routing-enabled Web or API target.
+6. Run Kernel cache verification independently of Routing artifact preparation.
+7. Verify HTTP entrypoint readiness and restart or recycle affected long-running runtimes.
+8. Run the applicable configuration, architecture, quality, security, and regression checks, including sequential request isolation for long-running HTTP integrations.
+
 ### From v0.12.0 to v0.13.0
 
 #### Compatibility

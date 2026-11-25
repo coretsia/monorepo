@@ -30,6 +30,7 @@ return [
         'platform.logging',
         'platform.metrics',
         'platform.problem-details',
+        'platform.routing',
         'platform.tracing',
         'platform.worker',
     ],

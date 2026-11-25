@@ -20,7 +20,7 @@ Scope: target-local module selection, declarative `MeterPortInterface` and `Metr
 
 Out of scope: recording metrics, metric-specific runtime catalog enforcement, aggregation, cardinality enforcement by a backend, metrics registries, buffers, storage, exporters, HTTP middleware or endpoints, and ContextStore, UnitOfWork, or reset ownership.
 
-This README is a consumer-oriented package summary. `docs/ssot/metrics-policy.md` defines the canonical runtime boundary; `docs/ssot/observability.md` remains the sole authority for metric names, types, global label keys, and metric-specific label restrictions.
+This README is a consumer-oriented package summary. [docs/ssot/metrics-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/metrics-policy.md) defines the canonical runtime boundary; [docs/ssot/observability.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md) remains the sole authority for metric names, types, global label keys, and metric-specific label restrictions.
 
 ## Package identity
 
@@ -44,7 +44,7 @@ The package declares these production Composer dependencies:
 - `coretsia/core-contracts`
 - `coretsia/core-foundation`
 
-Its `composer.json` is authoritative for exact constraints. The only direct Coretsia production-source dependencies are `core/contracts` and `core/foundation`; the canonical dependency policy is governed by `docs/architecture/DEPENDENCIES.md`.
+Its `composer.json` is authoritative for exact constraints. The only direct Coretsia production-source dependencies are `core/contracts` and `core/foundation`; the canonical dependency policy is governed by [docs/architecture/DEPENDENCIES.md](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md).
 
 `core/contracts` owns the vendor-neutral metrics ports. `core/foundation` owns the canonical `NoopMeter` fallback and declarative container-definition APIs. Kernel owns target-local module planning, provider ordering, UnitOfWork lifecycle, and reset orchestration; this package does not import Kernel production classes.
 
@@ -126,7 +126,7 @@ There are no runtime metrics configuration keys: no `enabled` switch, collector,
 
 ## Global label admission and catalog boundaries
 
-`AllowedLabelSet::accepts(array $labels): bool` enforces exactly the six global keys defined by `docs/ssot/observability.md`:
+`AllowedLabelSet::accepts(array $labels): bool` enforces exactly the six global keys defined by [docs/ssot/observability.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md):
 
 - `method`
 - `status`
@@ -139,7 +139,7 @@ An empty label map is accepted. Every key must be a permitted string; every valu
 
 Both `DefaultMeter::increment()` and `DefaultMeter::observe()` perform admission before silently discarding their inputs. Rejected calls are skipped without throwing, reporting, or exposing their names, values, or labels. Accepted calls are discarded just as completely: there is no retained sample or renderer state.
 
-Global label admission is **not** metric-specific validation. `docs/ssot/observability.md` is the single authority for metric names, types, owners, and permitted labels for each metric. Producers MUST supply safe, bounded-cardinality values and obey the corresponding catalog row; a future recording backend MUST independently enforce metric-specific restrictions before emitting samples. Redaction or application configuration cannot expand either policy. The noop baseline does not claim to implement recording-backend cardinality enforcement.
+Global label admission is **not** metric-specific validation. [docs/ssot/observability.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md) is the single authority for metric names, types, owners, and permitted labels for each metric. Producers MUST supply safe, bounded-cardinality values and obey the corresponding catalog row; a future recording backend MUST independently enforce metric-specific restrictions before emitting samples. Redaction or application configuration cannot expand either policy. The noop baseline does not claim to implement recording-backend cardinality enforcement.
 
 ## Deterministic examples
 
@@ -178,7 +178,7 @@ Kernel remains responsible for UnitOfWork and correlation identity; Foundation r
 
 The package does not emit new metric names, spans, span events, logs, or self-instrumentation. `DefaultMeter` admits labels but never records metric samples; `NullMetricsRenderer` always returns an empty string. There is no collection, aggregation, exporter, persistence, telemetry backend, or queryable metrics endpoint.
 
-`docs/ssot/observability.md` remains authoritative for metric names, metric types, globally admitted label keys, and metric-specific labels. A future recording backend can extend the existing package behind the same `MeterPortInterface` and `MetricsRendererInterface` ports, but only after implementing catalog validation, bounded cardinality, and explicit state/reset lifecycle ownership. A future renderer may replace the selected binding without introducing a second baseline null renderer.
+[docs/ssot/observability.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md) remains authoritative for metric names, metric types, globally admitted label keys, and metric-specific labels. A future recording backend can extend the existing package behind the same `MeterPortInterface` and `MetricsRendererInterface` ports, but only after implementing catalog validation, bounded cardinality, and explicit state/reset lifecycle ownership. A future renderer may replace the selected binding without introducing a second baseline null renderer.
 
 ## Errors
 

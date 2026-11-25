@@ -29,6 +29,7 @@ return [
         'platform.http',
         'platform.logging',
         'platform.problem-details',
+        'platform.routing',
         'platform.worker',
     ],
     'featureBundles' => [

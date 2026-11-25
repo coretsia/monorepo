@@ -53,6 +53,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0015: ContextBag, ContextStore, and CorrelationId](./ADR-0015-context-bag-context-store-correlation-id.md) — owner: core/foundation — adrVersion: 1 — scope: context,context-bag,context-store,correlation-id,runtime
 - [ADR-0016: Clock, IDs, and Stopwatch](./ADR-0016-clock-ids-stopwatch.md) — owner: core/foundation — adrVersion: 1 — scope: clock,duration,ids,runtime,time
 - [ADR-0017: Persistent worker supervisor and application worker](./ADR-0017-persistent-worker-supervisor-application-worker.md) — owner: platform/worker — adrVersion: 1 — scope: application-worker,control,long-running,process-driver,supervisor,worker
+- [ADR-0018: Platform routing compiled routes](./ADR-0018-platform-routing-compiled-routes.md) — owner: platform/routing — adrVersion: 1 — scope: artifacts,compilation,grouping,matching,readiness,routing
 - [ADR-0019: Enhanced reset for long-running services](./ADR-0019-enhanced-reset-long-running.md) — owner: core/foundation — adrVersion: 1 — scope: long-running,observability,reset,runtime
 - [ADR-0020: Kernel runtime UnitOfWork SPI](./ADR-0020-kernel-runtime-uow-spi.md) — owner: core/kernel — adrVersion: 1 — scope: contracts,hooks,kernel,runtime,spi,uow
 - [ADR-0021: UnitOfWork context shape](./ADR-0021-unit-of-work-context-shape.md) — owner: core/kernel — adrVersion: 1 — scope: context,kernel,shape,uow
@@ -76,7 +77,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0039: Platform metrics noop baseline](./ADR-0039-platform-metrics-noop-baseline.md) — owner: platform/metrics — adrVersion: 1 — scope: admission,container,di,labels,metrics,noop,runtime
 - [ADR-0040: Platform Problem Details HTTP adaptation](./ADR-0040-platform-problem-details-http-adaptation.md) — owner: platform/problem-details — adrVersion: 1 — scope: errors,http,problem-details,rfc7807,rfc9457,security
 - [ADR-0041: Platform HTTP runtime pipeline and wiring](./ADR-0041-platform-http-runtime-pipeline-wiring.md) — owner: platform/http — adrVersion: 1 — scope: container,di,http,middleware,pipeline,psr-17,runtime
-- [ADR-0042: System route table and reserved-path matching](./ADR-0042-system-route-table-and-reserved-path-matching.md) — owner: platform/http — adrVersion: 1 — scope: http,matching,ownership,registry,reserved-paths,routing,versioning
+- [ADR-0042: System route table and reserved-path matching](./ADR-0042-system-route-table-and-reserved-path-matching.md) — owner: core/foundation — adrVersion: 1 — scope: http,matching,ownership,registry,reserved-paths,routing,versioning
 
 ## Cross-references
 

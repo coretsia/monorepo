@@ -201,7 +201,7 @@ This distribution does not provide:
 
 - [Coretsia](https://coretsia.dev/)
 - [Coretsia monorepo](https://github.com/coretsia/monorepo)
-- [Packaging Strategy](https://github.com/coretsia/monorepo/tree/main/docs/architecture/PACKAGING.md)
-- [Repository Structure](https://github.com/coretsia/monorepo/tree/main/docs/architecture/STRUCTURE.md)
-- [Compile-Time Package Dependencies](https://github.com/coretsia/monorepo/tree/main/docs/architecture/DEPENDENCIES.md)
+- [Packaging Strategy](https://github.com/coretsia/monorepo/blob/main/docs/architecture/PACKAGING.md)
+- [Repository Structure](https://github.com/coretsia/monorepo/blob/main/docs/architecture/STRUCTURE.md)
+- [Compile-Time Package Dependencies](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md)
 - [Framework distribution source](https://github.com/coretsia/monorepo/tree/main/packages/framework)

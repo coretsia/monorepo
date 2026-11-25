@@ -20,7 +20,7 @@ Scope: deterministic `application/problem+json` responses with RFC7807-compatibl
 
 Out of scope: exception normalization, additional exception mappers, error reporting, independent redaction, HTML error pages, JSON/HTML content negotiation, customizable public error details, PSR response or stream factory implementations, HTTP pipeline execution, observability backends, Kernel UnitOfWork lifecycle, and reset orchestration.
 
-This README is a consumer-oriented package summary. `docs/ssot/problem-details.md` is authoritative for the exact HTTP representation, failure, and disclosure policies.
+This README is a consumer-oriented package summary. [docs/ssot/problem-details.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/problem-details.md) is authoritative for the exact HTTP representation, failure, and disclosure policies.
 
 ## Package identity
 
@@ -49,7 +49,7 @@ The package declares these production Composer dependencies:
 - `psr/http-server-middleware` `^1.0`
 - `psr/http-server-handler` `^1.0`
 
-The package's `composer.json` is authoritative for exact internal Coretsia dependency constraints. The only direct Coretsia production-source dependencies are `core/contracts` and `core/foundation`, as governed by `docs/architecture/DEPENDENCIES.md`. The declared PSR dependencies supply interfaces, not a concrete HTTP server or a PSR-7/PSR-17 implementation.
+The package's `composer.json` is authoritative for exact internal Coretsia dependency constraints. The only direct Coretsia production-source dependencies are `core/contracts` and `core/foundation`, as governed by [docs/architecture/DEPENDENCIES.md](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md). The declared PSR dependencies supply interfaces, not a concrete HTTP server or a PSR-7/PSR-17 implementation.
 
 `core/contracts` owns `ErrorHandlerInterface` and the format-neutral `ErrorDescriptor`. `core/foundation` provides `StableJsonEncoder`, canonical declarative container definitions, and the reserved HTTP middleware tag. `platform/errors` is a required runtime Composer/module dependency, supplying the canonical handler binding and its existing `platform.redaction` dependency. This runtime requirement does not authorize imports of concrete Errors or Redaction implementation classes.
 

@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
 
 final class SystemRouteTableGateTest extends TestCase
 {
-    private const string REGISTRY_PATH = 'packages/platform/http/src/System/SystemRouteTable.php';
+    private const string REGISTRY_PATH = 'packages/core/foundation/src/Routing/SystemRouteTable.php';
     private const string SSOT_PATH = 'docs/ssot/system-route-table.md';
     private const string BASELINE_PATH = 'tools/config/system-route-table.json';
     private const string DRIFT = 'CORETSIA_SYSTEM_ROUTE_TABLE_DRIFT';
@@ -52,7 +52,7 @@ final class SystemRouteTableGateTest extends TestCase
         self::assertCount(1, $history);
         self::assertSame(['entries', 'schemaVersion'], \array_keys($history[0]));
         self::assertSame(1, $history[0]['schemaVersion']);
-        self::assertCount(9, $history[0]['entries']);
+        self::assertCount(8, $history[0]['entries']);
         self::assertSame(Json::encodeStable($history) . "\n", $bytes);
 
         $root = $this->createFixtureRoot();
@@ -88,7 +88,7 @@ final class SystemRouteTableGateTest extends TestCase
     public static function invalidRegistrySourceCases(): iterable
     {
         yield 'namespace' => [
-            'namespace Coretsia\Platform\Http\System;',
+            'namespace Coretsia\Foundation\Routing;',
             'namespace Fixture\System;',
             'registry-class-invalid',
         ];
@@ -206,29 +206,28 @@ final class SystemRouteTableGateTest extends TestCase
     /** @return iterable<string, array{int, string, string, string}> */
     public static function invalidEntryCases(): iterable
     {
-        yield 'unknown-owner-layer' => [7, 'owner', 'unknown/metrics', 'registry-owner-invalid'];
-        yield 'malformed-owner' => [7, 'owner', 'platform/Metrics', 'registry-owner-invalid'];
-        yield 'nested-owner' => [7, 'owner', 'platform/metrics/extra', 'registry-owner-invalid'];
+        yield 'unknown-owner-layer' => [6, 'owner', 'unknown/metrics', 'registry-owner-invalid'];
+        yield 'malformed-owner' => [6, 'owner', 'platform/Metrics', 'registry-owner-invalid'];
+        yield 'nested-owner' => [6, 'owner', 'platform/metrics/extra', 'registry-owner-invalid'];
         yield 'reserved-core-layer-as-slug' => [7, 'owner', 'core/platform', 'registry-owner-invalid'];
         yield 'status' => [7, 'status', 'enabled', 'registry-status-invalid'];
         yield 'type' => [7, 'type', 'wildcard', 'registry-type-invalid'];
-        yield 'root-prefix' => [0, 'type', 'prefix', 'registry-path-invalid'];
         yield 'missing-slash' => [7, 'pattern', 'metrics', 'registry-path-invalid'];
-        yield 'uppercase' => [7, 'pattern', '/Metrics', 'registry-path-invalid'];
-        yield 'wildcard' => [7, 'pattern', '/metrics/*', 'registry-path-invalid'];
-        yield 'placeholder' => [7, 'pattern', '/metrics/{name}', 'registry-path-invalid'];
-        yield 'query' => [7, 'pattern', '/metrics?secret=fixture', 'registry-path-invalid'];
-        yield 'fragment' => [7, 'pattern', '/metrics#fixture', 'registry-path-invalid'];
+        yield 'uppercase' => [6, 'pattern', '/Metrics', 'registry-path-invalid'];
+        yield 'wildcard' => [6, 'pattern', '/metrics/*', 'registry-path-invalid'];
+        yield 'placeholder' => [6, 'pattern', '/metrics/{name}', 'registry-path-invalid'];
+        yield 'query' => [6, 'pattern', '/metrics?secret=fixture', 'registry-path-invalid'];
+        yield 'fragment' => [6, 'pattern', '/metrics#fixture', 'registry-path-invalid'];
         yield 'percent-encoded' => [7, 'pattern', '/%6Detrics', 'registry-path-invalid'];
-        yield 'dot-segment' => [7, 'pattern', '/metrics/../ready', 'registry-path-invalid'];
-        yield 'empty-segment' => [7, 'pattern', '/metrics//ready', 'registry-path-invalid'];
-        yield 'control-character' => [7, 'pattern', "/metrics/\x1F", 'registry-path-invalid'];
-        yield 'exact-trailing-slash' => [7, 'pattern', '/metrics/', 'registry-path-invalid'];
-        yield 'prefix-missing-trailing-slash' => [6, 'pattern', '/health/ready', 'registry-path-invalid'];
+        yield 'dot-segment' => [6, 'pattern', '/metrics/../ready', 'registry-path-invalid'];
+        yield 'empty-segment' => [6, 'pattern', '/metrics//ready', 'registry-path-invalid'];
+        yield 'control-character' => [6, 'pattern', "/metrics/\x1F", 'registry-path-invalid'];
+        yield 'exact-trailing-slash' => [6, 'pattern', '/metrics/', 'registry-path-invalid'];
+        yield 'prefix-missing-trailing-slash' => [5, 'pattern', '/health/ready', 'registry-path-invalid'];
         yield 'duplicate-pattern' => [7, 'pattern', '/health', 'registry-pattern-duplicate'];
         yield 'exact-under-prefix' => [7, 'pattern', '/health/ready', 'registry-pattern-overlap'];
         yield 'noncanonical-order' => [7, 'pattern', '/a', 'registry-order-invalid'];
-        yield 'alive-owner' => [1, 'owner', 'platform/health', 'registry-alive-declaration-invalid'];
+        yield 'alive-owner' => [0, 'owner', 'platform/health', 'registry-alive-declaration-invalid'];
     }
 
     public function testRejectsOverlappingPrefixesInEitherDeclarationOrder(): void
@@ -236,8 +235,8 @@ final class SystemRouteTableGateTest extends TestCase
         foreach (['/health/ready/', '/_debug/toolbar/'] as $pattern) {
             $root = $this->createFixtureRoot();
             $snapshot = $this->fixtureHistory()[0];
-            $snapshot['entries'][7]['pattern'] = $pattern;
-            $snapshot['entries'][7]['type'] = 'prefix';
+            $snapshot['entries'][6]['pattern'] = $pattern;
+            $snapshot['entries'][6]['type'] = 'prefix';
             $this->writeFile($root . '/' . self::REGISTRY_PATH, self::registrySource($snapshot));
 
             $this->assertDrift($this->runGate($root), [self::REGISTRY_PATH . ': registry-pattern-overlap']);
@@ -245,15 +244,15 @@ final class SystemRouteTableGateTest extends TestCase
 
         $root = $this->createFixtureRoot();
         $snapshot = $this->fixtureHistory()[0];
-        $snapshot['entries'][5]['pattern'] = '/health/ready';
-        $snapshot['entries'][5]['type'] = 'exact';
+        $snapshot['entries'][4]['pattern'] = '/health/ready';
+        $snapshot['entries'][4]['type'] = 'exact';
         $this->writeFile($root . '/' . self::REGISTRY_PATH, self::registrySource($snapshot));
 
         $this->assertDrift($this->runGate($root), [self::REGISTRY_PATH . ': registry-pattern-overlap']);
 
         $root = $this->createFixtureRoot();
-        $snapshot['entries'][5]['pattern'] = '/health/ready/';
-        $snapshot['entries'][5]['type'] = 'prefix';
+        $snapshot['entries'][4]['pattern'] = '/health/ready/';
+        $snapshot['entries'][4]['type'] = 'prefix';
         $this->writeFile($root . '/' . self::REGISTRY_PATH, self::registrySource($snapshot));
 
         $this->assertDrift($this->runGate($root), [self::REGISTRY_PATH . ': registry-pattern-overlap']);
@@ -535,7 +534,7 @@ final class SystemRouteTableGateTest extends TestCase
                 $history = [];
                 break;
             case 'invalid-historical-entry':
-                $history[0]['entries'][7]['status'] = 'enabled';
+                $history[0]['entries'][6]['status'] = 'enabled';
                 break;
             case 'invalid-historical-envelope':
                 $history[0]['unexpected'] = true;
@@ -577,7 +576,7 @@ final class SystemRouteTableGateTest extends TestCase
         $history = $this->fixtureHistory();
         $next = $history[0];
         $next['schemaVersion'] = 2;
-        $next['entries'][1]['pattern'] = '/_alive2';
+        $next['entries'][0]['pattern'] = '/_alive2';
         $root = $this->createFixtureRoot($next, [...$history, $next], '/_alive2');
 
         $this->assertDrift($this->runGate($root), [
@@ -613,12 +612,12 @@ final class SystemRouteTableGateTest extends TestCase
     /** @return iterable<string, array{int, ?string}> */
     public static function invalidDebugDeclarations(): iterable
     {
-        yield 'missing-exact' => [2, null];
-        yield 'missing-prefix' => [3, null];
-        yield 'exact-active' => [2, 'active'];
-        yield 'prefix-active' => [3, 'active'];
-        yield 'exact-reserved' => [2, 'reserved'];
-        yield 'prefix-reserved' => [3, 'reserved'];
+        yield 'missing-exact' => [1, null];
+        yield 'missing-prefix' => [2, null];
+        yield 'exact-active' => [1, 'active'];
+        yield 'prefix-active' => [2, 'active'];
+        yield 'exact-reserved' => [1, 'reserved'];
+        yield 'prefix-reserved' => [2, 'reserved'];
     }
 
     #[DataProvider('invalidArguments')]
@@ -801,7 +800,7 @@ PHP;
 
     private function baselineWithChangedEntry(array $history, string $field, mixed $value): string
     {
-        $history[0]['entries'][7][$field] = $value;
+        $history[0]['entries'][6][$field] = $value;
 
         return Json::encodeStable($history) . "\n";
     }
@@ -844,7 +843,7 @@ PHP;
 
 declare(strict_types=1);
 
-namespace Coretsia\Platform\Http\System;
+namespace Coretsia\Foundation\Routing;
 
 final class SystemRouteTable
 {

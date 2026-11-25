@@ -310,6 +310,7 @@ final class HttpResponseFinalizerTest extends TestCase
 
         $requestIds = new RequestIdPolicy(
             $context,
+            $context,
             $generator,
             $requestIdEnabled,
             self::REQUEST_HEADER,
@@ -574,6 +575,7 @@ final class HttpResponseFinalizerTest extends TestCase
 
         $requestIds = new RequestIdPolicy(
             $context,
+            $context,
             $generator,
             $enabled,
             self::REQUEST_HEADER,
@@ -832,6 +834,7 @@ final class HttpResponseFinalizerTest extends TestCase
 
         $requestIds = new RequestIdPolicy(
             $context,
+            $context,
             $generator,
             true,
             self::REQUEST_HEADER,
@@ -878,8 +881,11 @@ final class HttpResponseFinalizerTest extends TestCase
 
     private static function disabledRequestIds(): RequestIdPolicy
     {
+        $context = new ContextStore();
+
         return new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new class() implements IdGeneratorInterface {
                 public function generate(): string
                 {
@@ -913,6 +919,7 @@ final class HttpResponseFinalizerTest extends TestCase
             ->willReturn(self::REQUEST_ID);
 
         return new RequestIdPolicy(
+            $context,
             $context,
             $generator,
             true,

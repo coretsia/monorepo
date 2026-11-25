@@ -16,10 +16,10 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Platform\Http\Tests\Unit;
+namespace Coretsia\Foundation\Tests\Unit;
 
-use Coretsia\Platform\Http\System\ReservedPathMatcher;
-use Coretsia\Platform\Http\System\SystemRouteTable;
+use Coretsia\Foundation\Routing\ReservedPathMatcher;
+use Coretsia\Foundation\Routing\SystemRouteTable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -37,28 +37,37 @@ final class ReservedPathMatcherSegmentPrefixTest extends TestCase
         self::assertSame([], $constructor->getParameters());
 
         $publicMethods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC);
-        self::assertCount(1, $publicMethods);
+        self::assertCount(2, $publicMethods);
 
-        $method = $publicMethods[0];
-        self::assertSame('match', $method->getName());
-        self::assertTrue($method->isStatic());
-        self::assertFalse($method->returnsReference());
-        self::assertSame('?array', (string) $method->getReturnType());
+        $expected = [
+            'match' => '?array',
+            'normalize' => 'string',
+        ];
 
-        $parameters = $method->getParameters();
-        self::assertCount(1, $parameters);
-        self::assertSame('path', $parameters[0]->getName());
-        self::assertSame('string', (string) $parameters[0]->getType());
-        self::assertFalse($parameters[0]->isOptional());
-        self::assertFalse($parameters[0]->isVariadic());
-        self::assertFalse($parameters[0]->isPassedByReference());
+        foreach ($publicMethods as $method) {
+            self::assertArrayHasKey($method->getName(), $expected);
+            self::assertTrue($method->isStatic());
+            self::assertFalse($method->returnsReference());
+            self::assertSame(
+                $expected[$method->getName()],
+                (string) $method->getReturnType(),
+            );
+
+            $parameters = $method->getParameters();
+            self::assertCount(1, $parameters);
+            self::assertSame('path', $parameters[0]->getName());
+            self::assertSame('string', (string) $parameters[0]->getType());
+            self::assertFalse($parameters[0]->isOptional());
+            self::assertFalse($parameters[0]->isVariadic());
+            self::assertFalse($parameters[0]->isPassedByReference());
+        }
     }
 
     #[DataProvider('matchingPaths')]
     public function testReturnsTheCompleteCanonicalDeclaration(string $path, string $pattern): void
     {
         [$owner, $status, $type] = match ($pattern) {
-            '/', '/_alive', '/error', '/ping' => ['platform/http', 'active', 'exact'],
+            '/_alive', '/error', '/ping' => ['platform/http', 'active', 'exact'],
             '/_debug' => ['platform/http', 'dev_only', 'exact'],
             '/_debug/' => ['platform/http', 'dev_only', 'prefix'],
             '/health' => ['platform/health', 'reserved', 'exact'],
@@ -80,9 +89,6 @@ final class ReservedPathMatcherSegmentPrefixTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function matchingPaths(): iterable
     {
-        yield 'root' => ['/', '/'];
-        yield 'empty-root' => ['', '/'];
-        yield 'repeated-root-slashes' => ['////', '/'];
         yield 'alive-exact' => ['/_alive', '/_alive'];
         yield 'alive-missing-leading-slash' => ['_alive', '/_alive'];
         yield 'alive-two-leading-slashes' => ['//_alive', '/_alive'];
@@ -123,6 +129,9 @@ final class ReservedPathMatcherSegmentPrefixTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function nonMatchingPaths(): iterable
     {
+        yield 'root' => ['/'];
+        yield 'empty-root' => [''];
+        yield 'repeated-root-slashes' => ['////'];
         yield 'unrelated-path' => ['/application'];
         yield 'health-sibling' => ['/healthz'];
         yield 'health-sibling-descendant' => ['/healthz/ready'];
@@ -219,9 +228,7 @@ final class ReservedPathMatcherSegmentPrefixTest extends TestCase
         string $path,
         string $expected,
     ): void {
-        $method = new \ReflectionMethod(ReservedPathMatcher::class, 'normalize');
-
-        self::assertSame($expected, $method->invoke(null, $path));
+        self::assertSame($expected, ReservedPathMatcher::normalize($path));
     }
 
     /** @return iterable<string, array{string, string}> */

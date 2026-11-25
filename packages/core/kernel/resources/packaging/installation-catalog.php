@@ -130,6 +130,19 @@ return array(
         0 => 'core.foundation',
       ),
     ),
+    'platform.routing' =>
+    array(
+      'composerName' => 'coretsia/platform-routing',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+        1 => 'core.kernel',
+        2 => 'platform.redaction',
+      ),
+    ),
     'platform.tracing' =>
     array(
       'composerName' => 'coretsia/platform-tracing',
@@ -153,7 +166,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.13.0',
-  'releaseLine' => '0.13',
+  'publicConstraint' => '^0.14.0',
+  'releaseLine' => '0.14',
   'schemaVersion' => 1,
 );

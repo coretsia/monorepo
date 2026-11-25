@@ -154,6 +154,7 @@ The runtime policy in this document may use the following existing ports and int
 Psr\Log\LoggerInterface
 Psr\Http\Server\MiddlewareInterface
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 Coretsia\Contracts\Observability\Tracing\TracerPortInterface
 Coretsia\Contracts\Observability\Tracing\ContextPropagationInterface
 Coretsia\Contracts\Observability\Metrics\MeterPortInterface
@@ -370,7 +371,7 @@ Observability implementations MUST preserve redaction policy even when implement
 
 ## Context policy
 
-Context access and context enrichment MUST remain safe and semantic.
+Context access and context enrichment MUST remain safe and semantic. Runtime context reads MUST use `ContextAccessorInterface`; explicitly authorized mutations MUST use `ContextWriterInterface`. Both ports address the same shared Foundation-owned store and do not expand semantic key ownership.
 
 Baseline context reads may use the following semantic keys:
 
@@ -448,10 +449,19 @@ The owner-specific request identity policy is governed by:
 docs/ssot/http-middleware-wiring.md
 ```
 
-The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
+The implemented Routing-owned context key is:
 
 ```text
 path_template
+```
+
+`Coretsia\Platform\Routing\Runtime\CompiledRouter` is its sole authorized runtime writer through `ContextWriterInterface`. Matching through `RouterInterface` removes stale `PATH_TEMPLATE` at operation start and publishes the complete validated declared template only on success; a non-match leaves the key absent. Successful canonical Foundation reset clears the key. It MUST NOT be a metric label.
+
+The reserved HttpApp `RouterMiddleware` entry represents future middleware integration through `RouterInterface`, not direct ownership of `PATH_TEMPLATE`. `CompiledRouter` and other Routing services are not PSR-15 middleware and MUST NOT be registered as middleware by this catalog. See `docs/ssot/routing-artifact.md` and `docs/ssot/middleware-context-keys-map.md`.
+
+The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
+
+```text
 http_response_format
 actor_id
 tenant_id
@@ -1165,6 +1175,7 @@ This SSoT does not define:
 - [Context Keys SSoT](./context-keys.md)
 - [Context Store SSoT](./context-store.md)
 - [Context Lifecycle SSoT](./context-lifecycle.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
 - [Middleware → ContextKeys map](./middleware-context-keys-map.md)
 - [Tag Registry](./tags.md)
 - [Config Roots Registry](./config-roots.md)

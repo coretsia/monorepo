@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Http\Tests\Contract;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
@@ -256,8 +258,10 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
             $generation->willReturn(self::REQUEST_ID);
         }
 
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             $generator,
             true,
             self::REQUEST_HEADER,
@@ -423,7 +427,8 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
         self::assertSame(RequestIdPolicy::class, $policyDefinition['class']);
         self::assertTrue($policyDefinition['shared']);
         self::assertSame([
-            $reference(ContextStore::class),
+            $reference(ContextWriterInterface::class),
+            $reference(ContextAccessorInterface::class),
             $reference(UlidGenerator::class),
             false,
             self::REQUEST_HEADER,
@@ -501,6 +506,7 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
                 RequestIdPolicy::class => [
                     'acceptFromUpstream',
                     'context',
+                    'contextAccessor',
                     'enabled',
                     'generator',
                     'headerName',
@@ -579,8 +585,10 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
             ->method('generate')
             ->willReturn(self::REQUEST_ID);
 
+        $context = new ContextStore();
         return new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             $generator,
             $enabled,
             self::REQUEST_HEADER,

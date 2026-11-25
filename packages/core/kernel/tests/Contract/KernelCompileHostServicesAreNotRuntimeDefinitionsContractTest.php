@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Env\EnvRepositoryInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
@@ -431,7 +431,7 @@ final class KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest extend
             self::sorted([
                 ContainerInterface::class,
                 TagRegistry::class,
-                ContextAccessorInterface::class,
+                ContextWriterInterface::class,
                 ResetOrchestrator::class,
                 Stopwatch::class,
                 IdGeneratorInterface::class,

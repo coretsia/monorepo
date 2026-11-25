@@ -51,7 +51,7 @@ function coretsia_system_route_table_gate_scan(RepositoryContext $repository, ar
 {
     $repository = coretsia_system_route_table_gate_resolve_repository($repository, $argv);
 
-    $registryPath = 'packages/platform/http/src/System/SystemRouteTable.php';
+    $registryPath = 'packages/core/foundation/src/Routing/SystemRouteTable.php';
     $ssotPath = 'docs/ssot/system-route-table.md';
     $baselinePath = 'tools/config/system-route-table.json';
 
@@ -134,7 +134,7 @@ function coretsia_system_route_table_gate_read_registry(PhpTokenStream $stream):
     $tokens = $stream->tokens();
     $classes = $stream->classLikes();
 
-    if (count($classes) !== 1 || $stream->namespace() !== 'Coretsia\\Platform\\Http\\System') {
+    if (count($classes) !== 1 || $stream->namespace() !== 'Coretsia\\Foundation\\Routing') {
         return 'registry-class-invalid';
     }
 
@@ -161,7 +161,7 @@ function coretsia_system_route_table_gate_read_registry(PhpTokenStream $stream):
             ')',
             ';',
             'namespace',
-            'Coretsia\\Platform\\Http\\System',
+            'Coretsia\\Foundation\\Routing',
             ';',
             'final',
             'class',
@@ -455,9 +455,8 @@ function coretsia_system_route_table_gate_validate_entries(mixed $entries): ?str
         }
 
         if (
-            ($pattern !== '/' && preg_match('~\A/[a-z0-9_-]+(?:/[a-z0-9_-]+)*/?\z~', $pattern) !== 1)
-            || ($pattern === '/' && $type !== 'exact')
-            || ($pattern !== '/' && str_ends_with($pattern, '/') !== ($type === 'prefix'))
+            preg_match('~\A/[a-z0-9_-]+(?:/[a-z0-9_-]+)*/?\z~', $pattern) !== 1
+            || str_ends_with($pattern, '/') !== ($type === 'prefix')
         ) {
             return 'registry-path-invalid';
         }

@@ -182,7 +182,7 @@ final class CrossCuttingContractGateTest extends ToolContractTestCase
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
-    public function testHttpContextStoreCanonicalDiAndPromotedConstructorDependencyPass(): void
+    public function testHttpContextPortsCanonicalDiAndPromotedConstructorDependenciesPass(): void
     {
         $sandbox = $this->createCrossCuttingGateSandbox();
 
@@ -196,8 +196,10 @@ final class HttpServiceProvider
     public function define(object $definitions): void
     {
         $definitions
-            ->requireService(ContextStore::class);
-        self::ref(ContextStore::class);
+            ->requireService(ContextWriterInterface::class)
+            ->requireService(ContextAccessorInterface::class);
+        self::ref(ContextWriterInterface::class);
+        self::ref(ContextAccessorInterface::class);
     }
 
     private static function ref(string $serviceId): string
@@ -206,6 +208,7 @@ final class HttpServiceProvider
     }
 }
 PHP,
+            useContextPorts: true,
         );
         $this->writeHttpContextFixture(
             $sandbox,
@@ -213,11 +216,12 @@ PHP,
             <<<'PHP'
 final class RequestContextMiddleware
 {
-    public function __construct(private ContextStore $context)
+    public function __construct(private ContextWriterInterface $context)
     {
     }
 }
 PHP,
+            useContextPorts: true,
         );
 
         $this->writeHttpContextFixture(
@@ -226,11 +230,14 @@ PHP,
             <<<'PHP'
 final readonly class RequestIdPolicy
 {
-    public function __construct(private ContextStore $context)
-    {
+    public function __construct(
+        private ContextWriterInterface $context,
+        private ContextAccessorInterface $contextAccessor,
+    ) {
     }
 }
 PHP,
+            useContextPorts: true,
         );
 
         [$code, $output] = $this->runCrossCuttingGate($sandbox);
@@ -243,6 +250,8 @@ PHP,
     {
         foreach (
             [
+                '        $definitions->requireService(ContextStore::class);',
+                '        self::ref(ContextStore::class);',
                 '        $factoryClass = ContextStore::class;',
                 '        $factoryClass = ContextStore::class; $store = new $factoryClass();',
                 '        $other->requireService(ContextStore::class);',
@@ -280,10 +289,18 @@ PHP,
         }
     }
 
-    public function testHttpMiddlewareRejectsNonPromotedOrConstructedContextStore(): void
+    public function testHttpMiddlewareRejectsConcreteContextStore(): void
     {
         foreach (
             [
+                <<<'PHP'
+final class RequestContextMiddleware
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
                 <<<'PHP'
 final class RequestContextMiddleware
 {
@@ -347,10 +364,18 @@ PHP,
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
-    public function testRequestIdPolicyRejectsNonCanonicalConcreteContextStoreUsage(): void
+    public function testRequestIdPolicyRejectsConcreteContextStoreUsage(): void
     {
         foreach (
             [
+                <<<'PHP'
+final class RequestIdPolicy
+{
+    public function __construct(private ContextStore $context)
+    {
+    }
+}
+PHP,
                 <<<'PHP'
 final readonly class RequestIdPolicy
 {
@@ -442,6 +467,219 @@ PHP,
         $this->assertSafeGateOutput($sandbox, $output);
     }
 
+    public function testKernelRoutingAndReadOnlyContextPortConsumersPass(): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+        $this->writeFoundationContextSymbols($sandbox);
+
+        foreach (
+            [
+                'core/kernel/src/Runtime/KernelRuntime.php' => <<<'PHP'
+namespace Coretsia\Kernel\Runtime;
+
+use Coretsia\Contracts\Context\ContextWriterInterface;
+
+final class KernelRuntime
+{
+    public function __construct(private ContextWriterInterface $context)
+    {
+    }
+}
+PHP,
+                'core/kernel/src/Provider/KernelServiceFactory.php' => <<<'PHP'
+namespace Coretsia\Kernel\Provider;
+
+use Coretsia\Contracts\Context\ContextWriterInterface;
+
+final class KernelServiceFactory
+{
+    public function context(object $container): ContextWriterInterface
+    {
+        return $container->get(ContextWriterInterface::class);
+    }
+}
+PHP,
+                'core/kernel/src/Provider/KernelServiceProvider.php' => <<<'PHP'
+namespace Coretsia\Kernel\Provider;
+
+use Coretsia\Contracts\Context\ContextWriterInterface;
+
+final class KernelServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        $definitions->requireService(ContextWriterInterface::class);
+    }
+}
+PHP,
+                'platform/routing/src/Runtime/CompiledRouter.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Runtime;
+
+use Coretsia\Contracts\Context\ContextWriterInterface;
+
+final class CompiledRouter
+{
+    public function __construct(private ContextWriterInterface $contextWriter)
+    {
+    }
+}
+PHP,
+                'platform/routing/src/Provider/RoutingServiceProvider.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Provider;
+
+use Coretsia\Contracts\Context\ContextWriterInterface;
+
+final class RoutingServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        $definitions->requireService(ContextWriterInterface::class);
+    }
+}
+PHP,
+                'platform/logging/src/ContextReader.php' => <<<'PHP'
+namespace Coretsia\Platform\Logging;
+
+use Coretsia\Contracts\Context\ContextAccessorInterface;
+
+final class ContextReader
+{
+    public function __construct(private ContextAccessorInterface $context)
+    {
+    }
+}
+PHP,
+            ] as $path => $source
+        ) {
+            $this->writeBytesExact(
+                $sandbox . '/packages/' . $path,
+                "<?php\n\ndeclare(strict_types=1);\n\n" . $source . "\n",
+            );
+        }
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertSame(0, $code, $output);
+        self::assertSame('', trim($output));
+    }
+
+    public function testKernelAndRoutingRejectConcreteContextStoreDependencies(): void
+    {
+        foreach (
+            [
+                'core/kernel/src/Runtime/KernelRuntime.php' => <<<'PHP'
+namespace Coretsia\Kernel\Runtime;
+
+final class KernelRuntime
+{
+    public function __construct(private \Coretsia\Foundation\Context\ContextStore $context)
+    {
+    }
+}
+PHP,
+                'core/kernel/src/Provider/KernelServiceFactory.php' => <<<'PHP'
+namespace Coretsia\Kernel\Provider;
+
+final class KernelServiceFactory
+{
+    public function context(object $container): object
+    {
+        return $container->get(\Coretsia\Foundation\Context\ContextStore::class);
+    }
+}
+PHP,
+                'core/kernel/src/Provider/KernelServiceProvider.php' => <<<'PHP'
+namespace Coretsia\Kernel\Provider;
+
+final class KernelServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        $definitions->requireService(\Coretsia\Foundation\Context\ContextStore::class);
+    }
+}
+PHP,
+                'platform/routing/src/Runtime/CompiledRouter.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Runtime;
+
+final class CompiledRouter
+{
+    public function __construct(private \Coretsia\Foundation\Context\ContextStore $context)
+    {
+    }
+}
+PHP,
+                'platform/routing/src/Provider/RoutingServiceProvider.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Provider;
+
+final class RoutingServiceProvider
+{
+    public function define(object $definitions): void
+    {
+        $definitions->requireService(\Coretsia\Foundation\Context\ContextStore::class);
+    }
+}
+PHP,
+            ] as $path => $source
+        ) {
+            $this->assertForbiddenContextFixture($path, $source);
+        }
+    }
+
+    public function testConcreteContextStoreNameVariantsAndLiteralServiceIdentifiersFail(): void
+    {
+        foreach (
+            [
+                'platform/routing/src/Runtime/CaseVariantConsumer.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Runtime;
+
+final class CaseVariantConsumer
+{
+    public function __construct(private \coretsia\foundation\context\contextstore $context)
+    {
+    }
+}
+PHP,
+                'platform/routing/src/Runtime/AliasedConsumer.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Runtime;
+
+use Coretsia\Foundation\Context\ContextStore as Store;
+
+final class AliasedConsumer
+{
+    public function __construct(private sToRe $context)
+    {
+    }
+}
+PHP,
+                'core/foundation/src/Context/UnauthorizedContextConsumer.php' => <<<'PHP'
+namespace Coretsia\Foundation\Context;
+
+final class UnauthorizedContextConsumer
+{
+    public function create(): object
+    {
+        return new namespace\ContextStore();
+    }
+}
+PHP,
+                'platform/routing/src/Provider/LiteralContextServiceConsumer.php' => <<<'PHP'
+namespace Coretsia\Platform\Routing\Provider;
+
+final class LiteralContextServiceConsumer
+{
+    public function define(object $definitions): void
+    {
+        $definitions->requireService('Coretsia\\Foundation\\Context\\ContextStore');
+    }
+}
+PHP,
+            ] as $path => $source
+        ) {
+            $this->assertForbiddenContextFixture($path, $source);
+        }
+    }
+
     public function testContractsContextKeysUsageFromPlatformConsumerPasses(): void
     {
         $sandbox = $this->createCrossCuttingGateSandbox();
@@ -490,8 +728,10 @@ PHP,
             [
                 'core/contracts' => 'coretsia/core-contracts',
                 'core/foundation' => 'coretsia/core-foundation',
+                'core/kernel' => 'coretsia/core-kernel',
                 'platform/http' => 'coretsia/platform-http',
                 'platform/logging' => 'coretsia/platform-logging',
+                'platform/routing' => 'coretsia/platform-routing',
             ] as $packageId => $composerName
         ) {
             $this->writeBytesExact(
@@ -843,8 +1083,12 @@ PHP,
         );
     }
 
-    private function writeHttpContextFixture(string $sandbox, string $relativePath, string $classSource): void
-    {
+    private function writeHttpContextFixture(
+        string $sandbox,
+        string $relativePath,
+        string $classSource,
+        bool $useContextPorts = false,
+    ): void {
         $namespace = match (true) {
             \str_starts_with($relativePath, 'Provider/') => 'Coretsia\\Platform\\Http\\Provider',
             \str_starts_with($relativePath, 'RequestId/') => 'Coretsia\\Platform\\Http\\RequestId',
@@ -856,9 +1100,29 @@ PHP,
             "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "namespace {$namespace};\n\n"
-            . "use Coretsia\\Foundation\\Context\\ContextStore;\n\n"
+            . ($useContextPorts
+                ? "use Coretsia\\Contracts\\Context\\ContextAccessorInterface;\n"
+                . "use Coretsia\\Contracts\\Context\\ContextWriterInterface;\n\n"
+                : "use Coretsia\\Foundation\\Context\\ContextStore;\n\n")
             . $classSource . "\n",
         );
+    }
+
+    private function assertForbiddenContextFixture(string $path, string $source): void
+    {
+        $sandbox = $this->createCrossCuttingGateSandbox();
+        $this->writeFoundationContextSymbols($sandbox);
+        $this->writeBytesExact(
+            $sandbox . '/packages/' . $path,
+            "<?php\n\ndeclare(strict_types=1);\n\n" . $source . "\n",
+        );
+
+        [$code, $output] = $this->runCrossCuttingGate($sandbox);
+
+        self::assertNotSame(0, $code, $output);
+        self::assertStringContainsString('CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT', $output);
+        self::assertStringContainsString('packages/' . $path . ': forbidden-context-store-usage', $output);
+        $this->assertSafeGateOutput($sandbox, $output);
     }
 
     private function writeForbiddenContextStoreConsumer(string $sandbox): void

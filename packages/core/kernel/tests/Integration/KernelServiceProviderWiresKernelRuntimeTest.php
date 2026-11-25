@@ -18,7 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
@@ -115,10 +117,15 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             property: 'resetOrchestrator',
             expectedType: ResetOrchestrator::class,
         );
+        $contextWriter = self::service($container, ContextWriterInterface::class);
+
+        self::assertInstanceOf(ContextWriterInterface::class, $contextWriter);
+        self::assertSame(self::service($container, ContextStore::class), $contextWriter);
+        self::assertSame(self::service($container, ContextAccessorInterface::class), $contextWriter);
         self::assertPrivatePropertySame(
             runtime: $runtime,
             property: 'contextStore',
-            expected: self::service($container, ContextStore::class),
+            expected: $contextWriter,
         );
         self::assertPrivatePropertySame(
             runtime: $runtime,
@@ -160,6 +167,84 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
             property: 'meter',
             expected: self::service($container, MeterPortInterface::class),
         );
+    }
+
+    public function testKernelRuntimeWritesBaseContextThroughCanonicalBindingAndResetsIt(): void
+    {
+        $resetSpy = new KernelServiceProviderWiresKernelRuntimeResetSpy();
+        $container = self::container($resetSpy, self::validConfig());
+        $runtime = $container->get(KernelRuntime::class);
+        $accessor = $container->get(ContextAccessorInterface::class);
+
+        self::assertInstanceOf(KernelRuntime::class, $runtime);
+        self::assertInstanceOf(ContextAccessorInterface::class, $accessor);
+
+        $result = $runtime->runUnitOfWork(
+            type: UnitOfWorkType::HTTP,
+            body: static function () use ($accessor, $resetSpy): string {
+                self::assertSame(0, $resetSpy->resetCount());
+                self::assertSame(UnitOfWorkType::HTTP, $accessor->get(ContextKeys::UOW_TYPE));
+
+                foreach ([ContextKeys::CORRELATION_ID, ContextKeys::UOW_ID] as $key) {
+                    $value = $accessor->get($key);
+                    self::assertIsString($value);
+                    self::assertMatchesRegularExpression('/\A[0-9A-HJKMNP-TV-Z]{26}\z/', $value);
+                }
+
+                return 'body-result';
+            },
+        );
+
+        self::assertSame('body-result', $result);
+        self::assertSame(1, $resetSpy->resetCount());
+        self::assertBaseContextKeysAreAbsent($accessor);
+    }
+
+    public function testKernelRuntimeDoesNotRequireConcreteContextAccessor(): void
+    {
+        $config = self::validConfig();
+        $config['foundation']['container']['autowire_concrete'] = false;
+        $config['foundation']['container']['allow_reflection_for_concrete'] = false;
+        $builder = self::builder($config);
+
+        $builder->register(
+            new FoundationServiceProvider(),
+            new KernelServiceProvider(),
+        );
+
+        $accessor = new class() implements ContextAccessorInterface {
+            public function has(string $key): bool
+            {
+                return false;
+            }
+
+            public function get(string $key): mixed
+            {
+                return null;
+            }
+        };
+        $builder->instance(ContextAccessorInterface::class, $accessor);
+
+        $writer = new class() implements ContextWriterInterface {
+            public function set(string $key, mixed $value): void
+            {
+            }
+
+            public function remove(string $key): void
+            {
+            }
+        };
+        $builder->instance(ContextWriterInterface::class, $writer);
+
+        $container = $builder->build();
+        $runtime = $container->get(KernelRuntime::class);
+
+        self::assertInstanceOf(KernelRuntime::class, $runtime);
+        self::assertSame($accessor, $container->get(ContextAccessorInterface::class));
+        self::assertSame($writer, $container->get(ContextWriterInterface::class));
+        self::assertNotSame($container->get(ContextStore::class), $writer);
+        self::assertNotSame($accessor, $writer);
+        self::assertPrivatePropertySame($runtime, 'contextStore', $writer);
     }
 
     public function testFoundationNoopObservabilityBindingsAreResolvableForKernelRuntime(): void
@@ -556,7 +641,7 @@ final class KernelServiceProviderWiresKernelRuntimeTest extends TestCase
         return $reflection->getValue($runtime);
     }
 
-    private static function assertBaseContextKeysAreAbsent(ContextStore $contextStore): void
+    private static function assertBaseContextKeysAreAbsent(ContextAccessorInterface $contextStore): void
     {
         self::assertFalse($contextStore->has(ContextKeys::CORRELATION_ID));
         self::assertFalse($contextStore->has(ContextKeys::UOW_ID));

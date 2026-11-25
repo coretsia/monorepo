@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Provider;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -767,7 +767,7 @@ final class KernelServiceProvider implements
             )
             ->requireService(ContainerInterface::class)
             ->requireService(TagRegistry::class)
-            ->requireService(ContextAccessorInterface::class)
+            ->requireService(ContextWriterInterface::class)
             ->requireService(ResetOrchestrator::class)
             ->requireService(Stopwatch::class)
             ->requireService(IdGeneratorInterface::class)

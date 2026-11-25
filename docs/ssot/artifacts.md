@@ -141,7 +141,7 @@ Path shape records the stable owner-defined artifact basename family. It does no
 | `container`           |           `1` | `core/kernel`      | `container.<owner-defined-encoding>`           | Compiled container artifact.                                                                                                                                                           |
 | `config`              |           `1` | `core/kernel`      | `config.<owner-defined-encoding>`              | Compiled config artifact.                                                                                                                                                              |
 | `module-manifest`     |           `1` | `core/kernel`      | `module-manifest.<owner-defined-encoding>`     | ModulePlan-derived `app`, `enabled`, `excluded`, `modules`, `schemaVersion`, `topologicalOrder`; envelope `{ "_meta", "payload" }`; no timestamps or absolute paths.                   |
-| `routes`              |           `1` | `platform/routing` | `routes.<owner-defined-encoding>`              | Route table artifact; schema and ownership belong to `platform/routing`, and contracts do not own artifact generation. FUTURE: may be introduced later.                                |
+| `routes`              |           `1` | `platform/routing` | `routes.php`                                   | Target-local compiled route table; schema, production, and validation are owned by `platform/routing` (see `docs/ssot/routing-artifact.md`). Not a Kernel generation member.           |
 
 ## Canonical Registry Entries (MUST)
 

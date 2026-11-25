@@ -20,7 +20,7 @@ Scope: target-local runtime module selection, declarative `LoggerInterface` bind
 
 Out of scope: log producer ownership, HTTP access-log middleware, raw request or exception diagnostics, arbitrary stream destinations, vendor logging SDKs, new correlation or reset services, custom redaction engines, tracing and metrics exporters, file retention and archival, disk quotas, and Kernel module planning or container compilation.
 
-This README is a consumer-oriented package summary. The exact normative record and sink policies are defined in `docs/ssot/logging-policy.md`.
+This README is a consumer-oriented package summary. The exact normative record and sink policies are defined in [docs/ssot/logging-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/logging-policy.md).
 
 ## Package identity
 
@@ -181,7 +181,7 @@ The only permitted list fields and their maximum item counts are:
 - `key_paths`: 20 (160 bytes per item); `moduleIds`: 24 (128 bytes per item).
 - `source_kinds`, `source_layers`, `source_paths`, and `source_types`: 20 each (160 bytes per item).
 
-List entries must additionally satisfy their field-specific structural and producer-owned safety rules. Admitted lists are deduplicated and sorted by ascending `strcmp` byte order; no arbitrary nested maps, objects, floats, resources, exceptions, or unlisted fields may be emitted. The exact count-field allowlist, scalar grammars, and per-list validations are normative in `docs/ssot/logging-policy.md`.
+List entries must additionally satisfy their field-specific structural and producer-owned safety rules. Admitted lists are deduplicated and sorted by ascending `strcmp` byte order; no arbitrary nested maps, objects, floats, resources, exceptions, or unlisted fields may be emitted. The exact count-field allowlist, scalar grammars, and per-list validations are normative in [docs/ssot/logging-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/logging-policy.md).
 
 `ContextBagProcessor` reads `ContextAccessorInterface` and `CorrelationIdProviderInterface` for each admitted record. Before a UnitOfWork, or following `ContextStore::reset()`, canonical `correlation_id`, `uow_id`, and `uow_type` are present with `null` values; no artificial correlation ID is created. During an active UoW these values come only from the current canonical providers, with an optional safe `context.path_template` when already available. Missing, invalid, and throwing context reads remain isolated.
 

@@ -1919,8 +1919,8 @@ Determinism:
 Notes:
 - Purpose: enforces local consistency of the canonical system-route declaration registry and version baseline according to `docs/ssot/system-route-table.md`.
 - The canonical code-level registry is:
-  - `Coretsia\Platform\Http\System\SystemRouteTable`
-  - file: `packages/platform/http/src/System/SystemRouteTable.php`
+  - `Coretsia\Foundation\Routing\SystemRouteTable`
+  - file: `packages/core/foundation/src/Routing/SystemRouteTable.php`
 - The committed version baseline is `tools/config/system-route-table.json`.
 - Registry versioning and released snapshot immutability are governed by `docs/ssot/system-route-table.md`.
 - `--root=<fixture-repo-root>` replaces the repository context for integration/fixture testing; it is not a scan-subtree selector.
@@ -2232,25 +2232,17 @@ Notes:
 - Additional enforcement:
   - direct `Coretsia\Foundation\Context\ContextStore` usage is forbidden outside explicit owner boundaries
   - public `Coretsia\Contracts\Context\ContextKeys` usage is allowed across runtime/platform packages as stable key vocabulary
-  - legacy `Coretsia\Foundation\Context\ContextKeys` references are forbidden and reported deterministically
+  - `Coretsia\Foundation\Context\ContextKeys` references are forbidden and reported deterministically
 - Context boundary enforcement:
   - `Coretsia\Contracts\Context\ContextKeys` defines public context key identifiers only
-  - importing `Coretsia\Contracts\Context\ContextKeys` does not grant write ownership over context values
+  - importing `Coretsia\Contracts\Context\ContextKeys` or receiving `Coretsia\Contracts\Context\ContextWriterInterface` does not grant write ownership over context values
   - mutable context storage ownership remains guarded through `Coretsia\Foundation\Context\ContextStore`
-  - direct `ContextStore` usage is allowed in `packages/core/kernel/src/Runtime/KernelRuntime.php`
-  - direct `ContextStore` usage is allowed in `packages/core/kernel/src/Provider/KernelServiceFactory.php`
-  - in `packages/core/foundation/src/Provider/FoundationServiceProvider.php`, `ContextStore` is allowed only as the subject of `new ContextStore(...)` or a `ContextStore::class` reference
-  - in `packages/platform/http/src/Provider/HttpServiceProvider.php`, `ContextStore` is allowed only as a canonical declarative DI service reference:
-    - `self::ref(ContextStore::class)`
-    - `$definitions->requireService(ContextStore::class)`, including chains originating from the canonical `$definitions` builder
-  - in `packages/platform/http/src/Middleware/RequestContextMiddleware.php`, `ContextStore` is allowed only as the canonical promoted constructor dependency:
-    - `private ContextStore $context`
-  - in `packages/platform/http/src/RequestId/RequestIdPolicy.php`, `ContextStore` is allowed only as the canonical promoted constructor dependency:
-    - `private ContextStore $context`
-  - the HTTP promoted constructor dependency allowances do not permit independent `ContextStore` construction, ordinary non-promoted properties, alternative dependency names, nullable dependencies, default constructor values, or arbitrary method type declarations
-  - these allowances are restricted to the exact declared owner paths and do not establish a package-wide `ContextStore` usage exception
-  - the authorized owners use the existing shared Foundation-owned `ContextStore`; general runtime context readers remain subject to the canonical `ContextAccessorInterface` dependency policy
-  - the owner-local `RequestIdPolicy` read-back exception is governed by `docs/ssot/context-store.md`
+  - outside the concrete symbol's declaring file, direct `ContextStore` usage is allowed only in `packages/core/foundation/src/Provider/FoundationServiceProvider.php` as the subject of `new ContextStore(...)` or a `ContextStore::class` reference
+  - Kernel, HTTP, Routing, and other runtime consumers outside Foundation MUST use `ContextWriterInterface` for authorized mutations and `ContextAccessorInterface` for permitted reads, without concrete store dependencies or downcasting
+  - both ports alias one shared Foundation-owned `ContextStore`; semantic key ownership, structural validation, and reset ownership remain governed by `docs/ssot/context-store.md` and `docs/ssot/context-keys.md`
+  - `RequestIdPolicy` reads back only `REQUEST_ID` through `ContextAccessorInterface` solely for final-response identity verification
+  - `CompiledRouter` sets and removes only `PATH_TEMPLATE` through `ContextWriterInterface`
+  - the gate guards direct concrete symbol usage; semantic key ownership is a separate runtime contract, not an authorization mechanism provided by this gate
 - Output policy:
   - first line is stable code: `CORETSIA_CROSS_CUTTING_CONTRACT_DRIFT`
   - next lines are repo-relative paths plus fixed reason tokens sorted by byte-order `strcmp`
@@ -2266,7 +2258,7 @@ Notes:
   - `forbidden-context-keys-usage`
 - Reason token notes:
   - `forbidden-context-store-usage` applies to unauthorized direct `Coretsia\Foundation\Context\ContextStore` usage
-  - `forbidden-context-keys-usage` applies to legacy `Coretsia\Foundation\Context\ContextKeys` references
+  - `forbidden-context-keys-usage` applies to forbidden `Coretsia\Foundation\Context\ContextKeys` references
   - `forbidden-context-keys-usage` MUST NOT be emitted for valid `Coretsia\Contracts\Context\ContextKeys` usage
 - Implementation detail: `@php tools/gates/cross_cutting_contract_gate.php`
 - `composer gates` MUST execute this gate as part of the tooling rails chain.
@@ -3478,6 +3470,93 @@ Usage (repo root):
 - `php coretsia debug:modules --target=console`
 - `php coretsia debug:modules --target=worker`
 - `php coretsia debug:modules --target=web --format=json`
+
+---
+
+### Coretsia CLI routes compile
+
+Id: `cli.routes_compile` \
+Entrypoint: `php coretsia routes:compile --app=<app>` \
+Category: CLI / Routing / artifact publication \
+Outputs:
+- `<RuntimePathContext::artifactRoot()>/routes.php` (creates or atomically replaces the validated `routes@1` artifact; preserves identical existing bytes)
+- `<RuntimePathContext::artifactRoot()>/routes.lock` (persistent publication coordination file)
+- Creates the selected target's artifact directory when required for publication
+- Emits a safe publication summary through `OutputInterface`
+- Does not publish Kernel immutable runtime artifact generations or update their current-generation reference
+
+Determinism:
+
+| Mode / flags    | Determinism                | Notes                                                                              |
+|-----------------|----------------------------|------------------------------------------------------------------------------------|
+| `--app=web`     | deterministic but mutating | Publishes canonical Web routes artifact bytes for equivalent target-local inputs    |
+| `--app=api`     | deterministic but mutating | Publishes canonical API routes artifact bytes for equivalent target-local inputs    |
+| `--format=json` | deterministic but mutating | Uses the same publication operation with structured JSON rendering                 |
+
+Notes:
+- Purpose: compile and publish the complete validated route table for an explicitly selected application target.
+- Both Routing commands are contributed by `platform.routing` through the canonical `cli.command` DI tag, with group `routes` and `hidden = false`.
+- `platform.cli` and `platform.routing` MUST be enabled in the effective Console ModulePlan. The selected Web or API ModulePlan MUST also enable `platform.routing`, with its required module dependencies satisfied. Package installation alone does not imply module selection. Selecting Routing only for Web or API does not expose its commands in the Console catalog.
+- Both commands accept no positional arguments and require one non-repeatable `--app` option with value `web` or `api`. No implicit target, `--target` option, or application-root override is supported.
+- Both commands execute through the canonical Console source operations host. `RoutesCommandTargetResolver` uses `KernelOpsHostBooter::bootForTarget()` with the authoritative application root and the explicitly selected target. Target configuration, enabled route providers, artifact root, and environment come from that target's source host, not the Console plan.
+- Neither command requires an existing routes artifact, a loaded Kernel generation, or HTTP module selection. Artifact-runtime invocation is rejected. The normal CLI UnitOfWork remains the only command lifecycle boundary; target-local source-host boot does not create an additional UnitOfWork.
+- Delegates complete source compilation and validation to `RoutesCompiler` before resolving `RoutesArtifactWriter` for publication. Provider discovery preserves canonical `routing.route_provider` TagRegistry order and provider-emitted route order. Validation includes reserved-route admission, duplicate detection, safe metadata, complete envelope validation, and serialized-byte limits.
+- Routing owns the target-local `routes@1` artifact and its fingerprint. Equivalent canonical inputs produce identical artifact bytes; timestamps and environment-specific paths are not embedded. Publication uses an exclusive owner-local lock and atomic replacement, preserves identical existing bytes without replacement, and preserves the previous valid artifact on pre-commit failure. No partial result is published.
+- Successful atomic replacement is the publication commit point. A post-commit lock cleanup failure MUST NOT cause rollback of committed bytes.
+- `routes.php` and `routes.lock` remain directly under the authoritative target-local artifact root, outside Kernel immutable generation directories. `config:compile` does not publish `routes.php`; Routing publication does not change the Kernel generation fingerprint or current-generation reference.
+- Successful execution emits exactly the structured payload `{"app":"web","artifact":"routes.php","route_count":3}` through `OutputInterface` (example). `app` is the selected `web` or `api` target, `artifact` is the fixed basename `routes.php`, and `route_count` is the number of compiled routes as a non-negative integer.
+- Both commands use the existing CLI-global `--format=json` option, not a command-local format option. With JSON output, success is a `json` record containing `payload` inside `data.records` of the canonical `coretsia.cli-output@1` envelope. `meta.command` identifies the command, `meta.outcome` is `success` or `failure`, and `meta.exit_code` is the numeric exit code. Handled command failures emit an `error` record with `code` and `message` (the fixed safe reason token).
+- Exit-code policy:
+  - `0`: complete validated artifact published successfully or identical bytes already present;
+  - `1`: invalid input, invalid command host or target, Routing not enabled, handled target-host boot, validation or publication failure, or uncaught execution failure.
+- This is a mutating operation and MUST NOT be treated as a read-only CI gate. Machine consumers MUST select `--format=json` and check the process exit code. Runtime readiness is a separate operation; running routers do not reload the replacement artifact.
+- Governing artifact and matching policy: `docs/ssot/routing-artifact.md`, `docs/ssot/artifacts-and-fingerprint.md`, and `docs/adr/ADR-0018-platform-routing-compiled-routes.md`.
+
+Usage (application root; repo root for the monorepo wrapper):
+- `php coretsia help routes:compile`
+- `php coretsia routes:compile --app=web`
+- `php coretsia routes:compile --app=api`
+- `php coretsia routes:compile --app=web --format=json`
+- `php coretsia routes:compile --app=api --format=json`
+
+---
+
+### Coretsia CLI routes validate
+
+Id: `cli.routes_validate` \
+Entrypoint: `php coretsia routes:validate --app=<app>` \
+Category: CLI / Routing / source validation \
+Outputs:
+- none (emits a safe validation summary through `OutputInterface`)
+- Does not read, create, modify, or delete route artifacts, artifact directories, or publication locks
+- Does not publish Kernel immutable runtime artifact generations
+
+Determinism:
+
+| Mode / flags    | Determinism   | Notes                                                                         |
+|-----------------|---------------|-------------------------------------------------------------------------------|
+| `--app=web`     | deterministic | Validates the complete Web source route table without publication              |
+| `--app=api`     | deterministic | Validates the complete API source route table without publication              |
+| `--format=json` | deterministic | Uses the same read-only validation operation with structured JSON rendering    |
+
+Notes:
+- Purpose: validate the complete target-local source route table without publishing artifacts.
+- Requires the same Console source host, explicit `--app=web|api` selection, command metadata, and effective module selection prerequisites as `routes:compile`.
+- Delegates to the same `RoutesCompiler::compile()` operation used by `routes:compile`, including complete envelope validation and serialized-byte limits. It MUST NOT resolve `RoutesArtifactWriter` or acquire the publication lock.
+- Successful execution emits exactly the structured payload `{"app":"web","valid":true,"route_count":3}` through `OutputInterface` (example). `app` is the selected `web` or `api` target, `valid` is the boolean `true`, and `route_count` is the number of validated routes as a non-negative integer.
+- Uses the same CLI-global `--format=json` option, canonical JSON envelope, and safe error-record policy as `routes:compile`. Validation failure does not emit a successful validation payload with `valid = false`.
+- Exit-code policy:
+  - `0`: complete source route validation succeeded;
+  - `1`: invalid input, invalid command host or target, Routing not enabled, handled target-host boot or validation failure, or uncaught execution failure.
+- This is a read-only source validation operation suitable for deterministic CI checks with fixed source and effective target inputs. It does not verify an existing deployed artifact, prove runtime readiness, or substitute for `routes:compile`.
+- Governing source validation policy: `docs/ssot/routing-artifact.md`.
+
+Usage (application root; repo root for the monorepo wrapper):
+- `php coretsia help routes:validate`
+- `php coretsia routes:validate --app=web`
+- `php coretsia routes:validate --app=api`
+- `php coretsia routes:validate --app=web --format=json`
+- `php coretsia routes:validate --app=api --format=json`
 
 ---
 

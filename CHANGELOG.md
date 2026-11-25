@@ -47,6 +47,69 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.14.0
+
+### Added
+
+- Introduced the `coretsia/platform-routing` runtime package with deterministic route compilation, tag-first provider discovery through `routing.route_provider`, and artifact-only runtime matching.
+- Added immutable nested route groups with path and name prefix composition, inherited requirements, metadata validation, and deterministic flattening into canonical `RouteDefinition` descriptors.
+- Added the target-local `routes@1` artifact with canonical serialization, owner-specific fingerprints, bounded non-executable decoding, immutable route-table hydration, and coordinated atomic publication.
+- Added `CompiledRouter` implementing the existing `RouterInterface`, with canonical encoded-path validation, case-sensitive segment matching, supported placeholder requirements, and deterministic first-match-wins behavior.
+- Added `routes:compile` and `routes:validate` CLI commands with explicit Web or API target selection, canonical structured output, and separate artifact publication and read-only source validation operations.
+- Added the contracts-level `ContextWriterInterface` and `RoutingArtifactReadinessInterface` for canonical context mutation and conditional HTTP startup readiness.
+- Added explicit target-local Kernel source-host composition through `KernelOpsHostBooter::bootForTarget()` and shared Foundation primitives for deterministic PHP-array serialization, bounded parsing, and atomic byte publication.
+- Added an immutable, versioned system route table, canonical reserved-path matching, and repository validation of system route declarations.
+- Added terminal HTTP system endpoints for `GET /`, `GET /ping`, `GET /_alive`, and `GET /error`, together with HTTP 501 fallback responses for reserved health and metrics endpoints.
+- Added application-root-local maintenance mode with atomic state publication, HTTP 503 responses, configurable Retry-After, public messages, HEAD handling, exact `/_alive` bypass, and canonical maintenance CLI commands.
+- Added optional HTTP request identity with canonical ULID generation, validated upstream identifier acceptance, and exact final-response identity verification.
+- Added configurable response security headers and HTTPS redirect middleware with explicit destination authority, validated method allowlists, and HTTP 307 or 308 responses.
+- Added guarded development-only diagnostics at `/_debug/headers`, `/_debug/modules`, `/_debug/config`, and `/_debug/cache`, together with immutable Kernel-owned `RuntimeDiagnosticsInput`.
+- Added routing match tracing, metrics, and diagnostic logging, along with bounded maintenance, redirect, system endpoint, and development diagnostic decision observability.
+- Expanded contract, unit, integration, architecture, and consumer-project regression coverage, including source/compiled container parity and 1000 sequential HTTP invocations across all four completion outcomes.
+
+### Changed
+
+- Updated the Routing provider contract to preserve provider-emitted declaration order as matching precedence, without implicit route-name sorting or static-route precedence.
+- Integrated `platform.routing` into canonical package discovery, Composer workspace metadata, installation catalogs, configuration roots, reserved tags, and architecture dependency definitions, preserving explicit module selection and existing preset roots.
+- Unified Routing source and compiled container wiring through canonical declarative definitions, without introducing direct dependencies between HTTP and Routing.
+- Kept Routing artifact publication independent of Kernel immutable generation publication, generation fingerprints, and cache verification.
+- Refactored Kernel PHP-array serialization, parsing, and ordinary atomic publication to reuse Foundation primitives while preserving existing artifact bytes, exception boundaries, and durable generation publication semantics.
+- Bound both context ports to the same shared Foundation-owned `ContextStore` and updated Kernel and HTTP consumers to use contracts-level dependencies.
+- Established exclusive Routing ownership of `ContextKeys::PATH_TEMPLATE` and extended HTTP entrypoint readiness with conditional route artifact validation.
+- Extended HTTP terminal dispatch, response finalization, and middleware composition with canonical system endpoints, request identity verification, security headers, maintenance handling, and HTTPS redirects.
+- Extended `config@1` with frozen application environment metadata and configuration source provenance, including canonical payload changes in artifact fingerprints and preserving source/compiled runtime parity.
+- Extended HTTP dependencies with canonical Redaction and PSR clock requirements.
+- Preserved Kernel-owned UnitOfWork lifecycle, failure precedence, reset orchestration, middleware slot taxonomy, and CLI output contracts.
+- Updated architecture, SSoT, ADR, configuration, command, and package documentation, including canonical documentation links for independently published split repositories.
+- Expanded Skeleton ignore rules and synchronized Composer workspace integration, generated package catalogs, architecture definitions, and the Composer lockfile.
+
+### Removed
+
+- Removed concrete `ContextStore` dependency exceptions for Kernel and HTTP runtime consumers.
+- Removed obsolete request-id middleware reservations and direct path-template mutation ownership from the reserved HttpApp router middleware declaration.
+- Removed duplicated PHP-array serialization, parsing, and ordinary atomic publication logic from Kernel helpers.
+
+### Fixed
+
+- Fixed native Windows Composer executable discovery through `COMPOSER_BINARY`, `PATH`, and `PATHEXT`, including supported PHP scripts, standard launchers, and executable paths containing spaces, while preserving exact argv execution without shell fallback.
+- Prevented stale `PATH_TEMPLATE` values from surviving unsuccessful or invalid route matching operations.
+- Preserved identical route artifact bytes and protected previously published artifacts against pre-commit failures, without unsafe rollback after successful atomic replacement.
+- Hardened sequential HTTP lifecycle regression assertions to verify request-local context isolation and canonical reset behavior without exposing sensitive context values.
+
+### Security
+
+- Enforced unconditional reserved route-template intersection protection, canonical route grammar, duplicate identity and equivalent-domain rejection, and strict encoded-path validation during compilation and runtime artifact admission.
+- Enforced bounded route artifact serialization and non-executable decoding, strict schema and fingerprint validation, authoritative target and environment verification, and fail-closed HTTP startup for missing or invalid required route artifacts.
+- Restricted route artifact and publication lock access to validated target-local filesystem paths, rejecting traversal, symbolic links, stream wrappers, unsafe roots, and non-regular targets.
+- Enforced mandatory rejection-only sensitive-key classification and Placeholder redaction for route declarations, preserving source-provider responsibility for provenance and semantic safety.
+- Restricted context mutation through canonical ports and semantic key ownership. Excluded raw request paths, hosts, route parameters, handler values, and sensitive data from routing diagnostics, and prohibited route templates as metric labels.
+- Enforced exact request identity preservation during response finalization, with upstream identifier acceptance disabled by default and subject to an application-owned trusted ingress policy.
+- Prevented HTTPS open redirects and header injection through strict authority and URI component validation without trusting request-provided destination authorities.
+- Enforced bounded maintenance state, public message, Retry-After, and filesystem validation with safe failure diagnostics.
+- Restricted development diagnostics to explicit activation in `local` or `dev`, canonical Problem Details integration, exact IP allowlists, trusted-proxy validation, and constant-time token digest verification.
+- Enforced bounded configuration diagnostic authorization and shared redaction without exposing raw configuration values, credentials, sensitive headers, private context, or absolute filesystem paths.
+- Preserved independent observability failure isolation across Routing, HTTP runtime operations, and Kernel lifecycle execution.
+
 ## v0.13.0
 
 ### Added

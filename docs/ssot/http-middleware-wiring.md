@@ -75,7 +75,7 @@ The runtime MUST reuse Foundation tagged-service discovery and declarative DI, K
 - `docs/ssot/di-tags-and-middleware-ordering.md` owns `TagRegistry::all()` ordering and Foundation's first-registration-wins tag deduplication.
 - `docs/ssot/runtime-container-definitions.md` owns declarative container operations, service binding precedence, and source/compiled container construction semantics.
 - `docs/ssot/uow-and-reset-contracts.md` and `docs/ssot/uow-outcome-policy.md` own Kernel UnitOfWork and completion contracts. HTTP consumes those contracts without implementing its own hooks or reset orchestration.
-- `docs/ssot/context-keys.md` owns the canonical context key registry and writer ownership. `docs/ssot/context-store.md` owns shared ContextStore access, controlled mutation, safe-write validation, and the narrowly scoped request identity owner-local read-back exception.
+- `docs/ssot/context-keys.md` owns the canonical context key registry and writer ownership. `docs/ssot/context-store.md` owns shared context access, controlled mutation through the contracts-level ports, and structural safe-write validation.
 - `docs/ssot/context-lifecycle.md` owns context lifetime and canonical reset boundaries. `docs/ssot/time-ids-and-duration.md` owns Foundation identifier generation and correlation id semantics.
 - This document owns HTTP-specific request-id configuration, trusted ingress requirements, identifier selection and validation, maintenance runtime-state consumption and execution policy, HTTPS redirect execution policy, and canonical response-header application.
 - `docs/ssot/artifacts-and-fingerprint.md` owns Kernel-generated artifact and fingerprint exclusion policy. Maintenance runtime state MUST remain independent of generated artifacts.
@@ -159,7 +159,7 @@ The diagrams express nesting and return flow; they MUST NOT be interpreted as au
 
 `FallbackRouterHandler` is the canonical terminal `RequestHandlerInterface`. It MUST delegate the request exactly once to `FallbackRouter` and return a non-null dispatched response unchanged. A non-matching dispatch result MUST delegate to `FallbackResponses::notFound()`, preserving the safe empty-body HTTP `404` response.
 
-`FallbackRouter` consumes the canonical system-route declarations through `ReservedPathMatcher` and implements only the explicitly supported system-endpoint dispatch behavior defined by `docs/ssot/http-system-endpoints.md`. It delegates the canonical `dev_only` prefix declaration to `DebugRouter`, which consumes `DebugGuard` and the four diagnostic handlers. These services execute within the same terminal handler, outside all nine middleware slots. Their eligibility, authorization, unmatched and forbidden semantics MUST follow that SSoT. The dispatcher MUST NOT implement general application routing, route admission, or general application endpoint authorization.
+`FallbackRouter` consumes the canonical Foundation-owned system-route declarations through `ReservedPathMatcher` and implements only the explicitly supported system-endpoint dispatch behavior defined by `docs/ssot/http-system-endpoints.md`. It delegates the canonical `dev_only` prefix declaration to `DebugRouter`, which consumes `DebugGuard` and the four diagnostic handlers. These services execute within the same terminal handler, outside all nine middleware slots. Their eligibility, authorization, unmatched and forbidden semantics MUST follow that SSoT. The dispatcher MUST NOT implement general application routing, route admission, or general application endpoint authorization.
 
 Terminal execution MUST occur only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses MUST retain precedence over terminal dispatch.
 
@@ -263,14 +263,16 @@ Request identity preparation MUST NOT reserve or consume a middleware slot, prio
 - Terminal endpoint service registration MUST remain independent of observability enablement. These services MUST NOT participate in middleware tags, manual append lists, middleware priorities or toggle metadata, Kernel lifecycle hooks, ContextStore ownership, or reset registration. Debug activation MUST NOT alter middleware participation or ordering.
 - `HttpServiceProvider` MUST register one shared `RequestIdPolicy` through canonical declarative DI independently of `http.request_id.enabled`.
 - `HttpKernel` and `HttpResponseFinalizer` MUST consume the same `RequestIdPolicy` instance as a mandatory non-nullable constructor dependency.
-- `RequestIdPolicy` MUST consume the existing shared Foundation `ContextStore` and the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`.
-- Source and compiled containers MUST preserve equivalent effective request-id policy configuration. Within each container, `HttpKernel` and `HttpResponseFinalizer` MUST consume the same shared `RequestIdPolicy` instance, which MUST consume that container's canonical shared `ContextStore` and `UlidGenerator` services.
+- `HttpServiceProvider` MUST require `Coretsia\Contracts\Context\ContextWriterInterface` and `Coretsia\Contracts\Context\ContextAccessorInterface`. Both ports MUST resolve to the same shared Foundation-owned context store in source and compiled containers. HTTP MUST NOT require the concrete store or register or replace either port binding.
+- `RequestContextMiddleware` MUST receive `ContextWriterInterface`, the validated `http.context.enrich.enabled` flag, and the validated `http.proxy.enabled` flag in that constructor order. It MUST write only validated HTTP-owned `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` values through the writer. Disabled enrichment MUST delegate without writing; unavailable values are omitted and optional write failures MUST NOT weaken the context policy or prevent downstream handling. It MUST NOT consume context reads or lifecycle APIs.
+- `RequestIdPolicy` MUST receive `ContextWriterInterface`, `ContextAccessorInterface`, the explicitly selected Foundation `UlidGenerator::class` service through `IdGeneratorInterface`, and the validated request-id enablement, header, upstream-acceptance, and maximum-length settings, in that constructor order.
+- Source and compiled containers MUST preserve equivalent effective request-id policy configuration. Within each container, `HttpKernel` and `HttpResponseFinalizer` MUST consume the same shared `RequestIdPolicy` instance, which MUST consume that container's canonical context ports and `UlidGenerator` service.
 - Request-id policy registration and constructor injection MUST remain unconditional. An absent policy dependency, nullable dependency, fallback policy instance, or alternative enablement mechanism MUST NOT be supported.
 - `HttpServiceProvider` MUST register shared immutable `SecurityHeadersPolicy` and `HttpsRedirectPolicy` services independently of feature enablement.
 - `HttpResponseFinalizer` MUST consume the shared `SecurityHeadersPolicy` as a mandatory non-nullable constructor dependency without a default or fallback instance.
 - `HttpsRedirectMiddleware` MUST consume the shared `HttpsRedirectPolicy`, canonical PSR-17 response factory, meter, PSR-3 logger, and validated HTTP proxy and observability settings through explicit constructor injection.
 - `HttpServiceProvider` MUST require the existing Kernel-owned `RuntimePathContext` service and MUST NOT register, replace, construct, or alias it.
-- `HttpServiceProvider` MUST register Foundation `ScopedFileLock` and one shared immutable `MaintenanceStateStore` through canonical declarative DI, using explicit runtime path-context and scoped-lock service references.
+- `HttpServiceProvider` MUST require the Foundation-owned `ScopedFileLock` service and register one shared immutable `MaintenanceStateStore` through canonical declarative DI, using explicit runtime path-context and scoped-lock service references.
 - `MaintenanceMiddleware` MUST consume the shared `MaintenanceStateStore`, canonical PSR-17 `ResponseFactoryInterface` and `StreamFactoryInterface`, `MeterPortInterface`, PSR-3 `LoggerInterface`, and validated maintenance and observability settings through mandatory explicit constructor dependencies.
 - Maintenance middleware and state-store service registration MUST remain independent of static feature enablement and dynamic runtime activation.
 - The complete effective `http.maintenance` configuration map MUST be structurally validated independently of feature enablement.
@@ -567,17 +569,11 @@ Coretsia\Platform\Http\RequestId\RequestIdPolicy
 
 `RequestIdPolicy` MUST be a shared immutable policy service with no mutable request-local state.
 
-It MUST receive the existing Foundation-owned `ContextStore` through its explicitly authorized concrete promoted constructor dependency. It MUST NOT construct, alias, or register another context store.
+It MUST receive mandatory `ContextWriterInterface` and `ContextAccessorInterface` constructor dependencies, in that order, through the existing Foundation-owned shared bindings. It MUST NOT construct, alias, or register another context store.
 
-`RequestIdPolicy` is the sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID`.
+`RequestIdPolicy` is the sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID` and MUST write it exclusively through `ContextWriterInterface`.
 
-Its concrete ContextStore read access MUST be limited to owner-local read-back of `ContextKeys::REQUEST_ID` solely for final-response identity verification, under the exception defined by:
-
-```text
-docs/ssot/context-store.md
-```
-
-All other runtime context consumers remain subject to the canonical `ContextAccessorInterface` dependency policy.
+Its read access through `ContextAccessorInterface` MUST be limited to owner-local read-back of `ContextKeys::REQUEST_ID` solely for final-response identity verification. Both context ports remain governed by `docs/ssot/context-store.md`.
 
 The policy MUST NOT read or modify Kernel-owned `ContextKeys::CORRELATION_ID`, `ContextKeys::UOW_ID`, or `ContextKeys::UOW_TYPE`.
 
@@ -617,7 +613,7 @@ The policy MUST be invoked regardless of `http.request_id.enabled`.
 
 An earlier uncaught request processing failure after successful Kernel UnitOfWork begin MUST prevent both identity preparation and pipeline execution and follow the canonical fatal completion path.
 
-When disabled, `initialize()` MUST return `null` immediately without reading request headers, accessing ContextStore, or generating an identifier.
+When disabled, `initialize()` MUST return `null` immediately without reading request headers, accessing either context port, or generating an identifier.
 
 When enabled and upstream acceptance is disabled, the policy MUST generate a local identifier without reading the configured request-id request header.
 
@@ -666,12 +662,12 @@ When request identity preparation is enabled, the canonical generator MUST be in
 
 Generator failures, invalid generator output, and unsuccessful identity selection MUST NOT write `ContextKeys::REQUEST_ID`.
 
-Unexpected PSR-7 header-access failures and Foundation generator or ContextStore failures MUST propagate unchanged through canonical HTTP fatal completion.
+Unexpected PSR-7 header-access failures and Foundation generator or context writer failures MUST propagate unchanged through canonical HTTP fatal completion.
 
-After successful enabled identity selection, the policy MUST write the selected identifier exactly once through:
+After successful enabled identity selection, the policy MUST write the selected identifier exactly once through its `ContextWriterInterface` dependency:
 
 ```php
-ContextStore::set(ContextKeys::REQUEST_ID, $requestId)
+$this->context->set(ContextKeys::REQUEST_ID, $requestId)
 ```
 
 and return exactly that identifier.
@@ -696,9 +692,9 @@ When correlation response-header application is disabled or the correlation prov
 
 The finalizer MUST obtain the current request identity through `RequestIdPolicy::current()`.
 
-When disabled, `current()` MUST return `null` without accessing ContextStore.
+When disabled, `current()` MUST return `null` without accessing the context accessor.
 
-When enabled, `current()` MUST read only `ContextKeys::REQUEST_ID` and apply the same identifier syntax and byte-length validation used for upstream acceptance.
+When enabled, `current()` MUST read only `ContextKeys::REQUEST_ID` through `ContextAccessorInterface::get()` and apply the same identifier syntax and byte-length validation used for upstream acceptance.
 
 Missing, non-string, empty, oversized, or otherwise invalid current identity MUST fail deterministically.
 
@@ -748,7 +744,7 @@ Identity preparation or finalization failure after successful Kernel UnitOfWork 
 
 Successful Foundation reset MUST clear `ContextKeys::REQUEST_ID` together with all other UnitOfWork-local context values.
 
-HTTP MUST NOT directly execute reset, discover reset tags, retry reset, or invoke `ContextStore::remove()`, `ContextStore::clear()`, or `ContextStore::reset()` for request identity cleanup.
+HTTP MUST NOT directly execute reset, discover reset tags, retry reset, or invoke `ContextWriterInterface::remove()` for request identity cleanup. HTTP MUST NOT access concrete store clearing or reset operations.
 
 `RequestIdPolicy` MUST NOT implement `MiddlewareInterface` or `ResetInterface`.
 

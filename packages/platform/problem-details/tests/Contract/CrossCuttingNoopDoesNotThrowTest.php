@@ -85,10 +85,10 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
 
         self::assertSame(
             [
-            ErrorDescriptorToProblemDetailsAdapter::class,
-            ProblemDetailsJsonRenderer::class,
-            HttpErrorHandlingMiddleware::class,
-        ],
+                ErrorDescriptorToProblemDetailsAdapter::class,
+                ProblemDetailsJsonRenderer::class,
+                HttpErrorHandlingMiddleware::class,
+            ],
             \array_values(
                 \array_column(
                     \array_filter(
@@ -97,7 +97,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                     ),
                     'id',
                 ),
-            )
+            ),
         );
 
         $tags = \array_values(
@@ -118,7 +118,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                     $operations,
                     static fn (array $operation): bool => \in_array($operation['kind'], ['alias', 'parameter'], true),
                 ),
-            )
+            ),
         );
     }
 
@@ -169,6 +169,10 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
             self::assertIsString($source);
             $code = '';
             foreach (\token_get_all($source) as $token) {
+                if (\is_array($token) && $token[0] === \T_CONSTANT_ENCAPSED_STRING) {
+                    self::assertDoesNotMatchRegularExpression('/\bContextWriterInterface\b/i', $token[1]);
+                }
+
                 if (
                     \is_array($token)
                     && \in_array($token[0], [\T_COMMENT, \T_DOC_COMMENT, \T_CONSTANT_ENCAPSED_STRING], true)
@@ -179,7 +183,8 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
             }
 
             self::assertDoesNotMatchRegularExpression(
-                '/\b(?:ContextStore|ContextAccessorInterface|ContextKeys|UnitOfWork|ResetInterface|'
+                '/\b(?:ContextStore|ContextAccessorInterface|(?i:ContextWriterInterface)|ContextKeys|'
+                . 'UnitOfWork|ResetInterface|'
                 . 'ErrorReporterPortInterface|LoggerInterface|TracerPortInterface|MeterPortInterface|'
                 . 'SpanInterface|error_log|trigger_error|syslog|fwrite|file_put_contents)\b/',
                 $code,

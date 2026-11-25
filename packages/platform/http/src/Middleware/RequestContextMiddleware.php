@@ -19,14 +19,14 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Middleware;
 
 use Coretsia\Contracts\Context\ContextKeys;
-use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Optional, bounded request-local enrichment of Foundation ContextStore.
+ * Optional, bounded request-local enrichment through ContextWriterInterface.
  *
  * Proxy data is consumed only from the reserved middleware attribute in the
  * canonical trusted-proxy-first pipeline. Direct request/server values are
@@ -42,7 +42,7 @@ final readonly class RequestContextMiddleware implements MiddlewareInterface
     private const int MAX_USER_AGENT_BYTES = 512;
 
     public function __construct(
-        private ContextStore $context,
+        private ContextWriterInterface $context,
         private bool $enabled,
         private bool $proxyEnabled,
     ) {

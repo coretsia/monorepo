@@ -31,6 +31,7 @@ final class RouteProviderInterfaceShapeContractTest extends TestCase
         $interface = new ReflectionClass(RouteProviderInterface::class);
 
         self::assertTrue($interface->isInterface());
+        self::assertSame([], $interface->getInterfaceNames());
 
         $methods = $interface->getMethods();
 
@@ -58,6 +59,10 @@ final class RouteProviderInterfaceShapeContractTest extends TestCase
 
         self::assertIsString($docComment);
         self::assertStringContainsString('@return non-empty-string', $docComment);
+        self::assertStringContainsString(
+            'The provider id MUST be stable, non-empty, safe, and single-line.',
+            $docComment,
+        );
     }
 
     public function testRouteProviderRoutesMethodShapeIsStable(): void
@@ -79,7 +84,13 @@ final class RouteProviderInterfaceShapeContractTest extends TestCase
         self::assertIsString($docComment);
         self::assertStringContainsString('@return list<RouteDefinition>', $docComment);
         self::assertStringContainsString('Provider outputs MUST NOT contain duplicate route names.', $docComment);
-        self::assertStringContainsString('name ascending using byte-order strcmp', $docComment);
+        self::assertStringContainsString('The returned list MUST contain only RouteDefinition instances,', $docComment);
+        self::assertStringContainsString('The returned list MUST preserve deterministic provider-emitted', $docComment);
+        self::assertStringContainsString(
+            'route order. This order defines the declared matching precedence',
+            $docComment,
+        );
+        self::assertStringContainsString('within the provider and MUST NOT be reordered by route name.', $docComment);
     }
 
     public function testRouteProviderCanReturnDeterministicRouteDefinitionList(): void
@@ -94,16 +105,16 @@ final class RouteProviderInterfaceShapeContractTest extends TestCase
             {
                 return [
                     new RouteDefinition(
-                        name: 'alpha.index',
-                        methods: ['GET'],
-                        pathTemplate: '/alpha',
-                        handler: 'AlphaController::index',
-                    ),
-                    new RouteDefinition(
                         name: 'beta.index',
                         methods: ['GET'],
                         pathTemplate: '/beta',
                         handler: 'BetaController::index',
+                    ),
+                    new RouteDefinition(
+                        name: 'alpha.index',
+                        methods: ['GET'],
+                        pathTemplate: '/alpha',
+                        handler: 'AlphaController::index',
                     ),
                 ];
             }
@@ -113,15 +124,25 @@ final class RouteProviderInterfaceShapeContractTest extends TestCase
 
         $routes = $provider->routes();
 
+        self::assertTrue(array_is_list($routes));
         self::assertContainsOnlyInstancesOf(RouteDefinition::class, $routes);
         self::assertSame(
-            ['alpha.index', 'beta.index'],
+            ['beta.index', 'alpha.index'],
             array_map(
                 static fn (RouteDefinition $route): string => $route->name(),
                 $routes,
-            )
+            ),
         );
-        self::assertSame(['alpha.index', 'beta.index'], self::uniqueRouteNames($routes));
+        self::assertSame(['beta.index', 'alpha.index'], self::uniqueRouteNames($routes));
+
+        $repeated = $provider->routes();
+
+        self::assertTrue(array_is_list($repeated));
+        self::assertContainsOnlyInstancesOf(RouteDefinition::class, $repeated);
+        self::assertSame(
+            array_map(static fn (RouteDefinition $route): array => $route->toArray(), $routes),
+            array_map(static fn (RouteDefinition $route): array => $route->toArray(), $repeated),
+        );
     }
 
     /**

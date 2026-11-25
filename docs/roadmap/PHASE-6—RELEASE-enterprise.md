@@ -4750,9 +4750,9 @@ ssot_refs: []
   - (runtime expectation) `platform/errors + platform/problem-details` — canonical error flow for guard (policy)
 
 - Required deliverables (exact paths):
-  - `packages/platform/http/src/System/SystemRouteTable.php` — існує і дозволяє додати reserved `/docs`
+  - `../../packages/core/foundation/src/Routing/SystemRouteTable.php` — існує і дозволяє додати reserved `/docs`
   - `tools/gates/system_route_table_gate.php` — існує і може бути оновлений для нового reserved entry
-  - `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — існує (може бути розширений) якщо потрібно
+  - `../../packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — існує (може бути розширений) якщо потрібно
 
 - Required config roots/keys:
   - `api_docs.*` — root буде створений цим епіком (використання після наявності)
@@ -4828,9 +4828,9 @@ Tests:
 
 #### Modifies
 
-- [ ] `packages/platform/http/src/System/SystemRouteTable.php` — add `/docs` reserved owner entry (schema bump policy)
+- [ ] `../../packages/core/foundation/src/Routing/SystemRouteTable.php` — add `/docs` reserved owner entry (schema bump policy)
 - [ ] `tools/gates/system_route_table_gate.php` — update fixtures/expectations for new reserved endpoint
-- [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — extend cases for `/docs` if needed
+- [ ] `../../packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — extend cases for `/docs` if needed
 - [ ] `packages/platform/http/tests/Contract/SystemRouteTableSchemaContractTest.php` (or existing gate coverage) — ensure SCHEMA_VERSION bump handled
 
 #### Package skeleton (if type=package)
@@ -5318,9 +5318,9 @@ ssot_refs: # add minimum policy docs this epic touches
   - (optional runtime) `platform/http` rate-limit enabled for hardening (policy; not dep)
 
 - Required deliverables (exact paths):
-  - `packages/platform/http/src/System/SystemRouteTable.php` — існує і дозволяє додати reserved `/_admin/`
+  - `../../packages/core/foundation/src/Routing/SystemRouteTable.php` — існує і дозволяє додати reserved `/_admin/`
   - `tools/gates/system_route_table_gate.php` — існує і може бути оновлений
-  - `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — існує (може бути розширений)
+  - `../../packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — існує (може бути розширений)
 
 - Required config roots/keys:
   - `admin_panel.*` — root буде створений цим епіком (використання після наявності)
@@ -5419,9 +5419,9 @@ Tests:
 
 #### Modifies
 
-- [ ] `packages/platform/http/src/System/SystemRouteTable.php` — add `/_admin/` prefix reserved owner entry (schema bump policy)
+- [ ] `../../packages/core/foundation/src/Routing/SystemRouteTable.php` — add `/_admin/` prefix reserved owner entry (schema bump policy)
 - [ ] `tools/gates/system_route_table_gate.php` — update fixtures/expectations for `/_admin/` reserved prefix
-- [ ] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — extend cases for `/_admin/` prefix
+- [ ] `../../packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` — extend cases for `/_admin/` prefix
 - [ ] `docs/ssot/config-roots.md` — register root `admin_panel` (owner `devtools/admin-panel`)
 - Keep existing Modifies (SystemRouteTable + gate + tests) as-is.
 

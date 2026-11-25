@@ -133,9 +133,9 @@ The next unit of work MUST NOT see any `ContextStore` values written by the prev
 For a UnitOfWork that reaches after-UoW lifecycle handling and whose canonical reset succeeds, the canonical context lifecycle is:
 
 1. Kernel runtime begins a unit of work.
-2. Kernel runtime writes base context keys.
-3. Runtime owners may enrich context with safe canonical keys.
-4. General runtime context readers read context through the contracts accessor port. Explicitly authorized owner-local read-back follows the concrete context access boundary.
+2. Kernel runtime writes base context keys through `ContextWriterInterface`.
+3. Runtime owners may enrich context with safe canonical keys through `ContextWriterInterface`.
+4. Runtime context readers read approved individual keys through `ContextAccessorInterface`, including restricted HTTP owner-local request identity verification.
 5. Kernel runtime finishes the unit of work.
 6. Kernel runtime runs after-UoW lifecycle handling.
 7. Kernel runtime calls Foundation reset orchestration.
@@ -152,37 +152,20 @@ Runtime-boundary release and failure precedence remain governed by `docs/ssot/uo
 
 A failed reset MUST NOT be treated as proof of successful context cleanup.
 
-The canonical read port is:
+The canonical read and mutation ports are separate:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 ```
 
-General runtime context readers MUST depend on the context accessor port instead of the concrete store.
+Runtime context consumers outside Foundation MUST use the appropriate contracts-level port, not concrete `ContextStore`. Both ports alias the same shared Foundation-owned store. Writers MUST set or remove only keys assigned to their semantic owner boundary, with values accepted by `ContextStorePolicy`. Neither port grants additional ownership, access to snapshots, bulk mutation, clearing, or reset execution.
 
-The HTTP request identity owner:
-
-```text
-Coretsia\Platform\Http\RequestId\RequestIdPolicy
-```
-
-MAY read back its own `ContextKeys::REQUEST_ID` value through its existing authorized concrete `ContextStore` dependency solely for final-response identity verification.
-
-This is owner-local identity verification, not general runtime context consumption.
-
-The narrowly scoped owner-local read-back exception is defined by:
-
-```text
-docs/ssot/context-store.md
-```
-
-All other general runtime context consumers MUST continue to use `ContextAccessorInterface`.
-
-Runtime writers MUST write only through controlled Foundation context mutation APIs and only with keys accepted by `ContextStorePolicy`.
+The HTTP request identity owner `Coretsia\Platform\Http\RequestId\RequestIdPolicy` MUST write `ContextKeys::REQUEST_ID` through `ContextWriterInterface` and read back only that key through `ContextAccessorInterface` solely for final-response identity verification. This is owner-local verification, not permission to read unrelated context keys or change the selected identifier. See `docs/ssot/context-store.md`.
 
 ## Base context keys
 
-Kernel runtime owns base context key writes at begin-UoW.
+Kernel runtime owns base context key writes at begin-UoW through `ContextWriterInterface`.
 
 At begin-UoW, Kernel runtime MUST write:
 
@@ -262,7 +245,7 @@ Subsequent middleware, terminal handlers, and lifecycle hooks MUST NOT modify, r
 
 After the entire PSR-15 pipeline returns a response, HTTP response finalization MUST verify the current owner-local request identity against the invocation-local selected identifier before applying the configured request-id response header.
 
-This verification MUST follow the owner-local concrete `ContextStore` read-back exception defined by `docs/ssot/context-store.md`.
+This verification MUST use the owner-local `ContextAccessorInterface` read-back of `ContextKeys::REQUEST_ID` defined by `docs/ssot/context-store.md`.
 
 If request identity preparation or response finalization fails after successful Kernel begin-UoW, the HTTP runtime MUST use its canonical fatal-error completion path.
 
@@ -340,15 +323,15 @@ subject to the owning observability policy.
 
 ## Routing/auth/tenancy context enrichment
 
-The reserved routing context key is:
+The implemented Routing-owned context key is:
 
 ```text
 path_template
 ```
 
-`path_template` is preferred over raw `path` for low-cardinality diagnostics.
+`Coretsia\Platform\Routing\Runtime\CompiledRouter` is the sole authorized semantic writer of `ContextKeys::PATH_TEMPLATE`. It MUST remove the previous value through `ContextWriterInterface` at the start of every matching operation, before input validation or route evaluation. On a successful match it MUST set the complete validated declared template through that port before completion observability. On a non-match the key MUST remain absent. Unexpected matching or context mutation failures propagate without completed-match metrics or logs.
 
-`path_template` MUST NOT include concrete user-controlled path parameter values.
+`path_template` is preferred over raw `path` for low-cardinality diagnostics. It MUST NOT include concrete user-controlled path parameter values or become a metric label. Routing MUST NOT read context, mutate other keys, or introduce its own UnitOfWork, context store, or reset boundary. Successful canonical Foundation reset clears the key together with all other context values. See `docs/ssot/routing-artifact.md`.
 
 The reserved auth context key is:
 
@@ -370,7 +353,7 @@ tenant_id
 
 `tenant_id` MUST NOT expose customer names, domains, billing ids, external account ids, tokens, private customer data, or tenancy credentials.
 
-These routing, auth, and tenancy keys are reserved in `ContextKeys`.
+The auth and tenancy keys are reserved in `ContextKeys`.
 
 Reserved key presence prevents name drift; it does not grant write ownership or imply that a concrete writer is implemented.
 
@@ -509,7 +492,7 @@ Kernel runtime MUST execute UnitOfWork reset through the single Foundation reset
 Coretsia\Foundation\Runtime\Reset\ResetOrchestrator
 ```
 
-Runtime adapters, including the HTTP runtime, MUST NOT execute an independent UnitOfWork reset or invoke the Foundation reset executor directly.
+Runtime adapters, including the HTTP runtime and Routing, MUST NOT execute an independent UnitOfWork reset or invoke the Foundation reset executor directly.
 
 ### Who triggers reset?
 
@@ -729,19 +712,19 @@ path
 user_agent
 ```
 
-6. This HTTP runtime flow does not populate reserved context keys without an explicitly authorized owner.
-7. Middleware and general runtime context readers read context through:
+6. If application route matching is invoked, `CompiledRouter` removes stale `PATH_TEMPLATE` and publishes the complete declared template only on success through `ContextWriterInterface`. This does not imply that Routing is middleware or that every HTTP request invokes application routing. Reserved future context keys are not populated without an explicitly authorized owner.
+7. Authorized runtime context readers read context through:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
 
-8. After the entire PSR-15 pipeline returns a response, HTTP response finalization applies enabled identity-header policies. Request-id verification uses only the permitted owner-local read-back defined by `docs/ssot/context-store.md`.
+8. After the entire PSR-15 pipeline returns a response, HTTP response finalization applies enabled identity-header policies. Request-id verification reads only `REQUEST_ID` through `ContextAccessorInterface` as defined by `docs/ssot/context-store.md`.
 9. Logs, metrics, spans, and errors follow observability SSoTs and do not treat ContextStore presence as export permission.
 10. Kernel runtime executes eligible after-UoW lifecycle handling.
 11. Kernel runtime triggers Foundation reset orchestration through `ResetOrchestrator`.
 12. `ResetOrchestrator` uses the effective reset discovery tag from `foundation.reset.tag`, whose reserved default is `kernel.reset` (`ReservedTags::KERNEL_RESET`).
-13. `ContextStore::reset()` clears all context, including the optional HTTP-owned `request_id`.
+13. `ContextStore::reset()` clears all context, including `request_id` and `path_template` when present.
 14. The next unit of work cannot observe previous request values.
 
 This is valid.
@@ -838,10 +821,11 @@ The cross-cutting contract gate MUST validate forbidden context writes and lifec
 The enforcement rails SHOULD cover at least:
 
 - context key registry references use the canonical `Coretsia\Contracts\Context\ContextKeys`;
-- no unauthorized direct `ContextStore` ownership or construction outside owner boundaries;
+- runtime context consumers outside Foundation use the appropriate contracts-level ports without concrete store dependencies;
 - HTTP request identity preparation occurs after successful Kernel begin-UoW and before PSR-15 execution;
 - HTTP request identity remains unchanged throughout conforming request execution;
-- HTTP request identity read-back is restricted to the explicitly authorized owner-local exception;
+- HTTP request identity read-back uses `ContextAccessorInterface` and is restricted to `REQUEST_ID`;
+- Routing removes stale `PATH_TEMPLATE` before matching and writes the complete declared template only on success through `ContextWriterInterface`;
 - successful canonical reset clears HTTP request identity after eligible after-UoW lifecycle handling;
 - no raw secrets, headers, cookies, Authorization values, tokens, session ids, or payloads are written to `ContextStore`;
 - raw `path` is not exported as a metric label or raw observability value;
@@ -887,6 +871,7 @@ This SSoT does not define:
 - [Context Store SSoT](./context-store.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Tag Registry](./tags.md)

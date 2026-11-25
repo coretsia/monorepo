@@ -69,6 +69,7 @@ final class RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTe
             $contents = \file_get_contents($file->getPathname());
             self::assertIsString($contents);
             $code = self::withoutComments($contents);
+            self::assertDoesNotMatchRegularExpression('/\bContextWriterInterface\b/i', $code);
             foreach (
                 [
                     'ContextStore',

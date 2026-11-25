@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Provider;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Module\ManifestReaderInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -29,7 +30,7 @@ use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
 use Coretsia\Foundation\Container\Exception\ContainerException;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
-use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Filesystem\AtomicFileWriter;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
@@ -904,6 +905,7 @@ final class KernelServiceFactory
 
         return new ArtifactWriter(
             phpArrayDumper: $phpArrayDumper,
+            atomicFileWriter: new AtomicFileWriter(),
             tracer: self::tracer($container),
             meter: self::meter($container),
             logger: self::logger($container),
@@ -1705,7 +1707,7 @@ final class KernelServiceFactory
         int $attributesMaxKeys,
     ): KernelRuntime {
         return new KernelRuntime(
-            contextStore: self::contextStore($container),
+            contextStore: self::contextWriter($container),
             resetOrchestrator: self::resetOrchestrator($container),
             stopwatch: self::stopwatch($container),
             uowIds: self::uowIds($container),
@@ -1791,15 +1793,15 @@ final class KernelServiceFactory
         return $maxKeys;
     }
 
-    private static function contextStore(
+    private static function contextWriter(
         ContainerInterface $container,
-    ): ContextStore {
+    ): ContextWriterInterface {
         $service = self::service(
             $container,
-            ContextAccessorInterface::class,
+            ContextWriterInterface::class,
         );
 
-        if (!$service instanceof ContextStore) {
+        if (!$service instanceof ContextWriterInterface) {
             throw new ContainerException('kernel-runtime-dependency-invalid');
         }
 

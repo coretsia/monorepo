@@ -860,7 +860,7 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
             10,
             200,
         );
-        $requestIds = new RequestIdPolicy($context, $ids, true, 'X-Request-Id', false, 128);
+        $requestIds = new RequestIdPolicy($context, $context, $ids, true, 'X-Request-Id', false, 128);
         return new HttpKernel(
             $runtime,
             new Stopwatch(),

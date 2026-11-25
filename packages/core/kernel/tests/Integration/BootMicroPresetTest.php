@@ -73,6 +73,7 @@ final class BootMicroPresetTest extends TestCase
                     'platform.logging',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                 ],
                 self::moduleIdValues($modulePlan->enabled()),
             );
@@ -87,6 +88,7 @@ final class BootMicroPresetTest extends TestCase
                     'platform.http',
                     'platform.logging',
                     'platform.problem-details',
+                    'platform.routing',
                 ],
                 self::moduleIdValues($modulePlan->topologicalOrder()),
             );
@@ -101,6 +103,7 @@ final class BootMicroPresetTest extends TestCase
                     'platform.logging',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                 ],
                 \array_keys($modulePlan->modules()),
             );

@@ -126,7 +126,7 @@ It is not a fourth input member of `ArtifactPublicationSet`.
 
 The finalized generation therefore contains exactly four generated files.
 
-`routes@1` and `routes.php` remain owned by `platform/routing`.
+`routes@1` and `routes.php` remain owned by `platform/routing`. The route artifact and its publication lock are outside the Kernel publication set, generation manifest, and generation fingerprint inputs. Kernel does not produce or verify `routes@1`. See `docs/ssot/routing-artifact.md`.
 
 ## Artifact Output Path Policy (MUST)
 
@@ -643,7 +643,9 @@ Proc Worker artifact-root handoff semantics remain owned by `docs/architecture/w
 
 ### `StablePhpArrayDumper`
 
-`StablePhpArrayDumper` owns deterministic PHP-array serialization emission for Kernel artifact files.
+`Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper` is the Kernel-owned adapter for deterministic PHP-array artifact emission. It normalizes input through `PayloadNormalizer` (which delegates baseline json-like normalization to Foundation `JsonLikeNormalizer`) and delegates byte emission to `Coretsia\Foundation\Serialization\StablePhpArrayDumper::dumpNormalized()` without repeating normalization.
+
+Foundation owns the shared canonical byte grammar, not Kernel envelope, schema, fingerprint, or publication semantics. The Kernel adapter preserves `JsonFloatForbiddenException` and `ArtifactPayloadInvalidException` from payload normalization and translates Foundation `PhpArraySerializationException` into `ArtifactPayloadInvalidException`: map-key failures retain `REASON_MAP_KEY_MUST_BE_STRING`; other emission failures use `REASON_TYPE_FORBIDDEN`.
 
 It MUST:
 
@@ -663,7 +665,9 @@ It MUST NOT:
 
 ### `StablePhpArrayParser`
 
-`StablePhpArrayParser` is the canonical decoder for bytes emitted by `StablePhpArrayDumper`.
+`Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser` is the Kernel-owned decoding adapter. It delegates to the shared `Coretsia\Foundation\Serialization\StablePhpArrayParser::parse()` entrypoint and translates `PhpArraySerializationException` into `ArtifactInvalidException` with `REASON_SERIALIZATION_INVALID`.
+
+Foundation also provides bounded decoding through `parseBounded(string $bytes, JsonLikeNormalizationLimits $limits): array` for owners requiring structural limits during decoding. Kernel uses the unrestricted `parse()` entrypoint. Both Foundation entrypoints share one decoding implementation; owner-specific validation and failure translation remain outside Foundation.
 
 It MUST:
 

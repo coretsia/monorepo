@@ -114,7 +114,15 @@ final class SecurityHeadersAppliedToAllResponsesTest extends TestCase
         $requestGenerator = $this->createMock(IdGeneratorInterface::class);
         $requestGenerator->expects($requestIdEnabled ? self::once() : self::never())
             ->method('generate')->willReturn(self::REQUEST_ID);
-        $requestIds = new RequestIdPolicy($context, $requestGenerator, $requestIdEnabled, 'X-Request-Id', false, 128);
+        $requestIds = new RequestIdPolicy(
+            $context,
+            $context,
+            $requestGenerator,
+            $requestIdEnabled,
+            'X-Request-Id',
+            false,
+            128,
+        );
         $policy = new SecurityHeadersPolicy(
             $hardening,
             'nosniff',

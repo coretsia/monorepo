@@ -1045,6 +1045,11 @@ PHP,
                     $releaseVersion,
                 ],
                 [
+                    'coretsia/platform-routing',
+                    $repoRoot . '/packages/platform/routing',
+                    $releaseVersion,
+                ],
+                [
                     'coretsia/platform-worker',
                     $repoRoot . '/packages/platform/worker',
                     $releaseVersion,

@@ -891,6 +891,11 @@ PHP,
                     $repoRoot . '/packages/platform/redaction',
                     $releaseVersion,
                 ],
+                [
+                    'coretsia/platform-routing',
+                    $repoRoot . '/packages/platform/routing',
+                    $releaseVersion,
+                ],
             ] as [$name, $source, $version]
         ) {
             $repositories[] = self::copyPackageRepository(

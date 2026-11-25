@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Foundation\Filesystem\Exception\AtomicFileWriteException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactWriteFailedException;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +50,9 @@ final class ArtifactWriterAtomicNoPartialWriteTest extends TestCase
 
         \mkdir($targetPath, 0777, true);
 
+        $markerPath = $targetPath . '/existing.txt';
+        self::assertSame(9, \file_put_contents($markerPath, "existing\n"));
+
         try {
             ArtifactPipelineTestSupport::artifactWriter($this)->writeTextArtifact(
                 targetPath: $targetPath,
@@ -63,9 +67,17 @@ final class ArtifactWriterAtomicNoPartialWriteTest extends TestCase
                 ArtifactWriteFailedException::REASON_TEMP_FILE_RENAME_FAILED,
                 $exception->reason(),
             );
+            self::assertSame(
+                ArtifactWriteFailedException::ERROR_CODE . ': ' . ArtifactWriteFailedException::REASON_TEMP_FILE_RENAME_FAILED,
+                $exception->getMessage(),
+            );
+            $previous = $exception->getPrevious();
+            self::assertInstanceOf(AtomicFileWriteException::class, $previous);
+            self::assertSame(AtomicFileWriteException::REASON_TEMP_FILE_RENAME_FAILED, $previous->reason());
         }
 
         self::assertDirectoryExists($targetPath);
+        self::assertSame("existing\n", \file_get_contents($markerPath));
         self::assertSame([], self::temporaryArtifactFiles($targetDirectory));
     }
 
@@ -81,6 +93,7 @@ final class ArtifactWriterAtomicNoPartialWriteTest extends TestCase
 
         self::assertSame('custom.txt', $result['basename']);
         self::assertSame('var/cache/web/custom.txt', $result['path']);
+        self::assertSame(\strlen("first line\nsecond line\n"), $result['bytes']);
 
         $bytes = \file_get_contents($targetPath);
 
@@ -91,6 +104,45 @@ final class ArtifactWriterAtomicNoPartialWriteTest extends TestCase
             \str_ends_with($bytes, "\n\n"),
             'ArtifactWriter must produce exactly one final LF.',
         );
+        self::assertSame([], self::temporaryArtifactFiles(\dirname($targetPath)));
+    }
+
+    public function testSuccessfulReplacementPublishesOnlyCompleteNormalizedBytes(): void
+    {
+        $relativePath = 'var/cache/web/custom.txt';
+        $targetPath = $this->applicationRoot . '/' . $relativePath;
+        $writer = ArtifactPipelineTestSupport::artifactWriter($this);
+        $original = \str_repeat('original', 128) . "\n";
+
+        self::assertSame(
+            [
+                'basename' => 'custom.txt',
+                'bytes' => \strlen($original),
+                'path' => $relativePath,
+            ],
+            $writer->writeTextArtifact(
+                targetPath: $targetPath,
+                relativePath: $relativePath,
+                bytes: $original,
+            ),
+        );
+        self::assertSame($original, \file_get_contents($targetPath));
+        self::assertSame([], self::temporaryArtifactFiles(\dirname($targetPath)));
+
+        self::assertSame(
+            [
+                'basename' => 'custom.txt',
+                'bytes' => \strlen("replacement\n"),
+                'path' => $relativePath,
+            ],
+            $writer->writeTextArtifact(
+                targetPath: $targetPath,
+                relativePath: $relativePath,
+                bytes: "replacement\r\n\r\n",
+            ),
+        );
+        self::assertSame("replacement\n", \file_get_contents($targetPath));
+        self::assertSame([], self::temporaryArtifactFiles(\dirname($targetPath)));
     }
 
     public function testWriteTimePermissionChangesDoNotAffectCacheVerifyCleanDirtySemantics(): void

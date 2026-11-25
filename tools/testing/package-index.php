@@ -229,6 +229,23 @@ return array(
     ),
     12 =>
     array(
+      'composerName' => 'coretsia/platform-routing',
+      'defaultsConfigPath' => 'config/routing.php',
+      'id' => 'platform.routing',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\Routing\\Module\\RoutingModule',
+      'moduleId' => 'platform.routing',
+      'path' => 'packages/platform/routing',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\Routing\\Provider\\RoutingServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\Routing\\',
+      'slug' => 'routing',
+    ),
+    13 =>
+    array(
       'composerName' => 'coretsia/platform-tracing',
       'defaultsConfigPath' => 'config/tracing.php',
       'id' => 'platform.tracing',
@@ -244,7 +261,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Tracing\\',
       'slug' => 'tracing',
     ),
-    13 =>
+    14 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

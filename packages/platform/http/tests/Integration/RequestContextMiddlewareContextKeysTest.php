@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Tests\Integration;
 
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
@@ -56,6 +57,16 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
     {
         $context = new ContextStore();
         self::seedKernelIdentity($context);
+
+        $writes = [];
+        $writer = $this->createMock(ContextWriterInterface::class);
+        $writer->expects(self::exactly(5))->method('set')
+            ->willReturnCallback(static function (string $key, mixed $value) use ($context, &$writes): void {
+                $writes[] = [$key, $value];
+                $context->set($key, $value);
+            });
+        $writer->expects(self::never())->method('remove');
+
         $request = $this->request('192.0.2.5', 'HTTPS', 'Example.COM', '/safe/path', 'TestAgent/1');
         $response = $this->createStub(ResponseInterface::class);
         $handler = $this->createMock(RequestHandlerInterface::class);
@@ -75,7 +86,14 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
                 return $response;
             });
 
-        self::assertSame($response, new RequestContextMiddleware($context, true, false)->process($request, $handler));
+        self::assertSame($response, new RequestContextMiddleware($writer, true, false)->process($request, $handler));
+        self::assertSame([
+            [ContextKeys::CLIENT_IP, '192.0.2.5'],
+            [ContextKeys::SCHEME, 'https'],
+            [ContextKeys::HOST, 'example.com'],
+            [ContextKeys::PATH, '/safe/path'],
+            [ContextKeys::USER_AGENT, 'TestAgent/1'],
+        ], $writes);
     }
 
     public function testDisabledEnrichmentDoesNotWriteEvenAdmissibleRequestMetadata(): void
@@ -205,6 +223,7 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
         };
         $requestIds = new RequestIdPolicy(
             $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',
@@ -319,6 +338,7 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
             }
         };
         $requestIds = new RequestIdPolicy(
+            $context,
             $context,
             new UlidGenerator(),
             false,

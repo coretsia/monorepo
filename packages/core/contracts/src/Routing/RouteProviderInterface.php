@@ -21,16 +21,26 @@ namespace Coretsia\Contracts\Routing;
 /**
  * Format-neutral route definition provider.
  *
- * This port is the contracts boundary for providing declared routes to future
- * routing runtime owners and route compilation owners.
+ * This port is the contracts boundary for providing declared routes to
+ * routing compilation and runtime owners.
  *
- * Implementations MUST NOT require PSR-7 objects, `platform/http` request or
+ * The contracts boundary MUST NOT expose route groups, PSR-7 objects,
+ * request or response objects, middleware objects, controller objects,
+ * service container objects, concrete runtime implementation objects,
+ * or generated route artifacts.
+ *
+ * Concrete providers MAY use owner-specific route declaration helpers
+ * internally. All such helpers MUST produce ordinary RouteDefinition
+ * instances before crossing this contracts boundary.
+ *
+ * Providing route declarations MUST NOT require PSR-7 objects, request or
  * response objects, middleware objects, controller objects, service container
- * objects, platform classes, integration classes, generated route artifacts,
- * filesystem scanning, PHP attribute scanning, or CLI command behavior.
+ * objects, generated route artifacts, filesystem scanning, PHP attribute
+ * scanning, or CLI command behavior.
  *
  * Provider output containing multiple routes MUST be deterministic.
- * The expected ordering is by route name ascending using byte-order strcmp.
+ * Provider-emitted route order defines the declared matching precedence
+ * within that provider.
  */
 interface RouteProviderInterface
 {
@@ -51,13 +61,12 @@ interface RouteProviderInterface
     /**
      * Returns declared route definitions.
      *
-     * The returned list MUST contain only RouteDefinition instances.
+     * The returned list MUST contain only RouteDefinition instances,
+     * including routes produced by owner-specific declaration helpers.
      *
-     * The returned list SHOULD be ordered by:
-     *
-     * ```text
-     * name ascending using byte-order strcmp
-     * ```
+     * The returned list MUST preserve deterministic provider-emitted
+     * route order. This order defines the declared matching precedence
+     * within the provider and MUST NOT be reordered by route name.
      *
      * Provider outputs MUST NOT contain duplicate route names.
      *

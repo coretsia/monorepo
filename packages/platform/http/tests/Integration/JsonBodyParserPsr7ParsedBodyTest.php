@@ -478,8 +478,10 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
         );
         $correlation = $this->createMock(CorrelationIdProviderInterface::class);
         $correlation->expects(self::never())->method('correlationId');
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

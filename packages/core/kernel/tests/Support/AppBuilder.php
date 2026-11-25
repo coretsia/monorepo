@@ -51,6 +51,7 @@ use Coretsia\Platform\Cli\Provider\CliServiceProvider;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
 use Coretsia\Platform\Logging\Provider\LoggingServiceProvider;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
+use Coretsia\Platform\Routing\Provider\RoutingServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
@@ -69,6 +70,7 @@ final class AppBuilder
     private const string MODULE_PLATFORM_HTTP = 'platform.http';
     private const string MODULE_PLATFORM_PROBLEM_DETAILS = 'platform.problem-details';
     private const string MODULE_PLATFORM_REDACTION = 'platform.redaction';
+    private const string MODULE_PLATFORM_ROUTING = 'platform.routing';
 
     private function __construct()
     {
@@ -287,6 +289,7 @@ final class AppBuilder
                 'coretsia/platform-logging' => self::loggingPackageRoot(),
                 'coretsia/platform-problem-details' => self::problemDetailsPackageRoot(),
                 'coretsia/platform-redaction' => self::redactionPackageRoot(),
+                'coretsia/platform-routing' => self::routingPackageRoot(),
             ]),
             modePresetLoaderFactory: $modePresetLoaderFactory,
             presetNamespaceResolver: new PresetNamespaceResolver(),
@@ -412,6 +415,7 @@ final class AppBuilder
                 self::MODULE_PLATFORM_LOGGING,
                 self::MODULE_PLATFORM_PROBLEM_DETAILS,
                 self::MODULE_PLATFORM_REDACTION,
+                self::MODULE_PLATFORM_ROUTING,
             ],
         );
     }
@@ -464,6 +468,7 @@ final class AppBuilder
             self::MODULE_PLATFORM_LOGGING => 'config/logging.php',
             self::MODULE_PLATFORM_PROBLEM_DETAILS => 'config/problem_details.php',
             self::MODULE_PLATFORM_REDACTION => null,
+            self::MODULE_PLATFORM_ROUTING => 'config/routing.php',
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }
@@ -479,6 +484,7 @@ final class AppBuilder
             self::MODULE_PLATFORM_LOGGING => 'coretsia/platform-logging',
             self::MODULE_PLATFORM_PROBLEM_DETAILS => 'coretsia/platform-problem-details',
             self::MODULE_PLATFORM_REDACTION => 'coretsia/platform-redaction',
+            self::MODULE_PLATFORM_ROUTING => 'coretsia/platform-routing',
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
     }
@@ -506,6 +512,9 @@ final class AppBuilder
             ],
             self::MODULE_PLATFORM_REDACTION => [
                 RedactionServiceProvider::class,
+            ],
+            self::MODULE_PLATFORM_ROUTING => [
+                RoutingServiceProvider::class,
             ],
             self::MODULE_PLATFORM_HTTP,
             self::MODULE_PLATFORM_PROBLEM_DETAILS => [],
@@ -548,6 +557,11 @@ final class AppBuilder
             self::MODULE_PLATFORM_PROBLEM_DETAILS => [
                 self::MODULE_CORE_FOUNDATION,
                 self::MODULE_PLATFORM_ERRORS,
+            ],
+            self::MODULE_PLATFORM_ROUTING => [
+                self::MODULE_CORE_FOUNDATION,
+                self::MODULE_CORE_KERNEL,
+                self::MODULE_PLATFORM_REDACTION,
             ],
             default => throw new \LogicException('app-builder-fixture-module-unknown'),
         };
@@ -636,6 +650,11 @@ final class AppBuilder
     private static function redactionPackageRoot(): string
     {
         return \dirname(self::packageRoot(), 2) . '/platform/redaction';
+    }
+
+    private static function routingPackageRoot(): string
+    {
+        return \dirname(self::packageRoot(), 2) . '/platform/routing';
     }
 }
 

@@ -18,7 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
+use Coretsia\Contracts\Module\ModuleDescriptor;
 use Coretsia\Contracts\Module\ModuleId;
+use Coretsia\Contracts\Module\ModuleManifest;
 use Coretsia\Foundation\Container\ContainerBuilder;
 use Coretsia\Foundation\Module\FoundationModule;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
@@ -72,6 +74,71 @@ final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends 
                 \array_map(static fn (ModuleId $id): string => $id->value(), $graph['topologicalOrder']),
             );
         }
+    }
+
+    public function testRoutingDependencyClosureInCommittedInstallationCatalog(): void
+    {
+        $catalog = new ReleaseInstallationCatalogLoader()->load();
+        $routing = ModuleId::fromString('platform.routing');
+        $entry = $catalog->entry($routing);
+
+        self::assertNotNull($entry);
+        self::assertSame('coretsia/platform-routing', $entry->composerName());
+        self::assertSame(
+            ['core.foundation', 'core.kernel', 'platform.redaction'],
+            \array_map(static fn (ModuleId $id): string => $id->value(), $entry->requires()),
+        );
+        self::assertSame([], $entry->conflicts());
+
+        $resolver = new ModuleGraphResolver(new TopologicalSorter());
+        $selection = new ModuleSelection([$routing], []);
+        $entries = $catalog->entries();
+
+        foreach ([$entries, \array_reverse($entries)] as $available) {
+            $graph = $resolver->resolveEntries($available, $selection);
+            self::assertSame(
+                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.routing'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $graph['enabled']),
+            );
+            self::assertSame(
+                ['core.foundation', 'core.kernel', 'platform.redaction', 'platform.routing'],
+                \array_map(static fn (ModuleId $id): string => $id->value(), $graph['topologicalOrder']),
+            );
+        }
+    }
+
+    public function testInstalledRoutingDoesNotImplyEnabledRouting(): void
+    {
+        $catalog = new ReleaseInstallationCatalogLoader()->load();
+        $descriptors = [];
+
+        foreach ($catalog->entries() as $entry) {
+            $descriptors[] = new ModuleDescriptor(
+                id: $entry->moduleId(),
+                composerName: $entry->composerName(),
+                packageKind: 'runtime',
+                moduleClass: null,
+                capabilities: [],
+                metadata: [
+                    'requires' => \array_map(static fn (ModuleId $id): string => $id->value(), $entry->requires()),
+                    'conflicts' => \array_map(static fn (ModuleId $id): string => $id->value(), $entry->conflicts()),
+                ],
+            );
+        }
+
+        $manifest = new ModuleManifest($descriptors);
+        self::assertTrue($manifest->has('platform.routing'));
+
+        $resolver = new ModuleGraphResolver(new TopologicalSorter());
+        $http = ModuleId::fromString('platform.http');
+        $routing = ModuleId::fromString('platform.routing');
+
+        $withoutRouting = $resolver->resolve('web', $manifest, new ModuleSelection([$http], []));
+        $withRouting = $resolver->resolve('web', $manifest, new ModuleSelection([$http, $routing], []));
+
+        self::assertTrue($withoutRouting->hasEnabledModule($http));
+        self::assertFalse($withoutRouting->hasEnabledModule($routing));
+        self::assertTrue($withRouting->hasEnabledModule($routing));
     }
 
     public function testEveryCanonicalPhaseARootExistsInCommittedInstallationCatalog(): void
@@ -129,6 +196,11 @@ final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends 
                 );
                 $selection = $orchestrator->resolveSelection($config);
 
+                self::assertContains(
+                    'platform.routing',
+                    \array_map(static fn (ModuleId $id): string => $id->value(), $selection->roots()),
+                );
+
                 foreach ($selection->roots() as $moduleId) {
                     self::assertNotNull(
                         $catalog->entry($moduleId),
@@ -159,6 +231,12 @@ final class DependencySyncInstallationCatalogCoversCanonicalPresetsTest extends 
 
             self::assertContains('platform.redaction', $first->enabledModuleIdsByTarget()['web']);
             self::assertContains('platform.redaction', $first->unionModuleIds());
+            self::assertContains('platform.routing', $first->enabledModuleIdsByTarget()['web']);
+            self::assertContains('platform.routing', $first->unionModuleIds());
+            self::assertSame(
+                $catalog->publicConstraint(),
+                $first->desiredRootRequirements()['coretsia/platform-routing'] ?? null,
+            );
             self::assertSame(
                 $catalog->publicConstraint(),
                 $first->desiredRootRequirements()['coretsia/platform-redaction'] ?? null,

@@ -29,6 +29,7 @@ deptrac:
     - '../../packages/platform/metrics/src'
     - '../../packages/platform/problem-details/src'
     - '../../packages/platform/redaction/src'
+    - '../../packages/platform/routing/src'
     - '../../packages/platform/tracing/src'
     - '../../packages/platform/worker/src'
 
@@ -86,6 +87,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Redaction\\.*'
+    - name: 'platform.routing'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\Routing\\.*'
     - name: 'platform.tracing'
       collectors:
         - type: classLike
@@ -127,6 +132,10 @@ deptrac:
     'platform.redaction':
       - 'core.contracts'
       - 'core.foundation'
+    'platform.routing':
+      - 'core.contracts'
+      - 'core.foundation'
+      - 'core.kernel'
     'platform.tracing':
       - 'core.contracts'
       - 'core.foundation'

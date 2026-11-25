@@ -1008,6 +1008,56 @@ PHP;
         self::assertSame(1, \substr_count(new LogfmtLineFormatter()->format($two), "\n"));
     }
 
+    public function testRoutingMatchFieldsSurviveProducerNeutralSinkAdmission(): void
+    {
+        [$policy, $redactor] = self::fixture();
+        $contexts = [
+            ['method' => 'GET', 'outcome' => 'matched', 'path_template' => '/'],
+            ['method' => 'PATCH', 'outcome' => 'matched', 'path_template' => '/teams/{team_id}/users/{id}'],
+            ['method' => 'GET', 'outcome' => 'not_matched'],
+            ['method' => 'OTHER', 'outcome' => 'not_matched'],
+            ['method' => 'HEAD', 'outcome' => 'matched', 'path_template' => '/' . \str_repeat('a', 255)],
+            // Relationships between individually admitted fields belong to the producer.
+            ['method' => 'POST', 'outcome' => 'success'],
+            ['method' => 'GET', 'outcome' => 'matched'],
+            ['method' => 'GET', 'outcome' => 'not_matched', 'path_template' => '/users/{id}'],
+        ];
+        $inputs = [];
+        foreach ($contexts as $context) {
+            self::assertSame($context, $policy->admitContext($context));
+            foreach (['routing.match.completed', 'kernel.boot', 'worker.iteration'] as $event) {
+                self::assertSame($event, $policy->admitMessage($event));
+                $record = self::record(['level' => 'debug', 'message' => $event, 'context' => $context]);
+                self::assertTrue(LogRecordPolicy::isValidCanonicalRecord($record));
+                $redacted = $policy->redactRecord($record);
+                self::assertSame($record, $redacted);
+                self::assertSame(1, \substr_count(new JsonLineFormatter()->format($redacted), "\n"));
+                self::assertSame(1, \substr_count(new LogfmtLineFormatter()->format($redacted), "\n"));
+                $inputs[] = $record;
+            }
+        }
+        self::assertSame($inputs, $redactor->inputs);
+        self::assertSame(\count($inputs), $redactor->calls);
+
+        foreach (
+            [
+                ['method' => 'get'],
+                ['outcome' => 'Matched'],
+                ['path_template' => '/users/42'],
+                ['path_template' => '/users/{id}?token=private'],
+                ['path_template' => '/' . \str_repeat('a', 256)],
+            ] as $context
+        ) {
+            self::assertNull($policy->admitContext($context));
+            foreach (['routing.match.completed', 'kernel.boot'] as $event) {
+                $record = self::record(['message' => $event, 'context' => $context]);
+                self::assertFalse(LogRecordPolicy::isValidCanonicalRecord($record));
+                self::assertNull($policy->redactRecord($record));
+            }
+        }
+        self::assertSame(\count($inputs), $redactor->calls);
+    }
+
     public function testPolicyHasNoPlatformRedactionImplementationOrKernelRegexDependency(): void
     {
         $source = \file_get_contents(new \ReflectionClass(LogRecordPolicy::class)->getFileName());

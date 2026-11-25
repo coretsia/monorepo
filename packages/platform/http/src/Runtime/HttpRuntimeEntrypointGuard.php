@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Runtime;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
+use Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface;
 use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
@@ -28,7 +29,7 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
 /**
- * HTTP-owned entrypoint compatibility and effective PSR-17 readiness boundary.
+ * HTTP-owned entrypoint compatibility and effective runtime readiness boundary.
  *
  * The owning entrypoint supplies the already-selected runtime contributions
  * after canonical container composition and before HTTP runtime construction.
@@ -69,7 +70,8 @@ final readonly class HttpRuntimeEntrypointGuard
     }
 
     /**
-     * Validates only HTTP module, Kernel driver matrix and effective factories.
+     * Validates HTTP module, Kernel driver matrix, effective factories and
+     * selected Routing artifact readiness.
      * No UnitOfWork, HTTP pipeline, transport, or factory fallback is started.
      */
     public function assertEntrypointAllowed(
@@ -85,17 +87,20 @@ final readonly class HttpRuntimeEntrypointGuard
         $this->runtimeDriverResolver->resolve($config, $contributions);
 
         $selection = $config->get('http.factory');
-        if (!\is_string($selection) || (
-            $selection !== 'external' && !isset(self::BUILTIN_FACTORY_CLASSES[$selection])
-        )) {
+        if (
+            !\is_string($selection)
+            || ($selection !== 'external' && !isset(self::BUILTIN_FACTORY_CLASSES[$selection]))
+        ) {
             throw new \InvalidArgumentException('http-factory-selection-invalid');
         }
 
         $expected = self::BUILTIN_FACTORY_CLASSES[$selection] ?? null;
-        if ($expected !== null && (
-            !self::factoryClassExists($expected['response'])
+        if (
+            $expected !== null && (
+                !self::factoryClassExists($expected['response'])
                 || !self::factoryClassExists($expected['stream'])
-        )) {
+            )
+        ) {
             throw new \RuntimeException('http-factory-implementation-unavailable');
         }
 
@@ -104,17 +109,30 @@ final readonly class HttpRuntimeEntrypointGuard
         $responses = $container->get(ResponseFactoryInterface::class);
         $streams = $container->get(StreamFactoryInterface::class);
 
-        if (!$responses instanceof ResponseFactoryInterface
+        if (
+            !$responses instanceof ResponseFactoryInterface
             || !$streams instanceof StreamFactoryInterface
         ) {
             throw new \RuntimeException('http-factory-contract-invalid');
         }
 
-        if ($expected !== null && (
-            $responses::class !== $expected['response']
+        if (
+            $expected !== null && (
+                $responses::class !== $expected['response']
                 || $streams::class !== $expected['stream']
-        )) {
+            )
+        ) {
             throw new \RuntimeException('http-factory-selection-mismatch');
+        }
+
+        if ($modulePlan->hasEnabledModule('platform.routing')) {
+            $readiness = $container->get(RoutingArtifactReadinessInterface::class);
+
+            if (!$readiness instanceof RoutingArtifactReadinessInterface) {
+                throw new \RuntimeException('http-routing-artifact-readiness-invalid');
+            }
+
+            $readiness->assertReady();
         }
     }
 

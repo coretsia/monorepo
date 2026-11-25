@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
+use Coretsia\Foundation\Serialization\StablePhpArrayDumper as FoundationStablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser;
@@ -124,6 +125,18 @@ final class StablePhpArrayDumperDeterministicEmissionContractTest extends TestCa
 
         self::assertSame($first, $second);
         self::assertSame($first, $third);
+    }
+
+    public function testKernelEmissionMatchesSharedFoundationCodec(): void
+    {
+        $envelope = self::canonicalEnvelope();
+        $normalized = new PayloadNormalizer()->normalizeMap($envelope, 'artifact');
+        $bytes = new FoundationStablePhpArrayDumper()->dumpNormalized($normalized);
+
+        self::assertSame($bytes, self::dumper()->dump($envelope));
+        self::assertSame($bytes, self::dumper()->dumpEnvelope($envelope));
+        self::assertSame($bytes, StablePhpArrayDumper::dumpStable($envelope));
+        self::assertSame($bytes, StablePhpArrayDumper::dumpStableEnvelope($envelope));
     }
 
     private static function dumper(): StablePhpArrayDumper

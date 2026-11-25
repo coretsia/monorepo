@@ -24,6 +24,7 @@ use Coretsia\Contracts\Env\EnvValue;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Filesystem\AtomicFileWriter;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
@@ -337,6 +338,7 @@ final class KernelArtifactObservabilityDoesNotChangeBehaviorTest extends TestCas
     ): ArtifactWriter {
         return new ArtifactWriter(
             phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
+            atomicFileWriter: new AtomicFileWriter(),
             tracer: $tracer,
             meter: $meter,
             logger: $logger,

@@ -20,7 +20,7 @@ Scope: validated W3C trace identity, canonical `traceparent` generation, support
 
 Out of scope: recording spans and durations, active span state, trace/span identity generation, sampling decisions, exporters, metrics, logging, persisted trace history, trace viewers, automatic HTTP middleware, full `tracestate` forwarding, baggage propagation, and Kernel correlation or UnitOfWork lifecycle ownership.
 
-This README is a consumer-oriented package summary. `docs/ssot/tracecontext.md` is authoritative for the exact parsing, resource-limit, mutation, and security policies.
+This README is a consumer-oriented package summary. [docs/ssot/tracecontext.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tracecontext.md) is authoritative for the exact parsing, resource-limit, mutation, and security policies.
 
 ## Package identity
 
@@ -44,7 +44,7 @@ The package declares these production Composer dependencies:
 - `coretsia/core-contracts`
 - `coretsia/core-foundation`
 
-Its `composer.json` is authoritative for exact constraints. Direct production PHP source dependencies are limited to `core/contracts` and `core/foundation`, as recorded in `docs/architecture/DEPENDENCIES.md`.
+Its `composer.json` is authoritative for exact constraints. Direct production PHP source dependencies are limited to `core/contracts` and `core/foundation`, as recorded in [docs/architecture/DEPENDENCIES.md](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md).
 
 `core/contracts` owns `ContextPropagationInterface`, `TracerPortInterface`, and `SpanInterface`. `core/foundation` owns the canonical `NoopContextPropagation`, `NoopTracer`, and `NoopSpan` implementations, declarative container definitions, and the existing `ContextStore` reset boundary. Kernel owns module planning, provider ordering, and UnitOfWork orchestration; it is not a direct production-source dependency of this package.
 

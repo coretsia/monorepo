@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Integration;
 
-use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
@@ -113,7 +113,7 @@ final class KernelProviderSourceDefinitionsParityTest extends TestCase
             self::sorted([
                 ContainerInterface::class,
                 TagRegistry::class,
-                ContextAccessorInterface::class,
+                ContextWriterInterface::class,
                 ResetOrchestrator::class,
                 Stopwatch::class,
                 IdGeneratorInterface::class,

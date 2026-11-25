@@ -20,6 +20,7 @@ namespace Coretsia\Platform\Logging\Tests\Contract;
 
 use Coretsia\Contracts\Config\ConfigRepositoryInterface;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Runtime\AppTargetProviderInterface;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
@@ -66,6 +67,8 @@ final class LoggingProviderDeclarativeDefinitionsContractTest extends TestCase
         $required = $set->requiredServiceIds();
         self::assertSame($ports, \array_values(\array_intersect($ports, $required)));
         self::assertCount(7, $required);
+        self::assertContains(ContextAccessorInterface::class, $required);
+        self::assertNotContains(ContextWriterInterface::class, $required);
         self::assertContains(SensitiveKeyClassifierInterface::class, $required);
         self::assertSame(
             $operations,

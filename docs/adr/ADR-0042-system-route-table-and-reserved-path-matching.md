@@ -17,35 +17,35 @@
 ```yaml
 adrVersion: 1
 status: pre-accepted
-owner: platform/http
+owner: core/foundation
 ```
 
 ## Context
 
 Coretsia needs deterministic ownership of system HTTP paths independently of endpoint implementation, package installation, module participation, runtime exposure, and authorization. Application route admission and system-endpoint dispatch need a common declaration source without acquiring each other's responsibilities.
 
-Routing and HttpApp contracts define format-neutral routing descriptors and ports. Foundation owns generic DI tag discovery, registration, and ordering. Neither boundary owns the concrete HTTP system-route vocabulary or its path matching semantics.
+Routing and HttpApp contracts define format-neutral routing descriptors and ports. Foundation owns shared deterministic runtime mechanisms, including DI tag infrastructure, canonical system-route declarations, and concrete reserved-path matching. Endpoint implementation and application route compilation remain owned by their respective platform packages.
 
 HTTP maintenance also has an exact liveness bypass that must not acquire additional bypass paths through reserved-path normalization. Concrete path matching, route-template overlap analysis, endpoint execution, and endpoint access decisions therefore require distinct ownership boundaries.
 
 ## Decision
 
-### Decision 1: HTTP owns one canonical versioned declaration registry
+### Decision 1: Foundation owns one canonical versioned declaration registry
 
-`Coretsia\Platform\Http\System\SystemRouteTable` is the sole production system-route declaration registry. It exposes the typed `SCHEMA_VERSION` and `ALIVE_PATH` constants and the static `entries()` API over immutable declaration metadata.
+`Coretsia\Foundation\Routing\SystemRouteTable` is the sole production system-route declaration registry. It exposes the typed `SCHEMA_VERSION` and `ALIVE_PATH` constants and the static `entries()` API over immutable declaration metadata.
 
 Each declaration contains exactly `owner`, `pattern`, `status`, and `type`. The canonical list is deterministic, ordered by `pattern` and then `type` using byte-order comparison, and forbids duplicates and overlapping declarations. Declaration grammar, owner identity, and the complete versioned table are governed by `docs/ssot/system-route-table.md`.
 
 All three statuses reserve ownership: `active` identifies a materialized endpoint capability, `reserved` protects a path without asserting implementation, and `dev_only` protects a development-only declaration without enabling it. A declaration may name an owner package that is not yet materialized. Only the declared owner may claim the endpoint, and actual exposure remains subject to its applicable implementation, module, configuration, and access policy.
 
-The root `/` reservation is deliberately exact, not a wildcard. The exact `/`, `/_alive`, `/error`, and `/ping` declarations belong to `platform/http` and identify active terminal system-endpoint capabilities. The exact `/_debug` and prefix `/_debug/` reservations retain `dev_only` status. Neither declaration status nor a matching result establishes runtime exposure or authorization.
+The exact `/_alive`, `/error`, and `/ping` declarations belong to `platform/http` and identify active terminal system-endpoint capabilities. The exact `/_debug` and prefix `/_debug/` reservations retain `dev_only` status. Neither declaration status nor a matching result establishes runtime exposure or authorization.
 
 ### Decision 2: Keep declarations, matching, admission, and execution separate
 
 The ownership boundaries are:
 
 - `SystemRouteTable` owns immutable route declarations and canonical path identifiers.
-- `Coretsia\Platform\Http\System\ReservedPathMatcher` owns concrete reserved-path normalization and matching against those declarations.
+- `Coretsia\Foundation\Routing\ReservedPathMatcher` owns concrete reserved-path normalization and matching against those declarations.
 - Application route compilation guards must analyze route-template overlap against the canonical exact paths and prefix namespaces.
 - System-endpoint runtime owners own endpoint selection and execution independently of reservation matching.
 - `FallbackRouter` consumes the canonical matcher result for terminal system-endpoint dispatch. `FallbackResponses` owns terminal response construction, including reserved fallback responses and unmatched responses.
@@ -53,7 +53,7 @@ The ownership boundaries are:
 
 A concrete-path match is reserved ownership metadata, not an endpoint dispatch decision, route-template admission proof, or authorization outcome.
 
-Contracts routing descriptors remain transport-neutral under `docs/ssot/routing-and-http-app-contracts.md`. Foundation DI tag infrastructure remains generic and does not acquire HTTP path semantics. Consumers must preserve the canonical direct package dependency matrix; reservation access must not introduce a reverse dependency or package cycle.
+Contracts routing descriptors remain transport-neutral under `docs/ssot/routing-and-http-app-contracts.md`. Foundation owns the shared reservation registry and stateless concrete-path matching without acquiring endpoint implementation, transport processing, or application route compilation responsibilities. HTTP and Routing consume these primitives independently and must preserve the canonical direct package dependency matrix without introducing dependencies on each other.
 
 ### Decision 3: Enforce registry consistency through a committed version baseline
 
@@ -71,9 +71,11 @@ Baseline history is repository tooling data, not production configuration or a g
 
 ### Decision 4: Match concrete encoded URI paths through one canonical implementation
 
-`ReservedPathMatcher::match(string $path): ?array` consumes `SystemRouteTable::entries()` directly and returns a complete canonical entry or `null` for a valid path without a reservation match. It is independent of status-based endpoint activation.
+`ReservedPathMatcher::normalize(string $path): string` validates and normalizes a concrete encoded URI path without inspecting reserved declarations.
 
-The input is a concrete encoded URI path component, not a complete URI, request-target parser input, or route template. Canonical declaration grammar is intentionally stricter than the concrete path input grammar.
+`ReservedPathMatcher::match(string $path): ?array` invokes `normalize()` exactly once, consumes `SystemRouteTable::entries()` directly, and returns a complete canonical entry or `null` for a valid path without a reservation match. It is independent of status-based endpoint activation.
+
+Both operations accept a concrete encoded URI path component, not a complete URI, request-target parser input, or route template. Canonical declaration grammar is intentionally stricter than the concrete path input grammar.
 
 Normalization must:
 
@@ -98,6 +100,8 @@ Any runtime consumer that integrates reserved-path matching with endpoint dispat
 `FallbackRouter` filters the exact case-sensitive method `GET` before URI access, passes the original URI path to `ReservedPathMatcher::match()` exactly once, and selects explicitly implemented behavior using the returned canonical declaration's owner, pattern, type, and status. It treats only the canonical matcher invalid-input exception as unmatched; URI access and endpoint execution failures propagate unchanged.
 
 The terminal dispatcher delegates construction of a safe HTTP-owned `501` fallback to `FallbackResponses` for explicitly supported reserved health and metrics declarations when no earlier owner-controlled response has short-circuited the pipeline. This diagnostic does not claim, implement, or authorize the reserved owner's endpoint and does not establish package installation or backend availability. No independent registry, matcher, or owner-discovery mechanism is introduced.
+
+Application routing consumes `normalize()` as the canonical concrete-path validation boundary. A concrete application path must equal its normalized representation byte-for-byte, and a non-root path must not end with a literal slash. Normalization must not introduce application-route aliases.
 
 Application route compilation must separately analyze route-template overlap, including dynamic templates that could match an exact reservation or enter a reserved prefix namespace. Passing a route template or a sample concrete path to `ReservedPathMatcher` is not a sufficient admission check.
 
@@ -125,7 +129,8 @@ The terminal dispatcher is a separate stateless runtime consumer with explicit d
 
 ### Positive consequences
 
-- one HTTP-owned declaration registry provides deterministic reserved ownership without coupling it to endpoint availability;
+- one Foundation-owned declaration registry provides deterministic reserved ownership without coupling it to endpoint availability;
+- HTTP and Routing consume the canonical reservation policy without depending on each other;
 - concrete reserved-path matching has a single stateless implementation and preserves segment boundaries and encoded path identity;
 - the repository gate checks synchronized declarations and local version history while repository review retains authority over released historical immutability;
 - maintenance liveness bypass remains exact and independent of general reserved-path normalization;
@@ -139,10 +144,6 @@ The terminal dispatcher is a separate stateless runtime consumer with explicit d
 - encoded path aliases are intentionally not inferred, and consumers must preserve consistent path semantics through dispatch.
 
 ## Rejected alternatives
-
-### Put the system-route registry in Contracts or Foundation
-
-HTTP-specific ownership declarations would expand the format-neutral routing contracts or generic DI infrastructure with platform-specific knowledge. The existing descriptors, ports, and tag infrastructure remain independent of concrete HTTP reservation semantics.
 
 ### Derive reservations from configuration, module discovery, or generated artifacts
 
@@ -164,7 +165,7 @@ Decoding creates implicit aliases and permits divergence from effective dispatch
 
 - General application routing, route-template compiler or admission guard implementation, or endpoint access policy implementation. The terminal dispatcher and response services retain their separate system-endpoint responsibilities.
 - Activation of liveness, health, metrics, debug, or other reserved endpoints solely through declarations or matching.
-- An additional Contracts or Foundation registry, configuration root, generated artifact, runtime discovery layer, DI binding, or public matching port.
+- A competing reservation registry, configuration root, generated artifact, runtime discovery layer, DI binding, or public matching port.
 - A competing middleware topology, HTTP execution boundary, Kernel lifecycle, context owner, request-observability pipeline, or reset orchestration.
 
 ## Related SSoT

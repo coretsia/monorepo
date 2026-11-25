@@ -1003,23 +1003,17 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     array $contextSymbols,
 ): array {
     $source = DeterministicFile::readTextNormalizedEol($phpFile);
-
-    if (
-        !\str_contains($source, 'ContextStore')
-        && !\str_contains($source, 'ContextKeys')
-    ) {
-        return [];
-    }
+    $contextStoreSymbols = \array_change_key_case($contextSymbols['ContextStore'], \CASE_LOWER);
 
     $ownSymbols = [];
     foreach ($contextSymbols['ContextStore'] as $symbol => $ownerFile) {
         if ($ownerFile === $phpFile) {
-            $ownSymbols[$symbol] = true;
+            $ownSymbols[\strtolower($symbol)] = true;
         }
     }
     foreach ($contextSymbols['ContextKeys'] as $symbol => $ownerFile) {
         if ($ownerFile === $phpFile) {
-            $ownSymbols[$symbol] = true;
+            $ownSymbols[\strtolower($symbol)] = true;
         }
     }
 
@@ -1029,9 +1023,28 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
         throw new \RuntimeException('php-tokenize-failed');
     }
 
-    $context = coretsia_cross_cutting_contract_gate_parse_php_context($source);
+    $contextSource = '';
+
+    foreach ($tokens as $token) {
+        if (\is_array($token)) {
+            $contextSource .= match ($token[0]) {
+                T_COMMENT, T_DOC_COMMENT, T_CONSTANT_ENCAPSED_STRING => ' ',
+                default => $token[1],
+            };
+
+            continue;
+        }
+
+        $contextSource .= $token;
+
+        if ($token === ';' || $token === '{') {
+            $contextSource .= "\n";
+        }
+    }
+
+    $context = coretsia_cross_cutting_contract_gate_parse_php_context($contextSource);
     $namespace = $context['namespace'];
-    $imports = $context['imports'];
+    $imports = \array_change_key_case($context['imports'], \CASE_LOWER);
 
     /** @var array<string, true> $violations */
     $violations = [];
@@ -1040,29 +1053,44 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
     for ($i = 0; $i < $count; $i++) {
         $token = $tokens[$i];
 
-        if (
-            !\is_array($token)
-            || (
-                $token[0] !== T_STRING
-                && $token[0] !== T_NAME_QUALIFIED
-                && $token[0] !== T_NAME_FULLY_QUALIFIED
-            )
-        ) {
+        if (!\is_array($token)) {
             continue;
         }
 
-        $previous = coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $i - 1);
-        if ($previous === T_CLASS || $previous === T_INTERFACE || $previous === T_TRAIT) {
+        if ($token[0] === T_CONSTANT_ENCAPSED_STRING) {
+            $literal = \ltrim($token[1], 'bB');
+
+            $resolved = \strtolower(
+                \ltrim(
+                    coretsia_cross_cutting_contract_gate_decode_php_string_literal($literal),
+                    '\\',
+                ),
+            );
+        } elseif (\in_array(
+            $token[0],
+            [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE],
+            true,
+        )) {
+            $previous = coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $i - 1);
+            if ($previous === T_CLASS || $previous === T_INTERFACE || $previous === T_TRAIT) {
+                continue;
+            }
+
+            $name = \strtolower($token[1]);
+            $resolved = $token[0] === T_NAME_RELATIVE
+                ? \ltrim($namespace . '\\' . \substr($name, \strlen('namespace\\')), '\\')
+                : coretsia_cross_cutting_contract_gate_resolve_type_name($name, $namespace, $imports);
+
+            $resolved = \strtolower($resolved);
+        } else {
             continue;
         }
-
-        $resolved = coretsia_cross_cutting_contract_gate_resolve_type_name($token[1], $namespace, $imports);
 
         if (isset($ownSymbols[$resolved])) {
             continue;
         }
 
-        if (isset($contextSymbols['ContextStore'][$resolved])) {
+        if (isset($contextStoreSymbols[$resolved])) {
             if (
                 coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_context_owner(
                     phpFile: $phpFile,
@@ -1077,12 +1105,12 @@ function coretsia_cross_cutting_contract_gate_detect_forbidden_context_symbol_us
             continue;
         }
 
-        if ($resolved === 'Coretsia\\Contracts\\Context\\ContextKeys') {
+        if ($resolved === 'coretsia\\contracts\\context\\contextkeys') {
             // Public key vocabulary is allowed across runtime/platform packages.
             continue;
         }
 
-        if ($resolved === 'Coretsia\\Foundation\\Context\\ContextKeys') {
+        if ($resolved === 'coretsia\\foundation\\context\\contextkeys') {
             // Legacy Foundation-owned key registry must not be referenced.
             $violations['forbidden-context-keys-usage'] = true;
             continue;
@@ -1111,157 +1139,6 @@ function coretsia_cross_cutting_contract_gate_context_store_usage_is_allowed_con
         }
 
         return coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex);
-    }
-
-    if (\str_ends_with($path, '/packages/core/kernel/src/Runtime/KernelRuntime.php')) {
-        return true;
-    }
-
-    if (\str_ends_with($path, '/packages/core/kernel/src/Provider/KernelServiceFactory.php')) {
-        return true;
-    }
-
-    if (\str_ends_with($path, '/packages/platform/http/src/Provider/HttpServiceProvider.php')) {
-        return coretsia_cross_cutting_contract_gate_is_http_provider_context_store_di_reference($tokens, $tokenIndex);
-    }
-
-    if (
-        \str_ends_with($path, '/packages/platform/http/src/Middleware/RequestContextMiddleware.php')
-        || \str_ends_with($path, '/packages/platform/http/src/RequestId/RequestIdPolicy.php')
-    ) {
-        return coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency($tokens, $tokenIndex);
-    }
-
-    return false;
-}
-
-/**
- * @param list<array{0:int, 1:string, 2:int}|string> $tokens
- */
-function coretsia_cross_cutting_contract_gate_is_http_provider_context_store_di_reference(
-    array $tokens,
-    int $tokenIndex,
-): bool {
-    if (!coretsia_cross_cutting_contract_gate_is_class_constant_reference($tokens, $tokenIndex)) {
-        return false;
-    }
-
-    $scopeIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $tokenIndex + 1);
-    if ($scopeIndex === null) {
-        return false;
-    }
-
-    $classIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $scopeIndex + 1);
-    if ($classIndex === null) {
-        return false;
-    }
-
-    $closeIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $classIndex + 1);
-    if ($closeIndex === null || $tokens[$closeIndex] !== ')') {
-        return false;
-    }
-
-    $openIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $tokenIndex - 1);
-    if ($openIndex === null || $tokens[$openIndex] !== '(') {
-        return false;
-    }
-
-    $methodIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $openIndex - 1);
-    if ($methodIndex === null) {
-        return false;
-    }
-
-    $method = $tokens[$methodIndex];
-    if (!\is_array($method) || $method[0] !== T_STRING) {
-        return false;
-    }
-
-    $operatorIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $methodIndex - 1);
-    if ($operatorIndex === null) {
-        return false;
-    }
-
-    $operator = $tokens[$operatorIndex];
-
-    if ($method[1] === 'ref') {
-        if (!\is_array($operator) || $operator[0] !== T_DOUBLE_COLON) {
-            return false;
-        }
-
-        $receiverIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index(
-            $tokens,
-            $operatorIndex - 1,
-        );
-        $receiver = $receiverIndex === null ? null : $tokens[$receiverIndex];
-
-        return \is_array($receiver) && $receiver[0] === T_STRING && \strtolower($receiver[1]) === 'self';
-    }
-
-    if ($method[1] !== 'requireService' || !\is_array($operator) || $operator[0] !== T_OBJECT_OPERATOR) {
-        return false;
-    }
-
-    // A chained requireService() call must originate from the canonical $definitions builder.
-    for ($i = $operatorIndex - 1; $i >= 0; $i--) {
-        if ($tokens[$i] !== ';' && $tokens[$i] !== '{' && $tokens[$i] !== '}') {
-            continue;
-        }
-
-        $startIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $i + 1);
-        $start = $startIndex === null ? null : $tokens[$startIndex];
-
-        return \is_array($start) && $start[0] === T_VARIABLE && $start[1] === '$definitions';
-    }
-
-    return false;
-}
-
-/**
- * @param list<array{0:int, 1:string, 2:int}|string> $tokens
- */
-function coretsia_cross_cutting_contract_gate_is_http_context_store_promoted_dependency(
-    array $tokens,
-    int $tokenIndex,
-): bool {
-    if (coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $tokenIndex - 1) !== T_PRIVATE) {
-        return false;
-    }
-
-    $variableIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $tokenIndex + 1);
-    if ($variableIndex === null) {
-        return false;
-    }
-
-    $variable = $tokens[$variableIndex];
-    if (!\is_array($variable) || $variable[0] !== T_VARIABLE || $variable[1] !== '$context') {
-        return false;
-    }
-
-    $afterIndex = coretsia_cross_cutting_contract_gate_next_meaningful_token_index($tokens, $variableIndex + 1);
-    if ($afterIndex === null || ($tokens[$afterIndex] !== ',' && $tokens[$afterIndex] !== ')')) {
-        return false;
-    }
-
-    for ($i = $tokenIndex - 1; $i >= 0; $i--) {
-        if ($tokens[$i] === '{' || $tokens[$i] === '}' || $tokens[$i] === ';') {
-            return false;
-        }
-
-        if ($tokens[$i] !== '(') {
-            continue;
-        }
-
-        $nameIndex = coretsia_cross_cutting_contract_gate_previous_meaningful_token_index($tokens, $i - 1);
-        if ($nameIndex === null) {
-            return false;
-        }
-
-        $name = $tokens[$nameIndex];
-        if (!\is_array($name) || $name[0] !== T_STRING || $name[1] !== '__construct') {
-            return false;
-        }
-
-        return coretsia_cross_cutting_contract_gate_previous_meaningful_token($tokens, $nameIndex - 1) === T_FUNCTION;
     }
 
     return false;
@@ -1575,24 +1452,6 @@ function coretsia_cross_cutting_contract_gate_next_meaningful_token_index(array 
 
 /**
  * @param list<array{0:int, 1:string, 2:int}|string> $tokens
- */
-function coretsia_cross_cutting_contract_gate_previous_meaningful_token_index(array $tokens, int $start): ?int
-{
-    for ($i = $start; $i >= 0; $i--) {
-        $token = $tokens[$i];
-
-        if (!\is_array(
-            $token,
-        ) || ($token[0] !== T_WHITESPACE && $token[0] !== T_COMMENT && $token[0] !== T_DOC_COMMENT)) {
-            return $i;
-        }
-    }
-
-    return null;
-}
-
-/**
- * @param list<array{0:int, 1:string, 2:int}|string> $tokens
  *
  * @return int|string|null
  */
@@ -1631,7 +1490,55 @@ function coretsia_cross_cutting_contract_gate_decode_php_string_literal(string $
     }
 
     if ($quote === '"') {
-        return \stripcslashes($inner);
+        $decoded = \preg_replace_callback(
+            '~\\\\(?:[nrtvef\\\\$"]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2}|u\{[0-9A-Fa-f]+})~',
+            static function (array $matches): string {
+                $escape = $matches[0];
+
+                if ($escape === '\\e') {
+                    return "\x1B";
+                }
+
+                if (!\str_starts_with($escape, '\\u{')) {
+                    return \stripcslashes($escape);
+                }
+
+                $codePoint = \hexdec(\substr($escape, 3, -1));
+
+                if (!\is_int($codePoint) || $codePoint > 0x10FFFF) {
+                    throw new \RuntimeException('php-string-literal-invalid');
+                }
+
+                return match (true) {
+                    $codePoint <= 0x7F => \chr($codePoint),
+                    $codePoint <= 0x7FF => \pack(
+                        'CC',
+                        0xC0 | ($codePoint >> 6),
+                        0x80 | ($codePoint & 0x3F),
+                    ),
+                    $codePoint <= 0xFFFF => \pack(
+                        'CCC',
+                        0xE0 | ($codePoint >> 12),
+                        0x80 | (($codePoint >> 6) & 0x3F),
+                        0x80 | ($codePoint & 0x3F),
+                    ),
+                    default => \pack(
+                        'CCCC',
+                        0xF0 | ($codePoint >> 18),
+                        0x80 | (($codePoint >> 12) & 0x3F),
+                        0x80 | (($codePoint >> 6) & 0x3F),
+                        0x80 | ($codePoint & 0x3F),
+                    ),
+                };
+            },
+            $inner,
+        );
+
+        if ($decoded === null) {
+            throw new \RuntimeException('php-string-literal-invalid');
+        }
+
+        return $decoded;
     }
 
     throw new \RuntimeException('php-string-literal-quote-invalid');

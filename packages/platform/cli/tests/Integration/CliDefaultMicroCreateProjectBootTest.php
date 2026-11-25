@@ -208,6 +208,6 @@ PHP,
         ) {
             self::assertStringNotContainsString($forbidden, $source);
         }
-        self::assertStringContainsString('$moduleResolutionOrchestrator->resolve($consoleBootstrapConfig)', $source);
+        self::assertStringContainsString('$moduleResolutionOrchestrator->resolve($targetBootstrapConfig)', $source);
     }
 }

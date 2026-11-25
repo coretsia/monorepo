@@ -155,9 +155,7 @@ A DTO is not, by default:
 
 Classes marked with `#[Dto]` are governed by the canonical DTO policy documented in:
 
-```text
-docs/ssot/dto-policy.md
-```
+[docs/ssot/dto-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/dto-policy.md)
 
 The monorepo SSoT remains authoritative for DTO rules.
 

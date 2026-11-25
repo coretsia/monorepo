@@ -19,8 +19,8 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Maintenance;
 
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Routing\SystemRouteTable;
 use Coretsia\Platform\Http\Exception\MaintenanceStateUnavailableException;
-use Coretsia\Platform\Http\System\SystemRouteTable;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

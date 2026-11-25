@@ -11940,8 +11940,8 @@ N/A
 
 #### Creates
 
-- [x] `packages/platform/http/src/System/SystemRouteTable.php` — canonical versioned system-route declarations
-  - [x] namespace: `Coretsia\Platform\Http\System`
+- [x] `packages/core/foundation/src/Routing/SystemRouteTable.php` — canonical versioned system-route declarations
+  - [x] namespace: `Coretsia\Foundation\Routing`
   - [x] final non-instantiable metadata-only class with a private parameterless constructor
   - [x] declare `public const int SCHEMA_VERSION = 1`
   - [x] declare `public const string ALIVE_PATH = '/_alive'` as the canonical exact liveness-path identifier
@@ -11960,7 +11960,6 @@ N/A
 
     | pattern | type | status | owner |
     |---|---|---|---|
-    | `/` | `exact` | `reserved` | `platform/http` |
     | `/_alive` | `exact` | `reserved` | `platform/http` |
     | `/_debug` | `exact` | `dev_only` | `platform/http` |
     | `/_debug/` | `prefix` | `dev_only` | `platform/http` |
@@ -12084,8 +12083,8 @@ N/A
   - [x] MUST NOT introduce another gate runtime, repository resolver, generic JSON serializer, or routing matcher
   - [x] resolve the committed version baseline from `tools/config/system-route-table.json` through the selected repository context
 
-- [x] `packages/platform/http/src/System/ReservedPathMatcher.php` — canonical concrete reserved-path matching
-  - [x] namespace: `Coretsia\Platform\Http\System`
+- [x] `packages/core/foundation/src/Routing/ReservedPathMatcher.php` — canonical concrete reserved-path matching
+  - [x] namespace: `Coretsia\Foundation\Routing`
   - [x] final non-instantiable stateless class with a private parameterless constructor
   - [x] expose `public static function match(string $path): ?array`
   - [x] return the complete matching canonical entry from `SystemRouteTable::entries()` or `null` when no declaration matches
@@ -12208,7 +12207,7 @@ Tests:
   - [x] verify preservation of existing invalid-heading diagnostics
   - [x] verify deterministic repeated section extraction
 
-- [x] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+- [x] `../../packages/core/foundation/tests/Contract/SystemRouteTableShapeContractTest.php`
   - [x] assert the exact class namespace, final class declaration, private parameterless constructor, and static public API
   - [x] assert the exact typed `SCHEMA_VERSION` and `ALIVE_PATH` constants
   - [x] assert the canonical initial nine-entry registry
@@ -12266,7 +12265,7 @@ Tests:
   - [x] derive invalid and version-transition cases from isolated copies of this fixture inside the gate integration test
   - [x] MUST NOT modify the committed fixture during test execution
 
-- [x] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+- [x] `packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
   - [x] exercise the actual `ReservedPathMatcher` and canonical `SystemRouteTable`
   - [x] verify exact returned entry fields, declaration type, status, and owner
   - [x] verify `null` for non-matching concrete paths
@@ -12476,8 +12475,8 @@ N/A
 - [x] use isolated temporary repository roots for positive and negative gate scenarios
 - [x] use `tools/tests/Fixtures/SystemRouteTable/baseline.json` as the independent canonical fixture
 - [x] execute `tools/tests/Integration/SystemRouteTableGateTest.php`
-- [x] execute `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
-- [x] execute `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+- [x] execute `../../packages/core/foundation/tests/Contract/SystemRouteTableShapeContractTest.php`
+- [x] execute `packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
 - [x] preserve and execute `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php` for existing terminal HTTP response and container parity regression evidence
 - [x] preserve and execute `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
 - [x] verify fixture-local table inspection without resolving the main repository's production table
@@ -12596,8 +12595,8 @@ ssot_refs:
 
 - Required deliverables (exact paths):
   - `packages/platform/http/src/Routing/FallbackRouterHandler.php`
-  - `packages/platform/http/src/System/SystemRouteTable.php`
-  - `packages/platform/http/src/System/ReservedPathMatcher.php`
+  - `packages/core/foundation/src/Routing/SystemRouteTable.php`
+  - `packages/core/foundation/src/Routing/ReservedPathMatcher.php`
   - `packages/platform/http/src/Provider/HttpServiceProvider.php`
   - `packages/platform/http/src/Error/HttpExceptionMapper.php`
   - `packages/platform/http/src/Maintenance/MaintenanceMiddleware.php`
@@ -13070,7 +13069,7 @@ Tests:
   - [x] preserve existing Coretsia dependency constraints, module requirements, and release-line versions
   - [x] MUST NOT introduce dependencies on other platform runtime packages or PSR-7 implementations
 
-- [x] `packages/platform/http/src/System/SystemRouteTable.php`
+- [x] `packages/core/foundation/src/Routing/SystemRouteTable.php`
   - [x] preserve `SCHEMA_VERSION = 1`
   - [x] transition exactly `/`, `/_alive`, `/error`, and `/ping` to `active`
   - [x] preserve all remaining declarations and canonical ordering
@@ -13128,7 +13127,7 @@ Tests:
   - [x] MUST NOT duplicate Foundation clock registration or add an HTTP-owned clock binding
   - [x] MUST NOT resolve executable services during declarative definition production
 
-- [x] `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php`
+- [x] `../../packages/core/foundation/tests/Contract/SystemRouteTableShapeContractTest.php`
   - [x] preserve the exact expected registry schema version `1`
   - [x] verify the current pre-stable registry independently of the historical synthetic gate test fixture
   - [x] update the four materialized HTTP declarations to `active`
@@ -13147,7 +13146,7 @@ Tests:
   - [x] MUST NOT modify the production registry or committed baseline during test execution
   - [x] MUST NOT introduce a gate-side stable release detection mechanism
 
-- [x] `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+- [x] `packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
   - [x] update expected status values for the four active HTTP declarations
   - [x] preserve reserved and development-only expected statuses
   - [x] preserve all existing path normalization, matching, invalid-input, opacity, and statelessness assertions
@@ -15142,11 +15141,16 @@ composer: "coretsia/platform-routing"
 kind: runtime
 module_id: "platform.routing"
 
-goal: "Deterministic routes artifact компілюється і читається runtime router’ом (artifact-only у prod), із reserved endpoints guard."
+goal: "Deterministic target-local routes artifact production and artifact-only runtime route matching with canonical reserved endpoint protection."
 provides:
-- "Real deterministic routes artifact: `packages/applications/skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; rerun → no diff)"
-- "Runtime `CompiledRouter` (artifact-only policy) + writes `ContextKeys::PATH_TEMPLATE` (low-cardinality)"
-- "Compile-time reserved endpoints guard: uses `platform/http` `SystemRouteTable` + `ReservedPathMatcher` (NO DUPES)"
+- "Deterministic platform-owned routes@1 artifact under the authoritative target-local artifact root."
+- "Runtime CompiledRouter implementing RouterInterface and consuming only a validated immutable route table."
+- "Canonical PATH_TEMPLATE context ownership without additional request lifecycle or reset ownership."
+- "Compile-time and artifact-read reserved route protection using SystemRouteTable and ReservedPathMatcher."
+- "Target-local routes:compile and routes:validate commands through canonical CLI command discovery and output."
+- "Declarative nested route groups with deterministic flattening into canonical RouteDefinition descriptors."
+- "Routing match tracing, metrics, and diagnostic logging through canonical observability ports."
+- "Shared deterministic PHP-array serialization and atomic file publication without duplicate implementation layers."
 
 tags_introduced:
 - "routing.route_provider"
@@ -15155,31 +15159,90 @@ config_roots_introduced:
 - "routing"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-routing-compiled-routes.md"
+adr: "docs/adr/ADR-0018-platform-routing-compiled-routes.md"
 ssot_refs:
 - "docs/ssot/system-route-table.md"
 - "docs/ssot/reserved-path-matching.md"
 - "docs/ssot/routing-artifact.md"
 - "docs/ssot/artifacts.md"
 - "docs/ssot/tags.md"
+- "docs/ssot/routing-and-http-app-contracts.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/runtime-drivers.md"
+- "docs/ssot/artifact-generations.md"
+- "docs/ssot/config-roots.md"
+- "docs/ssot/context-keys.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/reset-tags.md"
+- "docs/ssot/logging-policy.md"
+- "docs/ssot/sensitive-data-redaction.md"
 ---
+
+- [x] Pre-stable versioning discipline (MUST):
+  - [x] preserve all existing schema, SSoT, and ADR versions at `1`
+  - [x] update existing versioned baselines in place without appending new version snapshots
+  - [x] preserve synthetic version-transition fixtures where applicable
+  - [x] MUST NOT document this internal implementation constraint in project documentation
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
+- [x] Pre-stable documentation discipline (MUST):
+  - [x] documents with `pre-stable` or `pre-accepted` status and all other current-state project documentation MUST describe only the current canonical implementation
+  - [x] replace superseded behavior, architecture decisions, contracts, examples, and implementation descriptions in place
+  - [x] remove obsolete requirements, references, diagrams, and descriptions of unsupported behavior
+  - [x] MUST NOT retain superseded and replacement implementations as parallel documentation
+  - [x] MUST NOT introduce migration guidance, legacy compatibility descriptions, or historical implementation notes for unreleased behavior
+  - [x] preserve unrelated valid requirements and normative references
+  - [x] MUST NOT reference internal epic identifiers or implementation planning documents in project documentation
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.90.0` — `platform/http` `SystemRouteTable` exists (reserved endpoints SSoT)
-  - `3.90.0` — `platform/http` `ReservedPathMatcher` exists (matching semantics)
+  - `3.90.0` — `core/foundation` `SystemRouteTable` exists (reserved endpoints SSoT)
+  - `3.90.0` — `core/foundation` `ReservedPathMatcher` exists (matching semantics)
 
 - Required deliverables (exact paths):
-  - N/A
+  - `packages/core/contracts/src/Routing/RouteDefinition.php`
+  - `packages/core/contracts/src/Routing/RouteMatch.php`
+  - `packages/core/contracts/src/Routing/RouterInterface.php`
+  - `packages/core/contracts/src/Routing/RouteProviderInterface.php`
+  - `packages/core/foundation/src/Tag/TagRegistry.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/core/foundation/src/Context/ContextStore.php`
+  - `packages/core/foundation/src/Serialization/JsonLikeNormalizer.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Filesystem/ScopedFileLock.php`
+  - `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+  - `packages/core/kernel/src/Ops/KernelOpsHostInput.php`
+  - `packages/core/kernel/src/Runtime/RuntimePathContext.php`
+  - `packages/core/kernel/src/Runtime/RuntimeDiagnosticsInput.php`
+  - `packages/core/foundation/src/Routing/SystemRouteTable.php`
+  - `packages/core/foundation/src/Routing/ReservedPathMatcher.php`
+  - `packages/platform/http/src/Runtime/HttpRuntimeEntrypointGuard.php`
+  - `packages/core/foundation/src/Serialization/JsonLikeNormalizationLimits.php`
+  - `packages/core/foundation/src/Time/Stopwatch.php`
+  - `packages/core/foundation/src/Logging/NoopLogger.php`
+  - `packages/core/kernel/src/Boot/AppTarget.php`
+  - `packages/core/kernel/src/Module/ModulePlan.php`
+  - `packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`
+  - `packages/core/kernel/src/Artifacts/Php/StablePhpArrayParser.php`
+  - `packages/core/kernel/src/Artifacts/ArtifactWriter.php`
 
 - Required config roots/keys:
-  - `routing.*` — config root for compile+runtime toggles + artifact path
+  - N/A at epic start.
+  - `routing` is introduced by this epic.
+  - Register the canonical config root before running `composer package:new`.
 
 - Required tags:
-  - `cli.command` — command discovery (owner=`platform/cli`; because owner package is a forbidden compile-time dependency here, runtime wiring SHOULD use a package-local internal mirror constant and MAY fall back to the canonical string literal)
+  - `cli.command` — use `Coretsia\Foundation\Tag\ReservedTags::CLI_COMMAND`.
+  - `routing.route_provider` — introduced by this epic.
+
+- Prerequisites realized within this epic (MUST):
+  - [x] complete the `Realization of prerequisites` deliverables before implementing dependent Routing services
 
 - Required tags registry:
   - `routing.route_provider`:
@@ -15189,7 +15252,7 @@ ssot_refs:
 
 - Tag usage (MUST) — make ordering source-of-truth explicit
   - `RouteProviderRegistry` MUST enumerate providers ONLY via:
-    - `Coretsia\Foundation\Tag\TagRegistry::all(ReservedTags::ROUTE_PROVIDER)`
+    - `Coretsia\Foundation\Tag\TagRegistry::all(ReservedTags::ROUTING_ROUTE_PROVIDER)`
   - Registry/compiler MUST NOT re-sort or de-duplicate provider entries returned by TagRegistry.
   - Effective provider order is:
     - tag order = `priority DESC, serviceId ASC (strcmp)`
@@ -15200,15 +15263,24 @@ ssot_refs:
   - `Coretsia\Contracts\Routing\RouteMatch`
   - `Coretsia\Contracts\Routing\RouterInterface`
   - `Coretsia\Contracts\Routing\RouteProviderInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
-  - `Psr\Log\LoggerInterface` (optional)
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
+  - `Coretsia\Contracts\Cli\Command\CommandInterface`
+  - `Coretsia\Contracts\Cli\Input\InputInterface`
+  - `Coretsia\Contracts\Cli\Output\OutputInterface`
+  - `Coretsia\Contracts\Security\SensitiveDataRedactorInterface`
+  - `Coretsia\Contracts\Security\SensitiveKeyClassifierInterface`
+  - `Coretsia\Contracts\Context\ContextAccessorInterface`
+  - `Coretsia\Contracts\Context\ContextWriterInterface` — realized within this epic
+  - `Psr\Container\ContainerInterface`
+  - `Psr\Log\LoggerInterface`
 
 - Phase invariants reused (NO DUPES) (MUST):
   - Artifact determinism policy MUST match kernel artifacts policy (stable bytes, LF, no timestamps, schemaVersion pinned, rerun → no diff)
   - Reserved endpoints guard MUST reuse Phase SSoT:
-    - `platform/http` `SystemRouteTable`
-    - `platform/http` `ReservedPathMatcher`
+    - `core/foundation` `SystemRouteTable`
+    - `core/foundation` `ReservedPathMatcher`
   - “No raw path in labels” policy:
     - only `ContextKeys::PATH_TEMPLATE` allowed as span attr / context key, NOT as metric label.
 
@@ -15217,278 +15289,2204 @@ ssot_refs:
 Depends on:
 - `core/contracts`
 - `core/foundation`
-- `platform/http` (compile-time: uses `SystemRouteTable` + `ReservedPathMatcher`)
+- `core/kernel` — explicitly declared public Kernel source-host and runtime input APIs only
+
+Runtime-only binding dependencies:
+- `platform/redaction` — canonical sensitive-key classification and redaction ports
+  - MUST NOT import concrete Redaction implementation classes.
 
 Forbidden:
-- `core/kernel` (уникаємо залежності на kernel internals; header policy виконуємо локально)
+- internal `core/kernel` implementation APIs
+- `platform/cli` implementation classes
+- `platform/http`
 - `platform/http-app`
 - `platform/errors`
 - `platform/problem-details`
 - any `integrations/*`
 
+Dependency invariants (MUST):
+- `platform/http` and `platform/routing` MUST NOT declare direct source dependencies, Composer dependencies, or runtime-module requirements on each other.
+- `core/kernel` MUST NOT acquire a dependency on `platform/routing`.
+- `core/foundation` MUST NOT acquire a dependency on `core/kernel` or any platform package.
+- CLI command contribution MUST use contracts-level APIs and the existing Foundation reserved tag constant.
+- Route artifact production MUST remain owned by `platform/routing`.
+
 #### Uses ports (API surface, NOT deps) (optional)
 
 - PSR:
-  - `Psr\Log\LoggerInterface` (optional)
+  - `Psr\Log\LoggerInterface`
 - Contracts:
   - `Coretsia\Contracts\Routing\RouteDefinition`
   - `Coretsia\Contracts\Routing\RouteMatch`
   - `Coretsia\Contracts\Routing\RouterInterface`
   - `Coretsia\Contracts\Routing\RouteProviderInterface`
-  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface` (optional)
-  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface` (optional)
+  - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
+  - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
+  - `Coretsia\Contracts\Context\ContextWriterInterface`
 - Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Context\ContextStore`
   - `Coretsia\Contracts\Context\ContextKeys`
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
   - `Coretsia\Foundation\Tag\TagRegistry`
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - `routes:compile` → `packages/platform/routing/src/Console/RoutesCompileCommand.php`
+  - `routes:validate` → `packages/platform/routing/src/Console/RoutesValidateCommand.php`
+  - explicit application target: `--app=web` or `--app=api`
 - HTTP:
-  - N/A (routing consumed by http-app RouterMiddleware; owner=`platform/http-app`)
+  - conditional routes artifact readiness through HttpRuntimeEntrypointGuard and RoutingArtifactReadinessInterface
+  - application route matching is consumed by the owning HttpApp integration
+  - RouterMiddleware implementation is out of scope
 - Kernel hooks/tags:
   - N/A
 - Artifacts:
-  - writes: `packages/applications/skeleton/var/cache/<appId>/routes.php`
-  - reads: `packages/applications/skeleton/var/cache/<appId>/routes.php` (runtime)
-  - validates header + payload schema on read
+  - writes: `<RuntimePathContext::artifactRoot()>/routes.php`
+  - reads: `<RuntimePathContext::artifactRoot()>/routes.php`
+  - validates canonical bytes, envelope, fingerprint, payload, and runtime target
+
+### Canonical route matching policy (MUST)
+
+- Reuse the existing `RouteDefinition`, `RouteMatch`, `RouteProviderInterface`, and `RouterInterface` contracts without redefining their shapes.
+- Supported route templates:
+  - `/`
+  - static lowercase segments matching `[a-z_-][a-z0-9_-]*`
+  - complete named placeholder segments matching `{[A-Za-z_][A-Za-z0-9_]*}`
+- Route templates MUST NOT exceed 256 bytes.
+- Placeholder names MUST be unique within one template.
+- Reject empty segments, trailing slash aliases, dot segments, embedded placeholders, wildcard segments, and optional segments.
+- Declared paths MUST remain case-sensitive.
+- Runtime matching MUST consume canonical encoded URI paths without percent decoding.
+- Non-canonical concrete paths MUST NOT become application-route aliases.
+- A concrete application path is canonical only when the canonical ReservedPathMatcher normalization result equals the supplied path byte-for-byte.
+- Invalid concrete-path normalization MUST produce a non-match.
+- Reject non-root paths ending with a literal slash.
+- Reject empty paths, relative paths, repeated slash aliases, and literal dot-segment paths.
+- Percent-encoded octets remain unchanged and MUST NOT be decoded or case-normalized.
+- `/` is a valid canonical application route template.
+- Use the canonical Foundation-owned concrete-path normalization and reserved-path matching policy.
+- Supported declaration and runtime methods:
+  - `GET`
+  - `HEAD`
+  - `POST`
+  - `PUT`
+  - `PATCH`
+  - `DELETE`
+  - `OPTIONS`
+  - `TRACE`
+  - `CONNECT`
+- Route definitions MUST contain only supported canonical methods.
+- Runtime method matching MUST use exact case-sensitive canonical method values.
+- Unsupported or malformed runtime methods MUST produce a non-match.
+- `OTHER` is an observability-only sentinel and MUST NOT be accepted as a route declaration or matching method.
+- MUST NOT introduce implicit GET-to-HEAD fallback, automatic OPTIONS handling, 405 responses, redirects, host-based matching, or action invocation.
+
+Placeholder requirements:
+- Every requirement key MUST identify an existing placeholder.
+- A placeholder without a requirement matches one non-empty valid encoded path segment.
+- Supported requirement expressions:
+  - `[0-9]+`
+  - `[A-Za-z]+`
+  - `[A-Za-z0-9_-]+`
+- Requirements MUST match complete segments.
+- Reject unsupported expressions deterministically.
+- MUST NOT execute arbitrary provider-supplied regular expressions.
+- Route definitions with non-empty defaults are unsupported by this initial matching implementation and MUST be rejected explicitly.
+
+Ordering and conflicts:
+- Preserve `TagRegistry::all(ReservedTags::ROUTING_ROUTE_PROVIDER)` order exactly.
+- Preserve route definition order within each provider.
+- Reject duplicate provider identities.
+- Reject duplicate route names across the complete compiled route table.
+- Reject declarations with intersecting method sets and equivalent template-matching domains.
+- Determine template-domain equivalence from segment count, static segment literals, and supported placeholder requirement languages.
+- Placeholder names MUST NOT affect matching-domain equivalence.
+- Distinct overlapping domains remain valid and use first-match-wins in canonical compiled order.
+- MUST NOT introduce implicit static-route precedence or re-sort routes by specificity.
+- MUST NOT silently overwrite duplicate declarations.
+
+Successful matching:
+- Return the canonical `RouteMatch` with the declared route name, path template, handler, matched string parameters, and safe metadata.
+- Never copy the raw request path or host into `RouteMatch`.
+- Return `null` when no route matches.
+- Do not resolve or invoke handlers.
+
+### Canonical route grouping policy (MUST)
+
+- Route grouping is a source declaration convenience owned by `platform/routing`.
+- Groups MUST produce ordinary canonical RouteDefinition descriptors before RouteProviderInterface::routes() returns.
+- RouteProviderInterface MUST continue returning a flat ordered list of RouteDefinition instances.
+- Support immutable nested route groups.
+- Supported group properties:
+  - `pathPrefix`
+  - `namePrefix`
+  - `requirements`
+  - `metadata`
+- Root group identity:
+  - pathPrefix = `/`
+  - namePrefix = `''`
+  - requirements = `[]`
+  - metadata = `[]`
+- Group path prefixes MUST follow the canonical route-template grammar.
+- Parent and child path prefixes MUST be joined with exactly one literal slash.
+- `/` acts as the identity prefix.
+- A child route declared with `/` resolves to the complete enclosing group prefix.
+- A non-empty name prefix MUST be a stable logical identifier.
+- Parent and child name prefixes MUST be joined using `.`.
+- Empty name prefixes MUST NOT introduce leading, trailing, or duplicate separators.
+- Nested group order MUST preserve explicit provider declaration order.
+- Parent and child requirements MUST be combined without silent overriding.
+- Group requirement keys MUST identify placeholders declared by that group.
+- Placeholder names MUST remain unique across the complete flattened route template.
+- Group and route metadata MUST be combined as deterministic maps.
+- Duplicate metadata keys across inherited groups and route declarations MUST be rejected.
+- MUST NOT introduce implicit recursive metadata merging.
+- Route methods, handler, and defaults remain owned by the individual RouteDefinition.
+- Apply complete route-template, duplicate-domain, reserved-route, metadata, and resource validation to every flattened route.
+- Grouping MUST NOT bypass canonical reserved-route admission.
+- Grouping MUST NOT introduce route sorting, route-provider discovery, or a second matching mechanism.
+- Group structure MUST NOT be serialized into routes@1.
+- Runtime matching MUST NOT reconstruct, traverse, or interpret route groups.
+- MUST NOT introduce group-level middleware execution, controller resolution, authorization, or action invocation.
 
 ### Deliverables (MUST)
 
-#### Creates
+#### Realization of prerequisites
 
-Package skeleton:
-- [ ] `packages/platform/routing/composer.json`
-- [ ] `packages/platform/routing/src/Module/RoutingModule.php`
-- [ ] `packages/platform/routing/src/Provider/RoutingServiceProvider.php`
-- [ ] `packages/platform/routing/src/Provider/RoutingServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/routing/config/routing.php`
-- [ ] `packages/platform/routing/config/rules.php`
-- [ ] `packages/platform/routing/README.md`
-- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+Canonical context mutation boundary:
+- [x] [CREATE] `packages/core/contracts/src/Context/ContextWriterInterface.php`
+  - [x] define the canonical format-neutral runtime context mutation port
+  - [x] expose exactly `set(string $key, mixed $value): void`
+  - [x] expose exactly `remove(string $key): void`
+  - [x] preserve implementation-owned key and value validation
+  - [x] require callers to write and remove only keys assigned to their semantic owner boundary
+  - [x] MUST NOT expose context reads, bulk replacement, snapshots, clear, reset, or lifecycle operations
+  - [x] MUST NOT extend ContextAccessorInterface or ResetInterface
+  - [x] MUST NOT depend on Foundation, Kernel, platform implementations, or transport objects
 
-Tags + registry:
-- [ ] `packages/core/foundation/src/Tag/ReservedTags.php` — tag constants
-- [ ] `packages/platform/routing/src/Compile/RouteProviderRegistry.php` — collects `RouteProviderInterface` via tag `routing.route_provider`
+- [x] [UPDATE] `packages/core/foundation/src/Context/ContextStore.php`
+  - [x] implement ContextWriterInterface through the existing set() and remove() methods
+  - [x] preserve ContextAccessorInterface and ResetInterface implementation
+  - [x] preserve existing context value storage and copy semantics
+  - [x] preserve ContextStorePolicy validation for set() and remove()
+  - [x] preserve existing snapshots, clear(), and reset() behavior
+  - [x] MUST NOT introduce another mutation implementation or context storage instance
 
-Compile:
-- [ ] `packages/platform/routing/src/Compile/RoutesCompiler.php` — deterministic compile (providers deterministic; per-provider order preserved)
-- [ ] `packages/platform/routing/src/Compile/ReservedRoutesGuard.php` — blocks reserved paths/prefixes using `SystemRouteTable` + `ReservedPathMatcher`
+- [x] [UPDATE] `packages/core/foundation/src/Context/ContextStorePolicy.php`
+  - [x] align class documentation with the canonical ContextAccessorInterface and ContextWriterInterface contracts
+  - [x] document Contracts ownership of the public context key vocabulary and both context ports
+  - [x] preserve Foundation ownership of context storage and structural write validation
+  - [x] preserve semantic context key ownership responsibilities
+  - [x] preserve all existing key validation, value validation, resource limits, and exception behavior
+  - [x] MUST NOT introduce another context validation or authorization mechanism
 
-Artifacts:
-- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactWriter.php` — atomic write + deterministic bytes
-- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactReader.php` — validates header + payload schemaVersion
-- [ ] `packages/platform/routing/src/Artifacts/RoutesArtifactHeader.php` — header VO (schemaVersion pinned; no timestamps)
-- [ ] `packages/platform/routing/src/Artifacts/Php/StablePhpArrayDumper.php`
-  - [ ] stable key ordering (`strcmp`) for maps at every depth,
-  - [ ] consistent indentation,
-  - [ ] LF-only + final newline,
-  - [ ] no var_export locale dependence, no timestamps.
+- [x] [UPDATE] `packages/core/foundation/src/Provider/FoundationServiceProvider.php`
+  - [x] register ContextWriterInterface as an alias of the existing shared ContextStore service
+  - [x] preserve ContextAccessorInterface as an alias of the same ContextStore service
+  - [x] preserve one shared ContextStore instance per source or compiled container
+  - [x] preserve existing effective reset tag and kernel.stateful registration on ContextStore
+  - [x] MUST NOT register separate accessor or writer instances
+  - [x] MUST NOT add reset or stateful tags to the context port aliases
+  - [x] MUST NOT introduce additional runtime seeds
 
-Runtime:
-- [ ] `packages/platform/routing/src/Runtime/CompiledRouter.php` — implements `RouterInterface`, reads artifact, writes `ContextKeys::PATH_TEMPLATE`
-- [ ] `packages/platform/routing/src/Runtime/PathNormalizer.php` — normalization MUST match reserved matcher policy
+- [x] [UPDATE] `packages/core/kernel/src/Runtime/KernelRuntime.php`
+  - [x] replace the concrete ContextStore constructor dependency with ContextWriterInterface
+  - [x] preserve the existing constructor parameter name and mandatory dependency contract
+  - [x] preserve canonical CORRELATION_ID, UOW_ID, and UOW_TYPE writes
+  - [x] preserve existing base-context write ordering and failure precedence
+  - [x] preserve Kernel UnitOfWork lifecycle and reset orchestration
+  - [x] MUST NOT introduce direct context reset, bulk mutation, or concrete ContextStore access
 
-CLI:
-- [ ] `packages/platform/routing/src/Console/RoutesCompileCommand.php` — writes artifact, safe output, supports `--format=json`
-  - [ ] `--format=json` output MUST serialize via `Coretsia\Foundation\Serialization\StableJsonEncoder`
-  - [ ] JSON output MUST be deterministic: recursive map-key sort `strcmp`, lists preserve order
-  - [ ] JSON output MUST NOT include absolute paths, raw config values, or secrets
+- [x] [UPDATE] `packages/core/kernel/src/Provider/KernelServiceProvider.php`
+  - [x] replace the KernelRuntime-related ContextAccessorInterface required service declaration with ContextWriterInterface
+  - [x] preserve unrelated required runtime service declarations
+  - [x] preserve existing KernelRuntime factory and alias definitions
+  - [x] MUST NOT require the concrete ContextStore service for KernelRuntime construction
 
-Errors:
-- [ ] `packages/platform/routing/src/Exception/RoutesArtifactInvalidException.php` — `CORETSIA_ROUTES_ARTIFACT_INVALID`
-- [ ] `packages/platform/routing/src/Exception/ReservedRouteViolationException.php` — `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
+- [x] [UPDATE] `packages/platform/http/src/Middleware/RequestContextMiddleware.php`
+  - [x] replace the concrete ContextStore constructor dependency with ContextWriterInterface
+  - [x] preserve existing constructor parameter name and dependency ordering
+  - [x] preserve existing request metadata validation and context enrichment behavior
+  - [x] preserve exclusive HTTP ownership of CLIENT_IP, SCHEME, HOST, PATH, and USER_AGENT writes
+  - [x] MUST NOT introduce context reads, additional context writes, or reset behavior
 
-Docs:
-- [ ] `docs/ssot/routing-artifact.md` — artifact schemaVersion + determinism rules
-- [ ] `docs/guides/routing.md` — how to register providers + run compile
+- [x] [UPDATE] `packages/platform/http/src/RequestId/RequestIdPolicy.php`
+  - [x] replace the concrete ContextStore constructor dependency with ContextWriterInterface
+  - [x] preserve the existing context constructor parameter as the write dependency
+  - [x] introduce a mandatory ContextAccessorInterface contextAccessor constructor dependency immediately after the writer dependency
+  - [x] write REQUEST_ID exclusively through ContextWriterInterface
+  - [x] read back REQUEST_ID exclusively through ContextAccessorInterface
+  - [x] preserve existing request identity selection, validation, and disabled behavior
+  - [x] preserve exact owner-local request identity verification
+  - [x] preserve existing finalization failure behavior
+  - [x] MUST NOT read unrelated context keys
+  - [x] MUST NOT introduce compatibility defaults, concrete ContextStore access, or additional context storage
+
+- [x] [UPDATE] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - [x] replace the concrete ContextStore required service with ContextWriterInterface and ContextAccessorInterface
+  - [x] wire RequestContextMiddleware through ContextWriterInterface
+  - [x] wire RequestIdPolicy through ContextWriterInterface and ContextAccessorInterface in canonical constructor order
+  - [x] resolve both ports through the same existing Foundation-owned ContextStore binding
+  - [x] preserve all existing unrelated service definitions, aliases, configuration arguments, middleware tags, and command registrations
+  - [x] MUST NOT register or require the concrete ContextStore service
+  - [x] MUST NOT redefine either canonical context port binding
+
+- [x] [UPDATE] `packages/core/foundation/src/Tag/ReservedTags.php`
+  - [x] introduce `public const string ROUTING_ROUTE_PROVIDER = 'routing.route_provider';`
+  - [x] include the constant in the canonical `ALL` registry
+  - [x] preserve existing constants, uniqueness, and deterministic ordering
+  - [x] reuse the existing `CLI_COMMAND` constant without modification
+
+Routing readiness contract:
+- [x] [CREATE] `packages/core/contracts/src/Routing/RoutingArtifactReadinessInterface.php`
+  - [x] expose `assertReady(): void`
+  - [x] define a narrow transport-neutral owner-artifact readiness boundary
+  - [x] MUST NOT expose artifact paths, payloads, filesystem APIs, or concrete Routing services
+  - [x] MUST NOT extend or change RouterInterface
+
+Routing contract alignment:
+- [x] [UPDATE] `packages/core/contracts/src/Routing/RouteProviderInterface.php`
+  - [x] preserve the existing interface signatures and return types
+  - [x] require deterministic provider-emitted route ordering
+  - [x] define provider-emitted route order as the declared matching precedence
+  - [x] remove the requirement and recommendation to sort routes by name
+  - [x] preserve stable provider identity and duplicate route-name restrictions
+  - [x] preserve the dependency-neutral contracts interface
+  - [x] replace implementation-level restrictions that prohibit provider-owned source declaration helpers
+  - [x] allow concrete providers to use owner-specific route declaration helpers internally
+  - [x] require all source declaration helpers to produce ordinary RouteDefinition instances before crossing the contracts boundary
+  - [x] MUST NOT reference concrete Routing implementation classes from the contracts interface
+  - [x] MUST NOT expose route groups, DI objects, transport objects, or concrete runtime implementation objects through the interface
+
+Shared artifact infrastructure:
+- [x] [CREATE] `packages/core/foundation/src/Serialization/StablePhpArrayDumper.php`
+  - [x] extract the canonical PHP-array byte-emission mechanism from the existing Kernel dumper
+  - [x] preserve recursive byte-order map sorting and exact list ordering
+  - [x] preserve canonical scalar spelling, string escaping, indentation, LF-only output, and exactly one final LF
+  - [x] reuse `JsonLikeNormalizer` for baseline value normalization when normalization is required
+  - [x] support emission of already normalized arrays without introducing a second normalization algorithm
+  - [x] MUST NOT own artifact envelope, schema, fingerprint, filesystem, or observability policy
+
+- [x] [CREATE] `packages/core/foundation/src/Serialization/StablePhpArrayParser.php`
+  - [x] extract the existing canonical Kernel PHP-array decoding mechanism
+  - [x] accept only the canonical byte grammar emitted by the shared dumper
+  - [x] preserve map ordering, duplicate-key rejection, canonical scalar spelling, and structural validation
+  - [x] MUST NOT execute, evaluate, include, or require artifact source
+  - [x] MUST NOT depend on Kernel artifact exception classes
+  - [x] MUST NOT expose rejected source bytes, paths, or parser offsets
+  - [x] expose `parseBounded(string $bytes, JsonLikeNormalizationLimits $limits): array`
+  - [x] preserve an unrestricted parse entrypoint for existing Kernel consumers
+  - [x] apply canonical JsonLikeNormalizationLimits accounting during bounded decoding
+  - [x] enforce structural limits while decoding rather than after unrestricted allocation
+  - [x] preserve the existing unrestricted Kernel decoding behavior
+  - [x] reuse the same decoding implementation for bounded and unrestricted parsing
+  - [x] MUST NOT introduce a separate Routing-specific parser
+
+- [x] [CREATE] `packages/core/foundation/src/Serialization/Exception/PhpArraySerializationException.php`
+  - [x] provide deterministic safe serialization failure reasons
+  - [x] MUST NOT introduce artifact-owner semantics
+
+- [x] [CREATE] `packages/core/foundation/src/Filesystem/AtomicFileWriter.php`
+  - [x] extract the reusable atomic byte-write mechanism from Kernel `ArtifactWriter`
+  - [x] create temporary files in the target directory
+  - [x] reject partial writes
+  - [x] publish only after successful complete temporary-file write
+  - [x] preserve the previous target on failed publication
+  - [x] clean temporary files deterministically
+  - [x] MUST NOT own artifact paths, artifact schemas, fingerprints, generation selection, or observability
+  - [x] preserve the existing canonical ordinary-write filesystem permissions and temporary-file publication semantics
+  - [x] define successful atomic replacement as the publication commit point
+  - [x] MUST NOT delete an existing target before replacement
+  - [x] MUST NOT report successful replacement as an uncommitted write
+  - [x] preserve the existing `.coretsia-artifact-` temporary-file naming prefix
+
+- [x] [CREATE] `packages/core/foundation/src/Filesystem/Exception/AtomicFileWriteException.php`
+  - [x] expose fixed safe filesystem failure reasons
+  - [x] MUST NOT disclose filesystem paths or raw filesystem errors
+
+- [x] [UPDATE] `packages/core/kernel/src/Provider/KernelServiceFactory.php`
+  - [x] align ArtifactWriter construction with mandatory shared writer dependency
+  - [x] supply the shared AtomicFileWriter explicitly at the existing Kernel artifact-writer composition boundary
+  - [x] preserve compile-host ownership of Kernel ArtifactWriter
+  - [x] MUST NOT register new compile-host artifact services in the baseline runtime graph
+  - [x] resolve ContextWriterInterface when constructing KernelRuntime
+  - [x] replace the concrete ContextStore resolution helper with a contracts-level writer resolution helper
+  - [x] validate the resolved service against ContextWriterInterface
+  - [x] preserve canonical kernel-runtime-dependency-invalid diagnostics
+  - [x] preserve the existing ContextAccessorInterface dependency used by KernelOpsFacade
+  - [x] MUST NOT downcast ContextAccessorInterface or ContextWriterInterface to ContextStore
+  - [x] MUST NOT introduce a concrete ContextStore dependency
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Php/StablePhpArrayDumper.php`
+  - [x] delegate canonical byte emission to the shared Foundation dumper
+  - [x] preserve existing Kernel payload normalization and exception translation
+  - [x] preserve all existing public method signatures of this internal Kernel helper
+  - [x] preserve exact existing artifact bytes
+  - [x] remove duplicated byte-emission implementation
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/Php/StablePhpArrayParser.php`
+  - [x] delegate decoding to the shared Foundation parser
+  - [x] translate decoding failures into canonical Kernel `ArtifactInvalidException`
+  - [x] preserve existing parser entrypoints and accepted byte grammar
+  - [x] remove duplicated parsing implementation
+
+- [x] [UPDATE] `packages/core/kernel/src/Artifacts/ArtifactWriter.php`
+  - [x] delegate ordinary atomic byte publication to the shared Foundation writer
+  - [x] preserve Kernel artifact result shape, exception reasons, metrics, spans, and logs
+  - [x] preserve existing durable generation publication behavior
+  - [x] MUST NOT introduce Routing artifact production into Kernel
+  - [x] preserve the existing platform-aware exclusive file-open mode used by durable generation publication
+  - [x] preserve durable write, flush, sync, close, and replacement failure semantics
+  - [x] MUST NOT replace durable generation publication with ordinary atomic byte publication
+
+Target-local source-host composition:
+- [x] [UPDATE] `packages/core/kernel/src/Ops/KernelOpsHostBooter.php`
+  - [x] expose `bootForTarget(KernelOpsHostInput $input, AppTarget $target): ContainerInterface`
+  - [x] make the existing `boot(KernelOpsHostInput $input): ContainerInterface` delegate to `bootForTarget()` with `AppTarget::Console`
+  - [x] consume the explicitly supplied target when constructing BootstrapInput
+  - [x] resolve target-local configuration and ModulePlan from the same canonical bootstrap snapshot
+  - [x] reuse the existing host-owned RuntimePathContext and RuntimeDiagnosticsInput factories
+  - [x] ensure RuntimeDiagnosticsInput reports `artifactGenerationLoaded() === false`
+  - [x] preserve the existing safe KernelOpsFailedException host-boot failure boundary
+  - [x] MUST NOT infer application targets from installed modules, process environment, or filesystem discovery
+  - [x] reuse the existing Bootstrap Phase A, module resolution, ConfigKernel Phase B, provider planning, and declarative container composition
+  - [x] preserve the existing `boot(KernelOpsHostInput)` Console host contract
+  - [x] construct authoritative target-local `RuntimePathContext` and `RuntimeDiagnosticsInput`
+  - [x] preserve source-host operation without a current artifact generation
+  - [x] preserve existing host-owned service and tag collision restrictions
+  - [x] MUST NOT introduce another bootstrap pipeline
+  - [x] MUST NOT perform Routing operations
+  - [x] MUST NOT create an additional UnitOfWork
+
+Reserved path normalization:
+- [x] [UPDATE] `packages/core/foundation/src/Routing/ReservedPathMatcher.php`
+  - [x] expose the existing canonical concrete-path normalization operation for reuse by Routing
+  - [x] preserve the existing normalization algorithm and validation semantics exactly
+  - [x] preserve all existing `match()` behavior
+  - [x] MUST NOT add route-template compilation or application route matching
 
 Tests:
-- [ ] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
-- [ ] `packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
+- [x] [CREATE] `packages/core/kernel/tests/Integration/KernelOpsHostBootsExplicitTargetTest.php`
+  - [x] verify explicit `web` and `api` target composition
+  - [x] verify target-local configuration, ModulePlan, runtime paths, and runtime diagnostics
+  - [x] verify enabled target-specific provider composition
+  - [x] verify excluded providers remain absent
+  - [x] verify no dependency on a current artifact generation
+  - [x] verify unchanged Console host behavior
+  - [x] verify the existing boot() entrypoint delegates to the canonical Console target
+  - [x] verify explicit targets do not inherit Console configuration or enabled modules
+  - [x] verify target-local RuntimePathContext derives its artifact root from the selected BootstrapConfig
+  - [x] verify frozen appEnv and unloaded-generation status
+  - [x] preserve canonical host-boot failure translation
 
-- [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
-- [ ] `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
-- [ ] `packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
-- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-- [ ] `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
-- [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
-- [ ] `packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
+- [x] [UPDATE] `packages/core/foundation/tests/Unit/ReservedTagsRegistryTest.php`
+  - [x] extend the exact expected reserved tag set
+  - [x] verify the new constant value and canonical registry ordering
+  - [x] preserve existing reserved-tag assertions
 
-- [ ] `packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
-- [ ] `packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
-- [ ] `packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
-- [ ] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+- [x] [UPDATE] `packages/core/contracts/tests/Contract/RouteProviderInterfaceShapeContractTest.php`
+  - [x] preserve existing interface signature and return-type assertions
+  - [x] replace the route-name ordering assertion with the canonical provider-emitted ordering contract
+  - [x] preserve deterministic ordering and duplicate route-name requirements
+  - [x] verify provider-emitted route order using a deliberately non-alphabetical route declaration list
+  - [x] preserve the dependency-neutral interface and flat RouteDefinition return contract
+
+- [x] [UPDATE] `packages/core/kernel/tests/Integration/ArtifactWriterAtomicNoPartialWriteTest.php`
+  - [x] preserve existing Kernel atomic publication assertions
+  - [x] verify unchanged behavior after shared writer extraction
+
+- [x] [UPDATE] `packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php`
+  - [x] verify the exact public static `match()` and `normalize()` API signatures
+  - [x] verify normalization through the public `normalize()` entrypoint
+  - [x] preserve existing reserved-path matching and invalid-input verification
+
+Docs:
+- [x] [UPDATE] `docs/ssot/reserved-path-matching.md`
+  - [x] document the reusable concrete-path normalization boundary
+  - [x] preserve encoded-octet, case-sensitive, slash, and invalid-path semantics
+  - [x] distinguish concrete reserved-path matching from route-template intersection validation
+
+- [x] [UPDATE] `docs/ssot/config-roots.md` — register:
+  - [x] `routing | platform/routing | packages/platform/routing/config/routing.php | packages/platform/routing/config/rules.php | compiled routing artifact + runtime router settings`
+  - [x] register the root before running the package scaffold command
+  - [x] preserve the canonical five-column config root registry shape
+
+#### Creates
+
+- [x] Run `composer package:new -- --layer=platform --slug=routing --kind=runtime --description="Coretsia routing runtime package: deterministic route compilation, artifact-backed route matching, and reserved endpoint protection." --keywords=coretsia,php,framework,routing,runtime,http,router,route-compiler,compiled-routes,route-groups,artifact,reserved-routes,deterministic,observability` exactly once.
+
+- [x] `packages/platform/routing/LICENSE`
+- [x] `packages/platform/routing/NOTICE`
+- [x] `packages/platform/routing/SECURITY.md`
+
+Package skeleton:
+- [x] `packages/platform/routing/composer.json`
+  - [x] package name: `coretsia/platform-routing`
+  - [x] production namespace: `Coretsia\Platform\Routing\`
+  - [x] test namespace: `Coretsia\Platform\Routing\Tests\`
+  - [x] declare direct Coretsia package dependencies according to the canonical dependency matrix
+  - [x] declare the runtime-only Redaction dependency
+  - [x] declare required PSR interface dependencies
+  - [x] declare `psr/container` and `psr/log` as direct interface dependencies
+  - [x] MUST NOT require `coretsia/platform-logging`
+  - [x] MUST NOT import concrete Logging implementation classes
+  - [x] use the current canonical release line
+  - [x] module id: `platform.routing`
+  - [x] kind: `runtime`
+  - [x] module class: `Coretsia\Platform\Routing\Module\RoutingModule`
+  - [x] provider: `Coretsia\Platform\Routing\Provider\RoutingServiceProvider`
+  - [x] module requirements: `core.foundation`, `core.kernel`, `platform.redaction`
+  - [x] defaults config path: `config/routing.php`
+  - [x] MUST NOT require concrete CLI, Errors, Problem Details, or HttpApp implementations
+
+- [x] `packages/platform/routing/src/Module/RoutingModule.php`
+  - [x] expose canonical module metadata consistent with Composer metadata
+  - [x] expose the Routing service provider in deterministic declared order
+  - [x] MUST NOT perform compilation, artifact reads, or runtime discovery
+
+- [x] `packages/platform/routing/src/Provider/RoutingServiceProvider.php`
+  - [x] implement the canonical source and declarative definition provider contracts
+  - [x] use one `define()` implementation as the canonical runtime graph source
+  - [x] register Routing services, aliases, required services, and command contribution
+  - [x] MUST NOT maintain parallel source and compiled wiring
+  - [x] MUST NOT read route artifacts or resolve route providers during definition construction
+  - [x] MUST NOT serialize absolute runtime paths or route definitions into compiled definition arguments
+  - [x] register canonical shared artifact infrastructure dependencies
+  - [x] register exact RouterInterface and RoutingArtifactReadinessInterface aliases
+  - [x] reuse effective Foundation, Kernel, and contracts-level external service bindings
+  - [x] preserve lazy resolution of CompiledRouteTable, route providers, and CLI commands
+  - [x] require the canonical ContextWriterInterface service
+  - [x] wire CompiledRouter through ContextWriterInterface
+  - [x] MUST NOT require, register, or resolve the concrete ContextStore service
+  - [x] MUST NOT register or override canonical context port bindings
+
+- [x] `packages/platform/routing/src/Provider/RoutingServiceFactory.php`
+  - [x] provide stateless declarative factory methods where runtime service resolution is required
+  - [x] resolve authoritative runtime inputs and effective configuration through canonical DI
+  - [x] hydrate the immutable route table only when its runtime service is resolved
+  - [x] MUST NOT maintain mutable runtime caches or request-local state
+  - [x] construct CLI command dependencies explicitly at the command composition boundary
+  - [x] construct the stateless public KernelOpsHostBooter explicitly without registering its service identifier in the runtime graph
+  - [x] MUST NOT reference KernelOpsHostInput, KernelOpsHostBooter, KernelOpsInterface, or BootstrapConfig as external runtime graph services
+  - [x] MUST NOT execute source-host boot during factory or command construction
+
+- [x] `packages/platform/routing/config/routing.php`
+  - [x] define the exact canonical Routing configuration subtree
+  - [x] define `routing.tracing.enabled` with default `true`
+  - [x] define `routing.metrics.enabled` with default `true`
+  - [x] define `routing.logging.enabled` with default `true`
+  - [x] MUST NOT introduce artifact path overrides
+  - [x] MUST NOT introduce reserved-route guard disablement
+
+- [x] `packages/platform/routing/config/rules.php`
+  - [x] validate the exact Routing configuration subtree
+  - [x] require boolean tracing, metrics, and logging enablement
+  - [x] reject unknown keys at every declared map level
+  - [x] preserve the canonical Kernel configuration validation DSL
+
+Registry:
+- [x] `packages/platform/routing/src/Compile/RouteProviderRegistry.php`
+  - [x] enumerate provider registrations exclusively through `TagRegistry::all(ReservedTags::ROUTING_ROUTE_PROVIDER)`
+  - [x] preserve canonical TagRegistry ordering without additional sorting or service-id deduplication
+  - [x] require empty provider tag metadata
+  - [x] resolve provider services lazily during explicit compilation
+  - [x] require `RouteProviderInterface` for every resolved provider
+  - [x] validate stable provider identities and reject duplicate identities across distinct services
+  - [x] require a list containing only `RouteDefinition` instances
+  - [x] preserve provider-emitted route order
+  - [x] MUST NOT perform filesystem, Composer, manifest, or PHP attribute discovery
+  - [x] consume only already flattened canonical RouteDefinition descriptors
+  - [x] preserve the order of grouped and standalone route declarations exactly as emitted by the provider
+  - [x] MUST NOT accept or resolve RouteGroup instances as provider output
+
+Compile:
+- [x] `packages/platform/routing/src/Compile/RoutesCompiler.php`
+  - [x] compile routes from the explicitly selected target-local source host
+  - [x] require enabled `platform.routing` in the effective target ModulePlan
+  - [x] validate the authoritative runtime target and environment
+  - [x] reject artifact-runtime invocation of source route compilation
+  - [x] consume RouteProviderRegistry in canonical provider order
+  - [x] preserve per-provider route order
+  - [x] validate the complete route table before publication
+  - [x] reject duplicate providers, route names, and equivalent matching declarations
+  - [x] apply reserved route validation unconditionally
+  - [x] produce the canonical routes artifact payload
+  - [x] MUST NOT resolve handlers
+  - [x] MUST NOT publish partial results
+  - [x] expose a complete compilation and validation operation returning the canonical validated routes artifact envelope
+  - [x] keep compilation and validation independent of filesystem publication
+  - [x] MUST NOT consume RoutesArtifactWriter
+  - [x] compile grouped and standalone flattened RouteDefinition descriptors through identical validation
+  - [x] apply global duplicate-name and equivalent-domain detection across all flattened routes
+  - [x] apply reserved-route validation to complete flattened path templates
+  - [x] MUST NOT introduce a separate group compilation path
+  - [x] enforce the maximum flattened route count during aggregation
+  - [x] verify complete envelope structural and serialized-byte limits through RoutesArtifactSchema before returning the compiler result
+
+- [x] `packages/platform/routing/src/Compile/ReservedRoutesGuard.php`
+  - [x] consume every canonical declaration from `SystemRouteTable::entries()`
+  - [x] treat `active`, `reserved`, and `dev_only` declarations as equally reserved
+  - [x] enforce reservation ownership independently of route methods, environment, and endpoint activation
+  - [x] validate intersections between the complete supported route-template match domain and exact or prefix declarations
+  - [x] reuse the canonical supported segment matching semantics
+  - [x] construct deterministic concrete witnesses for intersecting route templates
+  - [x] for exact reservations, require equal route-template and reserved-path segment counts
+  - [x] for slash-terminated prefix reservations, require the reserved prefix segments followed by at least one additional route segment
+  - [x] compare static segments byte-for-byte against the corresponding reserved segments
+  - [x] evaluate placeholder segments against corresponding reserved segments using RouteTemplate matching semantics
+  - [x] construct remaining witness segments from deterministic RouteTemplate representatives
+  - [x] reject the declaration when the generated concrete witness is recognized by ReservedPathMatcher
+  - [x] MUST NOT rely on sampling arbitrary placeholder values to determine domain intersection
+  - [x] confirm reserved ownership through `ReservedPathMatcher::match()`
+  - [x] reject an intersecting route before artifact publication
+  - [x] repeat the same validation during artifact hydration
+  - [x] MUST NOT maintain a local reserved route registry
+  - [x] MUST NOT determine validity by passing raw route-template strings directly to the concrete-path matcher
+
+- [x] `packages/platform/routing/src/Compile/RouteTemplate.php`
+  - [x] own one immutable parsed representation of the supported route-template grammar
+  - [x] validate static segments and complete named placeholders
+  - [x] validate supported placeholder requirements
+  - [x] expose shared segment matching behavior for runtime matching and reserved-route intersection validation
+  - [x] expose deterministic representative segment values for intersection witnesses
+  - [x] use the declared literal as the representative of a static segment
+  - [x] use `0` as the representative of `[0-9]+`
+  - [x] use `a` as the representative of `[A-Za-z]+`, `[A-Za-z0-9_-]+`, and unconstrained placeholders
+  - [x] preserve complete-segment and case-sensitive matching semantics
+  - [x] MUST NOT introduce a second RouteDefinition or RouteMatch contract
+
+Route declarations:
+- [x] `packages/platform/routing/src/Definition/RouteGroup.php`
+  - [x] implement an immutable source-declaration grouping helper
+  - [x] expose `root(): self` as the explicit root group factory
+  - [x] expose `group(string $pathPrefix, string $namePrefix, array $requirements, array $metadata): self`
+  - [x] expose `route(RouteDefinition $route): RouteDefinition`
+  - [x] expose `routes(array $routes): array`
+  - [x] support immutable nested path and name prefix composition
+  - [x] preserve parent group instances when constructing child groups
+  - [x] reuse RouteTemplate for canonical template and requirement validation
+  - [x] support parameterized group prefixes
+  - [x] reject duplicate placeholder names across nested prefixes and child route templates
+  - [x] reject conflicting inherited requirements
+  - [x] reject duplicate inherited metadata keys
+  - [x] reuse canonical JsonLikeNormalizer for metadata normalization
+  - [x] construct ordinary RouteDefinition descriptors with complete flattened path templates
+  - [x] preserve individual route methods, handler, and defaults
+  - [x] preserve the supplied list order in routes()
+  - [x] require routes() input to be a list containing only RouteDefinition instances
+  - [x] MUST NOT maintain a mutable or global route collection
+  - [x] MUST NOT register services, consume DI, resolve handlers, or perform filesystem operations
+  - [x] MUST NOT introduce a second RouteDefinition or RouteMatch representation
+  - [x] MUST NOT participate in runtime artifact hydration, route matching, ContextStore, observability, or reset wiring
+
+Artifacts:
+- [x] `packages/platform/routing/src/Artifacts/RoutesArtifactSchema.php`
+  - [x] own the exact routes@1 envelope and payload schema
+  - [x] define fixed artifact name, schema version, generator, and basename
+  - [x] construct and validate the exact artifact header
+  - [x] validate the exact payload key set
+  - [x] reconstruct canonical RouteDefinition descriptors from serialized arrays
+  - [x] reject missing, extra, invalid, and non-canonical descriptor fields
+  - [x] reject incomplete or unsupported route matching semantics
+  - [x] reuse shared route-template and reserved-route validation
+  - [x] calculate and verify the canonical owner-specific fingerprint
+  - [x] reuse canonical sensitive-key classification and Placeholder redaction as rejection-only safety checks
+  - [x] validate every complete canonical route descriptor independently using Placeholder redaction with fixed scope `routing.artifact`
+  - [x] recursively classify application-controlled metadata and requirement keys through SensitiveKeyClassifierInterface
+  - [x] reject sensitive keys independently of their associated value
+  - [x] reject any redaction result that differs from the canonical normalized input
+  - [x] reject redaction or sensitive-key classification failures
+  - [x] require route names and handler identifiers to represent stable logical identifiers rather than filesystem paths
+  - [x] reject absolute filesystem paths in application-controlled metadata
+  - [x] reject slash-leading metadata string values where URI paths and filesystem paths cannot be distinguished safely
+  - [x] treat validated pathTemplate values exclusively according to the canonical URI template grammar
+  - [x] MUST NOT treat a redaction non-match as proof of semantic safety
+  - [x] MUST NOT silently redact and then publish changed route behavior
+  - [x] own the canonical Routing artifact resource limits
+  - [x] validate serialized descriptors before RouteDefinition reconstruction
+  - [x] compare reconstructed canonical RouteDefinition::toArray() representations against the supplied normalized descriptors
+  - [x] reject silently normalized non-canonical methods, map values, and descriptor fields
+  - [x] enforce the same complete payload validation for newly compiled and decoded artifacts
+  - [x] accept only complete flattened canonical route descriptors
+  - [x] apply identical validation to grouped and standalone route declarations
+  - [x] MUST NOT accept group nodes, group metadata envelopes, prefix descriptors, or nested route collections as artifact schema members
+  - [x] expose one canonical validated-envelope serialization operation
+  - [x] reuse the shared Foundation StablePhpArrayDumper for exact artifact byte serialization
+  - [x] enforce the maximum serialized artifact byte length
+  - [x] enforce complete envelope structural resource limits
+  - [x] preserve mandatory per-descriptor canonical Redaction validation
+  - [x] MUST NOT perform filesystem operations
+
+- [x] `packages/platform/routing/src/Artifacts/RoutesArtifactPath.php`
+  - [x] resolve `routes.php` beneath the authoritative `RuntimePathContext::artifactRoot()`
+  - [x] use one identical path derivation mechanism for writer and reader
+  - [x] reject unsafe target paths, stream wrappers, symlinked targets, and escaping path components
+  - [x] MUST NOT derive paths from process environment, CWD, or application-directory scans
+  - [x] MUST NOT inspect the Kernel current generation pointer
+  - [x] MUST NOT expose resolved absolute paths through diagnostics
+  - [x] derive the fixed owner-local lock path `<artifactRoot>/routes.lock`
+  - [x] validate artifact and lock path components before publication
+  - [x] reject symbolic links in existing artifact-root path components
+  - [x] MUST NOT allow lock paths to resolve outside the authoritative artifact root
+  - [x] require an absolute authoritative artifact root
+  - [x] reject literal traversal components and unsafe filesystem roots
+  - [x] reject existing non-regular artifact and lock targets
+  - [x] validate existing directory components before creating or opening publication targets
+  - [x] preserve compatibility with canonical Unix and Windows absolute path forms
+
+- [x] `packages/platform/routing/src/Artifacts/RoutesArtifactWriter.php`
+  - [x] accept only a completely validated canonical routes@1 envelope
+  - [x] consume RoutesArtifactSchema for complete validation and canonical serialized artifact bytes
+  - [x] MUST NOT introduce a second serialization or artifact resource-limit policy
+  - [x] MUST NOT initiate filesystem publication before successful envelope validation and serialization
+  - [x] reuse Foundation `ScopedFileLock` for owner-local publication coordination
+  - [x] reuse the shared Foundation atomic file writer
+  - [x] preserve existing artifact bytes when the validated replacement is identical
+  - [x] preserve the previous valid artifact on failed compilation or any failure before successful atomic replacement
+  - [x] define successful atomic replacement as the publication commit point
+  - [x] perform existing-byte comparison and atomic replacement within the same exclusive ScopedFileLock operation
+  - [x] distinguish lock acquisition failure from lock release failure occurring after successful publication
+  - [x] MUST NOT attempt unsafe rollback or target deletion after successful publication
+  - [x] preserve successful publication when only post-commit lock cleanup reports failure
+  - [x] MUST NOT publish into Kernel immutable generation directories
+  - [x] MUST NOT change the Kernel current generation pointer
+  - [x] bound existing-artifact reads used for identical-byte comparison
+  - [x] MUST NOT consume an oversized existing artifact into memory solely for equality comparison
+  - [x] reject unsafe artifact and lock file types before opening publication resources
+
+- [x] `packages/platform/routing/src/Artifacts/RoutesArtifactReader.php`
+  - [x] read one bounded exact artifact byte snapshot
+  - [x] reuse the shared Foundation canonical PHP-array parser
+  - [x] reject missing, unreadable, oversized, malformed, non-canonical, and executable artifact content
+  - [x] validate the exact envelope, header, fingerprint, and payload
+  - [x] verify the authoritative runtime target and environment
+  - [x] revalidate canonical route semantics and reserved ownership
+  - [x] return validated immutable route definitions in stored order
+  - [x] MUST NOT execute artifact PHP source
+  - [x] MUST NOT resolve route providers
+  - [x] MUST NOT compile, regenerate, rewrite, or repair artifacts
+  - [x] read at most the configured canonical artifact byte limit plus one byte
+  - [x] reject oversized input before decoding
+  - [x] consume the bounded shared PHP-array parser
+  - [x] validate ModulePlan::app() against the artifact payload app member
+  - [x] recompute the fingerprint using authoritative RuntimeDiagnosticsInput::appEnv()
+  - [x] apply bounded decoding limits to the complete decoded envelope
+  - [x] preserve identical resource accounting between compiler and parser validation
+  - [x] require a regular non-symlink artifact file
+  - [x] read the artifact through one opened file handle
+  - [x] validate the opened file type before consuming its bytes
+  - [x] MUST NOT reopen the artifact while decoding or validating the same snapshot
+
+Runtime:
+- [x] `packages/platform/routing/src/Runtime/CompiledRouteTable.php`
+  - [x] represent the immutable validated runtime route table
+  - [x] hydrate only from the canonical RoutesArtifactReader
+  - [x] preserve exact compiled route ordering
+  - [x] consume the shared RouteTemplate matching representation
+  - [x] MUST NOT retain request-local state
+  - [x] MUST NOT reload artifacts during request execution
+  - [x] MUST NOT require reset registration
+  - [x] consume complete flattened route descriptors independently of their source declaration structure
+  - [x] MUST NOT retain or hydrate route group objects
+
+- [x] `packages/platform/routing/src/Runtime/CompiledRouter.php`
+  - [x] implement `Coretsia\Contracts\Routing\RouterInterface`
+  - [x] consume the immutable CompiledRouteTable
+  - [x] consume method, path, and host only through the canonical match() signature
+  - [x] reuse canonical concrete-path normalization and reserved-path matching
+  - [x] return `null` for invalid, non-canonical, reserved, and unmatched input
+  - [x] evaluate compiled routes in canonical stored order
+  - [x] return the first successful canonical RouteMatch
+  - [x] write only `ContextKeys::PATH_TEMPLATE` after successful matching
+  - [x] complete PATH_TEMPLATE context mutation before emitting routing completion observability
+  - [x] ensure unsuccessful matching does not expose a previously matched path template
+  - [x] remove a previous PATH_TEMPLATE at the beginning of a new matching operation
+  - [x] MUST NOT read raw paths from ContextStore
+  - [x] MUST NOT store raw path, host, parameters, or handler values in ContextStore
+  - [x] emit routing match observability through the dedicated recorder
+  - [x] MUST NOT perform filesystem reads, provider discovery, compilation, handler resolution, or action invocation
+  - [x] MUST NOT start, finish, or reset a UnitOfWork
+  - [x] match flattened grouped and standalone routes through identical RouteTemplate semantics
+  - [x] write the complete flattened path template to ContextKeys::PATH_TEMPLATE
+  - [x] MUST NOT interpret source route group structures
+  - [x] consume ContextWriterInterface through a mandatory constructor dependency
+  - [x] perform PATH_TEMPLATE writes and removal exclusively through ContextWriterInterface
+  - [x] MUST NOT depend on ContextAccessorInterface or concrete ContextStore
+  - [x] MUST NOT consume context lifecycle, reset, snapshot, or bulk mutation APIs
+
+- [x] `packages/platform/routing/src/Observability/RoutingMatchObserver.php`
+  - [x] consume mandatory TracerPortInterface, MeterPortInterface, LoggerInterface, and Foundation Stopwatch dependencies
+  - [x] consume explicit tracing, metrics, and logging enablement flags
+  - [x] remain independent of concrete observability implementations
+  - [x] emit only canonical bounded routing match attributes and labels
+  - [x] isolate tracer, span, stopwatch, counter, duration-observation, and logger failures independently
+  - [x] MUST NOT alter routing outcomes or returned RouteMatch instances
+  - [x] MUST NOT record raw Throwable messages or request data
+  - [x] MUST NOT retain mutable request-local state
+  - [x] measure routing duration only when metrics are enabled
+  - [x] use invocation-local span and stopwatch handles
+  - [x] attempt span completion even when matching terminates unexpectedly
+  - [x] MUST NOT emit matched or not_matched completion metrics for unexpected matching failures
+  - [x] MUST NOT record raw Throwable instances through span exception recording
+  - [x] attempt counter and duration recording independently
+  - [x] preserve successful matching when any observability operation fails
+  - [x] emit the fixed `routing.match.completed` event through LoggerInterface at debug level
+  - [x] attempt exactly one log emission per completed match operation when logging is enabled
+  - [x] emit bounded method and outcome context fields
+  - [x] include path_template only after a successful match
+  - [x] MUST NOT emit completion logs for unexpected matching failures
+  - [x] MUST NOT require successful tracing or metrics recording before attempting logging
+  - [x] MUST NOT implement logging admission, redaction, formatting, filtering, or sink selection
+  - [x] MUST NOT duplicate canonical HTTP request or CLI command completion logs
+
+- [x] `packages/platform/routing/src/Runtime/RoutingArtifactReadiness.php`
+  - [x] implement `RoutingArtifactReadinessInterface`
+  - [x] require the validated immutable CompiledRouteTable
+  - [x] reuse the same route table instance consumed by CompiledRouter
+  - [x] MUST NOT create a second artifact snapshot or matching implementation
+  - [x] complete artifact validation through mandatory CompiledRouteTable dependency resolution
+  - [x] MUST NOT perform additional parsing or filesystem reads from assertReady()
+
+CLI:
+- [x] `packages/platform/routing/src/Console/RoutesCommandTargetResolver.php`
+  - [x] own shared explicit target resolution for routes:compile and routes:validate
+  - [x] require Console source-host execution
+  - [x] consume authoritative application-root metadata
+  - [x] accept only explicit `--app=web` and `--app=api`
+  - [x] reuse the public Kernel target-local source-host boot API
+  - [x] require enabled Routing in the selected target ModulePlan
+  - [x] return the selected source container without performing compilation
+  - [x] MUST NOT introduce another bootstrap pipeline or UnitOfWork
+  - [x] consume RuntimePathContext, RuntimeDiagnosticsInput, and ModulePlan through mandatory constructor dependencies
+  - [x] consume an explicitly supplied public KernelOpsHostBooter dependency
+  - [x] require Console source-host execution before starting target-local compilation
+  - [x] reject command execution when ModulePlan::app() is not `console`
+  - [x] reject command execution when RuntimeDiagnosticsInput reports a loaded artifact generation
+  - [x] construct KernelOpsHostInput from RuntimePathContext::applicationRoot() only during explicit command execution
+  - [x] call KernelOpsHostBooter::bootForTarget() with AppTarget::Web or AppTarget::Api
+  - [x] MUST NOT resolve source-host services from the compiled runtime container
+  - [x] validate the authoritative application target before starting source-host boot
+  - [x] represent missing or unsupported target selection, invalid command host, and missing Routing module through RoutesCommandTargetInvalidException
+  - [x] preserve the canonical safe KernelOpsFailedException boundary for source-host boot failures
+
+- [x] `packages/platform/routing/src/Console/RoutesCompileCommand.php`
+  - [x] implement the canonical contracts-level CommandInterface
+  - [x] define typed public constants `NAME`, `SUMMARY`, `GROUP`, `HIDDEN`, `ARGUMENTS`, and `OPTIONS`
+  - [x] canonical name: `routes:compile`
+  - [x] group: `routes`
+  - [x] hidden: false
+  - [x] arguments: empty list
+  - [x] declare a single non-repeatable `app` option requiring a value
+  - [x] require explicit `--app=web` or `--app=api`
+  - [x] reject unsupported or missing application targets
+  - [x] consume the authoritative Console host application root
+  - [x] obtain the selected target-local source host through the public Kernel source-host API
+  - [x] resolve RoutesCompiler from the selected target container
+  - [x] require enabled Routing in the target ModulePlan
+  - [x] return `0` after successful complete publication
+  - [x] return `1` for deterministic handled validation, compilation, or publication failures
+  - [x] expose safe output only through OutputInterface
+  - [x] success payload contains exactly `app`, `artifact`, and `route_count`
+  - [x] artifact value is the fixed basename `routes.php`
+  - [x] emit fixed safe error codes and reason tokens
+  - [x] MUST NOT introduce a command-local `format` option
+  - [x] MUST NOT perform direct JSON serialization, stdout, or stderr writes
+  - [x] MUST NOT access concrete CLI implementation classes
+  - [x] MUST NOT create an additional Kernel UnitOfWork
+  - [x] consume RoutesCommandTargetResolver
+  - [x] resolve RoutesCompiler and RoutesArtifactWriter from the selected target container
+  - [x] publish only the completely validated compiler result
+  - [x] handle RoutesCommandTargetInvalidException and safe KernelOpsFailedException diagnostics through OutputInterface
+  - [x] MUST NOT convert unrelated unexpected failures into successful command results
+  - [x] MUST NOT expose arbitrary Throwable messages
+
+- [x] `packages/platform/routing/src/Console/RoutesValidateCommand.php`
+  - [x] implement the canonical contracts-level CommandInterface
+  - [x] define canonical typed command metadata constants
+  - [x] canonical name: `routes:validate`
+  - [x] group: `routes`
+  - [x] hidden: false
+  - [x] arguments: empty list
+  - [x] declare a single non-repeatable `app` option requiring a value
+  - [x] consume RoutesCommandTargetResolver
+  - [x] reuse the complete canonical RoutesCompiler validation operation
+  - [x] return `0` for successful validation
+  - [x] return `1` for deterministic handled validation failures
+  - [x] success payload contains exactly `app`, `valid`, and `route_count`
+  - [x] success payload `valid` value is `true`
+  - [x] expose safe output only through OutputInterface
+  - [x] MUST NOT resolve RoutesArtifactWriter
+  - [x] MUST NOT read, create, modify, or delete route artifacts
+  - [x] MUST NOT create an artifact directory or publication lock
+  - [x] MUST NOT create another UnitOfWork
+  - [x] validate complete artifact structural and serialized-byte limits through RoutesCompiler
+  - [x] MUST NOT report successful validation for an artifact that would violate canonical publication limits
+  - [x] handle RoutesCommandTargetInvalidException and safe KernelOpsFailedException diagnostics through OutputInterface
+  - [x] MUST NOT convert unrelated unexpected failures into successful command results
+  - [x] MUST NOT expose arbitrary Throwable messages
+
+Errors:
+- [x] `packages/platform/routing/src/Exception/RoutesArtifactInvalidException.php` — `CORETSIA_ROUTES_ARTIFACT_INVALID`
+  - [x] implement the canonical package exception style with typed ERROR_CODE and bounded REASON_* constants
+  - [x] expose errorCode(): string and reason(): string
+  - [x] represent missing, unreadable, unsafe, oversized, malformed, incompatible, and fingerprint-invalid routes artifacts
+  - [x] translate shared decoding and artifact hydration failures into safe Routing-owned reasons
+  - [x] MUST NOT preserve unsafe previous throwable messages
+
+- [x] `packages/platform/routing/src/Exception/ReservedRouteViolationException.php` — `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
+  - [x] expose the fixed canonical error code through errorCode(): string
+  - [x] expose a fixed safe reserved-route violation reason through reason(): string
+  - [x] MUST NOT expose the rejected route template or generated concrete witness
+
+- [x] `packages/platform/routing/src/Exception/RouteDefinitionInvalidException.php`
+  - [x] expose deterministic route declaration and matching-policy failure reasons
+  - [x] MUST NOT disclose rejected declaration values
+  - [x] define ERROR_CODE = 'CORETSIA_ROUTING_ROUTE_DEFINITION_INVALID'
+  - [x] expose errorCode(): string and reason(): string
+  - [x] define bounded reasons for invalid providers, duplicate provider identities, duplicate route names, equivalent matching domains, unsupported declarations, resource-limit violations, and unsafe metadata
+
+- [x] `packages/platform/routing/src/Exception/RoutesArtifactWriteFailedException.php`
+  - [x] translate owner-local artifact publication failures
+  - [x] MUST NOT expose filesystem paths or underlying filesystem messages
+  - [x] define ERROR_CODE = 'CORETSIA_ROUTES_ARTIFACT_WRITE_FAILED'
+  - [x] expose errorCode(): string and reason(): string
+  - [x] distinguish safe lock acquisition, temporary-file creation, write, and publication failure reasons
+  - [x] preserve the canonical publication commit-point semantics
+
+- [x] `packages/platform/routing/src/Exception/RoutesCommandTargetInvalidException.php`
+  - [x] define ERROR_CODE = 'CORETSIA_ROUTING_COMMAND_TARGET_INVALID'
+  - [x] expose errorCode(): string and reason(): string
+  - [x] define bounded reasons:
+    - [x] `routing-command-target-required`
+    - [x] `routing-command-target-invalid`
+    - [x] `routing-command-host-invalid`
+    - [x] `routing-module-not-enabled`
+  - [x] MUST NOT expose rejected option values, application paths, or source-host internals
+
+Docs:
+- [x] `docs/ssot/routing-artifact.md`
+  - [x] define exact routes@1 envelope, header, payload, and route entry schema
+  - [x] define canonical target-local artifact path
+  - [x] define deterministic serialization and fingerprint input
+  - [x] define supported template and requirement grammar
+  - [x] define route ordering and duplicate rejection
+  - [x] define reserved domain intersection validation
+  - [x] define non-executable artifact decoding
+  - [x] define immutable runtime route table hydration
+  - [x] define owner-artifact readiness and deployment requirements
+  - [x] preserve separation from Kernel immutable generation identity
+  - [x] define canonical source route grouping and nested prefix composition
+  - [x] define requirement and metadata inheritance
+  - [x] define duplicate inherited-key and placeholder rejection
+  - [x] define flattening before RouteProviderInterface output
+  - [x] document grouped and standalone artifact identity equivalence
+  - [x] MUST NOT introduce a group-specific artifact schema
+
+- [x] `docs/guides/routing.md`
+  - [x] document explicit module selection for command-owning Console and compiled HTTP targets
+  - [x] document provider implementation through RouteProviderInterface
+  - [x] document canonical declarative provider tagging
+  - [x] document supported template and requirement examples
+  - [x] document explicit `routes:compile --app=web` and `routes:compile --app=api`
+  - [x] document canonical CLI global output format selection
+  - [x] document safe artifact-only runtime behavior and deployment prerequisites
+  - [x] document reserved route rejection examples
+  - [x] MUST NOT introduce direct artifact PHP execution or runtime source fallback
+  - [x] document `routes:validate --app=web` and `routes:validate --app=api`
+  - [x] distinguish read-only source validation from artifact publication
+  - [x] document standalone and grouped route declarations
+  - [x] provide nested API version group examples
+  - [x] provide parameterized group prefix examples
+  - [x] document inherited requirements and safe metadata
+  - [x] document duplicate-key, placeholder, and reserved-route rejection
+  - [x] document the distinction between source grouping and artifact-only runtime matching
+
+- [x] `packages/platform/routing/README.md`
+  - [x] document package scope, dependencies, module activation, and public contracts
+  - [x] document configuration keys and defaults
+  - [x] document canonical compile and runtime behavior
+  - [x] document artifact ownership, schema, and security boundaries
+  - [x] document context ownership and routing observability
+  - [x] document HttpApp integration boundaries without introducing middleware
+  - [x] document canonical routes:compile and routes:validate command behavior
+  - [x] document independent tracing, metrics, and logging configuration
+  - [x] document canonical PSR-3 diagnostic logging and Foundation noop behavior
+  - [x] document the fixed routing match completion event and debug severity
+  - [x] document the public RouteGroup declaration helper
+  - [x] document nested path and name prefixes
+  - [x] document deterministic requirement and metadata inheritance
+  - [x] document flattened canonical route artifact representation
+  - [x] document CompiledRouter context mutation through ContextWriterInterface
+  - [x] document exclusive PATH_TEMPLATE mutation ownership
+  - [x] MUST NOT describe Routing as an owner of context storage or reset execution
+
+- [x] `docs/adr/ADR-0018-platform-routing-compiled-routes.md`
+  - [x] document canonical artifact ownership and target-local compilation
+  - [x] document shared Foundation artifact primitive reuse
+  - [x] document reserved route-template intersection policy
+  - [x] document deterministic provider and route ordering
+  - [x] document artifact-only runtime and readiness semantics
+  - [x] document explicit non-goals and rejected competing architecture approaches
+  - [x] document source-only route grouping and canonical flattening
+  - [x] document unchanged runtime descriptor and artifact schema ownership
+  - [x] reject runtime group interpretation and separate group matching mechanisms
+
+Tests:
+- [x] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
+  - [x] verify exact static and placeholder matching
+  - [x] verify supported complete-segment requirements
+  - [x] verify method, path case, and encoded-octet behavior
+  - [x] verify first-match-wins ordering
+  - [x] verify exact canonical RouteMatch fields
+  - [x] verify invalid, reserved, and unmatched input
+  - [x] verify unsupported matching semantics are rejected
+
+- [x] `packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
+  - [x] verify all exact and prefix SystemRouteTable declarations
+  - [x] verify all declaration statuses
+  - [x] verify dynamic template intersections
+  - [x] verify constrained templates with disjoint match domains
+  - [x] verify segment-boundary near-miss paths
+  - [x] verify method-independent reservation ownership
+  - [x] verify the root application route is accepted
+  - [x] verify intersections with exact reserved paths and reserved namespaces
+  - [x] verify `/{name}` intersects canonical exact reservations
+  - [x] verify `/{name}/details` intersects canonical reserved prefixes
+  - [x] verify `/{id}` with `[0-9]+` is disjoint from current reserved path declarations
+  - [x] verify `/{name}` with `[A-Za-z]+` still intersects alphabetic reserved paths
+  - [x] verify `/healthcheck` remains distinct from `/health` and `/health/`
+
+- [x] `packages/platform/routing/tests/Unit/RouteProviderRegistryTest.php`
+  - [x] verify TagRegistry ordering and first-wins service registration
+  - [x] verify lazy provider resolution
+  - [x] verify empty metadata contract
+  - [x] verify invalid provider service, duplicate provider identity, and invalid output rejection
+  - [x] verify preserved provider route order
+
+- [x] `packages/platform/routing/tests/Unit/RouteTemplateTest.php`
+  - [x] verify exact supported template grammar
+  - [x] verify placeholder uniqueness
+  - [x] verify requirement validation
+  - [x] verify deterministic representative segment generation
+  - [x] verify unsupported and malformed declaration rejection
+  - [x] verify complete flattened templates containing inherited group placeholders
+
+- [x] `packages/platform/routing/tests/Unit/RoutesArtifactSchemaTest.php`
+  - [x] verify exact envelope, header, payload, and descriptor shapes
+  - [x] verify canonical descriptor reconstruction
+  - [x] verify target and environment fingerprint binding
+  - [x] verify rejection of non-canonical or unsafe declarations
+  - [x] verify shared redaction failure rejection
+  - [x] verify the exact fingerprint input key set and nested shapes
+  - [x] verify fingerprint sensitivity to app target, frozen environment, route order, payload values, and canonical reserved declarations
+  - [x] verify acceptance at exact resource limits
+  - [x] verify rejection of resource-limit overflow
+  - [x] verify canonical descriptor reconstruction without silent normalization
+  - [x] verify sensitive metadata and requirement keys are rejected
+  - [x] verify credential-bearing metadata values are rejected
+  - [x] verify Unix, Windows, UNC, and file URI filesystem path values are rejected
+  - [x] verify valid URI path templates are not rejected as filesystem paths
+  - [x] verify redaction failures reject route declarations without disclosure
+  - [x] verify redaction does not silently modify route matching or handler semantics
+  - [x] verify resource accounting includes canonical header and envelope members
+  - [x] verify canonical serialized artifact byte limits
+  - [x] verify compiler-produced artifacts remain acceptable to the bounded reader
+
+- [x] `packages/platform/routing/tests/Unit/RouteGroupTest.php`
+  - [x] verify explicit root group identity
+  - [x] verify path prefix and name prefix composition
+  - [x] verify nested immutable group composition
+  - [x] verify parent group instances remain unchanged
+  - [x] verify parameterized group prefixes and inherited requirements
+  - [x] verify deterministic metadata inheritance
+  - [x] verify duplicate placeholder rejection
+  - [x] verify conflicting inherited requirement rejection
+  - [x] verify duplicate metadata-key rejection
+  - [x] verify invalid prefix and path-template rejection
+  - [x] verify root child-route path composition
+  - [x] verify exact flattened RouteDefinition descriptors
+  - [x] verify preserved route order
+  - [x] verify invalid route-list rejection
+
+- [x] `packages/platform/routing/tests/Contract/RoutingModuleComposerMetadataContractTest.php`
+  - [x] verify canonical module, package, provider, config, and dependency metadata
+
+- [x] `packages/platform/routing/tests/Contract/RoutingConfigRulesContractTest.php`
+  - [x] verify exact configuration keys and defaults
+  - [x] verify unsupported key and invalid-type rejection
+  - [x] verify absence of reserved-guard bypass configuration
+  - [x] verify routing.logging.enabled default value and boolean validation
+  - [x] verify independent tracing, metrics, and logging configuration
+
+- [x] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
+  - [x] verify exact routes@1 header members
+  - [x] verify canonical global envelope law
+  - [x] verify fixed generator and schema version
+  - [x] verify absence of requires and unsupported metadata
+
+- [x] `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
+  - [x] verify canonical provider and route order
+  - [x] verify duplicate rejection
+  - [x] verify stable canonical fingerprint input
+  - [x] verify fingerprint sensitivity to semantic declaration changes
+  - [x] verify equivalent flattened grouped and standalone declarations are fingerprint-identical
+  - [x] verify changes to effective flattened route precedence affect artifact identity
+
+- [x] `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
+  - [x] verify byte-identical repeated compilation
+  - [x] verify recursive map ordering and preserved lists
+  - [x] verify LF-only output and exactly one final LF
+  - [x] verify no timestamps, secrets, or absolute paths
+
+- [x] `packages/platform/routing/tests/Contract/ReservedGuardUsesFoundationMatcherContractTest.php`
+  - [x] verify direct canonical SystemRouteTable and ReservedPathMatcher reuse
+  - [x] verify absence of local reserved route registries and normalization algorithms
+
+- [x] `packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchFoundationMatcherContractTest.php`
+  - [x] verify concrete path behavior against the canonical Foundation matcher
+  - [x] verify route-template witness validation
+  - [x] verify all canonical declaration statuses
+
+- [x] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] verify Foundation noop tracer, meter, and logger participation
+  - [x] verify independent throwing-port failure isolation
+  - [x] verify unchanged match and non-match results
+
+- [x] `packages/core/contracts/tests/Contract/RoutingArtifactReadinessInterfaceShapeContractTest.php`
+  - [x] verify exact transport-neutral readiness method signature
+  - [x] verify absence of concrete runtime, filesystem, and PSR-7 dependencies
+
+- [x] `packages/core/foundation/tests/Contract/StablePhpArrayCodecContractTest.php`
+  - [x] verify canonical deterministic PHP-array byte encoding
+  - [x] verify strict round-trip decoding
+  - [x] verify invalid and executable input rejection
+  - [x] verify canonical map ordering and preserved list ordering
+  - [x] verify bounded and unrestricted parsing reuse identical accepted byte grammar
+  - [x] verify bounded parsing follows JsonLikeNormalizer depth, node-count, and string-byte accounting
+  - [x] verify acceptance at exact configured limits
+  - [x] verify rejection before unrestricted nested value allocation
+
+- [x] `packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
+  - [x] verify target-local source compilation
+  - [x] verify authoritative runtime artifact root
+  - [x] verify exact artifact envelope and route ordering
+
+- [x] `packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
+  - [x] verify repeated byte-identical artifact creation
+  - [x] verify previous valid artifact preservation on failed compilation
+
+- [x] `packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
+  - [x] execute the actual canonical CLI command catalog and runner
+  - [x] verify exact command metadata
+  - [x] verify explicit web and api target selection
+  - [x] verify target-specific provider and configuration consumption
+  - [x] verify canonical JSON output envelope
+  - [x] verify safe error output and correct exit codes
+  - [x] verify exactly one CLI UnitOfWork
+  - [x] verify missing and invalid target values produce canonical safe failures
+  - [x] verify invalid command host and unselected target Routing module are rejected
+  - [x] verify safe target source-host boot failure handling
+
+- [x] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+  - [x] verify canonical shared ContextStore consumption
+  - [x] verify exact PATH_TEMPLATE after successful matching
+  - [x] verify stale template removal on non-match
+  - [x] verify ContextStore reset through the owning UnitOfWork
+  - [x] verify absence of raw path and parameter writes
+  - [x] verify existing unrelated context values remain unchanged after matching and non-matching operations
+  - [x] verify Routing removes and writes only ContextKeys::PATH_TEMPLATE
+  - [x] verify Routing does not clear, reset, or replace the shared ContextStore
+  - [x] verify CompiledRouter consumes ContextWriterInterface through the canonical shared Foundation binding
+  - [x] verify matching does not require concrete ContextStore or context read access
+
+- [x] `packages/platform/routing/tests/Integration/RoutesArtifactReaderRejectsExecutableAndInvalidArtifactsTest.php`
+  - [x] verify executable PHP is rejected without execution
+  - [x] verify missing, unreadable, oversized, malformed, and symlinked artifact rejection
+  - [x] verify fingerprint and schema mismatch rejection
+  - [x] verify reserved route rejection during hydration
+  - [x] verify non-regular artifact file rejection
+  - [x] verify unsafe artifact-root component rejection
+  - [x] verify bounded single-handle snapshot reading
+
+- [x] `packages/platform/routing/tests/Integration/RoutesArtifactPublicationPreservesPreviousArtifactTest.php`
+  - [x] verify previous valid artifact preservation on failed publication
+  - [x] verify absence of partial artifact publication
+  - [x] verify cleanup of unsuccessful temporary files
+  - [x] verify owner-local lock coordination
+  - [x] verify identical-byte publication does not replace the existing artifact
+  - [x] verify lock acquisition failure preserves the previous artifact
+  - [x] verify pre-commit write and replacement failures preserve the previous artifact
+  - [x] verify post-commit lock cleanup failure does not remove or roll back the successfully published artifact
+  - [x] verify non-regular lock and artifact target rejection
+  - [x] verify oversized existing artifacts do not require unbounded equality-comparison reads
+
+- [x] `packages/platform/routing/tests/Integration/RoutingSourceCompiledContainerParityTest.php`
+  - [x] use the actual canonical declarative container graph
+  - [x] verify required services and aliases
+  - [x] verify source and compiled artifact-backed matching parity
+  - [x] verify unchanged exact Kernel runtime seed set
+  - [x] verify no absolute paths or route payloads enter compiled definitions
+  - [x] verify no source-host-only Kernel service identifiers enter compiled definitions
+  - [x] verify command service construction does not boot a source host
+  - [x] verify artifact-runtime invocation of RoutesCompileCommand is rejected before source-host boot
+
+- [x] `packages/platform/routing/tests/Integration/ArtifactOnlyRoutingBootTest.php`
+  - [x] boot through the actual Kernel ArtifactRuntimeBooter
+  - [x] verify owner-artifact readiness before HTTP runtime startup
+  - [x] verify runtime matching without resolving or invoking RouteProviderInterface services
+  - [x] preserve availability of installed provider classes referenced by canonical compiled definitions
+  - [x] verify the loaded immutable route table remains independent of subsequent artifact replacement
+  - [x] verify no runtime source config, provider discovery, or artifact regeneration
+  - [x] verify Kernel generation bytes and current pointer remain unchanged
+
+- [x] `packages/platform/routing/tests/Integration/RoutingEntryPointReadinessTest.php`
+  - [x] verify the selected-module requirement through the actual HTTP entrypoint guard
+  - [x] verify missing and invalid routes artifacts fail before HTTP runtime construction
+  - [x] verify unselected Routing does not require an artifact
+  - [x] verify the same immutable route table instance is consumed by readiness and CompiledRouter
+  - [x] verify enabled Routing with a missing or invalid readiness binding fails closed
+  - [x] verify unselected Routing does not resolve the readiness port
+  - [x] verify existing HTTP module, driver, and PSR-17 validation precedence
+  - [x] verify provider definition construction does not require routes.php
+
+- [x] `packages/platform/routing/tests/Integration/RoutingObservabilityTest.php`
+  - [x] verify exact span name and attributes
+  - [x] verify exact counter and duration metric names, values, and labels
+  - [x] verify bounded method and outcome values
+  - [x] verify one completed decision attempt per match invocation
+  - [x] verify independent tracing, metrics, and logging enablement
+  - [x] verify Foundation noop and throwing-port behavior
+  - [x] verify no raw path, host, parameter, or handler disclosure
+  - [x] verify disabled metrics do not start the stopwatch
+  - [x] verify unsupported methods use the fixed OTHER observability value
+  - [x] verify unexpected matching failures do not emit completed-decision metrics
+  - [x] verify started spans are finished after unexpected matching failures
+  - [x] verify stopwatch start and stop failure isolation through structural assertions following the existing final Foundation Stopwatch verification policy
+  - [x] verify counter recording is independent of successful duration measurement
+  - [x] MUST NOT mock, subclass, replace, or introduce an alternative Foundation Stopwatch implementation
+  - [x] verify counter failure does not suppress duration recording
+  - [x] verify the exact routing.match.completed event identifier
+  - [x] verify debug log severity
+  - [x] verify exact producer-supplied log context for matched and not_matched outcomes
+  - [x] verify path_template is absent from unmatched log context
+  - [x] verify exactly one logger attempt per completed matching operation
+  - [x] verify disabled logging does not invoke LoggerInterface
+  - [x] verify unexpected matching failures do not emit completion logs
+  - [x] verify throwing logger behavior preserves routing outcomes
+  - [x] verify logger failure does not suppress tracing or metrics
+  - [x] verify tracing or metric failures do not suppress logging
+  - [x] verify no raw request data or additional HTTP or CLI completion events
+
+- [x] `packages/platform/routing/tests/Integration/CliRoutesValidateCommandTest.php`
+  - [x] execute the actual canonical CLI command catalog and runner
+  - [x] verify exact command metadata and explicit target selection
+  - [x] verify identical route validation semantics between routes:validate and routes:compile
+  - [x] verify successful validation without an existing routes artifact
+  - [x] verify invalid declarations return safe failures
+  - [x] verify existing artifact bytes and modification time remain unchanged
+  - [x] verify absent artifact directories and lock files are not created
+  - [x] verify exactly one canonical CLI UnitOfWork
+  - [x] verify validation rejects oversized serialized artifacts without creating or modifying files
+  - [x] verify missing and invalid target values produce canonical safe failures
+  - [x] verify invalid command host and unselected target Routing module are rejected
+  - [x] verify safe target source-host boot failure handling
+
+- [x] `packages/platform/routing/tests/Integration/GroupedRoutesCompilationAndMatchingTest.php`
+  - [x] compile nested grouped routes through the actual RouteProviderRegistry and RoutesCompiler
+  - [x] verify grouped and standalone routes share canonical provider ordering
+  - [x] verify deterministic first-match-wins behavior across groups
+  - [x] verify inherited requirements participate in runtime matching
+  - [x] verify inherited safe metadata is preserved in RouteMatch
+  - [x] verify reserved-route intersections are rejected after flattening
+  - [x] verify duplicate route names and equivalent matching domains across groups are rejected
+  - [x] verify grouped and equivalent standalone declarations produce identical artifact bytes and fingerprints
+  - [x] verify actual artifact-only runtime matching does not hydrate route groups
+  - [x] verify complete flattened PATH_TEMPLATE context values
+
+- [x] `packages/core/foundation/tests/Integration/AtomicFileWriterTest.php`
+  - [x] verify complete atomic publication
+  - [x] verify failed publication preserves the existing target
+  - [x] verify safe failure reasons and temporary-file cleanup
+
+- [x] `packages/core/contracts/tests/Contract/ContextWriterInterfaceShapeContractTest.php`
+  - [x] verify the exact set() and remove() method set
+  - [x] verify canonical parameter and return types
+  - [x] verify mandatory parameters without default values
+  - [x] verify absence of read, clear, reset, snapshot, and bulk mutation methods
+  - [x] verify the dependency-neutral context mutation boundary
+
+- [x] `packages/core/foundation/tests/Contract/ContextWriterSignatureContractTest.php`
+  - [x] verify ContextStore implements ContextWriterInterface
+  - [x] verify exact set() and remove() signatures
+  - [x] verify ContextBag remains read-only
+  - [x] verify mutation continues using canonical ContextStorePolicy validation
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-routing-compiled-routes.md`
-- [ ] `docs/ssot/INDEX.md` — register:
-  - [ ] `docs/ssot/routing-artifact.md`
-- [ ] deptrac expectations updated: allow `platform/routing` → `platform/http` (compile-time) while keeping `platform/http` boundary intact
-- [ ] `docs/ssot/tags.md` — register:
-  - [ ] `routing.route_provider` (owner `platform/routing`) - RouteProvider discovery via Foundation TagRegistry; providers are ordered by TagRegistry (priority DESC, serviceId ASC), per-provider route order is preserved.
-- [ ] `docs/ssot/config-roots.md` — register:
-  - [ ] `routing | platform/routing | packages/platform/routing/config/routing.php | packages/platform/routing/config/rules.php | compiled routing artifact + runtime router settings`
-- [ ] `docs/ssot/artifacts.md` — update the existing `routes@1` registry row if notes/path-shape need refinement; MUST NOT add a duplicate registry row
-  - [ ] `routes` (owner `platform/routing`) - { "_meta": <header>, "payload": <schema> } | docs/ssot/routing-artifact.md | Deterministic bytes; LF-only + final newline; no timestamps/abs paths/secrets; rerun-no-diff.
+- [x] `packages/platform/http/src/Runtime/HttpRuntimeEntrypointGuard.php`
+  - [x] consume RoutingArtifactReadinessInterface only through `core/contracts`
+  - [x] require effective Routing artifact readiness when `platform.routing` is enabled in the supplied ModulePlan
+  - [x] complete readiness validation before HTTP runtime construction
+  - [x] preserve existing module, runtime driver, and PSR-17 readiness checks
+  - [x] MUST NOT require Routing readiness when its module is not selected
+  - [x] MUST NOT import concrete Routing classes
+  - [x] MUST NOT perform route artifact path resolution, parsing, or schema validation
+  - [x] MUST NOT introduce a reverse HTTP-to-Routing dependency
+  - [x] perform Routing artifact readiness validation after existing HTTP module, driver, and effective PSR-17 factory validation
+  - [x] resolve RoutingArtifactReadinessInterface from the supplied canonical runtime container only when `platform.routing` is enabled
+  - [x] require the resolved service to implement RoutingArtifactReadinessInterface
+  - [x] invoke assertReady() exactly once during entrypoint readiness validation
+  - [x] fail closed when the required readiness binding is missing or invalid
+  - [x] MUST NOT resolve RouterInterface solely to perform artifact readiness
+  - [x] MUST NOT require Routing readiness during HTTP provider definition construction
 
-#### Package skeleton (if type=package)
+- [x] `tools/gates/cross_cutting_contract_gate.php`
+  - [x] preserve concrete ContextStore dependency detection
+  - [x] retain the canonical Foundation-owned ContextStore declaration and composition boundary
+  - [x] preserve FoundationServiceProvider authorization for canonical ContextStore construction and service references
+  - [x] remove concrete ContextStore usage exceptions for KernelRuntime and KernelServiceFactory
+  - [x] remove concrete ContextStore usage exceptions for HttpServiceProvider, RequestContextMiddleware, and RequestIdPolicy
+  - [x] remove HTTP-specific concrete ContextStore provider-reference and promoted-constructor authorization helpers
+  - [x] reject direct concrete ContextStore dependencies outside the Foundation-owned implementation and composition boundary
+  - [x] allow contracts-level ContextWriterInterface and ContextAccessorInterface usage
+  - [x] preserve rejection of the obsolete Foundation-owned ContextKeys symbol
+  - [x] preserve unrelated reset, stateful-service, and cross-cutting contract checks
+  - [x] MUST NOT introduce Routing-specific file exceptions
+  - [x] MUST NOT introduce another context dependency scanner
 
-- [ ] `packages/platform/routing/composer.json`
-- [ ] `packages/platform/routing/src/Module/RoutingModule.php`
-- [ ] `packages/platform/routing/src/Provider/RoutingServiceProvider.php`
-- [ ] `packages/platform/routing/config/routing.php`  # returns subtree (no repeated root)
-- [ ] `packages/platform/routing/config/rules.php`
-- [ ] `packages/platform/routing/README.md` (must include: Observability / Errors / Security-Redaction)
-- [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `composer.json`
+  - [x] include the materialized Routing package in monorepo development dependencies
+  - [x] synchronize canonical managed path repositories
+  - [x] preserve the current workspace release line
+
+Tests:
+- [x] `packages/core/foundation/tests/Integration/FoundationResolvesContextStoreBindingsTest.php`
+  - [x] verify ContextStore, ContextAccessorInterface, and ContextWriterInterface resolve to the same instance
+  - [x] verify writes and removal through ContextWriterInterface are observable through ContextAccessorInterface
+  - [x] verify reset clears values written through ContextWriterInterface
+
+- [x] `packages/core/foundation/tests/Integration/FoundationProviderSourceDefinitionsParityTest.php`
+  - [x] include the canonical ContextWriterInterface alias in the exact expected definition set
+  - [x] verify shared context instance identity
+  - [x] preserve exact reset and stateful registrations
+
+- [x] `packages/core/kernel/tests/Contract/KernelCompileHostServicesAreNotRuntimeDefinitionsContractTest.php`
+  - [x] align the exact KernelRuntime required-service declaration set with ContextWriterInterface
+  - [x] preserve source-host-only service exclusions
+
+- [x] `packages/core/kernel/tests/Integration/KernelProviderSourceDefinitionsParityTest.php`
+  - [x] align the exact required runtime service set with ContextWriterInterface
+  - [x] preserve existing service, alias, and shared-instance assertions
+
+- [x] `packages/core/kernel/tests/Integration/KernelServiceProviderWiresKernelRuntimeTest.php`
+  - [x] verify KernelRuntime receives the canonical ContextWriterInterface binding
+  - [x] verify the binding resolves to the shared Foundation-owned ContextStore
+  - [x] preserve base context writes and UnitOfWork reset assertions
+  - [x] verify KernelRuntime construction does not require downcasting the context accessor
+
+- [x] `packages/core/kernel/tests/Contract/KernelOpsDoesNotWriteContextOrControlUowContractTest.php`
+  - [x] reject ContextWriterInterface dependencies in KernelOpsFacade and KernelOpsHostBooter
+  - [x] preserve canonical context read-only and lifecycle restrictions
+
+- [x] `packages/core/kernel/tests/Unit/KernelOpsFacadeContextBoundaryTest.php`
+  - [x] verify KernelOpsFacade does not consume the canonical context mutation port
+  - [x] preserve existing read-only context behavior
+
+- [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] align RequestIdPolicy construction with mandatory context writer and accessor dependencies
+
+- [x] `packages/platform/http/tests/Contract/HttpConfigSubtreeShapeContractTest.php`
+  - [x] align RequestIdPolicy construction with mandatory context writer and accessor dependencies
+  - [x] preserve existing configuration validation assertions
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] align exact declarative RequestIdPolicy arguments with both context ports
+  - [x] preserve existing noop and observability failure isolation assertions
+
+- [x] `packages/platform/http/tests/Contract/SecurityHeadersDeterministicOrderContractTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve security header ordering assertions
+
+- [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve existing access-log safety assertions
+
+- [x] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve existing maintenance bypass assertions
+
+- [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve canonical error-flow assertions
+
+- [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] preserve existing correlation header behavior
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] verify both context ports resolve to the same Foundation-owned ContextStore
+  - [x] align exact RequestIdPolicy constructor arguments and reflected dependency properties
+  - [x] align request-id activation argument positions
+  - [x] verify the ContextWriterInterface alias in the compiled container graph
+  - [x] verify the canonical context port required-service declarations
+  - [x] verify absence of direct concrete ContextStore references in HTTP-owned service definitions
+  - [x] preserve exact shared ContextStore and reset registration assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] align RequestIdPolicy construction and exact declarative arguments
+  - [x] align request-id enablement argument position
+  - [x] align expected RequestIdPolicy dependency property set
+  - [x] preserve existing finalized-response observability and lifecycle assertions
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] preserve shared context storage and existing UnitOfWork hook behavior
+
+- [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve parsed-body assertions
+
+- [x] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve maintenance response and lifecycle assertions
+
+- [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] verify RequestContextMiddleware consumes ContextWriterInterface
+  - [x] preserve exclusive HTTP request metadata key ownership
+
+- [x] `packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] align explicit context port fixture bindings
+  - [x] verify both ports operate on the same shared ContextStore
+  - [x] preserve request identity and UnitOfWork reset behavior
+
+- [x] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+  - [x] align RequestIdPolicy construction with both mandatory context ports
+  - [x] preserve existing response-finalization assertions
+
+- [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] preserve request identity verification and response-finalization behavior
+
+- [x] `packages/platform/http/tests/Unit/RequestIdPolicyTest.php`
+  - [x] align all RequestIdPolicy construction sites
+  - [x] verify writes exclusively through ContextWriterInterface
+  - [x] verify owner-local REQUEST_ID reads exclusively through ContextAccessorInterface
+  - [x] verify disabled policy invokes neither context port
+  - [x] preserve existing request identity validation and failure assertions
+
+- [x] `packages/core/kernel/tests/Integration/ArtifactPipelineTestSupport.php`
+  - [x] align ArtifactWriter fixture construction
+
+- [x] `packages/core/kernel/tests/Integration/KernelArtifactObservabilityDoesNotChangeBehaviorTest.php`
+  - [x] align ArtifactWriter construction
+  - [x] preserve existing independent observability failure isolation assertions
+
+- [x] `packages/core/kernel/tests/Integration/DependencySyncInstallationCatalogCoversCanonicalPresetsTest.php`
+  - [x] verify Routing installation catalog ownership and dependency closure
+  - [x] preserve existing canonical preset roots
+  - [x] verify installed Routing does not imply enabled Routing
+
+- [x] `tools/tests/Integration/CrossCuttingContractGateTest.php`
+  - [x] preserve canonical Foundation ContextStore owner and provider authorization tests
+  - [x] replace previously accepted direct concrete ContextStore dependency fixtures with canonical context port fixtures
+  - [x] verify Kernel and HTTP context consumers can depend on ContextWriterInterface
+  - [x] verify Routing context consumers can depend on ContextWriterInterface
+  - [x] verify read-only consumers can depend on ContextAccessorInterface
+  - [x] reject direct concrete ContextStore dependencies at all formerly authorized Kernel and HTTP source paths
+  - [x] reject direct concrete ContextStore dependencies in Routing
+  - [x] reject unauthorized ContextStore construction and service references
+  - [x] preserve all unrelated effective reset tag and stateful-service gate assertions
+  - [x] reject direct concrete ContextStore dependencies expressed through case-variant class names, import aliases, namespace-relative references, and canonical literal service identifiers
+
+- [x] `packages/platform/worker/tests/Support/WorkerArtifactPipelineTestSupport.php`
+  - [x] supply the mandatory shared Foundation AtomicFileWriter dependency
+  - [x] preserve canonical Worker artifact pipeline construction
+  - [x] preserve existing artifact generation publication and validation behavior
+  - [x] MUST NOT introduce Worker-owned artifact serialization or publication implementations
+
+- [x] `packages/core/kernel/tests/Contract/StablePhpArrayDumperDeterministicEmissionContractTest.php`
+  - [x] preserve existing exact byte expectations
+  - [x] verify shared Foundation byte-emission reuse
+
+- [x] `packages/core/kernel/tests/Contract/StablePhpArrayParserContractTest.php`
+  - [x] preserve existing parser golden vectors
+  - [x] verify shared Foundation parser reuse
+  - [x] preserve canonical Kernel exception translation
+
+- [x] `packages/platform/logging/tests/Unit/LogRecordPolicyTest.php`
+  - [x] verify canonical admission of routing match method, outcome, and structural path_template values
+  - [x] preserve producer-neutral context admission
+  - [x] verify routing match logging requires no additional sink fields
+  - [x] MUST NOT introduce producer-specific logging admission behavior
+
+- [x] `packages/platform/cli/tests/Contract/CliDoesNotWriteContextOrResetDirectlyContractTest.php`
+  - [x] include ContextWriterInterface in forbidden CLI runtime dependencies
+  - [x] preserve read-only context access and lifecycle restrictions
+
+- [x] `packages/platform/redaction/tests/Contract/RedactionRuntimeHasNoContextObservabilityOrResetDependencyContractTest.php`
+  - [x] include ContextWriterInterface in forbidden Redaction runtime dependencies
+  - [x] preserve existing context-independent execution requirements
+
+- [x] `packages/platform/tracing/tests/Contract/TracingBoundaryNoForbiddenDependenciesContractTest.php`
+  - [x] include ContextWriterInterface in forbidden Tracing runtime dependencies
+  - [x] preserve Foundation ContextStore ownership and existing tracing boundaries
+
+- [x] `packages/platform/problem-details/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] include ContextWriterInterface in forbidden Problem Details runtime dependencies
+  - [x] preserve existing context-independent response adaptation behavior
+
+- [x] `packages/platform/logging/tests/Contract/LoggingProviderDeclarativeDefinitionsContractTest.php`
+  - [x] verify Logging retains read-only ContextAccessorInterface consumption
+  - [x] verify Logging does not require ContextWriterInterface
+  - [x] preserve existing declarative service and observability binding assertions
+
+Docs:
+- [x] `docs/adr/INDEX.md` — register:
+  - [x] `docs/adr/ADR-0018-platform-routing-compiled-routes.md`
+
+- [x] `docs/ssot/INDEX.md` — register:
+  - [x] `docs/ssot/routing-artifact.md`
+
+- [x] `docs/ssot/context-keys.md`
+  - [x] place PATH_TEMPLATE in the canonical active context key set
+  - [x] document Routing as its concrete writer
+  - [x] document match and non-match lifecycle behavior
+  - [x] preserve existing key identifier, safety, and reset semantics
+  - [x] document ContextWriterInterface consumption by explicitly authorized semantic context writers
+  - [x] preserve existing key-specific writer ownership
+  - [x] MUST NOT interpret context writer port availability as permission to modify unrelated owner keys
+
+- [x] `docs/ssot/context-store.md`
+  - [x] move PATH_TEMPLATE from the reserved future key set into the canonical active context key set
+  - [x] document ContextWriterInterface as the canonical context mutation port
+  - [x] document exact set() and remove() mutation signatures
+  - [x] document separate read-only ContextAccessorInterface consumption
+  - [x] require all runtime context consumers outside Foundation to use the appropriate contracts-level context port
+  - [x] document ContextStore, ContextAccessorInterface, and ContextWriterInterface as bindings of one shared Foundation-owned instance
+  - [x] document KernelRuntime, RequestContextMiddleware, RequestIdPolicy, and CompiledRouter context port consumption
+  - [x] document RequestIdPolicy owner-local read-back through ContextAccessorInterface
+  - [x] remove concrete ContextStore dependency exceptions for Kernel and HTTP consumers
+  - [x] preserve semantic context key ownership independently of port availability
+  - [x] MUST NOT expose clear, reset, snapshot, or lifecycle operations through ContextWriterInterface
+  - [x] restrict Routing context mutation to ContextKeys::PATH_TEMPLATE
+  - [x] document stale template removal and successful match context publication
+  - [x] preserve the single Foundation-owned ContextStore instance
+  - [x] preserve existing HTTP context writer ownership and owner-local request identity verification
+  - [x] preserve existing ContextStorePolicy validation and reset behavior
+  - [x] MUST NOT introduce additional Routing context consumers, writer implementations, or independent context stores
+
+- [x] `docs/ssot/context-lifecycle.md`
+  - [x] document PATH_TEMPLATE as an implemented Routing-owned context key
+  - [x] document successful and unsuccessful matching context behavior
+  - [x] document stale PATH_TEMPLATE removal before each matching operation
+  - [x] preserve canonical UnitOfWork context lifecycle and reset responsibilities
+  - [x] MUST NOT introduce a Routing-specific context lifecycle or reset boundary
+  - [x] document runtime context mutations through ContextWriterInterface
+  - [x] document context reads through ContextAccessorInterface
+  - [x] replace concrete ContextStore dependency and owner-local read-back exception descriptions
+  - [x] preserve owner-local REQUEST_ID verification through ContextAccessorInterface
+  - [x] preserve Foundation ownership of context reset execution
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] align PATH_TEMPLATE write ownership with CompiledRouter
+  - [x] remove direct PATH_TEMPLATE write ownership from the future HttpApp RouterMiddleware declaration
+  - [x] document ROUTING-owned context mutation through RouterInterface matching
+  - [x] distinguish middleware integration from concrete Routing context ownership
+  - [x] preserve existing middleware context read permissions and unrelated writer ownership
+  - [x] MUST NOT introduce Routing middleware through this document
+  - [x] document HTTP context mutations through ContextWriterInterface
+  - [x] align owner-local request identity read-back with ContextAccessorInterface
+  - [x] remove concrete ContextStore access exceptions
+  - [x] preserve existing middleware-specific context key permissions
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] document PATH_TEMPLATE as an implemented Routing-owned context key
+  - [x] remove PATH_TEMPLATE from the reserved future context key set
+  - [x] distinguish canonical Routing context ownership from future HttpApp middleware integration
+  - [x] preserve all existing middleware catalog entries, priorities, slots, and activation rules
+  - [x] MUST NOT register CompiledRouter or Routing services as middleware
+
+- [x] `docs/adr/ADR-0015-context-bag-context-store-correlation-id.md`
+  - [x] align the canonical active context key set with implemented PATH_TEMPLATE ownership
+  - [x] document the explicitly authorized Routing context writer
+  - [x] preserve the single Foundation-owned ContextStore decision
+  - [x] preserve existing ContextAccessorInterface, Kernel UnitOfWork, and reset ownership decisions
+  - [x] preserve the narrowly scoped HTTP request identity read-back exception
+  - [x] MUST NOT introduce additional ContextStore instances or general concrete context access
+  - [x] document separate context read and mutation ports implemented by the shared Foundation-owned ContextStore
+  - [x] document canonical context writer alias and shared-instance identity
+  - [x] replace concrete ContextStore consumer exceptions with contracts-level port consumption
+  - [x] preserve Foundation reset ownership and semantic writer restrictions
+
+- [x] `packages/core/foundation/README.md`
+  - [x] document canonical ContextWriterInterface and ContextAccessorInterface consumption
+  - [x] document both ports as aliases of the same Foundation-owned ContextStore
+  - [x] document context mutation, validation, and reset ownership boundaries
+  - [x] remove concrete ContextStore consumer exceptions
+  - [x] document reusable PHP-array serialization and atomic byte publication
+  - [x] preserve existing ContextStore ownership and read-only accessor policy
+  - [x] move PATH_TEMPLATE from the reserved future key set into the implemented active context key set
+  - [x] document CompiledRouter as its authorized semantic writer through ContextWriterInterface
+
+- [x] `docs/ssot/tags.md`
+  - [x] register the `routing.*` reserved prefix with owner `platform/routing`
+  - [x] register `routing.route_provider` in the canonical reserved tag registry
+  - [x] stability: `stable`
+  - [x] document empty metadata, service validation, actual priority, and canonical ordering
+  - [x] document first-wins TagRegistry service registration semantics
+  - [x] preserve provider-emitted route order
+  - [x] document lazy provider resolution during explicit compilation
+  - [x] MUST NOT redefine the existing `cli.command` contract
+
+- [x] `docs/ssot/artifacts.md`
+  - [x] update the existing `routes` registry row in place
+  - [x] preserve schemaVersion `1` and owner `platform/routing`
+  - [x] document the canonical basename `routes.php`
+  - [x] reference `docs/ssot/routing-artifact.md`
+  - [x] remove the future-only artifact production description
+  - [x] preserve the existing five-column artifact registry shape
+  - [x] MUST NOT append a duplicate routes registry row
+  - [x] MUST NOT introduce a new artifact identity or Kernel generation member
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] register the canonical direct Routing dependency matrix row
+  - [x] document the runtime-only Redaction dependency
+  - [x] verify the absence of direct dependencies between HTTP and Routing
+  - [x] preserve the absence of Kernel-to-Routing dependencies
+
+- [x] `docs/architecture/STRUCTURE.md`
+  - [x] align the package inventory and current Routing ownership
+  - [x] preserve existing package topology and preset ownership
+  - [x] MUST NOT automatically enable Routing in canonical presets
+
+- [x] `docs/ssot/routing-and-http-app-contracts.md`
+  - [x] align existing contracts with current Routing runtime ownership
+  - [x] document provider ordering and runtime match-domain responsibilities
+  - [x] replace route-name sorting recommendations with canonical TagRegistry provider ordering and preserved provider-emitted route order
+  - [x] document provider-emitted route order as matching precedence
+  - [x] MUST NOT require global route-name sorting or specificity-based reordering
+  - [x] document RoutingArtifactReadinessInterface
+  - [x] preserve RouteDefinition, RouteMatch, RouteProviderInterface, and RouterInterface shapes
+  - [x] preserve future HttpApp action invocation boundaries
+  - [x] document that owner-specific route declaration grouping produces ordinary flat RouteDefinition lists before crossing the contracts boundary
+  - [x] preserve the existing RouteProviderInterface return contract
+  - [x] MUST NOT introduce group-specific contracts or runtime descriptor fields
+  - [x] distinguish contracts-level dependency restrictions from implementation-owned source declaration helpers
+  - [x] permit concrete providers to use owner-specific grouping helpers without changing the contracts interface
+
+- [x] `docs/adr/ADR-0005-routing-httpapp-ports.md`
+  - [x] align current Routing ownership and artifact production
+  - [x] document the transport-neutral readiness boundary
+  - [x] remove superseded future-only descriptions of implemented Routing behavior
+  - [x] preserve existing format-neutral descriptor and invocation decisions
+
+- [x] `packages/core/contracts/README.md`
+  - [x] document the canonical Routing artifact readiness port
+  - [x] preserve existing routing descriptor and port ownership
+  - [x] MUST NOT describe concrete Routing implementation as Contracts-owned behavior
+  - [x] document ContextWriterInterface as the canonical context mutation port
+  - [x] document separation between context access and mutation contracts
+  - [x] preserve ContextAccessorInterface read-only semantics
+  - [x] MUST NOT assign context storage, validation implementation, or reset execution to Contracts
+
+- [x] `docs/ssot/artifacts-and-fingerprint.md`
+  - [x] document shared Foundation PHP-array serialization consumption
+  - [x] document Kernel-specific exception translation and ownership
+  - [x] preserve existing Kernel fingerprint and artifact byte contracts
+  - [x] preserve platform-owned routes artifact exclusion
+
+- [x] `docs/ssot/runtime-container-definitions.md`
+  - [x] document canonical Routing declarative service composition
+  - [x] document explicit target-local source-host composition
+  - [x] preserve existing exact runtime seed set and ownership
+  - [x] preserve compile-host and artifact-runtime isolation
+  - [x] document ContextWriterInterface as a shared Foundation-owned context service alias
+  - [x] align the exact KernelRuntime required-service declarations with ContextWriterInterface
+  - [x] document equivalent source and compiled context port bindings
+  - [x] remove concrete ContextStore downcasting requirements from KernelRuntime construction
+  - [x] preserve existing exact runtime seed set
+
+- [x] `packages/core/kernel/README.md`
+  - [x] document the explicit target-local source-host entrypoint
+  - [x] document shared Foundation artifact serialization and publication primitives
+  - [x] preserve existing Console operations host and artifact-only runtime contracts
+  - [x] MUST NOT assign routes artifact production to Kernel
+  - [x] document ContextWriterInterface consumption by KernelRuntime
+  - [x] preserve ContextAccessorInterface consumption by KernelOpsFacade
+  - [x] document unchanged base context key ownership and reset lifecycle
+  - [x] MUST NOT introduce Kernel-owned context storage or direct reset through the writer port
+
+- [x] `docs/ssot/runtime-drivers.md`
+  - [x] document concrete owner-artifact readiness validation for selected Routing
+  - [x] preserve the separation between Kernel and platform-owned artifact sets
+  - [x] preserve existing runtime driver compatibility rules
+
+- [x] `packages/platform/http/README.md`
+  - [x] document conditional Routing artifact readiness through the contracts-level port
+  - [x] preserve HTTP entrypoint and PSR-17 readiness responsibilities
+  - [x] MUST NOT describe application route matching as HTTP-owned behavior
+  - [x] document the canonical public ReservedPathMatcher::normalize(string $path): string operation
+  - [x] document its reuse by Routing for canonical concrete-path validation
+  - [x] preserve existing ReservedPathMatcher::match() semantics and invalid-path diagnostics
+  - [x] distinguish concrete-path normalization from application route-template matching
+  - [x] document RequestContextMiddleware context mutation through ContextWriterInterface
+  - [x] document RequestIdPolicy consumption of ContextWriterInterface and ContextAccessorInterface
+  - [x] document unchanged shared Foundation context instance and request identity ownership
+  - [x] remove concrete ContextStore dependency descriptions
+  - [x] preserve existing request identity verification, middleware, finalization, and reset behavior
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `routing.match_total`
+    - [x] owner: `platform/routing`
+    - [x] type: `counter`
+    - [x] labels: `method`, `outcome`
+  - [x] register `routing.match_duration_ms`
+    - [x] owner: `platform/routing`
+    - [x] type: `observe`
+    - [x] labels: `method`, `outcome`
+  - [x] document `routing.match` span attributes
+  - [x] document bounded method and outcome values
+  - [x] document completed-match semantics and independent failure isolation
+  - [x] preserve the global metric label allowlist
+  - [x] MUST NOT add `path_template` to the metric label allowlist
+  - [x] document the fixed `routing.match.completed` debug event
+  - [x] document the exact producer-supplied method, outcome, and conditional path_template context
+  - [x] document independent routing logging enablement and logger failure isolation
+  - [x] reference canonical Logging sink admission and shared Redaction policies
+  - [x] distinguish Routing matching logs from finalized HTTP request and CLI command completion logs
+
+- [x] `packages/core/kernel/PUBLIC_API.md`
+  - [x] document the explicit target-local KernelOpsHostBooter entrypoint
+  - [x] preserve the canonical Console source-host boot contract
+  - [x] preserve existing public Kernel API declarations
+  - [x] MUST NOT expose lower-level bootstrap, compilation, or source-host wiring implementation classes
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] document canonical context writer and accessor dependencies
+  - [x] align RequestContextMiddleware and RequestIdPolicy declarative composition
+  - [x] replace concrete ContextStore constructor dependency requirements
+  - [x] replace concrete owner-local read-back exception with ContextAccessorInterface consumption
+  - [x] preserve existing request identity, middleware ordering, response-finalization, and lifecycle contracts
+
+- [x] `docs/adr/ADR-0020-kernel-runtime-uow-spi.md`
+  - [x] document ContextWriterInterface as the mandatory KernelRuntime context mutation dependency
+  - [x] preserve canonical base context writes, UnitOfWork failure precedence, and reset ownership
+  - [x] MUST NOT introduce Kernel-owned context storage or direct context reset
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] align HTTP context writer and accessor dependency decisions
+  - [x] document unchanged request identity owner-local verification
+  - [x] remove concrete ContextStore dependency exceptions
+  - [x] preserve existing middleware pipeline, finalization, and lifecycle decisions
+
+- [x] `docs/guides/commands.md`
+  - [x] register the canonical `routes:compile` command with id `cli.routes_compile`
+  - [x] register the canonical `routes:validate` command with id `cli.routes_validate`
+  - [x] document explicit `--app=web` and `--app=api` target selection
+  - [x] document canonical CLI entrypoints, command outputs, determinism policies, and usage examples
+  - [x] document canonical global `--format=json` usage
+  - [x] document routes:compile as a deterministic but mutating artifact publication operation
+  - [x] document routes:validate as a deterministic read-only validation operation
+  - [x] document explicit Routing module selection prerequisites
+  - [x] document exact success payloads and exit-code semantics
+  - [x] distinguish Routing-owned artifact publication from Kernel immutable generation publication
+  - [x] preserve existing CLI command documentation and canonical documentation structure
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/routing/config/routing.php`
-- [ ] Keys (dot):
-  - [ ] `routing.compile.enabled` = true
-  - [ ] `routing.runtime.enabled` = true
-  - [ ] `routing.artifacts.path` = 'packages/applications/skeleton/var/cache/<appId>/routes.php'
-  - [ ] `routing.compile.strict_reserved_guard` = true
-- [ ] Rules:
-  - [ ] `packages/platform/routing/config/rules.php` enforces shape
+- [x] `packages/platform/routing/config/routing.php`
+  - [x] provide canonical Routing defaults
+  - [x] `routing.tracing.enabled` = true
+  - [x] `routing.metrics.enabled` = true
+  - [x] `routing.logging.enabled` = true
+- [x] `packages/platform/routing/config/rules.php`
+  - [x] validate the exact Routing config subtree
+  - [x] require boolean tracing, metrics, and logging enablement
+  - [x] reject unsupported configuration keys
+  - [x] MUST NOT allow reserved-route protection to be disabled
+  - [x] MUST NOT allow arbitrary artifact paths
 
-#### Wiring / DI tags (when applicable)
+Activation policy:
+- Routing participation is determined by the authoritative enabled ModulePlan.
+- Source route compilation is an explicitly invoked operation.
+- Runtime matching always consumes the validated routes artifact.
+- Artifact readiness is mandatory whenever Routing participates in the selected HTTP target.
+- No independent runtime route discovery or source fallback toggle is introduced.
 
-- [ ] Tags introduced (this epic is the OWNER):
-  - [ ] `packages/core/foundation/src/Tag/ReservedTags.php`
-  - [ ] constants:
-    - [ ] `ROUTE_PROVIDER = 'routing.route_provider'`
-- [ ] `cli.command` usage rule (MUST):
-  - [ ] because owner package `platform/cli` is a forbidden compile-time dependency here, any mirror constant for `cli.command`
-    MUST be package-internal only (for example a private constant inside the wiring class)
-  - [ ] `cli.command` MUST NOT be exposed from `packages/core/foundation/src/Tag/ReservedTags.php` as public API of `platform/routing`
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\Routing\Compile\RouteProviderRegistry`
-  - [ ] registers: `Coretsia\Routing\Compile\RoutesCompiler`
-  - [ ] registers: `Coretsia\Routing\Compile\ReservedRoutesGuard`
-  - [ ] registers: `Coretsia\Routing\Artifacts\RoutesArtifactWriter`
-  - [ ] registers: `Coretsia\Routing\Artifacts\RoutesArtifactReader`
-  - [ ] registers: `Coretsia\Routing\Runtime\CompiledRouter`
-  - [ ] registers: `Coretsia\Routing\Console\RoutesCompileCommand`
-  - [ ] adds tag: `cli.command` priority `0` meta `{name:'routes:compile'}`
-    - [ ] runtime wiring SHOULD use a package-local internal mirror constant
-    - [ ] canonical string literal is allowed only as fallback
+#### Wiring / DI tags (MUST)
 
-#### Artifacts / outputs (if applicable)
+- [x] Canonical tag:
+  - [x] `ReservedTags::ROUTING_ROUTE_PROVIDER`
+  - [x] identifier: `routing.route_provider`
+  - [x] semantic owner: `platform/routing`
+  - [x] metadata: empty map
+  - [x] priority: actual TagRegistry priority
+  - [x] ordering: priority DESC, serviceId ASC under byte-order strcmp
+- [x] CLI contribution:
+  - [x] `ReservedTags::CLI_COMMAND`
+  - [x] service ids:
+    - [x] exact RoutesCompileCommand FQCN
+    - [x] exact RoutesValidateCommand FQCN
+  - [x] priority: `0`
+  - [x] metadata contains exactly:
+    - [x] `name`
+    - [x] `summary`
+    - [x] `group`
+    - [x] `hidden`
+    - [x] `arguments`
+    - [x] `options`
+  - [x] metadata MUST be derived from the command's canonical typed constants
+- [x] Routing declarative services:
+  - [x] `RouteProviderRegistry`
+  - [x] `RoutesCompiler`
+  - [x] `ReservedRoutesGuard`
+  - [x] `RoutesArtifactSchema`
+  - [x] `RoutesArtifactPath`
+  - [x] `RoutesArtifactWriter`
+  - [x] `RoutesArtifactReader`
+  - [x] `CompiledRouteTable`
+  - [x] `CompiledRouter`
+  - [x] `RoutingArtifactReadiness`
+  - [x] `RoutingMatchObserver`
+  - [x] `RoutesCompileCommand`
+  - [x] Foundation StablePhpArrayDumper
+  - [x] Foundation StablePhpArrayParser
+  - [x] Foundation AtomicFileWriter
+  - [x] `RoutesCommandTargetResolver`
+  - [x] `RoutesValidateCommand`
+- [x] Canonical aliases:
+  - [x] `RouterInterface` → `CompiledRouter`
+  - [x] `RoutingArtifactReadinessInterface` → `RoutingArtifactReadiness`
+- [x] Mandatory external services:
+  - [x] `ContainerInterface`
+  - [x] `ConfigRepositoryInterface`
+  - [x] `TagRegistry`
+  - [x] `ModulePlan`
+  - [x] `RuntimePathContext`
+  - [x] `RuntimeDiagnosticsInput`
+  - [x] `ContextWriterInterface`
+  - [x] `TracerPortInterface`
+  - [x] `MeterPortInterface`
+  - [x] `Stopwatch`
+  - [x] `ScopedFileLock`
+  - [x] `SensitiveDataRedactorInterface`
+  - [x] `SensitiveKeyClassifierInterface`
+  - [x] `LoggerInterface`
 
-- [ ] Writes:
-  - [ ] `packages/applications/skeleton/var/cache/<appId>/routes.php` (schemaVersion pinned; deterministic bytes; rerun → no diff)
-- [ ] Reads:
-  - [ ] validates header + payload schema
+- [x] Reuse the effective Foundation-owned ScopedFileLock service.
+- [x] Consume Foundation SystemRouteTable and ReservedPathMatcher through their canonical static APIs without service registration.
+- [x] MUST NOT require module selection or installation of platform/http for Routing compilation, validation, or matching.
+- [x] MUST NOT register another ScopedFileLock definition under the same canonical service identifier.
+- [x] Register shared PHP-array codec and atomic writer services only where consumed by Routing.
+- [x] Supply the same immutable CompiledRouteTable service to CompiledRouter and RoutingArtifactReadiness.
+- [x] MUST NOT construct independent route table instances for readiness and matching.
+- [x] MUST NOT register Kernel source-host-only service identifiers in declarative runtime definitions.
+- [x] Source and compiled wiring MUST consume the same canonical definitions.
+- [x] Artifact and provider operations MUST remain lazy until explicitly requested.
+- [x] Runtime seeds MUST be referenced, never recreated or overridden.
+- [x] Observability dependencies MUST use canonical Foundation noop tracer, meter, and logger bindings when recording providers are absent.
+- [x] Routing MUST NOT bind or override canonical observability ports.
+- [x] Routing MUST NOT require module selection of platform/tracing, platform/metrics, or platform/logging.
+- [x] Constructor dependencies MUST be explicit and mandatory.
+- [x] MUST NOT introduce additional middleware tags, Kernel hooks, or reset registrations.
 
-- [ ] Produced artifact MUST have envelope:
-  - [ ] `{ "_meta": { "name":"routes", "schemaVersion":1, "fingerprint":"...", "generator":"...", "requires":... }, "payload": <routes schema> }`
-- [ ] Serialization MUST be deterministic:
-  - [ ] map keys sorted recursively `strcmp`,
-  - [ ] lists preserve order,
-  - [ ] LF-only + final newline,
-  - [ ] no timestamps/absolute paths/secrets.
-- [ ] Artifact `routes@1` MUST be registered in `docs/ssot/artifacts.md` with owner=`platform/routing` and schema reference `docs/ssot/routing-artifact.md`.
+#### Artifacts / outputs (MUST)
+
+- [x] Canonical artifact:
+  - [x] name: `routes`
+  - [x] schemaVersion: `1`
+  - [x] owner: `platform/routing`
+  - [x] generator: `platform/routing/artifacts`
+  - [x] basename: `routes.php`
+- [x] Canonical location:
+  - [x] `<RuntimePathContext::artifactRoot()>/routes.php`
+  - [x] default application-relative location: `var/cache/<appTarget>/routes.php`
+  - [x] supported compilation targets: `web`, `api`
+- [x] Exact envelope:
+  - [x] `_meta`
+  - [x] `payload`
+- [x] Exact `_meta` members:
+  - [x] `name` = `'routes'`
+  - [x] `schemaVersion` = `1`
+  - [x] `fingerprint` = lowercase 64-character SHA-256 digest
+  - [x] `generator` = `'platform/routing/artifacts'`
+  - [x] `requires` is absent
+- [x] Exact payload members:
+  - [x] `app` — canonical explicit application target
+  - [x] `routes` — ordered list of canonical `RouteDefinition::toArray()` representations
+- [x] Exact route entry members:
+  - [x] `defaults`
+  - [x] `handler`
+  - [x] `metadata`
+  - [x] `methods`
+  - [x] `name`
+  - [x] `pathTemplate`
+  - [x] `requirements`
+  - [x] `schemaVersion`
+- [x] Grouped route serialization:
+  - [x] serialize only complete flattened RouteDefinition::toArray() representations
+  - [x] preserve flattened provider-emitted route order
+  - [x] equivalent grouped and standalone route declarations MUST produce identical canonical artifact bytes and fingerprints
+  - [x] MUST NOT add group-specific envelope, payload, or route descriptor fields
+- [x] Exact fingerprint input members:
+  - [x] `appEnv` — authoritative RuntimeDiagnosticsInput::appEnv()
+  - [x] `generator` = `'platform/routing/artifacts'`
+  - [x] `name` = `'routes'`
+  - [x] `payload` — complete canonical routes artifact payload
+  - [x] `schemaVersion` = `1`
+  - [x] `systemRouteTable` — exact map containing:
+    - [x] `entries` — canonical SystemRouteTable::entries() result
+    - [x] `schemaVersion` — SystemRouteTable::SCHEMA_VERSION
+- [x] Fingerprint calculation:
+  - [x] encode the exact fingerprint input through Foundation `StableJsonEncoder::encodeStableMap()`
+  - [x] calculate SHA-256 over the resulting exact stable JSON bytes
+  - [x] validate the fingerprint from the decoded payload and authoritative runtime inputs
+  - [x] MUST NOT reuse the Kernel immutable generation fingerprint as the routes artifact fingerprint
+- [x] Artifact resource limits:
+  - [x] maximum serialized artifact size: `16777216` bytes
+  - [x] maximum flattened route count: `4096`
+  - [x] maximum normalized complete envelope depth: `32`
+  - [x] maximum normalized complete envelope node count: `100000`
+  - [x] maximum individual string size: `65536` bytes
+  - [x] maximum aggregate complete envelope string size: `8388608` bytes
+  - [x] apply structural resource limits to the complete canonical envelope, including header and payload
+  - [x] apply identical resource limits during compilation, read-only validation, publication validation, and artifact hydration
+  - [x] reuse Foundation JsonLikeNormalizer and JsonLikeNormalizationLimits
+  - [x] use the existing JsonLikeNormalizer depth, node-count, and string-byte accounting semantics
+  - [x] preserve canonical Redaction resource limits for each independently validated route descriptor
+  - [x] reject resource-limit violations before publication or runtime table construction
+  - [x] MUST NOT introduce a separate json-like normalization implementation
+- [x] Deterministic serialization:
+  - [x] recursively sort map keys using byte-order `strcmp`
+  - [x] preserve list order
+  - [x] use canonical PHP-array byte grammar
+  - [x] LF-only output with exactly one final LF
+  - [x] no timestamps, absolute filesystem paths, raw environment values, or secrets
+- [x] Ownership:
+  - [x] `routes@1` remains a platform-owned artifact
+  - [x] MUST NOT become a member of `artifact-generation@1`
+  - [x] MUST NOT change the exact Kernel generation member set
+  - [x] MUST NOT be produced or verified by Kernel artifact compilation or cache verification
+  - [x] route artifact validation does not assert freshness against current source providers
+  - [x] deployment tooling MUST prepare the intended target-local routes artifact before runtime startup
 
 ### Cross-cutting (only if applicable; otherwise `N/A`)
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::PATH` (optional; for normalization; never as metric label)
-- [ ] Context writes (safe only):
-  - [ ] `ContextKeys::PATH_TEMPLATE` (low-cardinality route template only)
-- [ ] Reset discipline:
-  - [ ] if caching compiled tables in-memory → `ResetInterface` + tag `kernel.reset`
+- Context reads:
+  - N/A
+- [x] Context writes:
+  - [x] `CompiledRouter` owns `ContextKeys::PATH_TEMPLATE`.
+  - [x] remove stale PATH_TEMPLATE before a new matching operation
+  - [x] write only the safe declared template after successful matching
+  - [x] never write raw request paths, hosts, route parameters, handler references, or route metadata
+- [x] Context storage:
+  - [x] consume the canonical ContextWriterInterface port
+  - [x] reuse the existing Foundation-owned ContextStore through its shared writer alias
+  - [x] preserve exclusive Routing mutation ownership of ContextKeys::PATH_TEMPLATE
+  - [x] MUST NOT directly resolve or construct ContextStore
+  - [x] MUST NOT introduce another context store, writer implementation, or context writer registry
+- [x] UnitOfWork:
+  - [x] preserve the existing owning HTTP or CLI UnitOfWork
+  - [x] MUST NOT start, finish, or reset an additional UnitOfWork
+- [x] Reset discipline:
+  - [x] immutable boot-loaded route tables are not request-local mutable state
+  - [x] MUST NOT clear or reload immutable route tables through reset
+  - [x] PATH_TEMPLATE is cleared through the existing ContextStore lifecycle
+  - [x] MUST NOT register Routing reset hooks or `kernel.stateful` markers
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `routing.match` (attrs: `method`, `outcome`, `path_template` when matched)
-- [ ] Metrics:
-  - [ ] `routing.match_total` (labels: `method`, `outcome=matched|not_matched`)
-  - [ ] `routing.match_duration_ms` (labels: `method`, `outcome`)
-- [ ] Logs:
-  - [ ] compile warnings (duplicates/shadowing) as warn; no payloads/PII
+- [x] Owner: `platform/routing`
+- [x] Span:
+  - [x] `routing.match`
+  - [x] initial attributes: `method`
+  - [x] completion attributes: `outcome`
+  - [x] successful match attribute: `path_template`
+  - [x] `path_template` is absent for unsuccessful matching
+- [x] Metrics:
+  - [x] `routing.match_total`
+    - [x] type: counter
+    - [x] increment: `1`
+    - [x] labels: `method`, `outcome`
+  - [x] `routing.match_duration_ms`
+    - [x] type: observe
+    - [x] value: non-negative integer milliseconds
+    - [x] labels: `method`, `outcome`
+- [x] Bounded label values:
+  - [x] method: `GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE|CONNECT|OTHER`
+  - [x] outcome: `matched|not_matched`
+- [x] Completion semantics:
+  - [x] attempt exactly one counter increment per completed match operation
+  - [x] attempt exactly one duration observation when duration measurement succeeds
+  - [x] unexpected handler-independent matching failures MUST NOT be reported as completed not_matched decisions
+  - [x] measure duration through Foundation Stopwatch
+  - [x] unexpected matching failures finish any started span without assigning a completed routing outcome
+  - [x] disabled metrics MUST NOT start duration measurement
+  - [x] disabled tracing MUST NOT start a routing span
+  - [x] completion labels MUST use the same canonical bounded method value
+- [x] Enablement:
+  - [x] `routing.tracing.enabled` controls span participation
+  - [x] `routing.metrics.enabled` controls metric participation
+  - [x] `routing.logging.enabled` controls diagnostic log participation
+  - [x] tracing, metrics, and logging enablement are independent
+  - [x] disabled logging MUST NOT invoke LoggerInterface
+- [x] Failure isolation:
+  - [x] isolate tracer, span attributes, span completion, stopwatch, counter, duration observation, and logger failures independently
+  - [x] failure of one observability operation MUST NOT suppress another permitted operation
+  - [x] observability failures MUST NOT change routing decisions, ContextStore contents, or returned RouteMatch instances
+  - [x] no retries
+  - [x] Foundation noop ports MUST remain valid
+- [x] Logs:
+  - [x] event: `routing.match.completed`
+  - [x] level: `debug`
+  - [x] owner: `platform/routing`
+  - [x] emit through the canonical Psr\Log\LoggerInterface binding
+  - [x] attempt exactly one emission per completed matching operation when logging is enabled
+  - [x] exact producer-supplied context:
+    - [x] `method` — canonical bounded method value
+    - [x] `outcome` — `matched` or `not_matched`
+    - [x] `path_template` — canonical declared template; present only for matched outcomes
+  - [x] MUST NOT emit completion logs for unexpected matching failures
+  - [x] canonical Logging sink admission, redaction, enrichment, and severity filtering remain unchanged
+  - [x] compiler rejection diagnostics are returned through the canonical CLI output boundary
+  - [x] MUST NOT introduce duplicate error or command-completion logging
+- [x] MUST NOT emit raw method values, paths, hosts, route parameters, handler references, config values, or exception messages.
+- [x] MUST NOT use `path_template` as a metric label.
+- [x] MUST NOT duplicate canonical HTTP request or CLI command observability.
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\Routing\Exception\RoutesArtifactInvalidException` — errorCode `CORETSIA_ROUTES_ARTIFACT_INVALID`
-  - [ ] `Coretsia\Routing\Exception\ReservedRouteViolationException` — errorCode `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
-- [ ] Mapping:
-  - [ ] reuse existing mapper via tag `error.mapper` OR add routing mapper later if needed (NO DUPES)
+- [x] Exceptions introduced:
+  - [x] `Coretsia\Platform\Routing\Exception\RoutesArtifactInvalidException`
+    - [x] errorCode: `CORETSIA_ROUTES_ARTIFACT_INVALID`
+  - [x] `Coretsia\Platform\Routing\Exception\ReservedRouteViolationException`
+    - [x] errorCode: `CORETSIA_ROUTING_RESERVED_ROUTE_FORBIDDEN`
+  - [x] `Coretsia\Platform\Routing\Exception\RouteDefinitionInvalidException`
+    - [x] errorCode: `CORETSIA_ROUTING_ROUTE_DEFINITION_INVALID`
+  - [x] `Coretsia\Platform\Routing\Exception\RoutesArtifactWriteFailedException`
+    - [x] errorCode: `CORETSIA_ROUTES_ARTIFACT_WRITE_FAILED`
+  - [x] `Coretsia\Platform\Routing\Exception\RoutesCommandTargetInvalidException`
+    - [x] errorCode: `CORETSIA_ROUTING_COMMAND_TARGET_INVALID`
+
+- [x] Exceptions MUST expose fixed safe reason tokens.
+- [x] MUST NOT include raw route declarations, provider output, request values, paths, or artifact content.
+- [x] Expected target-host boot, route validation, compilation, and publication failures are handled by the owning CLI command through OutputInterface.
+- [x] Artifact hydration failures MUST be represented through the canonical RoutesArtifactInvalidException boundary.
+- [x] CLI command failure output MUST contain only fixed error codes and safe reason tokens.
+- [x] Unexpected failures MUST remain subject to the existing canonical CLI or HTTP error boundary.
+- [x] No Routing-specific error.mapper registration is introduced.
+- [x] MUST NOT introduce a separate ErrorHandler or transport-specific Problem Details renderer.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] raw request paths in metrics labels
-  - [ ] config values/secrets in CLI output
-- [ ] Allowed:
-  - [ ] `path_template` as span attr and ContextStore key
+- [x] MUST NOT leak:
+  - [x] raw request paths in metrics labels
+  - [x] config values/secrets in CLI output
+- [x] Allowed:
+  - [x] `path_template` as span attr and ContextStore key
+- [x] route declarations MUST contain deterministic safe application definitions only
+- [x] route providers MUST NOT emit request-derived, credential-bearing, raw environment-derived, or private customer data in route declarations
+- [x] reject sensitive keys, unsafe filesystem path values, and sensitive declaration content identified by canonical classification and Placeholder redaction
+- [x] source providers retain responsibility for declaration provenance and semantic safety; successful structural and redaction validation MUST NOT be treated as proof of safe provenance
+- [x] reuse canonical SensitiveKeyClassifierInterface and SensitiveDataRedactorInterface
+- [x] validate safe route declaration metadata through Placeholder redaction
+- [x] reject declarations when canonical redaction identifies sensitive content
+- [x] MUST NOT publish a redacted replacement that changes matching or invocation semantics
+- [x] MUST NOT treat a redaction non-match as automatic declassification
+- [x] MUST NOT execute generated PHP artifact source
+- [x] MUST NOT accept reserved route templates merely because their literal template strings are not reserved concrete paths
+- [x] MUST NOT expose raw captured route parameters through observability
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
-- [ ] If `kernel.reset` used → `N/A` (unless caching added)
-- [ ] If metrics/spans/logs exist → `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php` + observability assertions where applicable
-- [ ] If redaction exists → `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php` (indirect) + CLI output safety assertions in CLI integration test
+- [x] Canonical Routing contract reuse without descriptor duplication.
+- [x] Canonical reserved tag registry and TagRegistry ordering.
+- [x] Lazy route provider resolution and deterministic provider output.
+- [x] Duplicate provider identity and route declaration rejection.
+- [x] Exact static and placeholder matching grammar.
+- [x] Supported complete-segment requirement semantics.
+- [x] Deterministic first-match-wins behavior.
+- [x] Exact and prefix reserved route ownership.
+- [x] Dynamic route-template intersection validation.
+- [x] Constrained route-template disjointness.
+- [x] All canonical reserved declaration statuses.
+- [x] Canonical concrete-path normalization and encoded-octet behavior.
+- [x] Explicit target-local source-host compilation.
+- [x] Canonical CLI six-field command metadata.
+- [x] Canonical CLI output and exactly one CLI UnitOfWork.
+- [x] Exact routes@1 artifact envelope, header, and payload.
+- [x] Authoritative target and environment fingerprint binding.
+- [x] Deterministic artifact fingerprint sensitivity.
+- [x] Byte-identical repeated compilation.
+- [x] Shared canonical PHP-array encoding and non-executable decoding.
+- [x] Atomic publication and previous valid artifact preservation.
+- [x] Missing, malformed, executable, and unsafe artifact rejection.
+- [x] Canonical shared Redaction consumption and fail-closed behavior.
+- [x] Artifact-only runtime matching without provider rediscovery.
+- [x] Owner-artifact readiness before HTTP runtime construction.
+- [x] Unselected Routing does not require an artifact.
+- [x] Immutable runtime route table lifetime.
+- [x] Source and compiled container parity.
+- [x] Canonical PATH_TEMPLATE ownership and lifecycle behavior.
+- [x] No additional ContextStore instance or UnitOfWork.
+- [x] No additional reset discovery or lifecycle ownership.
+- [x] Exact routing metric names, labels, values, and completion semantics.
+- [x] Exact routing span attributes.
+- [x] Independent observability enablement and failure isolation.
+- [x] Foundation noop port behavior.
+- [x] No raw path, host, parameter, or sensitive declaration disclosure.
+- [x] Unchanged Kernel artifact fingerprints, bytes, and generation publication.
+- [x] Unchanged Kernel artifact generation member set.
+- [x] Canonical package, module, and installation catalog consistency.
+- [x] No forbidden, circular, or reverse package dependencies.
+- [x] Canonical provider-emitted route precedence across Contracts and Routing.
+- [x] No global route-name or specificity-based sorting.
+- [x] Existing Console source-host contract preservation.
+- [x] Explicit target-local source-host public API.
+- [x] Source-host service exclusion from compiled runtime definitions.
+- [x] Routing command rejection during artifact-runtime execution.
+- [x] Read-only routes validation through the canonical CLI command runner.
+- [x] Exact artifact fingerprint input shape.
+- [x] Bounded artifact decoding and canonical payload resource limits.
+- [x] Canonical descriptor reconstruction without silent normalization.
+- [x] Lock acquisition and pre-commit publication failure preservation.
+- [x] Post-commit lock cleanup failure isolation.
+- [x] Absolute filesystem path rejection independently of redaction classification.
+- [x] Missing and invalid Routing readiness binding rejection.
+- [x] Unexpected matching failure observability isolation.
+- [x] Existing cross-package ArtifactWriter construction alignment.
+- [x] Canonical Kernel public API manifest alignment.
+- [x] Canonical PSR-3 logger consumption and Foundation noop logger behavior.
+- [x] Exact routing.match.completed event, severity, and bounded context.
+- [x] Independent tracing, metrics, and logging enablement.
+- [x] Independent logger failure isolation.
+- [x] Canonical Logging sink admission without new context fields.
+- [x] Immutable nested route grouping.
+- [x] Canonical path and name prefix composition.
+- [x] Parameterized group prefix and requirement inheritance.
+- [x] Deterministic group metadata inheritance.
+- [x] Duplicate inherited placeholder, requirement, and metadata-key rejection.
+- [x] Group flattening before the RouteProviderInterface boundary.
+- [x] Grouped and standalone route artifact byte and fingerprint equivalence.
+- [x] Global duplicate-domain and reserved-route validation across flattened groups.
+- [x] Artifact-only runtime matching without group reconstruction.
+- [x] Complete envelope resource-limit accounting parity.
+- [x] Serialized artifact byte-limit validation during read-only CLI validation.
+- [x] Canonical safe CLI target validation failure handling.
+- [x] Non-regular artifact and lock file rejection.
+- [x] Bounded existing-artifact comparison and single-handle snapshot reading.
+- [x] Exact canonical ContextWriterInterface contract.
+- [x] Canonical ContextStore implementation of both context ports.
+- [x] Shared-instance identity across concrete, accessor, and writer service bindings.
+- [x] Source and compiled context port binding parity.
+- [x] Canonical context write validation through ContextWriterInterface.
+- [x] Kernel base context mutation through ContextWriterInterface.
+- [x] HTTP request context mutation through ContextWriterInterface.
+- [x] HTTP request identity read-back through ContextAccessorInterface.
+- [x] Routing-exclusive PATH_TEMPLATE mutation through ContextWriterInterface.
+- [x] Removal of existing Kernel and HTTP concrete ContextStore gate exceptions.
+- [x] Rejection of concrete ContextStore dependencies outside Foundation ownership.
+- [x] Preservation of read-only and context-independent package boundaries.
+- [x] Exactly one ContextStore reset registration.
 
-#### Test harness / fixtures (when integration is needed)
+#### Test harness / fixtures (MUST)
 
-- [ ] Fixture app:
-  - [ ] `packages/platform/routing/tests/Fixtures/<App>/...` (only if wiring requires boot)
-- [ ] Fake adapters:
-  - [ ] `FakeTracer` / `FakeMetrics` / `FakeLogger` capture events for assertions (if used in tests)
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
-  - [ ] `packages/platform/routing/tests/Unit/ReservedRoutesGuardRejectsReservedPathsTest.php`
-- Contract:
-  - [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderShapeContractTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/RoutesCompileIsDeterministicTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/ReservedGuardUsesSameMatcherAsHttpContractTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/ArtifactBytesRerunNoDiffContractTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/RoutesArtifactHeaderMatchesKernelPolicyContractTest.php`
-  - [ ] `packages/platform/routing/tests/Contract/ReservedGuardSemanticsMatchHttpMatcherContractTest.php`
-- Integration:
-  - [ ] `packages/platform/routing/tests/Integration/RoutesCompileWritesArtifactTest.php`
-  - [ ] `packages/platform/routing/tests/Integration/RoutesArtifactRerunNoDiffTest.php`
-  - [ ] `packages/platform/routing/tests/Integration/CliRoutesCompileCommandWritesArtifactTest.php`
-  - [ ] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
-- Gates/Arch:
-  - [ ] deptrac expectations updated (if needed)
+- [x] reuse the canonical Kernel application and artifact pipelines through shared Routing integration test support
+- [x] reuse canonical HTTP runtime composition and entrypoint readiness mechanisms
+- [x] execute commands through the canonical CLI application, command catalog, and runner
+- [x] use explicit Console, web, and api target selection
+- [x] provide deterministic target-local tagged RouteProviderInterface fixtures
+- [x] provide excluded and unselected provider fixtures
+- [x] use the real Kernel source host, declarative graph compiler, and ArtifactRuntimeBooter
+- [x] use test-owned external PSR-17 factory fixtures where HTTP composition requires them
+- [x] use canonical Redaction providers
+- [x] reuse Foundation noop observability implementations
+- [x] use deterministic recording and throwing observability ports
+- [x] use isolated temporary artifact roots
+- [x] MUST NOT modify committed artifacts or actual application credentials
+- [x] preserve and execute existing Kernel artifact, cache verification, source-host, compiled-container, reserved-path, HTTP endpoint, CLI, ContextStore, and lifecycle regression tests
+- [x] verify actual artifact-only boot independently of synthetic route table fixtures
+- [x] provide deterministic nested grouped and equivalent standalone route declaration fixtures
+- [x] reuse the canonical Foundation NoopLogger
+- [x] use recording and throwing PSR-3 logger fixtures
+- [x] verify logging context compatibility through the existing canonical Logging sink policy
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] Determinism: rerun-no-diff (artifact `routes.php`)
-- [ ] Reserved endpoints blocked via Phase SSoT (SystemRouteTable + matcher), no local fork
-- [ ] Router writes `ContextKeys::PATH_TEMPLATE` on match (no raw path in metric labels)
-- [ ] Docs updated:
-  - [ ] `packages/platform/routing/README.md`
-  - [ ] `docs/ssot/routing-artifact.md`
-  - [ ] `docs/guides/routing.md`
-  - [ ] ADR registered
-- [ ] Non-goals / out of scope
-  - [ ] Не реалізує PSR-15 RouterMiddleware (це owner `platform/http-app`).
-  - [ ] Не додає нові reserved endpoints (це owner `platform/http` SystemRouteTable, Phase 0 SSoT).
-  - [ ] Не робить “динамічний runtime scan” маршрутів у prod (prod = artifact-only).
+- [x] Gates/Arch green
+- [x] deptrac green
+- [x] tests green
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Verification tests present where applicable
+- [x] Determinism: rerun-no-diff (artifact `routes.php`)
+- [x] Reserved endpoints blocked via Phase SSoT (SystemRouteTable + matcher), no local fork
+- [x] Router writes `ContextKeys::PATH_TEMPLATE` on match (no raw path in metric labels)
+- [x] Docs updated:
+  - [x] `packages/platform/routing/README.md`
+  - [x] `docs/ssot/routing-artifact.md`
+  - [x] `docs/guides/routing.md`
+  - [x] ADR registered
+- [x] Non-goals / out of scope
+  - [x] Не реалізує PSR-15 RouterMiddleware (це owner `platform/http-app`).
+  - [x] No additional reserved endpoint declarations; reuse the canonical Foundation-owned SystemRouteTable.
+  - [x] Не робить “динамічний runtime scan” маршрутів у prod (prod = artifact-only).
+  - [x] No automatic route discovery, PHP attribute scanning, controller scanning, or runtime route registration.
+  - [x] No arbitrary regular-expression matching grammar, wildcard routes, optional segments, or host-based routing.
+  - [x] No action resolution or action invocation.
+  - [x] No direct dependency between HTTP and Routing, and no dependency from Kernel to Routing.
+  - [x] No extension of the Kernel immutable artifact generation member set.
+  - [x] No implicit Routing enablement outside the authoritative ModulePlan.
+  - [x] No request-time artifact reload or hot route replacement.
+  - [x] No additional ErrorHandler, CLI renderer, ContextStore, or runtime lifecycle implementation.
+  - [x] No route diagnostic listing, inspection command, or public route metadata export.
+- [x] Shared Foundation PHP-array serialization is implemented without duplicate codec algorithms.
+- [x] Shared atomic byte publication is implemented without duplicate ordinary artifact writer behavior.
+- [x] Existing Kernel artifact bytes and fingerprints remain unchanged for identical inputs.
+- [x] Explicit target-local source-host composition is implemented and verified.
+- [x] Canonical CLI command discovery and output contracts are preserved.
+- [x] Reserved route-template intersections are rejected before publication and during artifact hydration.
+- [x] No configuration can disable reserved route protection.
+- [x] Routes artifact remains outside Kernel immutable generation ownership.
+- [x] Artifact-only runtime readiness is verified before HTTP runtime construction.
+- [x] Runtime router performs no provider discovery or filesystem reads during matching.
+- [x] Existing exact Kernel runtime seed set remains unchanged.
+- [x] Source and compiled container parity is verified.
+- [x] Canonical ContextWriterInterface is implemented and verified.
+- [x] All runtime context writers consume the canonical contracts-level mutation port.
+- [x] ContextAccessorInterface remains read-only.
+- [x] All existing Kernel and HTTP concrete ContextStore dependency exceptions are removed.
+- [x] Repository gates reject concrete ContextStore dependencies outside the canonical Foundation ownership boundary.
+- [x] ContextStore and both context port bindings resolve to one shared instance.
+- [x] Existing context key ownership, validation, UnitOfWork lifecycle, and reset behavior remain unchanged.
+- [x] Exclusive Routing PATH_TEMPLATE mutation behavior is verified through integration tests.
+- [x] No additional UnitOfWork, ContextStore, lifecycle hook, or reset ownership.
+- [x] No secret leakage or generated PHP execution.
+- [x] Canonical package and installation catalogs are synchronized.
+- [x] All affected cross-package regression tests are green.
+- [x] All affected shared documentation describes one current canonical implementation.
+- [x] Existing Routing contracts and provider-order requirements are aligned.
+- [x] Canonical target-local source-host services remain excluded from compiled runtime definitions.
+- [x] Read-only routes validation is implemented without artifact mutation.
+- [x] Exact artifact fingerprint input and resource limits are locked.
+- [x] Shared artifact publication commit-point semantics are verified.
+- [x] Existing cross-package ArtifactWriter construction sites are aligned.
+- [x] Canonical tracing, metrics, and diagnostic logging are independently implemented and verified.
+- [x] No duplicate logging, redaction, or observability infrastructure.
+- [x] Declarative nested route grouping is implemented and verified.
+- [x] Grouped routes flatten into existing canonical RouteDefinition descriptors.
+- [x] Grouping introduces no additional runtime matching mechanism or artifact schema.
+- [x] Grouped and equivalent standalone routes produce identical artifact bytes and fingerprints.
+- [x] Complete artifact resource limits are consistent across compilation, validation, publication, and hydration.
+- [x] Canonical CLI target validation and filesystem safety are verified.
+- [x] Spec locked.
 
 ---
 

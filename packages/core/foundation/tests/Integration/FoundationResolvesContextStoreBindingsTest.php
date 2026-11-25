@@ -20,6 +20,7 @@ namespace Coretsia\Foundation\Tests\Integration;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\ContainerBuilder;
@@ -28,27 +29,48 @@ use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\UlidGenerator;
 use Coretsia\Foundation\Observability\CorrelationIdProvider;
 use Coretsia\Foundation\Provider\FoundationServiceProvider;
+use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
 use PHPUnit\Framework\TestCase;
 
 final class FoundationResolvesContextStoreBindingsTest extends TestCase
 {
-    public function testFoundationProviderResolvesContextStoreAndAccessorBindingsToSameInstance(): void
+    public function testFoundationProviderResolvesContextStoreAndContextPortsToSameInstance(): void
     {
         $container = self::foundationContainer();
 
         self::assertTrue($container->has(ContextStore::class));
         self::assertTrue($container->has(ContextAccessorInterface::class));
+        self::assertTrue($container->has(ContextWriterInterface::class));
 
         $store = $container->get(ContextStore::class);
         $accessor = $container->get(ContextAccessorInterface::class);
+        $writer = $container->get(ContextWriterInterface::class);
 
         self::assertInstanceOf(ContextStore::class, $store);
         self::assertInstanceOf(ContextAccessorInterface::class, $accessor);
+        self::assertInstanceOf(ContextWriterInterface::class, $writer);
         self::assertSame($store, $accessor);
+        self::assertSame($store, $writer);
 
-        $store->set(ContextKeys::UOW_TYPE, 'http');
+        $writer->set(ContextKeys::UOW_TYPE, 'http');
 
+        self::assertTrue($accessor->has(ContextKeys::UOW_TYPE));
         self::assertSame('http', $accessor->get(ContextKeys::UOW_TYPE));
+
+        $writer->remove(ContextKeys::UOW_TYPE);
+
+        self::assertFalse($accessor->has(ContextKeys::UOW_TYPE));
+        self::assertNull($accessor->get(ContextKeys::UOW_TYPE));
+
+        $writer->set(ContextKeys::UOW_TYPE, 'http');
+        self::assertSame('http', $accessor->get(ContextKeys::UOW_TYPE));
+
+        $reset = $container->get(ResetOrchestrator::class);
+        self::assertInstanceOf(ResetOrchestrator::class, $reset);
+        $reset->resetAll();
+
+        self::assertFalse($accessor->has(ContextKeys::UOW_TYPE));
+        self::assertNull($accessor->get(ContextKeys::UOW_TYPE));
     }
 
     public function testFoundationProviderResolvesCorrelationProviderBindingsToSameInstance(): void
@@ -96,6 +118,7 @@ final class FoundationResolvesContextStoreBindingsTest extends TestCase
 
         self::assertInstanceOf(ContextStore::class, $container->get(ContextStore::class));
         self::assertInstanceOf(ContextAccessorInterface::class, $container->get(ContextAccessorInterface::class));
+        self::assertInstanceOf(ContextWriterInterface::class, $container->get(ContextWriterInterface::class));
         self::assertInstanceOf(UlidGenerator::class, $container->get(UlidGenerator::class));
         self::assertInstanceOf(CorrelationIdGenerator::class, $container->get(CorrelationIdGenerator::class));
         self::assertInstanceOf(CorrelationIdProvider::class, $container->get(CorrelationIdProvider::class));

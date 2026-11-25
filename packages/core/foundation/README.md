@@ -16,7 +16,7 @@
 
 `core/foundation` is the Foundation runtime package for Coretsia.
 
-Scope: PSR-11 DI container runtime, canonical declarative runtime-container definition model, deterministic definition application and graph-ready export, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, and reset orchestration for long-running runtimes.
+Scope: PSR-11 DI container runtime, canonical declarative runtime-container definition model, deterministic definition application and graph-ready export, deterministic service tags, canonical discovery ordering, canonical json-like runtime value normalization, stable diagnostics serialization, runtime context storage, correlation id baseline services, PSR-20 clock binding, canonical runtime id generators, float-free duration measurement, canonical system-route declarations, concrete reserved-path normalization and matching, and reset orchestration for long-running runtimes.
 
 Out of scope: kernel lifecycle execution, HTTP middleware stack implementation, CLI command execution, platform adapters, integrations, HTTP request identity preparation and response-header policy, HTTP correlation header extraction/injection policy, logs/traces/metrics exporters, developer tooling, and repository automation.
 
@@ -71,6 +71,8 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Typed graph-representable service, alias, parameter, tag, and value-reference definitions.
 - Canonical tag registry for service discovery lists.
 - Canonical deterministic ordering rule: `priority DESC, id ASC`.
+- Canonical versioned system-route declarations through `SystemRouteTable`.
+- Stateless concrete reserved-path normalization and matching through `ReservedPathMatcher`.
 - Foundation runtime context storage through `ContextStore`.
 - Immutable context snapshots through `ContextBag`.
 - Fail-closed context safe-write validation against the public `Coretsia\Contracts\Context\ContextKeys` registry.
@@ -88,15 +90,42 @@ This package provides the baseline runtime mechanisms used by higher-level packa
 - Float-free duration measurement through `Stopwatch`.
 - Reset orchestration through the effective Foundation reset discovery tag.
 - Stable JSON encoding for diagnostics and runtime-safe artifacts through `StableJsonEncoder`, backed by `JsonLikeNormalizer`.
+- Shared canonical PHP-array serialization and non-executable decoding through `StablePhpArrayDumper` and `StablePhpArrayParser`.
+- Shared ordinary atomic byte publication through `AtomicFileWriter`.
 - Shared scoped filesystem locking through `ScopedFileLock` with safe path handling and explicit lock lifecycle.
 
 `core/kernel` owns lifecycle trigger points.
 
 `core/foundation` owns the reusable runtime mechanisms that kernel and platform packages consume.
 
+## System route declarations and reserved-path matching
+
+Foundation owns the canonical system-route declaration registry and concrete reserved-path matching primitives:
+
+- `Coretsia\Foundation\Routing\SystemRouteTable` provides immutable versioned system-route declarations and canonical reserved path identifiers.
+- `Coretsia\Foundation\Routing\ReservedPathMatcher` provides deterministic concrete encoded URI path normalization and reserved ownership matching.
+
+The canonical static API is:
+
+```php
+public static function normalize(string $path): string
+public static function match(string $path): ?array
+````
+
+Both classes are stateless and require no container registration, runtime configuration, filesystem access, or lifecycle participation.
+
+HTTP and Routing consume these primitives independently. Each declaration's semantic owner retains responsibility for endpoint implementation, runtime exposure, and access policy.
+
+Foundation does not implement application route compilation, route-template matching, endpoint dispatch, HTTP middleware, or response construction.
+
+Canonical requirements are governed by:
+
+- [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
+- [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
+
 ## Scoped filesystem locking
 
-Foundation provides `Coretsia\Foundation\Filesystem\ScopedFileLock` as a shared domain-neutral filesystem primitive.
+Foundation provides `Coretsia\Foundation\Filesystem\ScopedFileLock` as a shared domain-neutral filesystem primitive. `FoundationServiceProvider` registers it as a shared service through canonical declarative DI.
 
 Supported operations are:
 
@@ -447,7 +476,7 @@ The definition builder validates graph-representable values before a definition 
 
 `Coretsia\Foundation\Tag\ReservedTags` is the canonical code-level registry for Coretsia-reserved DI tag identifiers.
 
-It owns tag strings only. Runtime semantics remain owned by the semantic owner packages declared in `docs/ssot/tags.md`.
+It owns tag strings only. Runtime semantics remain owned by the semantic owner packages declared in [docs/ssot/tags.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/tags.md).
 
 `Coretsia\Foundation\Tag\TagRegistry` is the single source of truth for tagged service discovery lists.
 
@@ -553,10 +582,8 @@ Provider wiring MUST NOT duplicate reset tag validation logic.
 
 Stateful-service policy is governed by:
 
-```text
-docs/ssot/stateful-services.md
-docs/ssot/reset-tags.md
-```
+- [docs/ssot/stateful-services.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/stateful-services.md)
+- [docs/ssot/reset-tags.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reset-tags.md)
 
 Any Foundation service that retains mutable per-UoW state MUST follow the stateful-service policy:
 
@@ -584,18 +611,29 @@ It implements:
 
 ```text
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 Coretsia\Contracts\Runtime\ResetInterface
 ```
 
-The canonical read signature is:
+The canonical read-only accessor shape is:
 
 ```php
-public function get(string $key): mixed
+public function has(string $key): bool;
+public function get(string $key): mixed;
 ```
 
 `ContextStore` MUST NOT add a default parameter to `get()`.
 
-`ContextStore` exposes controlled mutation through write APIs and an immutable snapshot through:
+The separate mutation port exposes exactly:
+
+```php
+public function set(string $key, mixed $value): void;
+public function remove(string $key): void;
+```
+
+Both operations use the existing Foundation-owned store and structural validation policy. The writer does not extend the accessor or reset interface and does not expose reads, bulk mutation, clearing, snapshots, or lifecycle operations. Semantic writers MUST mutate only their assigned keys and supply owner-approved safe values.
+
+The concrete Foundation store exposes an immutable snapshot through:
 
 ```text
 Coretsia\Foundation\Context\ContextBag
@@ -613,34 +651,23 @@ Snapshot immutability is achieved by accepting only object-free json-like contex
 
 `ContextBag` MUST NOT clone PHP objects to simulate immutability.
 
-## Context accessor binding
+## Context port bindings
 
-The Foundation provider registers one `ContextStore` instance.
+The Foundation provider registers one shared `ContextStore` instance per source or compiled container.
 
-The same object instance is registered for:
+The following service ids resolve to the same object instance:
 
 ```text
 Coretsia\Foundation\Context\ContextStore
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 ```
 
-General runtime context readers MUST depend on:
+The two ports are aliases of the concrete shared service. Only the concrete service carries the existing effective reset and `kernel.stateful` tags. Neither alias is an external runtime seed.
 
-```text
-Coretsia\Contracts\Context\ContextAccessorInterface
-```
+Runtime context consumers outside Foundation MUST use `ContextAccessorInterface` for reads and `ContextWriterInterface` for authorized mutation. They MUST NOT require, resolve, downcast to, or construct concrete `ContextStore` or consume its snapshot, clearing, bulk mutation, or reset operations. Kernel owns lifecycle and reset triggering; Foundation owns context storage, structural validation, and reset execution.
 
-The narrowly scoped owner-local read-back exception for:
-
-```text
-Coretsia\Platform\Http\RequestId\RequestIdPolicy
-```
-
-is governed by `docs/ssot/context-store.md`.
-
-Through its explicitly authorized concrete `ContextStore` dependency, the HTTP request identity owner MAY read back only `ContextKeys::REQUEST_ID` for final-response identity verification.
-
-This exception uses the same Foundation-owned `ContextStore` instance bound to `ContextAccessorInterface`. It does not authorize concrete store access for other runtime readers, access to unrelated context keys, full context snapshots, or arbitrary context exports.
+`Coretsia\Platform\Http\RequestId\RequestIdPolicy` consumes both ports and MAY read back only `ContextKeys::REQUEST_ID` through `ContextAccessorInterface` solely for final-response identity verification. It MUST NOT read unrelated context keys, access full snapshots, perform arbitrary exports, or modify or remove the selected identifier during verification. See [docs/ssot/context-store.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md).
 
 Runtime code MUST NOT create independent context stores for the same runtime boundary.
 
@@ -656,13 +683,11 @@ Coretsia\Contracts\Context\ContextKeys
 
 The governing SSoT is:
 
-```text
-docs/ssot/context-keys.md
-```
+[docs/ssot/context-keys.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 
 `ContextKeys` defines stable key identifiers only.
 
-Importing `ContextKeys` does not grant write ownership over context values.
+Importing `ContextKeys` or receiving `ContextWriterInterface` does not grant write ownership over context values. Only explicitly authorized semantic owners may set or remove their assigned keys.
 
 `ContextStorePolicy` MUST allow writes only for keys declared in `ContextKeys`.
 
@@ -697,12 +722,19 @@ The sole authorized HTTP runtime writer of `ContextKeys::REQUEST_ID` is:
 Coretsia\Platform\Http\RequestId\RequestIdPolicy
 ```
 
-The policy uses the existing shared Foundation-owned `ContextStore`. Request identity preparation, validation, activation, and response-header application belong to the HTTP runtime owner and are governed by `docs/ssot/http-middleware-wiring.md`.
+The policy writes through `ContextWriterInterface` and verifies its own request identity through `ContextAccessorInterface`. Request identity preparation, validation, activation, and response-header application belong to the HTTP runtime owner and are governed by [docs/ssot/http-middleware-wiring.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md).
+
+Implemented Routing-owned context key:
+
+```text
+path_template
+```
+
+`Coretsia\Platform\Routing\Runtime\CompiledRouter` is the sole authorized semantic writer of `ContextKeys::PATH_TEMPLATE` through `ContextWriterInterface`. It removes the previous value at the start of each matching operation and writes the complete validated declared template only on success, before completion observability. A non-match leaves the key absent. Routing MUST NOT read context, mutate unrelated keys, or create another store or reset boundary. Successful canonical Foundation reset clears the key. See [docs/ssot/routing-artifact.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md).
 
 Reserved future keys:
 
 ```text
-path_template
 http_response_format
 actor_id
 tenant_id
@@ -911,9 +943,7 @@ Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException
 
 The governing SSoT is:
 
-```text
-docs/ssot/json-like-runtime-values.md
-```
+[docs/ssot/json-like-runtime-values.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)
 
 `JsonLikeNormalizer` accepts only:
 
@@ -1334,7 +1364,7 @@ scheduler tick
 custom runtime boundary
 ```
 
-At begin-UoW, Kernel runtime MUST set base keys:
+At begin-UoW, Kernel runtime MUST set base keys through `ContextWriterInterface`:
 
 ```text
 correlation_id
@@ -1346,13 +1376,13 @@ For each UnitOfWork that crosses the reset-responsibility boundary, Kernel runti
 
 Successful canonical reset clears all unit-of-work-local values from `ContextStore`.
 
-Reset eligibility, runtime-boundary release, and failure precedence remain governed by `docs/ssot/uow-outcome-policy.md`.
+Reset eligibility, runtime-boundary release, and failure precedence remain governed by [docs/ssot/uow-outcome-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md).
 
 Acceptance scenario with successful canonical reset:
 
 1. one unit of work starts;
-2. owner code writes safe context keys;
-3. general runtime context readers use `ContextAccessorInterface`; explicitly authorized owner-local read-back follows the narrow exception defined by `docs/ssot/context-store.md`;
+2. owner code writes safe context keys through `ContextWriterInterface`;
+3. runtime context readers use `ContextAccessorInterface`, including restricted owner-local `REQUEST_ID` verification as defined by [docs/ssot/context-store.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-store.md);
 4. the unit of work finishes;
 5. Foundation reset orchestration successfully calls `ContextStore::reset()`, clearing all unit-of-work-local context values;
 6. the next unit of work starts without inherited context values, except for the new base keys established by Kernel.
@@ -1441,6 +1471,29 @@ The length is the byte length of the original service id.
 Container diagnostics MUST NOT include service instances, constructor arguments, reflection data, arbitrary tag metadata values, raw config payloads, environment values, credentials, tokens, cookies, authorization values, private customer data, raw SQL, or absolute local paths.
 
 Container diagnostics remain introspection-only and MUST NOT be consumed as a runtime discovery source.
+
+## Canonical PHP-array serialization and atomic byte publication
+
+Foundation provides shared, owner-neutral serialization primitives:
+
+```text
+Coretsia\Foundation\Serialization\StablePhpArrayDumper
+Coretsia\Foundation\Serialization\StablePhpArrayParser
+```
+
+The dumper exposes `dump(array $array): string` for baseline normalization through `JsonLikeNormalizer` and `dumpNormalized(array $array): string` for already normalized input. It emits canonical PHP-array bytes with recursive byte-order map sorting, preserved list order, canonical scalar spelling and escaping, LF-only line endings, and exactly one final LF.
+
+The parser exposes `parse(string $bytes): array` and `parseBounded(string $bytes, JsonLikeNormalizationLimits $limits): array` through one decoding implementation. It accepts only the canonical byte grammar, rejects duplicate or non-canonical map keys and scalar representations, and never executes, evaluates, includes, or requires the supplied source. Bounded decoding enforces structural limits during decoding. `PhpArraySerializationException` reports stable domain-neutral failures without rejected source bytes, paths, or parser offsets.
+
+Foundation also provides:
+
+```text
+Coretsia\Foundation\Filesystem\AtomicFileWriter
+```
+
+`write(string $targetPath, string $bytes): void` publishes exact bytes using a temporary file in the target directory, rejects partial writes, applies best-effort file permissions, and commits on successful atomic replacement. It preserves the previous target on pre-commit failure, attempts temporary-file cleanup, and never deletes an existing target before replacement or rolls back a successful rename. `AtomicFileWriteException` exposes safe domain-neutral failure reasons.
+
+Callers own target-path safety, lock coordination, artifact envelopes, schemas, fingerprints, resource budgets, exception translation, and observability. These primitives do not own durable generation publication. Kernel and Routing consume them independently under [docs/ssot/artifacts-and-fingerprint.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md) and [docs/ssot/routing-artifact.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md).
 
 ## Observability
 

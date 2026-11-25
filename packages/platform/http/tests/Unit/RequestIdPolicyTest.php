@@ -18,7 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Http\Tests\Unit;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Platform\Http\RequestId\RequestIdPolicy;
@@ -36,29 +38,19 @@ final class RequestIdPolicyTest extends TestCase
     #[DataProvider('upstreamModes')]
     public function testDisabledPolicyDoesNotAccessContextHeadersOrGenerator(bool $acceptFromUpstream): void
     {
-        $context = new ContextStore();
-        // ContextStore is final. Make its backing property inaccessible to read
-        // without introducing a substitute store or a production test seam.
-        $disableAccess = \Closure::bind(
-            static function (ContextStore $store): void {
-                unset($store->values);
-            },
-            null,
-            ContextStore::class,
-        );
-        self::assertNotNull($disableAccess);
-        $disableAccess($context);
-        $values = new \ReflectionProperty(ContextStore::class, 'values');
-        self::assertFalse($values->isInitialized($context), 'context-read-guard-not-installed');
-
+        $writer = $this->createMock(ContextWriterInterface::class);
+        $writer->expects(self::never())->method('set');
+        $writer->expects(self::never())->method('remove');
+        $accessor = $this->createMock(ContextAccessorInterface::class);
+        $accessor->expects(self::never())->method('has');
+        $accessor->expects(self::never())->method('get');
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
         $request = $this->requestWithoutHeaderAccess();
-        $policy = new RequestIdPolicy($context, $generator, false, self::HEADER, $acceptFromUpstream, 128);
+        $policy = new RequestIdPolicy($writer, $accessor, $generator, false, self::HEADER, $acceptFromUpstream, 128);
 
         self::assertTrue($policy->initialize($request) === null, 'disabled-initialize-not-null');
         self::assertTrue($policy->current() === null, 'disabled-current-not-null');
-        self::assertFalse($values->isInitialized($context), 'disabled-context-mutated');
     }
 
     public function testDisabledPolicyPreservesExistingContext(): void
@@ -67,7 +59,7 @@ final class RequestIdPolicyTest extends TestCase
         $context->set(ContextKeys::REQUEST_ID, 'existing-identity');
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
-        $policy = new RequestIdPolicy($context, $generator, false, self::HEADER, true, 128);
+        $policy = new RequestIdPolicy($context, $context, $generator, false, self::HEADER, true, 128);
 
         self::assertTrue(
             $policy->initialize($this->requestWithoutHeaderAccess()) === null,
@@ -85,12 +77,44 @@ final class RequestIdPolicyTest extends TestCase
         yield 'upstream-enabled' => [true];
     }
 
+    #[DataProvider('upstreamModes')]
+    public function testEnabledPolicyWritesAndReadsRequestIdOnlyThroughContextPorts(bool $acceptFromUpstream): void
+    {
+        $selected = $acceptFromUpstream ? 'upstream-identity' : self::GENERATED;
+        $writer = $this->createMock(ContextWriterInterface::class);
+        $writer->expects(self::once())->method('set')->with(ContextKeys::REQUEST_ID, $selected);
+        $writer->expects(self::never())->method('remove');
+        $accessor = $this->createMock(ContextAccessorInterface::class);
+        $accessor->expects(self::never())->method('has');
+        $accessor->expects(self::exactly(2))->method('get')->with(ContextKeys::REQUEST_ID)
+            ->willReturnOnConsecutiveCalls($selected, 'replacement-identity');
+        $generator = $this->createMock(IdGeneratorInterface::class);
+        $generator->expects($acceptFromUpstream ? self::never() : self::once())->method('generate')
+            ->willReturn(self::GENERATED);
+
+        if ($acceptFromUpstream) {
+            $request = $this->createMock(ServerRequestInterface::class);
+            $request->expects(self::once())->method('getHeader')->with(self::HEADER)->willReturn([$selected]);
+            $request->expects(self::never())->method('getHeaderLine');
+            $request->expects(self::never())->method('getHeaders');
+            $request->expects(self::never())->method('hasHeader');
+        } else {
+            $request = $this->requestWithoutHeaderAccess();
+        }
+
+        $policy = new RequestIdPolicy($writer, $accessor, $generator, true, self::HEADER, $acceptFromUpstream, 128);
+
+        self::assertSame($selected, $policy->initialize($request));
+        self::assertSame($selected, $policy->current());
+        self::assertSame('replacement-identity', $policy->current());
+    }
+
     public function testEnabledPolicyWithoutUpstreamAcceptanceDoesNotReadHeaders(): void
     {
         $context = self::baseContext();
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::once())->method('generate')->willReturn(self::GENERATED);
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, false, 26);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, false, 26);
 
         self::assertIdentity(
             $policy,
@@ -122,7 +146,7 @@ final class RequestIdPolicyTest extends TestCase
         $request->expects(self::never())->method('getHeaderLine');
         $request->expects(self::never())->method('getHeaders');
         $request->expects(self::never())->method('hasHeader');
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, true, $maxLength);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, true, $maxLength);
 
         self::assertTrue($policy->headerName() === self::HEADER, 'configured-header-name-mismatch');
         self::assertIdentity($policy, $context, $policy->initialize($request), $accepted ?? self::GENERATED);
@@ -183,7 +207,7 @@ final class RequestIdPolicyTest extends TestCase
         $generator->expects(self::never())->method('generate');
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects(self::once())->method('getHeader')->willThrowException($failure);
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, true, 128);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, true, 128);
 
         try {
             $policy->initialize($request);
@@ -201,7 +225,7 @@ final class RequestIdPolicyTest extends TestCase
         $failure = new \RuntimeException('synthetic-generation-failure');
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::once())->method('generate')->willThrowException($failure);
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, false, 128);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, false, 128);
 
         try {
             $policy->initialize($this->requestWithoutHeaderAccess());
@@ -219,7 +243,7 @@ final class RequestIdPolicyTest extends TestCase
         $context = self::baseContext();
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::once())->method('generate')->willReturn($generated);
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, false, 26);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, false, 26);
         $request = $this->requestWithoutHeaderAccess();
 
         if ($valid) {
@@ -265,16 +289,17 @@ final class RequestIdPolicyTest extends TestCase
     {
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
+        $context = new ContextStore();
 
         if ($valid) {
-            $policy = new RequestIdPolicy(new ContextStore(), $generator, false, $name, false, 128);
+            $policy = new RequestIdPolicy($context, $context, $generator, false, $name, false, 128);
             self::assertTrue($policy->headerName() === $name, 'configured-header-name-changed');
 
             return;
         }
 
         try {
-            new RequestIdPolicy(new ContextStore(), $generator, false, $name, false, 128);
+            new RequestIdPolicy($context, $context, $generator, false, $name, false, 128);
             self::fail('invalid-header-name-accepted');
         } catch (\InvalidArgumentException $actual) {
             self::assertTrue($actual->getMessage() === 'http-request-id-header-invalid', 'header-name-reason-mismatch');
@@ -320,16 +345,17 @@ final class RequestIdPolicyTest extends TestCase
     {
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
+        $context = new ContextStore();
 
         if ($valid) {
-            $policy = new RequestIdPolicy(new ContextStore(), $generator, false, self::HEADER, false, $limit);
+            $policy = new RequestIdPolicy($context, $context, $generator, false, self::HEADER, false, $limit);
             self::assertTrue($policy->current() === null, 'disabled-current-not-null');
 
             return;
         }
 
         try {
-            new RequestIdPolicy(new ContextStore(), $generator, false, self::HEADER, false, $limit);
+            new RequestIdPolicy($context, $context, $generator, false, self::HEADER, false, $limit);
             self::fail('invalid-length-limit-accepted');
         } catch (\InvalidArgumentException $actual) {
             self::assertTrue($actual->getMessage() === 'http-request-id-max-length-invalid', 'length-reason-mismatch');
@@ -354,7 +380,7 @@ final class RequestIdPolicyTest extends TestCase
         }
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
-        $policy = new RequestIdPolicy($context, $generator, true, self::HEADER, true, 26);
+        $policy = new RequestIdPolicy($context, $context, $generator, true, self::HEADER, true, 26);
 
         try {
             $policy->current();

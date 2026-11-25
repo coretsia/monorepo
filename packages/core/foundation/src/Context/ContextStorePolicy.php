@@ -48,8 +48,10 @@ use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
  * value shape. It does not classify arbitrary scalar strings as secrets,
  * credentials, tokens, PII, or other semantically sensitive values.
  *
- * Context writers own semantic value safety and MUST derive or validate an
- * owner-approved safe representation before calling ContextStore::set().
+ * Context writers own semantic key ownership and value safety. Callers MUST
+ * write and remove only keys assigned to their semantic owner boundary and
+ * derive or validate an owner-approved safe representation before calling
+ * ContextWriterInterface::set().
  *
  * Acceptance by this policy means structurally admissible for in-process
  * context storage. It does not make a value safe for logs, traces, metrics,
@@ -64,9 +66,10 @@ use Coretsia\Foundation\Serialization\JsonLikeNormalizer;
  * - bounded individual string byte length;
  * - context-specific exception mapping.
  *
- * core/contracts owns only the public context key vocabulary and read-only
- * context access port. It does not own mutable context storage or write
- * validation.
+ * core/contracts owns the public context key vocabulary and both format-neutral
+ * context ports: ContextAccessorInterface for reads and ContextWriterInterface
+ * for writes and removal. It does not own mutable context storage or structural
+ * write validation.
  *
  * This Foundation-owned policy owns context-specific write validation.
  * Baseline json-like value validation is delegated internally to the

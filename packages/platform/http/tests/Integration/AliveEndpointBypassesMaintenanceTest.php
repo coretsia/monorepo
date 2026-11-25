@@ -297,7 +297,8 @@ final class AliveEndpointBypassesMaintenanceTest extends TestCase
         )->willReturn([]);
         $correlation = $this->createStub(CorrelationIdProviderInterface::class);
         $correlation->method('correlationId')->willReturn($id);
-        $requestIds = new RequestIdPolicy(new ContextStore(), new UlidGenerator(), false, 'X-Request-Id', false, 128);
+        $context = new ContextStore();
+        $requestIds = new RequestIdPolicy($context, $context, new UlidGenerator(), false, 'X-Request-Id', false, 128);
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),

@@ -162,8 +162,10 @@ final class BadJsonTriggersCanonicalErrorFlowTest extends TestCase
             ->with(self::identicalTo($handle), 'handled_error', null)->willReturn([]);
         $correlation = $this->createMock(CorrelationIdProviderInterface::class);
         $correlation->expects(self::once())->method('correlationId')->willReturn(self::CORRELATION);
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

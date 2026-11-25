@@ -58,7 +58,6 @@ final class SystemEndpointObservabilityTest extends TestCase
 
             try {
                 $cases = [
-                    ['/', 'home', 200, 'served', 'success'],
                     ['/ping', 'ping', 200, 'served', 'success'],
                     ['/_alive', 'alive', 200, 'served', 'success'],
                     ['/health', 'health', 501, 'owner_unavailable', 'handled_error'],
@@ -153,7 +152,7 @@ final class SystemEndpointObservabilityTest extends TestCase
             try {
                 foreach (
                     [
-                        ['/', 200],
+                        ['/', 404],
                         ['/ping', 200],
                         ['/_alive', 200],
                         ['/health', 501],
@@ -425,7 +424,7 @@ final class SystemEndpointObservabilityTest extends TestCase
     #[DataProviderExternal(SystemEndpointRuntimeFixture::class, 'modes')]
     public function testCanonicalRequestSpanRemainsOnePerRequestAndNoNewLifecycleTagsExist(string $mode): void
     {
-        foreach ([['/', 200, 'success'], ['/health', 501, 'handled_error']] as [$path, $status, $outcome]) {
+        foreach ([['/', 404, 'handled_error'], ['/health', 501, 'handled_error']] as [$path, $status, $outcome]) {
             $fixture = $this->boot($mode);
 
             try {

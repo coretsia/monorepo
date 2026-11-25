@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Tests\Contract;
 
+use Coretsia\Foundation\Serialization\Exception\PhpArraySerializationException;
+use Coretsia\Foundation\Serialization\StablePhpArrayParser as FoundationStablePhpArrayParser;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactInvalidException;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Php\StablePhpArrayParser;
@@ -52,6 +54,9 @@ final class StablePhpArrayParserContractTest extends TestCase
 
         $bytes = new StablePhpArrayDumper()->dump($input);
         $decoded = new StablePhpArrayParser()->parse($bytes);
+
+        self::assertSame(new FoundationStablePhpArrayParser()->parse($bytes), $decoded);
+        self::assertSame($decoded, StablePhpArrayParser::parseStable($bytes));
 
         self::assertSame(['alpha', 'zeta'], \array_keys($decoded));
         self::assertSame(
@@ -91,6 +96,9 @@ final class StablePhpArrayParserContractTest extends TestCase
         $bytes = new StablePhpArrayDumper()->dump(['value' => $value]);
         $decoded = new StablePhpArrayParser()->parse($bytes);
 
+        self::assertSame(new FoundationStablePhpArrayParser()->parse($bytes), $decoded);
+        self::assertSame($decoded, StablePhpArrayParser::parseStable($bytes));
+
         self::assertSame($value, $decoded['value']);
     }
 
@@ -113,6 +121,13 @@ final class StablePhpArrayParserContractTest extends TestCase
                 $exception->getMessage(),
             );
             self::assertStringNotContainsString($bytes, $exception->getMessage());
+
+            $previous = $exception->getPrevious();
+            self::assertInstanceOf(PhpArraySerializationException::class, $previous);
+            self::assertSame(
+                PhpArraySerializationException::REASON_SERIALIZATION_INVALID,
+                $previous->reason(),
+            );
         }
     }
 
@@ -122,7 +137,7 @@ final class StablePhpArrayParserContractTest extends TestCase
     public static function invalidSerializationProvider(): iterable
     {
         $canonical = self::document('[]');
-        $overflow = (string)PHP_INT_MAX . '0';
+        $overflow = (string) PHP_INT_MAX . '0';
 
         yield 'missing open tag' => ["return [];\n"];
         yield 'utf8 bom' => ["\xEF\xBB\xBF" . $canonical];

@@ -17,7 +17,7 @@
 ```yaml
 ssotVersion: 1
 status: pre-stable
-owner: platform/http
+owner: core/foundation
 ```
 
 ## Scope
@@ -37,10 +37,10 @@ Consumers need one deterministic concrete-path matching implementation that iden
 The canonical implementation is:
 
 ```text
-Coretsia\Platform\Http\System\ReservedPathMatcher
+Coretsia\Foundation\Routing\ReservedPathMatcher
 ```
 
-It consumes `Coretsia\Platform\Http\System\SystemRouteTable::entries()` as the only declaration source. Declaration ownership, status, path grammar, ordering, and versioning are governed by [System Route Table SSoT](./system-route-table.md).
+It consumes `Coretsia\Foundation\Routing\SystemRouteTable::entries()` as the only declaration source. Declaration ownership, status, path grammar, ordering, and versioning are governed by [System Route Table SSoT](./system-route-table.md).
 
 Consumers MUST NOT introduce competing concrete reserved-path matching implementations or duplicate the canonical declaration list.
 
@@ -49,24 +49,27 @@ Consumers MUST NOT introduce competing concrete reserved-path matching implement
 The canonical static API is:
 
 ```php
+public static function normalize(string $path): string
 public static function match(string $path): ?array
 ```
 
-The return shape is:
+The `match()` return shape is:
 
 ```text
 array{owner: string, pattern: string, status: 'active'|'reserved'|'dev_only', type: 'exact'|'prefix'}|null
 ```
 
-The input is an encoded concrete URI path component. It MAY be empty or omit the leading slash. It MUST NOT be a complete URI, request-target form, query string, fragment, or route template.
+Both operations accept an encoded concrete URI path component. It MAY be empty or omit the leading slash. It MUST NOT be a complete URI, request-target form, query string, fragment, or route template.
 
-The matcher normalizes the supplied path exactly once and returns the complete matching canonical entry in its original field order, or `null` for a valid path without a matching declaration. Invalid input MUST follow the exception policy defined below, not return `null`.
+`normalize()` is the canonical reusable concrete-path validation and normalization boundary. It returns the normalized encoded path without inspecting reserved declarations or performing route matching.
+
+`match()` invokes `normalize()` exactly once and returns the complete matching canonical entry in its original field order, or `null` for a valid path without a matching declaration. Invalid input to either operation MUST follow the exception policy defined below; invalid input to `match()` MUST NOT return `null`.
 
 Canonical registry patterns are stricter than matcher inputs. Input normalization MUST NOT be used to admit noncanonical registry declarations.
 
 ## Concrete path grammar (MUST)
 
-The matcher accepts only the following literal ASCII characters and valid percent-encoded octets:
+Both operations accept only the following literal ASCII characters and valid percent-encoded octets:
 
 - unreserved characters: `A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`;
 - URI sub-delimiters: `!`, `$`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `;`, `=`;
@@ -79,7 +82,7 @@ Repeated leading slashes MUST be interpreted as path data, not URI authority syn
 
 ## Normalization semantics (MUST)
 
-The matcher MUST:
+`normalize()` MUST:
 
 - normalize the empty path to `/`;
 - ensure exactly one leading slash;
@@ -88,7 +91,7 @@ The matcher MUST:
 - preserve path case and the original encoded representation of every valid percent-encoded octet;
 - reject literal `.` or `..` path segments, including segments exposed by slash normalization.
 
-The matcher MUST NOT trim whitespace, lowercase paths, URL-decode or re-encode percent escapes, resolve dot segments, or interpret encoded octets as path delimiters.
+`normalize()` MUST NOT trim whitespace, lowercase paths, URL-decode or re-encode percent escapes, resolve dot segments, or interpret encoded octets as path delimiters.
 
 Percent-encoded slash, underscore, dot, non-ASCII, and other octets remain opaque path data. Their decoded meaning MUST NOT create an implicit alias for a canonical declaration.
 
@@ -98,14 +101,13 @@ Normalization MUST remain non-recursive, with O(n) time and at most O(n) additio
 
 - `exact` declarations match only by strict equality between the normalized path and the complete canonical pattern.
 - `prefix` declarations match only when the normalized path starts with the complete slash-terminated canonical pattern. The slash is the segment-prefix boundary.
-- The exact `/` declaration matches only the normalized root path.
 - No trailing-slash alias is implied by a non-root exact declaration.
 - Matching is case-sensitive and independent of declaration status.
 - The matcher MUST preserve deterministic results without runtime sorting or mutable caches.
 
 ## Invalid-input policy (MUST)
 
-The matcher MUST reject:
+Both operations MUST reject:
 
 - literal ASCII whitespace, control characters, DEL, and non-ASCII bytes;
 - backslashes, query and fragment delimiters, and malformed percent escapes;
@@ -125,7 +127,6 @@ The diagnostic MUST NOT include the rejected path or any derived raw input value
 
 Matching examples (input to returned declaration pattern):
 
-- `/`, the empty string, and `///` match `/` (`exact`).
 - `/_alive`, `_alive`, `//_alive`, and `///_alive` match `/_alive` (`exact`).
 - `/_debug` matches `/_debug` (`exact`).
 - `/_debug/` and `/_debug//toolbar` match `/_debug/` (`prefix`).
@@ -136,6 +137,7 @@ Matching examples (input to returned declaration pattern):
 
 Valid paths without a matching declaration return `null`:
 
+- `/`, the empty string, and `///`;
 - `/healthz`, `/healthz/ready`, and `/_debugger`;
 - `/_alive/`, `/ping/`, and `/metrics/`;
 - `/_ALIVE` and `/Health/ready`;
@@ -150,7 +152,11 @@ A matching result identifies reserved ownership only. It MUST NOT activate an en
 
 A non-matching encoded path MUST NOT be treated as authorization to dispatch a decoded equivalent. Runtime consumers MUST match and dispatch the same effective path representation, including the same case, slash, trailing-slash, and percent-encoding semantics. They MUST NOT introduce path reinterpretation between reservation matching and endpoint dispatch.
 
-Compile-time application route admission guards MUST separately analyze route-template overlap against exact paths and prefix namespaces. A concrete-path match or non-match is not sufficient to validate a route template for admission.
+Routing MUST reuse `normalize()` for concrete application-path validation. A concrete application path is canonical only when normalization succeeds, the result equals the supplied path byte-for-byte, and a non-root path does not end with a literal slash. Invalid or non-canonical application paths MUST produce a non-match; normalization MUST NOT introduce application-route aliases. The root path `/` is canonical.
+
+Compile-time application route admission guards MUST separately analyze the complete supported route-template match domain against exact reservations and slash-terminated prefix namespaces, independently of declaration status, HTTP method, environment, or endpoint activation. They MUST NOT pass raw route templates to `normalize()` or `match()` to determine admission. A concrete-path match or non-match is not sufficient to validate a route template for admission.
+
+Reserved-route intersection validation MUST use deterministic segment matching and concrete intersection witnesses, not arbitrary placeholder sampling. Routing MUST confirm reserved ownership of a concrete intersection witness through `match()` and reject intersecting declarations before artifact publication and during artifact hydration.
 
 Route descriptors and invocation ports remain governed by [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md).
 
@@ -174,8 +180,8 @@ The matcher does not emit logs, spans, or metrics. Concrete path input MUST NOT 
 
 ## Verification evidence
 
-- `packages/platform/http/tests/Contract/SystemRouteTableShapeContractTest.php` verifies canonical declaration shape and immutability.
-- `packages/platform/http/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` verifies concrete path normalization, matching boundaries, opaque percent encoding, deterministic results, and invalid-input policy.
+- `packages/core/foundation/tests/Contract/SystemRouteTableShapeContractTest.php` verifies canonical declaration shape and immutability.
+- `packages/core/foundation/tests/Unit/ReservedPathMatcherSegmentPrefixTest.php` verifies concrete path normalization, matching boundaries, opaque percent encoding, deterministic results, and invalid-input policy.
 - `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php` verifies exact maintenance bypass independently of matcher normalization.
 
 ## Non-goals

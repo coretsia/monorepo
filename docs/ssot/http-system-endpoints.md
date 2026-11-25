@@ -55,7 +55,7 @@ Provide deterministic terminal system endpoints and safe fallback responses for 
 
 ## Authority and ownership (MUST)
 
-[System Route Table SSoT](./system-route-table.md) owns the declaration registry, canonical patterns, semantic owners, declaration statuses, and registry versioning. [Reserved Path Matching SSoT](./reserved-path-matching.md) owns concrete path normalization, matching, and invalid-input semantics.
+The Foundation-owned [System Route Table SSoT](./system-route-table.md) governs the declaration registry, canonical patterns, semantic owners, declaration statuses, and registry versioning. The Foundation-owned [Reserved Path Matching SSoT](./reserved-path-matching.md) governs concrete path normalization, matching, and invalid-input semantics.
 
 `platform/http` owns the terminal dispatcher, deterministic fallback response construction, and integration with the canonical PSR-15 terminal handler:
 
@@ -74,7 +74,7 @@ The terminal handler executes only when the canonical PSR-15 pipeline delegates 
 
 An earlier middleware controlled by the declared owner MAY provide an explicitly authorized endpoint response. The terminal fallback MUST NOT replace that response or independently claim the owner's capability.
 
-Only the owner declared by the canonical registry MAY implement or claim its reserved endpoint, subject to the applicable owner access policy. Neither earlier middleware precedence nor a terminal fallback response authorizes a competing application route, including a competing exact root route.
+Only the owner declared by the canonical registry MAY implement or claim its reserved endpoint, subject to the applicable owner access policy. Neither earlier middleware precedence nor a terminal fallback response authorizes a competing application route.
 
 ## Method and path eligibility (MUST)
 
@@ -116,16 +116,6 @@ Endpoint services MUST NOT discover modules, probe container services, resolve d
 The following behavior applies only to the explicitly supported exact declarations owned by `platform/http` with status `active`. Owner or status alone MUST NOT select a handler for an additional declaration.
 
 All responses constructed for matched endpoints MUST set `Cache-Control: no-store` with that exact value. The specified status, content type, and body bytes describe the terminal response before middleware response decoration and canonical finalization.
-
-### Home endpoint
-
-`GET /` MUST return:
-
-- HTTP status `200`;
-- `Content-Type: text/html; charset=utf-8`;
-- exact body `<h1>Hello Coretsia</h1>` followed by one LF (`\n`).
-
-The empty path and repeated-slash root paths such as `///` normalize to the canonical exact root declaration. The declaration MUST NOT be interpreted as a wildcard.
 
 ### Ping endpoint
 
@@ -385,7 +375,7 @@ http.system_endpoint_total
 
 This metric is a `counter` and MUST use exactly these canonical label combinations:
 
-- `operation` = one of `home`, `ping`, `alive`; `status` = integer `200`; `outcome` = `served`.
+- `operation` = one of `ping`, `alive`; `status` = integer `200`; `outcome` = `served`.
 - `operation` = one of `health`, `metrics`; `status` = integer `501`; `outcome` = `owner_unavailable`.
 - `operation` = `error`; `status` = string `unknown`; `outcome` = `intentional_error`.
 

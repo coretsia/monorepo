@@ -39,11 +39,6 @@ final readonly class FallbackResponses
     ) {
     }
 
-    public function home(): ResponseInterface
-    {
-        return $this->respond(200, 'text/html; charset=utf-8', "<h1>Hello Coretsia</h1>\n");
-    }
-
     public function ping(int $timestamp): ResponseInterface
     {
         return $this->respond(200, 'application/json', StableJsonEncoder::encodeStableMap([

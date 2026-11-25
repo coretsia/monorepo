@@ -61,6 +61,25 @@ The `kernel-public-api:gate` uses this file to lock which non-internal kernel sy
 - `Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput`
 - `Coretsia\Kernel\Runtime\RuntimePathContext`
 
+## Kernel source operations host
+
+`KernelOpsHostBooter` exposes the public source-host entrypoints:
+
+```php
+public function boot(KernelOpsHostInput $input): ContainerInterface
+public function bootForTarget(KernelOpsHostInput $input, AppTarget $target): ContainerInterface
+```
+
+Both return a PSR-11 `Psr\Container\ContainerInterface` for canonical source operations.
+
+`boot()` delegates to `bootForTarget()` with `AppTarget::Console`. Explicit target-local composition MUST use `bootForTarget()` with the supplied `AppTarget`; the target MUST NOT be inferred from installed modules, process environment, or filesystem discovery.
+
+The source host exposes authoritative configuration, module plan, runtime paths, and runtime diagnostics for the selected target. Configuration and module resolution MUST use the same canonical bootstrap snapshot.
+
+`RuntimeDiagnosticsInput::artifactGenerationLoaded()` returns `false`. Source-host construction MUST NOT require or load a current artifact generation, invoke Kernel operations, or start a UnitOfWork.
+
+Host-boot failures use the canonical contracts-level `KernelOpsFailedException` failure boundary with `REASON_HOST_BOOT_FAILED`.
+
 ## Internal implementation helpers
 
 Internal implementation helpers are intentionally not enumerated in this file.
@@ -76,6 +95,6 @@ Bootstrap Phase A implementation helpers such as config resolvers, dotenv loader
 
 Config Phase B implementation services such as the config orchestrator, merger, directive processor, validator, explainer, config loaders, namespace guards, and config-specific exceptions are not public API and must remain marked `@internal` in source until a dedicated public config facade or contract is introduced.
 
-Artifact, fingerprint, container compilation, compiled-container runtime boot, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal`. The Kernel Ops API introduced by this package does not promote those lower-level compile-host services to public API. Platform consumers access Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` and the public source-host boot API provided by `Coretsia\Kernel\Ops\KernelOpsHostBooter` and `Coretsia\Kernel\Ops\KernelOpsHostInput`.
+Artifact, fingerprint, container compilation, compiled-container runtime boot, and cache verification services are internal implementation services. They may be registered in the container and used by package-owned tooling, but they are not package public API and must remain marked `@internal`. The Kernel Ops API does not expose those lower-level compile-host services. Platform consumers access Kernel operations only through `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface` and the public source-host boot API provided by `Coretsia\Kernel\Ops\KernelOpsHostBooter` and `Coretsia\Kernel\Ops\KernelOpsHostInput`.
 
 Compiled-container implementation models such as service definitions, parameter bags, and definition graphs are internal Kernel compilation models. They are not DTO marker classes, not transport contracts, and not public package API unless a later dedicated public contract explicitly promotes them.

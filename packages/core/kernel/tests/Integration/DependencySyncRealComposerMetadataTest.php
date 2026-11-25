@@ -86,6 +86,7 @@ PHP,
                     'platform.logging',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                 ],
                 $decoded['modules'],
             );
@@ -99,6 +100,7 @@ PHP,
                     'coretsia/platform-logging' => $publicConstraint,
                     'coretsia/platform-problem-details' => $publicConstraint,
                     'coretsia/platform-redaction' => $publicConstraint,
+                    'coretsia/platform-routing' => $publicConstraint,
                 ],
                 $decoded['requirements'],
             );
@@ -349,6 +351,7 @@ PHP,
                         $releaseVersion,
                     ],
                     ['coretsia/platform-redaction', $repoRoot . '/packages/platform/redaction', $releaseVersion],
+                    ['coretsia/platform-routing', $repoRoot . '/packages/platform/routing', $releaseVersion],
                 ] : []),
             ] as [$name, $source, $version]
         ) {

@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 namespace Coretsia\Kernel\Artifacts\Php;
 
+use Coretsia\Foundation\Serialization\Exception\PhpArraySerializationException;
+use Coretsia\Foundation\Serialization\StablePhpArrayDumper as FoundationStablePhpArrayDumper;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\JsonFloatForbiddenException;
 use Coretsia\Kernel\Artifacts\PayloadNormalizer;
@@ -52,6 +54,9 @@ use Coretsia\Kernel\Artifacts\PayloadNormalizer;
  * ordering, scalar preservation, and rejected-type semantics remain aligned
  * with the canonical stable JSON rules.
  *
+ * Canonical byte emission is delegated to Foundation's StablePhpArrayDumper
+ * without repeating payload normalization.
+ *
  * StablePhpArrayDumper and StablePhpArrayParser are the paired encoder/decoder
  * for this serialization format. The dumper does not validate artifact envelope
  * semantics. It emits the array it receives after normalization and MUST NOT
@@ -63,8 +68,6 @@ use Coretsia\Kernel\Artifacts\PayloadNormalizer;
  */
 final class StablePhpArrayDumper
 {
-    private const string INDENT = '    ';
-
     public function __construct(
         private readonly PayloadNormalizer $payloadNormalizer = new PayloadNormalizer(),
     ) {
@@ -142,169 +145,17 @@ final class StablePhpArrayDumper
             );
         }
 
-        $bytes = "<?php\n\nreturn " . self::dumpValue($normalized, 0) . ";\n";
-
-        return self::ensureLfOnlyWithSingleFinalNewline($bytes);
-    }
-
-    /**
-     * @param null|bool|int|string|array<int|string, mixed> $value
-     */
-    private static function dumpValue(mixed $value, int $depth): string
-    {
-        if ($value === null) {
-            return 'null';
-        }
-
-        if (\is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (\is_int($value)) {
-            return (string)$value;
-        }
-
-        if (\is_string($value)) {
-            return self::dumpString($value);
-        }
-
-        if (\is_array($value)) {
-            return self::dumpArrayExpression($value, $depth);
-        }
-
-        /*
-         * This point should be unreachable because PayloadNormalizer rejects
-         * non-json-like values before dumping starts.
-         */
-        throw ArtifactPayloadInvalidException::atPath(
-            'artifact',
-            ArtifactPayloadInvalidException::REASON_TYPE_FORBIDDEN,
-        );
-    }
-
-    /**
-     * @param array<int|string, mixed> $array
-     */
-    private static function dumpArrayExpression(array $array, int $depth): string
-    {
-        if ($array === []) {
-            return '[]';
-        }
-
-        if (\array_is_list($array)) {
-            return self::dumpListExpression($array, $depth);
-        }
-
-        return self::dumpMapExpression($array, $depth);
-    }
-
-    /**
-     * @param list<mixed> $list
-     */
-    private static function dumpListExpression(array $list, int $depth): string
-    {
-        $nextDepth = $depth + 1;
-        $currentIndent = self::indent($depth);
-        $nextIndent = self::indent($nextDepth);
-
-        $lines = ['['];
-
-        foreach ($list as $item) {
-            $lines[] = $nextIndent . self::dumpValue($item, $nextDepth) . ',';
-        }
-
-        $lines[] = $currentIndent . ']';
-
-        return \implode("\n", $lines);
-    }
-
-    /**
-     * @param array<string, mixed> $map
-     */
-    private static function dumpMapExpression(array $map, int $depth): string
-    {
-        $nextDepth = $depth + 1;
-        $currentIndent = self::indent($depth);
-        $nextIndent = self::indent($nextDepth);
-
-        $lines = ['['];
-
-        foreach ($map as $key => $value) {
-            if (!\is_string($key)) {
-                throw ArtifactPayloadInvalidException::atPath(
-                    'artifact',
-                    ArtifactPayloadInvalidException::REASON_MAP_KEY_MUST_BE_STRING,
-                );
-            }
-
-            $lines[] = $nextIndent
-                . self::dumpString($key)
-                . ' => '
-                . self::dumpValue($value, $nextDepth)
-                . ',';
-        }
-
-        $lines[] = $currentIndent . ']';
-
-        return \implode("\n", $lines);
-    }
-
-    /**
-     * Emits a deterministic PHP double-quoted string literal.
-     *
-     * The output never contains raw CR/LF/TAB/control bytes. That keeps the
-     * generated artifact LF-only even when the represented string value contains
-     * line breaks or control characters.
-     */
-    private static function dumpString(string $value): string
-    {
-        $result = '"';
-        $length = \strlen($value);
-
-        for ($index = 0; $index < $length; ++$index) {
-            $byte = \ord($value[$index]);
-
-            $result .= match ($value[$index]) {
-                "\\" => "\\\\",
-                "\"" => "\\\"",
-                '$' => "\\$",
-                "\n" => "\\n",
-                "\r" => "\\r",
-                "\t" => "\\t",
-                default => self::dumpStringByte($byte, $value[$index]),
-            };
-        }
-
-        return $result . '"';
-    }
-
-    private static function dumpStringByte(int $byte, string $character): string
-    {
-        if ($byte < 0x20 || $byte === 0x7F) {
-            return '\\x' . \str_pad(
-                \strtoupper(\dechex($byte)),
-                2,
-                '0',
-                \STR_PAD_LEFT,
+        try {
+            return new FoundationStablePhpArrayDumper()->dumpNormalized($normalized);
+        } catch (PhpArraySerializationException $exception) {
+            throw ArtifactPayloadInvalidException::atPath(
+                'artifact',
+                match ($exception->reason()) {
+                    PhpArraySerializationException::REASON_MAP_KEY_MUST_BE_STRING => ArtifactPayloadInvalidException::REASON_MAP_KEY_MUST_BE_STRING,
+                    default => ArtifactPayloadInvalidException::REASON_TYPE_FORBIDDEN,
+                },
+                $exception,
             );
         }
-
-        return $character;
-    }
-
-    private static function indent(int $depth): string
-    {
-        if ($depth <= 0) {
-            return '';
-        }
-
-        return \str_repeat(self::INDENT, $depth);
-    }
-
-    private static function ensureLfOnlyWithSingleFinalNewline(string $bytes): string
-    {
-        $normalized = \str_replace(["\r\n", "\r"], "\n", $bytes);
-
-        return \rtrim($normalized, "\n") . "\n";
     }
 }

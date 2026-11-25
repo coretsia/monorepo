@@ -69,6 +69,12 @@ The read-only context access boundary is provided by:
 Coretsia\Contracts\Context\ContextAccessorInterface
 ```
 
+The separate mandatory context mutation dependency of `KernelRuntime` is:
+
+```text
+Coretsia\Contracts\Context\ContextWriterInterface
+```
+
 The concrete Kernel implementation is:
 
 ```text
@@ -88,6 +94,7 @@ Coretsia\Contracts\Runtime\KernelRuntimeInterface
 Coretsia\Contracts\Runtime\Hook\BeforeUowHookInterface
 Coretsia\Contracts\Runtime\Hook\AfterUowHookInterface
 Coretsia\Contracts\Context\ContextAccessorInterface
+Coretsia\Contracts\Context\ContextWriterInterface
 Coretsia\Contracts\Context\ContextKeys
 ```
 
@@ -171,7 +178,7 @@ A second UnitOfWork start MUST fail before:
 - UnitOfWork id generation;
 - type or attributes validation for the attempted nested UnitOfWork;
 - `UnitOfWorkContext` creation;
-- base `ContextStore` writes.
+- base context writes through `ContextWriterInterface`.
 
 A rejected overlapping start MUST NOT invoke before-uow hooks, the external body, after-uow hooks, or reset orchestration.
 
@@ -363,7 +370,7 @@ Those internal objects are Kernel-owned and must not become part of the contract
 
 - validating UnitOfWork type tokens;
 - creating UnitOfWork context objects;
-- writing base context keys using `Coretsia\Contracts\Context\ContextKeys`;
+- writing base context keys through `ContextWriterInterface` using `Coretsia\Contracts\Context\ContextKeys`;
 - invoking before-uow hooks;
 - executing the external body for the high-level API;
 - validating low-level lifecycle handles and their normalized exported context payloads;
@@ -395,13 +402,13 @@ Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 
 Importing `ContextKeys` provides stable key vocabulary only.
 
-Write ownership remains Kernel-owned for these base UnitOfWork keys.
+Write ownership remains Kernel-owned for these base UnitOfWork keys. `KernelRuntime` MUST set them through its mandatory `ContextWriterInterface` dependency in the listed order. Foundation owns the shared context store and structural validation. Kernel MUST NOT require or downcast to the concrete store, create separate context storage, consume context reads through the writer, or perform direct clearing or reset.
 
-Reset responsibility starts only after Kernel-owned UnitOfWork context creation and base `ContextStore` key writing both complete successfully.
+Reset responsibility starts only after Kernel-owned UnitOfWork context creation and base context key writing through `ContextWriterInterface` both complete successfully.
 
 If UnitOfWork context creation fails, `KernelRuntime` MUST surface that primary failure without invoking reset orchestration.
 
-If base `ContextStore` key writing fails, `KernelRuntime` MUST surface that primary failure without invoking reset orchestration.
+If base context key writing fails, `KernelRuntime` MUST surface that primary failure without invoking reset orchestration.
 
 Before-uow hook execution happens after this reset-responsibility boundary. Therefore, if a before-uow hook fails, reset orchestration still runs according to Kernel failure-precedence policy.
 
@@ -492,7 +499,7 @@ They do not construct or typehint the concrete implementation.
 
 The concrete `KernelRuntime` receives its implementation dependencies through DI, including:
 
-- Foundation `ContextStore` for Kernel-owned base context writes;
+- mandatory contracts `ContextWriterInterface` for Kernel-owned base context writes, resolved through the shared Foundation binding;
 - Foundation `ResetOrchestrator`;
 - Foundation `Stopwatch`;
 - Foundation `IdGeneratorInterface`;
@@ -584,9 +591,9 @@ Kernel runtime MUST invoke `ResetOrchestrator::resetAll()` only for UnitOfWork e
 
 The reset-responsibility boundary is crossed only after:
 
-```text id="q8g7y9"
+```text
 UnitOfWorkContext created
-base ContextStore keys written successfully
+base context keys written successfully through ContextWriterInterface
 ```
 
 Failures before this boundary MUST NOT trigger reset orchestration.
@@ -809,7 +816,7 @@ These tests verify:
 - a surfaced reset failure preserves the original reset throwable through in-process previous-throwable chaining;
 - one `KernelRuntime` boundary rejects `run → run`, `run → begin`, `begin → run`, and `begin → begin` while a UnitOfWork is active;
 - rejected overlapping starts do not create a second UnitOfWork or mutate/reset/release the active lifecycle;
-- lifecycle exclusivity is acquired before UnitOfWork context creation and base `ContextStore` writes;
+- lifecycle exclusivity is acquired before UnitOfWork context creation and base context writes through `ContextWriterInterface`;
 - the runtime boundary remains reserved through the required reset attempt;
 - foreign or already-consumed low-level handles cannot release another active lifecycle;
 - adapters consume the contracts port;

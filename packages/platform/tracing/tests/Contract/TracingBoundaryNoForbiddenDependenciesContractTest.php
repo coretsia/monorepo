@@ -95,6 +95,18 @@ final class TracingBoundaryNoForbiddenDependenciesContractTest extends TestCase
 
                 [$id, $value] = $token;
 
+                if (\in_array(
+                    $id,
+                    [T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE, T_STRING, T_CONSTANT_ENCAPSED_STRING],
+                    true,
+                )) {
+                    self::assertDoesNotMatchRegularExpression(
+                        '/\bContextWriterInterface\b/i',
+                        $value,
+                        'Forbidden dependency in ' . \basename($file),
+                    );
+                }
+
                 if (\in_array($id, [T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_STRING], true)) {
                     $symbols[] = \ltrim($value, '\\');
                 }

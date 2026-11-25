@@ -139,7 +139,9 @@ Coretsia\Contracts\Context\ContextKeys
 
 The HTTP request identity policy `RequestIdPolicy` and the HTTP completion services `HttpResponseFinalizer`, `HttpRequestMetricsRecorder`, `HttpAccessLogWriter`, and `HttpRequestSpanRecorder` are not PSR-15 middleware and therefore have no rows in this map.
 
-In the implemented HTTP baseline, only `RequestContextMiddleware` writes request-derived `client_ip`, `scheme`, `host`, `path`, or `user_agent` ContextKeys. The HTTP-owned `request_id` key is written exclusively by `RequestIdPolicy` outside the PSR-15 chain.
+In the implemented HTTP baseline, only `RequestContextMiddleware` writes request-derived `client_ip`, `scheme`, `host`, `path`, or `user_agent` ContextKeys. The HTTP-owned `request_id` key is written exclusively by `RequestIdPolicy` outside the PSR-15 chain. Both writers use `ContextWriterInterface`.
+
+`Coretsia\Platform\Routing\Runtime\CompiledRouter` owns `path_template` mutation during `RouterInterface::match()`. It is not middleware and has no row in this map.
 
 `SecurityHeadersPolicy` and `HttpsRedirectPolicy` are immutable configuration dependencies and do not participate in middleware ContextKeys ownership.
 
@@ -176,7 +178,7 @@ Security-header application belongs to `HttpResponseFinalizer` outside the PSR-1
 | `\Coretsia\Platform\Security\Http\Middleware\CsrfMiddleware::class`                    | `http.middleware.app_pre`     | `platform/security`        | `—`                                                 | `—`                                                     | Optional owner. MUST NOT write CSRF tokens into ContextStore.                                                                                                                                       |
 | `\Coretsia\Platform\Uploads\Http\Middleware\MultipartFormDataMiddleware::class`        | `http.middleware.app_pre`     | `platform/uploads`         | `—`                                                 | `—`                                                     | Optional owner. MUST NOT write file payloads, upload temp paths, filenames, or multipart payloads into ContextStore.                                                                                |
 | `\Coretsia\Platform\Inbox\Http\Middleware\IdempotencyKeyMiddleware::class`             | `http.middleware.app_pre`     | `platform/inbox`           | `—`                                                 | `correlation_id`, `request_id`, `actor_id`, `tenant_id` | Optional owner. MUST NOT write raw idempotency keys into ContextStore unless a future SSoT introduces a safe hashed key.                                                                            |
-| `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`                        | `http.middleware.app`         | `platform/http-app`        | `path_template`                                     | `path`                                                  | Optional owner. Writes low-cardinality route/path template. MUST NOT include concrete user-controlled path parameter values.                                                                        |
+| `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`                        | `http.middleware.app`         | `platform/http-app`        | `—`                                                 | `path`                                                  | Optional owner; future integration delegates matching through RouterInterface. No direct ContextKeys writes.                                                                                        |
 | `\Coretsia\Platform\Auth\Http\Middleware\RequireAuthMiddleware::class`                 | route/policy opt-in           | `platform/auth`            | `—`                                                 | `actor_id`                                              | Opt-in middleware. MUST NOT write auth credentials, tokens, sessions, or raw identity data into ContextStore.                                                                                       |
 | `\Coretsia\Platform\Auth\Http\Middleware\RequireAbilityMiddleware::class`              | route/policy opt-in           | `platform/auth`            | `—`                                                 | `actor_id`, `tenant_id`                                 | Opt-in middleware. MUST NOT write ability names, permission payloads, tokens, sessions, or raw identity data into ContextStore.                                                                     |
 
@@ -192,7 +194,9 @@ Coretsia\Contracts\Context\ContextKeys
 
 Middleware MUST NOT create ad hoc ContextKeys.
 
-Middleware MUST NOT write, replace, or remove `ContextKeys::REQUEST_ID`.
+Middleware MUST use `Coretsia\Contracts\Context\ContextWriterInterface` for authorized mutations and `Coretsia\Contracts\Context\ContextAccessorInterface` for permitted reads. Both ports resolve to the same shared Foundation-owned context store. Middleware MUST NOT depend on concrete `ContextStore`, downcast either port, or consume snapshot, clear, or reset operations. Port availability does not grant additional key permissions.
+
+Middleware MUST NOT write, replace, or remove `ContextKeys::REQUEST_ID` or `ContextKeys::PATH_TEMPLATE`.
 
 The implemented HTTP request identity writer operates outside the PSR-15 middleware chain and is not part of this middleware context-key map.
 
@@ -229,7 +233,7 @@ The canonical HTTP request context enrichment writer in this map is:
 \Coretsia\Platform\Http\Middleware\RequestContextMiddleware::class
 ```
 
-It MAY write:
+It MAY write through `ContextWriterInterface`:
 
 ```text
 client_ip
@@ -273,13 +277,13 @@ The selected request identifier MUST remain unchanged throughout conforming requ
 
 Middleware permitted to consume request identity MUST read it through the canonical `ContextAccessorInterface` dependency policy.
 
-The narrowly scoped `RequestIdPolicy` owner-local concrete ContextStore read-back exception is governed by:
+`RequestIdPolicy` writes only `REQUEST_ID` through `ContextWriterInterface` and reads back only that key through `ContextAccessorInterface` solely for final-response identity verification. The restricted owner-local read-back is governed by:
 
 ```text
 docs/ssot/context-store.md
 ```
 
-Owner-local request identity verification does not grant concrete ContextStore access to middleware.
+Owner-local request identity verification does not extend middleware read or write permissions.
 
 Successful canonical reset MUST clear `request_id` after eligible after-UoW lifecycle handling.
 
@@ -353,15 +357,11 @@ private customer data
 
 ### Routing boundary
 
-Routing middleware MAY write:
+`path_template` is an active Routing-owned key. The sole authorized runtime writer is `Coretsia\Platform\Routing\Runtime\CompiledRouter`. During `RouterInterface::match()`, it removes stale `PATH_TEMPLATE` through `ContextWriterInterface` before input validation or route evaluation and sets the complete validated declared template only on success, before completion observability. A non-match leaves the key absent.
 
-```text
-path_template
-```
+The reserved HttpApp `RouterMiddleware` catalog entry describes future integration through `Coretsia\Contracts\Routing\RouterInterface`, not a direct context writer. Its permitted `path` read remains unchanged and MUST use `ContextAccessorInterface`. Neither middleware nor HTTP terminal dispatch may set or remove `PATH_TEMPLATE`. This map introduces no Routing middleware or middleware registration.
 
-It MUST NOT write concrete route parameter values into `path_template`.
-
-`path_template` is preferred over raw `path` for low-cardinality diagnostics.
+The template MUST NOT include concrete route parameter values or become a metric label. `path_template` is preferred over raw `path` for low-cardinality diagnostics. See `docs/ssot/routing-artifact.md`.
 
 ### Reserved slots
 
@@ -413,6 +413,7 @@ This document does not define:
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)

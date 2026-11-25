@@ -45,10 +45,18 @@ final class CliDoesNotWriteContextOrResetDirectlyContractTest extends TestCase
             }
             $sawContextAccessor = $sawContextAccessor || \str_contains($code, ContextAccessorInterface::class)
                 || \str_contains($code, 'ContextAccessorInterface');
-            foreach (['ContextStore', 'ResetOrchestrator', 'ResetInterface', 'CorrelationIdProvider'] as $forbidden) {
+            foreach (
+                [
+                    'ContextStore',
+                    'ContextWriterInterface',
+                    'ResetOrchestrator',
+                    'ResetInterface',
+                    'CorrelationIdProvider',
+                ] as $forbidden
+            ) {
                 self::assertSame(
                     0,
-                    \preg_match('~(?<![A-Za-z0-9_])' . $forbidden . '(?![A-Za-z0-9_])~', $code),
+                    \preg_match('~(?<![A-Za-z0-9_])' . $forbidden . '(?![A-Za-z0-9_])~i', $code),
                     $file->getFilename(),
                 );
             }

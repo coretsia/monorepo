@@ -23,6 +23,7 @@ use Coretsia\Contracts\Config\ConfigSourceType;
 use Coretsia\Contracts\Config\ConfigValueSource;
 use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -176,6 +177,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertInstanceOf(ContextStore::class, $context);
                 self::assertInstanceOf(RequestIdPolicy::class, $policy);
                 self::assertSame($context, $container->get(ContextAccessorInterface::class));
+                self::assertSame($context, $container->get(ContextWriterInterface::class));
                 self::assertSame($policy, $container->get(RequestIdPolicy::class));
                 self::assertInstanceOf(UuidGenerator::class, $container->get(IdGeneratorInterface::class));
                 self::assertSame(
@@ -185,6 +187,10 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 self::assertSame(
                     $context,
                     new \ReflectionProperty(RequestIdPolicy::class, 'context')->getValue($policy),
+                );
+                self::assertSame(
+                    $context,
+                    new \ReflectionProperty(RequestIdPolicy::class, 'contextAccessor')->getValue($policy),
                 );
 
                 foreach (
@@ -550,6 +556,20 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         self::assertNotEmpty($graph['services']);
         self::assertContains(RuntimePathContext::class, $set->requiredServiceIds());
         self::assertContains(ClockInterface::class, $set->requiredServiceIds());
+
+        $httpDefinitions = new ContainerDefinitionBuilder();
+        new HttpServiceProvider()->define($httpDefinitions, new ContainerDefinitionContext($config));
+        $httpSet = $httpDefinitions->build();
+        self::assertContains(ContextWriterInterface::class, $httpSet->requiredServiceIds());
+        self::assertContains(ContextAccessorInterface::class, $httpSet->requiredServiceIds());
+        self::assertNotContains(ContextStore::class, $httpSet->requiredServiceIds());
+        $httpReferences = [$httpSet->requiredServiceIds(), $httpSet->toDescriptorStream()];
+        \array_walk_recursive($httpReferences, static function (mixed $value): void {
+            if (\is_string($value)) {
+                self::assertNotSame(0, \strcasecmp(\ltrim($value, '\\'), ContextStore::class));
+            }
+        });
+
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['services']);
         self::assertArrayNotHasKey(RuntimePathContext::class, $graph['aliases']);
 
@@ -571,11 +591,11 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $expected = [
             RequestIdPolicy::class,
+            RequestContextMiddleware::class,
             SecurityHeadersPolicy::class,
             HttpsRedirectPolicy::class,
             TrustedProxyPolicy::class,
             HttpsRedirectMiddleware::class,
-            ScopedFileLock::class,
             MaintenanceStateStore::class,
             MaintenanceMiddleware::class,
             ...self::MAINTENANCE_COMMANDS,
@@ -598,7 +618,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                     $services[$operation['id']] = $operation;
                 }
 
-                if ($kind === 'service.class' && $operation['class'] === ContextStore::class) {
+                if ($kind === 'service.class' && \strcasecmp($operation['class'], ContextStore::class) === 0) {
                     $contextStores[] = $operation['id'];
                 }
             }
@@ -791,7 +811,6 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
 
         $maintenanceArguments = [
-            ScopedFileLock::class => [],
             MaintenanceStateStore::class => [
                 $ref(RuntimePathContext::class),
                 $ref(ScopedFileLock::class),
@@ -830,13 +849,20 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         self::assertSame(RequestIdPolicy::class, $services[RequestIdPolicy::class]['class']);
         self::assertSame([
-            $ref(ContextStore::class),
+            $ref(ContextWriterInterface::class),
+            $ref(ContextAccessorInterface::class),
             $ref(UlidGenerator::class),
             $requestId['enabled'],
             $requestId['header_name'],
             $requestId['accept_from_upstream'],
             $requestId['max_length'],
         ], $services[RequestIdPolicy::class]['arguments']);
+        self::assertSame(RequestContextMiddleware::class, $services[RequestContextMiddleware::class]['class']);
+        self::assertSame([
+            $ref(ContextWriterInterface::class),
+            $config['http']['context']['enrich']['enabled'],
+            $config['http']['proxy']['enabled'],
+        ], $services[RequestContextMiddleware::class]['arguments']);
 
         foreach (
             [
@@ -896,6 +922,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         self::assertSame(UuidGenerator::class, $graph['aliases'][IdGeneratorInterface::class]);
         self::assertSame(ContextStore::class, $graph['aliases'][ContextAccessorInterface::class]);
+        self::assertSame(ContextStore::class, $graph['aliases'][ContextWriterInterface::class]);
         self::assertSame(
             FallbackRouterHandler::class,
             $graph['aliases'][RequestHandlerInterface::class],
@@ -916,12 +943,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
         $compiledContextStores = [];
         foreach ($graph['services'] as $id => $service) {
-            if (($service['construction']['class'] ?? null) === ContextStore::class) {
+            if (\strcasecmp($service['construction']['class'] ?? '', ContextStore::class) === 0) {
                 $compiledContextStores[] = $id;
             }
         }
 
         self::assertSame([ContextStore::class], $compiledContextStores);
+        self::assertTrue($graph['services'][ContextStore::class]['shared']);
 
         $compiledMiddlewareTags = \array_filter(
             $graph['tags'],
@@ -970,7 +998,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         self::assertSame($graph['tags'], $oppositeGraph['tags']);
 
         $expectedServices = $graph['services'];
-        $expectedServices[RequestIdPolicy::class]['arguments'][2] = !$requestIdEnabled;
+        $expectedServices[RequestIdPolicy::class]['arguments'][3] = !$requestIdEnabled;
         $expectedServices[MaintenanceMiddleware::class]['arguments'][5] = false;
 
         self::assertSame($expectedServices, $oppositeGraph['services']);
@@ -1123,7 +1151,6 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 'metricsEnabled',
                 'accessLogEnabled',
             ],
-            ScopedFileLock::class => [],
             MaintenanceStateStore::class => ['paths', 'locks'],
             MaintenanceMiddleware::class => [
                 'state',
@@ -1141,6 +1168,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             MaintenanceStatusCommand::class => ['stateStore'],
             RequestIdPolicy::class => [
                 'context',
+                'contextAccessor',
                 'generator',
                 'enabled',
                 'headerName',
@@ -2119,7 +2147,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
 
                 foreach (
                     [
-                        ['/', 200, 'text/html; charset=utf-8', "<h1>Hello Coretsia</h1>\n"],
+                        ['/', 404, null, ''],
                         ['/ping', 200, 'application/json', "{\"ok\":true,\"ts\":1700000000}\n"],
                         ['/_alive', 200, 'text/plain; charset=utf-8', 'ALIVE'],
                         ['/health', 501, 'application/json', "{\"error\":\"owner missing\"}\n"],

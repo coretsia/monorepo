@@ -178,41 +178,43 @@ The method/type mapping is canonical:
 - `MeterPortInterface::increment(...)` MUST be used only with `counter` metrics.
 - `MeterPortInterface::observe(...)` MUST be used only with `observe` metrics.
 
-| Metric name                              | Owner             | Type    | Labels                           |
-|------------------------------------------|-------------------|---------|----------------------------------|
-| http.request_total                       | `platform/http`   | counter | `method`, `status`, `outcome`    |
-| http.request_duration_ms                 | `platform/http`   | observe | `method`, `status`, `outcome`    |
-| http.https_redirect_total                | `platform/http`   | counter | `outcome`                        |
-| http.maintenance_total                   | `platform/http`   | counter | `outcome`                        |
-| http.system_endpoint_total               | `platform/http`   | counter | `operation`, `status`, `outcome` |
-| http.debug_total                         | `platform/http`   | counter | `operation`, `outcome`           |
-| cli.command_total                        | `platform/cli`    | counter | `operation`, `outcome`           |
-| cli.command_duration_ms                  | `platform/cli`    | observe | `operation`, `outcome`           |
-| error.map_total                          | `platform/errors` | counter | `operation`, `outcome`           |
-| error.map_duration_ms                    | `platform/errors` | observe | `operation`, `outcome`           |
-| foundation.reset_total                   | `core/foundation` | counter | `outcome`                        |
-| foundation.reset_duration_ms             | `core/foundation` | observe | `outcome`                        |
-| kernel.uow_total                         | `core/kernel`     | counter | `operation`, `outcome`           |
-| kernel.uow_duration_ms                   | `core/kernel`     | observe | `operation`, `outcome`           |
-| kernel.modules_resolve_total             | `core/kernel`     | counter | `operation`, `outcome`           |
-| kernel.modules_resolve_duration_ms       | `core/kernel`     | observe | `operation`, `outcome`           |
-| kernel.operation_total                   | `core/kernel`     | counter | `operation`, `outcome`           |
-| kernel.operation_duration_ms             | `core/kernel`     | observe | `operation`, `outcome`           |
-| kernel.config_merge_total                | `core/kernel`     | counter | `outcome`                        |
-| kernel.config_merge_duration_ms          | `core/kernel`     | observe | `outcome`                        |
-| kernel.config_explain_total              | `core/kernel`     | counter | `outcome`                        |
-| kernel.config_explain_duration_ms        | `core/kernel`     | observe | `outcome`                        |
-| kernel.artifacts_write_total             | `core/kernel`     | counter | `outcome`                        |
-| kernel.artifacts_write_duration_ms       | `core/kernel`     | observe | `outcome`                        |
-| kernel.fingerprint_calculate_total       | `core/kernel`     | counter | `outcome`                        |
-| kernel.fingerprint_calculate_duration_ms | `core/kernel`     | observe | `outcome`                        |
-| kernel.container_compile_total           | `core/kernel`     | counter | `outcome`                        |
-| kernel.container_compile_duration_ms     | `core/kernel`     | observe | `outcome`                        |
-| kernel.cache_verify_total                | `core/kernel`     | counter | `outcome`                        |
-| kernel.cache_verify_duration_ms          | `core/kernel`     | observe | `outcome`                        |
-| worker.process_total                     | `platform/worker` | counter | `status`                         |
-| worker.task_total                        | `platform/worker` | counter | `operation`, `outcome`           |
-| worker.task_duration_ms                  | `platform/worker` | observe | `operation`, `outcome`           |
+| Metric name                              | Owner              | Type    | Labels                           |
+|------------------------------------------|--------------------|---------|----------------------------------|
+| http.request_total                       | `platform/http`    | counter | `method`, `status`, `outcome`    |
+| http.request_duration_ms                 | `platform/http`    | observe | `method`, `status`, `outcome`    |
+| http.https_redirect_total                | `platform/http`    | counter | `outcome`                        |
+| http.maintenance_total                   | `platform/http`    | counter | `outcome`                        |
+| http.system_endpoint_total               | `platform/http`    | counter | `operation`, `status`, `outcome` |
+| http.debug_total                         | `platform/http`    | counter | `operation`, `outcome`           |
+| routing.match_total                      | `platform/routing` | counter | `method`, `outcome`              |
+| routing.match_duration_ms                | `platform/routing` | observe | `method`, `outcome`              |
+| cli.command_total                        | `platform/cli`     | counter | `operation`, `outcome`           |
+| cli.command_duration_ms                  | `platform/cli`     | observe | `operation`, `outcome`           |
+| error.map_total                          | `platform/errors`  | counter | `operation`, `outcome`           |
+| error.map_duration_ms                    | `platform/errors`  | observe | `operation`, `outcome`           |
+| foundation.reset_total                   | `core/foundation`  | counter | `outcome`                        |
+| foundation.reset_duration_ms             | `core/foundation`  | observe | `outcome`                        |
+| kernel.uow_total                         | `core/kernel`      | counter | `operation`, `outcome`           |
+| kernel.uow_duration_ms                   | `core/kernel`      | observe | `operation`, `outcome`           |
+| kernel.modules_resolve_total             | `core/kernel`      | counter | `operation`, `outcome`           |
+| kernel.modules_resolve_duration_ms       | `core/kernel`      | observe | `operation`, `outcome`           |
+| kernel.operation_total                   | `core/kernel`      | counter | `operation`, `outcome`           |
+| kernel.operation_duration_ms             | `core/kernel`      | observe | `operation`, `outcome`           |
+| kernel.config_merge_total                | `core/kernel`      | counter | `outcome`                        |
+| kernel.config_merge_duration_ms          | `core/kernel`      | observe | `outcome`                        |
+| kernel.config_explain_total              | `core/kernel`      | counter | `outcome`                        |
+| kernel.config_explain_duration_ms        | `core/kernel`      | observe | `outcome`                        |
+| kernel.artifacts_write_total             | `core/kernel`      | counter | `outcome`                        |
+| kernel.artifacts_write_duration_ms       | `core/kernel`      | observe | `outcome`                        |
+| kernel.fingerprint_calculate_total       | `core/kernel`      | counter | `outcome`                        |
+| kernel.fingerprint_calculate_duration_ms | `core/kernel`      | observe | `outcome`                        |
+| kernel.container_compile_total           | `core/kernel`      | counter | `outcome`                        |
+| kernel.container_compile_duration_ms     | `core/kernel`      | observe | `outcome`                        |
+| kernel.cache_verify_total                | `core/kernel`      | counter | `outcome`                        |
+| kernel.cache_verify_duration_ms          | `core/kernel`      | observe | `outcome`                        |
+| worker.process_total                     | `platform/worker`  | counter | `status`                         |
+| worker.task_total                        | `platform/worker`  | counter | `operation`, `outcome`           |
+| worker.task_duration_ms                  | `platform/worker`  | observe | `operation`, `outcome`           |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -659,7 +661,7 @@ outcome
 
 The allowed label combinations are exactly:
 
-- `operation` = `home`, `ping`, or `alive`; `status` = integer `200`; `outcome` = `served`.
+- `operation` = `ping` or `alive`; `status` = integer `200`; `outcome` = `served`.
 - `operation` = `health` or `metrics`; `status` = integer `501`; `outcome` = `owner_unavailable`.
 - `operation` = `error`; `status` = string `unknown`; `outcome` = `intentional_error`.
 
@@ -725,6 +727,80 @@ Metric and warning emission MUST be independently failure-isolated, without retr
 Debug-decision observations MUST NOT be duplicated through `http.system_endpoint_total`. Completed decisions remain independent of subsequent response decoration, error rendering, finalization, and HTTP completion failures. The canonical request metrics, `http.request` span, `http.request.completed` event, and UnitOfWork outcome retain their finalized request semantics. A successfully finalized forbidden response has outcome `handled_error`.
 
 Debug labels and warning context MUST NOT contain raw paths, queries, headers, IP addresses, credentials, token digests, config keys or values, module or generation metadata, request identifiers, guard reasons, or Throwable data. No debug-specific span, duration metric, additional request completion event, or lifecycle signal is permitted.
+
+### Routing match observability policy
+
+Routing match observability is owned by `platform/routing` through `RoutingMatchObserver`.
+
+The canonical span is:
+
+```text
+routing.match
+```
+
+The canonical metrics are:
+
+```text
+routing.match_total
+routing.match_duration_ms
+```
+
+Both metrics MUST use exactly the following labels:
+
+```text
+method
+outcome
+```
+
+Allowed `method` values are exactly:
+
+```text
+GET
+HEAD
+POST
+PUT
+PATCH
+DELETE
+OPTIONS
+TRACE
+CONNECT
+OTHER
+```
+
+Method classification MUST use exact byte-for-byte matching. All unsupported or malformed values map to `OTHER` for observability only; this sentinel MUST NOT be accepted as a routing method.
+
+Allowed `outcome` values are exactly:
+
+```text
+matched
+not_matched
+```
+
+`matched` means the matching operation returned a canonical `RouteMatch`; `not_matched` means it returned `null`, including invalid, non-canonical, unsupported, reserved, and unmatched input. Completion requires successful completion of the associated `PATH_TEMPLATE` mutation. Unexpected matching or context mutation failures MUST propagate unchanged and MUST NOT produce completed-match metrics or logs.
+
+The initial span attributes MUST contain only `method`. On completion, the observer MUST attempt to set `outcome` and, only for `matched`, `path_template` to the complete validated declared template. A successfully started span MUST be ended once, including on unexpected matching failure. Raw Throwable objects MUST NOT be recorded.
+
+When `routing.metrics.enabled` is `true`, the observer MUST attempt exactly one counter increment with value `1` per completed operation. Duration measurement uses Foundation `Stopwatch` only when metrics are enabled. A successful measurement in the integer millisecond range `0..4294967295` MUST be observed with the same labels; an unavailable or out-of-range measurement MUST be omitted, not replaced by a synthetic zero.
+
+When `routing.logging.enabled` is `true`, the observer MUST attempt exactly one PSR-3 `debug` log per completed matching operation with the fixed event identifier:
+
+```text
+routing.match.completed
+```
+
+The producer-supplied log context MUST contain only:
+
+- `method`: one of the bounded method values above;
+- `outcome`: exactly `matched` or `not_matched`;
+- `path_template`: the complete validated declared template, present only when `outcome = matched`.
+
+`path_template` MUST NOT be a metric label. Routing signals MUST NOT contain raw paths, hosts, queries, matched parameter values, handler identifiers, raw request data, or Throwable messages.
+
+The boolean settings `routing.tracing.enabled`, `routing.metrics.enabled`, and `routing.logging.enabled` default to `true` and independently control Routing signals. Tracer start, span attribute updates, span end, stopwatch start/stop, counter increment, duration observation, and logger calls MUST be independently observability-isolated. Failure of one signal MUST NOT suppress another otherwise eligible signal, change the matching result, or replace the primary failure. Span and timer handles are invocation-local. Failed signals MUST NOT be retried.
+
+Routing MUST use the effective PSR-3 logger binding; the Foundation noop logger emits nothing. Log admission, filtering, enrichment, formatting, and sink selection remain governed by `docs/ssot/logging-policy.md`, and redaction by `docs/ssot/sensitive-data-redaction.md`. Producer-supplied context is distinct from sink-enriched context. A log attempt does not guarantee sink emission.
+
+Routing matching telemetry is independent of finalized HTTP request and CLI command completion telemetry. `routing.match.completed` does not establish a response status, HTTP request outcome, command exit code, or UnitOfWork outcome. Routing MUST NOT duplicate `http.request.completed`, CLI `cli.command` lifecycle logs, or their metrics and spans.
 
 ### CLI command observability policy
 
@@ -1122,6 +1198,7 @@ The following label keys are forbidden in the baseline policy:
 - `field`
 - `fingerprint`
 - `path`
+- `path_template`
 - `property`
 - `request_id`
 - `correlation_id`
@@ -1154,6 +1231,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 ### Canonical Spans
 
 - `http.request`
+- `routing.match`
 - `cli.command`
 - `error.map`
 - `foundation.reset`
@@ -1220,4 +1298,6 @@ This document does not add reset logging payload fields beyond the reset summary
 - [SSoT Index](./INDEX.md)
 - [HTTP System Endpoints SSoT](./http-system-endpoints.md) — terminal system-endpoint behavior and endpoint-decision measurement boundary.
 - [Observability and errors](./observability-and-errors.md) — reset observability safety policy, sanitized reset exception recording, and summary-only reset logs/metrics/spans.
+- [Routing Artifact SSoT](./routing-artifact.md) — canonical matching and owner-artifact lifecycle.
+- [Logging Policy SSoT](./logging-policy.md) — PSR-3 sink admission and enrichment.
 - [Sensitive Data Redaction SSoT](./sensitive-data-redaction.md) — canonical shared redaction mechanics, summaries, hashing, and disclosure policy.

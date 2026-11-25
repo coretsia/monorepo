@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Provider;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -33,6 +34,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterfac
 use Coretsia\Foundation\Container\Definition\ContainerValueReference;
 use Coretsia\Foundation\Container\ServiceProviderInterface;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
@@ -71,7 +73,8 @@ use Psr\Log\LoggerInterface;
  * - `FrozenClock` remains test/support infrastructure and is not registered;
  * - `IdGeneratorInterface` aliases the configured shared ULID or UUID target;
  * - `foundation.ids.default` does not affect correlation-id generation;
- * - `ContextAccessorInterface` aliases the shared `ContextStore`;
+ * - `ContextAccessorInterface` and `ContextWriterInterface` alias the same
+ *   shared `ContextStore`;
  * - correlation services remain ULID-backed;
  * - noop logging and observability implementations are defined directly under
  *   their public port/interface service IDs;
@@ -139,6 +142,10 @@ final class FoundationServiceProvider implements
                 Stopwatch::class,
             )
             ->classService(
+                ScopedFileLock::class,
+                ScopedFileLock::class,
+            )
+            ->classService(
                 UlidGenerator::class,
                 UlidGenerator::class,
             )
@@ -156,6 +163,10 @@ final class FoundationServiceProvider implements
             )
             ->alias(
                 ContextAccessorInterface::class,
+                ContextStore::class,
+            )
+            ->alias(
+                ContextWriterInterface::class,
                 ContextStore::class,
             )
             ->classService(

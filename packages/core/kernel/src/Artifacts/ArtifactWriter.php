@@ -21,6 +21,8 @@ namespace Coretsia\Kernel\Artifacts;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
+use Coretsia\Foundation\Filesystem\AtomicFileWriter;
+use Coretsia\Foundation\Filesystem\Exception\AtomicFileWriteException;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactPayloadInvalidException;
 use Coretsia\Kernel\Artifacts\Exception\ArtifactWriteFailedException;
@@ -37,10 +39,14 @@ use Psr\Log\LoggerInterface;
  * - exactly one final newline;
  * - temporary file creation in the same target directory;
  * - full temporary file write before rename;
- * - POSIX close-on-exec for package-owned local file handles;
+ * - POSIX close-on-exec for durable local file handles;
  * - atomic rename where supported by the filesystem/PHP runtime;
  * - best-effort temporary file cleanup on failure;
  * - best-effort write-time permissions.
+ *
+ * Ordinary atomic byte publication is delegated to Foundation's
+ * AtomicFileWriter. Durable file writes and generation replacement remain
+ * Kernel-owned operations.
  *
  * This writer intentionally does not:
  *
@@ -76,10 +82,9 @@ final readonly class ArtifactWriter
     private const int MAX_SAFE_COUNT = 1_000_000_000;
     private const int MAX_SAFE_PATH_BYTES = 512;
 
-    private const string TEMP_PREFIX = '.coretsia-artifact-';
-
     public function __construct(
         private StablePhpArrayDumper $phpArrayDumper,
+        private AtomicFileWriter $atomicFileWriter,
         private TracerPortInterface $tracer,
         private MeterPortInterface $meter,
         private LoggerInterface $logger,
@@ -301,112 +306,19 @@ final readonly class ArtifactWriter
      */
     private function writeAtomically(string $targetPath, string $bytes): void
     {
-        if ($targetPath === '') {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_INVALID,
-            );
-        }
-
-        $targetDirectory = self::targetDirectory($targetPath);
-
-        $this->ensureTargetDirectory($targetDirectory);
-
-        $temporaryPath = $this->createTemporaryFile($targetDirectory);
-
         try {
-            $this->writeFullTemporaryFile($temporaryPath, $bytes);
-            $this->applyBestEffortPermissions($temporaryPath);
-            $this->renameTemporaryFile($temporaryPath, $targetPath);
-
-            $temporaryPath = null;
-        } finally {
-            if ($temporaryPath !== null) {
-                self::cleanupTemporaryFile($temporaryPath);
-            }
-        }
-    }
-
-    /**
-     * @throws ArtifactWriteFailedException
-     */
-    private function ensureTargetDirectory(string $targetDirectory): void
-    {
-        if ($targetDirectory === '') {
+            $this->atomicFileWriter->write($targetPath, $bytes);
+        } catch (AtomicFileWriteException $exception) {
             throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_INVALID,
-            );
-        }
-
-        if (@\is_dir($targetDirectory)) {
-            return;
-        }
-
-        if (@\file_exists($targetDirectory)) {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_INVALID,
-            );
-        }
-
-        if (!@\mkdir($targetDirectory, 0775, true) && !@\is_dir($targetDirectory)) {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_CREATE_FAILED,
-            );
-        }
-    }
-
-    /**
-     * @return non-empty-string
-     *
-     * @throws ArtifactWriteFailedException
-     */
-    private function createTemporaryFile(string $targetDirectory): string
-    {
-        $temporaryPath = @\tempnam($targetDirectory, self::TEMP_PREFIX);
-
-        if ($temporaryPath === false) {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TEMP_FILE_CREATE_FAILED,
-            );
-        }
-
-        if (!self::sameDirectory(\dirname($temporaryPath), $targetDirectory)) {
-            self::cleanupTemporaryFile($temporaryPath);
-
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TEMP_FILE_CREATE_FAILED,
-            );
-        }
-
-        return $temporaryPath;
-    }
-
-    /**
-     * @throws ArtifactWriteFailedException
-     */
-    private function writeFullTemporaryFile(string $temporaryPath, string $bytes): void
-    {
-        $written = @\file_put_contents($temporaryPath, $bytes, \LOCK_EX);
-
-        if (!\is_int($written) || $written !== \strlen($bytes)) {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TEMP_FILE_WRITE_FAILED,
-            );
-        }
-    }
-
-    private function applyBestEffortPermissions(string $temporaryPath): void
-    {
-        @\chmod($temporaryPath, self::FILE_PERMISSIONS);
-    }
-
-    /**
-     * @throws ArtifactWriteFailedException
-     */
-    private function renameTemporaryFile(string $temporaryPath, string $targetPath): void
-    {
-        if (!@\rename($temporaryPath, $targetPath)) {
-            throw ArtifactWriteFailedException::withReason(
-                ArtifactWriteFailedException::REASON_TEMP_FILE_RENAME_FAILED,
+                match ($exception->reason()) {
+                    AtomicFileWriteException::REASON_TARGET_DIRECTORY_INVALID => ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_INVALID,
+                    AtomicFileWriteException::REASON_TARGET_DIRECTORY_CREATE_FAILED => ArtifactWriteFailedException::REASON_TARGET_DIRECTORY_CREATE_FAILED,
+                    AtomicFileWriteException::REASON_TEMP_FILE_CREATE_FAILED => ArtifactWriteFailedException::REASON_TEMP_FILE_CREATE_FAILED,
+                    AtomicFileWriteException::REASON_TEMP_FILE_WRITE_FAILED => ArtifactWriteFailedException::REASON_TEMP_FILE_WRITE_FAILED,
+                    AtomicFileWriteException::REASON_TEMP_FILE_RENAME_FAILED => ArtifactWriteFailedException::REASON_TEMP_FILE_RENAME_FAILED,
+                    default => ArtifactWriteFailedException::REASON_WRITE_FAILED,
+                },
+                $exception,
             );
         }
     }
@@ -797,13 +709,6 @@ final readonly class ArtifactWriter
         string $path,
     ): bool {
         return @\file_exists($path) || @\is_link($path);
-    }
-
-    private static function cleanupTemporaryFile(string $temporaryPath): void
-    {
-        if (@\file_exists($temporaryPath)) {
-            @\unlink($temporaryPath);
-        }
     }
 
     private static function safeOutcome(string $outcome): string

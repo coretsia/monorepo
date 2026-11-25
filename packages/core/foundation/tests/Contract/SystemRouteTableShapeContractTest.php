@@ -16,9 +16,9 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Platform\Http\Tests\Contract;
+namespace Coretsia\Foundation\Tests\Contract;
 
-use Coretsia\Platform\Http\System\SystemRouteTable;
+use Coretsia\Foundation\Routing\SystemRouteTable;
 use PHPUnit\Framework\TestCase;
 
 final class SystemRouteTableShapeContractTest extends TestCase
@@ -26,7 +26,7 @@ final class SystemRouteTableShapeContractTest extends TestCase
     public function testRegistryExposesOnlyTheCanonicalImmutableMetadataApi(): void
     {
         $reflection = new \ReflectionClass(SystemRouteTable::class);
-        self::assertSame('Coretsia\\Platform\\Http\\System', $reflection->getNamespaceName());
+        self::assertSame('Coretsia\\Foundation\\Routing', $reflection->getNamespaceName());
         self::assertSame('SystemRouteTable', $reflection->getShortName());
         self::assertTrue($reflection->isFinal());
         self::assertFalse($reflection->isInstantiable());
@@ -133,10 +133,9 @@ final class SystemRouteTableShapeContractTest extends TestCase
         }
     }
 
-    public function testCurrentRegistryContainsExactlyTheNineCanonicalDeclarations(): void
+    public function testCurrentRegistryContainsExactlyTheEightCanonicalDeclarations(): void
     {
         self::assertSame([
-            ['owner' => 'platform/http', 'pattern' => '/', 'status' => 'active', 'type' => 'exact'],
             ['owner' => 'platform/http', 'pattern' => '/_alive', 'status' => 'active', 'type' => 'exact'],
             ['owner' => 'platform/http', 'pattern' => '/_debug', 'status' => 'dev_only', 'type' => 'exact'],
             ['owner' => 'platform/http', 'pattern' => '/_debug/', 'status' => 'dev_only', 'type' => 'prefix'],
@@ -173,12 +172,8 @@ final class SystemRouteTableShapeContractTest extends TestCase
             );
 
             $pattern = $entry['pattern'];
-            if ($pattern === '/') {
-                self::assertSame('exact', $entry['type']);
-            } else {
-                self::assertMatchesRegularExpression('~\A/[a-z0-9_-]+(?:/[a-z0-9_-]+)*/?\z~', $pattern);
-                self::assertSame($entry['type'] === 'prefix', \str_ends_with($pattern, '/'));
-            }
+            self::assertMatchesRegularExpression('~\A/[a-z0-9_-]+(?:/[a-z0-9_-]+)*/?\z~', $pattern);
+            self::assertSame($entry['type'] === 'prefix', \str_ends_with($pattern, '/'));
 
             self::assertArrayNotHasKey($pattern, $seen);
             foreach ($seen as $other) {
@@ -202,8 +197,6 @@ final class SystemRouteTableShapeContractTest extends TestCase
             $seen[$pattern] = $entry;
         }
 
-        self::assertSame('exact', $seen['/']['type']);
-        self::assertSame('platform/http', $seen['/']['owner']);
         self::assertSame('exact', $seen['/health']['type']);
         self::assertSame('prefix', $seen['/health/']['type']);
         self::assertSame('exact', $seen['/_debug']['type']);

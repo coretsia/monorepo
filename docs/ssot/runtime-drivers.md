@@ -199,7 +199,7 @@ bg.scheduler
 
 Reserved future ids are not part of the current `RuntimeDriverResolver` vocabulary.
 
-They MUST NOT be activated by `RuntimeDriverResolver` unless a later owner epic updates this SSoT.
+They MUST NOT be activated by `RuntimeDriverResolver` unless this SSoT promotes them into the active matrix.
 
 ## Worker internal OS process-driver boundary
 
@@ -528,7 +528,7 @@ Notes:
 
 ## Reserved future ids
 
-The following ids are reserved for future owner epics and are not active current resolver inputs:
+The following ids are reserved and are not active current resolver inputs:
 
 ```text
 bg.queue
@@ -537,7 +537,7 @@ bg.scheduler
 
 `RuntimeDriverResolver` MUST NOT activate them until this SSoT promotes them.
 
-A future epic MAY promote a reserved id into the active matrix only by updating this SSoT.
+A reserved id MAY be promoted into the active matrix only by updating this SSoT.
 
 ## Hard compatibility rules
 
@@ -1056,7 +1056,9 @@ The current Worker entrypoint MUST treat this document as normative:
 coretsia worker:start
 ```
 
-Future HTTP adapter owners must treat the matrix rules in this document as normative while owning their own package/module/readiness prerequisites.
+HTTP adapter owners MUST treat the matrix rules in this document as normative while owning their own package/module/readiness prerequisites.
+
+The HTTP-owned `HttpRuntimeEntrypointGuard` validates effective HTTP module participation, delegates the matrix to `RuntimeDriverResolver`, and validates the selected `http.factory` and effective PSR-17 response and stream factory bindings before checking selected Routing artifact readiness. It MUST complete these checks before HTTP runtime construction, without starting a UnitOfWork or constructing a fallback factory. The owner-artifact readiness check applies wherever this guard is used, independently of the selected HTTP driver; it is not a Kernel matrix rule.
 
 No runtime entrypoint may add local Kernel matrix rules that conflict with this SSoT.
 
@@ -1129,7 +1131,13 @@ routes.php
 
 It MUST NOT be produced, path-resolved, schema-validated, or cache-verified by `core/kernel`.
 
-Production, path policy, schema validation, and verification of `routes.php` belong to `platform/routing`.
+Production, path policy, schema validation, and verification of `routes.php` belong to `platform/routing` under `docs/ssot/routing-artifact.md`. The file resides directly under `RuntimePathContext::artifactRoot()`, outside the selected Kernel immutable generation.
+
+After HTTP module, driver, and effective PSR-17 factory validation, `HttpRuntimeEntrypointGuard` MUST resolve `Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface` and invoke `assertReady()` only if the effective target `ModulePlan` enables `platform.routing`. Installation alone is insufficient. The binding MUST implement the port; an invalid binding fails with `http-routing-artifact-readiness-invalid`. Missing bindings or owner-artifact validation failures MUST prevent startup.
+
+The Routing implementation establishes readiness by hydrating the same shared immutable validated `CompiledRouteTable` consumed by its router. Validation covers canonical bytes, exact envelope and schema, authoritative target and environment fingerprint, payload safety, resource limits, route semantics, and reserved domains. `assertReady()` MUST NOT perform another artifact read or parse. HTTP MUST NOT construct another route table or implement Routing validation. Missing or invalid artifacts MUST NOT trigger source compilation, regeneration, or repair.
+
+If `platform.routing` is not enabled, the guard MUST NOT resolve the readiness port or require `routes.php`. Kernel generation verification does not verify the Routing artifact. Owner readiness MUST NOT introduce direct HTTP-to-Routing or Kernel-to-Routing implementation dependencies or affect the driver compatibility matrix.
 
 Therefore, artifact-only HTTP boot uses a composite requirement:
 
@@ -1433,6 +1441,7 @@ This SSoT does not define:
 - [Kernel Artifacts, Fingerprint, and Cache Verification](./artifacts-and-fingerprint.md)
 - [Config Roots Registry](./config-roots.md)
 - [ContextStore lifecycle SSoT](./context-lifecycle.md)
+- [Routing Artifact SSoT](./routing-artifact.md)
 - [Modules and manifests SSoT](./modules-and-manifests.md)
 - [Reset Tags SSoT](./reset-tags.md)
 - [Stateful Services SSoT](./stateful-services.md)

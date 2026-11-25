@@ -29,6 +29,7 @@ use Coretsia\Contracts\Observability\Tracing\SpanInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Foundation\Container\Container;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionProviderInterface;
+use Coretsia\Foundation\Filesystem\AtomicFileWriter;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Artifacts\ArtifactEnvelopeFactory;
 use Coretsia\Kernel\Artifacts\ArtifactWriter;
@@ -854,6 +855,7 @@ final class ArtifactPipelineTestSupport
     {
         return new ArtifactWriter(
             phpArrayDumper: new StablePhpArrayDumper(new PayloadNormalizer()),
+            atomicFileWriter: new AtomicFileWriter(),
             tracer: self::tracer($testCase),
             meter: self::meter(),
             logger: self::logger(),

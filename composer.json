@@ -40,22 +40,23 @@
     "ext-ctype": "*",
     "ext-dom": "*",
     "ext-libxml": "*",
-    "coretsia/core-contracts": "0.13.x-dev",
-    "coretsia/core-dto-attribute": "0.13.x-dev",
-    "coretsia/core-foundation": "0.13.x-dev",
-    "coretsia/core-kernel": "0.13.x-dev",
-    "coretsia/devtools-internal-toolkit": "0.13.x-dev",
-    "coretsia/framework": "0.13.x-dev",
-    "coretsia/platform-cli": "0.13.x-dev",
-    "coretsia/platform-errors": "0.13.x-dev",
-    "coretsia/platform-http": "0.13.x-dev",
-    "coretsia/platform-logging": "0.13.x-dev",
-    "coretsia/platform-metrics": "0.13.x-dev",
-    "coretsia/platform-problem-details": "0.13.x-dev",
-    "coretsia/platform-redaction": "0.13.x-dev",
-    "coretsia/platform-tracing": "0.13.x-dev",
-    "coretsia/platform-worker": "0.13.x-dev",
-    "coretsia/skeleton": "0.13.x-dev",
+    "coretsia/core-contracts": "0.14.x-dev",
+    "coretsia/core-dto-attribute": "0.14.x-dev",
+    "coretsia/core-foundation": "0.14.x-dev",
+    "coretsia/core-kernel": "0.14.x-dev",
+    "coretsia/devtools-internal-toolkit": "0.14.x-dev",
+    "coretsia/framework": "0.14.x-dev",
+    "coretsia/platform-cli": "0.14.x-dev",
+    "coretsia/platform-errors": "0.14.x-dev",
+    "coretsia/platform-http": "0.14.x-dev",
+    "coretsia/platform-logging": "0.14.x-dev",
+    "coretsia/platform-metrics": "0.14.x-dev",
+    "coretsia/platform-problem-details": "0.14.x-dev",
+    "coretsia/platform-redaction": "0.14.x-dev",
+    "coretsia/platform-routing": "0.14.x-dev",
+    "coretsia/platform-tracing": "0.14.x-dev",
+    "coretsia/platform-worker": "0.14.x-dev",
+    "coretsia/skeleton": "0.14.x-dev",
     "deptrac/deptrac": "^4.6",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
@@ -81,7 +82,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/skeleton": "0.13.x-dev"
+          "coretsia/skeleton": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -93,7 +94,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-contracts": "0.13.x-dev"
+          "coretsia/core-contracts": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -105,7 +106,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-dto-attribute": "0.13.x-dev"
+          "coretsia/core-dto-attribute": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -117,7 +118,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-foundation": "0.13.x-dev"
+          "coretsia/core-foundation": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -129,7 +130,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/core-kernel": "0.13.x-dev"
+          "coretsia/core-kernel": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -141,7 +142,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/devtools-internal-toolkit": "0.13.x-dev"
+          "coretsia/devtools-internal-toolkit": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -153,7 +154,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/framework": "0.13.x-dev"
+          "coretsia/framework": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -165,7 +166,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-cli": "0.13.x-dev"
+          "coretsia/platform-cli": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -177,7 +178,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-errors": "0.13.x-dev"
+          "coretsia/platform-errors": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -189,7 +190,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-http": "0.13.x-dev"
+          "coretsia/platform-http": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -201,7 +202,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-logging": "0.13.x-dev"
+          "coretsia/platform-logging": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -213,7 +214,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-metrics": "0.13.x-dev"
+          "coretsia/platform-metrics": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -225,7 +226,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-problem-details": "0.13.x-dev"
+          "coretsia/platform-problem-details": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -237,7 +238,19 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-redaction": "0.13.x-dev"
+          "coretsia/platform-redaction": "0.14.x-dev"
+        }
+      },
+      "coretsia_managed": true
+    },
+    {
+      "type": "path",
+      "url": "packages/platform/routing",
+      "options": {
+        "symlink": true,
+        "reference": "config",
+        "versions": {
+          "coretsia/platform-routing": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -249,7 +262,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-tracing": "0.13.x-dev"
+          "coretsia/platform-tracing": "0.14.x-dev"
         }
       },
       "coretsia_managed": true
@@ -261,7 +274,7 @@
         "symlink": true,
         "reference": "config",
         "versions": {
-          "coretsia/platform-worker": "0.13.x-dev"
+          "coretsia/platform-worker": "0.14.x-dev"
         }
       },
       "coretsia_managed": true

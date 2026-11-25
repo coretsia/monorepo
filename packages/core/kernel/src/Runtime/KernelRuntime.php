@@ -19,13 +19,13 @@ declare(strict_types=1);
 namespace Coretsia\Kernel\Runtime;
 
 use Coretsia\Contracts\Context\ContextKeys;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorDescriptor;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
 use Coretsia\Contracts\Observability\Tracing\TracerPortInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
-use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Runtime\Reset\ResetOrchestrator;
@@ -86,7 +86,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     private \WeakMap $openUnitOfWorkStartTokens;
 
     public function __construct(
-        private ContextStore $contextStore,
+        private ContextWriterInterface $contextStore,
         private ResetOrchestrator $resetOrchestrator,
         private Stopwatch $stopwatch,
         private IdGeneratorInterface $uowIds,
@@ -296,7 +296,7 @@ final readonly class KernelRuntime implements KernelRuntimeInterface
     }
 
     /**
-     * Creates the UnitOfWork context and writes the base ContextStore keys.
+     * Creates the UnitOfWork context and writes the base context keys.
      *
      * Reset responsibility starts only after this method returns successfully.
      *

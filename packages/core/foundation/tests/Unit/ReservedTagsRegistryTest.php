@@ -45,6 +45,7 @@ final class ReservedTagsRegistryTest extends TestCase
             'kernel.hook.before_uow',
             'kernel.reset',
             'kernel.stateful',
+            'routing.route_provider',
             'worker.task_source',
         ];
     }
@@ -76,6 +77,8 @@ final class ReservedTagsRegistryTest extends TestCase
         self::assertSame('kernel.hook.before_uow', ReservedTags::KERNEL_HOOK_BEFORE_UOW);
         self::assertSame('kernel.reset', ReservedTags::KERNEL_RESET);
         self::assertSame('kernel.stateful', ReservedTags::KERNEL_STATEFUL);
+
+        self::assertSame('routing.route_provider', ReservedTags::ROUTING_ROUTE_PROVIDER);
 
         self::assertSame('worker.task_source', ReservedTags::WORKER_TASK_SOURCE);
     }

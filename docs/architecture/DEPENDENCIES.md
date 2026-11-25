@@ -26,10 +26,6 @@
 > Repository structure and layer-level architectural explanation are provided by:
 >
 > - `docs/architecture/STRUCTURE.md`
->
-> Conceptual guide (non-authoritative):
->
-> - `docs/guides/dependency-graph.md`
 
 ---
 
@@ -328,16 +324,21 @@ The canonical empty dependency marker is:
 | platform/metrics          | core/contracts, core/foundation              |       |
 | platform/problem-details  | core/contracts, core/foundation              |       |
 | platform/redaction        | core/contracts, core/foundation              |       |
+| platform/routing          | core/contracts, core/foundation, core/kernel |       |
 | platform/tracing          | core/contracts, core/foundation              |       |
 | platform/worker           | core/contracts, core/foundation, core/kernel |       |
 
-The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`; its existing source dependency permissions remain unchanged.
+The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`.
 
-The `platform/errors` → `platform/redaction` dependency is likewise a runtime-only Composer edge backed by the direct `platform.redaction` module requirement. Errors consumes `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementations. Neither runtime-only edge belongs in the matrix `depends_on` cells or the generated Deptrac allowlist. `platform/worker` source and Composer dependencies remain unchanged.
+The `platform/errors` → `platform/redaction` dependency is likewise a runtime-only Composer edge backed by the direct `platform.redaction` module requirement. Errors consumes `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementations. Neither runtime-only edge belongs in the matrix `depends_on` cells or the generated Deptrac allowlist.
 
 The `platform/logging` → `core/kernel` and `platform/logging` → `platform/redaction` edges are runtime-only Composer/module requirements. Kernel supplies the already selected app target through the contracts-level `AppTargetProviderInterface`; Redaction supplies the shared `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` services through contracts-level ports. `platform/logging` imports neither Kernel nor concrete Redaction implementation classes in production source. These runtime-only edges grant no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
 
 The `platform/http` → `platform/redaction` edge is a runtime-only Composer dependency backed by the direct `platform.redaction` module requirement. HTTP consumes `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` through `core/contracts`, not concrete Redaction implementation classes. This runtime-only edge grants no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
+
+The `platform/routing` → `platform/redaction` edge is a runtime-only Composer dependency backed by the direct `platform.redaction` module requirement. Routing consumes sensitive-key classification and redaction through `SensitiveKeyClassifierInterface` and `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementation classes. This runtime-only edge grants no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
+
+Routing consumes only the explicitly public Kernel source-host and runtime input APIs from `core/kernel`. Both `platform/http` and `platform/routing` consume the canonical `SystemRouteTable` and `ReservedPathMatcher` from `core/foundation`. Route artifact production is owned by `platform/routing`. HTTP consumes Routing artifact readiness through the contracts-level `RoutingArtifactReadinessInterface` port. Neither `platform/http` nor `platform/routing` MAY declare a direct PHP source dependency, Composer dependency, or runtime-module requirement on the other. `core/kernel` MUST NOT depend on `platform/routing`.
 
 ---
 
@@ -550,8 +551,5 @@ Related ownership is intentionally separate:
   - layer responsibilities;
   - package catalog;
   - conceptual layer-level dependency direction.
-- `docs/guides/dependency-graph.md`
-  - explanatory dependency model only;
-  - MUST NOT override this document.
 
 Any document that presents exact package-level dependency edges MUST either reproduce this matrix without changing its semantics or, preferably, refer directly to this document.

@@ -100,7 +100,9 @@ Request identity preparation operates outside middleware because the selected id
 
 `HttpKernel` invokes the shared policy at the pre-pipeline identity preparation boundary regardless of feature enablement. The disabled policy performs no request identity preparation.
 
-The policy writes only `ContextKeys::REQUEST_ID` through its explicitly authorized dependency on the existing shared Foundation-owned `ContextStore`. Its owner-local read-back follows the narrow exception defined by `docs/ssot/context-store.md`.
+The policy consumes mandatory `Coretsia\Contracts\Context\ContextWriterInterface` and `Coretsia\Contracts\Context\ContextAccessorInterface` dependencies, in that constructor order. It writes only `ContextKeys::REQUEST_ID` through the writer and reads back only that key through the accessor solely for final-response identity verification. The selected identifier MUST NOT be changed or removed during verification. Disabled identity preparation and read-back do not access either port.
+
+`RequestContextMiddleware` consumes the writer only and writes only validated HTTP-owned `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` values under the existing enrichment policy. `HttpServiceProvider` requires both context ports and supplies them through canonical declarative service references. Both resolve to the same shared Foundation-owned `ContextStore` in source and compiled containers. HTTP MUST NOT require, register, or downcast to the concrete store, redefine either binding, or execute context clearing or reset. See `docs/ssot/context-store.md`.
 
 HTTP request identity remains independent of Kernel-owned correlation and UnitOfWork identity. Generated request identifiers use the existing Foundation-owned `UlidGenerator` through `IdGeneratorInterface`.
 
@@ -219,13 +221,15 @@ After the canonical target container has been composed, but **before** resolving
 
 A later override is permissible under Foundation DI precedence; it becomes an HTTP readiness failure only when the final effective implementation violates the configured built-in selection or required PSR-17 contract. Missing external bindings fail through canonical container completeness or resolution, rather than a separate HTTP dependency-graph validator. Missing selected vendor classes, incompatible services, and built-in identity mismatches fail deterministically before HTTP UnitOfWork execution. No implicit alternative provider is consulted, no installed package is treated as a selection, and Kernel does not select a PSR-7/17 implementation.
 
+After effective PSR-17 factory validation, the guard resolves `Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface` and invokes `assertReady()` only when `platform.routing` is enabled in the effective target `ModulePlan`. Missing or invalid bindings and owner-artifact validation failures prevent HTTP construction. If Routing is not enabled, neither the port nor `routes.php` is required. HTTP does not implement Routing artifact validation or application matching; it introduces no direct dependency on `platform/routing`. See `docs/ssot/routing-artifact.md`.
+
 The selected configuration and ordered canonical definitions are source/compiled container inputs. Changing `http.factory` changes the applicable factory definitions and effective aliases, and must participate in the existing configuration-derived container artifact fingerprint/invalidation semantics. Source and compiled containers must preserve equivalent service identity, factory compatibility, tag metadata, effective middleware order, and terminal resolution; there is no runtime-only factory path or second container.
 
 ### Decision 9: Preserve owner-supplied Kernel runtime-driver contributions
 
 `HttpRuntimeEntrypointGuard` is HTTP-owned and accepts the selected target's `ModulePlan`, canonical `ConfigRepositoryInterface`, final effective canonical container, and explicit caller-supplied `RuntimeDriverContributions`. It delegates unchanged to the existing `RuntimeDriverResolver::resolve($config, $contributions)` and preserves Kernel's canonical driver matrix errors. It does not infer implementation availability from a driver value, reinterpret Worker contributions, or extend the Kernel matrix.
 
-An empty `RuntimeDriverContributions::fromDrivers([], [])` is valid only when the owning entrypoint has no additional selected driver contributions. In particular, a selected Worker HTTP driver must not be silently discarded by replacing contributions with an empty set. Module participation, Kernel driver-matrix compatibility, PSR-17 effective factory readiness, and transport-adapter/executable readiness are distinct checks with distinct owners. Transport-specific checks remain with the consuming HTTP entrypoint or integration.
+An empty `RuntimeDriverContributions::fromDrivers([], [])` is valid only when the owning entrypoint has no additional selected driver contributions. In particular, a selected Worker HTTP driver must not be silently discarded by replacing contributions with an empty set. Module participation, Kernel driver-matrix compatibility, PSR-17 effective factory readiness, conditional Routing artifact readiness, and transport-adapter/executable readiness are distinct checks with distinct owners. Transport-specific checks remain with the consuming HTTP entrypoint or integration.
 
 This owner-local guard avoids a generic `RuntimeEntrypointGuard`, a new `RuntimeCapability::HTTP` marker, a second capability registry, or new Kernel-to-platform package knowledge.
 
@@ -268,7 +272,7 @@ Successfully returned maintenance responses follow applicable post-decorator tra
 ### Positive consequences
 
 - One deterministic PSR-15 chain preserves ordinary short-circuit response decorators and keeps error conversion outside their response-unwind path.
-- Canonical terminal system endpoints reuse reserved-path matching, explicit shared dependencies, deterministic response construction, and the existing error boundary without introducing general application routing or another route registry.
+- Canonical terminal system endpoints reuse Foundation-owned reserved-path matching, explicit shared dependencies, deterministic response construction, and the existing error boundary without introducing general application routing or another route registry.
 - Terminal endpoint decisions remain independently observable without changing finalized HTTP request status, outcome, or Kernel lifecycle semantics.
 - `HttpKernel` observes only finalized response state, including selected Problem Details responses, without introducing another observer pipeline.
 - When enabled, HTTP request identity is available before middleware execution and remains independent of middleware ordering, Kernel correlation identity, and correlation response-header enablement.
@@ -366,7 +370,7 @@ Verification must cover the exact outer-to-inner pipeline order, priority-`1000`
 
 Source and compiled container tests must compare service definitions, effective aliases, factory sharing/distinction, final provider overrides, middleware tag metadata and ordering, terminal handling, and HTTP lifecycle outcomes. Factory readiness tests must distinguish declarative selection from missing autoloadable classes, missing external ports, incompatible implementations, and overwritten built-in identities; they must confirm failure before UnitOfWork, `HttpKernel`, terminal construction, and pipeline execution. Completion tests must cover safe final-response metrics/logging/span handling, independent optional failures, primary Throwable precedence, and the fixed `route_template='unknown'` value independently of terminal system-endpoint dispatch.
 
-Request identity verification must cover disabled policy behavior, trusted upstream acceptance, canonical Foundation ULID generation, pre-pipeline context availability, exact final-response identity verification, independent identity-header enablement, deterministic fatal completion, shared declarative policy wiring, and canonical UnitOfWork reset isolation.
+Request identity verification must cover separate mandatory writer and accessor dependencies, shared Foundation context identity in source and compiled containers, restricted owner-local read-back, disabled policy behavior, trusted upstream acceptance, canonical Foundation ULID generation, pre-pipeline context availability, exact final-response identity verification, independent identity-header enablement, deterministic fatal completion, shared declarative policy wiring, and canonical UnitOfWork reset isolation.
 
 Response hardening verification must cover independent security-header enablement, mandatory shared policy wiring, canonical header mutation order, immutable response chaining, case-insensitive replacement, preservation of unrelated headers and empty optional settings, strict policy validation, and fatal completion on response mutation failure.
 
@@ -396,6 +400,7 @@ Sequential HTTP isolation verification follows the requirements defined by `docs
 - [Runtime Container Definitions (SSoT)](../ssot/runtime-container-definitions.md)
 - [Config and env SSoT](../ssot/config-and-env.md)
 - [Runtime Drivers SSoT](../ssot/runtime-drivers.md)
+- [Routing Artifact SSoT](../ssot/routing-artifact.md)
 - [UoW and Reset Contracts SSoT](../ssot/uow-and-reset-contracts.md)
 - [Context Keys SSoT](../ssot/context-keys.md)
 - [Context Store SSoT](../ssot/context-store.md)

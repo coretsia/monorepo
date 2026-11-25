@@ -76,17 +76,18 @@ Non-owner packages:
 
 Resolution is single-choice. The first matching rule wins. Exact-match rules and more-specific rules take precedence over broader prefix rules.
 
-| pattern             | owner package_id  | notes                                                              |
-|---------------------|-------------------|--------------------------------------------------------------------|
-| `kernel.reset`      | `core/foundation` | Reserved canonical default reset-discovery tag name.               |
-| `kernel.stateful`   | `core/foundation` | Fixed enforcement marker.                                          |
-| `kernel.hook.*`     | `core/kernel`     | Kernel lifecycle hook namespace.                                   |
-| `kernel.*`          | `core/kernel`     | Applies to all other `kernel.*` tags not captured by earlier rows. |
-| `http.middleware.*` | `platform/http`   | Canonical HTTP middleware slot namespace.                          |
-| `cli.*`             | `platform/cli`    | Canonical CLI discovery namespace.                                 |
-| `error.*`           | `platform/errors` | Canonical error discovery namespace.                               |
-| `health.*`          | `platform/health` | Reserved now; owner package may be introduced later.               |
-| `worker.*`          | `platform/worker` | Worker task-source extension namespace.                            |
+| pattern             | owner package_id   | notes                                                              |
+|---------------------|--------------------|--------------------------------------------------------------------|
+| `kernel.reset`      | `core/foundation`  | Reserved canonical default reset-discovery tag name.               |
+| `kernel.stateful`   | `core/foundation`  | Fixed enforcement marker.                                          |
+| `kernel.hook.*`     | `core/kernel`      | Kernel lifecycle hook namespace.                                   |
+| `kernel.*`          | `core/kernel`      | Applies to all other `kernel.*` tags not captured by earlier rows. |
+| `http.middleware.*` | `platform/http`    | Canonical HTTP middleware slot namespace.                          |
+| `cli.*`             | `platform/cli`     | Canonical CLI discovery namespace.                                 |
+| `error.*`           | `platform/errors`  | Canonical error discovery namespace.                               |
+| `health.*`          | `platform/health`  | Reserved now; owner package may be introduced later.               |
+| `routing.*`         | `platform/routing` | Canonical route provider discovery namespace.                      |
+| `worker.*`          | `platform/worker`  | Worker task-source extension namespace.                            |
 
 ## Reserved Tag Registry (MUST)
 
@@ -96,25 +97,26 @@ Stability enum is single-choice:
 - `experimental`
 - `deprecated`
 
-| tag                           | owner package_id  | purpose                                     | stability      | notes                                                       |
-|-------------------------------|-------------------|---------------------------------------------|----------------|-------------------------------------------------------------|
-| `cli.command`                 | `platform/cli`    | CLI command discovery.                      | `stable`       | Canonical CLI discovery tag.                                |
-| `error.mapper`                | `platform/errors` | Error mapper discovery.                     | `stable`       | Canonical discovery point for error mapping components.     |
-| `health.check`                | `platform/health` | Health check discovery.                     | `experimental` | Reserved baseline row; owner package is future-facing.      |
-| `http.middleware.app`         | `platform/http`   | Main application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.app_post`    | `platform/http`   | Post-application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.app_pre`     | `platform/http`   | Pre-application middleware slot.            | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.route`       | `platform/http`   | Main route-scoped middleware slot.          | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.route_post`  | `platform/http`   | Post-route middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.route_pre`   | `platform/http`   | Pre-route middleware slot.                  | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.system`      | `platform/http`   | Main system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.system_post` | `platform/http`   | Post-system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `http.middleware.system_pre`  | `platform/http`   | Pre-system middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
-| `kernel.hook.after_uow`       | `core/kernel`     | Post-unit-of-work lifecycle hook discovery. | `stable`       | Canonical kernel lifecycle hook.                            |
-| `kernel.hook.before_uow`      | `core/kernel`     | Pre-unit-of-work lifecycle hook discovery.  | `stable`       | Canonical kernel lifecycle hook.                            |
-| `kernel.reset`                | `core/foundation` | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.        |
-| `kernel.stateful`             | `core/foundation` | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                                   |
-| `worker.task_source`          | `platform/worker` | Worker task-source discovery.               | `experimental` | Exact-one selection; metadata per `worker-task-sources.md`. |
+| tag                           | owner package_id   | purpose                                     | stability      | notes                                                       |
+|-------------------------------|--------------------|---------------------------------------------|----------------|-------------------------------------------------------------|
+| `cli.command`                 | `platform/cli`     | CLI command discovery.                      | `stable`       | Canonical CLI discovery tag.                                |
+| `error.mapper`                | `platform/errors`  | Error mapper discovery.                     | `stable`       | Canonical discovery point for error mapping components.     |
+| `health.check`                | `platform/health`  | Health check discovery.                     | `experimental` | Reserved baseline row; owner package is future-facing.      |
+| `http.middleware.app`         | `platform/http`    | Main application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.app_post`    | `platform/http`    | Post-application middleware slot.           | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.app_pre`     | `platform/http`    | Pre-application middleware slot.            | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route`       | `platform/http`    | Main route-scoped middleware slot.          | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route_post`  | `platform/http`    | Post-route middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.route_pre`   | `platform/http`    | Pre-route middleware slot.                  | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system`      | `platform/http`    | Main system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system_post` | `platform/http`    | Post-system middleware slot.                | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `http.middleware.system_pre`  | `platform/http`    | Pre-system middleware slot.                 | `stable`       | Canonical HTTP middleware taxonomy.                         |
+| `kernel.hook.after_uow`       | `core/kernel`      | Post-unit-of-work lifecycle hook discovery. | `stable`       | Canonical kernel lifecycle hook.                            |
+| `kernel.hook.before_uow`      | `core/kernel`      | Pre-unit-of-work lifecycle hook discovery.  | `stable`       | Canonical kernel lifecycle hook.                            |
+| `kernel.reset`                | `core/foundation`  | Reset-capable service discovery.            | `stable`       | Reserved canonical default reset-discovery tag name.        |
+| `kernel.stateful`             | `core/foundation`  | Stateful-service enforcement marker.        | `stable`       | Fixed enforcement marker.                                   |
+| `routing.route_provider`      | `platform/routing` | Route provider discovery.                   | `stable`       | Canonical discovery point for explicit route compilation.   |
+| `worker.task_source`          | `platform/worker`  | Worker task-source discovery.               | `experimental` | Exact-one selection; metadata per `worker-task-sources.md`. |
 
 ## `cli.command` Contract (MUST)
 
@@ -162,6 +164,24 @@ Enabled runtime packages MAY contribute owner-specific `Coretsia\Contracts\Obser
 - If every mapper returns `null`, all candidates fail, or no mapper is registered, the registry MUST return `null` to the canonical handler.
 - `DefaultExceptionMapper` MUST NOT be registered under `error.mapper`. The fixed safe fallback is selected by `platform/errors` outside tagged discovery.
 - Contributing packages MUST NOT introduce another reserved tag identifier, registry, ordering policy, fallback pipeline, or global error-handler binding.
+
+## `routing.route_provider` Contract (MUST)
+
+`routing.route_provider` is owned by `platform/routing`; `Coretsia\Foundation\Tag\ReservedTags::ROUTING_ROUTE_PROVIDER` supplies only its canonical identifier.
+
+Enabled runtime packages MAY contribute owner-specific `Coretsia\Contracts\Routing\RouteProviderInterface` services through this tag.
+
+- Every tagged service id MUST identify a container-registered service implementing `RouteProviderInterface`. Provider services MUST be resolved lazily through `ContainerInterface::get($serviceId)` during explicit route compilation, not during provider definition construction, runtime artifact hydration, or runtime route matching.
+- Tag metadata MUST be exactly `[]`. Non-empty metadata is invalid.
+- Provider priority MUST be supplied through the canonical tag registration priority argument, not through metadata.
+- Provider registrations MUST be enumerated exclusively through `TagRegistry::all(ReservedTags::ROUTING_ROUTE_PROVIDER)`, which defines the canonical deterministic order: actual tag priority descending, then service id ascending under byte-order `strcmp`. The Routing consumer MUST preserve this output without re-sorting or re-deduplicating it.
+- `TagRegistry` uses first-wins semantics for repeated registrations of the same `(tag, serviceId)`; later registrations are discarded and MUST NOT be reconstructed or revalidated by the Routing consumer.
+- Each provider's `id()` MUST return a stable, non-empty, safe, single-line identity. Distinct service ids declaring the same provider identity MUST fail deterministically.
+- Each provider's `routes()` MUST return a list containing only canonical `RouteDefinition` instances without duplicate route names, as defined by [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md).
+- The Routing consumer MUST preserve provider-emitted route order exactly, including the order of flattened grouped and standalone route declarations. This order defines the declared matching precedence within the provider. Routes MUST NOT be reordered by name or specificity.
+- Route groups MUST be flattened before crossing the `RouteProviderInterface` boundary. The Routing consumer MUST NOT accept or resolve route group instances as provider output.
+- Invalid metadata, service resolution failures, invalid service types, invalid or duplicate provider identities, and invalid provider output MUST fail explicit route compilation deterministically.
+- Provider discovery MUST NOT use filesystem scanning, Composer or module-manifest discovery, or PHP attribute scanning.
 
 ## Forbidden Non-canonical Tags (MUST)
 

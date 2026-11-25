@@ -44,6 +44,9 @@
       "package_id": "platform/redaction"
     },
     {
+      "package_id": "platform/routing"
+    },
+    {
       "package_id": "platform/tracing"
     },
     {

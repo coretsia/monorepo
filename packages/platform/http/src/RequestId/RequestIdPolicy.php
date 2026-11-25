@@ -18,8 +18,9 @@ declare(strict_types=1);
 
 namespace Coretsia\Platform\Http\RequestId;
 
+use Coretsia\Contracts\Context\ContextAccessorInterface;
 use Coretsia\Contracts\Context\ContextKeys;
-use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -29,8 +30,10 @@ use Psr\Http\Message\ServerRequestInterface;
  * Upstream acceptance requires an explicitly trusted ingress boundary. This
  * policy validates effective PSR-7 header values, not their wire-level form,
  * and does not establish sender identity, upstream trust, or uniqueness.
- * Request-local identity lives in the canonical ContextStore and is cleared
- * through the existing UnitOfWork reset lifecycle.
+ * Request-local identity is written through ContextWriterInterface and read
+ * back through ContextAccessorInterface. Both ports address the same shared
+ * Foundation-owned runtime context, which is cleared through the existing
+ * UnitOfWork reset lifecycle.
  *
  * @internal
  */
@@ -41,7 +44,8 @@ final readonly class RequestIdPolicy
     private const int MAX_ID_LENGTH_LIMIT = 128;
 
     public function __construct(
-        private ContextStore $context,
+        private ContextWriterInterface $context,
+        private ContextAccessorInterface $contextAccessor,
         private IdGeneratorInterface $generator,
         private bool $enabled,
         private string $headerName,
@@ -101,7 +105,7 @@ final readonly class RequestIdPolicy
             return null;
         }
 
-        $requestId = $this->validatedIdentifier($this->context->get(ContextKeys::REQUEST_ID));
+        $requestId = $this->validatedIdentifier($this->contextAccessor->get(ContextKeys::REQUEST_ID));
         if ($requestId === null) {
             throw new \RuntimeException('http-request-id-context-invalid');
         }

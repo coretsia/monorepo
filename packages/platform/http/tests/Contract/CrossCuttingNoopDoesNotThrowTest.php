@@ -164,8 +164,10 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
             }
         };
 
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

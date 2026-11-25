@@ -16,7 +16,7 @@ declare(strict_types=1);
  * See LICENSE and NOTICE in the project root for full license information.
  */
 
-namespace Coretsia\Platform\Http\System;
+namespace Coretsia\Foundation\Routing;
 
 /**
  * Matches concrete encoded URI paths against canonical system-route declarations.
@@ -53,7 +53,14 @@ final class ReservedPathMatcher
         return null;
     }
 
-    private static function normalize(string $path): string
+    /**
+     * Normalizes and validates a concrete encoded URI path.
+     *
+     * Encoded octets are never decoded or rewritten.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function normalize(string $path): string
     {
         if ($path === '*' || preg_match('/\A[A-Za-z][A-Za-z0-9+.-]*+:/', $path) !== 0) {
             throw new \InvalidArgumentException('http-reserved-path-invalid');

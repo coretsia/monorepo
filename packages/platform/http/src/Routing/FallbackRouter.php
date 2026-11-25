@@ -19,10 +19,10 @@ declare(strict_types=1);
 namespace Coretsia\Platform\Http\Routing;
 
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Foundation\Routing\ReservedPathMatcher;
+use Coretsia\Foundation\Routing\SystemRouteTable;
 use Coretsia\Platform\Http\Debug\DebugRouter;
 use Coretsia\Platform\Http\Exception\IntentionalErrorException;
-use Coretsia\Platform\Http\System\ReservedPathMatcher;
-use Coretsia\Platform\Http\System\SystemRouteTable;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -88,7 +88,6 @@ final readonly class FallbackRouter
             }
 
             return match ($entry['pattern']) {
-                '/' => $this->served($this->responses->home(), 'home'),
                 SystemRouteTable::ALIVE_PATH => $this->served($this->responses->alive(), 'alive'),
                 '/ping' => $this->served($this->responses->ping($this->clock->now()->getTimestamp()), 'ping'),
                 default => null,
@@ -120,7 +119,7 @@ final readonly class FallbackRouter
         return null;
     }
 
-    /** @param 'home'|'ping'|'alive' $operation */
+    /** @param 'ping'|'alive' $operation */
     private function served(ResponseInterface $response, string $operation): ResponseInterface
     {
         $this->recordDecision($operation, 200, 'served');
@@ -144,7 +143,7 @@ final readonly class FallbackRouter
     }
 
     /**
-     * @param 'home'|'ping'|'alive'|'error'|'health'|'metrics' $operation
+     * @param 'ping'|'alive'|'error'|'health'|'metrics' $operation
      * @param 200|501|'unknown' $status
      * @param 'served'|'owner_unavailable'|'intentional_error' $outcome
      */

@@ -22,7 +22,7 @@ owner: core/contracts
 
 ## Context
 
-Epic `1.110.0` introduces stable contracts for routing and HttpApp invocation under:
+The stable routing and HttpApp invocation contracts are defined under:
 
 ```text
 packages/core/contracts/src/Routing/
@@ -65,14 +65,15 @@ docs/ssot/artifacts.md
 
 ## Decision
 
-Coretsia will introduce routing and HttpApp contracts as format-neutral contracts in `core/contracts`.
+Coretsia defines routing and HttpApp contracts as format-neutral contracts in `core/contracts`.
 
-The contracts introduced by epic `1.110.0` define:
+The contracts include:
 
 - `RouteDefinition`
 - `RouteMatch`
 - `RouterInterface`
 - `RouteProviderInterface`
+- `RoutingArtifactReadinessInterface`
 - `ActionInvokerInterface`
 - `ArgumentResolverInterface`
 
@@ -148,7 +149,7 @@ Routing descriptors must not expose:
 
 `RouteProviderInterface` is the contracts port for providing route definitions.
 
-It is the source of `RouteDefinition` objects for future runtime route compilation and routing runtime owners.
+It is the source of `RouteDefinition` objects for explicit target-local source compilation.
 
 The route provider contract exposes:
 
@@ -159,15 +160,13 @@ routes(): array
 
 `id()` returns a stable provider id, such as an application id, module id, package id, or another owner-defined stable source identifier.
 
-`routes()` returns a deterministic list of `RouteDefinition` objects.
+`routes()` returns a deterministic flat list of `RouteDefinition` objects. Provider-emitted order defines matching precedence within the provider.
 
-The route provider contract does not prescribe how routes are discovered or loaded.
+The route provider contract does not prescribe how routes are discovered or loaded. Concrete providers may use owner-specific source declaration helpers internally, including groups, provided they return ordinary flattened descriptors. The contracts package does not implement a route provider or expose group objects.
 
-A future implementation may source route definitions from application code, module metadata, generated route artifacts, package-owned route files, PHP attributes, owner-defined config, or another owner-defined source.
+`platform/routing` consumes the canonical TagRegistry provider order (priority descending, service id ascending by byte-order `strcmp`) and preserves provider-emitted route order without sorting by name or specificity.
 
-The contracts package does not implement a route provider.
-
-Any provider output containing multiple route definitions must be deterministic according to the detailed policy in:
+The detailed policy is defined in:
 
 ```text
 docs/ssot/routing-and-http-app-contracts.md
@@ -205,13 +204,25 @@ A null return value represents no match.
 
 No-match rendering, exception mapping, or transport-specific error behavior is runtime-owned.
 
+## Routing artifact readiness decision
+
+`RoutingArtifactReadinessInterface` is the independent transport-neutral owner-artifact readiness port:
+
+```text
+assertReady(): void
+```
+
+Normal completion indicates readiness; failures use implementation-owned exceptions. The port exposes no artifact paths, payloads, filesystem APIs, concrete Routing services, or router operations and does not extend `RouterInterface`.
+
+Routing validates the owner artifact through the shared immutable route table consumed by its router. The HTTP-owned entrypoint asserts readiness only when Routing is enabled in the effective target, before HTTP runtime construction. Readiness failures prevent startup. HTTP and Routing communicate through the contracts boundary without direct package dependencies.
+
 ## Route template decision
 
 The raw request path is transport input.
 
 The route template is the canonical safe routing metadata.
 
-A route template may be used for matching diagnostics, debugging, safe route match metadata, span context subject to observability redaction rules, and future runtime routing context.
+A route template may be used for matching diagnostics, debugging, safe route match metadata, span context subject to observability redaction rules, and runtime routing context.
 
 The canonical runtime routing metadata/context key for the matched route template is:
 
@@ -219,11 +230,9 @@ The canonical runtime routing metadata/context key for the matched route templat
 path_template
 ```
 
-This is runtime policy, not a `core/contracts` dependency.
+The public key identifier is `Coretsia\Contracts\Context\ContextKeys::PATH_TEMPLATE`. Routing owns its semantic mutation through `ContextWriterInterface`, removing stale values at match start and writing the complete declared template only on success.
 
-Any concrete Foundation constant, key-carrier class, context accessor integration, or context storage mechanism for this key is owned by the corresponding future Foundation epic.
-
-The contracts package must not introduce a Foundation constant or concrete context key carrier for `path_template`.
+Contracts owns the vocabulary and ports; Foundation owns storage and structural validation; Kernel owns UnitOfWork lifecycle and reset orchestration. See `docs/ssot/context-keys.md` and `docs/ssot/routing-artifact.md`.
 
 ## Observability decision
 
@@ -307,17 +316,14 @@ A runtime adapter may convert invocation output into a transport-specific respon
 
 ## Runtime ownership decision
 
-`platform/routing` is the expected future owner of concrete route matching and route compilation behavior.
+`platform/routing` owns concrete route compilation and artifact-backed matching. It provides:
 
-It may provide:
+- deterministic provider aggregation and source-only route grouping;
+- target-local route compilation and complete route admission;
+- `routes@1` artifact generation, publication, and validation;
+- immutable runtime route matching and owner-artifact readiness.
 
-- route collection implementation;
-- router implementation;
-- route compiler implementation;
-- route artifact generation;
-- route artifact reading;
-- provider aggregation;
-- deterministic route ordering enforcement.
+The runtime router consumes only the validated immutable route table and does not resolve handlers or invoke actions. The detailed artifact and matching decision belongs to `docs/adr/ADR-0018-platform-routing-compiled-routes.md`.
 
 `platform/http-app` is the expected future owner of concrete HttpApp dispatch behavior.
 
@@ -363,13 +369,13 @@ docs/ssot/tags.md
 
 ## DI tag decision
 
-Epic `1.110.0` introduces no DI tags.
+The contracts package owns no DI tags.
 
 The contracts package must not declare routing or HttpApp DI tag identifier constants.
 
 The contracts package must not define additional code-level registries for Coretsia-reserved middleware DI tag identifiers.
 
-The contracts package may reference reserved middleware tags in documentation as runtime policy.
+The contracts package may reference reserved routing and middleware tags in documentation as runtime policy.
 
 Reserved tag ownership remains governed by:
 
@@ -387,23 +393,19 @@ Non-owner packages using reserved tags must follow the tag registry rules, use `
 
 ## Config decision
 
-Epic `1.110.0` introduces no config roots and no config keys.
+The contracts package owns no config roots or config keys for routing or HttpApp.
 
 Routing and HttpApp contracts must not require package config files.
 
-Future runtime owners may introduce config roots or config keys only through their own owner epics and the config roots registry process.
+Runtime configuration belongs to the respective owner packages under `docs/ssot/config-roots.md`.
 
 ## Artifact decision
 
-Epic `1.110.0` introduces no artifact ownership for `core/contracts`.
+The contracts package owns no route artifacts.
 
-A future routes artifact is runtime-owned by `platform/routing`.
+`platform/routing` produces `routes@1` at the authoritative target-local artifact root with basename `routes.php`, outside Kernel immutable generations. The artifact contains complete flattened canonical route descriptors in matching order.
 
-If a routes artifact is generated, it must follow the global artifact envelope and deterministic serialization law from:
-
-```text
-docs/ssot/artifacts.md
-```
+The global artifact envelope and deterministic serialization law remain governed by `docs/ssot/artifacts.md`; the owner-specific schema and lifecycle are governed by `docs/ssot/routing-artifact.md`.
 
 The contracts package must not generate route artifacts.
 
@@ -444,7 +446,7 @@ DTO policy remains explicit opt-in only through:
 
 Contract tests for routing shape enforce the contracts surface directly.
 
-DTO gates do not own these models unless a future epic explicitly opts them into DTO policy.
+DTO gates apply only through explicit marker opt-in.
 
 ## Security and redaction decision
 
@@ -475,11 +477,11 @@ Secret-backed runtime behavior belongs to runtime owner packages, not to contrac
 
 Runtime packages can depend on stable routing and HttpApp contracts without depending on transport-specific APIs.
 
-`platform/routing` can implement route matching and route compilation against stable descriptors.
+`platform/routing` implements route matching and route compilation against stable descriptors.
 
 `platform/http-app` can implement dispatch, argument resolution, action invocation, and router middleware without forcing HTTP request or response types into `core/contracts`.
 
-Route artifacts can be introduced later by the routing runtime owner without changing the contracts package ownership boundary.
+Routing produces and validates its owner artifact independently of the Kernel generation and the contracts package.
 
 Routing metadata can be used safely for matching and diagnostics while preserving observability label discipline.
 
@@ -531,7 +533,7 @@ Rejected.
 
 DTO detection is explicit opt-in only.
 
-Routing descriptors are contracts shapes/descriptors unless a future epic explicitly marks a transport DTO with the DTO marker attribute.
+Routing descriptors are contracts shapes/descriptors and are not DTO-marker classes by default.
 
 ## Non-goals
 
@@ -563,3 +565,5 @@ This ADR does not implement:
 - `docs/ssot/observability.md`
 - `docs/ssot/dto-policy.md`
 - `docs/ssot/artifacts.md`
+- `docs/ssot/routing-artifact.md`
+- `docs/ssot/context-keys.md`

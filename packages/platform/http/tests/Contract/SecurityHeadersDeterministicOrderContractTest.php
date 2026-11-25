@@ -253,11 +253,12 @@ final class SecurityHeadersDeterministicOrderContractTest extends TestCase
         $generator = $this->createMock(IdGeneratorInterface::class);
         $generator->expects(self::never())->method('generate');
 
+        $context = new ContextStore();
         return new HttpResponseFinalizer(
             $correlation,
             false,
             'X-Correlation-Id',
-            new RequestIdPolicy(new ContextStore(), $generator, false, 'X-Request-Id', false, 128),
+            new RequestIdPolicy($context, $context, $generator, false, 'X-Request-Id', false, 128),
             $policy,
         );
     }

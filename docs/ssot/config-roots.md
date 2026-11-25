@@ -40,8 +40,8 @@ A single SSoT defines reserved config roots, ownership, defaults-file authority,
 - PHP attributes MUST NOT replace package-owned config defaults or package-owned config rules.
 - Each reserved config root MUST have exactly one owner `package_id`.
 - Shared ownership of config defaults or rules is forbidden.
-- This registry MAY be extended only by later owner epics via direct modification of this file.
-- Later additions MUST update the canonical registry rows directly and MUST NOT leave parallel “future reserved identifier” notes in roadmap epics.
+- This registry MAY be extended only with authorization from the owning package through direct modification of this file.
+- Reserved configuration roots MUST be defined by canonical registry rows, not parallel placeholder declarations.
 
 ## Cemented Example (MUST)
 
@@ -175,24 +175,25 @@ config root: problem_details
 
 ## Reserved Config Roots (MUST)
 
-| root              | owner package_id           | defaults file                                                  | rules file                                           | notes                             |
-|-------------------|----------------------------|----------------------------------------------------------------|------------------------------------------------------|-----------------------------------|
-| `cli`             | `platform/cli`             | `packages/platform/cli/config/cli.php`                         | `packages/platform/cli/config/rules.php`             | Canonical CLI root.               |
-| `errors`          | `platform/errors`          | `packages/platform/errors/config/errors.php`                   | `packages/platform/errors/config/rules.php`          | Platform errors root.             |
-| `foundation`      | `core/foundation`          | `packages/core/foundation/config/foundation.php`               | `packages/core/foundation/config/rules.php`          | Runtime core root.                |
-| `kernel`          | `core/kernel`              | `packages/core/kernel/config/kernel.php`                       | `packages/core/kernel/config/rules.php`              | Runtime kernel root.              |
-| `http`            | `platform/http`            | `packages/platform/http/config/http.php`                       | `packages/platform/http/config/rules.php`            | Platform HTTP root.               |
-| `logging`         | `platform/logging`         | `packages/platform/logging/config/logging.php`                 | `packages/platform/logging/config/rules.php`         | Platform logging root.            |
-| `metrics`         | `platform/metrics`         | `packages/platform/metrics/config/metrics.php`                 | `packages/platform/metrics/config/rules.php`         | Platform metrics root.            |
-| `tracing`         | `platform/tracing`         | `packages/platform/tracing/config/tracing.php`                 | `packages/platform/tracing/config/rules.php`         | Platform tracing root.            |
-| `worker`          | `platform/worker`          | `packages/platform/worker/config/worker.php`                   | `packages/platform/worker/config/rules.php`          | Long-running worker runtime root. |
-| `problem_details` | `platform/problem-details` | `packages/platform/problem-details/config/problem_details.php` | `packages/platform/problem-details/config/rules.php` | Platform problem-details root.    |
+| root              | owner package_id           | defaults file                                                  | rules file                                           | notes                                               |
+|-------------------|----------------------------|----------------------------------------------------------------|------------------------------------------------------|-----------------------------------------------------|
+| `cli`             | `platform/cli`             | `packages/platform/cli/config/cli.php`                         | `packages/platform/cli/config/rules.php`             | Canonical CLI root.                                 |
+| `errors`          | `platform/errors`          | `packages/platform/errors/config/errors.php`                   | `packages/platform/errors/config/rules.php`          | Platform errors root.                               |
+| `foundation`      | `core/foundation`          | `packages/core/foundation/config/foundation.php`               | `packages/core/foundation/config/rules.php`          | Runtime core root.                                  |
+| `kernel`          | `core/kernel`              | `packages/core/kernel/config/kernel.php`                       | `packages/core/kernel/config/rules.php`              | Runtime kernel root.                                |
+| `http`            | `platform/http`            | `packages/platform/http/config/http.php`                       | `packages/platform/http/config/rules.php`            | Platform HTTP root.                                 |
+| `logging`         | `platform/logging`         | `packages/platform/logging/config/logging.php`                 | `packages/platform/logging/config/rules.php`         | Platform logging root.                              |
+| `metrics`         | `platform/metrics`         | `packages/platform/metrics/config/metrics.php`                 | `packages/platform/metrics/config/rules.php`         | Platform metrics root.                              |
+| `routing`         | `platform/routing`         | `packages/platform/routing/config/routing.php`                 | `packages/platform/routing/config/rules.php`         | compiled routing artifact + runtime router settings |
+| `tracing`         | `platform/tracing`         | `packages/platform/tracing/config/tracing.php`                 | `packages/platform/tracing/config/rules.php`         | Platform tracing root.                              |
+| `worker`          | `platform/worker`          | `packages/platform/worker/config/worker.php`                   | `packages/platform/worker/config/rules.php`          | Long-running worker runtime root.                   |
+| `problem_details` | `platform/problem-details` | `packages/platform/problem-details/config/problem_details.php` | `packages/platform/problem-details/config/rules.php` | Platform problem-details root.                      |
 
-## Rules for Later Extensions (MUST)
+## Registry Extension Requirements (MUST)
 
-Introducing a new reserved config root requires direct modification of this file by the future owner epic.
+A reserved config root MUST be registered in this file before scaffolding a new runtime package that owns it.
 
-A later owner epic MUST:
+For each reserved config root, the owning package MUST:
 
 1. add or update the canonical registry row in `docs/ssot/config-roots.md`
 2. define the owner package defaults file for that root

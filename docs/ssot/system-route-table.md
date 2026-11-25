@@ -17,7 +17,7 @@
 ```yaml
 ssotVersion: 1
 status: pre-stable
-owner: platform/http
+owner: core/foundation
 ```
 
 ## Scope
@@ -37,10 +37,10 @@ System routes MUST have one deterministic, versioned ownership registry independ
 The canonical code-level registry is:
 
 ```text
-Coretsia\Platform\Http\System\SystemRouteTable
+Coretsia\Foundation\Routing\SystemRouteTable
 ```
 
-`platform/http` owns the declaration registry. Each entry declares exactly one semantic owner package, which owns the corresponding endpoint behavior and access policy.
+`core/foundation` owns the declaration registry. Each entry declares exactly one semantic owner package, which owns the corresponding endpoint behavior and access policy.
 
 `SystemRouteTable::entries()` returns the immutable canonical declaration list in registry order. Each entry contains exactly four string fields in the order `owner`, `pattern`, `status`, `type`.
 
@@ -53,14 +53,13 @@ Production code MUST consume this registry rather than introduce competing reser
 - `exact` reserves a complete, case-sensitive URI path.
 - `prefix` reserves a slash-terminated, case-sensitive namespace, including the prefix path itself and paths beneath that namespace.
 - An exact declaration without a trailing slash and a prefix declaration with a trailing slash are distinct. For example, `/health` and `/health/` do not overlap.
-- The exact declaration `/` intentionally reserves the root path for `platform/http`. It MUST NOT be interpreted as a wildcard or namespace reservation, and competing application ownership of the exact root path MUST be rejected by route admission guards.
 
 Canonical declaration patterns MUST:
 
 - begin with exactly one `/`;
 - use non-empty lowercase ASCII segments composed only of letters `a-z`, digits `0-9`, `_`, and `-`;
-- omit a trailing slash for `exact` declarations, except for the root path `/`;
-- end with exactly one `/` for `prefix` declarations; a root prefix `/` is forbidden.
+- omit a trailing slash for `exact` declarations;
+- end with exactly one `/` for `prefix` declarations.
 
 Canonical declarations MUST NOT contain wildcard or regular expressions, route placeholders, query strings, fragments, percent-encoded substitutions, control characters, backslashes, dot segments, or empty interior segments.
 
@@ -84,7 +83,7 @@ Only the declared owner MAY claim the endpoint. Claiming a reservation for runti
 
 Actual endpoint exposure MUST require the applicable module participation, endpoint registration, configuration, and access policy of the owner. Non-owner packages MUST NOT claim a competing route, independently activate an endpoint, or bypass its access policy because a reservation exists.
 
-The active exact `/`, `/_alive`, `/error`, and `/ping` declarations identify materialized terminal system endpoints owned by `platform/http`. HTTP-owned terminal `501` fallback responses for explicitly supported reserved health and metrics declarations MUST NOT be interpreted as owner endpoint implementation, activation, availability discovery, or transfer of reserved ownership. Their behavior is governed by [HTTP System Endpoints SSoT](./http-system-endpoints.md).
+The active exact `/_alive`, `/error`, and `/ping` declarations identify materialized terminal system endpoints owned by `platform/http`. HTTP-owned terminal `501` fallback responses for explicitly supported reserved health and metrics declarations MUST NOT be interpreted as owner endpoint implementation, activation, availability discovery, or transfer of reserved ownership. Their behavior is governed by [HTTP System Endpoints SSoT](./http-system-endpoints.md).
 
 Development-only endpoints MUST remain subject to explicit development-mode eligibility and owner-controlled access policy. The `dev_only` reservations themselves do not enable development endpoints.
 
@@ -94,7 +93,6 @@ Schema version: `1`
 
 | pattern    | type     | status     | owner              |
 |------------|----------|------------|--------------------|
-| `/`        | `exact`  | `active`   | `platform/http`    |
 | `/_alive`  | `exact`  | `active`   | `platform/http`    |
 | `/_debug`  | `exact`  | `dev_only` | `platform/http`    |
 | `/_debug/` | `prefix` | `dev_only` | `platform/http`    |
@@ -106,7 +104,7 @@ Schema version: `1`
 
 ## Matching and runtime boundaries (MUST)
 
-Concrete reserved-path matching is owned by `Coretsia\Platform\Http\System\ReservedPathMatcher` according to [Reserved Path Matching SSoT](./reserved-path-matching.md).
+Concrete reserved-path matching is owned by `Coretsia\Foundation\Routing\ReservedPathMatcher` according to [Reserved Path Matching SSoT](./reserved-path-matching.md).
 
 The matcher consumes the canonical table and identifies reserved ownership for any supported declaration status. It does not implement route-template overlap analysis, route admission, endpoint dispatch, authorization, or response construction.
 
@@ -143,7 +141,7 @@ Version increments without a semantic declaration change are forbidden. Document
 
 Released historical snapshot immutability is a mandatory repository review invariant. Review MUST compare the retained released history against an independently trusted repository revision and reject replacement, removal, or reordering of released snapshots.
 
-The baseline is repository tooling data only. Production HTTP code MUST NOT read it or depend on repository tooling for route declarations.
+The baseline is repository tooling data only. Production code MUST NOT read it or depend on repository tooling for route declarations.
 
 ## Enforcement rails
 

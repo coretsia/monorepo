@@ -104,6 +104,7 @@ final class KernelOpsFacadeContextBoundaryTest extends TestCase
 
         self::assertStringNotContainsString('ContextKeys::CORRELATION_ID', $source);
         self::assertStringNotContainsString('ContextStore', $source);
+        self::assertDoesNotMatchRegularExpression('/\bContextWriterInterface\b/i', $source);
         self::assertDoesNotMatchRegularExpression(
             '/\$this->contextAccessor->(?:set|put|remove|delete|clear|replace|push)\s*\(/',
             $source,

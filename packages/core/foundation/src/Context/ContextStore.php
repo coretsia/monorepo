@@ -19,12 +19,15 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Context;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Runtime\ResetInterface;
 
 /**
  * Mutable Foundation-owned runtime context store.
  *
- * ContextStore is unit-of-work-local state. Every write is guarded by
+ * ContextStore is unit-of-work-local state. It provides the canonical
+ * ContextAccessorInterface and ContextWriterInterface ports through a single
+ * Foundation-owned storage instance. Every write is guarded by
  * ContextStorePolicy, and reset() clears all stored values between UoWs.
  *
  * Validation failures reject the attempted write. ContextStore must not degrade
@@ -42,7 +45,7 @@ use Coretsia\Contracts\Runtime\ResetInterface;
  * payload. Its complete contents MUST NOT be copied wholesale into logs,
  * traces, metrics, diagnostics, artifacts, health output, or error payloads.
  */
-final class ContextStore implements ContextAccessorInterface, ResetInterface
+final class ContextStore implements ContextAccessorInterface, ContextWriterInterface, ResetInterface
 {
     /**
      * @var array<string,mixed>

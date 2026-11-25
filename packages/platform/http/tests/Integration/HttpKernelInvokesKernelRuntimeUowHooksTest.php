@@ -416,6 +416,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $request->method('getMethod')->willReturn('GET');
         $requestIds = new RequestIdPolicy(
             $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',
@@ -562,6 +563,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             );
 
         $requestIds = new RequestIdPolicy(
+            $context,
             $context,
             $requestIdsGenerator,
             $requestIdEnabled,
@@ -955,8 +957,10 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
             }
         };
 
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

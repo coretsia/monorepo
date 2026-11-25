@@ -337,8 +337,10 @@ final class HttpConfigSubtreeShapeContractTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('http-request-id-header-invalid');
 
+        $context = new ContextStore();
         new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             $headerName,

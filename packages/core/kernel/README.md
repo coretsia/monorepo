@@ -340,11 +340,9 @@ The default source policy is `allow_system` for `prod` and `production`; all oth
 
 Full source precedence, supported formats, and merge semantics are defined by:
 
-```text
-docs/ssot/config-and-env.md
-docs/ssot/config-precedence-matrix.md
-docs/ssot/config-merge-order.md
-```
+- [docs/ssot/config-and-env.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-and-env.md)
+- [docs/ssot/config-precedence-matrix.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-precedence-matrix.md)
+- [docs/ssot/config-merge-order.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-merge-order.md)
 
 ### Project-wide and target-local boundaries
 
@@ -529,13 +527,11 @@ Config explain, logs, metrics, and spans MUST NOT expose raw config values, raw 
 
 Related documents:
 
-```text
-docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md
-docs/ssot/config-directives.md
-docs/ssot/config-merge-order.md
-docs/ssot/config-precedence-matrix.md
-docs/ssot/observability.md
-```
+- [docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0026-config-kernel-merge-directives-reserved-namespaces.md)
+- [docs/ssot/config-directives.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-directives.md)
+- [docs/ssot/config-merge-order.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-merge-order.md)
+- [docs/ssot/config-precedence-matrix.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-precedence-matrix.md)
+- [docs/ssot/observability.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability.md)
 
 ## Kernel artifacts, fingerprint, and cache verification
 
@@ -597,35 +593,25 @@ artifact-generation@1
 
 The canonical global artifact envelope, header fields, deterministic serialization law, and artifact registry are owned by:
 
-```text
-docs/ssot/artifacts.md
-```
+[docs/ssot/artifacts.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)
 
 Kernel-side artifact production and fingerprint behavior are owned by:
 
-```text
-docs/ssot/artifacts-and-fingerprint.md
-```
+[docs/ssot/artifacts-and-fingerprint.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
 
 Immutable generation layout, publication, selection, and validation are owned by:
 
-```text
-docs/ssot/artifact-generations.md
-```
+[docs/ssot/artifact-generations.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifact-generations.md)
 
 Kernel cache verification semantics are owned by:
 
-```text
-docs/ssot/cache-verify.md
-```
+[docs/ssot/cache-verify.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/cache-verify.md)
 
 Compiled-container payload and artifact-only runtime boot semantics are owned by:
 
-```text
-docs/ssot/compiled-container.md
-```
+[docs/ssot/compiled-container.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/compiled-container.md)
 
-`routes@1` is not Kernel-owned. Route artifact production belongs to `platform/routing`.
+`routes@1` is not Kernel-owned. Route artifact production, validation, and readiness belong to `platform/routing`. `routes.php` and `routes.lock` reside under the authoritative target-local artifact root outside Kernel immutable generations. Kernel MUST NOT produce or cache-verify the route artifact or include it in generation fingerprint inputs.
 
 Normal artifact compile/verify preparation is owned by internal `KernelArtifactOperation`:
 
@@ -930,7 +916,9 @@ Production runtime boot MUST NOT:
 - write or repair artifacts;
 - silently fall back to provider-based container construction.
 
-Generated Kernel `.php` artifacts are serialized data. `StablePhpArrayDumper` emits the canonical encoding and `StablePhpArrayParser` decodes it without executing generated source bytes. Artifact validation and artifact-only boot consume decoded data only.
+Generated Kernel `.php` artifacts are serialized data. The Kernel `StablePhpArrayDumper` adapter retains payload normalization and delegates canonical byte emission to Foundation `Coretsia\Foundation\Serialization\StablePhpArrayDumper`. The Kernel `StablePhpArrayParser` adapter delegates non-executable decoding to Foundation `Coretsia\Foundation\Serialization\StablePhpArrayParser`. Kernel retains its artifact-specific exception translation, envelope, fingerprint, and validation policy. Artifact validation and artifact-only boot consume decoded data only.
+
+The Kernel `ArtifactWriter` delegates ordinary atomic byte publication to Foundation `Coretsia\Foundation\Filesystem\AtomicFileWriter`, retaining Kernel-specific exception translation, result shape, and observability. Durable generation file writes, synchronization, replacement, and immutable generation publication remain Kernel-owned. Shared primitives do not transfer ownership of an artifact between packages.
 
 `ArtifactRuntimeBooter` is the public artifact-only production runtime boot facade.
 
@@ -1141,10 +1129,8 @@ DependencySync remains independent of Kernel Artifact and Runtime implementation
 
 The canonical contract is defined by:
 
-```text
-docs/ssot/application-dependency-sync.md
-docs/adr/ADR-0033-application-dependency-sync-installation-intent.md
-```
+- [docs/ssot/application-dependency-sync.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/application-dependency-sync.md)
+- [docs/adr/ADR-0033-application-dependency-sync-installation-intent.md](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0033-application-dependency-sync-installation-intent.md)
 
 ## ModulePlan resolution
 
@@ -1278,12 +1264,10 @@ Diagnostics MUST NOT expose filesystem paths, raw Composer metadata, raw preset 
 
 Related documents:
 
-```text
-docs/adr/ADR-0024-kernel-module-plan-resolution.md
-docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md
-docs/ssot/modules-and-manifests.md
-docs/ssot/modes.md
-```
+- [docs/adr/ADR-0024-kernel-module-plan-resolution.md](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0024-kernel-module-plan-resolution.md)
+- [docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0025-kernel-conflicts-exclusion-policy.md)
+- [docs/ssot/modules-and-manifests.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modules-and-manifests.md)
+- [docs/ssot/modes.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modes.md)
 
 ### ModulePlan-derived module-manifest payload
 
@@ -1422,15 +1406,11 @@ config-key-invalid
 
 The canonical source is:
 
-```text
-docs/ssot/runtime-drivers.md
-```
+[docs/ssot/runtime-drivers.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/runtime-drivers.md)
 
 The architecture overview is:
 
-```text
-docs/architecture/runtime-driver-resolution.md
-```
+[docs/architecture/runtime-driver-resolution.md](https://github.com/coretsia/monorepo/blob/main/docs/architecture/runtime-driver-resolution.md)
 
 ## KernelRuntime SPI
 
@@ -1528,7 +1508,7 @@ reserve KernelRuntime UnitOfWork boundary
 ↓
 begin UnitOfWork
 ↓
-write base ContextStore keys
+write base context keys through ContextWriterInterface
 ↓
 invoke before-uow hooks
 ↓
@@ -1560,7 +1540,7 @@ failure after reset responsibility
 
 This linear sequence describes executions whose before-uow hooks complete successfully.
 
-If a before-uow hook throws after base `ContextStore` keys have been written, the UnitOfWork has crossed the reset-responsibility boundary but has not entered after-phase handling.
+If a before-uow hook throws after base context keys have been written, the UnitOfWork has crossed the reset-responsibility boundary but has not entered after-phase handling.
 
 In that case `KernelRuntime` MUST:
 
@@ -1576,7 +1556,7 @@ The conceptual shorthand is:
 begin → hooks → external runtime → after → reset
 ```
 
-`KernelRuntime` writes these base context keys before the external runtime body is executed:
+`KernelRuntime` consumes the mandatory contracts-level `Coretsia\Contracts\Context\ContextWriterInterface` through the effective Foundation-owned shared binding, without resolving or downcasting to concrete `ContextStore`. It writes these Kernel-owned base context keys in the listed order before the external runtime body is executed:
 
 ```text
 Coretsia\Contracts\Context\ContextKeys::CORRELATION_ID
@@ -1584,7 +1564,9 @@ Coretsia\Contracts\Context\ContextKeys::UOW_ID
 Coretsia\Contracts\Context\ContextKeys::UOW_TYPE
 ```
 
-Reset responsibility starts only after the base `ContextStore` keys have been written successfully.
+Foundation owns context storage and structural write validation. Kernel MUST NOT own a separate store, read through the writer, or perform context clearing or reset through the writer. `ResetOrchestrator::resetAll()` remains the canonical reset boundary.
+
+Reset responsibility starts only after the base context keys have been written successfully.
 
 If UnitOfWork context creation or base context key writing fails before that boundary, `KernelRuntime` MUST surface the primary failure without invoking reset orchestration.
 
@@ -1944,16 +1926,12 @@ If a map level contains a directive key, that level must contain exactly one dir
 
 Directive examples are documented in:
 
-```text
-docs/ssot/config-directives.md
-```
+[docs/ssot/config-directives.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-directives.md)
 
 The canonical merge order is documented in:
 
-```text
-docs/ssot/config-merge-order.md
-docs/ssot/config-precedence-matrix.md
-```
+- [docs/ssot/config-merge-order.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-merge-order.md)
+- [docs/ssot/config-precedence-matrix.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/config-precedence-matrix.md)
 
 ## Config explain
 
@@ -2038,9 +2016,7 @@ The tokens are stable lowercase ASCII values and MUST be compared byte-for-byte.
 
 HTTP and CLI outcome mapping is governed by:
 
-```text
-docs/ssot/uow-outcome-policy.md
-```
+[docs/ssot/uow-outcome-policy.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/uow-outcome-policy.md)
 
 ## UnitOfWorkContext
 
@@ -2110,9 +2086,7 @@ uowId
 
 The baseline json-like runtime value model is owned by:
 
-```text
-docs/ssot/json-like-runtime-values.md
-```
+[docs/ssot/json-like-runtime-values.md](https://github.com/coretsia/monorepo/blob/main/docs/ssot/json-like-runtime-values.md)
 
 The baseline normalizer is:
 
@@ -2678,6 +2652,17 @@ Coretsia\Contracts\Kernel\Ops\KernelOpsInterface
 
 `KernelOpsHostBooter` constructs the dedicated source-operations host without requiring generated runtime artifacts. `KernelOpsHostInput` carries the application root used by that host.
 
+The public entrypoints are:
+
+```php
+boot(KernelOpsHostInput $input): ContainerInterface
+bootForTarget(KernelOpsHostInput $input, AppTarget $target): ContainerInterface
+```
+
+`boot()` delegates to `bootForTarget()` with `AppTarget::Console`. Explicit target-local hosting uses the supplied `AppTarget` and the canonical Bootstrap Phase A, module resolution, ConfigKernel Phase B, and ordered declarative provider composition. It resolves the selected target's configuration and `ModulePlan` from the same bootstrap snapshot and supplies the authoritative `RuntimePathContext` and `RuntimeDiagnosticsInput` with the frozen environment and `artifactGenerationLoaded() === false`.
+
+Source hosting does not require a current Kernel generation, run operations, perform Routing compilation, or start a UnitOfWork. The caller owns the explicit operation. Source-host failure translation remains `KernelOpsFailedException`; source-host-only service ids MUST NOT enter the compiled runtime graph or external runtime seed set. `ArtifactRuntimeBooter` remains the separate artifact-only production runtime entrypoint without source fallback.
+
 DependencySync public API symbols are:
 
 ```text
@@ -2727,6 +2712,8 @@ Coretsia\Kernel\Ops\KernelOpsSourceDefinitionProviderAdapter
 ```
 
 Callers depend on `Coretsia\Contracts\Kernel\Ops\KernelOpsInterface`, not on `KernelOpsFacade` or source-host wiring helpers.
+
+The source-host-only `KernelOpsFacade` consumes `Coretsia\Contracts\Context\ContextAccessorInterface` for read-only UnitOfWork id diagnostics. It MUST NOT use the context writer or concrete store. The reader and writer resolve to the same shared Foundation-owned store; neither is a new external runtime seed.
 
 Bootstrap Phase A implementation helpers are internal and MUST NOT be listed as public API:
 

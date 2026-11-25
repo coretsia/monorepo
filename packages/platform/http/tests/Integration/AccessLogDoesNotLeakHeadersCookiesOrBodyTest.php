@@ -334,8 +334,10 @@ final class AccessLogDoesNotLeakHeadersCookiesOrBodyTest extends TestCase
         LoggerInterface $logger,
         CorrelationIdProviderInterface $correlation,
     ): HttpKernel {
+        $context = new ContextStore();
         $requestIds = new RequestIdPolicy(
-            new ContextStore(),
+            $context,
+            $context,
             new UlidGenerator(),
             false,
             'X-Request-Id',

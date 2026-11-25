@@ -105,6 +105,7 @@ final class ProjectPackagePlannerTest extends TestCase
                 'platform.logging',
                 'platform.problem-details',
                 'platform.redaction',
+                'platform.routing',
             ];
 
             self::assertSame(
@@ -129,6 +130,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'coretsia/platform-logging' => $publicConstraint,
                     'coretsia/platform-problem-details' => $publicConstraint,
                     'coretsia/platform-redaction' => $publicConstraint,
+                    'coretsia/platform-routing' => $publicConstraint,
                 ],
                 $plan->desiredRootRequirements(),
             );
@@ -344,6 +346,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     ...($preset === 'enterprise' ? ['platform.metrics'] : []),
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                     ...($preset === 'enterprise' ? ['platform.tracing'] : []),
                 ];
 
@@ -394,6 +397,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'platform.http',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                 ],
                 $plan->enabledModuleIdsByTarget()['web'],
             );
@@ -408,6 +412,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'platform.metrics',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                     'platform.tracing',
                     'platform.worker',
                 ],
@@ -630,6 +635,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'platform.metrics',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                     'platform.tracing',
                     'platform.worker',
                 ],
@@ -645,6 +651,7 @@ final class ProjectPackagePlannerTest extends TestCase
                     'platform.logging',
                     'platform.problem-details',
                     'platform.redaction',
+                    'platform.routing',
                 ],
                 $left->enabledModuleIdsByTarget()['web'],
             );

@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Coretsia\Foundation\Tests\Integration;
 
 use Coretsia\Contracts\Context\ContextAccessorInterface;
+use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Errors\ErrorReporterPortInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
@@ -32,6 +33,7 @@ use Coretsia\Foundation\Container\Definition\ContainerDefinitionBuilder;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionContext;
 use Coretsia\Foundation\Container\Definition\ContainerDefinitionKind;
 use Coretsia\Foundation\Context\ContextStore;
+use Coretsia\Foundation\Filesystem\ScopedFileLock;
 use Coretsia\Foundation\Id\CorrelationIdGenerator;
 use Coretsia\Foundation\Id\IdGeneratorInterface;
 use Coretsia\Foundation\Id\UlidGenerator;
@@ -56,6 +58,7 @@ final class FoundationProviderSourceDefinitionsParityTest extends TestCase
     private const array SERVICE_IDS = [
         SystemClock::class,
         Stopwatch::class,
+        ScopedFileLock::class,
         UlidGenerator::class,
         UuidGenerator::class,
         ContextStore::class,
@@ -78,6 +81,7 @@ final class FoundationProviderSourceDefinitionsParityTest extends TestCase
         ClockInterface::class => SystemClock::class,
         IdGeneratorInterface::class => UlidGenerator::class,
         ContextAccessorInterface::class => ContextStore::class,
+        ContextWriterInterface::class => ContextStore::class,
         CorrelationIdProviderInterface::class => CorrelationIdProvider::class,
     ];
 

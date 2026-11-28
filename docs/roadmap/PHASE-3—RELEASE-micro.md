@@ -17503,59 +17503,166 @@ composer: "coretsia/platform-http-app"
 kind: runtime
 module_id: "platform.http-app"
 
-goal: "App-layer поверх `platform/http`: RouterMiddleware (routing boundary) + ActionInvoker (dispatch handlerId → action) з канонічним 404/405 через error flow."
+goal: "App-layer поверх `platform/http`: deterministic route matching, route-specific PSR-15 middleware execution, explicit action dispatch та канонічний 404/405 error flow."
 provides:
-- "RouterMiddleware у `http.middleware.app` (prio 100): consumes `RouterInterface`, dispatch-ить handlerId"
-- "ActionInvoker + мінімальний ArgumentResolver (без “magic autowire interfaces”, allowlist policy)"
-- "404/405 як deterministic exceptions, mapped via `error.mapper` → `ErrorDescriptor` → ProblemDetails (NO ad-hoc rendering)"
+- "RouterMiddleware у `http.middleware.app` (prio 100): matches application routes through RouterInterface and delegates the matched request downstream."
+- "ActionDispatchMiddleware у `http.middleware.route` (prio -1000): canonical final application dispatch contribution after all effective global route middleware."
+- "Route-specific middleware selection through existing RouteDefinition/RouteMatch metadata and explicit container service admission."
+- "ActionInvoker + мінімальний ArgumentResolver з explicit handler registrations та allowlisted argument sources."
+- "Reuse of the existing HTTP Pipeline for global and route-specific PSR-15 composition."
+- "404/405 as deterministic exceptions mapped through the canonical error.mapper, ErrorDescriptor and Problem Details boundary."
 
 tags_introduced: []
 config_roots_introduced:
 - "http_app"
 
 artifacts_introduced: []
-adr: "docs/adr/ADR-XXXX-platform-http-app-router-middleware-action-invoker.md"
+adr: "docs/adr/ADR-0043-platform-http-app-router-middleware-action-invoker.md"
 ssot_refs:
+- "docs/ssot/routing-and-http-app-contracts.md"
+- "docs/ssot/routing-artifact.md"
 - "docs/ssot/http-middleware-catalog.md"
+- "docs/ssot/http-middleware-wiring.md"
+- "docs/ssot/http-system-endpoints.md"
+- "docs/ssot/middleware-context-keys-map.md"
+- "docs/ssot/http-app-dispatch.md"
+- "docs/ssot/config-roots.md"
+- "docs/ssot/tags.md"
+- "docs/ssot/observability.md"
+- "docs/ssot/logging-policy.md"
+- "docs/ssot/observability-and-errors.md"
+- "docs/ssot/error-descriptor.md"
+- "docs/ssot/problem-details.md"
+- "docs/ssot/json-like-runtime-values.md"
+- "docs/ssot/uow-and-reset-contracts.md"
+- "docs/ssot/modules-and-manifests.md"
+- "docs/ssot/application-dependency-sync.md"
+- "docs/ssot/runtime-container-definitions.md"
+- "docs/ssot/config-and-env.md"
+- "docs/ssot/di-tags-and-middleware-ordering.md"
 ---
 
-- [ ] update `3.130.0 Platform http-app` to consume `coretsia/platform-errors` through the shared `ExceptionMapperInterface`/`error.mapper` contract for 404/405 descriptors with empty `[]` tag metadata, reusing Foundation `ReservedTags::ERROR_MAPPER` without a local tag mirror or RFC7807 rendering.
+- [x] Pre-stable versioning discipline (MUST):
+  - [x] preserve all existing schema, SSoT, and ADR versions at `1`
+  - [x] update existing versioned baselines in place without appending new version snapshots
+  - [x] preserve synthetic version-transition fixtures where applicable
+  - [x] MUST NOT document this internal implementation constraint in project documentation
+- [x] Constructor dependency discipline (MUST):
+  - [x] all constructor parameters introduced by this epic MUST be explicitly supplied, non-optional, and without default values
+  - [x] MUST NOT introduce nullable compatibility dependencies, `= null`, default policy instances, or fallback dependency construction
+  - [x] update all affected production DI definitions and existing test construction sites
+  - [x] preserve existing constructor dependency contracts unrelated to this epic
+- [x] Pre-stable documentation discipline (MUST):
+  - [x] documents with `pre-stable` or `pre-accepted` status and all other current-state project documentation MUST describe only the current canonical implementation
+  - [x] replace superseded behavior, architecture decisions, contracts, examples, and implementation descriptions in place
+  - [x] remove obsolete requirements, references, diagrams, and descriptions of unsupported behavior
+  - [x] MUST NOT retain superseded and replacement implementations as parallel documentation
+  - [x] MUST NOT introduce migration guidance, legacy compatibility descriptions, or historical implementation notes for unreleased behavior
+  - [x] preserve unrelated valid requirements and normative references
+  - [x] MUST NOT reference internal epic identifiers or implementation planning documents in project documentation
 
 ### Dependencies (MUST)
 
 #### Preconditions (MUST)
 
 - Epic prerequisites:
-  - `3.120.0` — `platform/routing` provides `RouterInterface` implementation (expected binding = `CompiledRouter`)
-  - Phase 0 HTTP stack model exists in `platform/http` and executes `http.middleware.app` slot.
+  - `platform/errors` provides the canonical ErrorHandler and tag-first ExceptionMapper registry.
+  - `platform/problem-details` provides the canonical outer PSR-15 HTTP error boundary.
+  - `platform/http` provides the canonical nine-slot middleware pipeline, PSR-17 factory bindings, HTTP entrypoint readiness, response finalization, and system endpoint fallback.
+  - `platform/routing` provides the artifact-backed `CompiledRouter`, immutable `CompiledRouteTable`, canonical `RouteTemplate`, and `RoutingArtifactReadinessInterface` implementation.
+  - `core/contracts` provides the existing format-neutral HttpApp invocation and argument resolution ports.
+  - `core/foundation` provides declarative container definitions, centralized reserved tags, reserved-path matching, stable JSON serialization, Stopwatch, and noop observability bindings.
+
+- Repository packaging baseline:
+  - repo-root `LICENSE` and `NOTICE` MUST exist before scaffolding;
+  - generated package legal files MUST remain byte-identical to their canonical repository copies.
+
+- Repository architecture-tooling baseline:
+  - `tools/build/package_index.php`
+  - `tools/build/installation_catalog.php`
+  - `tools/build/deptrac_generate.php`
+  - `tools/build/new-package.php`
+  - `tools/build/sync_composer_repositories.php`
+  - canonical generators MUST be reused without introducing package-local alternatives.
 
 - Required deliverables (exact paths):
-  - `packages/core/foundation/src/Tag/ReservedTags.php` — defines middleware slots incl. `http.middleware.app`
-  - `docs/ssot/http-middleware-catalog.md` — canonical placement/priority table
-  - `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php` — provided by 2.20.0
+  - `packages/core/contracts/src/Config/ConfigRepositoryInterface.php`
+  - `packages/core/contracts/src/Routing/RouterInterface.php`
+  - `packages/core/contracts/src/Routing/RouteMatch.php`
+  - `packages/core/contracts/src/HttpApp/ActionInvokerInterface.php`
+  - `packages/core/contracts/src/HttpApp/ArgumentResolverInterface.php`
+  - `packages/core/contracts/src/Observability/Errors/ExceptionMapperInterface.php`
+  - `packages/core/contracts/src/Observability/Errors/ErrorDescriptor.php`
+  - `packages/core/foundation/src/Tag/ReservedTags.php`
+  - `packages/core/foundation/src/Routing/ReservedPathMatcher.php`
+  - `packages/core/foundation/src/Container/Container.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionProviderInterface.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionBuilder.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerDefinitionContext.php`
+  - `packages/core/foundation/src/Container/Definition/ContainerValueReference.php`
+  - `packages/core/foundation/src/Serialization/StableJsonEncoder.php`
+  - `packages/core/foundation/src/Time/Stopwatch.php`
+  - `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - `packages/platform/http/src/Routing/FallbackRouterHandler.php`
+  - `packages/platform/routing/src/Runtime/CompiledRouter.php`
+  - `packages/platform/routing/src/Runtime/CompiledRouteTable.php`
+  - `packages/platform/routing/src/Compile/RouteTemplate.php`
+  - `packages/platform/errors/src/ErrorHandler.php`
+  - `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
+  - `packages/core/contracts/src/Routing/RouteDefinition.php`
+  - `packages/platform/http/src/Middleware/Pipeline.php`
+  - `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - `packages/platform/routing/src/Definition/RouteGroup.php`
+  - `packages/platform/routing/src/Artifacts/RoutesArtifactSchema.php`
+  - `docs/ssot/http-middleware-catalog.md`
 
 - Tag usage rule (MUST):
-  - for `http.middleware.app`, runtime code MUST use the owner public constant from `platform/http`
-    (canonical owner constant in this roadmap set: `Coretsia\Foundation\Tag\ReservedTags::MIDDLEWARE_APP`)
-  - for `error.mapper`, `platform/errors` is a forbidden compile-time dependency here,
-    so runtime code MUST NOT import `Coretsia\Foundation\Tag\ReservedTags`
-  - `error.mapper` MUST follow the non-owner tag usage rule:
-    - runtime wiring SHOULD use a package-local internal mirror constant
-    - canonical string literal `'error.mapper'` is allowed only as fallback
+  - all Coretsia-reserved DI tag identifiers MUST be consumed exclusively through `Coretsia\Foundation\Tag\ReservedTags`;
+  - `RouterMiddleware` MUST use `ReservedTags::HTTP_MIDDLEWARE_APP`;
+  - `ActionDispatchMiddleware` MUST use `ReservedTags::HTTP_MIDDLEWARE_ROUTE`;
+  - `HttpAppProblemMapper` MUST use `ReservedTags::ERROR_MAPPER`;
+  - all HttpApp-owned middleware and exception mapper contributions MUST use empty tag metadata `[]`;
+  - `core/foundation` is an allowed direct PHP source dependency;
+  - tag consumption does not introduce a PHP source dependency on the package owning the tagged capability;
+  - package-local mirror constants, duplicate public tag registries, and runtime string-literal fallbacks for Coretsia-reserved tags MUST NOT be introduced.
 
-> This epic introduces no new tags, so it must not create a Tags owner file.
+> This epic introduces no new tags and MUST NOT modify `ReservedTags.php` or create another Tags owner file.
 
 - Required config roots/keys:
   - `http.*` — HTTP pipeline exists and can execute `http.middleware.app` slot
 
 - Handler resolution policy (MUST):
-  - `RouteMatch::handlerId` MUST be resolved via config key `http_app.handlers.map`.
-  - `ActionInvoker` MUST NOT treat `handlerId` as a class-string, FQCN, or container service id by implicit fallback.
-  - This keeps handler wiring explicit, deterministic, and app-owned.
+  - `RouteMatch::handler()` MUST be resolved exclusively through explicit registrations in `http_app.handlers`.
+  - `http_app.handlers` is a list of closed registration records containing exactly `action_id` and `service_id`.
+  - logical action identifiers are values, not structural configuration map keys.
+  - action identifiers MUST follow the existing Routing artifact logical identifier grammar and byte limit.
+  - duplicate action identifiers MUST be rejected.
+  - `ActionInvoker` MUST NOT treat an unmapped action identifier as a class-string, FQCN, or container service id.
+  - `HandlerResolver` MAY construct one immutable lookup map from validated registrations.
+  - Foundation Container remains the sole owner of service lookup, construction, caching, and service lifecycle.
+  - MUST NOT widen the canonical config source-path grammar, container map-key grammar, or typed-reference representation to accommodate application handler registrations.
+
+- Route-specific middleware policy (MUST):
+  - `RouteDefinition::metadata()` and `RouteMatch::metadata()` remain the canonical route declaration and handoff surfaces.
+  - the reserved HttpApp-consumed metadata member is exactly `http_app_middleware`.
+  - its value is an ordered list of explicitly selected middleware service ids.
+  - absence of this member means no route-specific middleware.
+  - an explicitly present invalid member MUST NOT be treated as an absent member.
+  - every selected service id MUST be present in `http_app.route_middleware`.
+  - selected services MUST be explicitly registered through canonical container definitions.
+  - selected middleware MUST implement `Psr\Http\Server\MiddlewareInterface`.
+  - declared middleware order MUST be preserved without sorting or implicit deduplication.
+  - unknown, unavailable, malformed, or unsupported middleware selections MUST fail closed before action invocation.
+  - route metadata MUST NOT contain middleware instances, factories, executable values, or raw request data.
+  - Routing remains format-neutral and MUST NOT resolve or execute middleware.
+  - existing RouteGroup metadata inheritance remains authoritative.
+  - duplicate inherited metadata keys remain invalid; no HttpApp-specific recursive metadata merge policy is introduced.
 
 - Required tags:
-  - `http.middleware.app` — slot for user middlewares (owner=`platform/http`)
-  - `error.mapper` — exception mapper discovery (owner=`platform/errors`; because owner package is a forbidden compile-time dependency here, runtime code SHOULD use a package-local internal mirror constant; the canonical string literal is allowed only as fallback under the non-owner tag usage rule)
+  - `http.middleware.app` — canonical HTTP application middleware slot, consumed through `ReservedTags::HTTP_MIDDLEWARE_APP`
+  - `error.mapper` — canonical exception mapper discovery, consumed through `ReservedTags::ERROR_MAPPER`
+  - `http.middleware.route` — canonical route middleware slot, consumed through `ReservedTags::HTTP_MIDDLEWARE_ROUTE`
 
 - Required contracts / ports:
   - `Psr\Http\Server\MiddlewareInterface` — RouterMiddleware
@@ -17567,17 +17674,43 @@ ssot_refs:
 
 #### Compile-time deps (deptrac-enforceable) (MUST)
 
-Depends on:
+Direct PHP source dependencies:
 - `core/contracts`
 - `core/foundation`
-- `platform/http`
-- `platform/routing`
+- `platform/http` — reuse of the explicitly public HTTP Pipeline composition API
 
-Forbidden:
-- `platform/errors` (only contracts `ExceptionMapperInterface`)
-- `platform/problem-details`
+Required runtime-only Composer and module dependencies:
+- `platform/routing` — provides the effective RouterInterface binding and routing artifact readiness
+- `platform/errors` — provides canonical exception mapping, normalization, redaction, and eligible reporting
+- `platform/problem-details` — provides the canonical outer PSR-15 error boundary
+
+Forbidden direct PHP source dependencies:
 - `core/kernel`
+- `platform/routing`
+- `platform/errors`
+- `platform/problem-details`
+- every other `platform/*` package except `platform/http`
 - `integrations/*`
+- `enterprise/*`
+- `devtools/*`
+
+Dependency discipline:
+- `platform/http` remains an explicit direct Composer and runtime module requirement.
+- HttpApp consumes only the explicitly public HTTP Pipeline composition API from `platform/http`.
+- HttpApp MUST NOT consume HTTP-internal stack builders, runtime factories, entrypoint guards, fallback implementations, or HttpKernel internals.
+- every direct runtime module requirement MUST have a matching direct production Composer requirement.
+- runtime-only Composer/module edges MUST NOT widen the canonical PHP source dependency matrix.
+- no reverse PHP source, Composer, or runtime module dependency from HTTP, Routing, Errors, or Problem Details to HttpApp is introduced.
+- Routing and HTTP remain independent of each other.
+- no PSR-7 or PSR-15 execution contracts are introduced into `core/contracts` or `core/foundation`.
+- Foundation remains the canonical owner of declarative service registration, reserved tag identifiers, tagged-service discovery, deterministic discovery ordering, and container-owned service resolution.
+- Middleware-producing packages MUST register their contributions through existing Foundation declarative DI and ReservedTags APIs.
+- Implementing or registering MiddlewareInterface services does not require a direct dependency on platform/http.
+- Middleware-producing packages MUST NOT depend on platform/http solely for middleware registration, tagged discovery, or ordering.
+- Direct PHP source dependency on platform/http is justified only for consumers of its explicitly public HTTP runtime APIs.
+- The reusable PSR-15 Pipeline remains HTTP-owned and independent of HttpKernel, routing, configuration, error mapping, and UnitOfWork orchestration.
+- MUST NOT introduce PSR-7, PSR-15, or PSR-17 production Composer dependencies into core/foundation.
+- MUST NOT introduce a Foundation MiddlewareRegistry, alternative middleware registration API, or parallel tagged-service discovery mechanism.
 
 #### Uses ports (API surface, NOT deps) (optional)
 
@@ -17587,6 +17720,7 @@ Forbidden:
   - `Psr\Http\Message\ResponseInterface`
   - `Psr\Log\LoggerInterface`
 - Contracts:
+  - `Coretsia\Contracts\Config\ConfigRepositoryInterface`
   - `Coretsia\Contracts\Routing\RouterInterface`
   - `Coretsia\Contracts\Routing\RouteMatch`
   - `Coretsia\Contracts\HttpApp\ActionInvokerInterface`
@@ -17594,116 +17728,2173 @@ Forbidden:
   - `Coretsia\Contracts\Observability\Errors\ExceptionMapperInterface`
   - `Coretsia\Contracts\Observability\Tracing\TracerPortInterface`
   - `Coretsia\Contracts\Observability\Metrics\MeterPortInterface`
-- Foundation stable APIs (if used):
-  - `Coretsia\Foundation\Discovery\DeterministicOrder`
 
 ### Entry points / integration points (MUST)
 
 - CLI:
   - N/A
 - HTTP:
-  - middleware: `\Coretsia\HttpApp\Middleware\RouterMiddleware::class`
-  - middleware slots/tags: `http.middleware.app` priority `100` (meta per owner `platform/http` tag schema, if any)
+  - routing middleware: `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`
+  - routing contribution: `http.middleware.app`, priority `100`, metadata `[]`
+  - action dispatch middleware: `\Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class`
+  - dispatch contribution: `http.middleware.route`, priority `-1000`, metadata `[]`
+  - RouterMiddleware delegates successful matches and reserved paths through the existing downstream chain.
+  - ActionDispatchMiddleware is the canonical final effective route contribution, including after ordinary manual route middleware.
+  - route-specific middleware executes through the existing HTTP Pipeline implementation before action invocation.
+  - the existing terminal RequestHandlerInterface binding remains HTTP-owned.
 - Kernel hooks/tags:
-  - `error.mapper` priority `800` (meta per owner `platform/errors` tag schema, if any)
+  - `error.mapper` priority `800`, metadata `[]`
 - Artifacts:
-  - reads (indirect, via `RouterInterface` impl): `packages/applications/skeleton/var/cache/<appId>/routes.php`
+  - consumes the boot-selected Routing-owned `routes@1` artifact indirectly through the effective `RouterInterface` implementation
+  - artifact selection, path resolution, validation, hydration, and entrypoint readiness remain owned by the existing Routing and HTTP boundaries
+  - no artifact path construction, filesystem access, reader, writer, or artifact schema is introduced by HttpApp
+- Module composition:
+  - `platform.http-app` participates only when explicitly selected in the effective target module plan;
+  - all declared runtime module dependencies MUST be satisfied through canonical module planning;
+  - package installation alone MUST NOT activate the HTTP application dispatch boundary;
+  - missing required runtime modules MUST fail through canonical module planning;
+  - no package-local module discovery, module enablement, or runtime composition mechanism is introduced.
 
 ### Deliverables (MUST)
 
 #### Creates
 
-Package skeleton:
-- [ ] `packages/platform/http-app/composer.json` — package manifest
-- [ ] `packages/platform/http-app/src/Module/HttpAppModule.php` — runtime module entry
-- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceProvider.php` — DI wiring
-- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceFactory.php` — Stateless factory/wiring helper: builds services from DI+config; MUST NOT keep mutable runtime state (no caches/buffers).
-- [ ] `packages/platform/http-app/config/http_app.php` — config subtree (no repeated root)
-- [ ] `packages/platform/http-app/config/rules.php` — config rules
-- [ ] `packages/platform/http-app/README.md` — docs (Observability / Errors / Security-Redaction)
-- [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] Run `composer package:new -- --layer=platform --slug=http-app --kind=runtime --description="Coretsia HTTP application runtime package: deterministic routing integration, route-specific PSR-15 middleware, and explicit action dispatch." --keywords=coretsia,php,framework,http-app,runtime,http,routing,psr-15,middleware,route-middleware,action-dispatch,action-invocation,argument-resolution,response-mapping,deterministic,observability` exactly once.
+
+- [x] `packages/platform/http-app/LICENSE`
+- [x] `packages/platform/http-app/NOTICE`
+- [x] `packages/platform/http-app/SECURITY.md`
+
+Package scaffold:
+- [x] `packages/platform/http-app/composer.json`
+  - [x] `name = coretsia/platform-http-app`
+  - [x] `type = library`
+  - [x] `license = Apache-2.0`
+  - [x] requires exactly:
+    - [x] `php: ^8.4`
+    - [x] `coretsia/core-contracts`: canonical public release constraint
+    - [x] `coretsia/core-foundation`: canonical public release constraint
+    - [x] `coretsia/platform-errors`: canonical public release constraint
+    - [x] `coretsia/platform-http`: canonical public release constraint
+    - [x] `coretsia/platform-problem-details`: canonical public release constraint
+    - [x] `coretsia/platform-routing`: canonical public release constraint
+    - [x] `psr/container: ^2.0`
+    - [x] `psr/http-factory: ^1.0`
+    - [x] `psr/http-message: ^2.0`
+    - [x] `psr/http-server-handler: ^1.0`
+    - [x] `psr/http-server-middleware: ^1.0`
+    - [x] `psr/log: ^3.0`
+  - [x] internal package constraints follow the canonical release-line policy
+  - [x] MUST NOT require Kernel directly or a concrete PSR-7/17 implementation
+  - [x] PSR-4:
+    - [x] `Coretsia\Platform\HttpApp\` → `src/`
+  - [x] autoload-dev:
+    - [x] `Coretsia\Platform\HttpApp\Tests\` → `tests/`
+  - [x] `extra.coretsia` exact metadata:
+    - [x] `kind = runtime`
+    - [x] `moduleId = platform.http-app`
+    - [x] `moduleClass = Coretsia\Platform\HttpApp\Module\HttpAppModule`
+    - [x] `providers = [Coretsia\Platform\HttpApp\Provider\HttpAppServiceProvider]`
+    - [x] `requires = [core.foundation, platform.errors, platform.http, platform.problem-details, platform.routing]`
+    - [x] `conflicts = []`
+    - [x] `defaultsConfigPath = config/http_app.php`
+
+- [x] `packages/platform/http-app/src/Module/HttpAppModule.php`
+  - [x] final class
+  - [x] public typed constants:
+    - [x] `public const string MODULE_ID = 'platform.http-app'`
+    - [x] `public const string PACKAGE_ID = 'platform/http-app'`
+    - [x] `public const string COMPOSER_PACKAGE = 'coretsia/platform-http-app'`
+    - [x] `public const string KIND = 'runtime'`
+    - [x] `public const string CONFIG_ROOT = 'http_app'`
+  - [x] exact instance methods:
+    - [x] `public function id(): string`
+    - [x] `public function packageId(): string`
+    - [x] `public function composerPackage(): string`
+    - [x] `public function kind(): string`
+    - [x] `public function configRoot(): string`
+    - [x] `public function providers(): array`
+  - [x] `providers()` declares `@return list<class-string<ServiceProviderInterface>>`
+  - [x] `providers()` returns only `HttpAppServiceProvider::class`
+  - [x] no config reads, service resolution, discovery, filesystem access, or runtime work
+
+- [x] `packages/platform/http-app/config/http_app.php`
+  - [x] returns the `http_app` subtree only
+  - [x] contains exactly:
+    - [x] `handlers = []`
+      - [x] list of closed records with exactly `action_id` and `service_id`
+      - [x] both fields contain non-empty strings
+      - [x] logical identifiers and service ids are configuration values, not structural map keys
+    - [x] `route_middleware = []`
+      - [x] list of explicitly admitted route-specific middleware service ids
+      - [x] every entry is a non-empty canonical service-id string
+      - [x] does not define execution order for individual routes
+      - [x] route-specific execution order is owned by `RouteMatch::metadata()['http_app_middleware']`
+    - [x] `arguments.allow_request = true`
+    - [x] `arguments.allow_route_params = true`
+    - [x] `arguments.allow_container_types = []`
+    - [x] `response.json.enabled = true`
+    - [x] `response.html.enabled = true`
+    - [x] `tracing.enabled = true`
+    - [x] `metrics.enabled = true`
+    - [x] `logging.enabled = true`
+  - [x] defaults are static declarative values
+  - [x] includes the extended package configuration policy PHPDoc
+  - [x] no executable configuration, environment reads, service objects, or repeated root wrapper
+
+- [x] `packages/platform/http-app/config/rules.php`
+  - [x] uses the existing Kernel declarative ruleset grammar
+  - [x] `schemaVersion = 1`
+  - [x] `configRoot = http_app`
+  - [x] root `additionalKeys = false`
+  - [x] requires every canonical subtree and key
+  - [x] rejects unknown keys in every closed configuration map
+  - [x] `handlers`:
+    - [x] `required = true`
+    - [x] `type = list`
+    - [x] each item is a closed map with `additionalKeys = false`
+    - [x] each item requires exactly:
+      - [x] `action_id`: string
+      - [x] `service_id`: string
+  - [x] `route_middleware`:
+    - [x] `required = true`
+    - [x] `type = list`
+    - [x] each item uses the existing `non-empty-string-no-ws` type
+    - [x] duplicate and canonical service-id validation is performed by RouteMiddlewareSelector
+  - [x] `arguments.allow_container_types` is a required list with string item rules
+  - [x] all feature toggles require exact bool values
+  - [x] defines structural configuration validation only.
+  - [x] semantic handler registration, argument allowlist, and route middleware admission validation remain provider-owned.
+  - [x] MUST NOT call runtime validators or declare service dependencies from this configuration rules file.
+  - [x] does not introduce unsupported ruleset keywords, executable validators, callbacks, or closures
+  - [x] includes one concise ruleset PHPDoc before the returned array
+
+- [x] `packages/platform/http-app/src/Provider/HttpAppServiceProvider.php`
+  - [x] final class
+  - [x] implements `ServiceProviderInterface`
+  - [x] implements `ContainerDefinitionProviderInterface`
+  - [x] `register()` calls `assertDefinitionProviderRegistrationAllowed()`
+  - [x] `register()` delegates through `registerDefinitionProvider($this)`
+  - [x] `define()` is the single canonical wiring source
+  - [x] reads the effective target-local `http_app` config subtree through `ContainerDefinitionContext::configRoot('http_app')`
+  - [x] reads the validated `http_app.handlers` list from the effective configuration subtree
+  - [x] validates handler registrations through `HandlerResolver::validateRegistrations()`
+  - [x] validates container-type allowlist through `ArgumentResolver::validateContainerTypes()`
+  - [x] validates `http_app.route_middleware` through `RouteMiddlewareSelector::validateServiceIds()`.
+  - [x] performs semantic validation before contributing dependent service definitions
+  - [x] declares every configured handler service id through `ContainerDefinitionBuilder::requireService()`
+  - [x] declares every configured allowlisted container type through `ContainerDefinitionBuilder::requireService()`
+  - [x] declares every configured route-specific middleware service id through `ContainerDefinitionBuilder::requireService()`.
+  - [x] missing configured middleware services fail canonical graph completeness validation.
+  - [x] MUST NOT resolve or instantiate route-specific middleware during definition construction.
+  - [x] actual route-specific middleware selection and MiddlewareInterface admission remain dispatch-time responsibilities.
+  - [x] delegates final dependency completeness to the existing Kernel graph validator
+  - [x] required-service declarations retain the existing production graph completeness semantics.
+  - [x] source ContainerDefinitionApplier is not responsible for final required-service completeness validation.
+  - [x] provider-owned semantic validation is identical for source and compiled definition production.
+  - [x] MUST NOT introduce eager source-container service lookup or an independent completeness validator to simulate production graph validation.
+  - [x] runtime explicit service-registration and resolved-instance admission remain the responsibility of the corresponding HttpApp resolver.
+  - [x] MUST NOT resolve configured services during definition production
+  - [x] passes validated boolean configuration values directly as declarative constructor arguments
+  - [x] supplies ConfigRepositoryInterface to HandlerResolver, ArgumentResolver, and RouteMiddlewareSelector through canonical service references.
+  - [x] dynamic handler registrations, container-type allowlists, and route middleware admission lists are consumed from the same authoritative configuration snapshot through the existing read-only ConfigRepositoryInterface.
+  - [x] MUST NOT copy dynamic handler registration maps into declarative constructor argument maps or container parameters
+  - [x] MUST NOT encode handler identifiers into alternative escaped keys to bypass existing container or config policies
+  - [x] uses `ContainerValueReference::service()` for every service dependency
+  - [x] requires effective services for:
+    - [x] `ConfigRepositoryInterface`
+    - [x] `Coretsia\Foundation\Container\Container`
+    - [x] `RouterInterface`
+    - [x] `ResponseFactoryInterface`
+    - [x] `StreamFactoryInterface`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] `LoggerInterface`
+    - [x] `Stopwatch`
+  - [x] registers shared definitions for:
+    - [x] `HandlerResolver`
+    - [x] `ArgumentResolver`
+    - [x] `ActionInvoker`
+    - [x] `ActionResponseMapper`
+    - [x] `RouterMiddleware`
+    - [x] `HttpAppProblemMapper`
+    - [x] `RouteMiddlewareSelector`
+    - [x] `ActionDispatchMiddleware`
+  - [x] aliases:
+    - [x] `ArgumentResolverInterface::class` → `ArgumentResolver::class`
+    - [x] `ActionInvokerInterface::class` → `ActionInvoker::class`
+  - [x] registers exactly two canonical middleware contributions:
+    - [x] RouterMiddleware:
+      - [x] service id `RouterMiddleware::class`
+      - [x] tag `ReservedTags::HTTP_MIDDLEWARE_APP`
+      - [x] priority `100`
+      - [x] metadata `[]`
+    - [x] ActionDispatchMiddleware:
+      - [x] service id `ActionDispatchMiddleware::class`
+      - [x] tag `ReservedTags::HTTP_MIDDLEWARE_ROUTE`
+      - [x] priority `-1000`
+      - [x] metadata `[]`
+  - [x] RouterMiddleware receives only RouterInterface.
+  - [x] ActionDispatchMiddleware receives the explicit action execution, middleware selection, container, observability, timing, and feature-flag dependencies.
+  - [x] RouteMiddlewareSelector receives the existing effective ConfigRepositoryInterface.
+  - [x] preserves lazy resolution of route-specific middleware services.
+  - [x] MUST NOT bind request-local Pipeline instances as reusable container services.
+  - [x] MUST NOT register, override, or alias the canonical global Pipeline service.
+  - [x] MUST NOT override the HTTP-owned terminal RequestHandlerInterface.
+  - [x] registers exactly one mapper contribution:
+    - [x] service id `HttpAppProblemMapper::class`
+    - [x] tag `ReservedTags::ERROR_MAPPER`
+    - [x] priority `800`
+    - [x] metadata `[]`
+  - [x] preserves lazy resolution of application-owned handlers and allowed argument services
+  - [x] lazy service resolution does not waive declarative graph completeness requirements
+  - [x] configured but missing service bindings MUST fail canonical graph completeness validation
+  - [x] registered but failing service construction remains a dispatch-time failure
+  - [x] an action identifier absent from configuration remains a dispatch-time failure
+  - [x] MUST NOT introduce a second graph completeness validator
+  - [x] MUST NOT resolve handlers, invoke actions, inspect request objects, or load route artifacts during definition construction
+  - [x] MUST NOT instantiate fallback dependencies or concrete PSR-17 factories
+  - [x] MUST NOT bind or override `RouterInterface`, `ErrorHandlerInterface`, observability ports, PSR-17 factory ports, or the terminal RequestHandler
+  - [x] definitions contain no closures or runtime objects
+  - [x] no `kernel.reset` contribution
 
 Implementation:
-- [ ] `packages/platform/http-app/src/Middleware/RouterMiddleware.php` — routing boundary + dispatch
-- [ ] `packages/platform/http-app/src/Action/ActionInvoker.php` — invokes handler; spans/metrics/logs
-  - [ ] MUST resolve handler ids only through `http_app.handlers.map`
-  - [ ] MUST NOT perform implicit FQCN/service-id fallback
-- [ ] `packages/platform/http-app/src/Action/ArgumentResolver/ArgumentResolver.php` — resolves args (no interface autowire)
-- [ ] `packages/platform/http-app/src/Action/ArgumentResolver/RouteParamsAccessor.php` — helper
-- [ ] `packages/platform/http-app/src/Response/ActionResponseMapper.php` — maps return value → ResponseInterface (json/html)
-  - [ ] If `ActionResponseMapper` serializes JSON, it MUST:
-    - [ ] use `Coretsia\Foundation\Serialization\StableJsonEncoder` as the single JSON writer
-    - [ ] not use tooling `internal-toolkit`
-    - [ ] not emit floats/NaN/INF
-    - [ ] produce stable bytes (recursive map-key sort `strcmp`, lists preserve order)
-    - [ ] MUST NOT use ad-hoc `json_encode` directly in mapper logic
+- [x] `packages/platform/http-app/src/Action/HandlerResolver.php`
+  - [x] final readonly class
+  - [x] package-internal service; documented `@internal`
+  - [x] constructor receives exactly:
+    - [x] `Coretsia\Foundation\Container\Container`
+    - [x] `ConfigRepositoryInterface`
+  - [x] reads `http_app.handlers` exactly once during construction without a fallback default
+  - [x] validates registrations through `self::validateRegistrations()`
+  - [x] retains only the resulting immutable action-id-to-service-id lookup map and the supplied Container
+  - [x] MUST NOT retain a mutable configuration registry or dynamically reload configuration
+  - [x] package-internal static validation API:
+    - [x] `public static function validateRegistrations(mixed $registrations): array`
+    - [x] `@return array<string, string>`
+  - [x] registration validation:
+    - [x] input MUST be a list
+    - [x] each entry MUST be a map containing exactly `action_id` and `service_id`
+    - [x] both values MUST be non-empty strings
+    - [x] `action_id` matches `\A[A-Za-z_][A-Za-z0-9_.:-]*\z`
+    - [x] `action_id` is at most 256 bytes
+    - [x] action identifiers are compared byte-for-byte without normalization, trimming, or case folding
+    - [x] duplicate action identifiers are rejected even when their service ids are identical
+    - [x] different action identifiers MAY explicitly reference the same service id
+    - [x] `service_id` remains subject to the existing canonical Foundation declarative service-id policy
+    - [x] reuse `ContainerValueReference::service()` for canonical service-id admission
+    - [x] rejects control bytes in service identifiers
+    - [x] returns the immutable lookup map with exact original identifiers
+    - [x] invalid registration input throws `InvalidArgumentException('http-app-handlers-invalid')`
+    - [x] rejected identifiers and previous validation exceptions MUST NOT be retained or exported
+  - [x] the same validation implementation is reused during provider definition construction and runtime resolver construction
+  - [x] exact API:
+    - [x] `public function resolve(string $actionId): object`
+  - [x] resolves action identifiers exclusively through exact keys in the supplied map
+  - [x] uses the explicitly mapped service id without implicit transformation
+  - [x] verifies explicit service registration through the existing `Container::serviceIds()` API before calling `get()`
+  - [x] MUST NOT use `Container::has()` alone as evidence of explicit registration because Foundation supports concrete-class autowire fallback
+  - [x] MUST NOT instantiate controller classes directly
+  - [x] resolved service MUST expose an actual public non-static `__invoke()` method
+  - [x] resolved service MUST be an application-owned invokable object
+  - [x] rejects `Closure` instances
+  - [x] validates the supported action signature before returning the resolved service
+  - [x] rejects by-reference parameters, variadic parameters, union types, and intersection types
+  - [x] inherited public non-static `__invoke()` methods are permitted
+  - [x] does not invoke the resolved action during signature validation
+  - [x] rejects function-name handlers, arbitrary method strings, magic `__call()` resolution, and implicit FQCN fallback
+  - [x] missing map entry, missing explicit service definition, or unsupported handler shape fails with a fixed safe dispatch exception
+  - [x] container resolution failure is converted to a safe dispatch failure without retaining raw diagnostic data
+  - [x] introduces no additional service registry, callable cache, controller cache, or autowire implementation
+  - [x] retains no resolved handler instance after the invocation boundary
 
-Exceptions + mapping:
-- [ ] `packages/platform/http-app/src/Exception/HttpNotFoundException.php` — `CORETSIA_HTTP_404`
-- [ ] `packages/platform/http-app/src/Exception/HttpMethodNotAllowedException.php` — `CORETSIA_HTTP_405`
-- [ ] `packages/platform/http-app/src/Error/HttpAppProblemMapper.php` — implements `ExceptionMapperInterface`, tag `error.mapper`
+- [x] `packages/platform/http-app/src/Action/ArgumentResolver.php`
+  - [x] final readonly class
+  - [x] implements the existing `ArgumentResolverInterface`
+  - [x] constructor receives exactly:
+    - [x] `HandlerResolver`
+    - [x] `Coretsia\Foundation\Container\Container`
+    - [x] `bool $allowRequest`
+    - [x] `bool $allowRouteParams`
+    - [x] `ConfigRepositoryInterface`
+  - [x] reads `http_app.arguments.allow_container_types` exactly once during construction without a fallback default
+  - [x] validates the supplied value through `self::validateContainerTypes()`
+  - [x] retains the validated immutable allowlist only
+  - [x] package-internal static validation API:
+    - [x] `public static function validateContainerTypes(mixed $types): array`
+    - [x] `@return list<class-string>`
+  - [x] validates an exact list of unique canonical class-name strings
+  - [x] reuses the existing `ContainerValueReference::class()` admission policy for declarative class identifiers
+  - [x] provider-time validation MUST NOT instantiate or resolve configured classes
+  - [x] concrete-type eligibility remains verified at runtime before service resolution
+  - [x] invalid allowlist input throws `InvalidArgumentException('http-app-container-types-invalid')`
+  - [x] no rejected type name or previous validation exception is retained
+  - [x] preserves the exact contracts-level API:
+    - [x] `public function resolve(string $actionId, RouteMatch $match, array $context = []): array`
+  - [x] contracts-level `resolve()`:
+    - [x] requires `$actionId === $match->handler()`
+    - [x] resolves the explicitly registered action through `HandlerResolver`
+    - [x] delegates to the shared argument resolution implementation without a request object
+    - [x] MUST NOT expect PSR-7 objects or raw transport values in `$context`
+    - [x] ignores the optional safe context map for baseline argument-source selection
+    - [x] the context map cannot override handler registration, route parameters, request-injection policy, or the concrete-service allowlist
+    - [x] this standalone port invocation owns its own action resolution
+    - [x] the same-instance guarantee applies to the combined HTTP dispatch boundary, not to independently executed calls of the two format-neutral ports
+  - [x] package-internal HTTP adaptation API:
+    - [x] `public function resolveForAction(object $action, RouteMatch $match, ?ServerRequestInterface $request): array`
+  - [x] both entrypoints reuse one argument resolution implementation
+  - [x] reflects only the resolved action's declared `__invoke()` method
+  - [x] returns an `array<string, mixed>` named argument map
+  - [x] resolution precedence:
+    - [x] explicitly enabled request injection
+    - [x] explicitly enabled matched route parameter by exact parameter name
+    - [x] explicitly allowlisted concrete service type
+    - [x] declared PHP parameter default
+    - [x] deterministic resolution failure
+  - [x] request injection:
+    - [x] supports only the exact `ServerRequestInterface` named type
+    - [x] requires `http_app.arguments.allow_request = true`
+    - [x] requires an explicitly supplied HTTP request
+    - [x] does not obtain requests from ContextStore, globals, or the container
+  - [x] route parameter injection:
+    - [x] requires `http_app.arguments.allow_route_params = true`
+    - [x] reads directly from `RouteMatch::parameters()`
+    - [x] resolves by exact declared parameter name
+    - [x] preserves the canonical encoded string value
+    - [x] supports untyped, `mixed`, and `string` parameters only
+    - [x] performs no URL decoding, scalar coercion, model binding, or parameter-name normalization
+    - [x] a selected but incompatible route parameter fails instead of falling through to container resolution
+  - [x] container argument injection:
+    - [x] requires an exact named concrete class type present in `http_app.arguments.allow_container_types`
+    - [x] rejects interfaces, abstract classes, enums, union types, intersection types, and unsupported relative type names
+    - [x] requires an explicit service registration for the exact type
+    - [x] delegates instance resolution to the existing Foundation Container
+    - [x] verifies that the returned value satisfies the declared concrete type
+    - [x] MUST NOT implement recursive constructor autowiring
+    - [x] allowlist membership uses the exact ReflectionNamedType name without case folding or relative-name expansion
+    - [x] verifies class eligibility without constructing an instance through reflection
+    - [x] a concrete registered class MAY be supplied through its existing application-owned factory definition
+    - [x] an explicitly selected but unavailable or incompatible service MUST fail instead of falling through to the PHP parameter default
+    - [x] container lookup failures map to `REASON_ARGUMENT_UNRESOLVABLE`
+  - [x] relies on HandlerResolver for canonical action signature admission
+  - [x] unsupported action signatures MUST NOT enter argument resolution or action invocation
+  - [x] does not infer nullable values merely from nullable parameter declarations
+  - [x] does not use route metadata, query parameters, parsed body values, headers, cookies, or arbitrary context entries as argument sources
+  - [x] reflection and resolution failures expose fixed safe reason tokens only
+  - [x] never retains reflection objects, requests, route matches, argument maps, or resolved service instances
+
+- [x] `packages/platform/http-app/src/Action/ActionInvoker.php`
+  - [x] final readonly class
+  - [x] implements the existing `ActionInvokerInterface`
+  - [x] constructor receives exactly:
+    - [x] `HandlerResolver`
+    - [x] `ArgumentResolver`
+  - [x] preserves the exact contracts-level API:
+    - [x] `public function invoke(string $actionId, array $arguments = []): mixed`
+  - [x] package-internal HTTP adaptation API:
+    - [x] `public function dispatch(RouteMatch $match, ServerRequestInterface $request): mixed`
+  - [x] `invoke()` resolves the action exclusively through `HandlerResolver` and invokes it with the supplied named arguments
+  - [x] `dispatch()`:
+    - [x] obtains the action id from `RouteMatch::handler()`
+    - [x] resolves the action exactly once
+    - [x] passes the same resolved instance to `ArgumentResolver::resolveForAction()`
+    - [x] invokes that same instance with the returned named arguments
+  - [x] both entrypoints delegate to one private resolved-action invocation method
+  - [x] validates that supplied argument keys are named string keys
+  - [x] validates supplied argument names against the admitted action signature
+  - [x] rejects unknown argument names and missing required arguments with `REASON_ARGUMENT_INVALID`
+  - [x] declared PHP defaults remain authoritative for omitted optional parameters
+  - [x] invokes the admitted action through direct named argument unpacking:
+    - [x] `$action(...$arguments)`
+  - [x] source file declares `strict_types=1`
+  - [x] MUST NOT invoke actions through ReflectionMethod::invokeArgs(), call_user_func_array(), or a scalar-coercing reflection invocation adapter
+  - [x] MUST NOT introduce a second PHP parameter type system
+  - [x] native invocation type errors and action-thrown Throwable remain subject to the canonical outer error boundary
+  - [x] supplied argument validation does not automatically inject or resolve additional values
+  - [x] preserves declared action return values without transport conversion
+  - [x] action-thrown Throwable propagates unchanged to the canonical outer boundary
+  - [x] MUST NOT normalize or report application errors
+  - [x] MUST NOT map return values to HTTP responses
+  - [x] MUST NOT retain actions, requests, route matches, argument maps, or invocation results
+  - [x] introduces no reflection cache, service locator registry, response factory, or reset hook
+
+- [x] `packages/platform/http-app/src/Response/ActionResponseMapper.php`
+  - [x] final readonly class
+  - [x] constructor receives exactly:
+    - [x] `ResponseFactoryInterface`
+    - [x] `StreamFactoryInterface`
+    - [x] `bool $jsonEnabled`
+    - [x] `bool $htmlEnabled`
+  - [x] exact API:
+    - [x] `public function map(mixed $value): ResponseInterface`
+  - [x] `ResponseInterface` values pass through unchanged
+  - [x] string values:
+    - [x] require `http_app.response.html.enabled = true`
+    - [x] produce HTTP status `200`
+    - [x] produce `Content-Type: text/html; charset=utf-8`
+    - [x] use the exact application-provided string as the response body
+    - [x] strings are explicit application-owned HTML output, not framework-rendered templates
+    - [x] escaping untrusted application data remains action-owner responsibility
+  - [x] null, bool, int, and array values:
+    - [x] require `http_app.response.json.enabled = true`
+    - [x] produce HTTP status `200`
+    - [x] produce `Content-Type: application/json`
+    - [x] delegate exclusively to `StableJsonEncoder::encodeStable()`
+    - [x] preserve the encoder-owned final LF
+    - [x] preserve the canonical distinction between lists and maps
+    - [x] an empty PHP array is encoded as `[]`
+  - [x] floats, NaN, INF, arbitrary objects, resources, closures, and other unsupported values are rejected
+  - [x] invalid nested JSON-like values are rejected by the existing Foundation encoder
+  - [x] serialization and unsupported-return failures become fixed safe dispatch exceptions
+  - [x] unsupported return types use `REASON_RESPONSE_UNSUPPORTED`
+  - [x] disabled representation mapping uses `REASON_RESPONSE_DISABLED`
+  - [x] invalid nested JSON-like values and canonical encoder failures use `REASON_RESPONSE_MAPPING_FAILED`
+  - [x] response factory, stream factory, response header, and response body construction failures use `REASON_RESPONSE_MAPPING_FAILED`
+  - [x] explicitly produced HttpAppDispatchException failures retain their original admitted reason
+  - [x] no partially constructed response is returned
+  - [x] an existing ResponseInterface value is returned without inspecting its headers, status, or body inside this mapper
+  - [x] MUST NOT retain previous serialization exceptions containing unsafe diagnostic state
+  - [x] disabled response mapping fails closed instead of silently selecting another representation
+  - [x] uses only the effective HTTP-owned PSR-17 factory bindings
+  - [x] MUST NOT perform content negotiation or inspect `ContextKeys::HTTP_RESPONSE_FORMAT`
+  - [x] MUST NOT automatically serialize DTOs or invoke `JsonSerializable` or `__toString()`
+  - [x] MUST NOT introduce a second JSON encoder, recursive normalizer, HTML renderer, or RFC9457 renderer
+  - [x] MUST NOT log action return values or response bodies
+
+- [x] `packages/platform/http-app/src/Routing/RouteDispatchState.php`
+  - [x] final readonly value object
+  - [x] public typed constant:
+    - [x] `public const string ATTRIBUTE = 'coretsia.http_app.route_dispatch'`
+  - [x] private constructor
+  - [x] private immutable state contains exactly:
+    - [x] original request method
+    - [x] original encoded URI path
+    - [x] original URI host normalized only from empty string to null
+    - [x] `?RouteMatch $match`
+  - [x] exact factory methods:
+    - [x] `public static function matched(ServerRequestInterface $request, RouteMatch $match): self`
+    - [x] `public static function reserved(ServerRequestInterface $request): self`
+  - [x] exact accessors and validation API:
+    - [x] `public function match(): ?RouteMatch`
+    - [x] `public function assertRequest(ServerRequestInterface $request): void`
+    - [x] `public static function fromRequest(ServerRequestInterface $request): self`
+  - [x] a null RouteMatch represents only the explicit reserved-path handoff.
+  - [x] a non-null RouteMatch represents only a successfully matched application route.
+  - [x] raw method, path, and host are invocation-local comparison values and have no diagnostic export API.
+  - [x] does not retain the ServerRequestInterface instance.
+  - [x] `fromRequest()` requires an actual RouteDispatchState instance under the exact ATTRIBUTE key.
+  - [x] missing or incorrectly typed state throws HttpAppDispatchException with `REASON_ROUTE_STATE_INVALID`.
+  - [x] `assertRequest()` requires exact equality of the original method, encoded path, and normalized host.
+  - [x] changed routing inputs throw HttpAppDispatchException with `REASON_ROUTE_INPUT_CHANGED`.
+  - [x] request attribute changes unrelated to routing identity, parsed-body changes, and other legitimate non-routing request adaptations remain supported.
+  - [x] downstream middleware MAY read the matched route through this request-local handoff.
+  - [x] downstream middleware MUST NOT overwrite or remove the framework-owned routing handoff.
+  - [x] the canonical guarded global and route-specific Pipeline compositions enforce protected attribute identity and routing-input preservation through every subsequent delegating middleware boundary.
+  - [x] RouteDispatchState remains an immutable routing handoff and MUST NOT implement a second continuation guard.
+  - [x] the state object does not own continuation enforcement.
+  - [x] protected attribute enforcement MUST NOT introduce a second RouteMatch, mutable ownership token, ContextStore entry, or process-global request registry.
+  - [x] fromRequest() remains responsible for exact attribute type admission.
+  - [x] assertRequest() remains responsible for exact method, encoded-path, and normalized-host comparison at dispatch boundaries.
+  - [x] routing handoff protection does not constitute a sandbox against deliberately hostile application PHP code.
+  - [x] no serialization, ContextStore integration, global storage, static mutable state, reset hook, observability, or container dependency.
+
+- [x] `packages/platform/http-app/src/Middleware/RouteMiddlewareSelector.php`
+  - [x] final readonly class
+  - [x] package-internal service; documented `@internal`
+  - [x] public typed constant:
+    - [x] `public const string METADATA_KEY = 'http_app_middleware'`
+    - [x] `public const array FORBIDDEN_ROLE_IDS` containing exactly:
+      - [x] `RouterMiddleware::class`
+      - [x] `ActionDispatchMiddleware::class`
+      - [x] `'Coretsia\\Platform\\ProblemDetails\\Http\\Middleware\\HttpErrorHandlingMiddleware'`
+  - [x] FORBIDDEN_ROLE_IDS is package-internal admission policy, not a public middleware registry.
+  - [x] MUST NOT import the concrete Problem Details implementation.
+  - [x] constructor receives exactly:
+    - [x] `ConfigRepositoryInterface`
+  - [x] reads `http_app.route_middleware` exactly once during construction.
+  - [x] validates the configured list through `self::validateServiceIds()`.
+  - [x] retains only the validated immutable admission list.
+  - [x] exact static validation API:
+    - [x] `public static function validateServiceIds(mixed $value): array`
+    - [x] `@return list<non-empty-string>`
+  - [x] validation requires:
+    - [x] actual PHP list
+    - [x] exact non-empty string entries
+    - [x] canonical Foundation service-id admission through `ContainerValueReference::service()`
+    - [x] no ASCII control bytes
+    - [x] no duplicate ids
+    - [x] exact byte-for-byte identifiers without trimming, normalization, or case folding
+    - [x] rejects exact service-id membership in self::FORBIDDEN_ROLE_IDS.
+    - [x] resolved-instance eligibility remains independently enforced by ActionDispatchMiddleware.
+  - [x] rejects invalid input with `InvalidArgumentException('http-app-route-middleware-invalid')`.
+  - [x] does not retain rejected values or previous validation exceptions.
+  - [x] exact selection API:
+    - [x] `public function select(RouteMatch $match): array`
+    - [x] `@return list<non-empty-string>`
+  - [x] reads only the exact METADATA_KEY member from RouteMatch::metadata().
+  - [x] absent metadata member produces `[]`.
+  - [x] an explicitly present null, scalar, map, malformed list, or duplicate-containing list is rejected.
+  - [x] reuses `self::validateServiceIds()` for selected metadata values.
+  - [x] every selected id MUST occur in the configured admission list.
+  - [x] rejects an unknown or invalid selection through HttpAppDispatchException with `REASON_ROUTE_MIDDLEWARE_INVALID`.
+  - [x] returns the exact original route-declared list order.
+  - [x] does not resolve services, discover tags, inspect route artifacts, or execute middleware.
+  - [x] MUST NOT infer service ids from route names, handler ids, or class names.
+  - [x] MUST NOT introduce an independent middleware registry, mutable policy table, or runtime configuration reload.
+  - [x] no ContextStore, observability, or reset dependency.
+
+- [x] `packages/platform/http-app/src/Middleware/RouterMiddleware.php`
+  - [x] final readonly class
+  - [x] implements MiddlewareInterface
+  - [x] constructor receives exactly:
+    - [x] `RouterInterface`
+  - [x] exact PSR-15 API:
+    - [x] `public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface`
+  - [x] rejects an already present framework-owned RouteDispatchState attribute before matching.
+  - [x] checks exact attribute-key presence through ServerRequestInterface::getAttributes().
+  - [x] explicitly present null and incorrectly typed values are rejected, not treated as absent.
+  - [x] rejected pre-existing state throws HttpAppDispatchException with REASON_ROUTE_STATE_INVALID.
+  - [x] the canonical guarded global Pipeline permits introduction of the previously absent routing attribute and protects its exact identity through subsequent continuations.
+  - [x] extracts the exact request method and encoded URI path without normalization, decoding, trimming, or case folding.
+  - [x] extracts the URI host as an ephemeral matching input.
+  - [x] an empty URI host is passed to RouterInterface as null.
+  - [x] invokes RouterInterface::match() exactly once per request entering this boundary.
+  - [x] on successful match:
+    - [x] creates the immutable RouteDispatchState through `RouteDispatchState::matched()`.
+    - [x] attaches the state through `ServerRequestInterface::withAttribute()`.
+    - [x] delegates exactly once through `$handler->handle($matchedRequest)`.
+    - [x] returns the downstream response unchanged.
+  - [x] on null match:
+    - [x] checks reserved ownership through the existing ReservedPathMatcher API.
+    - [x] for reserved paths, creates the explicit reserved RouteDispatchState through `RouteDispatchState::reserved()`.
+    - [x] delegates the request with that state through the existing downstream chain.
+    - [x] preserves the existing HTTP-owned system endpoint and terminal fallback behavior.
+    - [x] canonical invalid-path rejection becomes HttpNotFoundException without retaining rejected input or the previous exception.
+    - [x] unexpected infrastructure failures propagate unchanged.
+    - [x] for an ordinary non-reserved application miss, validates the exact HTTP method token syntax.
+    - [x] malformed or empty methods produce HttpNotFoundException without allowed-method enumeration.
+    - [x] a syntactically valid unmatched method invokes RouterInterface::allowedMethods() exactly once.
+    - [x] an empty allowed-method list produces HttpNotFoundException.
+    - [x] a non-empty allowed-method list produces HttpMethodNotAllowedException.
+    - [x] valid extension methods remain eligible for canonical 405 classification.
+  - [x] method matching remains exact and case-sensitive.
+  - [x] no implicit GET-to-HEAD expansion or automatic OPTIONS handling.
+  - [x] MUST NOT invoke actions or map action return values.
+  - [x] MUST NOT resolve or execute route-specific middleware.
+  - [x] MUST NOT own action spans, action metrics, or action completion logs.
+  - [x] MUST NOT terminate successful application matching before downstream app, route_pre, and route middleware.
+  - [x] MUST NOT reconstruct, sort, or execute a second implementation of the HTTP pipeline.
+  - [x] MUST NOT mutate PATH_TEMPLATE or other ContextKeys.
+  - [x] all request and RouteMatch state remains invocation-local.
+  - [x] preserves Throwable propagation to the existing outer error boundary.
+  - [x] no response finalization, nested UnitOfWork, reset orchestration, or mutable request state.
+
+- [x] `packages/platform/http-app/src/Middleware/ActionDispatchMiddleware.php`
+  - [x] final readonly class
+  - [x] implements MiddlewareInterface
+  - [x] constructor receives exactly:
+    - [x] `Coretsia\Foundation\Container\Container`
+    - [x] `RouteMiddlewareSelector`
+    - [x] `ActionInvoker`
+    - [x] `ActionResponseMapper`
+    - [x] `TracerPortInterface`
+    - [x] `MeterPortInterface`
+    - [x] `LoggerInterface`
+    - [x] `Stopwatch`
+    - [x] `bool $tracingEnabled`
+    - [x] `bool $metricsEnabled`
+    - [x] `bool $loggingEnabled`
+  - [x] exact PSR-15 API:
+    - [x] `public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface`
+  - [x] obtains the routing handoff exclusively through `RouteDispatchState::fromRequest()`.
+  - [x] validates unchanged method, encoded path, and normalized host through `RouteDispatchState::assertRequest()`.
+  - [x] missing, malformed, or inconsistent routing state MUST NOT trigger rematching or implicit fallback.
+  - [x] reserved-path handoff:
+    - [x] delegates exactly once to the existing downstream terminal handler.
+    - [x] does not resolve route-specific middleware or action services.
+    - [x] does not emit action observations.
+  - [x] matched application handoff:
+    - [x] obtains the immutable RouteMatch from the validated state.
+    - [x] selects the ordered route-specific middleware service ids through RouteMiddlewareSelector.
+    - [x] verifies every selected service id is explicitly registered through Container::serviceIds().
+    - [x] delegates service resolution and MiddlewareInterface type admission to `Pipeline::resolveServices()`.
+    - [x] resolves each selected middleware service exactly once per dispatch-chain construction.
+    - [x] does not use Container::has() as evidence of explicit registration.
+    - [x] rejects any resolved middleware whose exact runtime class occurs in RouteMiddlewareSelector::FORBIDDEN_ROLE_IDS.
+    - [x] resolved-class admission applies independently of the selected service id and therefore also rejects forbidden instances reached through aliases.
+    - [x] reuses the selector-owned forbidden-role identities without declaring another list.
+    - [x] MUST NOT import concrete Problem Details implementation classes or consume HTTP-internal composition classes.
+    - [x] does not introduce another middleware resolver, tag registry, or service-instantiation mechanism.
+    - [x] malformed or unadmitted route middleware selection uses REASON_ROUTE_MIDDLEWARE_INVALID.
+    - [x] missing explicit registration, container resolution failure, or incompatible resolved MiddlewareInterface value uses REASON_ROUTE_MIDDLEWARE_UNAVAILABLE.
+    - [x] forbidden resolved framework role instances use REASON_ROUTE_MIDDLEWARE_INVALID.
+    - [x] failures originating from Pipeline::resolveServices() MUST NOT be classified by matching raw exception messages.
+    - [x] converts middleware admission and resolution failures to fixed safe HttpAppDispatchException reasons without retaining previous exceptions.
+    - [x] middleware execution failures after successful admission propagate unchanged.
+    - [x] no action may execute when any required route-specific middleware cannot be admitted or resolved.
+  - [x] route-specific execution:
+    - [x] constructs an invocation-local Pipeline using the existing public HTTP Pipeline constructor with:
+      - [x] exact resolved middleware sequence
+      - [x] invocation-local action terminal
+      - [x] guardedContinuation = true
+      - [x] protectedRequestAttributes = [RouteDispatchState::ATTRIBUTE]
+      - [x] protectRoutingInputs = true
+    - [x] reuses the same protected-attribute, routing-input protection, and single-entry continuation implementation as the global HTTP Pipeline.
+    - [x] routing-input mutations MUST fail before entering any subsequent route-specific middleware.
+    - [x] terminal RouteDispatchState identity and routing-input validation remain final dispatch-boundary checks.
+    - [x] terminal validation is not a substitute for continuation-boundary protection.
+    - [x] MUST NOT introduce a second action invocation guard, continuation registry, or route-specific execution engine.
+    - [x] supplies the exact resolved middleware sequence without sorting, deduplication, or reordering.
+    - [x] supplies an invocation-local RequestHandlerInterface terminal bound to the originally selected RouteDispatchState.
+    - [x] terminal captures the original state rather than selecting another RouteMatch from a downstream request.
+    - [x] before invoking the action, verifies the request still contains the exact captured RouteDispatchState instance.
+    - [x] verifies unchanged routing inputs through the captured state's assertRequest().
+    - [x] an empty route-specific middleware list executes the same terminal behavior.
+    - [x] route-specific middleware MAY return a ResponseInterface without delegating.
+    - [x] an ordinary middleware short-circuit response is returned unchanged.
+    - [x] middleware-thrown Throwable propagates unchanged to the existing outer error boundary.
+    - [x] MUST NOT execute the HTTP-owned system fallback for a matched application route.
+  - [x] action terminal:
+    - [x] invokes `ActionInvoker::dispatch()` using the captured RouteMatch and the effective request supplied by the last delegating middleware.
+    - [x] maps the returned value through `ActionResponseMapper::map()`.
+    - [x] invokes ActionInvoker::dispatch() exactly once per admitted action terminal entry.
+    - [x] performs exactly one handler resolution attempt through the existing ActionInvoker dispatch boundary.
+    - [x] invokes the resolved action exactly once only after successful handler and argument resolution.
+    - [x] handler admission, handler resolution, or argument resolution failure MUST prevent action invocation.
+    - [x] no failed resolution or invocation is retried.
+    - [x] canonical guarded middleware execution permits at most one action terminal entry per matched HTTP invocation.
+    - [x] repeated or expired downstream continuation entry cannot resolve or invoke the action again.
+    - [x] continuation failure does not imply rollback of action side effects already completed before the failure.
+    - [x] preserves the existing same-instance action resolution guarantee.
+    - [x] does not perform another route match or metadata-based action selection.
+  - [x] observability:
+    - [x] action observations begin only after the invocation-local action terminal has successfully validated the captured routing handoff and routing inputs.
+    - [x] admitted handler resolution and argument resolution failures remain part of the action observation lifecycle with outcome `threw`.
+    - [x] routing-state validation failures before admitted action execution MUST NOT produce action observations.
+    - [x] `http.action` covers handler resolution, argument resolution, action invocation, and response mapping.
+    - [x] route-specific middleware admission, construction, and execution are outside the action observation boundary.
+    - [x] middleware short-circuits and middleware failures before terminal entry MUST NOT produce action observations.
+    - [x] implements the exact signal schemas and failure-isolation policy defined under Cross-cutting → Observability.
+    - [x] a successfully started span receives exactly one end attempt through finally.
+    - [x] MUST NOT call recordException() or export Throwable-derived attributes.
+    - [x] observation failure MUST NOT replace the returned response or primary Throwable.
+  - [x] lifecycle:
+    - [x] request-local pipelines, resolved route middleware, terminal handlers, route state, actions, arguments, responses, spans, and timers are never retained by the reusable dispatcher.
+    - [x] runtime-only terminal closures or anonymous RequestHandlerInterface implementations MAY be used.
+    - [x] runtime-only closures MUST NOT enter declarative container definitions or generated artifacts.
+    - [x] shared and non-shared middleware lifecycle remains Foundation-owned.
+    - [x] lazy route-specific resolution guarantees apply only to HttpApp-owned middleware selection and dispatch.
+    - [x] non-selected middleware MUST NOT be resolved or executed by the route-specific dispatcher.
+    - [x] independent canonical lifecycle consumers, including ResetOrchestrator, retain their existing service resolution semantics.
+    - [x] a shared reset-tagged middleware MAY be resolved by canonical reset even when not selected for the current route.
+    - [x] MUST NOT filter canonical reset discovery by the matched route or executed middleware list.
+    - [x] MUST NOT introduce a registry of executed middleware instances for reset purposes.
+    - [x] no nested UnitOfWork, response finalization, reset orchestration, or ContextKeys mutation.
+
+Exceptions and mapping:
+- [x] `packages/platform/http-app/src/Exception/HttpNotFoundException.php`
+  - [x] final class
+  - [x] extends `RuntimeException`
+  - [x] `public const string ERROR_CODE = 'CORETSIA_HTTP_404'`
+  - [x] private constructor
+  - [x] exact named constructor:
+    - [x] `public static function notFound(): self`
+  - [x] exact accessors:
+    - [x] `public function errorCode(): string`
+    - [x] `public function reason(): string`
+  - [x] message and reason are exactly `http-app-not-found`
+  - [x] stores no path, host, method, request object, handler identifier, or previous Throwable
+
+- [x] `packages/platform/http-app/src/Exception/HttpMethodNotAllowedException.php`
+  - [x] final class
+  - [x] extends `RuntimeException`
+  - [x] `public const string ERROR_CODE = 'CORETSIA_HTTP_405'`
+  - [x] private constructor
+  - [x] exact named constructor:
+    - [x] `public static function methodNotAllowed(array $allowedMethods): self`
+  - [x] exact accessors:
+    - [x] `public function errorCode(): string`
+    - [x] `public function reason(): string`
+    - [x] `public function allowedMethods(): array`
+  - [x] message and reason are exactly `http-app-method-not-allowed`
+  - [x] allowed methods are a non-empty duplicate-free `strcmp`-ordered list
+  - [x] accepted values are exactly `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, and `CONNECT`
+  - [x] requires an actual non-empty PHP list containing at most nine entries
+  - [x] validates every entry as an exact string before method membership or ordering checks
+  - [x] verifies the existing order and uniqueness without normalizing, sorting, or deduplicating invalid input
+  - [x] invalid input throws exactly `InvalidArgumentException('http-app-allowed-methods-invalid')`
+  - [x] invalid input MUST NOT trigger scalar coercion, object conversion, or raw-value diagnostics
+  - [x] custom exception state contains only the validated allowed-method list
+  - [x] never stores the rejected request method, raw path, request object, or previous Throwable
+
+- [x] `packages/platform/http-app/src/Exception/HttpAppDispatchException.php`
+  - [x] final class
+  - [x] extends `RuntimeException`
+  - [x] private constructor
+  - [x] exact named constructor:
+    - [x] `public static function withReason(string $reason): self`
+  - [x] exact accessor:
+    - [x] `public function reason(): string`
+  - [x] public typed reason constants and exact private allowlist:
+    - [x] `REASON_HANDLER_UNMAPPED = 'http-app-handler-unmapped'`
+    - [x] `REASON_HANDLER_UNAVAILABLE = 'http-app-handler-unavailable'`
+    - [x] `REASON_HANDLER_INVALID = 'http-app-handler-invalid'`
+    - [x] `REASON_ARGUMENT_UNRESOLVABLE = 'http-app-argument-unresolvable'`
+    - [x] `REASON_ARGUMENT_INVALID = 'http-app-argument-invalid'`
+    - [x] `REASON_RESPONSE_UNSUPPORTED = 'http-app-response-unsupported'`
+    - [x] `REASON_RESPONSE_DISABLED = 'http-app-response-disabled'`
+    - [x] `REASON_RESPONSE_MAPPING_FAILED = 'http-app-response-mapping-failed'`
+    - [x] `REASON_ROUTE_STATE_INVALID = 'http-app-route-state-invalid'`
+    - [x] `REASON_ROUTE_INPUT_CHANGED = 'http-app-route-input-changed'`
+    - [x] `REASON_ROUTE_MIDDLEWARE_INVALID = 'http-app-route-middleware-invalid'`
+    - [x] `REASON_ROUTE_MIDDLEWARE_UNAVAILABLE = 'http-app-route-middleware-unavailable'`
+  - [x] valid exception message is exactly the selected allowlisted reason
+  - [x] `reason()` returns that same stable reason
+  - [x] invalid reason input throws exactly `InvalidArgumentException('http-app-dispatch-reason-invalid')`
+  - [x] constructor accepts no previous Throwable
+  - [x] custom exception state contains only the admitted reason
+  - [x] contains no raw action id, service id, argument value, return value, reflection diagnostic, or previous Throwable
+  - [x] dispatch failures remain internal server failures and use the existing canonical fallback error mapping
+  - [x] MUST NOT convert handler configuration failures into 404 or 405
+  - [x] missing, stale, malformed, or inconsistent framework routing state detected at an HttpApp-owned validation boundary uses REASON_ROUTE_STATE_INVALID.
+  - [x] routing-input mismatch detected by RouteDispatchState::assertRequest() uses REASON_ROUTE_INPUT_CHANGED.
+  - [x] violations detected earlier by HTTP-owned Pipeline continuation protection retain the original canonical Pipeline LogicException and its fixed safe reason.
+  - [x] MUST NOT translate, wrap, or remap HTTP-owned continuation failures solely to produce HttpAppDispatchException.
+  - [x] malformed, duplicate, unadmitted, or recursively selected middleware and forbidden resolved framework roles use REASON_ROUTE_MIDDLEWARE_INVALID.
+  - [x] missing explicit middleware registration, failing container resolution, or incompatible resolved MiddlewareInterface values use REASON_ROUTE_MIDDLEWARE_UNAVAILABLE.
+  - [x] these failures remain canonical internal server failures and MUST NOT become 404 or 405.
+
+- [x] `packages/platform/http-app/src/Error/HttpAppProblemMapper.php`
+  - [x] final stateless class
+  - [x] implements the existing `ExceptionMapperInterface`
+  - [x] preserves the exact interface signature:
+    - [x] `public function map(Throwable $throwable, ?ErrorHandlingContext $context = null): ?ErrorDescriptor`
+  - [x] maps `HttpNotFoundException` to:
+    - [x] `code = CORETSIA_HTTP_404`
+    - [x] `message = http-app-not-found`
+    - [x] `severity = ErrorSeverity::Error`
+    - [x] `httpStatus = 404`
+    - [x] `extensions = []`
+  - [x] maps `HttpMethodNotAllowedException` to:
+    - [x] `code = CORETSIA_HTTP_405`
+    - [x] `message = http-app-method-not-allowed`
+    - [x] `severity = ErrorSeverity::Error`
+    - [x] `httpStatus = 405`
+    - [x] `extensions = ['allowed_methods' => $throwable->allowedMethods()]`
+  - [x] every other Throwable returns `null`
+  - [x] ignores optional ErrorHandlingContext for these mappings
+  - [x] performs no logging, reporting, redaction, rendering, response construction, or context mutation
+  - [x] introduces no independent mapper registry or ErrorHandler
 
 Docs:
-- [ ] `docs/guides/http-app.md` — how to register handlers + how 404/405 mapping works
+- [x] `packages/platform/http-app/README.md`
+  - [x] package purpose, ownership, and exact activation requirements
+  - [x] runtime-only dependency boundaries
+  - [x] explicit handler registration through the closed `http_app.handlers` record list
+  - [x] logical handler identifiers remain configuration values
+  - [x] configured service dependencies participate in canonical graph completeness validation
+  - [x] actual application service construction remains lazy
+  - [x] internal immutable handler lookup map is not a separate service registry
+  - [x] separate route matching and terminal action dispatch responsibilities.
+  - [x] canonical matching and dispatch middleware contribution pair.
+  - [x] global application and route middleware execution before action dispatch.
+  - [x] explicit route-specific middleware admission through http_app.route_middleware.
+  - [x] ordered route-specific declaration through RouteDefinition metadata.
+  - [x] request-local RouteDispatchState handoff and post-match routing input invariants.
+  - [x] route-specific middleware short-circuit and failure behavior.
+  - [x] reuse of the public HTTP Pipeline composition API.
+  - [x] absence of a second middleware engine, nested UnitOfWork, or independent reset lifecycle.
+  - [x] supported invokable action shape
+  - [x] supported argument sources and allowlist policy
+  - [x] supported response mapping and feature flags
+  - [x] distinction between application routing failures and system endpoint fallback
+  - [x] canonical 404/405 mapping and Allow-header behavior
+  - [x] includes canonical `## Observability`, `## Errors`, and `## Security / Redaction` sections
+  - [x] documents invocation-local state and absence of package reset contributions
+  - [x] references `docs/ssot/http-app-dispatch.md` as the normative dispatch policy
+  - [x] documents mandatory guarded continuation execution.
+  - [x] documents routing handoff protection throughout global and route-specific middleware.
+  - [x] documents rejection of repeated and expired downstream continuation entry.
+  - [x] documents at-most-once framework-owned action terminal entry without claiming application-level transactional or idempotency guarantees.
+  - [x] documents routing-input preservation throughout global and route-specific middleware.
+  - [x] documents mandatory canonical Problem Details composition.
+  - [x] distinguishes route-specific lazy resolution from independent canonical reset service resolution.
+
+- [x] `docs/guides/http-app.md`
+  - [x] documents explicit target module selection and runtime prerequisites
+  - [x] demonstrates application-owned declarative invokable handler registration
+  - [x] demonstrates an explicit `http_app.handlers` registration record containing action_id and service_id
+  - [x] demonstrates a valid logical handler identifier containing `:`, `.`, or `-`
+  - [x] demonstrates explicit service registration and canonical graph completeness requirements
+  - [x] demonstrates ordinary global application middleware before and after RouterMiddleware.
+  - [x] demonstrates global route_pre and route middleware.
+  - [x] demonstrates explicit route-specific MiddlewareInterface service registration.
+  - [x] demonstrates service admission through http_app.route_middleware.
+  - [x] demonstrates ordered http_app_middleware route metadata.
+  - [x] demonstrates two routes sharing one action with different middleware policies.
+  - [x] demonstrates a synthetic authorization-style middleware returning 403 without invoking the action.
+  - [x] demonstrates reading RouteMatch through the request-local RouteDispatchState handoff.
+  - [x] documents the prohibition on delegating a changed method, encoded path, or host after matching.
+  - [x] explains that a later middleware cannot restore changed routing inputs to bypass continuation protection.
+  - [x] documents that method or URI rewriting middleware must execute before RouterMiddleware and before every applicable admission control that depends on the rewritten request inputs.
+  - [x] documents that pre-match rewriting support does not authorize bypassing existing maintenance, trusted-host, HTTPS, security, or request-context policies.
+  - [x] MUST NOT demonstrate request rewriting after an admission control when that rewriting would invalidate its decision.
+  - [x] introduces no new request rewriting middleware or automatic rematching mechanism.
+  - [x] documents that protected response caches must not bypass applicable authorization.
+  - [x] demonstrates matching RouteMatch::handler() to the configured action_id registration value.
+  - [x] demonstrates request injection, encoded string route parameters, and explicitly registered allowlisted concrete services
+  - [x] demonstrates JSON-like, HTML-string, and PSR-7 response return values
+  - [x] documents canonical route artifact compilation prerequisites through the existing Routing guide
+  - [x] documents application 404/405 behavior and system endpoint delegation
+  - [x] uses synthetic examples only
+  - [x] does not introduce a new HTTP front controller, SAPI adapter, runtime bootstrap, or route discovery convention
+  - [x] demonstrates registering middleware through existing Foundation declarative DI without a new middleware registration API.
+  - [x] demonstrates ordinary PSR-15 middleware delegation exactly once.
+  - [x] demonstrates middleware short-circuit without downstream execution.
+  - [x] documents that middleware MUST NOT retain downstream continuation handlers beyond process() execution.
+  - [x] documents that framework-owned routing handoff attributes MUST NOT be overwritten or removed.
+
+- [x] `docs/ssot/http-app-dispatch.md`
+  - [x] `ssotVersion = 1`
+  - [x] owner `platform/http-app`
+  - [x] defines the single canonical application dispatch boundary
+  - [x] defines the exact closed handler registration-list schema
+  - [x] defines logical handler identifier grammar, duplicate rejection, service-id admission, and immutable internal lookup semantics
+  - [x] defines provider-time semantic validation and canonical deferred service dependency declarations
+  - [x] defines consumption of the existing effective ConfigRepositoryInterface snapshot
+  - [x] defines exact invokable-service, action signature, argument-resolution, named invocation, and return-value policies
+  - [x] distinguishes configured missing service bindings from dispatch-time action resolution failures
+  - [x] defines exact configuration keys and defaults
+  - [x] documents reuse of existing Foundation Container registration and resolution APIs
+  - [x] documents explicit separation of format-neutral HttpApp ports and HTTP-specific runtime adaptation
+  - [x] defines reserved-path delegation and method-mismatch classification
+  - [x] defines exact separation between route matching, route-specific middleware selection, and action invocation.
+  - [x] defines the exact RouteDispatchState request-local handoff API and ownership.
+  - [x] defines exact method, encoded-path, and host preservation after route matching.
+  - [x] defines matching and dispatch middleware contribution identities.
+  - [x] defines canonical execution through remaining app, route_pre, and route middleware.
+  - [x] defines final effective ActionDispatchMiddleware placement through the existing HTTP composition boundary.
+  - [x] defines exact http_app.route_middleware configuration grammar and admission semantics.
+  - [x] defines the http_app_middleware metadata member, exact ordered selection semantics, and missing-versus-invalid distinction.
+  - [x] defines explicit service registration, deferred graph completeness, resolved-instance admission, and recursive middleware rejection.
+  - [x] defines reuse of existing RouteDefinition metadata, RouteMatch metadata, RouteGroup inheritance, and routes@1 artifact semantics.
+  - [x] defines route-specific Pipeline execution and invocation-local action terminal behavior.
+  - [x] defines ordinary middleware short-circuit and Throwable propagation semantics.
+  - [x] defines the original RouteDispatchState capture and terminal verification policy.
+  - [x] defines existing Container-owned shared/non-shared middleware lifecycle.
+  - [x] defines action observation entry independently from successful route matching.
+  - [x] defines trusted application middleware and protected response-cache ordering requirements.
+  - [x] rejects silent middleware skipping, automatic rematching, and duplicate middleware execution engines.
+  - [x] preserves reserved-path delegation and existing outer HTTP boundary ownership
+  - [x] defines exact 404/405 exception shapes and mapper contributions
+  - [x] documents canonical Problem Details ownership of validated Allow-header materialization
+  - [x] defines action observation lifecycle and references canonical observability catalog
+  - [x] defines stateless services, invocation-local values, and existing UoW/reset ownership
+  - [x] rejects implicit handler fallback, a second DI container, a second router, duplicate serializers, and duplicate error processing
+  - [x] defines mandatory guarded continuation policy for global HttpApp participation and route-specific execution.
+  - [x] defines protection of RouteDispatchState::ATTRIBUTE throughout all delegating middleware after matching.
+  - [x] defines exact original routing handoff identity preservation before middleware selection and action execution.
+  - [x] defines at-most-once action terminal entry through canonical Pipeline continuation enforcement.
+  - [x] defines expired continuation rejection and invocation-local reference release.
+  - [x] continuation failures remain canonical internal server failures rather than routing misses.
+  - [x] no application transaction rollback, idempotency guarantee, or protection against deliberately hostile application code is implied.
+  - [x] defines mandatory routing-input protection throughout global and route-specific guarded middleware execution.
+  - [x] prohibits temporary routing-input mutation followed by restoration before action dispatch.
+  - [x] distinguishes HTTP-owned continuation failures from HttpApp-owned dispatch-boundary failures.
+  - [x] defines mandatory canonical outermost Problem Details participation.
+  - [x] distinguishes dispatcher-owned lazy middleware resolution from independent canonical lifecycle service resolution.
+
+- [x] `docs/adr/ADR-0043-platform-http-app-router-middleware-action-invoker.md`
+  - [x] `adrVersion = 1`
+  - [x] status `pre-accepted`
+  - [x] records explicit application dispatch ownership
+  - [x] records existing HttpApp contracts reuse without introducing transport types into Contracts
+  - [x] records runtime-only module dependency edges
+  - [x] records explicit handler registration and argument allowlist policy
+  - [x] records closed registration-list configuration rather than dynamic structural handler-map keys
+  - [x] records reuse of the existing effective ConfigRepositoryInterface snapshot
+  - [x] records canonical graph completeness validation for configured deferred service dependencies
+  - [x] rejects changes to Core config-path, declarative-map, and typed-reference grammars solely for HttpApp configuration
+  - [x] records separation of route matching and terminal action dispatch.
+  - [x] records explicit request-local RouteDispatchState handoff.
+  - [x] records reuse of existing Routing metadata as the route-specific middleware selection surface.
+  - [x] records explicit configured middleware service admission and canonical graph completeness validation.
+  - [x] records the canonical final route dispatch contribution and ordinary global middleware preservation.
+  - [x] records direct dependency on the public HTTP Pipeline composition API.
+  - [x] records invocation-local route-specific PSR-15 composition without a second execution engine.
+  - [x] records route-specific middleware denial, failure, and action observation boundaries.
+  - [x] rejects silent middleware bypass, request-global routing storage, recursive dispatch, and automatic rematching.
+  - [x] records reuse of Foundation Container and stable JSON serialization
+  - [x] records extension of the existing routing boundary for allowed-method enumeration
+  - [x] records system endpoint delegation and canonical 404/405 handling
+  - [x] records Problem Details ownership of HTTP Allow-header construction
+  - [x] records action observability as distinct from routing and finalized HTTP request completion
+  - [x] rejects duplicate routing, autowire, serializer, error, context, and reset mechanisms
+  - [x] records mandatory reuse of the guarded HTTP Pipeline for application dispatch.
+  - [x] records exact routing handoff preservation across global and route-specific middleware.
+  - [x] records prevention of repeated action invocation through single-entry continuation enforcement.
+  - [x] records independent middleware contribution registration through existing Foundation APIs.
+  - [x] rejects a second middleware registry, action invocation guard, and Foundation-owned HTTP execution engine.
+  - [x] records routing-input preservation at every guarded continuation after matching.
+  - [x] records mandatory canonical Problem Details participation for HttpApp error handling.
+  - [x] records independence of route-specific middleware selection from canonical reset discovery.
 
 Tests:
-- [ ] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
-- [ ] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
-- [ ] `packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
-- [ ] `packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
-- [ ] `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-- [ ] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php` — locks the `RouterMiddleware` contribution to `http.middleware.app` priority `100` against the canonical middleware catalog
-- [ ] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+- [x] `packages/platform/http-app/tests/Unit/HandlerResolverTest.php`
+  - [x] resolves only explicitly mapped action identifiers
+  - [x] verifies exact closed handler registration record shape
+  - [x] verifies supported logical identifiers beginning with `_`
+  - [x] verifies identifiers containing `.`, `-`, and `:`
+  - [x] verifies the existing Routing 256-byte identifier boundary
+  - [x] verifies duplicate identifiers are rejected
+  - [x] verifies distinct action identifiers may reference the same service id
+  - [x] verifies registered service aliases are admitted through the canonical Foundation Container
+  - [x] verifies handler registration values are read through ConfigRepositoryInterface
+  - [x] verifies closure services and magic-only invokable shapes are rejected
+  - [x] verifies inherited public non-static __invoke() methods are admitted
+  - [x] verifies unsupported parameter signatures fail before action execution
+  - [x] rejects implicit FQCN and service-id fallback
+  - [x] rejects unregistered concrete classes even when Foundation autowire is enabled
+  - [x] rejects missing, non-invokable, and unsupported handler services
+  - [x] verifies safe fixed failure reasons
+  - [x] verifies no handler instance is retained by the resolver
+
+- [x] `packages/platform/http-app/tests/Unit/ActionInvokerTest.php`
+  - [x] verifies exact ActionInvokerInterface implementation
+  - [x] verifies direct invocation of an explicitly registered invokable action
+  - [x] verifies named argument unpacking
+  - [x] verifies rejection of positional argument keys
+  - [x] verifies rejection of unknown named arguments
+  - [x] verifies rejection of missing required arguments
+  - [x] verifies omitted optional arguments preserve declared PHP defaults
+  - [x] verifies unsupported action signatures cannot bypass HandlerResolver admission through direct port invocation
+  - [x] verifies no scalar-coercing reflection invocation occurs
+  - [x] verifies native PHP invocation type failures remain subject to the canonical outer error boundary
+  - [x] verifies action-thrown Throwable propagates unchanged
+  - [x] verifies HTTP dispatch resolves the action exactly once and invokes the same resolved instance
+  - [x] verifies independently executed format-neutral port calls do not imply shared non-shared action identity
+  - [x] verifies no action, argument map, request, or result is retained
+
+- [x] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
+  - [x] verifies exact named argument resolution and source precedence
+  - [x] verifies independently enabled and disabled request injection
+  - [x] verifies exact ServerRequestInterface injection without transport objects entering the contracts-level context map
+  - [x] verifies encoded route parameter preservation and exact name matching
+  - [x] verifies rejection of scalar coercion, unsupported types, interfaces, and abstract-class injection
+  - [x] verifies explicitly registered allowlisted concrete type resolution
+  - [x] verifies absent explicit service registration cannot trigger Foundation autowire fallback
+  - [x] verifies declared defaults and unresolved required arguments
+  - [x] verifies by-reference, variadic, union, and intersection rejection
+  - [x] verifies no raw argument value appears in failure diagnostics
+
+- [x] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
+  - [x] verifies exact ResponseInterface identity passthrough
+  - [x] verifies stable JSON bytes, recursive map ordering, list order, empty-list representation, and final LF
+  - [x] verifies exact status and content type for mapped JSON and HTML
+  - [x] verifies unchanged explicit HTML-string response bytes
+  - [x] verifies independent JSON and HTML feature flags
+  - [x] verifies disabled mapping fails closed
+  - [x] verifies rejection of floats, NaN, INF, objects, resources, closures, and invalid nested JSON-like values
+  - [x] verifies serialization failures do not expose raw response values
+  - [x] verifies the effective PSR-17 factory bindings are used
+
+- [x] `packages/platform/http-app/tests/Unit/RouteDispatchStateTest.php`
+  - [x] verifies exact framework request-attribute identity.
+  - [x] verifies successful match and explicit reserved-path handoff.
+  - [x] verifies missing, null, and incorrectly typed attribute rejection.
+  - [x] verifies exact case-sensitive method comparison.
+  - [x] verifies exact encoded-path comparison.
+  - [x] verifies normalized empty-host representation.
+  - [x] verifies post-match method, path, and host mutation rejection.
+  - [x] verifies unrelated request attribute and parsed-body adaptations remain admissible.
+  - [x] verifies immutable RouteMatch handoff.
+  - [x] verifies no request object or raw routing input is exported through diagnostics.
+  - [x] verifies explicitly present null routing state is rejected.
+  - [x] verifies correctly typed state admission does not itself imply trusted original-state identity.
+  - [x] verifies original-state preservation is enforced by the canonical guarded Pipeline rather than mutable state on the value object.
+
+- [x] `packages/platform/http-app/tests/Unit/RouteMiddlewareSelectorTest.php`
+  - [x] verifies exact configured service-id list admission.
+  - [x] verifies absent metadata selects an empty middleware sequence.
+  - [x] verifies an explicit empty list is accepted.
+  - [x] verifies present null, scalar, map, malformed list, and duplicate ids are rejected.
+  - [x] verifies selected service ids must occur in the configured admission list.
+  - [x] verifies exact case-sensitive service-id selection.
+  - [x] verifies canonical route metadata order is preserved.
+  - [x] verifies configured admission-list order does not determine execution order.
+  - [x] verifies canonical framework matching, dispatch, and outer error-boundary service ids are rejected.
+  - [x] verifies selector performs no container lookup or middleware execution.
+  - [x] verifies no rejected metadata values appear in diagnostics.
+
+- [x] `packages/platform/http/tests/Unit/PipelineServiceResolutionTest.php`
+  - [x] verifies the exact public Pipeline::resolveServices() API.
+  - [x] verifies supplied service ids are resolved in exact list order.
+  - [x] verifies an empty list returns an empty middleware sequence.
+  - [x] verifies each supplied occurrence is resolved exactly once.
+  - [x] verifies malformed input lists and unsupported resolved values are rejected.
+  - [x] verifies existing container failure propagation is preserved.
+  - [x] verifies no discovery, sorting, deduplication, or independent autowiring occurs.
+  - [x] verifies the exact mandatory Pipeline constructor signature.
+  - [x] verifies existing middleware list admission and ordinary handle() behavior remain unchanged when guarded continuation is disabled.
+  - [x] verifies service resolution remains independent of continuation and routing-input protection policies.
+  - [x] verifies the same Pipeline implementation supports reusable global composition and invocation-local composition.
+  - [x] verifies malformed service-id list shape, non-string entries, and empty strings use the exact http-middleware-service-id-invalid reason.
+  - [x] verifies resolved non-MiddlewareInterface values use the exact http-middleware-instance-invalid reason.
+  - [x] verifies container resolution failures retain their original failure semantics.
+
+- [x] `packages/platform/http/tests/Unit/PipelineContinuationGuardTest.php`
+  - [x] verifies the exact mandatory Pipeline constructor arguments.
+  - [x] verifies invalid protected-attribute policy rejection.
+  - [x] verifies ordinary PSR-15 execution remains unchanged when guardedContinuation is false.
+  - [x] verifies a guarded middleware may delegate exactly once.
+  - [x] verifies repeated continuation entry fails before downstream execution.
+  - [x] verifies repeated entry after a downstream Throwable also fails.
+  - [x] verifies repeated entry after a protected-attribute validation failure also fails.
+  - [x] verifies an expired continuation cannot execute downstream services.
+  - [x] verifies expiration after normal return, short-circuit response, and Throwable.
+  - [x] verifies expiration releases captured downstream handler references and protected values.
+  - [x] verifies continuation expiration preserves the primary Throwable.
+  - [x] verifies a previously absent protected attribute may be introduced.
+  - [x] verifies an explicitly null attribute is distinguished from an absent attribute.
+  - [x] verifies an existing protected attribute cannot be removed.
+  - [x] verifies an existing protected object cannot be replaced with another object of the same class.
+  - [x] verifies equivalent but non-identical object values are rejected.
+  - [x] verifies unrelated request attributes and parsed-body changes remain supported.
+  - [x] verifies empty middleware sequence invokes its terminal exactly once.
+  - [x] verifies middleware short-circuit responses prevent terminal entry.
+  - [x] verifies repeated Pipeline::handle() invocations use independent continuation state.
+  - [x] verifies existing response decoration order and Throwable propagation.
+  - [x] verifies fixed safe reason tokens do not contain protected attribute names or values.
+  - [x] verifies reusable Pipeline remains readonly and retains no request-local mutable state.
+  - [x] uses synthetic PSR-15 middleware without a dependency on HttpApp, Routing, or Kernel runtime services.
+  - [x] verifies invalid routing-input protection policy combinations are rejected.
+  - [x] verifies ordinary execution does not implicitly protect routing inputs.
+  - [x] verifies guarded execution with protectRoutingInputs disabled retains independent protected-attribute semantics.
+  - [x] verifies routing-input adaptations remain supported before introduction of a protected attribute.
+  - [x] verifies exact method preservation after protected handoff introduction.
+  - [x] verifies exact encoded-path preservation after protected handoff introduction.
+  - [x] verifies exact host preservation after protected handoff introduction.
+  - [x] verifies a routing-input change fails before entering the next middleware.
+  - [x] verifies temporary mutation followed by a later restoration cannot reach subsequent middleware or terminal execution.
+  - [x] verifies routing-input validation failure consumes the continuation.
+  - [x] verifies unrelated URI components and request adaptations remain supported.
+  - [x] verifies expiration releases captured routing input values.
+  - [x] verifies routing-input protection failures expose only the fixed safe reason token.
+
+- [x] `packages/platform/http-app/tests/Contract/HttpAppModuleComposerMetadataContractTest.php`
+  - [x] verifies exact module identity, provider list, config root, Composer metadata, and runtime requirements
+  - [x] verifies the package namespace and direct dependency boundary
+
+- [x] `packages/platform/http-app/tests/Contract/HttpAppConfigRulesContractTest.php`
+  - [x] verifies exact default subtree and all canonical key defaults
+  - [x] verifies required key and exact bool validation
+  - [x] verifies rejection of unknown closed-map keys
+  - [x] verifies the exact closed `http_app.handlers` registration-list grammar
+  - [x] verifies required action_id and service_id fields
+  - [x] verifies rejection of unknown registration fields
+  - [x] verifies rejection of associative handler maps in place of registration lists
+  - [x] verifies semantic registration validation during provider definition construction
+  - [x] verifies duplicate action identifiers are rejected
+  - [x] verifies duplicate concrete-service allowlist entries are rejected
+  - [x] verifies unsupported service-id and class-id shapes are rejected safely
+  - [x] verifies valid Routing logical identifiers remain configuration values rather than structural config keys
+  - [x] verifies the canonical configuration source-path and artifact representation require no HttpApp-specific exceptions
+  - [x] verifies invalid configuration cannot produce unsafe diagnostics
+  - [x] verifies exact `http_app.route_middleware = []` default.
+  - [x] verifies route_middleware requires a list of non-empty strings without whitespace.
+  - [x] verifies duplicate and unsupported service ids are rejected by provider-owned semantic validation.
+  - [x] verifies route middleware service ids remain configuration values rather than structural config keys.
+  - [x] verifies the configuration rules file does not execute semantic validation or declare DI dependencies.
+
+- [x] `packages/platform/http-app/tests/Contract/HttpAppProviderDefinitionsParityTest.php`
+  - [x] verifies canonical dual-interface provider behavior
+  - [x] verifies source and declarative definition equivalence
+  - [x] verifies exact constructor dependencies and aliases
+  - [x] verifies definitions contain no closures or runtime objects
+  - [x] verifies every configured handler service id is declared through canonical requireService()
+  - [x] verifies every configured allowlisted concrete type is declared through canonical requireService()
+  - [x] verifies missing configured service bindings fail the existing production graph completeness validation after provider definition sets have been merged.
+  - [x] uses the actual ContainerGraphCompletenessValidator rather than assuming ContainerDefinitionApplier performs final completeness validation.
+  - [x] verifies source and compiled resolution parity for complete and valid effective service graphs.
+  - [x] verifies source-container definition application introduces no additional eager completeness validation.
+  - [x] verifies configured service aliases satisfy canonical graph completeness
+  - [x] verifies dynamic registration values are not copied into declarative constructor argument maps
+  - [x] verifies source and compiled resolvers receive the existing effective ConfigRepositoryInterface binding
+  - [x] verifies equivalent lookup behavior for logical identifiers containing `.`, `-`, and `:`
+  - [x] verifies non-shared action services remain lazily resolved
+  - [x] verifies no second dependency graph validator or service registry is introduced
+  - [x] verifies no action service is resolved during provider definition construction
+  - [x] verifies existing router, PSR-17 factory, error, and observability bindings are not overridden
+  - [x] verifies no reset-tag contribution
+  - [x] verifies every configured route-specific middleware id participates in canonical requireService() declarations.
+  - [x] verifies missing configured route middleware bindings fail graph completeness validation.
+  - [x] verifies route middleware admission values are consumed from the effective ConfigRepositoryInterface.
+  - [x] verifies RouterMiddleware has exactly one constructor dependency.
+  - [x] verifies action observability dependencies belong to ActionDispatchMiddleware.
+  - [x] verifies matching and dispatch contributions are equivalent in source and compiled definitions.
+  - [x] verifies route-local Pipeline instances and terminal closures are absent from declarative definitions.
+  - [x] verifies route-specific middleware instances are not resolved during provider definition production.
+
+- [x] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
+  - [x] verifies exact canonical middleware service id
+  - [x] verifies `ReservedTags::HTTP_MIDDLEWARE_APP`, priority `100`, and metadata `[]`
+  - [x] verifies exactly two canonical HttpApp-owned middleware contributions.
+  - [x] verifies RouterMiddleware uses ReservedTags::HTTP_MIDDLEWARE_APP, priority 100, metadata [].
+  - [x] verifies ActionDispatchMiddleware uses ReservedTags::HTTP_MIDDLEWARE_ROUTE, priority -1000, metadata [].
+  - [x] verifies no route-specific middleware is automatically contributed to global HTTP tags.
+  - [x] verifies the canonical global Pipeline and terminal RequestHandlerInterface bindings are not overridden.
+  - [x] verifies canonical mapper tag, priority `800`, and metadata `[]`
+  - [x] verifies no package-local reserved-tag mirror or runtime tag literal
+
+- [x] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] exercises real HttpApp dispatch with effective Foundation noop observability bindings
+  - [x] verifies noop signals do not affect successful dispatch or primary failures
+  - [x] verifies no ContextStore or reset dependency is required
+
+- [x] `packages/platform/http-app/tests/Integration/MatchedRouteMiddlewareAndActionDispatchTest.php`
+  - [x] dispatches an actual matched action through the existing routing contract
+  - [x] verifies explicit handler resolution through the configured http_app.handlers registration list.
+  - [x] verifies resolved request, route parameters, and allowed service arguments
+  - [x] verifies a non-shared handler service is resolved exactly once per dispatch
+  - [x] verifies reflection and invocation use that same service instance
+  - [x] verifies RouterMiddleware delegates a successful match to the existing downstream middleware chain.
+  - [x] verifies RouterMiddleware never resolves or invokes the action itself.
+  - [x] verifies ordinary higher- and lower-priority app middleware execute in canonical order.
+  - [x] verifies ordinary manual app middleware executes after the tagged app sequence.
+  - [x] verifies global route_pre and route middleware execute before ActionDispatchMiddleware.
+  - [x] verifies manual route middleware executes before the canonical final dispatch contribution.
+  - [x] verifies route-specific middleware executes before the invocation-local action terminal.
+  - [x] verifies successful application dispatch never invokes the HTTP-owned system fallback terminal.
+  - [x] verifies route matching occurs exactly once.
+  - [x] verifies returned PSR-7 responses pass through the existing HTTP finalization boundary
+  - [x] verifies application-thrown Throwable propagates unchanged
+  - [x] verifies the effective global Pipeline uses guarded continuation policy when HttpApp is enabled.
+  - [x] verifies global middleware after RouterMiddleware cannot replace the original RouteDispatchState with another correctly typed instance.
+  - [x] verifies same-method, same-path, and same-host state replacement fails before action dispatch.
+  - [x] verifies removal or null replacement of the routing handoff fails before action dispatch.
+  - [x] verifies no route-specific middleware selection or action resolution occurs after a protected handoff violation.
+  - [x] verifies repeated global continuation entry cannot invoke an application action twice.
+  - [x] verifies an expired global continuation cannot dispatch an action after middleware completion.
+  - [x] verifies no new routing match is attempted after continuation-policy failure.
+  - [x] verifies routing inputs cannot change between RouterMiddleware and subsequent global app, route_pre, or route middleware.
+  - [x] verifies temporary routing-input mutation followed by a later restoration fails before the next middleware.
+  - [x] verifies neither route-specific middleware selection nor action resolution occurs after a protected routing-input violation.
+  - [x] verifies the original Pipeline LogicException propagates unchanged.
+
+- [x] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+  - [x] uses the real canonical exception mapper registry, ErrorHandler, and Problem Details middleware
+  - [x] verifies unmatched application path produces canonical 404
+  - [x] verifies path match with unsupported method produces canonical 405
+  - [x] verifies exact deterministic Allow header
+  - [x] verifies route requirement mismatch remains 404
+  - [x] verifies no implicit GET-to-HEAD or OPTIONS handling
+  - [x] verifies a syntactically valid undeclared extension method produces 405 for an otherwise matched path
+  - [x] verifies malformed or empty methods do not trigger allowed-method enumeration
+  - [x] verifies the actual canonical ErrorHandler preserves valid bounded allowed_methods metadata through normalization and redaction
+  - [x] verifies the exact Allow header is materialized by the existing Problem Details boundary
+  - [x] verifies mapper is invoked through the existing error.mapper discovery boundary
+  - [x] verifies error normalization occurs once
+  - [x] verifies an unmapped matched action identifier becomes a canonical internal server error
+  - [x] verifies registered handler construction failures become canonical internal server errors
+  - [x] verifies unsupported handler or argument shapes become canonical internal server errors
+  - [x] verifies unsupported or disabled response mapping becomes a canonical internal server error
+  - [x] verifies dispatch failures are not converted into ordinary routing misses
+  - [x] configured but missing required service bindings fail canonical production graph completeness validation before request dispatch.
+  - [x] source-container dispatch fails through existing explicit-registration admission when an explicitly selected handler, argument service, or route-specific middleware binding is missing.
+  - [x] MUST NOT introduce eager source-container completeness validation.
+  - [x] verifies unrelated Throwable remains outside HttpApp mapper ownership
+  - [x] verifies public Problem Details body contains no raw request data, route parameters, handler ids, allowed-method extension, or private diagnostic data
+
+- [x] `packages/platform/http-app/tests/Integration/ReservedEndpointsRemainOwnedByHttpTest.php`
+  - [x] verifies reserved paths delegate through the existing downstream pipeline
+  - [x] verifies `/_alive`, `/ping`, `/error`, and debug endpoint behavior remains HTTP-owned
+  - [x] verifies unavailable health and metrics endpoints retain canonical behavior
+  - [x] verifies disabled or unmatched reserved endpoints retain existing fallback behavior
+  - [x] verifies unsupported system endpoint methods retain existing fallthrough semantics
+  - [x] verifies application routing does not intercept or reinterpret reserved endpoints
+
+- [x] `packages/platform/http-app/tests/Integration/ActionDispatchMiddlewareObservabilityTest.php`
+  - [x] exercises the complete action observation boundary through the invocation-local action terminal of ActionDispatchMiddleware.
+  - [x] verifies successful matching alone produces no action observations.
+  - [x] verifies middleware short-circuit responses before action terminal entry produce no action observations.
+  - [x] verifies protected routing-input failures before admitted action terminal entry produce no action observations.
+  - [x] verifies middleware failures before action terminal entry produce no action observations.
+  - [x] verifies action observation starts only after all preceding delegating middleware has executed.
+  - [x] verifies exactly one `http.action` span start attempt per admitted action terminal entry when tracing is enabled.
+  - [x] verifies exactly one end attempt for every successfully started span
+  - [x] verifies disabled tracing performs no span operations
+  - [x] verifies failed span start does not produce an end attempt
+  - [x] verifies exact span attributes, metric names, metric labels, and log fields
+  - [x] verifies returned and thrown outcomes
+  - [x] verifies thrown outcome uses status `unknown`
+  - [x] verifies independent tracing, metrics, and logging toggles
+  - [x] verifies independently throwing tracer, span, meter, and logger implementations
+  - [x] uses the real final Foundation Stopwatch
+  - [x] verifies Stopwatch start/stop failure isolation through the existing structural contract-test pattern used by RoutingObservabilityTest
+  - [x] verifies counter emission remains independent from duration measurement availability
+  - [x] MUST NOT introduce a Stopwatch interface, wrapper, subclass, or alternative time source solely for fault-injection tests
+  - [x] verifies action response or primary Throwable remains unchanged
+  - [x] verifies no action observations for 404, 405, or reserved-path delegation
+  - [x] verifies no request data, argument values, return values, or handler identifiers enter signals
+  - [x] verifies repeated continuation entry cannot produce a second action span, counter increment, duration observation, or completion log.
+  - [x] verifies a protected routing handoff violation before action terminal entry produces no action observations.
+  - [x] verifies continuation-policy failures after an already completed action do not rewrite the completed action observation.
+  - [x] verifies handler resolution failure produces one action observation lifecycle with outcome threw without invoking an action.
+  - [x] verifies argument resolution failure produces one action observation lifecycle with outcome threw without invoking an action.
+  - [x] verifies terminal routing-state validation failure before admitted action execution produces no action observations.
+
+- [x] `packages/platform/http-app/tests/Integration/HttpAppRepeatedRequestsIsolationTest.php`
+  - [x] executes repeated HTTP requests against the same reusable HttpApp services
+  - [x] exercises different actions, parameter values, and success/failure outcomes
+  - [x] verifies no request, handler, argument, response, span, or timer state leaks between invocations
+  - [x] verifies the existing canonical UoW/reset lifecycle remains authoritative
+  - [x] alternates routes with different route-specific middleware selections.
+  - [x] verifies a middleware selected for one route is not implicitly selected for the next route.
+  - [x] verifies invocation-local Pipeline and terminal handler instances are not retained.
+  - [x] verifies no previous RouteDispatchState remains in HttpApp-owned reusable service state.
+  - [x] verifies non-shared route middleware is resolved independently for subsequent dispatches.
+  - [x] verifies shared resettable route middleware participates only in the existing canonical reset lifecycle.
+  - [x] verifies shared reset-tagged middleware retains canonical reset participation even when not selected by the current route.
+  - [x] verifies HttpApp does not filter, replace, or restrict existing reset discovery.
+  - [x] verifies route-specific lazy resolution does not imply lifecycle-wide absence of container lookups.
+  - [x] verifies guarded continuation state is not reused across requests.
+  - [x] verifies a continuation retained by synthetic middleware from a completed request remains expired.
+  - [x] verifies expired continuations do not retain the previous invocation's protected routing handoff or downstream action terminal.
+  - [x] verifies continuation enforcement introduces no kernel.reset contribution or nested UnitOfWork.
+
+- [x] `packages/platform/http-app/tests/Integration/RouteSpecificMiddlewareExecutionTest.php`
+  - [x] uses the real existing HTTP Pipeline implementation.
+  - [x] verifies selected route-specific middleware executes in declaration order.
+  - [x] verifies response decoration unwinds in reverse declaration order.
+  - [x] verifies different routes sharing one action may select different middleware.
+  - [x] verifies non-selected middleware is neither resolved nor executed by the route-specific dispatcher.
+  - [x] isolates route-specific selection evidence from independent canonical lifecycle service resolution.
+  - [x] verifies application route dispatch without route-specific middleware.
+  - [x] verifies an authorization-style middleware can return 403 without action resolution or invocation.
+  - [x] verifies middleware-thrown Throwable reaches the canonical outer error boundary unchanged.
+  - [x] verifies missing, unadmitted, failing, or incorrectly typed middleware prevents action invocation.
+  - [x] verifies an unregistered concrete middleware class cannot enter through autowire fallback.
+  - [x] verifies recursive canonical middleware aliases are rejected.
+  - [x] verifies an aliased outer Problem Details boundary cannot enter the route-specific chain.
+  - [x] verifies no route-specific middleware executes for reserved paths, ordinary 404, or 405.
+  - [x] verifies action terminal receives the effective request after all preceding delegating middleware.
+  - [x] verifies the action terminal uses the originally selected RouteMatch instance.
+  - [x] verifies removed or replaced routing state fails closed.
+  - [x] verifies changed method, encoded path, or host fails closed.
+  - [x] verifies no automatic rematching occurs.
+  - [x] verifies shared and non-shared middleware resolution semantics remain Container-owned.
+  - [x] verifies no action observation is emitted when middleware prevents terminal entry.
+  - [x] verifies no raw middleware service identifiers or request data enter diagnostics.
+  - [x] verifies invocation-local route-specific Pipeline uses the same guarded continuation mechanism as the global Pipeline.
+  - [x] verifies repeated route-specific continuation entry cannot invoke the action twice.
+  - [x] verifies a previously failing downstream action is not retried through the same continuation.
+  - [x] verifies retained and expired route-specific continuations cannot execute an action after a short-circuit response.
+  - [x] verifies replacement of the protected routing handoff fails before downstream execution.
+  - [x] verifies wrong resolved middleware instance types use REASON_ROUTE_MIDDLEWARE_UNAVAILABLE.
+  - [x] verifies forbidden resolved framework role instances use REASON_ROUTE_MIDDLEWARE_INVALID.
+  - [x] verifies container exception message contents do not influence failure classification.
+  - [x] verifies every route-specific middleware continuation preserves routing inputs before downstream execution.
+  - [x] verifies a synthetic path-changing middleware cannot cause a subsequent authorization-style middleware to inspect different routing inputs.
+  - [x] verifies subsequent restoration of the original path cannot bypass continuation protection.
+  - [x] verifies no action resolution, invocation, or action observation occurs after such a violation.
 
 Framework / E2E:
-- [ ] `tools/tests/Integration/Http/HelloRouteEndToEndTest.php` — routing+http-app+http
+- [x] `tools/tests/Integration/HelloRouteE2ETest.php`
+  - [x] creates an isolated temporary consumer application target
+  - [x] uses existing canonical Kernel source-host and artifact-runtime test patterns
+  - [x] uses the existing Routing artifact compiler and writer
+  - [x] explicitly selects HttpApp and its required runtime modules through canonical module composition
+  - [x] contributes a synthetic route provider through `ReservedTags::ROUTING_ROUTE_PROVIDER`
+  - [x] contributes an application-owned declarative invokable action service
+  - [x] configures the exact logical handler-to-service registration through `http_app.handlers`
+  - [x] uses a valid Routing logical handler identifier containing `:`, `.`, or `-`
+  - [x] configures an explicitly registered concrete argument service through the existing allowlist
+  - [x] configures the action as a non-shared application-owned service
+  - [x] uses explicit test-owned PSR-17 bindings or an existing supported implementation
+  - [x] builds the canonical target-local routes and container artifacts
+  - [x] builds and hydrates the canonical effective configuration and configuration source metadata artifacts
+  - [x] verifies handler registration values survive canonical configuration artifact round-tripping
+  - [x] verifies canonical config, routes, and container artifacts refer to the same effective application target
+  - [x] verifies source and compiled runtime consume equivalent handler registrations and allowlists
+  - [x] verifies non-shared action service construction occurs exactly once per admitted action terminal entry.
+  - [x] verifies successful matching followed by a middleware short-circuit does not construct or resolve the action service.
+  - [x] exercises the actual artifact-backed routing and HTTP runtime entrypoint
+  - [x] verifies equivalent source and compiled service definitions
+  - [x] verifies successful application dispatch and mapped response
+  - [x] verifies canonical 404 and 405 with Allow
+  - [x] verifies existing reserved endpoint behavior
+  - [x] verifies canonical response finalization and repeated-request isolation
+  - [x] verifies missing or invalid route artifacts fail through existing entrypoint readiness
+  - [x] verifies missing required HttpApp runtime modules fail through canonical module planning
+  - [x] verifies missing configured handler and allowlisted service bindings fail canonical graph completeness validation
+  - [x] contributes ordinary tagged app middleware both before and after RouterMiddleware.
+  - [x] contributes ordinary manual app middleware.
+  - [x] contributes global route_pre and route middleware.
+  - [x] contributes ordinary manual route middleware.
+  - [x] configures explicitly registered route-specific middleware services through http_app.route_middleware.
+  - [x] declares different ordered http_app_middleware metadata lists for multiple routes.
+  - [x] verifies ordered middleware metadata survives canonical routes@1 compilation and hydration.
+  - [x] verifies all preceding delegating global middleware executes before ActionDispatchMiddleware.
+  - [x] verifies route-specific middleware executes before action resolution and invocation.
+  - [x] verifies route-specific middleware may deny execution through an ordinary short-circuit response.
+  - [x] verifies a protected route's denial does not resolve or invoke the action.
+  - [x] verifies route-specific selection does not leak to another route using the same action.
+  - [x] verifies response decoration order for returned action and middleware responses.
+  - [x] verifies missing or malformed canonical HttpApp contribution pairs fail before request execution.
+  - [x] verifies incompatible effective canonical role bindings fail before request execution.
+  - [x] verifies missing or incorrectly bound mandatory Problem Details participation fails before request execution when HttpApp is selected.
+  - [x] verifies the actual canonical Problem Details implementation is the outermost effective middleware.
+  - [x] verifies missing configured route middleware bindings fail canonical graph completeness validation.
+  - [x] verifies invalid route-specific selection fails before action invocation without implicit middleware skipping.
+  - [x] verifies source and compiled runtime middleware selection and ordering remain equivalent.
+  - [x] verifies the existing global Pipeline and invocation-local route chains reuse the same Pipeline implementation.
+  - [x] verifies one existing HTTP UnitOfWork and canonical reset lifecycle surrounds all admitted middleware and action execution.
+  - [x] verifies reserved system endpoints retain the HTTP-owned terminal fallback.
+  - [x] removes all temporary consumer files and artifacts
+  - [x] MUST NOT use a fake RouterInterface as evidence of artifact-backed E2E behavior
+  - [x] MUST NOT introduce a production fixture module or modify skeleton defaults
+  - [x] verifies middleware contribution registration uses existing Foundation declarative DI and ReservedTags APIs.
+  - [x] verifies ordinary middleware contributors do not require a direct dependency on platform/http solely for contribution registration.
+  - [x] verifies the effective global Pipeline enables guarded continuation when HttpApp is selected.
+  - [x] verifies the invocation-local route-specific Pipeline uses the same continuation enforcement implementation.
+  - [x] verifies replacement of a correctly typed RouteDispatchState after matching fails before action invocation.
+  - [x] verifies temporary post-match routing-input mutation followed by a subsequent restoration fails before downstream middleware execution.
+  - [x] verifies both global and route-specific guarded composition enforce the same routing-input protection policy.
+  - [x] verifies protected routing-input failures enter the canonical outer error boundary unchanged.
+  - [x] verifies repeated continuation entry cannot duplicate action invocation or action observations.
+  - [x] verifies expired continuation entry cannot execute an action after a completed or short-circuited request.
+  - [x] verifies continuation-policy failures enter the existing canonical error boundary.
+  - [x] verifies continuation protection introduces no additional ContextKeys, container, registry, lifecycle, or reset participation.
 
 #### Modifies
 
-- [ ] `docs/adr/INDEX.md` — register:
-  - [ ] `docs/adr/ADR-XXXX-platform-http-app-router-middleware-action-invoker.md`
-- [ ] `docs/ssot/http-middleware-catalog.md` — add/update row for `RouterMiddleware` (`http.middleware.app` priority `100`)
-- [ ] `docs/ssot/config-roots.md` — add row:
-  - [ ] `http_app | platform/http-app | packages/platform/http-app/config/http_app.php | packages/platform/http-app/config/rules.php | app-layer http routing+invocation settings`
-- [ ] `docs/ssot/INDEX.md` — (only if config-roots.md is not already indexed) ensure it remains indexed as canonical SSoT.
+HTTP middleware composition:
+- [x] `packages/platform/http/src/Middleware/HttpMiddlewareStackBuilder.php`
+  - [x] preserve the existing nine-slot middleware taxonomy and public build() signature.
+  - [x] preserve the class-level @internal boundary.
+  - [x] defines the following typed constants for reuse within HTTP-owned composition:
+    - [x] `public const string APP_ROUTER_SERVICE_ID = 'Coretsia\\Platform\\HttpApp\\Middleware\\RouterMiddleware'`
+    - [x] `public const string APP_DISPATCH_SERVICE_ID = 'Coretsia\\Platform\\HttpApp\\Middleware\\ActionDispatchMiddleware'`
+    - [x] promote the existing ERROR_BOUNDARY_SERVICE_ID constant from private to public for HTTP-internal factory reuse:
+      - [x] `public const string ERROR_BOUNDARY_SERVICE_ID = 'Coretsia\\Platform\\ProblemDetails\\Http\\Middleware\\HttpErrorHandlingMiddleware'`
+    - [x] preserves the existing constant value.
+    - [x] MUST NOT introduce a duplicate Problem Details service identity within HTTP composition.
+  - [x] the constants are internal HTTP composition identities, not new public service registration APIs.
+  - [x] canonical HttpApp role registration validation occurs immediately after canonical service-id admission and retrieval of registration metadata.
+  - [x] validates HttpApp role identity, slot, priority, and exact empty metadata before:
+    - [x] ordinary tag metadata validation
+    - [x] generic system_pre priority restrictions
+    - [x] ordinary feature-toggle exclusion
+    - [x] effective contribution deduplication
+  - [x] invalid canonical HttpApp role registration MUST consistently use `http-middleware-app-dispatch-invalid`.
+  - [x] ordinary non-HttpApp middleware retains its existing validation order and failure reasons.
+  - [x] preserves the existing independent Problem Details error-boundary validation.
+  - [x] relies on TagRegistry's existing first-registration-wins semantics.
+  - [x] MUST NOT inspect discarded duplicate registrations or introduce a second tag registration policy.
+  - [x] reuse these exact identities within HTTP-owned stack and factory validation.
+  - [x] follows the existing cross-package canonical middleware identity convention used for the outermost Problem Details boundary.
+  - [x] MUST NOT import HttpApp implementation classes.
+  - [x] validates the canonical RouterMiddleware registration:
+    - [x] slot `ReservedTags::HTTP_MIDDLEWARE_APP`
+    - [x] priority `100`
+    - [x] metadata `[]`
+  - [x] validates the canonical ActionDispatchMiddleware registration:
+    - [x] slot `ReservedTags::HTTP_MIDDLEWARE_ROUTE`
+    - [x] priority `-1000`
+    - [x] metadata `[]`
+  - [x] rejects manual placement of either canonical role.
+  - [x] rejects either role registered in an incorrect slot, with incorrect priority, or with unsupported metadata.
+  - [x] invalid canonical role registration throws `InvalidArgumentException('http-middleware-app-dispatch-invalid')`.
+  - [x] canonical matching and action dispatch contributions MUST be present together or absent together.
+  - [x] an incomplete canonical contribution pair throws `InvalidArgumentException('http-middleware-app-dispatch-pair-invalid')`.
+  - [x] RouterMiddleware participates in ordinary canonical app-slot ordering.
+  - [x] ordinary application middleware MAY execute before or after RouterMiddleware.
+  - [x] ordinary manual app middleware remains admitted after the tagged app sequence.
+  - [x] effective route_pre and route slots MAY contain ordinary global middleware.
+  - [x] preserves canonical tagged ordering, feature-toggle evaluation, manual append, and first-occurrence deduplication for ordinary middleware.
+  - [x] extracts the validated ActionDispatchMiddleware role from the ordinary tagged route sequence.
+  - [x] appends that role after all effective ordinary route middleware, including manually appended route middleware.
+  - [x] terminal dispatch placement is an explicit HTTP composition role, not a modification of TagRegistry discovery order.
+  - [x] every ordinary effective route middleware precedes ActionDispatchMiddleware regardless of its numeric priority.
+  - [x] preserves the canonical outermost Problem Details placement.
+  - [x] preserves system_post, app_post, and route_post response-decorator placement.
+  - [x] preserves the original terminal RequestHandlerInterface boundary after the route slot.
+  - [x] disabled ordinary middleware contributions remain excluded through existing policy.
+  - [x] MUST NOT reject, remove, or bypass ordinary middleware solely because it follows RouterMiddleware.
+  - [x] MUST NOT reconstruct a second middleware registry or runtime pipeline.
+  - [x] preserves existing composition behavior when the canonical HttpApp pair is absent.
+  - [x] introduces no new tags, configuration keys, runtime package dependencies, or mutable state.
 
-#### Package skeleton (if type=package)
+- [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] verifies exact canonical RouterMiddleware identity, app slot, priority 100, and empty metadata.
+  - [x] verifies exact canonical ActionDispatchMiddleware identity, route slot, priority -1000, and empty metadata.
+  - [x] verifies the two HttpApp contributions are admitted only as a complete pair.
+  - [x] verifies malformed or incorrectly placed canonical role registrations are rejected.
+  - [x] verifies manual registration of either canonical role is rejected.
+  - [x] verifies ordinary route middleware remains admissible.
+  - [x] verifies ActionDispatchMiddleware occupies the final effective route position.
+  - [x] preserves the existing HTTP provider's eight canonical middleware contributions.
+  - [x] preserves existing outermost Problem Details placement assertions.
+  - [x] verifies malformed canonical HttpApp metadata is rejected before generic metadata validation.
+  - [x] verifies an HttpApp role incorrectly registered in system_pre is rejected before generic error-boundary priority restrictions.
+  - [x] verifies all invalid canonical HttpApp role registrations use the exact http-middleware-app-dispatch-invalid reason.
+  - [x] preserves existing ordinary middleware and Problem Details validation reasons.
 
-- [ ] `packages/platform/http-app/composer.json`
-- [ ] `packages/platform/http-app/src/Module/HttpAppModule.php`
-- [ ] `packages/platform/http-app/src/Provider/HttpAppServiceProvider.php`
-- [ ] `packages/platform/http-app/config/http_app.php`  # returns subtree (no repeated root)
-- [ ] `packages/platform/http-app/config/rules.php`
-- [ ] `packages/platform/http-app/README.md`
-- [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] `packages/platform/http/tests/Unit/MiddlewareManualAppendAndDedupeTest.php`
+  - [x] update existing direct HttpServiceFactory::pipeline() calls to supply an explicit ModulePlan.
+  - [x] verifies lower-priority app middleware executes after RouterMiddleware.
+  - [x] verifies manual app middleware remains admitted after the tagged app sequence.
+  - [x] verifies ordinary effective route_pre and route middleware remains admitted.
+  - [x] verifies manual route middleware executes before ActionDispatchMiddleware.
+  - [x] verifies ordinary route middleware with priority below -1000 still precedes the final canonical dispatch role.
+  - [x] verifies final dispatch placement does not alter ordinary TagRegistry ordering.
+  - [x] verifies disabled ordinary middleware remains excluded.
+  - [x] verifies canonical HttpApp role aliases or incompatible effective role bindings fail safely.
+  - [x] verifies selected HttpApp participation agrees with the effective ModulePlan.
+  - [x] verifies existing behavior without HttpApp remains unchanged.
+  - [x] verifies ordinary global middleware resolution reuses Pipeline::resolveServices().
+  - [x] preserves existing manual append, deduplication, explicit binding, and permitted autowire regression assertions.
+  - [x] verifies effective HttpApp participation requires the canonical Problem Details contribution.
+  - [x] verifies missing canonical Problem Details participation fails before middleware resolution.
+  - [x] verifies the canonical error boundary occupies the first effective global position.
+  - [x] verifies a canonical error-boundary id bound to an unrelated middleware fails safely.
+  - [x] verifies an alternative global middleware id resolving to the canonical error boundary fails safely.
+  - [x] verifies canonical error-boundary validation performs no duplicate container resolution.
+  - [x] verifies existing optional Problem Details behavior remains unchanged when HttpApp is absent.
+  - [x] distinguishes middleware service resolution failures from resolved middleware role-identity failures.
+  - [x] verifies a canonical middleware role id resolving to a non-MiddlewareInterface value retains http-middleware-instance-invalid.
+  - [x] verifies a successfully resolved MiddlewareInterface with an incompatible canonical role identity uses the corresponding role-specific failure reason.
+  - [x] verifies role validation introduces no repeated service resolution or exception-message-based classification.
+
+- [x] `packages/platform/http/src/Middleware/Pipeline.php`
+  - [x] promote the existing Pipeline to an explicitly public HTTP composition API.
+  - [x] replace the class-level `@internal` annotation with `@api`.
+  - [x] preserve the existing final readonly class.
+  - [x] exact constructor:
+    - [x] `public function __construct(array $middleware, RequestHandlerInterface $terminal, bool $guardedContinuation, array $protectedRequestAttributes, bool $protectRoutingInputs)`
+    - [x] `@param list<MiddlewareInterface> $middleware`
+    - [x] `@param list<non-empty-string> $protectedRequestAttributes`
+  - [x] every constructor argument is explicitly supplied without default values.
+  - [x] retains exactly:
+    - [x] immutable resolved middleware sequence
+    - [x] supplied terminal handler
+    - [x] immutable guarded-continuation policy
+    - [x] immutable protected request-attribute key list
+    - [x] immutable routing-input protection policy
+  - [x] validates protectedRequestAttributes as an actual duplicate-free list of non-empty strings.
+  - [x] rejects a non-empty protected attribute list when guardedContinuation is false.
+  - [x] rejects protectRoutingInputs = true when guardedContinuation is false.
+  - [x] rejects protectRoutingInputs = true when protectedRequestAttributes is empty.
+  - [x] routing-input protection is independently selected through the explicit constructor argument.
+  - [x] MUST NOT implicitly enable routing-input protection for every generic protected request attribute.
+  - [x] invalid continuation configuration throws exactly `InvalidArgumentException('http-pipeline-continuation-policy-invalid')`.
+  - [x] preserves the existing RequestHandlerInterface::handle() signature.
+  - [x] preserves ordinary PSR-15 traversal when guardedContinuation is false.
+  - [x] extract the existing middleware service resolution loop from HttpServiceFactory into:
+    - [x] `public static function resolveServices(ContainerInterface $container, array $serviceIds): array`
+    - [x] `@param list<non-empty-string> $serviceIds`
+    - [x] `@return list<MiddlewareInterface>`
+  - [x] resolveServices():
+    - [x] requires an actual PHP list.
+    - [x] validates each service-id input as an exact non-empty string.
+    - [x] malformed service-id list shape, non-string entries, or empty service-id strings throw exactly `InvalidArgumentException('http-middleware-service-id-invalid')`.
+    - [x] canonical container service-id admission remains delegated to ContainerInterface::get().
+    - [x] MUST NOT introduce an independent container service-id validation grammar.
+    - [x] a resolved value not implementing MiddlewareInterface throws exactly `InvalidArgumentException('http-middleware-instance-invalid')`.
+    - [x] these admission failures remain independent of middleware composition roles.
+    - [x] resolves each supplied id through the existing ContainerInterface::get() mechanism.
+    - [x] requires every resolved value to implement MiddlewareInterface.
+    - [x] preserves the supplied service-id order.
+    - [x] returns the resolved middleware sequence.
+    - [x] does not sort, discover, deduplicate, or infer service identifiers.
+    - [x] preserves existing container failure propagation and `http-middleware-instance-invalid` type rejection.
+    - [x] introduces no alternative autowire behavior or service cache.
+  - [x] global and route-specific HTTP composition MUST reuse this same service-resolution implementation.
+  - [x] explicit-registration admission for route-specific middleware remains HttpApp-owned.
+  - [x] preserve invocation-local PSR-15 traversal.
+  - [x] guarded continuation semantics:
+    - [x] creates one invocation-local continuation for each entered middleware process() call.
+    - [x] a continuation may be entered at most once.
+    - [x] marks the continuation as entered before validating the delegated request or invoking downstream execution.
+    - [x] repeated entry throws exactly `LogicException('http-pipeline-continuation-reused')`.
+    - [x] a failed downstream invocation does not make the continuation reusable.
+    - [x] a middleware cannot retry downstream execution through the same continuation.
+    - [x] middleware MAY return a response without entering its continuation.
+    - [x] expires the continuation in finally after middleware process() returns or throws.
+    - [x] expired continuation entry throws exactly `LogicException('http-pipeline-continuation-expired')`.
+    - [x] expiration clears captured protected values and downstream handler references.
+    - [x] expiration MUST NOT throw or replace a primary Throwable.
+    - [x] every subsequent Pipeline::handle() invocation creates independent continuation state.
+  - [x] protected request attributes:
+    - [x] captures the presence and exact values of configured protected attributes from the request entering each middleware.
+    - [x] uses ServerRequestInterface::getAttributes() and exact key-presence checks.
+    - [x] an attribute already present on middleware entry MUST remain present and strictly identical on continuation entry.
+    - [x] object-valued protected attributes require exact object identity.
+    - [x] absent and explicitly null attributes MUST remain distinguishable.
+    - [x] attributes absent on middleware entry MAY be introduced before downstream delegation.
+    - [x] once introduced, a protected attribute cannot be removed or replaced by subsequent delegating middleware.
+    - [x] protected attribute violation throws exactly `LogicException('http-pipeline-protected-attribute-changed')`.
+    - [x] validation occurs before downstream handler execution.
+    - [x] unrelated request attributes and ordinary PSR-7 request adaptations remain supported.
+    - [x] MUST NOT retain protected attribute names or values in exception custom state or diagnostic output.
+  - [x] protected routing inputs:
+    - [x] applies only when protectRoutingInputs is true.
+    - [x] activates at a middleware boundary when at least one configured protected request attribute is already present on middleware entry.
+    - [x] captures exactly:
+      - [x] ServerRequestInterface::getMethod()
+      - [x] UriInterface::getPath()
+      - [x] UriInterface::getHost()
+    - [x] compares the delegated request's routing inputs against the captured values before downstream execution.
+    - [x] method, encoded path, and host comparison uses exact string equality.
+    - [x] performs no URL decoding, trimming, case folding, route matching, or independent route admission.
+    - [x] routing-input changes before introduction of a protected routing handoff remain supported.
+    - [x] after introduction, every subsequent guarded delegation MUST preserve the captured routing inputs.
+    - [x] temporary mutation followed by restoration in a later middleware MUST NOT bypass protection.
+    - [x] routing-input violation throws exactly `LogicException('http-pipeline-protected-routing-input-changed')`.
+    - [x] continuation entry remains consumed after a routing-input validation failure.
+    - [x] continuation expiration also clears captured routing input values.
+    - [x] does not protect query, scheme, port, parsed body, or unrelated request attributes.
+    - [x] does not retain raw routing inputs on the reusable Pipeline service.
+    - [x] captured routing values MUST NOT appear in exception messages, custom exception state, logs, metrics, spans, or diagnostic snapshots.
+    - [x] MUST NOT depend on RouteMatch, RouteDispatchState, RouterInterface, or any HttpApp implementation class.
+  - [x] uses the same existing Pipeline traversal implementation for guarded and ordinary execution.
+  - [x] guarded behavior MUST NOT introduce another middleware registry, execution engine, request stack, or container.
+  - [x] mutable continuation state belongs exclusively to invocation-local RequestHandlerInterface implementations.
+  - [x] reusable Pipeline remains final readonly.
+  - [x] no mutable traversal state, continuation registry, request state, spans, metrics, logs, or reset participation is retained by Pipeline.
+  - [x] MUST NOT store a mutable traversal cursor on Pipeline.
+  - [x] MUST NOT resolve container services inside handle().
+  - [x] MUST NOT introduce routing, action dispatch, tag discovery, configuration, observability, or lifecycle dependencies.
+
+- [x] `packages/platform/http/src/Provider/HttpServiceFactory.php`
+  - [x] preserve the existing HTTP configuration and stack composition behavior.
+  - [x] replace the existing inline middleware-resolution loop with Pipeline::resolveServices().
+  - [x] extend the existing pipeline() factory with one explicitly supplied final `ModulePlan $modulePlan` argument.
+  - [x] consumes the existing effective ModulePlan without introducing module discovery.
+  - [x] builds the effective ordered global service-id sequence through HttpMiddlewareStackBuilder.
+  - [x] verifies effective HttpApp participation agrees with ModulePlan::hasEnabledModule('platform.http-app').
+  - [x] selects the explicit Pipeline continuation policy from effective HttpApp module participation.
+  - [x] when platform.http-app is enabled:
+    - [x] guardedContinuation = true.
+    - [x] protectedRequestAttributes = ['coretsia.http_app.route_dispatch'].
+    - [x] protectRoutingInputs = true.
+  - [x] when platform.http-app is not enabled:
+    - [x] guardedContinuation = false.
+    - [x] protectedRequestAttributes = [].
+    - [x] protectRoutingInputs = false.
+  - [x] the protected attribute identifier follows the fixed cross-package HTTP/HttpApp interoperability contract.
+  - [x] MUST NOT import RouteDispatchState or another HttpApp implementation class.
+  - [x] MUST NOT introduce a configurable fallback attribute identifier.
+  - [x] MUST NOT expose the protected attribute identifier or continuation policy through application configuration.
+  - [x] when HttpApp is enabled, requires both canonical matching and dispatch service ids in the effective global sequence.
+  - [x] when HttpApp is not enabled, requires both canonical HttpApp contributions to be absent.
+  - [x] when HttpApp is enabled:
+    - [x] requires the canonical Problem Details error-boundary service id in the effective global sequence.
+    - [x] requires that service id to occupy the first outermost sequence position.
+    - [x] reuses HttpMiddlewareStackBuilder::ERROR_BOUNDARY_SERVICE_ID.
+    - [x] missing or incorrectly positioned canonical error boundary fails before middleware service resolution.
+  - [x] when HttpApp is absent, preserves the existing optional Problem Details participation semantics.
+  - [x] resolves the effective global middleware sequence exactly once through Pipeline::resolveServices().
+  - [x] verifies the canonical matching service id resolves to the exact canonical RouterMiddleware implementation.
+  - [x] verifies the canonical dispatch service id resolves to the exact canonical ActionDispatchMiddleware implementation.
+  - [x] rejects either canonical role implementation reached through an alternative global middleware service id.
+  - [x] when HttpApp is enabled:
+    - [x] verifies the canonical Problem Details service id resolves to the exact canonical HttpErrorHandlingMiddleware runtime class.
+    - [x] rejects that canonical error-boundary implementation reached through any alternative global middleware service id.
+    - [x] rejects a canonical error-boundary service id bound to another MiddlewareInterface implementation.
+    - [x] validates resolved bindings by exact service-id and runtime-class identity without a second container lookup.
+    - [x] missing or incorrectly positioned canonical error-boundary participation throws exactly `InvalidArgumentException('http-middleware-app-error-boundary-invalid')`.
+    - [x] successfully resolved MiddlewareInterface instances with incompatible canonical error-boundary identities throw exactly `InvalidArgumentException('http-middleware-app-error-boundary-invalid')`.
+    - [x] container resolution failures retain the existing container failure semantics.
+    - [x] resolved values not implementing MiddlewareInterface retain the canonical `http-middleware-instance-invalid` rejection from Pipeline::resolveServices().
+    - [x] role-specific runtime class validation occurs only after successful middleware service resolution and MiddlewareInterface admission.
+  - [x] MUST NOT import concrete Problem Details implementation classes.
+  - [x] introduces no reverse source dependency, new middleware tag, or second error boundary.
+  - [x] rejects incompatible effective HttpApp participation and successfully resolved MiddlewareInterface instances with incompatible matching or dispatch role identities using `InvalidArgumentException('http-middleware-app-dispatch-binding-invalid')`.
+  - [x] preserves existing container resolution failures and Pipeline::resolveServices() admission failures.
+  - [x] MUST NOT catch or reclassify middleware resolution failures solely to produce role-specific failure reasons.
+  - [x] reuses the existing cross-package canonical identity convention without importing HttpApp classes.
+  - [x] constructs the existing reusable global Pipeline from:
+    - [x] admitted resolved middleware sequence
+    - [x] existing HTTP-owned terminal handler
+    - [x] explicitly selected guardedContinuation policy
+    - [x] explicitly selected protectedRequestAttributes list
+    - [x] explicitly selected protectRoutingInputs policy
+  - [x] the global pipeline protects the exact routing handoff identity and routing inputs throughout every subsequent delegating middleware boundary after successful matching.
+  - [x] preserves existing ordinary pipeline execution when HttpApp is absent.
+  - [x] preserves every unrelated factory API.
+  - [x] preserves existing ordinary middleware autowire semantics.
+  - [x] introduces no route-specific execution, second middleware resolution implementation, or mutable state.
+  - [x] reuses HttpMiddlewareStackBuilder::APP_ROUTER_SERVICE_ID and HttpMiddlewareStackBuilder::APP_DISPATCH_SERVICE_ID.
+  - [x] MUST NOT declare duplicate HttpApp role identities within HttpServiceFactory.
+  - [x] pairs effective service ids with their resolved middleware instances by exact list position.
+  - [x] validates canonical role bindings through exact resolved runtime class identity.
+  - [x] MUST NOT resolve a middleware service again solely for role-binding validation.
+
+- [x] `packages/platform/http/src/Provider/HttpServiceProvider.php`
+  - [x] update the existing Pipeline::class classMethodFactory definition.
+  - [x] pass the existing ModulePlan::class service reference as the final required pipeline() factory argument.
+  - [x] preserve all other Pipeline factory arguments and their existing order.
+  - [x] reuse the existing canonical ModulePlan requirement.
+  - [x] preserve the existing RequestHandlerInterface alias to FallbackRouterHandler.
+  - [x] MUST NOT register HttpApp-owned middleware directly.
+  - [x] MUST NOT introduce a PHP source, Composer, or runtime module dependency on HttpApp.
+  - [x] preserve unrelated HTTP registrations and constructor dependency contracts.
+
+Routing boundary:
+- [x] `packages/core/contracts/src/Routing/RouterInterface.php`
+  - [x] preserve the existing exact `match(string $method, string $path, ?string $host = null): ?RouteMatch` signature and no-match semantics
+  - [x] add:
+    - [x] `public function allowedMethods(string $path, ?string $host = null): array`
+    - [x] `@return list<non-empty-string>`
+  - [x] returns the unique declared methods of every admitted route whose complete matching domain accepts the supplied path
+  - [x] returns methods in deterministic byte-order `strcmp` order
+  - [x] returns `[]` for invalid, non-canonical, reserved, or unmatched paths
+  - [x] respects complete template matching and existing placeholder requirements
+  - [x] host remains an unused ephemeral input
+  - [x] does not perform implicit GET-to-HEAD expansion or automatic OPTIONS handling
+  - [x] introduces no HTTP status, response, transport object, exception mapping, or handler resolution contract
+  - [x] raw path and host remain ephemeral and MUST NOT be emitted through diagnostics
+
+- [x] `packages/platform/routing/src/Runtime/CompiledRouteTable.php`
+  - [x] add `public function allowedMethods(string $path): array`
+  - [x] enumerate only the existing immutable hydrated route entries
+  - [x] reuse the existing parsed `RouteTemplate::match()` implementation and each canonical `RouteDefinition::methods()` value
+  - [x] aggregate methods from every matching template, including distinct overlapping matching domains
+  - [x] deduplicate and sort the resulting methods using byte-order `strcmp`
+  - [x] preserve the existing first-match-wins behavior of `match()`
+  - [x] introduce no second route table, path index, route parser, regex compiler, artifact reader, provider registry, or mutable cache
+  - [x] preserve the existing constructor and immutable state
+
+- [x] `packages/platform/routing/src/Runtime/CompiledRouter.php`
+  - [x] implement the new `RouterInterface::allowedMethods()` method
+  - [x] extract existing concrete-path admission checks into one private shared method used by both `match()` and `allowedMethods()`
+  - [x] reuse `ReservedPathMatcher::normalize()` and `ReservedPathMatcher::match()`
+  - [x] preserve existing invalid-path, non-canonical-path, non-root trailing slash, and reserved-path rejection
+  - [x] delegate method enumeration to `CompiledRouteTable::allowedMethods()`
+  - [x] `allowedMethods()` MUST NOT mutate `ContextKeys::PATH_TEMPLATE`
+  - [x] `allowedMethods()` MUST NOT invoke `RoutingMatchObserver`
+  - [x] preserve exactly one routing match observation per `match()` invocation
+  - [x] preserve existing context removal and successful-match template-write behavior
+  - [x] introduce no additional constructor dependencies
+
+- [x] `packages/core/contracts/tests/Contract/RoutingContractsDoNotUsePsr7Test.php`
+  - [x] assert the exact format-neutral `allowedMethods()` signature and return PHPDoc
+  - [x] preserve all existing `match()` signature and transport-isolation assertions
+
+- [x] `packages/platform/routing/tests/Unit/RouteMatcherStaticAndParamsTest.php`
+  - [x] verify exact static and parameterized path method enumeration
+  - [x] verify requirement mismatch returns an empty method list
+  - [x] verify deterministic deduplication and sorting across overlapping route domains
+  - [x] verify invalid, non-canonical, and reserved paths return an empty list
+  - [x] verify HEAD and OPTIONS are included only when explicitly declared
+  - [x] preserve existing successful-match precedence and null-return assertions
+
+- [x] `packages/platform/routing/tests/Integration/CompiledRouterSetsPathTemplateInContextStoreTest.php`
+  - [x] verify allowed-method enumeration neither sets nor removes an existing `PATH_TEMPLATE`
+
+- [x] `packages/platform/routing/tests/Integration/RoutingObservabilityTest.php`
+  - [x] verify allowed-method enumeration emits no additional routing spans, metrics, or logs
+  - [x] verify an ordinary method mismatch still produces the existing `not_matched` routing outcome
+
+Canonical HTTP error adaptation:
+- [x] `packages/platform/problem-details/src/Adapter/ErrorDescriptorToProblemDetailsAdapter.php`
+  - [x] preserve the existing `map(ErrorDescriptor $descriptor): ProblemDetails` API and public representation
+  - [x] add:
+    - [x] `public function allowHeader(ErrorDescriptor $descriptor): ?string`
+  - [x] returns `null` for non-405 descriptors
+  - [x] for a 405 descriptor, consumes only the exact `extensions.allowed_methods` member
+  - [x] requires a non-empty list of unique `strcmp`-ordered methods from the fixed admitted method vocabulary
+  - [x] admitted methods are exactly `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, and `CONNECT`
+  - [x] returns the validated methods joined by `', '`
+  - [x] requires an actual non-empty PHP list containing at most nine entries
+  - [x] validates each entry as an exact string before membership or ordering checks
+  - [x] verifies existing canonical ordering and uniqueness
+  - [x] MUST NOT normalize, sort, deduplicate, or coerce malformed protocol metadata
+  - [x] missing, malformed, unsorted, duplicate, or unsupported metadata throws exactly `InvalidArgumentException('problem-details-allow-invalid')`
+  - [x] rejected metadata MUST NOT appear in exception messages or custom exception state
+  - [x] introduces no arbitrary descriptor-to-header mapping
+  - [x] MUST NOT expose descriptor extensions through the public Problem Details body
+  - [x] MUST NOT depend on `platform/http-app` or `platform/routing`
+
+- [x] `packages/platform/problem-details/src/Http/Middleware/HttpErrorHandlingMiddleware.php`
+  - [x] preserve the single canonical `ErrorHandlerInterface::handle()` invocation
+  - [x] obtain the optional Allow header through `ErrorDescriptorToProblemDetailsAdapter::allowHeader()`
+  - [x] commit the adapted status, rendered body, and optional Allow value only after all adaptation operations succeed
+  - [x] apply `Allow` only to a successfully adapted HTTP 405 response
+  - [x] malformed or missing required 405 metadata uses the existing safe emergency HTTP 500 response
+  - [x] emergency responses MUST NOT carry a stale Allow header or partially rendered body
+  - [x] preserve `Content-Type: application/problem+json`
+  - [x] preserve `Cache-Control: no-store`
+  - [x] preserve original Throwable propagation when transport response construction fails
+  - [x] introduce no additional error normalization or rendering attempt
+  - [x] preserve existing constructor dependencies
+
+- [x] `packages/platform/problem-details/tests/Unit/ErrorDescriptorToProblemDetailsAdapterTest.php`
+  - [x] verify exact deterministic Allow header materialization
+  - [x] verify rejection of malformed, missing, unsorted, duplicate, unsupported, or CR/LF-containing method values
+  - [x] verify non-405 descriptors cannot contribute an Allow header
+  - [x] preserve existing status/title and descriptor-message isolation assertions
+
+- [x] `packages/platform/problem-details/tests/Integration/HttpErrorMiddlewareReturnsProblemJsonTest.php`
+  - [x] verify a normalized 405 descriptor produces the exact Allow header
+  - [x] verify missing or invalid required method metadata produces the safe emergency 500 response
+  - [x] verify malformed metadata never produces a partially committed 405 response
+  - [x] verify the canonical ErrorHandler is invoked exactly once
+
+- [x] `packages/platform/problem-details/tests/Integration/ProblemDetailsNeverExposesDescriptorMessageTest.php`
+  - [x] verify `allowed_methods` remains absent from the public Problem Details JSON body
+  - [x] preserve all existing message, extension, and private-data exclusion assertions
+
+Workspace and architecture:
+- [x] `composer.json`
+  - [x] register `coretsia/platform-http-app` in the root developer workspace
+  - [x] use the canonical release-line `devVersion`
+  - [x] preserve managed Composer repository ownership
+  - [x] update through the existing workspace and repository synchronization tools
+
+- [x] `docs/architecture/DEPENDENCIES.md`
+  - [x] add the canonical direct dependency matrix row:
+    - [x] `platform/http-app | core/contracts, core/foundation, platform/http`
+  - [x] document direct runtime-only Composer/module edges to:
+    - [x] `platform/routing`
+    - [x] `platform/errors`
+    - [x] `platform/problem-details`
+  - [x] runtime-only edges MUST NOT widen the generated Deptrac PHP source permissions
+  - [x] preserve all existing HTTP, Routing, Errors, Problem Details, Foundation, and Kernel dependency boundaries
+
+Tests:
+- [x] `packages/platform/routing/tests/Unit/RoutesArtifactSchemaTest.php`
+  - [x] verifies ordered http_app_middleware service-id metadata survives canonical routes@1 serialization and hydration.
+  - [x] verifies existing metadata safety and redaction policies remain authoritative.
+  - [x] verifies no top-level route descriptor field or artifact schema version changes.
+  - [x] MUST NOT introduce a PHP source dependency on HttpApp.
+
+- [x] `packages/platform/routing/tests/Unit/RouteGroupTest.php`
+  - [x] verifies existing metadata inheritance preserves an ordered middleware list.
+  - [x] verifies duplicate inherited metadata keys remain rejected.
+  - [x] preserves existing generic metadata composition semantics.
+
+- [x] `packages/platform/routing/tests/Integration/GroupedRoutesCompilationAndMatchingTest.php`
+  - [x] verifies inherited ordered middleware metadata survives source group flattening, canonical artifact hydration, and successful RouteMatch construction.
+  - [x] preserves existing route matching and provider ordering assertions.
+  - [x] does not resolve or execute middleware inside Routing.
+
+- [x] `packages/platform/http/tests/Integration/MaintenanceEnabledReturns503ForNonBypassedRoutesTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing maintenance behavior assertions.
+
+- [x] `packages/platform/http/tests/Integration/HttpEarlyShortCircuitPostDecoratorsTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing response decorator and early short-circuit assertions.
+
+- [x] `packages/platform/http/tests/Integration/ProblemDetailsOutermostPipelineIntegrationTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing canonical outer error-boundary assertions.
+
+- [x] `packages/platform/http/tests/Integration/HttpsRedirectRespectsProxySchemeTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing HTTPS redirect and trusted-proxy assertions.
+  - [x] update existing direct Pipeline construction sites to supply explicit false, [], and false continuation-policy arguments.
+
+- [x] `packages/platform/http/tests/Integration/SecurityHeadersAppliedToAllResponsesTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing response finalization and security header assertions.
+
+- [x] `packages/platform/http/tests/Integration/AliveEndpointBypassesMaintenanceTest.php`
+  - [x] supply the explicit effective test ModulePlan to HttpServiceFactory::pipeline().
+  - [x] preserve existing reserved endpoint and maintenance bypass assertions.
+
+- [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+  - [x] update the exact canonical Pipeline factory definition expectations to include ModulePlan.
+  - [x] verify source and compiled Pipeline construction consumes the same effective module selection.
+  - [x] update the exact reusable Pipeline property-shape assertion to:
+    - [x] middleware
+    - [x] terminal
+    - [x] guardedContinuation
+    - [x] protectedRequestAttributes
+    - [x] protectRoutingInputs
+  - [x] verifies routing-input protection policy remains immutable.
+  - [x] verifies equivalent source and compiled routing-input protection policy selection.
+  - [x] verifies no captured routing input values are retained on the reusable Pipeline.
+  - [x] verifies continuation policy and protected attribute keys remain immutable configuration values.
+  - [x] verifies no invocation-local continuation, protected attribute value, request, RouteMatch, or traversal cursor is retained.
+  - [x] verifies source and compiled construction select equivalent continuation policies for the same effective ModulePlan.
+  - [x] verifies ordinary execution remains selected when HttpApp is absent.
+  - [x] preserve all unrelated factory, binding, and middleware parity assertions.
+
+- [x] `packages/platform/http/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve existing noop observability assertions.
+
+- [x] `packages/platform/http/tests/Contract/MiddlewareOrderDeterministicTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve existing middleware ordering assertions.
+
+- [x] `packages/platform/http/tests/Contract/NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve existing noop tracing and metrics assertions.
+
+- [x] `packages/platform/http/tests/Integration/AccessLogDoesNotLeakHeadersCookiesOrBodyTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve existing access-log redaction assertions.
+
+- [x] `packages/platform/http/tests/Integration/BadJsonTriggersCanonicalErrorFlowTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve canonical JSON error flow assertions.
+
+- [x] `packages/platform/http/tests/Integration/BodySizeLimitReturns413Test.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve body-size rejection assertions.
+
+- [x] `packages/platform/http/tests/Integration/CorrelationHeaderAlwaysPresentTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve correlation header assertions.
+
+- [x] `packages/platform/http/tests/Integration/DebugEndpointObservabilityTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve existing debug endpoint observation assertions.
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelFinalResponseObservabilityTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve finalized request observation assertions.
+
+- [x] `packages/platform/http/tests/Integration/HttpKernelInvokesKernelRuntimeUowHooksTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve canonical UnitOfWork hook assertions.
+
+- [x] `packages/platform/http/tests/Integration/JsonBodyParserPsr7ParsedBodyTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve parsed-body adaptation assertions.
+
+- [x] `packages/platform/http/tests/Integration/RequestContextMiddlewareContextKeysTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve context read and write ownership assertions.
+
+- [x] `packages/platform/http/tests/Integration/RequestIdLifecycleIntegrationTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve request identity and reset assertions.
+
+- [x] `packages/platform/http/tests/Integration/SystemEndpointObservabilityTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve system endpoint observation assertions.
+
+- [x] `packages/platform/http/tests/Integration/TrustedProxyMetadataHandoffTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve trusted-proxy metadata handoff assertions.
+
+- [x] `packages/platform/http/tests/Unit/HttpResponseFinalizerTest.php`
+  - [x] supply explicit false, [], and false continuation-policy arguments.
+  - [x] preserve final-response identity and security header assertions.
+
+- [x] `packages/platform/routing/tests/Integration/Support/RoutingIntegrationFixture.php`
+  - [x] explicitly excludes `platform.http-app` from the isolated Routing consumer composition.
+  - [x] preserves existing target-local module selection and dependency isolation.
+  - [x] preserves existing source and artifact-only runtime integration fixtures.
+
+Docs:
+- [x] `docs/ssot/routing-and-http-app-contracts.md`
+  - [x] add the exact `RouterInterface::allowedMethods()` API
+  - [x] preserve the existing match and RouteMatch contracts
+  - [x] document canonical allowed-method enumeration semantics
+  - [x] preserve format-neutral ActionInvokerInterface and ArgumentResolverInterface signatures
+  - [x] document concrete HttpApp runtime ownership without future-only wording
+  - [x] document HTTP-specific adaptation outside the format-neutral ports
+  - [x] preserve Contracts prohibition on PSR-7 objects and concrete runtime dependencies
+  - [x] document RouteDefinition and RouteMatch metadata as the existing format-neutral carrier for consumer-owned route middleware declarations.
+  - [x] preserve exact RouteDefinition and RouteMatch constructor and representation shapes.
+  - [x] document separate matching and action dispatch runtime responsibilities.
+  - [x] reference HttpApp-owned route-specific execution semantics without introducing transport objects into Contracts.
+
+- [x] `docs/ssot/routing-artifact.md`
+  - [x] document allowed-method enumeration through the existing immutable route table and parsed templates
+  - [x] preserve artifact schema, admission rules, matching precedence, and deterministic ordering
+  - [x] document that method enumeration does not mutate context or emit additional routing observations
+  - [x] preserve the prohibition on Routing-owned HTTP response generation
+  - [x] document preservation of ordered consumer-owned middleware metadata through compilation and hydration.
+  - [x] reference the HttpApp-owned http_app_middleware semantic policy.
+  - [x] preserve generic metadata safety, redaction, resource limits, and canonical list ordering.
+  - [x] preserve generic RouteGroup duplicate-key rejection.
+  - [x] preserve routes@1 schema and fingerprint construction.
+  - [x] clarify that Routing validates generic metadata safety but does not resolve or execute middleware.
+
+- [x] `docs/adr/ADR-0005-routing-httpapp-ports.md`
+  - [x] record the extended format-neutral RouterInterface surface
+  - [x] preserve existing HttpApp port signatures
+  - [x] replace future-owner descriptions with the effective HttpApp ownership
+  - [x] preserve transport and dependency isolation
+
+- [x] `docs/adr/ADR-0018-platform-routing-compiled-routes.md`
+  - [x] record allowed-method enumeration through the existing immutable table
+  - [x] preserve null-return matching semantics and first-match precedence
+  - [x] preserve artifact-only boot and PATH_TEMPLATE ownership
+  - [x] clarify that Routing exposes matching information but does not generate HTTP 405 responses
+
+- [x] `docs/ssot/problem-details.md`
+  - [x] preserve the exact public Problem Details JSON representation
+  - [x] define `allowed_methods` as the sole admitted descriptor extension consumed for HTTP Allow-header materialization
+  - [x] define exact method-list admission and deterministic header formatting
+  - [x] define safe emergency 500 behavior for invalid required 405 metadata
+  - [x] preserve the prohibition on arbitrary descriptor extension publication or arbitrary response-header mapping
+  - [x] preserve canonical single-pass ErrorHandler invocation
+
+- [x] `docs/adr/ADR-0040-platform-problem-details-http-adaptation.md`
+  - [x] replace status-only descriptor consumption wording with the exact effective status and bounded 405 protocol-metadata policy
+  - [x] preserve public JSON schema and safe presentation policy
+  - [x] record canonical Allow-header ownership without introducing general descriptor-to-header mapping
+
+- [x] `docs/ssot/error-descriptor.md`
+  - [x] document the bounded owner-defined `allowed_methods` extension for HTTP method mismatch
+  - [x] preserve existing extension resource limits, semantic-key rejection, and safe-by-construction requirements
+  - [x] no ErrorDescriptor schema or production implementation change
+
+- [x] `docs/ssot/observability.md`
+  - [x] register `http.action_total` with owner `platform/http-app`, type `counter`, and labels `method`, `status`, `outcome`
+  - [x] register `http.action_duration_ms` with owner `platform/http-app`, type `observe`, and labels `method`, `status`, `outcome`
+  - [x] register `http.action` in the canonical span catalog
+  - [x] define the exact action observation lifecycle, bounded label values, span attributes, and completion semantics
+  - [x] define independent feature flags, Stopwatch policy, failure isolation, and span finalization
+  - [x] distinguish action observations from existing routing and finalized HTTP request observations
+  - [x] introduce no new global metric label keys
+
+- [x] `docs/ssot/logging-policy.md`
+  - [x] document the canonical `http.action.completed` producer event
+  - [x] document exact producer fields `method`, `status`, and `outcome`
+  - [x] preserve the existing sink field allowlist and context enrichment policy
+  - [x] MUST NOT add handler identifiers or arbitrary action metadata to the allowed field families
+
+- [x] `docs/ssot/http-middleware-wiring.md`
+  - [x] preserve the existing nine-slot taxonomy.
+  - [x] preserve the canonical outermost Problem Details boundary.
+  - [x] preserve system_post, app_post, and route_post response-decorator topology.
+  - [x] define RouterMiddleware as the canonical non-terminal matching contribution within the app slot.
+  - [x] define ActionDispatchMiddleware as the final effective route contribution.
+  - [x] define exact canonical role identities, priorities, metadata, and pair validation.
+  - [x] define final dispatch placement after ordinary tagged and manually appended route middleware.
+  - [x] preserve ordinary TagRegistry ordering and existing deduplication semantics.
+  - [x] define effective ModulePlan participation and resolved role-binding validation.
+  - [x] define the public Pipeline composition and resolveServices() API.
+  - [x] distinguish reusable global Pipeline construction from invocation-local route-specific composition.
+  - [x] preserve the HTTP-owned terminal FallbackRouterHandler.
+  - [x] define successful matched application dispatch, reserved-path delegation, and ordinary middleware short-circuit semantics.
+  - [x] document that ordinary global route slots retain existing participation semantics.
+  - [x] document that global route_post decorators enter before routing and are not matched-route-only middleware.
+  - [x] route-specific response decorators participate through the selected invocation-local middleware sequence.
+  - [x] reference http-app-dispatch.md for route metadata, middleware admission, routing handoff, and action invocation policy.
+  - [x] preserve existing HTTP behavior when HttpApp is absent.
+  - [x] preserve canonical HttpKernel response finalization and Kernel UnitOfWork/reset ownership.
+  - [x] remove obsolete requirements describing successful matching as a terminal app-slot short-circuit.
+  - [x] remove obsolete requirements forcing effective route_pre and route slots to remain empty.
+  - [x] defines the exact public Pipeline constructor and continuation-policy arguments.
+  - [x] distinguishes ordinary PSR-15 execution from guarded application dispatch execution.
+  - [x] defines effective ModulePlan selection of the global continuation policy.
+  - [x] defines at-most-once continuation entry and expiration semantics.
+  - [x] defines protected request-attribute presence and exact identity preservation.
+  - [x] defines fixed safe continuation-policy failure reasons.
+  - [x] defines invocation-local state ownership and release of expired continuation references.
+  - [x] preserves ordinary Pipeline behavior when HttpApp is absent.
+  - [x] distinguishes Foundation-owned registration and discovery from HTTP-owned execution.
+  - [x] MUST NOT introduce PSR-15 execution ownership into Foundation.
+  - [x] defines the explicit protectRoutingInputs Pipeline constructor policy.
+  - [x] defines activation of routing-input protection after introduction of a protected request attribute.
+  - [x] defines exact method, encoded-path, and host preservation across each subsequent guarded delegation.
+  - [x] defines routing-input violation failure reason and continuation expiration semantics.
+  - [x] distinguishes generic protected-attribute policy from explicitly enabled routing-input protection.
+  - [x] defines mandatory canonical outermost Problem Details participation when HttpApp is enabled.
+  - [x] defines resolved error-boundary identity validation without duplicate service resolution.
+  - [x] preserves optional Problem Details participation when HttpApp is absent.
+
+- [x] `docs/ssot/http-system-endpoints.md`
+  - [x] document HttpApp delegation of reserved paths
+  - [x] preserve all existing system endpoint owners, methods, statuses, and fallback behavior
+  - [x] preserve unsupported system endpoint method fallthrough behavior
+  - [x] document explicit reserved-path routing handoff through the canonical HttpApp matching and dispatch pair.
+  - [x] preserve existing ordinary global middleware participation for reserved paths.
+  - [x] reserved paths MUST NOT enter route-specific middleware selection or application action execution.
+  - [x] preserve the existing terminal HTTP-owned fallback and system endpoint behavior.
+
+- [x] `docs/ssot/middleware-context-keys-map.md`
+  - [x] update RouterMiddleware from future-only to implemented optional owner
+  - [x] record no direct context reads or writes
+  - [x] preserve `CompiledRouter` ownership of `PATH_TEMPLATE`
+  - [x] remove obsolete direct context-access requirements for RouterMiddleware
+  - [x] document RouterMiddleware and ActionDispatchMiddleware as separate optional HttpApp-owned runtime contributions.
+  - [x] both middleware introduce no direct ContextKeys reads or writes.
+  - [x] preserve CompiledRouter ownership of PATH_TEMPLATE.
+  - [x] clarify that the request-local RouteDispatchState attribute is not a ContextKey.
+  - [x] MUST NOT authorize publishing RouteMatch parameters or complete metadata through ContextStore.
+  - [x] middleware context permissions remain independent of middleware registration and execution ownership.
+  - [x] middleware-producing packages consume existing Contracts context ports without requiring concrete HTTP runtime services.
+  - [x] registering a middleware contribution does not grant additional ContextKeys access or diagnostic export permissions.
+  - [x] preserves all existing owner-specific context read and write restrictions.
+
+- [x] `packages/core/contracts/README.md`
+  - [x] document the exact extended RouterInterface surface
+  - [x] preserve existing format-neutral HttpApp contracts documentation
+
+- [x] `packages/platform/routing/README.md`
+  - [x] document allowed-method enumeration and its context/observability isolation
+  - [x] preserve artifact-only matching and routing ownership
+
+- [x] `packages/platform/problem-details/README.md`
+  - [x] document bounded HTTP 405 Allow-header adaptation
+  - [x] preserve public body disclosure restrictions
+
+- [x] `docs/guides/routing.md`
+  - [x] document logical handler identifier handoff to the separately owned HttpApp dispatch boundary
+  - [x] reference the HttpApp guide for action registration and invocation
+  - [x] preserve existing route compilation and artifact readiness instructions
+  - [x] demonstrate safe ordered route metadata for consumer-owned middleware selection.
+  - [x] demonstrate inheritance of a middleware metadata list through the existing RouteGroup helper.
+  - [x] document existing duplicate inherited metadata-key rejection.
+  - [x] reference HttpApp guide for explicit middleware service admission and execution.
+
+- [x] `docs/ssot/http-middleware-catalog.md`
+  - [x] update the existing RouterMiddleware row without adding a duplicate
+  - [x] service id `Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`
+  - [x] owner `platform/http-app`
+  - [x] slot `http.middleware.app`
+  - [x] priority `100`
+  - [x] metadata `[]`
+  - [x] identifies RouterMiddleware as the non-terminal application matching contribution.
+  - [x] adds the canonical ActionDispatchMiddleware row:
+    - [x] service id `Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class`
+    - [x] owner `platform/http-app`
+    - [x] slot `http.middleware.route`
+    - [x] priority `-1000`
+    - [x] metadata `[]`
+  - [x] identifies ActionDispatchMiddleware as the final effective route contribution after ordinary tagged and manual route middleware.
+  - [x] updates the route slot description to reflect its effective optional HttpApp contribution.
+  - [x] references canonical paired participation and terminal composition policy in http-middleware-wiring.md.
+  - [x] preserves unrelated middleware priorities, optional owners, and slot ownership.
+  - [x] preserves all unrelated middleware priorities and slot ownership
+  - [x] participation requires effective selection of `platform.http-app`
+  - [x] remove future-only reservation wording for this implemented middleware
+  - [x] preserve every unrelated middleware registration and owner policy
+  - [x] defines middleware-producing packages as independent contributors to the canonical HTTP composition boundary.
+  - [x] middleware implementations consume their explicitly required PSR interfaces and owner-local dependencies.
+  - [x] middleware providers register services and contributions exclusively through canonical Foundation declarative DI.
+  - [x] referencing a canonical middleware slot or catalog priority does not introduce a PHP source dependency on platform/http.
+  - [x] middleware-producing packages MUST NOT consume HTTP-internal stack composition or execution machinery merely to contribute middleware.
+  - [x] actual HTTP runtime activation remains governed by effective module composition.
+  - [x] preserves owner-local middleware implementation, configuration, observability, context permissions, and reset responsibilities.
+
+- [x] `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+  - [x] record separate canonical matching and action dispatch middleware roles.
+  - [x] record final effective route placement of ActionDispatchMiddleware.
+  - [x] record preservation of ordinary global application and route middleware.
+  - [x] record paired canonical participation and effective ModulePlan validation.
+  - [x] record public reuse of the existing HTTP Pipeline composition API.
+  - [x] record one shared middleware service resolution implementation.
+  - [x] record invocation-local route-specific composition.
+  - [x] preserve all nine existing middleware slots.
+  - [x] preserve canonical outer error boundary and response decorators.
+  - [x] preserve HTTP-owned fallback terminal and system endpoint ownership.
+  - [x] preserve one canonical HttpKernel and Kernel UnitOfWork lifecycle.
+  - [x] reject a second pipeline implementation, silent middleware bypass, and reverse HttpApp dependencies.
+  - [x] records canonical guarded continuation execution for application dispatch.
+  - [x] records protected request-attribute identity preservation.
+  - [x] records invocation-local continuation state, expiration, and reference release.
+  - [x] preserves ordinary Pipeline execution when HttpApp is absent.
+  - [x] preserves Foundation ownership of registration, discovery, ordering primitives, and service lifecycle.
+  - [x] rejects transporting PSR-15 execution dependencies into Foundation solely for middleware contribution reuse.
+  - [x] records explicit routing-input protection through the existing guarded Pipeline implementation.
+  - [x] records mandatory canonical error-boundary participation when HttpApp is selected.
+  - [x] preserves ordinary HTTP composition when HttpApp is absent.
+  - [x] rejects terminal-only routing-input validation as sufficient protection across middleware boundaries.
+
+- [x] `docs/ssot/config-roots.md`
+  - [x] before package scaffolding, register:
+    - [x] `http_app | platform/http-app | packages/platform/http-app/config/http_app.php | packages/platform/http-app/config/rules.php | Application routing and action invocation settings.`
+  - [x] preserve canonical table formatting and root ownership uniqueness
+  - [x] preserve existing `ssotVersion = 1`
+
+- [x] `docs/ssot/di-tags-and-middleware-ordering.md`
+  - [x] preserve canonical TagRegistry priority-descending and service-id-ascending discovery order.
+  - [x] reference HTTP-owned outermost error and final action dispatch composition roles.
+  - [x] clarify that HTTP role placement does not change the canonical TagRegistry discovery algorithm.
+  - [x] preserve all unrelated tag ordering and metadata policies.
+  - [x] explicitly distinguishes middleware contribution registration from middleware execution.
+  - [x] Foundation declarative DI, ReservedTags, TagRegistry, and DeterministicOrder remain the only canonical registration and discovery mechanisms.
+  - [x] middleware-producing packages consume Foundation APIs without requiring platform/http solely for contribution registration.
+  - [x] middleware service resolution remains owned by the effective canonical Container.
+  - [x] PSR-15 execution remains owned by platform/http.
+  - [x] HTTP-specific slot composition, metadata admission, feature-toggle evaluation, and execution-role placement remain outside Foundation.
+  - [x] MUST NOT introduce an independent middleware registry or middleware-specific registration SPI.
+
+- [x] `packages/platform/http/README.md`
+  - [x] document the explicitly public Pipeline composition API.
+  - [x] document the exact Pipeline::resolveServices() contract.
+  - [x] document canonical optional matching and final action dispatch contributions.
+  - [x] document preservation of ordinary middleware order and manual append.
+  - [x] document reuse of the same Pipeline implementation for invocation-local route-specific composition.
+  - [x] reference HttpApp-owned route middleware selection policy.
+  - [x] preserve existing HTTP entrypoint, system endpoint, lifecycle, error flow, and finalization documentation.
+  - [x] documents exact public Pipeline constructor arguments.
+  - [x] documents guarded continuation and protected request-attribute semantics.
+  - [x] documents ordinary execution when HttpApp is absent.
+  - [x] documents independent middleware contribution through Foundation APIs.
+  - [x] clarifies that middleware producers do not require platform/http solely for registration or implementation.
+  - [x] documents explicit routing-input protection configuration in the public Pipeline constructor.
+  - [x] documents canonical error-boundary participation requirements for HttpApp composition.
+
+- [x] `docs/ssot/INDEX.md`
+  - [x] register `docs/ssot/http-app-dispatch.md` with owner `platform/http-app` and `ssotVersion = 1`
+  - [x] preserve the existing config-roots registration without duplication
+
+- [x] `docs/adr/INDEX.md`
+  - [x] register `ADR-0043-platform-http-app-router-middleware-action-invoker.md`
+  - [x] preserve canonical ADR ordering and all existing entries
 
 #### Configuration (keys + defaults)
 
-- [ ] Files:
-  - [ ] `packages/platform/http-app/config/http_app.php`
-- [ ] Keys (dot):
-  - [ ] `http_app.handlers.map` = []  # handlerId => serviceId
-  - [ ] `http_app.arguments.allow_request` = true
-  - [ ] `http_app.arguments.allow_route_params` = true
-  - [ ] `http_app.arguments.allow_container_types` = []  # list<class-string> allowlist (concrete only)
-  - [ ] `http_app.response.json.enabled` = true
-  - [ ] `http_app.response.html.enabled` = true
-- [ ] Rules:
-  - [ ] `packages/platform/http-app/config/rules.php` enforces shape
+- [x] Files:
+  - [x] `packages/platform/http-app/config/http_app.php`
+- [x] Keys (dot):
+  - [x] `http_app.handlers` = []
+  - [x] `http_app.route_middleware` = []
+  - [x] `http_app.arguments.allow_request` = true
+  - [x] `http_app.arguments.allow_route_params` = true
+  - [x] `http_app.arguments.allow_container_types` = []
+  - [x] `http_app.response.json.enabled` = true
+  - [x] `http_app.response.html.enabled` = true
+  - [x] `http_app.tracing.enabled` = true
+  - [x] `http_app.metrics.enabled` = true
+  - [x] `http_app.logging.enabled` = true
+- [x] Effective configuration is validated through the canonical declarative container-definition context.
+- [x] Boolean policy values are passed explicitly through declarative constructor arguments.
+- [x] Dynamic handler registrations, concrete-service allowlists, and route middleware admission lists are consumed through the existing effective ConfigRepositoryInterface binding.
+- [x] Provider-time validation and runtime construction consume the same authoritative target-local configuration snapshot.
+- [x] Runtime resolvers retain immutable validated configuration values only.
+- [x] No independent configuration loading, mutable registry, repeated runtime configuration reads, or fallback defaults.
+- [x] Rules:
+  - [x] `packages/platform/http-app/config/rules.php` enforces shape
 
 #### Wiring / DI tags (when applicable)
 
-- Tags introduced (this epic is the OWNER):
-  - N/A (uses existing owner tags; this epic MUST NOT create a public `packages/core/foundation/src/Tag/ReservedTags.php` owner file)
-- [ ] ServiceProvider wiring evidence:
-  - [ ] registers: `Coretsia\HttpApp\Middleware\RouterMiddleware`
-  - [ ] adds tag: `http.middleware.app` priority `100`
-  - [ ] because `platform/http` is an allowed compile-time dependency here, runtime wiring MUST use the owner public constant for `http.middleware.app`
-  - [ ] registers: `Coretsia\HttpApp\Error\HttpAppProblemMapper`
-  - [ ] adds tag: `error.mapper` priority `800`
-    - [ ] runtime wiring MUST NOT import `platform/errors`
-    - [ ] runtime wiring SHOULD use a package-local internal mirror constant
-    - [ ] canonical string literal is allowed only as fallback
+- Tags introduced:
+  - N/A
+- [x] Existing tag contributions:
+  - [x] `RouterMiddleware::class`:
+    - [x] `ReservedTags::HTTP_MIDDLEWARE_APP`
+    - [x] priority `100`
+    - [x] metadata `[]`
+  - [x] `ActionDispatchMiddleware::class`:
+    - [x] `ReservedTags::HTTP_MIDDLEWARE_ROUTE`
+    - [x] priority `-1000`
+    - [x] metadata `[]`
+  - [x] `HttpAppProblemMapper::class`:
+    - [x] `ReservedTags::ERROR_MAPPER`
+    - [x] priority `800`
+    - [x] metadata `[]`
+- [x] All three contributions are defined exclusively by HttpAppServiceProvider::define().
+- [x] matching and action dispatch middleware participate as one canonical contribution pair.
+- [x] route-specific middleware services are selected by RouteMatch metadata, not by a new DI tag.
+- [x] admitting a service for route-specific middleware execution does not automatically register that service in any global middleware slot.
+- [x] Source and compiled container definitions MUST remain equivalent.
+- [x] No manual registration of the canonical RouterMiddleware or ActionDispatchMiddleware roles.
+- [x] ordinary manually appended application and route middleware remains supported through the existing HTTP composition policy.
+- [x] no duplicate framework-owned contribution registration, tag mirror, alternative discovery registry, or runtime tag literal fallback.
 
 #### Artifacts / outputs (if applicable)
 
@@ -17713,104 +19904,410 @@ N/A (consumes routing artifact via `RouterInterface`)
 
 #### Context & UoW
 
-- [ ] Context reads:
-  - [ ] `ContextKeys::CORRELATION_ID`
-  - [ ] `ContextKeys::PATH_TEMPLATE` (set by routing; used for logs only)
-  - [ ] `ContextKeys::HTTP_RESPONSE_FORMAT` (optional; set by negotiation)
-- Context writes (safe only):
+- Context reads:
   - N/A
-- Reset discipline:
+- Context writes:
   - N/A
+- [x] `ContextKeys::PATH_TEMPLATE` remains exclusively managed by the existing Routing matching boundary.
+- [x] canonical logging enrichment remains owned by the effective logging implementation.
+- [x] HttpApp MUST NOT use ContextStore, ContextAccessor, or ContextWriter as request, argument, action, response, or negotiation storage.
+- [x] request-local routing handoff:
+  - [x] exact PSR-7 attribute key `RouteDispatchState::ATTRIBUTE`.
+  - [x] RouterMiddleware is the sole canonical producer of the routing handoff.
+  - [x] downstream middleware may inspect the matched RouteMatch.
+  - [x] ActionDispatchMiddleware is the canonical action-dispatch consumer.
+  - [x] route-specific action terminal captures and verifies the original routing handoff instance.
+  - [x] global and route-specific guarded Pipeline continuations preserve exact identity of the framework-owned routing handoff after its introduction.
+  - [x] continuation enforcement state is invocation-local and MUST NOT be stored in shared Pipeline, middleware, or ContextStore state.
+  - [x] expired continuations release captured protected attribute values, routing input values, and downstream handler references.
+  - [x] no continuation state is registered for canonical reset.
+  - [x] downstream middleware MUST NOT replace, remove, or manufacture framework-owned routing state.
+  - [x] method, encoded path, and host mutation after introduction of the routing handoff is unsupported.
+  - [x] every subsequent guarded middleware continuation validates routing-input preservation before entering downstream execution.
+  - [x] ActionDispatchMiddleware and the invocation-local action terminal retain final RouteDispatchState validation.
+  - [x] temporary routing-input mutation followed by later restoration MUST NOT bypass protection.
+  - [x] continuation violations retain canonical HTTP-owned failure reasons.
+  - [x] request attributes are not ContextKeys and MUST NOT be copied into ContextStore.
+  - [x] raw routing inputs, RouteMatch parameters, and complete metadata MUST NOT enter diagnostic snapshots.
+- [x] HttpApp participates in the existing HTTP UnitOfWork without introducing a nested lifecycle.
+- [x] Reset discipline:
+  - [x] all reusable HttpApp services are stateless or retain immutable configuration and dependencies only
+  - [x] request, matched action, arguments, result, span, and timer state remain invocation-local
+  - [x] no `ResetInterface` implementation or `kernel.reset` tag
+  - [x] canonical Kernel/Foundation reset remains authoritative
+  - [x] application-owned handler lifecycle remains the responsibility of its registered service definition and existing reset participation
+  - [x] route-specific middleware sequences and their terminal handlers are constructed per dispatch and never cached on reusable services.
+  - [x] route-specific middleware instances are resolved through the existing Foundation Container lifecycle.
+  - [x] non-shared route middleware is resolved for each applicable dispatch.
+  - [x] shared stateful middleware remains responsible for canonical reset participation.
+  - [x] no request-local RouteDispatchState or terminal closure survives canonical request processing through HttpApp-owned storage.
+  - [x] canonical reset discovery remains independent of selected and executed route-specific middleware.
+  - [x] HttpApp-owned lazy middleware selection guarantees MUST NOT restrict Foundation-owned reset service resolution.
+  - [x] no executed-middleware tracking or route-dependent reset filtering.
 
 #### Observability (policy-compliant)
 
-- [ ] Spans:
-  - [ ] `http.action` (attrs: `handler_id`, `outcome`, `status`)
-- [ ] Metrics:
-  - [ ] `http.action_total` (labels: `method`, `status`, `outcome`)
-  - [ ] `http.action_duration_ms` (labels: `method`, `status`, `outcome`)
-- [ ] Logs:
-  - [ ] handled errors: log code + status + handler_id (no payload)
+- [x] Action dispatch observations are owned by ActionDispatchMiddleware's invocation-local action terminal.
+- [x] successful route matching alone does not constitute action execution.
+- [x] action observations begin only after all preceding delegating global and route-specific middleware have admitted terminal execution.
+- [x] unmatched routes, reserved paths, method-not-allowed decisions, middleware admission failures, and middleware short-circuits before terminal entry MUST NOT produce action observations.
+- [x] route-specific middleware execution duration MUST NOT be included in http.action_duration_ms.
+- [x] action observations cover handler resolution, argument resolution, action invocation, and response mapping only.
+- [x] canonical continuation enforcement permits at most one action observation lifecycle per admitted HTTP action execution.
+- [x] continuation-policy failures before action terminal entry MUST NOT emit action observations.
+- [x] a continuation-policy failure after completed action execution MUST NOT rewrite previously completed action observations.
+- [x] Pipeline continuation enforcement introduces no dedicated spans, metrics, or logs.
+- [x] eligible failures remain subject to the existing canonical error and finalized HTTP request observation boundaries.
+- [x] middleware-owned observability remains the responsibility of the corresponding middleware owner.
+- [x] no generic middleware metrics, middleware span names, service-id labels, or additional observation registry are introduced.
+- [x] Existing `routing.match` and finalized `http.request` observations remain independent.
+- [x] Spans:
+  - [x] exact name `http.action`
+  - [x] initial attributes contain only `method`
+  - [x] completion attributes contain only `outcome` and `status`
+  - [x] no handler id, service id, raw path, raw arguments, or Throwable attributes
+  - [x] every successfully started span receives exactly one end() attempt through finally.
+  - [x] span end failure MUST NOT trigger a retry.
+- [x] Metrics:
+  - [x] `http.action_total` — counter increment by `1`
+  - [x] `http.action_duration_ms` — duration observation in integer milliseconds
+  - [x] both metric families use exactly `method`, `status`, and `outcome` labels
+  - [x] `method` uses the canonical bounded method vocabulary:
+    - [x] `GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE|CONNECT|OTHER`
+  - [x] unsupported methods map to `OTHER` for observability only
+  - [x] method classification uses exact membership in the canonical bounded method vocabulary
+  - [x] no uppercasing, trimming, or other method normalization occurs
+  - [x] Stopwatch is started only when metrics are enabled
+  - [x] Stopwatch is stopped only when a valid measurement was successfully started
+  - [x] exact outcome vocabulary:
+    - [x] `returned` — action dispatch and response mapping returned a ResponseInterface
+    - [x] `threw` — dispatch or response mapping failed
+  - [x] `status` is the mapped response's integer HTTP status in `100..599` when safely available for `returned`
+  - [x] `status = 'unknown'` when response status observation fails or produces an inadmissible value
+  - [x] `status = 'unknown'` for `threw`
+  - [x] ResponseInterface::getStatusCode() observation is independently failure-isolated
+  - [x] response status observation MUST NOT replace the returned response, change the dispatch outcome, or initiate error mapping
+  - [x] observed action status MUST NOT be represented as the finalized HTTP request status
+  - [x] MUST NOT predict the eventual canonical error response status
+  - [x] duration uses the existing Foundation Stopwatch
+  - [x] duration is emitted only for successful measurements in `0..4294967295`
+  - [x] unavailable duration is omitted, never replaced with synthetic zero
+- [x] Logs:
+  - [x] exact event identifier `http.action.completed`
+  - [x] uses the effective PSR-3 logger
+  - [x] emits at most one `debug` completion event per admitted action terminal entry when logging is enabled.
+  - [x] the same completion event and bounded field schema apply to both returned and thrown outcomes
+  - [x] MUST NOT emit an additional handled-error log or duplicate HTTP access log
+  - [x] producer context contains only `method`, `status`, and `outcome`
+  - [x] no duplicate handled-error reporting
+  - [x] no direct Throwable-message or exception-object export
+  - [x] canonical context enrichment remains logging-owner responsibility
+- [x] Feature flags:
+  - [x] `http_app.tracing.enabled`
+  - [x] `http_app.metrics.enabled`
+  - [x] `http_app.logging.enabled`
+  - [x] each independently controls only its owned signal family
+- [x] Failure isolation:
+  - [x] tracer start, span attribute updates, span end, Stopwatch start/stop, counter increment, duration observation, and logging attempts are isolated independently
+  - [x] failure of one signal MUST NOT suppress another otherwise eligible signal
+  - [x] observability failures MUST NOT change a returned response or replace the primary Throwable
+  - [x] no failed signal is retried
+  - [x] noop services are consumed from the existing Foundation bindings
 
 #### Errors
 
-- [ ] Exceptions introduced:
-  - [ ] `Coretsia\HttpApp\Exception\HttpNotFoundException` — errorCode `CORETSIA_HTTP_404`
-  - [ ] `Coretsia\HttpApp\Exception\HttpMethodNotAllowedException` — errorCode `CORETSIA_HTTP_405`
-- [ ] Mapping:
-  - [ ] `HttpAppProblemMapper` via tag `error.mapper` (NO DUPES)
+- [x] `HttpNotFoundException` → `CORETSIA_HTTP_404`
+- [x] `HttpMethodNotAllowedException` → `CORETSIA_HTTP_405`
+- [x] `HttpAppDispatchException` → canonical internal server failure mapping
+- [x] `HttpAppProblemMapper` maps only HttpApp-owned 404 and 405 exceptions.
+- [x] ordinary handler failures propagate to the existing canonical error boundary.
+- [x] mapping, mandatory descriptor redaction, and eligible reporting remain owned by `platform/errors`.
+- [x] public Problem Details rendering and validated Allow-header materialization remain owned by `platform/problem-details`.
+- [x] no duplicate ErrorHandler, mapper registry, redactor, renderer, or error-reporting lifecycle.
+- [x] HTTP-owned guarded continuation failures remain distinct from HttpApp-owned routing-state and dispatch failures.
+- [x] exact guarded continuation failure messages:
+  - [x] `http-pipeline-continuation-reused`
+  - [x] `http-pipeline-continuation-expired`
+  - [x] `http-pipeline-protected-attribute-changed`
+  - [x] `http-pipeline-protected-routing-input-changed`
+- [x] these failures propagate through the existing canonical error boundary and MUST NOT be classified as ordinary application 404 or 405 failures.
+- [x] no dedicated continuation exception mapper, additional error code family, or duplicate normalization mechanism is introduced.
 
 #### Security / Redaction
 
-- [ ] MUST NOT leak:
-  - [ ] request headers/cookies/body, tokens, raw payloads
-- [ ] Allowed:
-  - [ ] handlerId (safe), method/status
+- [x] producer-owned diagnostic shapes remain safe by construction.
+- [x] MUST NOT emit:
+  - [x] raw request paths, hosts, queries, headers, cookies, or bodies
+  - [x] matched parameter values or resolved argument values
+  - [x] handler identifiers, service ids, reflection signatures, or action return values
+  - [x] credentials, tokens, private customer data, or raw Throwable messages
+- [x] allowed diagnostics are limited to explicitly defined bounded methods, statuses, outcomes, error codes, and stable reason tokens.
+- [x] `allowed_methods` is a bounded protocol metadata list, not arbitrary diagnostic or header data.
+- [x] action-owned response values remain separate from diagnostic redaction boundaries.
+- [x] MUST NOT automatically redact successful application response bodies.
+- [x] shared error descriptor redaction remains owned by the canonical ErrorHandler.
+- [x] MUST NOT introduce a package-local sensitive-data classifier or generic redactor.
+- [x] Route-specific middleware execution is fail-closed:
+  - [x] an invalid or unavailable selected middleware MUST NOT be skipped.
+  - [x] an unadmitted service id MUST NOT trigger concrete-class autowiring.
+  - [x] framework matching, dispatch, and outer error-boundary middleware MUST NOT recursively enter the route-specific chain.
+  - [x] matched routing state MUST NOT be replaced after route-specific middleware selection.
+  - [x] changed routing inputs MUST NOT trigger implicit rematching.
+  - [x] middleware service ids, route-specific admission lists, raw routing inputs, and RouteMatch metadata MUST NOT enter diagnostic output.
+- [x] ordinary middleware short-circuit semantics remain supported:
+  - [x] an earlier middleware may return its own response without invoking downstream middleware.
+  - [x] the framework MUST NOT execute the action after such a short-circuit.
+  - [x] every delegating middleware follows the existing PSR-15 continuation contract.
+  - [x] the canonical guarded Pipeline enforces at-most-once continuation entry.
+  - [x] repeated entry fails before downstream execution.
+  - [x] expired continuation entry fails before downstream execution.
+  - [x] protected routing attributes cannot be removed or replaced after introduction.
+  - [x] continuation-policy failures expose fixed safe reason tokens only.
+  - [x] MUST NOT export protected attribute names, attribute values, request objects, continuation state, or downstream service identities.
+  - [x] continuation enforcement is a Coretsia application dispatch invariant, not a claim that PSR-15 universally prohibits retries.
+- [x] protected application-response producers, including response caches, MUST NOT return protected route content before the applicable authorization policy has been enforced.
+- [x] route-specific admission does not make arbitrary earlier middleware short-circuits authorization-safe.
+- [x] application middleware is trusted application code; routing handoff validation is not a sandbox against deliberately hostile PHP middleware.
+- [x] ordinary repeated membership of a middleware service in both global and route-specific composition is explicit participation in two execution scopes.
+- [x] MUST NOT silently deduplicate middleware across those independent scopes.
+- [x] after routing handoff introduction, protected routing inputs remain unchanged throughout every subsequent delegating middleware boundary.
+- [x] temporary routing-input changes cannot cause downstream middleware to evaluate a different request method, encoded path, or host from the matched request.
+- [x] invalid routing-input delegation fails before downstream middleware execution.
+- [x] raw captured routing inputs remain invocation-local and are cleared on continuation expiration.
 
 ### Verification (TEST EVIDENCE) (MUST when applicable)
 
 #### Required policy tests matrix
 
-- [ ] If Context writes exist → `N/A`
-- [ ] If `kernel.reset` used → `N/A`
-- [ ] If metrics/spans/logs exist → `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-- [ ] If redaction exists → `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+- [x] Context writes:
+  - [x] N/A — HttpApp introduces no direct ContextKeys mutation.
+  - [x] existing Routing context ownership remains verified.
+- [x] Reset and repeated invocation isolation:
+  - [x] `packages/platform/http-app/tests/Integration/HttpAppRepeatedRequestsIsolationTest.php`
+  - [x] no new kernel.reset contribution.
+- [x] Observability:
+  - [x] `packages/platform/http-app/tests/Integration/ActionDispatchMiddlewareObservabilityTest.php`
+  - [x] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
+- [x] Security and diagnostic redaction:
+  - [x] `packages/platform/http-app/tests/Unit/HandlerResolverTest.php`
+  - [x] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
+  - [x] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
+- [x] Canonical wiring and module composition:
+  - [x] `packages/platform/http-app/tests/Contract/HttpAppModuleComposerMetadataContractTest.php`
+  - [x] `packages/platform/http-app/tests/Contract/HttpAppProviderDefinitionsParityTest.php`
+  - [x] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
+- [x] System endpoint ownership:
+  - [x] `packages/platform/http-app/tests/Integration/ReservedEndpointsRemainOwnedByHttpTest.php`
+- [x] Artifact-backed end-to-end integration:
+  - [x] `tools/tests/Integration/HelloRouteE2ETest.php`
+- [x] Route-specific middleware admission and execution:
+  - [x] `packages/platform/http-app/tests/Unit/RouteMiddlewareSelectorTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/RouteSpecificMiddlewareExecutionTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/MatchedRouteMiddlewareAndActionDispatchTest.php`
+- [x] Request-local routing handoff:
+  - [x] `packages/platform/http-app/tests/Unit/RouteDispatchStateTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/HttpAppRepeatedRequestsIsolationTest.php`
+- [x] Canonical HTTP composition reuse:
+  - [x] `packages/platform/http/tests/Unit/PipelineServiceResolutionTest.php`
+  - [x] `packages/platform/http/tests/Unit/MiddlewareManualAppendAndDedupeTest.php`
+  - [x] `packages/platform/http/tests/Contract/MiddlewareCatalogPriorityAndSlotLockTest.php`
+  - [x] `packages/platform/http/tests/Integration/HttpContainerSourceCompiledParityTest.php`
+- [x] Routing metadata transport:
+  - [x] `packages/platform/routing/tests/Unit/RoutesArtifactSchemaTest.php`
+  - [x] `packages/platform/routing/tests/Unit/RouteGroupTest.php`
+  - [x] `packages/platform/routing/tests/Integration/GroupedRoutesCompilationAndMatchingTest.php`
+- [x] Canonical continuation policy and routing handoff protection:
+  - [x] `packages/platform/http/tests/Unit/PipelineContinuationGuardTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/MatchedRouteMiddlewareAndActionDispatchTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/RouteSpecificMiddlewareExecutionTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/ActionDispatchMiddlewareObservabilityTest.php`
+  - [x] `packages/platform/http-app/tests/Integration/HttpAppRepeatedRequestsIsolationTest.php`
 
 #### Test harness / fixtures (when integration is needed)
 
-- [ ] Fixture app:
-  - [ ] `packages/core/kernel/tests/Fixtures/ExpressApp/config/modules.php`
-- [ ] Fake adapters:
-  - [ ] (as needed) `FakeTracer` / `FakeMetrics` / `FakeLogger`
-
-### Tests (MUST)
-
-- Unit:
-  - [ ] `packages/platform/http-app/tests/Unit/ArgumentResolverAllowlistTest.php`
-  - [ ] `packages/platform/http-app/tests/Unit/ActionResponseMapperJsonAndHtmlTest.php`
-- Contract:
-  - [ ] `packages/platform/http-app/tests/Contract/CrossCuttingNoopDoesNotThrowTest.php`
-  - [ ] `packages/platform/http-app/tests/Contract/RouterMiddlewareWiringContractTest.php`
-- Integration:
-  - [ ] `packages/platform/http-app/tests/Integration/RouterMiddlewareDispatchesMatchedHandlerTest.php`
-  - [ ] `packages/platform/http-app/tests/Integration/NotFoundAndMethodNotAllowedTriggerCanonicalErrorFlowTest.php`
-  - [ ] `packages/platform/http-app/tests/Integration/ActionInvokerCreatesSpanNoopSafeTest.php`
-  - [ ] `packages/platform/http-app/tests/Integration/NotFound405GoThroughCanonicalErrorFlowTest.php`
-- Gates/Arch:
-  - [ ] deptrac: ensure `platform/http` does NOT depend on `platform/http-app` (hard rule)
+- [x] Test-only consumer composition:
+  - [x] follows the existing isolated consumer patterns from `packages/platform/routing/tests/Integration/Support/RoutingIntegrationFixture.php`
+  - [x] follows the existing HTTP runtime fixture patterns from `packages/platform/http/tests/Support/SystemEndpointRuntimeFixture.php`
+  - [x] uses temporary target-local configuration and declarative application provider definitions
+  - [x] no dependency on a nonexistent ExpressApp fixture
+  - [x] no modification of production application defaults
+- [x] Test-only adapters:
+  - [x] use existing Foundation noop implementations for noop compatibility evidence
+  - [x] use recording and throwing adapters for explicit observability failure-isolation evidence
+  - [x] use real routing, error mapping, and Problem Details services for canonical integration evidence
+  - [x] synthetic recording route middleware for exact execution order evidence.
+  - [x] synthetic authorization-style middleware for denied-dispatch evidence.
+  - [x] synthetic response-decorator middleware for reverse unwind evidence.
+  - [x] synthetic non-shared and resettable middleware for lifecycle isolation evidence.
+  - [x] synthetic middleware that removes routing state or changes routing inputs for fail-closed evidence.
+  - [x] MUST NOT depend on future production auth, session, tenancy, or security middleware packages.
 
 ### DoD (MUST)
 
-- [ ] Deliverables complete (creates+modifies), paths exact
-- [ ] Preconditions satisfied (no forward references)
-- [ ] deps/forbidden respected (deptrac; no cycles)
-- [ ] Verification tests present where applicable
-- [ ] RouterMiddleware auto-wired into `http.middleware.app` priority 100
-- [ ] 404/405 go through canonical error flow (error.mapper)
-- [ ] No interface autowire magic in argument resolver
-- [ ] Docs updated:
-  - [ ] `packages/platform/http-app/README.md`
-  - [ ] `docs/guides/http-app.md`
-- [ ] `config/http_app.php` returns subtree only (no `['http_app'=>...]` wrapper).
-- [ ] runtime reads via `http_app.*` keys from global config.
-- [ ] What problem this epic solves:
-  - [ ] Дає app-layer поверх `platform/http`: RouterMiddleware (routing boundary) + ActionInvoker (dispatch handlerId → action).
-  - [ ] Забезпечує 404/405 через canonical error flow (exceptions → `error.mapper` → `ErrorDescriptor` → ProblemDetails).
-  - [ ] Додає мінімальний ArgumentResolver без “magic autowire interfaces” (узгоджено з foundation policy).
-- [ ] Non-goals / out of scope:
-  - [ ] Не робить compiled routes artifact (це `platform/routing`).
-  - [ ] Не робить RFC7807 рендеринг (це `platform/problem-details`).
-  - [ ] Не додає auth/session/csrf (це Phase 2).
-- [ ] Cutline impact: blocks Phase 3 cutline
-- [ ] Invariants reused (NO DUPES) (MUST):
-  - [ ] Middleware wiring MUST respect HTTP stack model:
-    - [ ] `RouterMiddleware` MUST be in slot `http.middleware.app` priority `100`.
-  - [ ] Error flow MUST stay canonical:
-    - [ ] 404/405 produced as deterministic exceptions,
-    - [ ] mapped via `error.mapper` → `ErrorDescriptor` → ProblemDetails,
-    - [ ] NO ad-hoc response rendering in http-app.
-  - [ ] Observability MUST stay low-cardinality:
-    - [ ] use `ContextKeys::PATH_TEMPLATE` if present; never label raw path.
+- [x] Gates/Arch green
+- [x] deptrac green
+- [x] tests green
+- [x] Deliverables complete (creates+modifies), paths exact
+- [x] Preconditions satisfied (no forward references)
+- [x] deps/forbidden respected (deptrac; no cycles)
+- [x] Verification tests present where applicable
+- [x] RouterMiddleware contributes exactly one canonical http.middleware.app registration at priority 100 with metadata [].
+- [x] ActionDispatchMiddleware contributes exactly one canonical http.middleware.route registration at priority -1000 with metadata [].
+- [x] both contributions participate together when platform.http-app is effectively selected.
+- [x] successful matching delegates through remaining admitted global middleware.
+- [x] route-specific middleware executes before action invocation.
+- [x] no configured middleware is silently bypassed by framework-owned action dispatch.
+- [x] middleware short-circuit responses prevent action invocation.
+- [x] invalid route-specific selection fails closed.
+- [x] action observations begin only after successful action terminal admission and routing-state validation.
+- [x] 404/405 go through the existing canonical error.mapper, ErrorHandler, and Problem Details boundary.
+- [x] HTTP 405 responses include the exact validated deterministic Allow header.
+- [x] Reserved system endpoint handling remains unchanged.
+- [x] Existing source and compiled container dispatch behavior remains equivalent for complete and valid effective service graphs.
+- [x] No interface autowire magic in argument resolver
+- [x] Docs updated:
+  - [x] `packages/platform/http-app/README.md`
+  - [x] `docs/guides/http-app.md`
+- [x] `config/http_app.php` returns subtree only (no `['http_app'=>...]` wrapper).
+- [x] effective `http_app` configuration is validated during canonical container definition construction.
+- [x] boolean policies and the existing ConfigRepositoryInterface dependency are supplied explicitly through declarative definitions.
+- [x] handler registrations, concrete-service allowlists, and route middleware admission lists are read from the same effective configuration snapshot and retained as immutable validated values.
+- [x] all configured deferred service dependencies are declared through the existing graph completeness mechanism.
+- [x] source and compiled runtime resolution remain equivalent.
+- [x] runtime services introduce no independent config loading or fallback defaults.
+- [x] What problem this epic solves:
+  - [x] Дає app-layer поверх platform/http із розділенням route matching, global middleware execution, route-specific middleware execution та action dispatch.
+  - [x] Забезпечує middleware конкретного маршруту через наявний PSR-15 Pipeline без дублювання HTTP lifecycle.
+  - [x] Забезпечує 404/405 через canonical error flow (exceptions → `error.mapper` → `ErrorDescriptor` → ProblemDetails).
+  - [x] Додає мінімальний ArgumentResolver без “magic autowire interfaces” (узгоджено з foundation policy).
+- [x] Non-goals / out of scope:
+  - [x] Не робить compiled routes artifact (це `platform/routing`).
+  - [x] Не реалізує власний RFC9457 Problem Details renderer; використовує canonical `platform/problem-details` boundary.
+  - [x] Не вводить HTTP content negotiation.
+  - [x] Не реалізує конкретні auth/session/tenancy policies; надає канонічний механізм їх підключення до маршрутів.
+  - [x] Не вводить middleware discovery через attributes, filesystem scanning або controller reflection.
+  - [x] Не вводить окремий middleware engine, route-local DI container або nested UnitOfWork.
+  - [x] Не змінює generic RouteGroup metadata merge semantics.
+  - [x] Не вводить automatic HEAD/OPTIONS handling.
+  - [x] Не вводить controller discovery, attributes scanning, model binding або recursive argument autowiring.
+  - [x] Додає platform.http-app до framework-default mode presets.
+  - [x] Не додає auth/session/csrf.
+- [x] Invariants reused (NO DUPES) (MUST):
+  - [x] Routing:
+    - [x] existing RouterInterface and immutable compiled route table remain canonical
+    - [x] allowed-method enumeration reuses existing parsed RouteTemplate matching
+    - [x] no second route table, matcher, compiler, or artifact reader
+  - [x] Reserved endpoint ownership:
+    - [x] existing ReservedPathMatcher remains authoritative
+    - [x] reserved requests delegate to the existing HTTP pipeline and terminal fallback
+  - [x] Container:
+    - [x] existing Foundation Container owns service resolution
+    - [x] explicit handler and argument service registration is required
+    - [x] no independent autowire or callable registry
+    - [x] existing ConfigRepositoryInterface remains the canonical effective configuration reader
+    - [x] configured deferred service dependencies participate in existing graph completeness validation
+    - [x] handler registration lists introduce no alternative structural config-key grammar
+    - [x] no parallel dependency graph validator
+  - [x] HttpApp contracts:
+    - [x] existing ActionInvokerInterface and ArgumentResolverInterface remain format-neutral
+    - [x] HTTP-specific request adaptation remains inside platform/http-app
+  - [x] Middleware:
+    - [x] RouterMiddleware owns matching and participates in http.middleware.app at priority 100.
+    - [x] ActionDispatchMiddleware owns final action dispatch and participates in http.middleware.route at priority -1000.
+    - [x] canonical final dispatch placement is enforced by the existing HttpMiddlewareStackBuilder.
+    - [x] ordinary global app, route_pre, and route middleware remains admitted.
+    - [x] route-specific middleware selection consumes existing RouteMatch metadata.
+    - [x] global and route-specific middleware service resolution reuse Pipeline::resolveServices().
+    - [x] global and invocation-local execution reuse the same Pipeline implementation.
+    - [x] existing outer error boundary and response finalization remain authoritative.
+    - [x] existing terminal HTTP system fallback remains unchanged.
+    - [x] no second middleware execution engine, registry, container, or lifecycle.
+    - [x] Foundation declarative DI remains the canonical middleware contribution registration mechanism.
+    - [x] existing ReservedTags, TagRegistry, and DeterministicOrder remain authoritative.
+    - [x] middleware-producing packages do not require platform/http solely for contribution registration.
+    - [x] global and route-specific application dispatch reuse the same guarded Pipeline implementation.
+    - [x] continuation protection introduces no additional execution engine, registry, or lifecycle.
+    - [x] Foundation remains free from PSR-7, PSR-15, and PSR-17 production dependencies.
+  - [x] Error flow:
+    - [x] deterministic exceptions
+    - [x] existing error.mapper registry
+    - [x] canonical ErrorDescriptor and ErrorHandler
+    - [x] existing Problem Details renderer
+    - [x] bounded Allow-header adaptation remains Problem Details-owned
+  - [x] Serialization:
+    - [x] Foundation StableJsonEncoder remains the single JSON writer
+  - [x] Observability:
+    - [x] action observations remain independent from routing and finalized request observations
+    - [x] no raw paths, handler ids, argument values, or response values
+    - [x] existing Foundation noop services and Stopwatch are reused
+  - [x] Context and reset:
+    - [x] PATH_TEMPLATE remains Routing-owned
+    - [x] no request-local state is retained by reusable HttpApp services
+    - [x] existing Kernel UoW and Foundation reset remain authoritative
+    - [x] route-specific middleware selection does not restrict canonical reset discovery or service resolution.
+    - [x] no executed-middleware tracking or route-dependent reset mechanism.
+  - [x] Architecture:
+    - [x] runtime-only Composer edges do not widen PHP source permissions
+    - [x] canonical workspace and architecture generators are reused
+- [x] Canonical workspace and architecture verification:
+  - [x] managed Composer repositories synchronized
+  - [x] release-line workspace synchronized
+  - [x] package index regenerated and check passes
+  - [x] installation catalog regenerated and check passes
+  - [x] Deptrac configuration regenerated and check passes
+  - [x] observability metric catalog gate passes
+  - [x] observability span naming gate passes
+  - [x] reserved tags registry gate passes
+  - [x] cross-cutting contract gate passes
+  - [x] package compliance gate passes
+  - [x] existing Routing, HTTP, Errors, and Problem Details regression tests pass
+  - [x] no new architecture allowlist exceptions
+- [x] Exact handler registration and configuration artifact invariants:
+  - [x] all admitted Routing logical identifiers can be represented as handler registration values
+  - [x] effective config and configuration source metadata artifact round-tripping succeeds
+  - [x] source and compiled handler lookup behavior remains equivalent
+  - [x] configured deferred service dependencies satisfy canonical graph completeness
+  - [x] no changes to generic Core config-path or container typed-reference grammars
+- [x] Matching and dispatch composition invariants:
+  - [x] successful route matching is non-terminal.
+  - [x] canonical action dispatch is the final effective route contribution.
+  - [x] ordinary tagged and manual app and route middleware executes before action dispatch when the chain delegates.
+  - [x] effective HttpApp contribution participation agrees with ModulePlan.
+  - [x] malformed canonical role registrations or incompatible bindings fail before request execution.
+  - [x] route-specific selection reuses existing ordered route metadata.
+  - [x] every selected route middleware is explicitly admitted and resolved through the canonical Container.
+  - [x] invalid route middleware selection or resolution cannot bypass middleware or execute an action.
+  - [x] middleware short-circuit responses prevent action terminal entry.
+  - [x] the originally selected routing handoff remains authoritative.
+  - [x] changed routing inputs fail closed without rematching.
+  - [x] existing HTTP Pipeline execution is reused without a second implementation.
+  - [x] one canonical HTTP UnitOfWork and reset lifecycle remains authoritative.
+  - [x] existing HTTP behavior without HttpApp remains unchanged.
+  - [x] effective HttpApp composition requires the canonical outermost Problem Details contribution.
+  - [x] missing, incorrectly bound, or aliased canonical error-boundary participation fails before request execution.
+  - [x] canonical HttpApp role validation precedes generic metadata and priority validation.
+  - [x] existing optional Problem Details participation remains unchanged when HttpApp is absent.
+- [x] Middleware continuation invariants:
+  - [x] canonical global HttpApp composition enables guarded continuation.
+  - [x] invocation-local route-specific composition enables the same guarded continuation.
+  - [x] every guarded continuation is entered at most once.
+  - [x] failed continuation entry does not permit retry.
+  - [x] completed and failed middleware invocations expire their continuations.
+  - [x] expired continuations release captured request-local values and downstream handler references.
+  - [x] protected routing handoff identity survives all delegating middleware boundaries.
+  - [x] removed or replaced routing handoff cannot reach action invocation.
+  - [x] repeated continuation entry cannot execute an action twice.
+  - [x] action observation cannot be duplicated through repeated continuation entry.
+  - [x] ordinary HTTP execution remains unchanged when HttpApp is absent.
+  - [x] no Foundation HTTP dependency, second middleware registry, additional ContextKey, or reset contribution is introduced.
+  - [x] global and route-specific HttpApp composition explicitly enables routing-input protection.
+  - [x] routing-input protection activates after the framework-owned routing handoff is introduced.
+  - [x] every subsequent delegating middleware boundary preserves method, encoded path, and host.
+  - [x] temporary routing-input mutation followed by subsequent restoration cannot bypass protection.
+  - [x] routing-input violations fail before downstream middleware execution.
+  - [x] expired continuations release captured routing input values.
+- [x] Spec locked.
 
 ---
 

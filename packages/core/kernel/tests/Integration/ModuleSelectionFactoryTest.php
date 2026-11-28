@@ -52,6 +52,13 @@ final class ModuleSelectionFactoryTest extends TestCase
                 'core.foundation',
                 'core.kernel',
             ]),
+            ModeInfrastructureTestSupport::descriptor('platform.http-app', [
+                'core.foundation',
+                'platform.errors',
+                'platform.http',
+                'platform.problem-details',
+                'platform.routing',
+            ]),
             ModeInfrastructureTestSupport::descriptor('platform.logging', [
                 'core.foundation',
                 'core.kernel',
@@ -83,6 +90,7 @@ final class ModuleSelectionFactoryTest extends TestCase
                 'core.kernel',
                 'platform.cli',
                 'platform.http',
+                'platform.http-app',
                 'platform.logging',
                 ...($name === 'enterprise' ? ['platform.metrics'] : []),
                 'platform.problem-details',

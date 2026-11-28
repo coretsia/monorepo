@@ -24,7 +24,7 @@ owner: platform/routing
 
 This document is the Single Source of Truth for the `routes@1` artifact identity, target-local storage, exact envelope and descriptor schema, fingerprint input, route declaration admission, deterministic source compilation, publication, immutable runtime hydration, and owner-artifact readiness.
 
-It also defines the source route grouping policy and the application route matching semantics shared by compilation and artifact consumption.
+It also defines the source route grouping policy, application route matching, allowed-method enumeration, and preservation of ordered consumer-owned metadata across source compilation and immutable artifact consumption.
 
 The global artifact envelope, deterministic serialization law, and artifact registry remain owned by [Artifact Header and Schema Registry](./artifacts.md). The format-neutral routing ports and descriptors remain owned by [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md).
 
@@ -38,11 +38,12 @@ Application routes MUST be compiled deterministically for an explicitly selected
 
 ## Authority Boundary (MUST)
 
-- `platform/routing` owns route compilation, `routes@1` schema validation, artifact publication and reading, source grouping, and application route matching.
+- `platform/routing` owns route compilation, `routes@1` schema validation, artifact publication and reading, source grouping, application route matching, and allowed-method enumeration.
 - `core/contracts` owns `RouteDefinition`, `RouteMatch`, `RouteProviderInterface`, `RouterInterface`, and `RoutingArtifactReadinessInterface`.
 - `core/foundation` owns the system-route registry, concrete reserved-path matching, canonical json-like normalization, stable JSON and PHP-array codecs, and shared filesystem publication primitives.
 - `core/kernel` owns target-local source-host composition, `ModulePlan`, `RuntimePathContext`, `RuntimeDiagnosticsInput`, and immutable Kernel artifact generations.
 - `platform/http` owns HTTP entrypoint validation and consumes the contracts-level readiness port when Routing is selected. HTTP and Routing MUST NOT depend directly on each other's implementation or require each other's module.
+- `platform/http-app` owns concrete application dispatch, interpretation of consumer-owned `http_app_middleware` metadata, middleware service admission and execution, action invocation, and application routing-error classification. Routing supplies only format-neutral route results and declared method sets.
 - `platform/redaction` supplies the canonical sensitive-key classifier and redaction bindings. Routing consumes the contracts-level ports, not concrete Redaction implementation classes.
 
 ## Invariants (MUST)
@@ -52,7 +53,7 @@ Application routes MUST be compiled deterministically for an explicitly selected
 - Complete flattened route declarations MUST pass the same schema and safety validation during compilation and artifact hydration.
 - All system-route reservations apply independently of method, environment, module selection, or endpoint exposure.
 - Artifact bytes MUST be canonical, deterministic, and decoded without execution.
-- Runtime matching MUST NOT read artifacts, resolve providers, interpret route groups, or resolve or invoke handlers.
+- Runtime matching and allowed-method enumeration MUST consume the same validated immutable route table and parsed templates. They MUST NOT read artifacts, resolve providers, interpret route groups, resolve or invoke handlers, or resolve or execute middleware.
 
 ## `routes@1` Identity (MUST)
 
@@ -167,6 +168,16 @@ Route names and handler identifiers MUST be non-empty strings of at most 256 byt
 
 Missing, additional, incorrectly typed, unsupported, and non-canonical members MUST be rejected. The complete descriptor MUST be validated before reconstruction; the reconstructed `RouteDefinition::toArray()` MUST equal the supplied canonical descriptor exactly. Hydration MUST NOT silently normalize method case, list order, duplicates, or map values into acceptance.
 
+Consumer-owned metadata remains part of the existing canonical `metadata` map.
+
+- Routing MUST preserve the declared element order of list-valued metadata members throughout compilation, serialization, artifact reading, hydration, and construction of `RouteMatch`.
+- The consumer-owned `http_app_middleware` member MAY contain an ordered list of middleware service identifiers for interpretation by HttpApp.
+- Routing MUST apply the existing generic metadata shape, json-like value, resource-limit, safety, and rejection-only redaction policies to that member and its nested values.
+- Routing MUST NOT sort or deduplicate consumer-owned metadata lists, resolve middleware service identifiers, inspect middleware instances, or interpret consumer-specific admission and execution semantics.
+- The semantic admission and execution policy of `http_app_middleware` belongs to `docs/ssot/http-app-dispatch.md`.
+
+No consumer-specific descriptor field, schema member, metadata envelope, or fingerprint input is introduced. Ordered metadata remains part of the canonical route descriptor and therefore participates in the existing artifact fingerprint and deterministic serialization law.
+
 ## Source Compilation Boundary (MUST)
 
 `RoutesCompiler` consumes the selected target's source-host `ModulePlan`, runtime diagnostics, and `RouteProviderRegistry`. The selected plan MUST enable `platform.routing`, and `artifactGenerationLoaded()` MUST be `false`.
@@ -273,6 +284,9 @@ public function routes(array $routes): array;
 - Duplicate inherited requirement keys MUST be rejected.
 - Metadata is a deterministic json-like map normalized through Foundation `JsonLikeNormalizer`. Parent, child group, and route metadata MUST combine without duplicate keys, including duplicates whose inherited value is `null`.
 - Duplicate metadata keys MUST NOT be resolved by overwriting or recursive merging. The complete inherited metadata remains subject to canonical descriptor safety validation.
+- Consumer-owned list-valued metadata, including `http_app_middleware`, MUST be inherited with its original element order.
+- A child group or route MUST NOT redeclare an inherited metadata key, including `http_app_middleware`, even when the inherited value is an empty list or `null`, or the redeclared value is identical.
+- Grouping MUST NOT concatenate, sort, deduplicate, or otherwise interpret middleware selections. The existing generic duplicate-key rejection and metadata safety policy apply without consumer-specific exceptions.
 - The individual route retains its methods, handler, and defaults.
 
 ### Flattening and artifact equivalence
@@ -441,9 +455,30 @@ Expected artifact read, decoding, and hydration failures cross the `RoutesArtifa
 
 - Empty paths, relative paths, repeated slash aliases, literal dot segments, malformed percent triplets, and reserved concrete paths MUST produce a non-match. Percent-encoded octets MUST NOT be decoded or case-normalized.
 - Methods are matched exactly and segments are matched in full. The first successful match in stored order returns a canonical `RouteMatch` with the route name, complete path template, logical handler, matched encoded string parameters, and safe metadata.
-- Unsupported methods and unmatched paths return `null`. Host is not a matching input. No implicit GET-to-HEAD fallback, automatic OPTIONS handling, redirects, or 405 response generation belongs to this boundary.
+- Unsupported methods and unmatched paths return `null`. Host is not a matching input. No implicit GET-to-HEAD fallback, automatic OPTIONS handling, redirects, HTTP error classification, or HTTP response generation belongs to this boundary.
 - The router removes stale `ContextKeys::PATH_TEMPLATE` at the beginning of each matching operation and writes only the complete declared template on success, before completion observability. It consumes the canonical `ContextWriterInterface` and MUST NOT own context reset or another UnitOfWork.
 - Raw path, host, parameters, and handler values MUST NOT enter routing observability signals. The template is permitted as a bounded declared attribute or context field, not as a metric label. The canonical observability and logging policies remain authoritative.
+
+### Allowed-method enumeration
+
+`CompiledRouter` implements the existing format-neutral `RouterInterface::allowedMethods(string $path, ?string $host = null): array` boundary.
+
+The operation MUST consume the same validated immutable `CompiledRouteTable` instance and parsed `RouteTemplate` representations as ordinary matching.
+
+- The supplied path MUST pass the same canonical concrete encoded-path admission and reserved-path exclusion policy as `match()`.
+- Empty, invalid, non-canonical, reserved, and unmatched paths MUST return `[]`.
+- The table MUST inspect every hydrated route's complete template matching domain, including placeholder requirements.
+- Every route whose complete domain accepts the supplied path MUST contribute its declared methods.
+- Enumeration MUST collect the union of declared methods across all matching domains, without applying first-match-wins precedence or stopping after the first matching template.
+- The returned method list MUST contain unique exact declared methods sorted ascending by byte-order `strcmp`.
+- Host remains an unused ephemeral scalar input. Host-based matching is not supported.
+- Implicit GET-to-HEAD expansion, automatic OPTIONS handling, and addition of undeclared methods are forbidden.
+- Enumeration MUST NOT invoke another observed matching operation, remove or write `ContextKeys::PATH_TEMPLATE`, mutate other context keys, or emit additional routing spans, metrics, or logs.
+- Enumeration MUST NOT reload artifacts, resolve source providers, interpret groups, resolve middleware, or invoke handlers.
+
+The operation does not change stored route order, ordinary matching precedence, route descriptors, artifact identity, or fingerprint construction.
+
+`platform/http-app` consumes the resulting method list for application routing-error classification. Routing MUST NOT construct an HTTP response, exception descriptor for an application HTTP miss, or an HTTP `Allow` header. These responsibilities remain governed by `docs/ssot/http-app-dispatch.md` and `docs/ssot/problem-details.md`.
 
 ## Owner-Artifact Readiness and Deployment (MUST)
 
@@ -469,6 +504,9 @@ Verification MUST cover:
 - exact artifact schema, canonical serialization, authoritative target and environment, fingerprint sensitivity, and byte-identical reruns;
 - provider order, duplicate rejection, complete segment grammar, constrained and overlapping domains, reserved domain intersections for every declaration status, and encoded concrete-path semantics;
 - nested immutable grouping, prefix composition, inherited requirements and metadata, duplicate inherited keys and placeholders, flattening, and equivalent standalone artifact identity;
+- ordered consumer-owned middleware metadata preservation through grouping, compilation, serialization, hydration, and matching, including inherited-key rejection and unchanged generic metadata safety and resource admission;
+- allowed-method enumeration across all matching hydrated domains, exact encoded-path admission, placeholder requirements, duplicate method elimination, deterministic method ordering, invalid and reserved path rejection, and absence of implicit methods;
+- allowed-method enumeration without context mutation, additional routing observations, artifact reload, provider resolution, middleware resolution, or handler invocation;
 - complete envelope resource budgets, bounded non-executing decoding, non-canonical descriptor rejection, and canonical rejection-only redaction;
 - target-local source compilation and read-only validation, bounded existing-byte comparison, lock coordination, pre-commit preservation, post-commit cleanup failure isolation, and unsafe filesystem target rejection;
 - single-handle snapshot reading, immutable table lifetime, source and compiled container parity, and actual artifact-only runtime matching without providers or group hydration;
@@ -524,6 +562,8 @@ These implementation points do not change this document's authority boundary.
 - [Artifact Generations](./artifact-generations.md)
 - [Kernel Artifacts and Fingerprint Behavior](./artifacts-and-fingerprint.md)
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md)
+- [HTTP Application Dispatch SSoT](./http-app-dispatch.md)
+- [Problem Details SSoT](./problem-details.md)
 - [System Route Table SSoT](./system-route-table.md)
 - [Reserved Path Matching SSoT](./reserved-path-matching.md)
 - [Tag Registry](./tags.md)

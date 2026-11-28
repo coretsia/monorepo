@@ -103,6 +103,90 @@ composer ci
 
 The `0.x` line is a development snapshot line. These tags are useful for early package publication, integration testing, and external smoke checks, but they are not stable support lines.
 
+### From v0.14.0 to v0.15.0
+
+#### Compatibility
+
+- No stable API compatibility guarantee is provided for `0.x` development snapshots.
+- Canonical presets now select the `platform.http-app` runtime module. Review custom module selections, target-local exclusions, and application dependencies.
+- Custom `RouterInterface` implementations, direct HTTP Pipeline construction, middleware composition, and custom HTTP 405 exception mappings require review.
+- Rebuild existing Kernel runtime artifact generations because effective module composition, configuration, and declarative container definitions have changed.
+
+#### Module selection and dependency synchronization
+
+The `platform.http-app` module requires `core.foundation`, `platform.errors`, `platform.http`, `platform.problem-details`, and `platform.routing`.
+
+- Review effective module selections for every active application target.
+- Explicitly exclude `platform.http-app` from targets that must retain HTTP behavior without application dispatch.
+- Do not exclude any required runtime module while `platform.http-app` remains selected. If a target must exclude a required module, exclude HttpApp from that target as well.
+- Use DependencySync `plan`, `review`, and `apply` when the required runtime package set changes.
+
+Composer installation alone does not activate HttpApp. Concrete PSR-7/17 implementations, HTTP transport entrypoints, request construction, and response emission remain application or integration responsibilities.
+
+#### Routing and HTTP composition contracts
+
+Custom `RouterInterface` implementations must provide:
+
+```php
+public function allowedMethods(string $path, ?string $host = null): array;
+```
+
+Return a unique, byte-order-sorted list of explicitly declared methods across all matching route domains, including placeholder requirements. Invalid, non-canonical, reserved, and unmatched paths return an empty list. Do not introduce implicit HEAD or OPTIONS methods. Host-based matching remains unsupported; the host argument is unused. Enumeration must not mutate routing context or emit routing match observations.
+
+Direct construction of the HTTP `Pipeline` now requires three additional explicit arguments: `guardedContinuation`, `protectedRequestAttributes`, and `protectRoutingInputs`.
+
+To preserve ordinary Pipeline behavior outside HttpApp composition:
+
+```php
+new Pipeline($middleware, $terminal, false, [], false);
+```
+
+Custom composition code that directly calls the internal `HttpServiceFactory::pipeline()` method must supply the effective `ModulePlan` as its final argument. Prefer canonical HTTP provider wiring over direct use of internal factories.
+
+When HttpApp is enabled, use canonical HTTP composition with the framework-owned matching and dispatch contributions and the exact outermost Problem Details middleware. Do not register these roles manually or through alternative service identities.
+
+Review custom terminal `RequestHandlerInterface` bindings. With HttpApp enabled, matched application routes are handled by action dispatch, while ordinary application routing misses produce canonical 404 or 405 exceptions. Neither reaches the HTTP terminal handler. Reserved system paths continue through the existing downstream chain to HTTP-owned terminal behavior.
+
+Applications relying on custom terminal handlers for application dispatch must either adopt HttpApp action registration or exclude `platform.http-app` from the affected target.
+
+#### Application configuration and middleware
+
+Configure application-owned invokable action services through declarative DI and register their logical action identifiers using `http_app.handlers`.
+
+- Use `http_app.route_middleware` to admit explicitly registered route-specific middleware services.
+- Declare their execution order through the `http_app_middleware` route metadata member.
+- Review `http_app.arguments.*` and `http_app.response.*` policies before enabling application dispatch.
+
+Middleware participating in guarded HttpApp execution may short-circuit without delegation. When delegating, it must invoke the downstream continuation at most once during its owning `process()` invocation and must not retain the continuation beyond that invocation. Retrying the continuation after a response or failure is forbidden.
+
+After route matching, middleware must preserve the framework-owned routing handoff and the exact request method, encoded path, and host. Request rewriting must occur before matching and all applicable admission controls whose decisions depend on the rewritten inputs.
+
+Ensure authorization executes before any middleware capable of returning protected route content, including response caches. Route-specific authorization cannot protect responses returned earlier by global middleware.
+
+Ordinary HTTP composition without HttpApp retains its existing continuation and optional Problem Details behavior.
+
+See the [HTTP application guide](docs/guides/http-app.md) and [HTTP application dispatch policy](docs/ssot/http-app-dispatch.md).
+
+#### Error handling and observability
+
+Custom exception mappers producing HTTP 405 descriptors must supply `extensions.allowed_methods` as a non-empty, unique, byte-order-sorted list containing only explicitly admitted methods: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, and `CONNECT`.
+
+The canonical Problem Details boundary rejects missing or invalid method metadata and selects a safe emergency HTTP 500 response without an `Allow` header. If transport response construction fails, the original Throwable is preserved.
+
+Review observability integrations for the new `http.action` span, `http.action_total` and `http.action_duration_ms` metrics, and `http.action.completed` log event.
+
+Action observations are independent of routing match and finalized HTTP request observations. Their signal families are independently configurable under `http_app.tracing`, `http_app.metrics`, and `http_app.logging`.
+
+#### Migration steps
+
+1. Update Coretsia Composer dependencies to the `0.15` release line and refresh application lockfiles intentionally.
+2. Review effective module selections and run DependencySync `plan` and `review` before authorizing `apply` when required.
+3. Update custom router implementations, Pipeline construction, HTTP composition, terminal handler integrations, and 405 exception mappings where applicable.
+4. Configure application handlers and route-specific middleware where HttpApp dispatch is required. Review middleware continuation, request rewriting, and authorization ordering.
+5. Rebuild Kernel artifact generations and validate and compile route artifacts for the intended Routing-enabled HTTP targets.
+6. Verify Kernel cache integrity and HTTP entrypoint readiness, then restart or recycle affected long-running runtimes.
+7. Run the applicable configuration, architecture, quality, security, and regression checks.
+
 ### From v0.13.0 to v0.14.0
 
 #### Compatibility

@@ -382,7 +382,7 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline($middleware, $terminal),
+            new Pipeline($middleware, $terminal, false, [], false),
             new HttpResponseFinalizer(
                 new CorrelationIdProvider($context),
                 $correlationEnabled,
@@ -694,11 +694,13 @@ final class RequestIdLifecycleIntegrationTest extends TestCase
         if ($correlationEnabled) {
             $mutations[] = 'correlation-header';
         }
-        if ($enabled && !\in_array(
-            $scenario,
-            ['remove', 'invalid-replacement', 'substitution', 'correlation-header-failure'],
-            true,
-        )) {
+        if (
+            $enabled && !\in_array(
+                $scenario,
+                ['remove', 'invalid-replacement', 'substitution', 'correlation-header-failure'],
+                true,
+            )
+        ) {
             $mutations[] = 'request-id-header';
         }
 

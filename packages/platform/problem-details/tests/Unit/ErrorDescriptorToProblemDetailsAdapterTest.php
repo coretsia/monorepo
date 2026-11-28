@@ -170,6 +170,88 @@ final class ErrorDescriptorToProblemDetailsAdapterTest extends TestCase
         }
     }
 
+    public function testAllowHeaderPreservesExactCanonicalMethodOrder(): void
+    {
+        $adapter = new ErrorDescriptorToProblemDetailsAdapter();
+        $methods = ['CONNECT', 'DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT', 'TRACE'];
+        for ($mask = 1; $mask < (1 << \count($methods)); ++$mask) {
+            $selected = [];
+            foreach ($methods as $index => $method) {
+                if (($mask & (1 << $index)) !== 0) {
+                    $selected[] = $method;
+                }
+            }
+            $descriptor = new ErrorDescriptor(
+                'SYNTHETIC_OWNER_ERROR',
+                'Private message.',
+                httpStatus: 405,
+                extensions: ['allowed_methods' => $selected],
+            );
+            self::assertSame(\implode(', ', $selected), $adapter->allowHeader($descriptor));
+            self::assertSame(
+                ['status' => 405, 'title' => 'Method Not Allowed', 'type' => 'about:blank'],
+                $adapter->map($descriptor)->toArray(),
+            );
+        }
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function invalidAllowedMethods(): iterable
+    {
+        yield 'missing' => [[]];
+        yield 'null' => [['allowed_methods' => null]];
+        yield 'scalar' => [['allowed_methods' => 'GET']];
+        yield 'empty list' => [['allowed_methods' => []]];
+        yield 'map' => [['allowed_methods' => ['method' => 'GET']]];
+        yield 'non-string' => [['allowed_methods' => [1]]];
+        yield 'nested' => [['allowed_methods' => [['GET']]]];
+        yield 'empty string' => [['allowed_methods' => ['']]];
+        yield 'unsorted' => [['allowed_methods' => ['POST', 'GET']]];
+        yield 'duplicate' => [['allowed_methods' => ['GET', 'GET']]];
+        yield 'unsupported' => [['allowed_methods' => ['BREW']]];
+        yield 'lowercase' => [['allowed_methods' => ['get']]];
+        yield 'whitespace' => [['allowed_methods' => [' GET']]];
+        yield 'CR' => [['allowed_methods' => ["GET\r"]]];
+        yield 'LF' => [['allowed_methods' => ["GET\n"]]];
+        yield 'CRLF' => [['allowed_methods' => ["GET\r\nX-Synthetic: value"]]];
+        yield 'too many' => [['allowed_methods' => \array_fill(0, 10, 'GET')]];
+    }
+
+    /** @param array<string, mixed> $extensions */
+    #[DataProvider('invalidAllowedMethods')]
+    public function testInvalid405MethodMetadataIsRejectedWithFixedReason(array $extensions): void
+    {
+        $descriptor = new ErrorDescriptor(
+            'SYNTHETIC_OWNER_ERROR',
+            'Private message.',
+            httpStatus: 405,
+            extensions: $extensions,
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/\Aproblem-details-allow-invalid\z/');
+        new ErrorDescriptorToProblemDetailsAdapter()->allowHeader($descriptor);
+    }
+
+    public function testNon405DescriptorsCannotContributeAnAllowHeader(): void
+    {
+        $adapter = new ErrorDescriptorToProblemDetailsAdapter();
+        foreach ([null, 200, 403, 404, 500] as $status) {
+            foreach ([[], ['allowed_methods' => ['GET', 'POST']], ['allowed_methods' => "GET\r\n"]] as $extensions) {
+                self::assertNull(
+                    $adapter->allowHeader(
+                        new ErrorDescriptor(
+                            'SYNTHETIC_OWNER_ERROR',
+                            'Private message.',
+                            httpStatus: $status,
+                            extensions: $extensions,
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+
     public function testAdapterAndPublicModelDoNotCreateASecondErrorMapper(): void
     {
         $adapter = new \ReflectionClass(ErrorDescriptorToProblemDetailsAdapter::class);
@@ -189,7 +271,7 @@ final class ErrorDescriptorToProblemDetailsAdapterTest extends TestCase
             \array_map(
                 static fn (\ReflectionProperty $property): string => $property->getName(),
                 $model->getProperties(),
-            )
+            ),
         );
     }
 }

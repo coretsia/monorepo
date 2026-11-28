@@ -114,6 +114,46 @@ final class StableJsonEncoderRejectsNonJsonLikeValuesContractTest extends TestCa
         );
     }
 
+    public function testRejectsCyclicMapsWithStableMessage(): void
+    {
+        $value = [];
+        $value['cycle'] = &$value;
+
+        self::assertEncodingFailsWith(
+            $value,
+            'stable-json-type-forbidden',
+            'value.cycle.cycle',
+        );
+    }
+
+    public function testRejectsCyclicListsWithStableMessage(): void
+    {
+        $value = [];
+        $value[] = &$value;
+
+        self::assertEncodingFailsWith(
+            $value,
+            'stable-json-type-forbidden',
+            'value[0][0]',
+        );
+    }
+
+    public function testEncodesSharedNonCyclicArrayReferences(): void
+    {
+        $shared = [
+            'z' => 2,
+            'a' => 1,
+        ];
+
+        self::assertSame(
+            "[{\"a\":1,\"z\":2},{\"a\":1,\"z\":2}]\n",
+            StableJsonEncoder::encodeStable([
+                &$shared,
+                &$shared,
+            ]),
+        );
+    }
+
     public function testCallableLookingStringsRemainPlainStrings(): void
     {
         self::assertSame(

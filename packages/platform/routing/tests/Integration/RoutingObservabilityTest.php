@@ -72,6 +72,37 @@ final class RoutingObservabilityTest extends TestCase
         }
     }
 
+    public function testAllowedMethodsEmitNoSignalsAndPreserveOrdinaryMethodMismatchOutcome(): void
+    {
+        $context = new ContextStore();
+        $ports = new RoutingObservabilityRecordingPorts([], $context, false);
+        $router = new CompiledRouter(
+            self::table(),
+            $context,
+            new RoutingMatchObserver($ports, $ports, $ports, new Stopwatch(), true, true, true),
+        );
+        self::assertSame(self::expectedMatch(), $router->match('GET', '/items/private-value')?->toArray());
+        self::assertSignals($ports, 'GET', true, true, true, true, []);
+        $calls = $ports->calls;
+        foreach (
+            [
+                ['/items/private-value', ['GET']],
+                ['/missing', []],
+                ['/health', []],
+                ['//items/private-value', []],
+            ] as [$path, $methods]
+        ) {
+            self::assertSame($methods, $router->allowedMethods($path, 'private.example'));
+            self::assertSame($calls, $ports->calls);
+        }
+        $ports->calls = [];
+        self::assertNull($router->match('POST', '/items/private-value', 'private.example'));
+        self::assertSignals($ports, 'POST', false, true, true, true, []);
+        $calls = $ports->calls;
+        self::assertSame(['GET'], $router->allowedMethods('/items/private-value', 'private.example'));
+        self::assertSame($calls, $ports->calls);
+    }
+
     public function testNoopsAndEachThrowablePreserveMatchesAndIndependentSignalAttempts(): void
     {
         $table = self::table();

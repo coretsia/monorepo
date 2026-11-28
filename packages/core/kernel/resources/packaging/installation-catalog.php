@@ -83,6 +83,21 @@ return array(
         2 => 'platform.redaction',
       ),
     ),
+    'platform.http-app' =>
+    array(
+      'composerName' => 'coretsia/platform-http-app',
+      'conflicts' =>
+      array(
+      ),
+      'requires' =>
+      array(
+        0 => 'core.foundation',
+        1 => 'platform.errors',
+        2 => 'platform.http',
+        3 => 'platform.problem-details',
+        4 => 'platform.routing',
+      ),
+    ),
     'platform.logging' =>
     array(
       'composerName' => 'coretsia/platform-logging',
@@ -166,7 +181,7 @@ return array(
       ),
     ),
   ),
-  'publicConstraint' => '^0.14.0',
-  'releaseLine' => '0.14',
+  'publicConstraint' => '^0.15.0',
+  'releaseLine' => '0.15',
   'schemaVersion' => 1,
 );

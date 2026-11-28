@@ -947,7 +947,10 @@ Notes:
   - `tmp`
   - `coverage`
   - known tool cache directories
-- `LICENSE` and `NOTICE` files are intrinsically exempt from in-file header validation.
+- Intrinsic in-file license header exemptions:
+  - `LICENSE` and `NOTICE` files;
+  - the exact repository-relative path `.github/pull_request_template.md`, whose contents are used to populate GitHub pull request descriptions.
+- The pull request template exemption MUST NOT apply to other files with the same basename or to the entire `.github/` directory.
 - Supported canonical comment profiles include:
   - C-style block headers for PHP, JavaScript, TypeScript, TSX, CSS, and SCSS;
   - HTML comment headers for Markdown, HTML/HTM, XML, and SVG;

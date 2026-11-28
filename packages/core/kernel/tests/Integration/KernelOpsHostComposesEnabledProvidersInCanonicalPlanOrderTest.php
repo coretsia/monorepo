@@ -227,6 +227,7 @@ final class KernelOpsHostComposesEnabledProvidersInCanonicalPlanOrderTest extend
                         'include' => [],
                         'exclude' => [
                             'platform.http',
+                            'platform.http-app',
                             'platform.problem-details',
                         ],
                     ],

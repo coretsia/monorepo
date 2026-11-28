@@ -178,43 +178,45 @@ The method/type mapping is canonical:
 - `MeterPortInterface::increment(...)` MUST be used only with `counter` metrics.
 - `MeterPortInterface::observe(...)` MUST be used only with `observe` metrics.
 
-| Metric name                              | Owner              | Type    | Labels                           |
-|------------------------------------------|--------------------|---------|----------------------------------|
-| http.request_total                       | `platform/http`    | counter | `method`, `status`, `outcome`    |
-| http.request_duration_ms                 | `platform/http`    | observe | `method`, `status`, `outcome`    |
-| http.https_redirect_total                | `platform/http`    | counter | `outcome`                        |
-| http.maintenance_total                   | `platform/http`    | counter | `outcome`                        |
-| http.system_endpoint_total               | `platform/http`    | counter | `operation`, `status`, `outcome` |
-| http.debug_total                         | `platform/http`    | counter | `operation`, `outcome`           |
-| routing.match_total                      | `platform/routing` | counter | `method`, `outcome`              |
-| routing.match_duration_ms                | `platform/routing` | observe | `method`, `outcome`              |
-| cli.command_total                        | `platform/cli`     | counter | `operation`, `outcome`           |
-| cli.command_duration_ms                  | `platform/cli`     | observe | `operation`, `outcome`           |
-| error.map_total                          | `platform/errors`  | counter | `operation`, `outcome`           |
-| error.map_duration_ms                    | `platform/errors`  | observe | `operation`, `outcome`           |
-| foundation.reset_total                   | `core/foundation`  | counter | `outcome`                        |
-| foundation.reset_duration_ms             | `core/foundation`  | observe | `outcome`                        |
-| kernel.uow_total                         | `core/kernel`      | counter | `operation`, `outcome`           |
-| kernel.uow_duration_ms                   | `core/kernel`      | observe | `operation`, `outcome`           |
-| kernel.modules_resolve_total             | `core/kernel`      | counter | `operation`, `outcome`           |
-| kernel.modules_resolve_duration_ms       | `core/kernel`      | observe | `operation`, `outcome`           |
-| kernel.operation_total                   | `core/kernel`      | counter | `operation`, `outcome`           |
-| kernel.operation_duration_ms             | `core/kernel`      | observe | `operation`, `outcome`           |
-| kernel.config_merge_total                | `core/kernel`      | counter | `outcome`                        |
-| kernel.config_merge_duration_ms          | `core/kernel`      | observe | `outcome`                        |
-| kernel.config_explain_total              | `core/kernel`      | counter | `outcome`                        |
-| kernel.config_explain_duration_ms        | `core/kernel`      | observe | `outcome`                        |
-| kernel.artifacts_write_total             | `core/kernel`      | counter | `outcome`                        |
-| kernel.artifacts_write_duration_ms       | `core/kernel`      | observe | `outcome`                        |
-| kernel.fingerprint_calculate_total       | `core/kernel`      | counter | `outcome`                        |
-| kernel.fingerprint_calculate_duration_ms | `core/kernel`      | observe | `outcome`                        |
-| kernel.container_compile_total           | `core/kernel`      | counter | `outcome`                        |
-| kernel.container_compile_duration_ms     | `core/kernel`      | observe | `outcome`                        |
-| kernel.cache_verify_total                | `core/kernel`      | counter | `outcome`                        |
-| kernel.cache_verify_duration_ms          | `core/kernel`      | observe | `outcome`                        |
-| worker.process_total                     | `platform/worker`  | counter | `status`                         |
-| worker.task_total                        | `platform/worker`  | counter | `operation`, `outcome`           |
-| worker.task_duration_ms                  | `platform/worker`  | observe | `operation`, `outcome`           |
+| Metric name                              | Owner               | Type    | Labels                           |
+|------------------------------------------|---------------------|---------|----------------------------------|
+| http.request_total                       | `platform/http`     | counter | `method`, `status`, `outcome`    |
+| http.request_duration_ms                 | `platform/http`     | observe | `method`, `status`, `outcome`    |
+| http.action_total                        | `platform/http-app` | counter | `method`, `status`, `outcome`    |
+| http.action_duration_ms                  | `platform/http-app` | observe | `method`, `status`, `outcome`    |
+| http.https_redirect_total                | `platform/http`     | counter | `outcome`                        |
+| http.maintenance_total                   | `platform/http`     | counter | `outcome`                        |
+| http.system_endpoint_total               | `platform/http`     | counter | `operation`, `status`, `outcome` |
+| http.debug_total                         | `platform/http`     | counter | `operation`, `outcome`           |
+| routing.match_total                      | `platform/routing`  | counter | `method`, `outcome`              |
+| routing.match_duration_ms                | `platform/routing`  | observe | `method`, `outcome`              |
+| cli.command_total                        | `platform/cli`      | counter | `operation`, `outcome`           |
+| cli.command_duration_ms                  | `platform/cli`      | observe | `operation`, `outcome`           |
+| error.map_total                          | `platform/errors`   | counter | `operation`, `outcome`           |
+| error.map_duration_ms                    | `platform/errors`   | observe | `operation`, `outcome`           |
+| foundation.reset_total                   | `core/foundation`   | counter | `outcome`                        |
+| foundation.reset_duration_ms             | `core/foundation`   | observe | `outcome`                        |
+| kernel.uow_total                         | `core/kernel`       | counter | `operation`, `outcome`           |
+| kernel.uow_duration_ms                   | `core/kernel`       | observe | `operation`, `outcome`           |
+| kernel.modules_resolve_total             | `core/kernel`       | counter | `operation`, `outcome`           |
+| kernel.modules_resolve_duration_ms       | `core/kernel`       | observe | `operation`, `outcome`           |
+| kernel.operation_total                   | `core/kernel`       | counter | `operation`, `outcome`           |
+| kernel.operation_duration_ms             | `core/kernel`       | observe | `operation`, `outcome`           |
+| kernel.config_merge_total                | `core/kernel`       | counter | `outcome`                        |
+| kernel.config_merge_duration_ms          | `core/kernel`       | observe | `outcome`                        |
+| kernel.config_explain_total              | `core/kernel`       | counter | `outcome`                        |
+| kernel.config_explain_duration_ms        | `core/kernel`       | observe | `outcome`                        |
+| kernel.artifacts_write_total             | `core/kernel`       | counter | `outcome`                        |
+| kernel.artifacts_write_duration_ms       | `core/kernel`       | observe | `outcome`                        |
+| kernel.fingerprint_calculate_total       | `core/kernel`       | counter | `outcome`                        |
+| kernel.fingerprint_calculate_duration_ms | `core/kernel`       | observe | `outcome`                        |
+| kernel.container_compile_total           | `core/kernel`       | counter | `outcome`                        |
+| kernel.container_compile_duration_ms     | `core/kernel`       | observe | `outcome`                        |
+| kernel.cache_verify_total                | `core/kernel`       | counter | `outcome`                        |
+| kernel.cache_verify_duration_ms          | `core/kernel`       | observe | `outcome`                        |
+| worker.process_total                     | `platform/worker`   | counter | `status`                         |
+| worker.task_total                        | `platform/worker`   | counter | `operation`, `outcome`           |
+| worker.task_duration_ms                  | `platform/worker`   | observe | `operation`, `outcome`           |
 
 Reset metric names and reset metric labels remain unchanged by the reset observability safety policy.
 
@@ -728,6 +730,209 @@ Debug-decision observations MUST NOT be duplicated through `http.system_endpoint
 
 Debug labels and warning context MUST NOT contain raw paths, queries, headers, IP addresses, credentials, token digests, config keys or values, module or generation metadata, request identifiers, guard reasons, or Throwable data. No debug-specific span, duration metric, additional request completion event, or lifecycle signal is permitted.
 
+### HTTP action observability policy
+
+Action dispatch observability is owned by `platform/http-app` through the invocation-local action terminal of `ActionDispatchMiddleware`.
+
+Successful route matching alone does not constitute action execution.
+
+Action observations MUST begin only after all preceding delegating global and route-specific middleware have admitted action terminal execution and the terminal has successfully validated the captured routing handoff identity and unchanged routing inputs.
+
+The action observation boundary covers:
+
+- handler resolution;
+- argument resolution;
+- action invocation;
+- action return-value mapping into a `ResponseInterface`.
+
+Handler admission, handler resolution, and argument resolution failures after admitted terminal entry remain part of the action observation lifecycle.
+
+Route matching, allowed-method enumeration, route-specific middleware selection, admission, construction, and execution are outside the action observation boundary.
+
+Unmatched routes, reserved paths, method-not-allowed decisions, invalid routing handoffs, middleware admission failures, middleware execution failures before terminal entry, and middleware short-circuits before terminal entry MUST NOT produce action observations.
+
+Canonical guarded continuation enforcement permits at most one action observation lifecycle per admitted HTTP action execution.
+
+Repeated or expired continuation entry MUST NOT duplicate action observations. A continuation-policy failure before action terminal entry MUST NOT produce action observations. A continuation-policy failure after completed action execution MUST NOT rewrite or reclassify previously completed action observations.
+
+The canonical span is:
+
+```text
+http.action
+```
+
+The canonical metrics are:
+
+```text
+http.action_total
+http.action_duration_ms
+```
+
+Both metric families MUST use exactly the following labels:
+
+```text
+method
+status
+outcome
+```
+
+Allowed `method` values are exactly:
+
+```text
+GET
+HEAD
+POST
+PUT
+PATCH
+DELETE
+OPTIONS
+TRACE
+CONNECT
+OTHER
+```
+
+Method classification MUST use exact byte-for-byte membership in the bounded method vocabulary. Unsupported methods and method observation failures map to `OTHER` for observability only.
+
+Method classification MUST NOT uppercase, trim, normalize, or otherwise transform the effective request method. The `OTHER` sentinel MUST NOT change routing or dispatch semantics.
+
+Allowed `outcome` values are exactly:
+
+```text
+returned
+threw
+```
+
+`returned` means that action dispatch and response mapping successfully returned a `ResponseInterface`. It does not require a successful HTTP status or successful completion of the entire HTTP request.
+
+`threw` means that action dispatch or response mapping failed after admitted action terminal entry.
+
+The `status` label and span attribute MUST be:
+
+- the mapped response's integer HTTP status in `100..599` for `outcome = returned`, when safely available;
+- exactly the string `unknown` when response status observation fails or produces an inadmissible value;
+- exactly the string `unknown` for `outcome = threw`.
+
+`ResponseInterface::getStatusCode()` observation MUST be independently failure-isolated. A response status observation failure MUST NOT replace the returned response, change the action outcome to `threw`, or initiate error mapping.
+
+The observed action status MUST NOT be represented as the finalized HTTP request status. The action boundary MUST NOT predict the eventual canonical error response status.
+
+#### Action span lifecycle
+
+When `http_app.tracing.enabled` is `true`, the action terminal MUST attempt exactly one `TracerPortInterface::startSpan()` call per admitted terminal entry using the canonical `http.action` span name.
+
+The initial span attributes MUST contain only:
+
+```text
+method
+```
+
+On completion, the terminal MUST independently attempt to set only the following completion attributes:
+
+```text
+outcome
+status
+```
+
+Their values MUST follow the same bounded semantics as the canonical action metric labels.
+
+`SpanInterface::recordException()` MUST NOT be called on the action boundary. Throwable objects, messages, traces, and derived exception attributes MUST NOT be exported.
+
+Every successfully started span MUST receive exactly one `end()` attempt through `finally`, including when action dispatch, response mapping, completion attribute updates, or other observation attempts fail.
+
+A failed span start MUST NOT prevent action execution or otherwise eligible metrics and logs. A failed completion attribute update MUST NOT suppress the remaining attribute update or span finalization. A failed span end MUST NOT be retried.
+
+#### Action metrics and timing
+
+When `http_app.metrics.enabled` is `true`, the terminal MUST attempt exactly one `MeterPortInterface::increment()` call for `http.action_total` with value `1` per admitted terminal entry, including both `returned` and `threw` outcomes.
+
+Duration measurement MUST use the existing Foundation `Stopwatch`.
+
+`Stopwatch::start()` MUST be attempted only when metrics are enabled and immediately before action dispatch and response mapping.
+
+A successfully started measurement requires a valid positive start token. Unavailable or invalid start tokens MUST NOT be supplied to `Stopwatch::stop()`.
+
+`Stopwatch::stop()` MUST be attempted only for a successfully started valid measurement, including when dispatch or response mapping fails.
+
+Timing MUST stop before response status observation and completion signal emission.
+
+The action duration MUST cover handler resolution, argument resolution, action invocation, and response mapping only. Route matching, route-specific middleware admission, construction, and execution, response finalization, and error normalization MUST NOT be included in `http.action_duration_ms`.
+
+A successful measurement in the integer millisecond range `0..4294967295` MUST be observed through `MeterPortInterface::observe()` using `http.action_duration_ms` and the same bounded labels as the action counter.
+
+An unavailable or out-of-range measurement MUST be omitted, never replaced with a synthetic zero. A successfully measured duration of zero milliseconds remains valid.
+
+Counter increment and duration observation MUST be independently failure-isolated. Failure of either measurement or metric emission MUST NOT suppress another otherwise eligible signal.
+
+#### Action completion log
+
+When `http_app.logging.enabled` is `true`, the terminal MUST attempt exactly one PSR-3 `debug` completion log per admitted action terminal entry using the fixed event identifier:
+
+```text
+http.action.completed
+```
+
+The same event identifier and producer field schema apply to both `returned` and `threw` outcomes.
+
+The producer-supplied context MUST contain exactly:
+
+- `method`: the bounded canonical method value;
+- `status`: the safely observed integer action response status or `unknown`;
+- `outcome`: exactly `returned` or `threw`.
+
+No duration field, handler identifier, service identifier, route metadata, argument value, response value, exception object, or Throwable message may be added to this producer context.
+
+The effective PSR-3 logger binding MUST be used. Canonical Logging admission, filtering, enrichment, redaction, formatting, and sink selection remain governed by `docs/ssot/logging-policy.md` and `docs/ssot/sensitive-data-redaction.md`.
+
+Producer-supplied context remains distinct from sink-enriched context. An attempted completion log does not guarantee sink emission.
+
+The action terminal MUST NOT emit an additional handled-error log, a duplicate HTTP access log, or a second action completion event for the same admitted terminal entry.
+
+#### Feature flags and failure isolation
+
+The boolean settings are:
+
+```text
+http_app.tracing.enabled
+http_app.metrics.enabled
+http_app.logging.enabled
+```
+
+Each setting defaults to `true` and independently controls only its owned signal family.
+
+Disabled tracing MUST NOT attempt span creation. Disabled metrics MUST NOT attempt Stopwatch measurement or metric emission. Disabled logging MUST NOT attempt the action completion log.
+
+When all three signal families are disabled, no action observation work is required. Action execution and response mapping remain unchanged.
+
+Method observation, response status observation, tracer start, individual span attribute updates, span end, Stopwatch start, Stopwatch stop, counter increment, duration observation, and logger calls MUST be independently observability-isolated.
+
+Failure of one observation MUST NOT suppress another otherwise eligible signal, change a returned response, replace the primary Throwable, or cause a failed action to be retried.
+
+Failed signals MUST NOT be retried or recursively reported.
+
+The action boundary MUST use the effective observability dependencies supplied through canonical DI. Existing Foundation noop bindings remain valid; no package-local fallback observability implementation is introduced.
+
+Span handles, timer tokens, action results, and observation state MUST remain invocation-local.
+
+Action observations MUST NOT contain raw request paths, hosts, queries, headers, cookies, bodies, route parameter values, handler identifiers, service identifiers, reflection signatures, resolved arguments, action return values, credentials, private customer data, or raw Throwable data.
+
+#### Relationship to routing and HTTP request observations
+
+The existing `routing.match` span, Routing metrics, and `routing.match.completed` event retain their independent matching-operation semantics.
+
+A successful routing match MUST NOT imply that an action was admitted, resolved, invoked, or mapped into a response. Allowed-method enumeration MUST NOT create additional routing match observations.
+
+The canonical `http.request` span, `http.request_total`, `http.request_duration_ms`, and `http.request.completed` event retain their finalized HTTP request semantics.
+
+A completed action with `outcome = returned` MAY subsequently produce a different finalized HTTP response status or request outcome through response decoration, continuation-policy failure, error adaptation, response finalization, or lifecycle failure.
+
+An action with `outcome = threw` remains an action failure with `status = unknown`, independently of the response later produced by the canonical error boundary.
+
+Action observations MUST NOT replace, duplicate, or reinterpret Routing observations, finalized HTTP request observations, canonical error reporting, or Kernel UnitOfWork outcomes.
+
+HTTP Pipeline continuation enforcement introduces no dedicated spans, metrics, or logs. Eligible continuation-policy failures remain subject to the existing canonical error and finalized HTTP request observation boundaries.
+
+Middleware-owned observations remain the responsibility of the corresponding middleware owner. No generic middleware metrics, middleware span names, service-id labels, additional observation registry, ContextKeys, UnitOfWork, or reset participation are introduced by action observability.
+
 ### Routing match observability policy
 
 Routing match observability is owned by `platform/routing` through `RoutingMatchObserver`.
@@ -1231,6 +1436,7 @@ The following patterns are allowed when a raw value would otherwise be unsafe:
 ### Canonical Spans
 
 - `http.request`
+- `http.action`
 - `routing.match`
 - `cli.command`
 - `error.map`

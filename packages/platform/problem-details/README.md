@@ -16,7 +16,7 @@
 
 `platform/problem-details` is the HTTP Problem Details adaptation and JSON rendering package for Coretsia. It converts the canonical, format-neutral `ErrorDescriptor` into a fixed, safe RFC9457 response through an explicitly selected PSR-15 error-boundary middleware.
 
-Scope: deterministic `application/problem+json` responses with RFC7807-compatible `type`, `title`, and `status` members; bounded HTTP status adaptation; fixed emergency HTTP `500` fallback; reuse of the canonical `ErrorHandlerInterface`; and declarative registration in the existing HTTP middleware slot.
+Scope: deterministic `application/problem+json` responses with RFC7807-compatible `type`, `title`, and `status` members; bounded HTTP status and 405 Allow-header adaptation; fixed emergency HTTP `500` fallback; reuse of the canonical `ErrorHandlerInterface`; and declarative registration in the existing HTTP middleware slot.
 
 Out of scope: exception normalization, additional exception mappers, error reporting, independent redaction, HTML error pages, JSON/HTML content negotiation, customizable public error details, PSR response or stream factory implementations, HTTP pipeline execution, observability backends, Kernel UnitOfWork lifecycle, and reset orchestration.
 
@@ -60,7 +60,7 @@ Production source MUST NOT import concrete `platform/errors`, `platform/redactio
 The package exposes the following runtime components:
 
 - `ProblemDetails`: final readonly HTTP presentation model accepting only an error status and deriving its public type and title internally;
-- `Adapter\ErrorDescriptorToProblemDetailsAdapter`: stateless adaptation of the canonical descriptor's optional HTTP status hint;
+- `Adapter\ErrorDescriptorToProblemDetailsAdapter`: stateless adaptation of the canonical descriptor's optional HTTP status hint and separate validation of bounded 405 method metadata for the Allow header;
 - `Renderer\ProblemDetailsJsonRenderer`: stateless rendering through the existing Foundation `StableJsonEncoder`;
 - `Http\Middleware\HttpErrorHandlingMiddleware`: PSR-15 boundary for downstream `Throwable` handling and PSR response construction;
 - `Module\ProblemDetailsModule`: runtime module identity, config-root identity, and provider declaration;
@@ -72,17 +72,28 @@ The canonical flow for a caught downstream failure is:
 Throwable
   → ErrorHandlerInterface::handle() (platform/errors)
   → ErrorDescriptor (core/contracts)
-  → ErrorDescriptorToProblemDetailsAdapter
-  → ProblemDetails
-  → ProblemDetailsJsonRenderer
-  → PSR response and stream factories (compatible HTTP target)
+      → ErrorDescriptorToProblemDetailsAdapter::map()
+          → ProblemDetails
+          → ProblemDetailsJsonRenderer
+      → ErrorDescriptorToProblemDetailsAdapter::allowHeader()
+          → validated Allow value or null
+  → HTTP error response construction
+      → PSR response and stream factories (compatible HTTP target)
 ```
 
-`ProblemDetails` is a public HTTP presentation model, not a second normalized exception descriptor. The adapter does not map raw `Throwable` objects, select exception mappers, or reinterpret the descriptor's message and extensions. Normalization, shared redaction, and eligible error reporting stay with `platform/errors`.
+`ProblemDetails` is a public HTTP presentation model, not a second normalized exception descriptor. Its adaptation consumes only the HTTP status hint. The separate Allow-header operation consumes only the bounded `allowed_methods` extension for status 405.
+
+The adapter does not map raw `Throwable` objects, select exception mappers, reinterpret descriptor messages, or expose arbitrary extensions. Normalization, shared redaction, and eligible error reporting stay with `platform/errors`.
 
 ## Module selection and DI
 
 Installing `coretsia/platform-problem-details` does not activate `HttpErrorHandlingMiddleware`. A compatible HTTP target MUST explicitly select `platform.problem-details` through its target-local Kernel `ModulePlan`. An unselected target receives neither the package's middleware binding nor its tag registration.
+
+Problem Details participation is mandatory when `platform.http-app` is enabled in the effective HTTP target. The HTTP composition boundary requires actual outermost participation of the canonical error-boundary service and validates its exact resolved runtime class identity without resolving the service again.
+
+For HTTP targets without HttpApp, Problem Details participation remains optional. Canonical contribution declaration validation remains applicable; the HttpApp-specific resolved error-boundary identity check does not apply.
+
+These composition requirements are governed by [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md).
 
 The module requires:
 
@@ -108,9 +119,9 @@ Priority: 1000
 Metadata: []
 ```
 
-The tag and its ordering and metadata semantics are owned by `platform/http`, not by this package. No package-local owner, path, or mode metadata is introduced. Kernel owns target-local module selection and provider ordering; source and compiled container definitions retain equivalent service and tag descriptors.
+The tag's HTTP-specific metadata and effective pipeline placement semantics are owned by `platform/http`, not by this package. Foundation owns reserved tag identifiers, tagged-service discovery, deterministic discovery ordering, and duplicate-registration handling. No package-local owner, path, or mode metadata is introduced. Kernel owns target-local module selection and provider ordering; source and compiled container definitions retain equivalent service and tag descriptors.
 
-A missing handler or PSR factory binding MUST fail through the existing container composition/compilation boundary. The package does not silently create a concrete PSR factory or activate an HTTP runtime. Selection and the standalone middleware tests do not, by themselves, demonstrate execution in a complete HTTP pipeline.
+A missing handler or PSR factory binding MUST fail through the existing container composition/compilation boundary. The package does not silently create a concrete PSR factory or activate an HTTP runtime. Actual outermost execution is governed by canonical HTTP composition and verified through the compatible HTTP runtime. Standalone middleware tests validate package-local behavior but do not replace runtime integration verification.
 
 ## Configuration
 
@@ -162,11 +173,29 @@ The actual HTTP response status MUST match the JSON `status` member. This packag
 
 ## HTTP status adaptation and safe fallback
 
-`ErrorDescriptorToProblemDetailsAdapter` reads only `ErrorDescriptor.httpStatus()` as an optional transport hint. Integer hints in `400..599` are accepted; a `null` hint, an informational, success, or redirection hint, or another unsupported hint maps to HTTP `500` and `Internal Server Error`. The descriptor retains its own input validation policy.
+`ErrorDescriptorToProblemDetailsAdapter::map(ErrorDescriptor $descriptor): ProblemDetails` reads only `ErrorDescriptor::httpStatus()` as an optional transport hint for the public model. Integer hints in `400..599` are accepted; a `null` hint, an informational, success, or redirection hint, or another unsupported hint maps to HTTP `500` and `Internal Server Error`. The descriptor retains its own input validation policy.
 
-`HttpErrorHandlingMiddleware::process()` returns a successful downstream response unchanged. When the downstream handler throws, the middleware calls `ErrorHandlerInterface::handle()` exactly once for the original `Throwable`, adapts the normalized descriptor, renders the public JSON, and uses the injected response and stream factories to construct the HTTP response.
+The adapter separately exposes `allowHeader(ErrorDescriptor $descriptor): ?string`. For any descriptor whose HTTP status hint is not exactly `405`, the operation returns `null` independently of extension contents.
 
-If normalization, adaptation, or rendering fails, the middleware does not retry the handler or recursively call the renderer. It instead attempts a fixed emergency response with HTTP `500`, the same `Content-Type` and `Cache-Control` headers, and the following exact body followed by one LF:
+For status `405`, the adapter consumes only `extensions.allowed_methods` and requires:
+
+- an actual non-empty list containing at most nine entries;
+- exact string values belonging to `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, or `CONNECT`;
+- unique entries in strictly ascending byte-order `strcmp` order.
+
+The adapter does not trim, normalize, coerce, sort, deduplicate, or infer additional methods. It joins the validated list using exactly `', '`.
+
+Missing or invalid required metadata fails with `InvalidArgumentException('problem-details-allow-invalid')` without publishing rejected values.
+
+This is a closed protocol-metadata policy, not a general descriptor-to-header mapping. The method list does not become part of the public ProblemDetails model or JSON body.
+
+`HttpErrorHandlingMiddleware::process()` returns a normally returned downstream response unchanged. When the downstream handler throws, the middleware calls `ErrorHandlerInterface::handle()` exactly once for the original `Throwable`, adapts the normalized descriptor, renders the public JSON, and independently derives the optional validated Allow value.
+
+The adapted status, body, and Allow value are committed only after all adaptation and rendering operations succeed. The middleware then uses the injected response and stream factories to construct the HTTP response.
+
+A successfully adapted status 405 response MUST set `Allow` to the exact validated value. Every other generated response, including an emergency 500, MUST contain no Allow header. Any factory-supplied stale Allow header is removed from those responses.
+
+If normalization, adaptation, or rendering fails, including missing or invalid required 405 metadata, the middleware does not retry normalization, adaptation, or rendering. It instead attempts a fixed emergency response with HTTP `500`, the same `Content-Type` and `Cache-Control` headers, no Allow header, and the following exact body followed by one LF:
 
 ```text
 {"status":500,"title":"Internal Server Error","type":"about:blank"}
@@ -177,6 +206,21 @@ If PSR response creation, stream creation, header mutation, or body replacement 
 ## Deterministic examples
 
 The following examples use synthetic status hints and contain no private information. Each displayed JSON body has exactly one final LF; Markdown code fences are not part of the response bytes.
+
+A status `405` hint with validated descriptor extension metadata `['allowed_methods' => ['GET', 'POST']]` yields:
+
+```text
+HTTP 405
+Content-Type: application/problem+json
+Cache-Control: no-store
+Allow: GET, POST
+
+{"status":405,"title":"Method Not Allowed","type":"about:blank"}
+```
+
+The Allow value is HTTP protocol metadata. The `allowed_methods` extension is not serialized into the JSON body.
+
+A status `405` descriptor without valid required method metadata produces the fixed emergency HTTP `500` response below, without an Allow header.
 
 An accepted standard error status hint `422` yields:
 
@@ -226,13 +270,19 @@ The canonical `platform/errors` handler remains responsible for existing eligibl
 
 `platform/errors` owns Throwable normalization and its canonical mapper/fallback policies. `platform/problem-details` consumes only the resulting descriptor; it does not register another exception mapper, reporter, error-handler implementation, or error exception hierarchy.
 
-HTTP-specific status adaptation is deterministic. A null or unsupported status hint maps to safe HTTP `500`. Failure of the canonical handler, adapter, or renderer selects the fixed emergency representation if the injected PSR factories can construct a response. If they cannot, the original downstream `Throwable` takes precedence over every error generated during HTTP response construction.
+HTTP-specific status and protocol-metadata adaptation is deterministic. A null or unsupported status hint maps to safe HTTP `500`. Status 405 requires valid bounded `allowed_methods` metadata; invalid or missing metadata fails closed instead of producing an incomplete method-not-allowed response.
+
+Failure of the canonical handler, adapter, or renderer selects the fixed emergency representation without Allow if the injected PSR factories can construct a response. If they cannot, the original downstream `Throwable` takes precedence over every error generated during HTTP response construction.
 
 Successful requests are returned unchanged. Neither normal nor emergency rendering invokes `ErrorHandlerInterface::handle()` a second time.
 
 ## Security / Redaction
 
-Public Problem Details is safe by construction. The adapter forwards only the allowed HTTP status hint and must never serialize raw `Throwable` messages, stack traces, previous exceptions, `ErrorDescriptor.message`, descriptor extensions, request headers, cookies, authorization values, session identifiers, request/response bodies, raw SQL, credentials, tokens, absolute local paths, private customer data, or other PII.
+The public Problem Details JSON body is safe by construction. Its model consumes only the admitted HTTP status hint and exposes exactly status, title, and type.
+
+The separately validated 405 Allow value is bounded HTTP protocol metadata, not a diagnostic disclosure channel. Neither this metadata nor arbitrary descriptor extensions are serialized into the public body, and no other descriptor extension is mapped to an HTTP header.
+
+The adapter and renderer must never serialize raw `Throwable` messages, stack traces, previous exceptions, `ErrorDescriptor.message`, descriptor extensions, request headers, cookies, authorization values, session identifiers, request/response bodies, raw SQL, credentials, tokens, absolute local paths, private customer data, or other PII.
 
 Mandatory shared descriptor redaction remains owned by `platform/errors` through the existing `platform.redaction` dependency. This package does not implement an alternative redactor, sensitive-key classifier, hashing engine, configurable disclosure policy, or diagnostic masking layer. Redacted values are not automatically approved for publication; `detail`, `instance`, and arbitrary extensions remain absent from the public schema.
 
@@ -245,7 +295,7 @@ For security vulnerabilities, report privately using the package's unmodified [S
 - Concrete PSR-7/PSR-17 implementations, HTTP server adapters, route registration, middleware pipeline execution, or ownership of HTTP tag semantics.
 - Debug disclosure modes, environment-derived error messages, request/correlation identifiers in public output, or diagnostic payload forwarding.
 - ContextStore access, UnitOfWork lifecycle hooks, reset orchestration, mutable registries, telemetry backends, spans, metrics, logging, or persistence.
-- Claims of full outermost HTTP pipeline integration without an executable compatible `platform/http` runtime.
+- Arbitrary descriptor-to-header mapping, configurable protocol-metadata disclosure, or ownership of HTTP runtime composition.
 
 ## References
 
@@ -254,6 +304,8 @@ For security vulnerabilities, report privately using the package's unmodified [S
 - [ErrorDescriptor SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/error-descriptor.md)
 - [Errors Boundary SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/errors-boundary.md)
 - [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md)
+- [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md)
 - [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)
 - [Sensitive Data Redaction SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/sensitive-data-redaction.md)
 - [Modules and Manifests SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/modules-and-manifests.md)

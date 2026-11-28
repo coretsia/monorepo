@@ -39,6 +39,8 @@ final class LicenseHeaderGateTest extends TestCase
     {
         $this->removeTree($this->fixtureRoot);
 
+        @\rmdir(\dirname($this->fixtureRoot));
+
         parent::tearDown();
     }
 
@@ -213,6 +215,40 @@ final class LicenseHeaderGateTest extends TestCase
         $this->writeFile($this->fixtureRoot . '/NOTICE', "fixture notice\n");
 
         $this->assertGatePasses($this->fixtureRoot);
+    }
+
+    public function testCanonicalPullRequestTemplateIsExempt(): void
+    {
+        $path = $this->repoRoot() . '/.github/pull_request_template.md';
+
+        self::assertFileExists($path);
+
+        $contents = \file_get_contents($path);
+
+        self::assertIsString($contents);
+        self::assertStringNotContainsString('SPDX-License-Identifier:', $contents);
+
+        $this->assertGatePasses(\dirname($path));
+    }
+
+    public function testPullRequestTemplateExemptionIsRestrictedToCanonicalPath(): void
+    {
+        $path = $this->fixtureRoot . '/pull_request_template.md';
+        $nestedPath = $this->fixtureRoot . '/.github/pull_request_template.md';
+        $readmePath = $this->fixtureRoot . '/.github/README.md';
+
+        $this->writeFile($path, "## Summary\n");
+        $this->writeFile($nestedPath, "## Summary\n");
+        $this->writeFile($readmePath, "# Example\n");
+
+        $expected = [
+            $this->diagnostic($path, 'license-header-missing'),
+            $this->diagnostic($nestedPath, 'license-header-missing'),
+            $this->diagnostic($readmePath, 'license-header-missing'),
+        ];
+        \sort($expected, \SORT_STRING);
+
+        $this->assertGateViolation($expected);
     }
 
     public function testPathOutsideRepositoryFailsWithGateFailedCode(): void

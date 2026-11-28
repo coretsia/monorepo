@@ -22,6 +22,7 @@ use Coretsia\Contracts\Observability\Errors\ErrorHandlerInterface;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Platform\Http\Middleware\HttpMiddlewareStackBuilder;
 use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Provider\HttpServiceFactory;
@@ -223,6 +224,7 @@ final class HttpEarlyShortCircuitPostDecoratorsTest extends TestCase
             new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
+            new ModulePlan('web', [], [], [], []),
         );
     }
 }

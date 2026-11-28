@@ -29,8 +29,10 @@ use Coretsia\Platform\Routing\Observability\RoutingMatchObserver;
  * Artifact-only application routing through the immutable compiled route table.
  *
  * Routing owns only PATH_TEMPLATE context mutation. A prior template is removed
- * for every invocation; successful matches write the complete canonical template
- * before the observer emits completion signals. Raw path and host are ephemeral.
+ * for every match invocation; successful matches write the complete canonical
+ * template before the observer emits completion signals. Method enumeration
+ * uses the same concrete-path admission without context mutation or observation.
+ * Raw path and host are ephemeral.
  *
  * @internal
  */
@@ -49,17 +51,7 @@ final readonly class CompiledRouter implements RouterInterface
         return $this->observer->observe($method, function () use ($method, $path): ?RouteMatch {
             $this->contextWriter->remove(ContextKeys::PATH_TEMPLATE);
 
-            try {
-                if (ReservedPathMatcher::normalize($path) !== $path) {
-                    return null;
-                }
-                if ($path !== '/' && \str_ends_with($path, '/')) {
-                    return null;
-                }
-                if (ReservedPathMatcher::match($path) !== null) {
-                    return null;
-                }
-            } catch (\InvalidArgumentException) {
+            if (!self::admitsPath($path)) {
                 return null;
             }
 
@@ -70,5 +62,34 @@ final readonly class CompiledRouter implements RouterInterface
 
             return $match;
         });
+    }
+
+    /**
+     * @return list<non-empty-string>
+     */
+    public function allowedMethods(string $path, ?string $host = null): array
+    {
+        // Host-based routing is deliberately unsupported by routes@1.
+        if (!self::admitsPath($path)) {
+            return [];
+        }
+
+        return $this->routes->allowedMethods($path);
+    }
+
+    private static function admitsPath(string $path): bool
+    {
+        try {
+            if (ReservedPathMatcher::normalize($path) !== $path) {
+                return false;
+            }
+            if ($path !== '/' && \str_ends_with($path, '/')) {
+                return false;
+            }
+
+            return ReservedPathMatcher::match($path) === null;
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
     }
 }

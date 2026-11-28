@@ -61,6 +61,8 @@ final class CompiledRouterSetsPathTemplateInContextStoreTest extends TestCase
             $store->set(ContextKeys::HOST, 'upstream.example');
             $store->set(ContextKeys::REQUEST_ID, 'existing-request');
             $base = $store->all();
+            self::assertSame(['GET'], $router->allowedMethods('/items/42', 'private.example'));
+            self::assertSame($base, $store->all());
             foreach (
                 [
                     ['GET', '/items/42', true],
@@ -77,6 +79,17 @@ final class CompiledRouterSetsPathTemplateInContextStoreTest extends TestCase
             }
             self::assertSame('z.web', $router->match('GET', '/items/42')?->name());
             self::assertSame('/items/{id}', $store->get(ContextKeys::PATH_TEMPLATE));
+            foreach (
+                [
+                    ['/other', ['POST']],
+                    ['/missing', []],
+                    ['/health', []],
+                    ['//items/42', []],
+                ] as [$path, $methods]
+            ) {
+                self::assertSame($methods, $router->allowedMethods($path));
+                self::assertSame($base + [ContextKeys::PATH_TEMPLATE => '/items/{id}'], $store->all());
+            }
         });
         self::assertSame([], $store->all());
         self::assertSame($store, $source->get(ContextWriterInterface::class));
@@ -127,8 +140,25 @@ final class CompiledRouterSetsPathTemplateInContextStoreTest extends TestCase
                 [['remove', ContextKeys::PATH_TEMPLATE], ['set', ContextKeys::PATH_TEMPLATE, '/items/{id}']],
                 $writer->calls,
             );
+            $writer->calls = [];
             foreach (
-                [['GET', '/missing'], ['GET', '/health'], ['GET', '//items/42'], ['OTHER', '/items/42']] as [$method, $path]
+                [
+                    ['/items/private-value', ['GET']],
+                    ['/missing', []],
+                    ['/health', []],
+                    ['//items/42', []],
+                ] as [$path, $methods]
+            ) {
+                self::assertSame($methods, $router->allowedMethods($path, 'private.example'));
+                self::assertSame([], $writer->calls);
+            }
+            foreach (
+                [
+                    ['GET', '/missing'],
+                    ['GET', '/health'],
+                    ['GET', '//items/42'],
+                    ['OTHER', '/items/42'],
+                ] as [$method, $path]
             ) {
                 $writer->calls = [];
                 self::assertNull($router->match($method, $path));

@@ -38,6 +38,7 @@ use Coretsia\Foundation\Serialization\Exception\JsonLikeNormalizationException;
  * - resource
  * - object, including Closure
  * - map keys that are not strings
+ * - cyclic arrays
  *
  * Maps are sorted recursively by byte-order string comparison (`strcmp`).
  * Lists preserve caller-supplied order.
@@ -90,6 +91,7 @@ final class JsonLikeNormalizer
     ): mixed {
         $nodeCount = 0;
         $totalStringBytes = 0;
+        $activeArrayReferences = [];
 
         return self::normalizeValue(
             value: $value,
@@ -98,10 +100,14 @@ final class JsonLikeNormalizer
             limits: $limits,
             nodeCount: $nodeCount,
             totalStringBytes: $totalStringBytes,
+            activeArrayReferences: $activeArrayReferences,
+            referenceId: null,
         );
     }
 
     /**
+     * @param array<string, true> $activeArrayReferences
+     *
      * @return null|bool|int|string|array<int|string, mixed>
      */
     private static function normalizeValue(
@@ -111,6 +117,8 @@ final class JsonLikeNormalizer
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
         int &$totalStringBytes,
+        array &$activeArrayReferences,
+        ?string $referenceId,
     ): null|bool|int|string|array {
         if ($value === null || \is_bool($value) || \is_int($value)) {
             return $value;
@@ -176,29 +184,50 @@ final class JsonLikeNormalizer
             limits: $limits,
         );
 
-        if (\array_is_list($value)) {
-            return self::normalizeList(
+        // Only references active on the current traversal branch can form a cycle.
+        if ($referenceId !== null) {
+            if (isset($activeArrayReferences[$referenceId])) {
+                throw JsonLikeNormalizationException::atPath(
+                    $path,
+                    JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
+                );
+            }
+
+            $activeArrayReferences[$referenceId] = true;
+        }
+
+        try {
+            if (\array_is_list($value)) {
+                return self::normalizeList(
+                    value: $value,
+                    path: $path,
+                    containerDepth: $containerDepth,
+                    limits: $limits,
+                    nodeCount: $nodeCount,
+                    totalStringBytes: $totalStringBytes,
+                    activeArrayReferences: $activeArrayReferences,
+                );
+            }
+
+            return self::normalizeMap(
                 value: $value,
                 path: $path,
                 containerDepth: $containerDepth,
                 limits: $limits,
                 nodeCount: $nodeCount,
                 totalStringBytes: $totalStringBytes,
+                activeArrayReferences: $activeArrayReferences,
             );
+        } finally {
+            if ($referenceId !== null) {
+                unset($activeArrayReferences[$referenceId]);
+            }
         }
-
-        return self::normalizeMap(
-            value: $value,
-            path: $path,
-            containerDepth: $containerDepth,
-            limits: $limits,
-            nodeCount: $nodeCount,
-            totalStringBytes: $totalStringBytes,
-        );
     }
 
     /**
      * @param list<mixed> $value
+     * @param array<string, true> $activeArrayReferences
      *
      * @return list<mixed>
      */
@@ -209,6 +238,7 @@ final class JsonLikeNormalizer
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
         int &$totalStringBytes,
+        array &$activeArrayReferences,
     ): array {
         $normalized = [];
 
@@ -228,6 +258,8 @@ final class JsonLikeNormalizer
                 limits: $limits,
                 nodeCount: $nodeCount,
                 totalStringBytes: $totalStringBytes,
+                activeArrayReferences: $activeArrayReferences,
+                referenceId: \ReflectionReference::fromArrayElement($value, $index)?->getId(),
             );
         }
 
@@ -236,6 +268,7 @@ final class JsonLikeNormalizer
 
     /**
      * @param array<array-key, mixed> $value
+     * @param array<string, true> $activeArrayReferences
      *
      * @return array<string, mixed>
      */
@@ -246,6 +279,7 @@ final class JsonLikeNormalizer
         ?JsonLikeNormalizationLimits $limits,
         int &$nodeCount,
         int &$totalStringBytes,
+        array &$activeArrayReferences,
     ): array {
         if (
             $limits !== null
@@ -307,6 +341,8 @@ final class JsonLikeNormalizer
                 limits: $limits,
                 nodeCount: $nodeCount,
                 totalStringBytes: $totalStringBytes,
+                activeArrayReferences: $activeArrayReferences,
+                referenceId: \ReflectionReference::fromArrayElement($value, $key)?->getId(),
             );
         }
 

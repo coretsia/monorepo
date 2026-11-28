@@ -251,6 +251,69 @@ final class HttpErrorMiddlewareReturnsProblemJsonTest extends TestCase
         self::fail('Emergency stream factory failure must preserve the primary Throwable.');
     }
 
+    /** @return iterable<string, array{array<string, mixed>, ?string}> */
+    public static function methodMetadata(): iterable
+    {
+        yield 'valid single' => [['allowed_methods' => ['GET']], 'GET'];
+        yield 'valid multiple' => [
+            ['allowed_methods' => ['GET', 'HEAD', 'OPTIONS', 'POST']],
+            'GET, HEAD, OPTIONS, POST',
+        ];
+        yield 'missing' => [[], null];
+        yield 'null' => [['allowed_methods' => null], null];
+        yield 'empty' => [['allowed_methods' => []], null];
+        yield 'scalar' => [['allowed_methods' => 'GET'], null];
+        yield 'map' => [['allowed_methods' => ['method' => 'GET']], null];
+        yield 'non-string' => [['allowed_methods' => ['GET', 1]], null];
+        yield 'unsorted' => [['allowed_methods' => ['POST', 'GET']], null];
+        yield 'duplicate' => [['allowed_methods' => ['GET', 'GET']], null];
+        yield 'unsupported' => [['allowed_methods' => ['GET', 'OTHER']], null];
+        yield 'CRLF' => [['allowed_methods' => ['GET', "POST\r\nX-Synthetic: value"]], null];
+    }
+
+    /** @param array<string, mixed> $extensions */
+    #[DataProvider('methodMetadata')]
+    public function test405AdaptationCommitsOnlyAfterMethodMetadataValidation(array $extensions, ?string $allow): void
+    {
+        $primary = new \RuntimeException('SYNTHETIC_DOWNSTREAM_PRIVATE');
+        $errors = $this->createMock(ErrorHandlerInterface::class);
+        $errors->expects(self::once())->method('handle')->with(self::identicalTo($primary))
+            ->willReturn(
+                new ErrorDescriptor(
+                    'SYNTHETIC_OWNER',
+                    'SYNTHETIC_DESCRIPTOR_PRIVATE',
+                    httpStatus: 405,
+                    extensions: $extensions,
+                ),
+            );
+        [$response, $responses, $streams, $headers] = $this->responseFixture(
+            $allow === null ? 500 : 405,
+            $allow === null
+                ? self::EMERGENCY_BODY
+                : "{\"status\":405,\"title\":\"Method Not Allowed\",\"type\":\"about:blank\"}\n",
+        );
+        $response->expects($allow === null ? self::once() : self::never())
+            ->method('hasHeader')->with('Allow')->willReturn(true);
+        $response->expects($allow === null ? self::once() : self::never())
+            ->method('withoutHeader')->with('Allow')->willReturnSelf();
+
+        self::assertSame(
+            $response,
+            self::middleware($errors, $responses, $streams)->process(
+                $this->createStub(ServerRequestInterface::class),
+                $this->throwingHandler($primary),
+            ),
+        );
+        $expected = [
+            ['Content-Type', 'application/problem+json'],
+            ['Cache-Control', 'no-store'],
+        ];
+        if ($allow !== null) {
+            $expected[] = ['Allow', $allow];
+        }
+        self::assertSame($expected, $headers->items);
+    }
+
     private static function middleware(
         ErrorHandlerInterface $errors,
         ResponseFactoryInterface $responses,
@@ -294,7 +357,7 @@ final class HttpErrorMiddlewareReturnsProblemJsonTest extends TestCase
 
         $responses->expects(self::once())->method('createResponse')->with($status)->willReturn($response);
         $streams->expects(self::once())->method('createStream')->with($body)->willReturn($stream);
-        $response->expects(self::exactly(2))->method('withHeader')
+        $response->expects(self::exactly($status === 405 ? 3 : 2))->method('withHeader')
             ->willReturnCallback(static function (
                 string $name,
                 string $value,

@@ -16,7 +16,7 @@
 
 `platform/routing` is the deterministic application route compiler and artifact-backed runtime router for the Coretsia Framework.
 
-Scope: target-local source route aggregation, immutable route grouping, canonical route admission and reserved-domain protection, `routes@1` artifact validation and atomic publication, artifact-only matching, conditional owner-artifact readiness, explicit Routing CLI commands, path-template context enrichment, and bounded routing match observability.
+Scope: target-local source route aggregation, immutable route grouping, canonical route admission and reserved-domain protection, `routes@1` artifact validation and atomic publication, artifact-only matching and allowed-method enumeration, conditional owner-artifact readiness, explicit Routing CLI commands, path-template context enrichment, and bounded routing match observability.
 
 Out of scope: HTTP transport processing, system-endpoint dispatch, middleware execution, handler resolution and action invocation, Kernel generation publication, context storage and reset execution, and observability backend implementation.
 
@@ -70,6 +70,7 @@ Routing does not require `platform/logging`. It consumes the effective `Psr\Log\
 - complete template, conflict, reserved-domain, safety, and resource admission;
 - owner-specific `routes@1` schema, fingerprint, safe reading, and atomic publication;
 - one shared immutable `CompiledRouteTable`, consumed by `CompiledRouter` and `RoutingArtifactReadiness`;
+- allowed-method enumeration through the same immutable route table and parsed templates, independently of matching context mutation and observability;
 - `routes:compile` and `routes:validate` through the canonical CLI contribution boundary;
 - exclusive mutation of `ContextKeys::PATH_TEMPLATE` through the contracts-level context writer;
 - independent tracing, metrics, and safe diagnostic logging for completed routing matches.
@@ -93,7 +94,7 @@ The canonical routing descriptors and ports belong to `core/contracts` under `Co
 - `RouteDefinition` — immutable format-neutral declaration and canonical descriptor representation;
 - `RouteMatch` — successful match containing the declared name, template, logical handler, string parameters, and safe metadata;
 - `RouteProviderInterface` — `id(): string` and `routes(): array`, returning a stable provider identity and a flat ordered list of `RouteDefinition` instances;
-- `RouterInterface` — `match(string $method, string $path, ?string $host = null): ?RouteMatch`;
+- `RouterInterface` — `match(string $method, string $path, ?string $host = null): ?RouteMatch` and `allowedMethods(string $path, ?string $host = null): array`, returning a `list<non-empty-string>` for method enumeration;
 - `RoutingArtifactReadinessInterface` — `assertReady(): void`, the narrow transport-neutral owner-artifact readiness port.
 
 The public package-owned declaration helper is `Coretsia\Platform\Routing\Definition\RouteGroup`. It is not a contracts-level descriptor or runtime matching port.
@@ -171,7 +172,9 @@ The resulting list contains a canonical descriptor named `api.v1.teams.member`, 
 
 Group requirements refer only to placeholders declared in that group's supplied prefix; route requirements refer to the route's own supplied template. Combined requirements cannot override inherited keys. Duplicate placeholders across nested prefixes and routes are rejected. Metadata is normalized through Foundation `JsonLikeNormalizer`; duplicate inherited keys, including keys whose value is `null`, are rejected without recursive merging. Methods, handler, and defaults remain owned by the individual route.
 
-`routes()` accepts only a list of ordinary `RouteDefinition` instances and preserves its order. Providers MUST return flattened descriptors rather than group objects. All flattened routes undergo the same global admission as standalone declarations. Equivalent grouped and standalone declarations produce identical canonical bytes and fingerprints for identical ordered descriptors and authoritative inputs. Groups do not introduce middleware, authorization, controller resolution, DI wiring, or a second matching mechanism.
+`routes()` accepts only a list of ordinary `RouteDefinition` instances and preserves its order. Providers MUST return flattened descriptors rather than group objects. All flattened routes undergo the same global admission as standalone declarations. Equivalent grouped and standalone declarations produce identical canonical bytes and fingerprints for identical ordered descriptors and authoritative inputs. Groups may carry safe consumer-owned metadata, including ordered middleware selections, but do not introduce middleware registration or execution, authorization, action resolution, DI wiring, or a second matching mechanism.
+
+The `http_app_middleware` metadata member is interpreted by HttpApp. Routing preserves its declared list order through grouping, compilation, serialization, hydration, and matching, applying the existing generic metadata safety and duplicate inherited-key rejection policies without consumer-specific merge or execution semantics.
 
 ## Reserved path ownership
 
@@ -266,13 +269,27 @@ Publication uses Foundation `ScopedFileLock` and `AtomicFileWriter`. Complete va
 
 `CompiledRouteTable` retains immutable validated descriptors and their parsed templates in stored order. `CompiledRouter` implements `RouterInterface` and returns the first matching canonical `RouteMatch` or `null`. It accepts only canonical encoded URI paths whose Foundation normalization result equals the supplied path byte-for-byte. Invalid, reserved, non-canonical, and unmatched input returns `null`; method matching is exact and encoded octets are not decoded or case-normalized. Non-root trailing slash paths are not aliases. Host-based matching, implicit GET-to-HEAD fallback, automatic OPTIONS, redirects, and 405 response generation are not provided.
 
-Runtime matching does not read artifact files, resolve route providers, interpret groups, compile or repair artifacts, resolve handlers, or invoke actions. Replacement of an artifact does not change a hydrated table; a new runtime is needed to consume a replacement.
+`RouterInterface::allowedMethods(string $path, ?string $host = null): array` consumes the same immutable route table and parsed templates as `match()`.
+
+It applies the same canonical encoded-path admission and reserved-path exclusion policy. Invalid, non-canonical, reserved, and unmatched paths return `[]`.
+
+Every admitted route whose complete matching domain accepts the supplied path, including placeholder requirements, contributes its declared methods. Enumeration collects unique exact method strings and sorts them ascending by byte-order `strcmp`. It does not stop at the first matching route, change ordinary matching precedence, or add implicit HEAD or OPTIONS methods. Host remains unused.
+
+Allowed-method enumeration does not invoke another observed match, read or mutate routing context, or emit additional spans, metrics, or diagnostic logs.
+
+Runtime matching and allowed-method enumeration do not read artifact files, resolve route providers, interpret groups, compile or repair artifacts, resolve or execute middleware, resolve handlers, or invoke actions. Replacement of an artifact does not change a hydrated table; a new runtime is needed to consume a replacement.
 
 `RoutingArtifactReadiness` implements the contracts-level readiness port and consumes the same shared table as the router. Successful table construction establishes readiness; `assertReady()` does not perform another read or parse. When the effective HTTP target enables `platform.routing`, the HTTP-owned `HttpRuntimeEntrypointGuard` resolves the port and calls `assertReady()` after module, driver, and PSR-17 factory checks and before HTTP runtime construction. Missing or invalid required artifacts or bindings prevent startup. If Routing is not selected, HTTP does not require this artifact.
 
 Deployment MUST prepare the target-local route artifact and the Kernel generation separately, using the intended declarations, configuration, modules, and authoritative environment before starting the runtime. Kernel `cache:verify` does not verify the Routing artifact. Successful source validation alone is not publication.
 
-HttpApp integration consumes the contracts-level matching port and match descriptor for application dispatch. Routing neither implements `RouterMiddleware` nor owns request/response conversion, HTTP pipeline construction, system endpoint execution, action resolution, invocation, or response rendering.
+HttpApp consumes the contracts-level matching port, allowed-method enumeration, and immutable match descriptor for separately owned application dispatch.
+
+Routing neither implements `RouterMiddleware` or `ActionDispatchMiddleware` nor owns route-specific middleware admission, request/response conversion, HTTP pipeline construction, system endpoint execution, action resolution, invocation, or response rendering.
+
+Routing exposes matching information only. HttpApp owns application 404/405 exception classification, and Problem Details owns HTTP adaptation and validated Allow-header materialization.
+
+The concrete application dispatch policy is defined by [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md).
 
 ## Context and UnitOfWork
 
@@ -282,6 +299,8 @@ HttpApp integration consumes the contracts-level matching port and match descrip
 - write only the complete declared template on success, including flattened prefixes;
 - leave the template absent on a completed miss;
 - finish context mutation before routing completion observability.
+
+Allowed-method enumeration does not participate in this context mutation lifecycle. It neither removes an existing PATH_TEMPLATE value nor writes a new value, regardless of whether any matching methods are found.
 
 Routing does not read raw paths from context, write other keys, or store raw paths, hosts, parameters, or handler identifiers in context. It does not depend on `ContextAccessorInterface` or concrete `ContextStore`. Foundation owns shared context storage and structural validation; Kernel owns UnitOfWork lifecycle and reset orchestration. Routing neither starts or finishes a UnitOfWork nor registers the immutable table or router for reset execution.
 
@@ -313,6 +332,8 @@ routing.match.completed
 `RoutingMatchObserver` attempts one `LoggerInterface::debug()` call per completed match operation when `routing.logging.enabled` is true, with `method`, `outcome`, and `path_template` only on success. Logging is independent of tracing and metrics. The effective logging implementation owns admission, filtering, formatting, redaction, and sink selection; the Foundation noop logger emits nothing.
 
 Span start, attribute updates, span end, stopwatch, counter, duration observation, and logger failures are independently best-effort and MUST NOT change matching outcomes. Unexpected matching failures propagate unchanged; an opened span is finalized best-effort, without recording raw exceptions or emitting completed-match metrics or logs. Signal handles are invocation-local. Routing does not duplicate HTTP request or CLI command lifecycle observations.
+
+These observations belong exclusively to ordinary matching operations. Allowed-method enumeration does not enter RoutingMatchObserver or produce an additional routing.match span, routing.match_total increment, routing.match_duration_ms observation, or routing.match.completed log event.
 
 Raw paths, hosts, query strings, request data, matched parameter values, handler identifiers, raw Throwable messages, and unbounded identifiers MUST NOT be emitted by Routing. In Routing observability, the declared path template is used only as the approved successful-match span attribute and diagnostic log context field, never as a metric label.
 
@@ -352,6 +373,7 @@ This package does not provide:
 
 - [Routing Artifact SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md)
 - [Routing and HTTP Application Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-and-http-app-contracts.md)
+- [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md)
 - [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
 - [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
 - [Artifact Header and Schema Registry SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts.md)

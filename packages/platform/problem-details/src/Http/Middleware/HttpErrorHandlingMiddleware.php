@@ -33,8 +33,9 @@ use Throwable;
  * Outer PSR-15 Throwable boundary for explicitly selected HTTP targets.
  *
  * Platform/errors remains the sole normalization and reporting owner. Failed
- * normalization or rendering degrades to a fixed safe HTTP 500 response;
- * failure to construct that response preserves the downstream Throwable.
+ * normalization, adaptation, or rendering degrades to a fixed safe HTTP 500
+ * response; failure to construct the transport response preserves the downstream
+ * Throwable.
  */
 final class HttpErrorHandlingMiddleware implements MiddlewareInterface
 {
@@ -62,24 +63,38 @@ final class HttpErrorHandlingMiddleware implements MiddlewareInterface
     {
         $status = 500;
         $body = self::EMERGENCY_BODY;
+        $allow = null;
 
         try {
             $descriptor = $this->errorHandler->handle($primary);
             $problem = $this->adapter->map($descriptor);
-            $body = $this->renderer->render($problem);
-            $status = $problem->status();
+            $adaptedBody = $this->renderer->render($problem);
+            $adaptedAllow = $this->adapter->allowHeader($descriptor);
+            $adaptedStatus = $problem->status();
+
+            // Commit only after every adaptation operation succeeds.
+            $status = $adaptedStatus;
+            $body = $adaptedBody;
+            $allow = $adaptedAllow;
         } catch (Throwable) {
-            // Never retry normalization or a failed renderer.
+            // Never retry normalization, adaptation, or rendering.
         }
 
         try {
             $response = $this->responses->createResponse($status);
             $stream = $this->streams->createStream($body);
 
-            return $response
+            $response = $response
                 ->withHeader('Content-Type', ProblemDetailsJsonRenderer::CONTENT_TYPE)
-                ->withHeader('Cache-Control', 'no-store')
-                ->withBody($stream);
+                ->withHeader('Cache-Control', 'no-store');
+
+            if ($status === 405 && $allow !== null) {
+                $response = $response->withHeader('Allow', $allow);
+            } elseif ($response->hasHeader('Allow')) {
+                $response = $response->withoutHeader('Allow');
+            }
+
+            return $response->withBody($stream);
         } catch (Throwable) {
             // Transport construction must not hide the original failure.
             throw $primary;

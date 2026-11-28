@@ -284,12 +284,15 @@ final class MaintenanceCommandsDoNotDirtyArtifactsTest extends CliIntegrationTes
         $overrides = [
             'console' => [
                 'include' => $include,
-                'exclude' => $http ? [] : ['platform.http', 'platform.problem-details'],
+                'exclude' => $http ? ['platform.http-app'] : ['platform.http', 'platform.http-app', 'platform.problem-details'],
             ],
         ];
         if ($probe) {
             foreach (['web', 'api'] as $target) {
-                $overrides[$target] = ['include' => ['platform.http', self::PROBE_MODULE_ID], 'exclude' => []];
+                $overrides[$target] = [
+                    'include' => ['platform.http', self::PROBE_MODULE_ID],
+                    'exclude' => ['platform.http-app'],
+                ];
             }
         }
         self::write(

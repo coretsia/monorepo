@@ -421,6 +421,14 @@ Conceptual layer-direction matrix:
 - `platform.http`
   - `platform.redaction`
 - `platform.http-app`
+  - `platform.errors`
+  - `platform.http`
+    - `platform.redaction`
+  - `platform.problem-details`
+    - `platform.errors`
+      - `platform.redaction`
+  - `platform.routing`
+    - `platform.redaction`
 - `platform.logging`
   - `platform.redaction`
 - `platform.problem-details`
@@ -449,6 +457,14 @@ Conceptual layer-direction matrix:
 - `platform.http`
   - `platform.redaction`
 - `platform.http-app`
+  - `platform.errors`
+  - `platform.http`
+    - `platform.redaction`
+  - `platform.problem-details`
+    - `platform.errors`
+      - `platform.redaction`
+  - `platform.routing`
+    - `platform.redaction`
 - `platform.logging`
   - `platform.redaction`
 - `platform.migrations`
@@ -482,6 +498,14 @@ Conceptual layer-direction matrix:
 - `platform.http`
   - `platform.redaction`
 - `platform.http-app`
+  - `platform.errors`
+  - `platform.http`
+    - `platform.redaction`
+  - `platform.problem-details`
+    - `platform.errors`
+      - `platform.redaction`
+  - `platform.routing`
+    - `platform.redaction`
 - `platform.logging`
   - `platform.redaction`
 - `platform.migrations`
@@ -514,6 +538,14 @@ Conceptual layer-direction matrix:
 - `platform.http`
   - `platform.redaction`
 - `platform.http-app`
+  - `platform.errors`
+  - `platform.http`
+    - `platform.redaction`
+  - `platform.problem-details`
+    - `platform.errors`
+      - `platform.redaction`
+  - `platform.routing`
+    - `platform.redaction`
 - `platform.logging`
   - `platform.redaction`
 - `platform.metrics`

@@ -17,7 +17,11 @@ body:
       value: |
         Thanks for contributing to the Coretsia design discussion.
 
-        Please use this form for website design ideas, branding applications, layout proposals, mockups, and visual direction feedback.
+        Use this form for website design ideas, branding applications, layout proposals, mockups, and visual direction feedback.
+
+        This is an open-source design discussion. Early-stage ideas, sketches, and partial proposals are welcome. A complete design or implementation is not required.
+
+        Share only assets that you are authorized to publish and do not include private or confidential information.
 
   - type: textarea
     id: idea-summary
@@ -32,33 +36,42 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: Describe the idea, layout, visual direction, or implementation approach.
-      placeholder: "Explain the structure, sections, visual tone, and how it follows the Coretsia branding guide."
+      description: Describe the design idea, layout, visual direction, user experience, or implementation approach.
+      placeholder: "Explain the proposed structure, visual direction, user experience, and design rationale."
     validations:
       required: true
 
   - type: textarea
     id: brand-alignment
     attributes:
-      label: Brand Alignment
-      description: Explain how this proposal aligns with the Coretsia branding specification.
-      placeholder: "Mention colors, typography, symbol usage, light/dark mode, modularity, or deterministic visual language."
+      label: Brand alignment
+      description: Explain how this proposal aligns with the Coretsia branding specification or describe any intentional departures.
+      placeholder: "Mention colors, typography, symbol usage, light/dark mode, visual consistency, or design tokens."
+    validations:
+      required: false
+
+  - type: textarea
+    id: usability
+    attributes:
+      label: Usability and accessibility
+      description: Describe usability, accessibility, responsive behavior, or documentation navigation considerations when relevant.
+      placeholder: "Mention readability, color contrast, keyboard navigation, mobile layouts, or accessible components."
     validations:
       required: false
 
   - type: textarea
     id: assets
     attributes:
-      label: Mockups, Links, or Assets
-      description: Add links to mockups, screenshots, Figma/Penpot files, HTML/CSS prototypes, or related references.
-      placeholder: "Paste links or attach images."
+      label: Mockups, links, or assets
+      description: Share mockups, screenshots, Figma/Penpot files, HTML/CSS prototypes, or references. Identify third-party assets and their licenses where applicable.
+      placeholder: "Paste public links or attach authorized images and include attribution when required."
     validations:
       required: false
 
   - type: textarea
     id: scope
     attributes:
-      label: Suggested Scope
+      label: Suggested scope
       description: What part of the website does this proposal cover?
       placeholder: "Homepage, documentation page, navigation, blog/news page, design tokens, static prototype, etc."
     validations:
@@ -67,7 +80,7 @@ body:
   - type: textarea
     id: notes
     attributes:
-      label: Additional Notes
+      label: Additional notes
       description: Anything else maintainers or contributors should consider?
     validations:
       required: false

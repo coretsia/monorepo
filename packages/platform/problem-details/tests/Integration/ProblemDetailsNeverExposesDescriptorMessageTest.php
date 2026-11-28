@@ -25,6 +25,7 @@ use Coretsia\Platform\ProblemDetails\Adapter\ErrorDescriptorToProblemDetailsAdap
 use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
 use Coretsia\Platform\ProblemDetails\ProblemDetails;
 use Coretsia\Platform\ProblemDetails\Renderer\ProblemDetailsJsonRenderer;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -48,15 +49,26 @@ final class ProblemDetailsNeverExposesDescriptorMessageTest extends TestCase
         ], require $packageRoot . '/config/rules.php');
     }
 
-    public function testSensitiveDescriptorAndRequestDataNeverReachRepeatedHttpResponses(): void
+    /** @return iterable<string, array{int, string}> */
+    public static function disclosureStatuses(): iterable
     {
+        yield 'forbidden' => [403, 'Forbidden'];
+        yield 'method not allowed' => [405, 'Method Not Allowed'];
+    }
+
+    #[DataProvider('disclosureStatuses')]
+    public function testSensitiveDescriptorAndRequestDataNeverReachRepeatedHttpResponses(
+        int $status,
+        string $title,
+    ): void {
         $primary = new \RuntimeException('SYNTHETIC_THROWABLE_PRIVATE');
         $descriptor = new ErrorDescriptor(
             code: 'SYNTHETIC_ERROR_CODE',
             message: 'SYNTHETIC_MESSAGE_PRIVATE',
             severity: ErrorSeverity::Critical,
-            httpStatus: 403,
+            httpStatus: $status,
             extensions: [
+                'allowed_methods' => ['GET', 'POST'],
                 'safe_note' => 'SYNTHETIC_EXTENSION_PRIVATE',
                 'details' => ['example' => 'SYNTHETIC_NESTED_PRIVATE'],
             ],
@@ -78,17 +90,20 @@ final class ProblemDetailsNeverExposesDescriptorMessageTest extends TestCase
             ->willThrowException($primary);
 
         $response = $this->createMock(ResponseInterface::class);
-        $response->expects(self::exactly(24))->method('withHeader')->willReturnSelf();
+        $response->expects(self::exactly($status === 405 ? 36 : 24))->method('withHeader')->willReturnSelf();
         $response->expects(self::exactly(12))->method('withBody')->willReturnSelf();
         $responses = $this->createMock(ResponseFactoryInterface::class);
-        $responses->expects(self::exactly(12))->method('createResponse')->with(403)->willReturn($response);
+        $responses->expects(self::exactly(12))->method('createResponse')->with($status)->willReturn($response);
         $bodies = [];
         $streams = $this->createMock(StreamFactoryInterface::class);
         $streams->expects(self::exactly(12))->method('createStream')->willReturnCallback(
             function (string $body) use (&$bodies): StreamInterface {
                 $bodies[] = $body;
 
-                return $this->createStub(StreamInterface::class);
+                /** @var StreamInterface $stream */
+                $stream = $this->createStub(StreamInterface::class);
+
+                return $stream;
             },
         );
         $middleware = new HttpErrorHandlingMiddleware(
@@ -104,20 +119,30 @@ final class ProblemDetailsNeverExposesDescriptorMessageTest extends TestCase
         }
 
         self::assertCount(12, $bodies);
-        $expected = "{\"status\":403,\"title\":\"Forbidden\",\"type\":\"about:blank\"}\n";
+        $expected = "{\"status\":{$status},\"title\":\"{$title}\",\"type\":\"about:blank\"}\n";
         foreach ($bodies as $body) {
             self::assertSame($expected, $body);
-            foreach (['SYNTHETIC_', 'detail', 'instance', 'extensions', 'schemaVersion', 'severity'] as $private) {
+            foreach (
+                [
+                    'SYNTHETIC_',
+                    'detail',
+                    'instance',
+                    'extensions',
+                    'schemaVersion',
+                    'severity',
+                    'allowed_methods',
+                ] as $private
+            ) {
                 self::assertStringNotContainsString($private, $body);
             }
             self::assertSame(
-                ['status' => 403, 'title' => 'Forbidden', 'type' => 'about:blank'],
+                ['status' => $status, 'title' => $title, 'type' => 'about:blank'],
                 \json_decode($body, true, flags: \JSON_THROW_ON_ERROR),
             );
         }
         self::assertSame(
             [],
-            \array_diff(\array_keys(new ProblemDetails(403)->toArray()), ['status', 'title', 'type']),
+            \array_diff(\array_keys(new ProblemDetails($status)->toArray()), ['status', 'title', 'type']),
         );
     }
 

@@ -27,6 +27,7 @@ return [
     'modules' => [
         'platform.cli',
         'platform.http',
+        'platform.http-app',
         'platform.logging',
         'platform.problem-details',
         'platform.routing',

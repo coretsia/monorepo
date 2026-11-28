@@ -136,9 +136,12 @@ function coretsia_license_header_gate_scan(
 
 function coretsia_license_header_gate_is_intrinsically_exempt(string $relativePath): bool
 {
-    $base = \basename(\str_replace('\\', '/', $relativePath));
+    $path = \str_replace('\\', '/', $relativePath);
+    $base = \basename($path);
 
-    return $base === 'LICENSE' || $base === 'NOTICE';
+    return $base === 'LICENSE'
+        || $base === 'NOTICE'
+        || $path === '.github/pull_request_template.md';
 }
 
 function coretsia_license_header_gate_expected_project(string $relativePath): string

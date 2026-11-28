@@ -206,7 +206,11 @@ The deterministic rules are:
 - maps are sorted recursively by byte-order `strcmp`;
 - nested maps inside lists are sorted recursively;
 - nested lists inside maps preserve caller-supplied order;
-- empty arrays remain `[]`.
+- empty arrays remain `[]`;
+- cycle detection remains active independently of optional resource limits;
+- detected cyclic arrays are rejected with the generic type-forbidden reason without changing existing validation or resource-limit failure precedence;
+- shared non-cyclic array references are normalized independently at each occurrence;
+- cycle detection tracks active traversal-branch reference identities without mutating caller-supplied arrays or exporting reference identities.
 
 The implementation must not depend on:
 

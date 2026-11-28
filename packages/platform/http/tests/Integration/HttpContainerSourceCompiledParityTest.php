@@ -27,6 +27,8 @@ use Coretsia\Contracts\Context\ContextWriterInterface;
 use Coretsia\Contracts\Module\ModuleId;
 use Coretsia\Contracts\Observability\CorrelationIdProviderInterface;
 use Coretsia\Contracts\Observability\Metrics\MeterPortInterface;
+use Coretsia\Contracts\Routing\RouteMatch;
+use Coretsia\Contracts\Routing\RouterInterface;
 use Coretsia\Contracts\Runtime\KernelRuntimeInterface;
 use Coretsia\Contracts\Runtime\UnitOfWorkHandle;
 use Coretsia\Contracts\Security\SensitiveDataRedactorInterface;
@@ -67,6 +69,7 @@ use Coretsia\Kernel\Runtime\Driver\RuntimeDriverContributions;
 use Coretsia\Kernel\Runtime\Driver\RuntimeDriverResolver;
 use Coretsia\Kernel\Runtime\RuntimeDiagnosticsInput;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
+use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
 use Coretsia\Platform\Http\Console\MaintenanceDisableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceEnableCommand;
 use Coretsia\Platform\Http\Console\MaintenanceStatusCommand;
@@ -107,12 +110,18 @@ use Coretsia\Platform\Http\Routing\FallbackRouterHandler;
 use Coretsia\Platform\Http\Runtime\HttpRuntimeEntrypointGuard;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Coretsia\Platform\Http\Tests\Support\SystemEndpointRuntimeFixture;
+use Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware;
+use Coretsia\Platform\HttpApp\Middleware\RouterMiddleware;
+use Coretsia\Platform\HttpApp\Provider\HttpAppServiceProvider;
+use Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware;
+use Coretsia\Platform\ProblemDetails\Provider\ProblemDetailsServiceProvider;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -599,6 +608,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             MaintenanceStateStore::class,
             MaintenanceMiddleware::class,
             ...self::MAINTENANCE_COMMANDS,
+            Pipeline::class,
             HttpKernel::class,
             ...self::COMPLETION_SERVICES,
             ...self::TERMINAL_SERVICES,
@@ -665,7 +675,7 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             }
         }
 
-        self::assertCount(25, $services);
+        self::assertCount(26, $services);
         self::assertCount(8, $tags);
         self::assertCount(3, $cliTags);
         self::assertSame(
@@ -751,6 +761,17 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         }
 
         $ref = static fn (string $id): array => ContainerValueReference::service($id)->toArray();
+        self::assertSame('service.factory.class-method', $services[Pipeline::class]['kind']);
+        self::assertSame(HttpServiceFactory::class, $services[Pipeline::class]['factoryClass']);
+        self::assertSame('pipeline', $services[Pipeline::class]['method']);
+        self::assertSame([
+            $ref(ContainerInterface::class),
+            $ref(ConfigRepositoryInterface::class),
+            $ref(HttpMiddlewareStackBuilder::class),
+            $ref(RequestHandlerInterface::class),
+            $ref(ModulePlan::class),
+        ], $services[Pipeline::class]['arguments']);
+
         $requestId = $config['http']['request_id'];
         $terminalArguments = [
             FallbackResponses::class => [
@@ -1115,6 +1136,52 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         yield 'slim-distinct' => ['slim', 'Slim\\Psr7\\Factory\\ResponseFactory', 'Slim\\Psr7\\Factory\\StreamFactory'];
     }
 
+    public function testSourceAndCompiledPipelinePoliciesFollowEffectiveModulePlan(): void
+    {
+        foreach ([false, true] as $enabled) {
+            $config = self::config();
+            $plan = $enabled ? self::httpAppPlan() : self::plan();
+            if ($enabled) {
+                $config['errors'] = require __DIR__ . '/../../../errors/config/errors.php';
+                $config['http_app'] = require __DIR__ . '/../../../http-app/config/http_app.php';
+            }
+            $set = self::definitions($config, httpApp: $enabled);
+            [$source, $compiled] = self::containers($set, $config, plan: $plan);
+            $expectedPolicies = [
+                'guardedContinuation' => $enabled,
+                'protectedRequestAttributes' => $enabled ? ['coretsia.http_app.route_dispatch'] : [],
+                'protectRoutingInputs' => $enabled,
+            ];
+            $sequences = [];
+            foreach ([$source, $compiled] as $container) {
+                self::assertSame($plan, $container->get(ModulePlan::class));
+                $pipeline = $container->get(Pipeline::class);
+                self::assertInstanceOf(Pipeline::class, $pipeline);
+                self::assertSame($pipeline, $container->get(Pipeline::class));
+                foreach ($expectedPolicies as $name => $value) {
+                    $property = new \ReflectionProperty(Pipeline::class, $name);
+                    self::assertTrue($property->isReadOnly());
+                    self::assertSame($value, $property->getValue($pipeline));
+                }
+                $terminal = new \ReflectionProperty(Pipeline::class, 'terminal')->getValue($pipeline);
+                self::assertSame($container->get(RequestHandlerInterface::class), $terminal);
+                $middleware = new \ReflectionProperty(Pipeline::class, 'middleware')->getValue($pipeline);
+                $ids = \array_map(static fn (object $instance): string => $instance::class, $middleware);
+                $sequences[] = $ids;
+                if ($enabled) {
+                    self::assertSame(HttpErrorHandlingMiddleware::class, $ids[0]);
+                    self::assertContains(RouterMiddleware::class, $ids);
+                    self::assertSame(ActionDispatchMiddleware::class, $ids[\count($ids) - 1]);
+                } else {
+                    self::assertNotContains(RouterMiddleware::class, $ids);
+                    self::assertNotContains(ActionDispatchMiddleware::class, $ids);
+                    self::assertNotContains(HttpErrorHandlingMiddleware::class, $ids);
+                }
+            }
+            self::assertSame($sequences[0], $sequences[1]);
+        }
+    }
+
     public function testCanonicalHttpServicesCannotRetainMutableRequestLifecycleState(): void
     {
         $expectedProperties = [
@@ -1178,7 +1245,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             HttpRequestMetricsRecorder::class => ['meter', 'enabled'],
             HttpAccessLogWriter::class => ['logger', 'enabled'],
             HttpRequestSpanRecorder::class => ['tracer', 'enabled'],
-            Pipeline::class => ['middleware', 'terminal'],
+            Pipeline::class => [
+                'middleware',
+                'protectedRequestAttributes',
+                'terminal',
+                'guardedContinuation',
+                'protectRoutingInputs',
+            ],
             FallbackResponses::class => ['responses', 'streams'],
             FallbackRouter::class => [
                 'responses',
@@ -2493,8 +2566,11 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         return $config;
     }
 
-    private static function definitions(array $config, bool $overrideBuiltIn = false): ContainerDefinitionSet
-    {
+    private static function definitions(
+        array $config,
+        bool $overrideBuiltIn = false,
+        bool $httpApp = false,
+    ): ContainerDefinitionSet {
         $definitions = new ContainerDefinitionBuilder();
         $context = new ContainerDefinitionContext($config);
         new FoundationServiceProvider()->define($definitions, $context);
@@ -2507,6 +2583,13 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
             $definitions->classService(HttpParityExternalFactory::class, HttpParityExternalFactory::class);
             $definitions->alias(ResponseFactoryInterface::class, HttpParityExternalFactory::class);
             $definitions->alias(StreamFactoryInterface::class, HttpParityExternalFactory::class);
+        }
+
+        if ($httpApp) {
+            new ErrorsServiceProvider()->define($definitions, $context);
+            new ProblemDetailsServiceProvider()->define($definitions, $context);
+            new HttpAppServiceProvider()->define($definitions, $context);
+            $definitions->classService(RouterInterface::class, HttpParityRouter::class);
         }
 
         return $definitions->build();
@@ -2522,9 +2605,10 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         ContainerDefinitionSet $set,
         array $config,
         ?RuntimePathContext $paths = null,
+        ?ModulePlan $plan = null,
     ): array {
         $paths ??= new RuntimePathContext('/test', '/test/var/cache');
-        $plan = self::plan();
+        $plan ??= self::plan();
         $diagnostics = new RuntimeDiagnosticsInput('test', false);
 
         $builder = new ContainerBuilder($config);
@@ -2553,6 +2637,34 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
         return [$source, $compiled];
     }
 
+    private static function httpAppPlan(): ModulePlan
+    {
+        $foundation = ModuleId::fromString('core.foundation');
+        $kernel = ModuleId::fromString('core.kernel');
+        $redaction = ModuleId::fromString('platform.redaction');
+        $errors = ModuleId::fromString('platform.errors');
+        $http = ModuleId::fromString('platform.http');
+        $problemDetails = ModuleId::fromString('platform.problem-details');
+        $routing = ModuleId::fromString('platform.routing');
+        $httpApp = ModuleId::fromString('platform.http-app');
+        $order = [$foundation, $kernel, $redaction, $errors, $http, $problemDetails, $routing, $httpApp];
+
+        return new ModulePlan('web', $order, [], $order, [
+            new ModulePlanEntry($foundation, 'coretsia/core-foundation'),
+            new ModulePlanEntry($kernel, 'coretsia/core-kernel', [$foundation]),
+            new ModulePlanEntry($redaction, 'coretsia/platform-redaction', [$foundation]),
+            new ModulePlanEntry($errors, 'coretsia/platform-errors', [$foundation, $redaction]),
+            new ModulePlanEntry($http, 'coretsia/platform-http', [$foundation, $kernel, $redaction]),
+            new ModulePlanEntry($problemDetails, 'coretsia/platform-problem-details', [$foundation, $errors]),
+            new ModulePlanEntry($routing, 'coretsia/platform-routing', [$foundation, $kernel, $redaction]),
+            new ModulePlanEntry(
+                $httpApp,
+                'coretsia/platform-http-app',
+                [$foundation, $errors, $http, $problemDetails, $routing],
+            ),
+        ]);
+    }
+
     private static function plan(): ModulePlan
     {
         $redaction = ModuleId::fromString('platform.redaction');
@@ -2568,6 +2680,20 @@ final class HttpContainerSourceCompiledParityTest extends TestCase
                 new ModulePlanEntry($http, 'coretsia/platform-http', [$redaction]),
             ],
         );
+    }
+}
+
+/** Test-only format-neutral routing port for Pipeline construction parity. */
+final class HttpParityRouter implements RouterInterface
+{
+    public function match(string $method, string $path, ?string $host = null): ?RouteMatch
+    {
+        throw new \LogicException('http-parity-router-must-not-match');
+    }
+
+    public function allowedMethods(string $path, ?string $host = null): array
+    {
+        throw new \LogicException('http-parity-router-must-not-enumerate');
     }
 }
 

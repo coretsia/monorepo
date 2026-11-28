@@ -70,11 +70,25 @@ An `active` declaration identifies a materialized owner capability; it does not 
 
 ## Terminal precedence and owner claims (MUST)
 
-The terminal handler executes only when the canonical PSR-15 pipeline delegates to it. Middleware that returns a response without delegating MUST prevent terminal execution. Response decorators, the explicitly selected error boundary, and `HttpKernel` final-response completion retain their canonical positions and responsibilities.
+The terminal handler executes only when the canonical PSR-15 pipeline delegates to it. Middleware that returns a response without delegating MUST prevent terminal execution. Response decorators, the canonical error boundary when selected (mandatory with effective HttpApp participation), and `HttpKernel` final-response completion retain their canonical positions and responsibilities.
 
 An earlier middleware controlled by the declared owner MAY provide an explicitly authorized endpoint response. The terminal fallback MUST NOT replace that response or independently claim the owner's capability.
 
 Only the owner declared by the canonical registry MAY implement or claim its reserved endpoint, subject to the applicable owner access policy. Neither earlier middleware precedence nor a terminal fallback response authorizes a competing application route.
+
+### Reserved-path handoff through HttpApp (MUST)
+
+When `platform.http-app` is selected in the effective target module plan, reserved-path delegation MUST use the canonical matching and dispatch pair defined by [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md) and [HTTP Application Dispatch SSoT](./http-app-dispatch.md).
+
+- `RouterMiddleware` (`http.middleware.app`, priority `100`, metadata `[]`) MUST invoke the effective `RouterInterface::match()` exactly once when entered. On a null match it MUST consult `ReservedPathMatcher::match()` using the original encoded URI path. A matching declaration of any status (`active`, `reserved`, or `dev_only`) MUST produce the explicit reserved handoff, independently of the request method or endpoint availability.
+- The matching middleware MUST attach `RouteDispatchState::reserved($request)` under `RouteDispatchState::ATTRIBUTE` (`coretsia.http_app.route_dispatch`) and delegate exactly once. A null `RouteDispatchState::match()` represents this explicit reserved handoff, not a generic application miss. A pre-existing handoff is invalid; the handoff is not an authorization decision.
+- Ordinary effective global middleware, including remaining app, route_pre, and route middleware, retains its participation and short-circuit behavior. Global response decorators retain their canonical entry and unwind topology. The guarded continuation policy MUST preserve the exact handoff identity and routing inputs after introduction.
+- `ActionDispatchMiddleware` (`http.middleware.route`, priority `-1000`, metadata `[]`) MUST execute as the final effective route contribution after ordinary tagged and manual entries. It MUST validate the handoff and routing inputs and, for a reserved handoff, delegate exactly once to the existing HTTP-owned `FallbackRouterHandler`.
+- Reserved handoffs MUST NOT enter allowed-method enumeration, route-specific middleware selection or resolution, action service resolution, action invocation, response mapping, or action observability. Missing, malformed, or inconsistent handoffs MUST NOT trigger implicit fallback or rematching.
+
+The terminal dispatcher retains its own method eligibility, declaration matching, endpoint availability, access policy, response construction, and decision observability. The reserved handoff MUST NOT bypass those checks or authorize another owner to claim the endpoint.
+
+Without HttpApp, the existing HTTP pipeline continues to delegate to the same terminal handler without a routing handoff.
 
 ## Method and path eligibility (MUST)
 
@@ -336,6 +350,10 @@ An unsupported method, valid unmatched path, invalid matcher input, matched decl
 
 The unmatched response MUST NOT receive endpoint-specific headers from `FallbackResponses`, including `Content-Type`, `Cache-Control`, or `Allow`. Terminal dispatch MUST NOT implement implicit HEAD aliases, automatic OPTIONS handling, HTTP `405` responses, or a separate error representation for unmatched requests. Canonical response finalization remains applicable.
 
+With HttpApp enabled, a reserved path with an unsupported method MUST follow the same global middleware and reserved-handoff delegation policy. If it reaches terminal dispatch, the unsupported method MUST return a non-matching result and the existing empty-body `404`, not an application `405` or an application Problem Details `404`.
+
+Ordinary non-reserved application misses are classified by HttpApp before terminal dispatch according to [HTTP Application Dispatch SSoT](./http-app-dispatch.md). The terminal invalid-matcher-input rule above applies only when terminal dispatch is reached; canonical invalid-path rejection at the HttpApp matching boundary produces its application not-found exception. No terminal behavior or endpoint eligibility is changed by this separation.
+
 ## Deterministic response construction (MUST)
 
 `FallbackResponses` MUST construct responses and streams through the injected PSR-17 factories. It MUST delegate JSON maps to the canonical Foundation `StableJsonEncoder::encodeStableMap()` with byte-order map sorting, list-order preservation, compact encoding, and exactly one final LF. It MUST NOT introduce another serializer or unsupported JSON payload values.
@@ -445,6 +463,8 @@ No terminal service may implement `ResetInterface`, register `kernel.reset` or `
 
 Integration tests MUST verify exact response bytes, content types, cache policy, canonical matching, unsupported methods, and precedence through the actual HTTP runtime in both source and compiled container modes.
 
+Verification with effective HttpApp participation MUST cover reserved-path handoff through both canonical roles, preserved ordinary global middleware participation and short-circuits, guarded handoff and routing-input preservation, absence of route-specific selection and action execution or observations, and unchanged terminal responses and unsupported-method fallthrough. Verification without HttpApp MUST preserve the ordinary terminal path without a handoff.
+
 Verification MUST cover deterministic injected-clock behavior, owner-independent reserved fallback responses, exact maintenance bypass, canonical error mapping and reporting independently of public error rendering, original Throwable propagation, immutable response mutation validation, and isolated metric failures.
 
 Endpoint decision tests MUST preserve the canonical request-completion evidence, bounded labels, and one UnitOfWork per request without additional reset or lifecycle registrations.
@@ -466,6 +486,7 @@ Debug verification MUST cover the frozen runtime environment, explicit module se
 - [Reserved Path Matching SSoT](./reserved-path-matching.md)
 - [Routing and HttpApp Contracts SSoT](./routing-and-http-app-contracts.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [HTTP Application Dispatch SSoT](./http-app-dispatch.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Metrics Policy SSoT](./metrics-policy.md)

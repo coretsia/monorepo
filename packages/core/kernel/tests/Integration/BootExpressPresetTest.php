@@ -58,6 +58,7 @@ final class BootExpressPresetTest extends TestCase
                     'platform.cli',
                     'platform.errors',
                     'platform.http',
+                    'platform.http-app',
                     'platform.logging',
                     'platform.problem-details',
                     'platform.redaction',
@@ -79,6 +80,7 @@ final class BootExpressPresetTest extends TestCase
                     'platform.logging',
                     'platform.problem-details',
                     'platform.routing',
+                    'platform.http-app',
                 ],
                 \array_map(
                     static fn (ModuleId $id): string => $id->value(),

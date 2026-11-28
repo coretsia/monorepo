@@ -374,6 +374,7 @@ final class ProblemDetailsOutermostPipelineIntegrationTest extends TestCase
             new ArrayConfigRepository(['http' => $http], []),
             new HttpMiddlewareStackBuilder($tags),
             $terminal,
+            new ModulePlan('web', [], [], [], []),
         );
     }
 

@@ -542,6 +542,7 @@ final class HttpServiceProvider implements ServiceProviderInterface, ContainerDe
                     self::ref(ConfigRepositoryInterface::class),
                     self::ref(HttpMiddlewareStackBuilder::class),
                     self::ref(RequestHandlerInterface::class),
+                    self::ref(ModulePlan::class),
                 ],
             )
             ->classService(

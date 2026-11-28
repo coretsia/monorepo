@@ -24,8 +24,6 @@ owner: core/foundation
 
 This document is the Single Source of Truth for Coretsia DI tag discovery consumption rules, canonical discovery ordering, tag registration dedupe behavior, and consumer obligations.
 
-This document is introduced by epic `1.200.0`.
-
 It applies to every runtime consumer that obtains ordered service discovery lists from:
 
 ```text
@@ -50,7 +48,9 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are normative.
 
 Runtime packages need one deterministic discovery protocol for tagged services.
 
-The protocol must prevent every consumer from inventing its own ordering, sorting, dedupe, or middleware-list composition behavior.
+The protocol MUST prevent consumers from inventing competing discovery ordering, sorting, deduplication, or tagged-service registration mechanisms.
+
+Consumer-owned execution composition MAY apply its explicitly documented execution-role and participation policies without redefining Foundation's canonical discovery output.
 
 This document defines:
 
@@ -69,6 +69,7 @@ This document depends on the following canonical SSoTs:
 docs/ssot/tags.md
 docs/ssot/http-middleware-catalog.md
 docs/ssot/runtime-container-definitions.md
+docs/ssot/http-middleware-wiring.md
 ```
 
 The tag registry SSoT remains the canonical owner of reserved DI tag names, semantic owner rows, reserved prefixes, and tag naming rules.
@@ -80,6 +81,10 @@ Coretsia\Foundation\Tag\ReservedTags
 ```
 
 The HTTP middleware catalog remains the canonical owner of HTTP middleware slot taxonomy, slot contents, baseline middleware placement, and HTTP-specific ownership boundaries.
+
+The HTTP middleware wiring SSoT owns effective HTTP slot composition, conditional participation, canonical outermost error-boundary placement, final application action dispatch placement, and PSR-15 execution.
+
+These execution policies consume Foundation's canonical discovery output without changing its ordering or deduplication algorithm.
 
 The runtime container definitions SSoT is the canonical owner of the Foundation declarative provider SPI, canonical operation shapes, operation-order preservation, typed value references, parameter later-binding behavior, immutable definition-set semantics, and one-complete-set source application.
 
@@ -109,6 +114,16 @@ This document owns only:
 - deterministic ordering rule;
 - dedupe rule;
 - consumer obligations.
+
+Middleware contribution registration and middleware execution are separate ownership boundaries.
+
+Foundation owns canonical declarative service registration, reserved tag identifiers, tagged-service discovery, deterministic discovery ordering, and effective container service resolution.
+
+HTTP-specific slot composition, middleware metadata admission, feature-toggle evaluation, canonical execution-role placement, PSR-15 traversal, and guarded continuation enforcement remain owned by `platform/http`.
+
+Foundation MUST NOT interpret HTTP middleware execution policy or introduce PSR-15 execution dependencies solely to support middleware contribution registration.
+
+Middleware-producing packages MUST consume the existing Foundation registration and discovery APIs without requiring `platform/http` solely for contribution registration.
 
 ## Non-goals
 
@@ -257,13 +272,29 @@ Consumers MUST NOT:
 - use reflection to discover additional services for the same tag;
 - treat diagnostics output as a runtime discovery source.
 
-If a consumer needs a different order, that consumer MUST use a distinct owner-approved tag or wait for the owning epic to define an explicit owner-approved planning layer.
+If a consumer needs a distinct discovery order, it MUST use an owner-approved tag or an explicitly documented owner-specific execution planning policy.
+
+An execution planning policy MUST NOT replace, mutate, or reinterpret Foundation's canonical discovery ordering and first-registration-wins deduplication.
+
+The HTTP composition roles defined by `docs/ssot/http-middleware-wiring.md` are execution-placement rules applied after canonical discovery, not alternative discovery algorithms.
 
 ## Provider registration rule
 
 Imperative `ServiceProviderInterface` providers MAY register tagged services through `ContainerBuilder`.
 
 Declarative `ContainerDefinitionProviderInterface` providers MAY append tag operations through `ContainerDefinitionBuilder`.
+
+Middleware-producing runtime packages MUST contribute their middleware service definitions and tags through the canonical Foundation declarative DI operations.
+
+Coretsia-reserved middleware tag identifiers MUST be consumed exclusively through `ReservedTags`.
+
+`ContainerDefinitionBuilder`, `ReservedTags`, `TagRegistry`, and `DeterministicOrder` remain the canonical registration and discovery mechanisms for middleware contributions.
+
+The effective canonical Container retains ownership of middleware service resolution, including explicit bindings, aliases, permitted autowiring, and shared/non-shared lifecycle semantics.
+
+Middleware registration does not require or authorize consumption of HTTP-internal stack builders, factories, middleware execution services, or a concrete HTTP runtime.
+
+No independent middleware registry, middleware-specific registration SPI, alternate tag discovery mechanism, or Foundation-owned PSR-15 execution engine is permitted.
 
 Canonical declarative operation shapes, definition-set merge behavior, and the one-complete-set application rule are owned by:
 
@@ -420,7 +451,24 @@ HTTP middleware stack composition MUST consume each slot through:
 TagRegistry->all(<slotTag>)
 ```
 
-HTTP middleware stack consumers MUST NOT re-sort or re-dedupe the returned slot lists.
+HTTP middleware stack consumers MUST NOT re-sort or re-dedupe the canonical tagged discovery lists.
+
+The HTTP-owned composition boundary applies its documented metadata admission, feature-toggle evaluation, manual append-list policy, effective within-slot deduplication, and cross-slot participation validation to the discovered contributions.
+
+These operations MUST NOT modify the underlying `TagRegistry` discovery output or introduce another discovery algorithm.
+
+The canonical outermost Problem Details role and final HttpApp action dispatch role follow the execution-placement policy owned by `docs/ssot/http-middleware-wiring.md`.
+
+In particular:
+
+- the selected canonical Problem Details contribution is placed outside all response decorators and ordinary request-phase middleware;
+- the canonical `RouterMiddleware` contribution remains in ordinary effective app-slot order;
+- the canonical `ActionDispatchMiddleware` contribution is placed after all ordinary effective tagged and manually appended route middleware;
+- ordinary tagged contributions retain their canonical relative discovery order.
+
+Canonical role placement MUST NOT change the Foundation ordering rule `priority DESC, id ASC` or the first-registration-wins tag deduplication rule.
+
+The reusable public HTTP Pipeline consumes the admitted ordered middleware sequence. Foundation owns registration and discovery, not PSR-15 execution.
 
 This document does not define which middleware classes belong in each slot.
 
@@ -442,7 +490,7 @@ The canonical ordering rule remains:
 priority DESC, id ASC
 ```
 
-Package owners SHOULD leave numeric gaps between baseline priorities so later owner epics can insert package-owned services without changing existing priority values.
+Package owners SHOULD leave numeric gaps between baseline priorities so additional package-owned services can be inserted without changing existing priority values.
 
 HTTP middleware priority bands and concrete placement guidance MUST be read from:
 
@@ -452,7 +500,11 @@ docs/ssot/http-middleware-catalog.md
 
 This document does not own HTTP middleware class priorities.
 
-For non-HTTP tags, the tag owner MAY define tag-specific priority bands in the owner package SSoT or owner epic.
+Discovery priority MUST NOT be interpreted as an override of HTTP-owned canonical execution-role placement.
+
+The HTTP middleware wiring SSoT owns outermost error-boundary placement and final application action dispatch placement independently of ordinary numerical priority ordering.
+
+For non-HTTP tags, the tag owner MAY define tag-specific priority bands in its authoritative SSoT.
 
 If no tag-specific priority bands are defined, consumers MUST still use the canonical ordering rule.
 
@@ -484,7 +536,11 @@ TagRegistry->all($effectiveResetTag)
 
 In base mode, reset execution MUST use the exact order returned by `TagRegistry->all($effectiveResetTag)` and MUST NOT apply additional sorting.
 
-Enhanced reset planning from epic `1.250.0` MAY define a reset-specific planned order, but when enhanced mode is disabled, reset execution MUST remain exact base mode.
+Enhanced reset planning MUST follow the reset-specific planned ordering policy defined by `docs/ssot/reset-tags.md`.
+
+When enhanced reset planning is disabled, reset execution MUST remain in exact base mode using the canonical discovery order.
+
+Middleware participation and route-specific middleware selection MUST NOT alter canonical reset discovery or reset ordering.
 
 This document does not define reset exception taxonomy or reset plan metadata.
 
@@ -556,15 +612,20 @@ Documentation examples may show raw tag strings for readability.
 Runtime package source MUST use the corresponding `ReservedTags::*` constant for Coretsia-reserved DI tags.
 
 ```php
-$middleware = $tagRegistry->all('http.middleware.app_pre');
+$taggedMiddleware = $tagRegistry->all(ReservedTags::HTTP_MIDDLEWARE_APP_PRE);
 
-foreach ($middleware as $taggedService) {
-    $service = $container->get($taggedService->id());
-    // Execute according to the owning HTTP pipeline semantics.
+$serviceIds = [];
+
+foreach ($taggedMiddleware as $taggedService) {
+    $serviceIds[] = $taggedService->id();
 }
 ```
 
 The consumer preserves the exact `TagRegistry->all(...)` order.
+
+This example demonstrates discovery consumption only. It does not construct an executable middleware chain.
+
+The HTTP-owned composition boundary applies its metadata admission, effective participation, and execution-role policies before resolving middleware through the canonical Container and executing the resulting sequence through the public HTTP Pipeline.
 
 ### Discovering resettable services in base mode
 
@@ -661,7 +722,11 @@ packages/core/foundation/tests/Integration/ResetOrchestratorRejectsTaggedNonRese
 packages/core/foundation/tests/Integration/ResetOrchestratorUsesConfiguredResetTagTest.php
 ```
 
-HTTP middleware stack tests are owned by the HTTP implementation package epics.
+HTTP middleware composition and execution tests are owned by `platform/http`.
+
+Verification MUST demonstrate that canonical outermost error-boundary placement and final application action dispatch placement preserve Foundation's discovery ordering and deduplication semantics.
+
+Owner-package middleware registration tests MUST verify the existing Foundation declarative service and tag contribution contracts without requiring an independent middleware registry or execution implementation.
 
 ## Runtime acceptance scenario
 
@@ -676,12 +741,23 @@ When a runtime consumer needs services registered under a DI tag:
 5. the consumer resolves services by PSR-11 id only when instances are needed;
 6. the consumer does not re-sort, re-dedupe, or reconstruct the list from another source.
 
+For HTTP middleware, canonical discovery remains the input to the separate HTTP-owned composition boundary.
+
+That boundary applies the existing effective participation and execution-role policies without changing Foundation's canonical discovery lists.
+
+The canonical Container resolves the admitted middleware services, and the HTTP-owned Pipeline executes the effective sequence.
+
+Middleware-producing packages remain responsible for their own implementations and declarative contributions.
+
 ## Cross-references
 
 - [SSoT Index](./INDEX.md)
 - [Tag Registry](./tags.md) — canonical tag names, reserved prefixes, ownership, and registry rows.
 - [Runtime Container Definitions SSoT](./runtime-container-definitions.md)
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
+- [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [Reset Tags SSoT](./reset-tags.md)
+- [Compile-time package dependencies](../architecture/DEPENDENCIES.md)
 - [Config Roots Registry](./config-roots.md)
 - [UoW and Reset Contracts SSoT](./uow-and-reset-contracts.md)
 - [ADR-0030: Canonical Runtime Container Definitions](../adr/ADR-0030-canonical-runtime-container-definitions.md)

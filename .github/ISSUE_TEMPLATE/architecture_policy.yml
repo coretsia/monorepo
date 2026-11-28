@@ -19,24 +19,40 @@ body:
       value: |
         Use this form for Coretsia architecture and policy issues.
 
-        This includes SSoT drift, gate policy, deterministic output, package boundaries, roadmap invariants, public API boundaries, config roots, tags, artifacts, and CI rails.
+        This includes SSoT drift, architectural ownership, dependency boundaries, public contracts, module composition, runtime lifecycles, configuration, tags, artifacts, determinism, observability, and tooling enforcement.
+
+        Do not include secrets or sensitive diagnostic data. Report security vulnerabilities through the repository security policy, not public issues.
+
+  - type: checkboxes
+    id: existing-work
+    attributes:
+      label: Existing work
+      options:
+        - label: I have searched relevant issues, pull requests, ADRs, and SSoT docs.
+          required: true
 
   - type: dropdown
     id: policy-area
     attributes:
       label: Policy area
       options:
-        - SSoT / registry
-        - Roadmap / epic
-        - Gate / CI rail
+        - SSoT / ADR / registry
+        - Roadmap / architecture direction
+        - Package ownership / dependency boundaries
+        - Runtime / tooling boundaries
+        - Public API / contracts / SPI
+        - Module composition / dependency planning
+        - Declarative DI / container policy
+        - Runtime lifecycle / UnitOfWork / reset
+        - Configuration / environment
+        - Tags / discovery / ordering
+        - Artifacts / schema policy
         - Determinism / rerun-no-diff
-        - Package boundary / deptrac
-        - Public API
-        - Config roots
-        - Tags
-        - Artifacts
-        - Observability
+        - Observability / error handling
+        - Security / redaction / disclosure
         - DTO policy
+        - Release-line / package publishing
+        - Gates / tooling / CI
         - Other / unsure
     validations:
       required: true
@@ -57,10 +73,12 @@ body:
     id: proposed-policy
     attributes:
       label: Proposed policy or correction
-      description: Describe the proposed invariant or correction.
+      description: Describe the proposed invariant, its canonical owner, and how it should be enforced.
       placeholder: |
         Proposed rule:
         Reason:
+        Canonical owner:
+        Allowed and forbidden behavior:
         Enforcement:
     validations:
       required: true
@@ -83,12 +101,14 @@ body:
     id: verification
     attributes:
       label: Verification strategy
-      description: How should this policy be verified?
+      description: Describe how the invariant should be verified and how violations should be detected.
       placeholder: |
-        - Gate:
-        - Test:
-        - CI rail:
-        - Rerun-no-diff evidence:
+        - Normative documentation:
+        - Existing enforcement mechanism:
+        - Gate or architecture rule:
+        - Positive and negative test cases:
+        - CI verification:
+        - Rerun-no-diff verification, if applicable:
     validations:
       required: true
 
@@ -96,12 +116,14 @@ body:
     id: risk
     attributes:
       label: Risk and compatibility
-      description: Describe compatibility, migration, false positive risk, and false negative risk.
+      description: Describe architectural risks, compatibility implications, and potential enforcement gaps. Include migration needs only when required by the applicable release policy.
       placeholder: |
-        Compatibility:
-        Migration:
+        Architectural risks:
+        Compatibility impact:
+        Migration requirements, if applicable:
         False positives:
         False negatives:
+        Potential enforcement gaps:
     validations:
       required: true
 
@@ -110,11 +132,13 @@ body:
     attributes:
       label: Policy checklist
       options:
-        - label: I checked for overlap with existing deptrac, gates, SSoT, and roadmap policy.
+        - label: I checked for overlap with existing architectural rules, gates, SSoT docs, and canonical mechanisms.
           required: true
-        - label: I considered deterministic diagnostics and secret-safe output.
+        - label: I considered package ownership and dependency boundaries.
           required: true
-        - label: I included concrete verification criteria.
+        - label: I considered deterministic behavior, safe diagnostics, and failure semantics.
+          required: true
+        - label: I included concrete verification criteria and considered possible enforcement gaps.
           required: true
 
   - type: checkboxes

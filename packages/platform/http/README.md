@@ -16,7 +16,7 @@
 
 `platform/http` is the Kernel-integrated PSR-7/15 HTTP request runtime for Coretsia Framework. It provides a deterministic PSR-15 middleware pipeline, an explicit PSR-17 response/stream factory selection contract, canonical terminal system-endpoint dispatch with safe unmatched responses, HTTP-owned request policies, and final-response completion through the existing Kernel UnitOfWork and Foundation ports.
 
-Scope: explicit target-local HTTP module participation, factory readiness, and conditional Routing artifact readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and final-request observability, consumption of Foundation-owned system-route declarations and concrete reserved-path matching, deterministic terminal system-endpoint responses, and guarded development-only diagnostics.
+Scope: explicit target-local HTTP module participation, factory readiness, and conditional Routing artifact readiness, declarative HTTP DI bindings, nine reserved middleware slots, tagged discovery and manual middleware append lists, public PSR-15 Pipeline composition, canonical optional application matching and final dispatch roles, guarded continuation and routing-input protection, conditional request safety, optional HTTP request identity preparation, PSR-15 response decoration, request-local inbound W3C trace context, HTTP error descriptors, independently enabled correlation, request-id, and security-header response finalization, application-root-local maintenance mode and maintenance CLI commands, optional policy-based HTTPS redirects, bounded maintenance-decision, redirect-decision, system-endpoint-decision, debug-decision, and final-request observability, consumption of Foundation-owned system-route declarations and concrete reserved-path matching, deterministic terminal system-endpoint responses, and guarded development-only diagnostics.
 
 Out of scope: SAPI request creation and response emission, a packaged front controller, general application routing, application route admission and authorization, application/distribution Composer installation and DI provider registration, optional backend implementations, exception normalization and HTTP error rendering, Kernel driver-matrix policy, additional reset orchestration, and future HTTP features.
 
@@ -38,7 +38,7 @@ Monorepo versioning is repo-wide only via git tags `vMAJOR.MINOR.PATCH`.
 
 Per-package independent versions MUST NOT be used.
 
-Installing the Composer package makes its classes and metadata available; it does not select the `platform.http` module or activate HTTP handling. The consuming target must explicitly select `platform.http` through the existing Kernel module-selection process. The module declares `core.foundation`, `core.kernel`, and `platform.redaction` as required runtime modules. Selection of optional Logging, Tracing, Metrics, or Problem Details modules is independent. Debug endpoint eligibility additionally requires explicitly selected `platform.problem-details` in the runtime `ModulePlan`.
+Installing the Composer package makes its classes and metadata available; it does not select the `platform.http` module or activate HTTP handling. The consuming target must explicitly select `platform.http` through the existing Kernel module-selection process. The module declares `core.foundation`, `core.kernel`, and `platform.redaction` as required runtime modules. Selection of optional Logging, Tracing, and Metrics modules is independent. Problem Details participation remains optional for HTTP targets without HttpApp and becomes mandatory when `platform.http-app` is enabled in the effective target module plan. Debug endpoint eligibility additionally requires explicitly selected `platform.problem-details` in the runtime `ModulePlan`.
 
 ## Dependency policy
 
@@ -66,6 +66,14 @@ Production Composer requirements include PHP `^8.4`, the canonical release-line 
 
 `platform/http` MUST NOT import or consume repository machinery under `tools/**`. It consumes the existing Kernel runtime-driver resolver without owning the driver matrix and MUST NOT import concrete `platform/errors`, `platform/problem-details`, `platform/redaction`, `platform/logging`, `platform/tracing`, or `platform/metrics` implementation classes. Optional integrations use existing contracts and tags, not direct source dependencies or required runtime modules.
 
+HTTP does not require or import concrete HttpApp implementations. Canonical application matching and dispatch roles participate through effective module composition and exact role identities, without a reverse PHP source, Composer, or module dependency on `platform/http-app`.
+
+Middleware-producing packages may implement PSR-15 middleware using their explicitly required PSR interfaces and owner-local dependencies. They register services and contributions through Foundation declarative DI and ReservedTags, without requiring `platform/http` solely for implementation, registration, tagged discovery, or ordering.
+
+Foundation retains canonical registration, discovery, deterministic ordering, container resolution, and service lifecycle ownership. HTTP owns effective slot composition, metadata admission, conditional participation, and PSR-15 execution.
+
+Consumers requiring middleware execution composition may use the explicitly public `Coretsia\Platform\Http\Middleware\Pipeline` API under the canonical dependency policy. HTTP-internal stack builders and runtime factories are not contribution registration APIs.
+
 ## Runtime responsibilities
 
 `platform/http` provides:
@@ -73,7 +81,8 @@ Production Composer requirements include PHP `^8.4`, the canonical release-line 
 - `HttpKernelInterface` as the PSR-15 HTTP request-handler entrypoint, implemented by `HttpKernel`;
 - `HttpRuntimeEntrypointGuard` for selected-module, Kernel-driver, effective PSR-17 factory, and conditional Routing artifact readiness;
 - `HttpServiceProvider` for canonical declarative definitions and tags, and `HttpServiceFactory` for canonical-container pipeline assembly;
-- `HttpMiddlewareStackBuilder` and `Pipeline` for one deterministic middleware chain with invocation-local traversal;
+- `HttpMiddlewareStackBuilder` for canonical global middleware composition, including validated application matching and final dispatch roles;
+- the public `Pipeline` composition and service-resolution API for reusable global and invocation-local route-specific middleware execution, including guarded continuation and routing-input protection;
 - `FallbackRouterHandler` as the canonical terminal `RequestHandlerInterface` for system-endpoint dispatch and unmatched response delegation;
 - `FallbackRouter` for explicit canonical system-endpoint dispatch and endpoint-decision metrics;
 - `FallbackResponses` for deterministic endpoint and unmatched response construction through the selected PSR-17 factories;
@@ -152,26 +161,41 @@ http.middleware.route_post
 The logical request-phase order is `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, followed by the terminal handler. `_post` slots are PSR-15 response decorators, not final-response observers. The actual outer-to-inner middleware chain is:
 
 ```text
-[selected priority-1000 Problem Details error boundary]
+[selected priority-1000 Problem Details error boundary, mandatory with HttpApp]
   -> system_post
   -> app_post
   -> route_post
   -> system_pre
   -> system
   -> app_pre
-  -> app
+  -> app (including RouterMiddleware when HttpApp is enabled)
   -> route_pre
-  -> route
+  -> ordinary route middleware
+  -> [ActionDispatchMiddleware when HttpApp is enabled]
   -> terminal RequestHandlerInterface
 ```
 
-Within each slot, `TagRegistry::all()` supplies tagged service ids ordered by priority descending and service id ascending (byte-order). Configured manual class-string ids from `http.middleware.<slot>` are appended after tagged entries in their original list order. The first occurrence of an effective id within a slot wins; effective cross-slot duplication is invalid. The nine manual append lists default to empty, and they do not replace tagged discovery.
+The final application dispatch contribution remains part of the existing route slot. No additional middleware slot or global terminal replacement is introduced.
 
-Manual entries are exact canonical DI service ids. They may resolve through explicit definitions or Foundation-permitted concrete-class autowiring; an explicit registration is not required just to list an id. `HttpServiceFactory` resolves every effective middleware id through the final `Psr\Container\ContainerInterface` and requires a `Psr\Http\Server\MiddlewareInterface` instance. Missing/unresolvable services or incompatible instances fail deterministically through canonical resolution and HTTP instance validation. HTTP does not independently inspect service definitions, infer autowiring eligibility, instantiate classes by reflection, or create another resolution policy.
+Global route_pre and route middleware retain their ordinary participation semantics. Global route_post decorators enter before application matching and are not selected by a matched route. Route-specific response decorators participate through the invocation-local sequence selected by HttpApp.
+
+Within each slot, `TagRegistry::all()` supplies tagged service ids ordered by priority descending and service id ascending (byte-order). Configured ordinary manual class-string ids from `http.middleware.<slot>` are appended after ordinary tagged entries in their original list order. The first occurrence of an effective id within a slot wins; effective cross-slot duplication is invalid. The nine manual append lists default to empty, and they do not replace tagged discovery.
+
+The canonical outermost error-boundary role and final action dispatch role follow explicit HTTP-owned execution-placement rules. Their placement does not change Foundation discovery ordering or the relative order of ordinary tagged and manual entries.
+
+Manual entries are exact canonical DI service ids. They may resolve through explicit definitions or Foundation-permitted concrete-class autowiring; an explicit registration is not required just to list an id. `HttpServiceFactory` resolves the effective middleware sequence through the public `Pipeline::resolveServices()` API using the final `Psr\Container\ContainerInterface`. Missing/unresolvable services or incompatible instances fail deterministically through canonical resolution and HTTP instance validation. HTTP does not independently inspect service definitions, infer autowiring eligibility, instantiate classes by reflection, or create another resolution policy.
 
 HTTP tag metadata is exactly `[]` or a single-key map `['toggle' => '<validated HTTP boolean path>']`. The builder validates permitted metadata, effective toggles, service ids, manual list shapes, and cross-slot participation. Conditional participation excludes disabled tagged middleware at stack assembly; it does not remove declarative registrations. There are no `http.middleware.auto.*` flags.
 
-An explicitly selected, compatible `platform.problem-details` module may contribute `HttpErrorHandlingMiddleware` to `system_pre` at reserved priority `1000` with metadata `[]`. The builder places it outermost, outside every post decorator; no other service may occupy or displace the reserved position. Its presence is governed by explicit module selection, not Composer installation alone. `platform/http` never constructs that external middleware or a replacement error renderer.
+The compatible, selected `platform.problem-details` module contributes the canonical `Coretsia\Platform\ProblemDetails\Http\Middleware\HttpErrorHandlingMiddleware` service to `system_pre` at reserved priority `1000` with metadata `[]`. The builder places it outermost, outside every post decorator; no other service may occupy or displace the reserved position.
+
+When `platform.http-app` is enabled in the effective ModulePlan, actual outermost participation of this canonical service id is mandatory. After middleware resolution, HttpServiceFactory validates the exact canonical error-boundary runtime class and rejects its participation under another service id without resolving the service again.
+
+Missing required outermost participation or incompatible resolved error-boundary identity fails with `http-middleware-app-error-boundary-invalid`.
+
+Without HttpApp, Problem Details participation remains optional. Canonical declaration validation and generic MiddlewareInterface admission remain applicable, while the HttpApp-specific resolved error-boundary identity check does not apply.
+
+Composer installation alone does not establish participation. `platform/http` never constructs a substitute external middleware or a replacement error renderer.
 
 `Pipeline` executes each entered PSR-15 middleware through the canonical handler contract with no shared mutable traversal cursor. When a request-phase middleware returns a response early, the outer post decorators already entered still decorate it, unwinding in `route_post`, `app_post`, `system_post` order. A post decorator may itself short-circuit, in which case only decorators already outside it execute on return. A downstream `Throwable` propagates unchanged through ordinary middleware; if the selected outer error boundary converts it to a response, that response does not pass through the decorators again. `HttpKernel` still finalizes it.
 
@@ -179,7 +203,197 @@ The canonical terminal `FallbackRouterHandler` delegates each request exactly on
 
 Terminal execution occurs only when the preceding middleware chain delegates to the terminal handler. Earlier middleware responses retain precedence over terminal dispatch. Returned responses remain subject to applicable post decorators and canonical `HttpKernel` finalization; original Throwables propagate through the existing error and lifecycle boundaries.
 
+With HttpApp enabled, explicit reserved-path handoffs reach this same terminal through the final application dispatch contribution. Unsupported system endpoint methods retain their ordinary terminal non-match and empty-body 404 behavior when terminal execution is reached.
+
+Without HttpApp, the ordinary global chain delegates to the terminal directly without an application routing handoff.
+
+Application matching and action dispatch do not transfer system endpoint ownership or terminal response construction to HttpApp.
+
 Terminal dispatch does not implement general application routing, application route admission or authorization, or route-template metadata handoff. The development-only diagnostic guard applies exclusively to the four explicitly implemented debug operations.
+
+## Canonical application matching and final dispatch
+
+When `platform.http-app` is enabled in the effective HTTP target, its owning provider contributes exactly the canonical application matching and action dispatch roles:
+
+```text
+Service:  Coretsia\Platform\HttpApp\Middleware\RouterMiddleware
+Tag:      http.middleware.app
+Priority: 100
+Metadata: []
+
+Service:  Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware
+Tag:      http.middleware.route
+Priority: -1000
+Metadata: []
+```
+
+The provider uses Foundation `ReservedTags::HTTP_MIDDLEWARE_APP` and `ReservedTags::HTTP_MIDDLEWARE_ROUTE`.
+
+HTTP validates the exact canonical ids, slots, priorities, empty metadata, and paired participation. Neither role may be introduced through a manual append list, another slot, toggle metadata, or an incompatible priority.
+
+`RouterMiddleware` participates in ordinary effective app-slot order. Successful matching attaches an immutable request-local routing handoff and delegates through the remaining global chain without resolving or invoking the action.
+
+`ActionDispatchMiddleware` is the final effective route contribution after every ordinary tagged and manually appended route middleware, including tagged entries whose priority is numerically lower than `-1000`.
+
+`HttpServiceFactory` uses `ModulePlan::hasEnabledModule('platform.http-app')` to require both canonical ids when enabled and neither when disabled. The already resolved instances must have their exact canonical runtime classes, and those classes must not participate under alternate service ids. Role validation does not repeat container resolution.
+
+A matched handoff causes HttpApp to admit the ordered route-specific middleware sequence and construct an invocation-local Pipeline with an application action terminal.
+
+A reserved handoff delegates to the existing HTTP-owned terminal without route-specific middleware selection, action service resolution, action invocation, or action observations.
+
+Ordinary middleware short-circuits remain valid. Successful matching does not skip downstream global middleware, and a matched application route does not fall through to the system endpoint terminal.
+
+The route metadata selection, explicit middleware service admission, routing handoff, argument resolution, invocation, and response mapping policies belong to [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md).
+
+## Public Pipeline composition API
+
+`Coretsia\Platform\Http\Middleware\Pipeline` is the explicitly public immutable PSR-15 composition API implementing `RequestHandlerInterface`.
+
+Its public construction, resolution, and execution surface is:
+
+```php
+/**
+ * @param list<MiddlewareInterface> $middleware
+ * @param list<non-empty-string> $protectedRequestAttributes
+ */
+public function __construct(
+    array $middleware,
+    RequestHandlerInterface $terminal,
+    bool $guardedContinuation,
+    array $protectedRequestAttributes,
+    bool $protectRoutingInputs,
+);
+
+/**
+ * @param list<non-empty-string> $serviceIds
+ * @return list<MiddlewareInterface>
+ */
+public static function resolveServices(
+    ContainerInterface $container,
+    array $serviceIds,
+): array;
+
+public function handle(ServerRequestInterface $request): ResponseInterface;
+```
+
+The interface names refer to the canonical PSR container, HTTP message, and HTTP server contracts. All five constructor arguments are mandatory and have no default values.
+
+The constructor accepts an actual ordered list of MiddlewareInterface instances and an explicitly supplied terminal handler. An empty middleware list is valid. It does not discover services, interpret middleware tags, evaluate configuration, or construct middleware instances.
+
+### Ordered service resolution
+
+`Pipeline::resolveServices()` accepts an actual list of non-empty service-id strings.
+
+It validates the complete input list before resolving services, calls the supplied canonical ContainerInterface for each entry in its original order, and requires every returned value to implement MiddlewareInterface.
+
+The returned list preserves the supplied order and multiplicity. The resolver performs no sorting, deduplication, tagged discovery, metadata interpretation, independent autowiring, or consumer-specific admission.
+
+Invalid service-id lists fail with `InvalidArgumentException('http-middleware-service-id-invalid')`. Incompatible resolved values fail with `InvalidArgumentException('http-middleware-instance-invalid')`. Canonical container resolution failures retain their existing semantics.
+
+HttpServiceFactory and the HttpApp route-specific dispatcher reuse this same implementation. HttpApp-specific explicit service registration and forbidden-role admission remain separate consumer-owned policies.
+
+### Explicit continuation policies
+
+The constructor accepts these continuation-policy arguments:
+
+- `guardedContinuation`: selects ordinary or guarded continuation execution.
+- `protectedRequestAttributes`: an actual list of unique non-empty attribute-name strings.
+- `protectRoutingInputs`: explicitly enables preservation of the request method, encoded URI path, and URI host when a protected request attribute is present.
+
+Unguarded execution requires an empty protected-attribute list and disabled routing-input protection. Enabled routing-input protection requires a non-empty protected-attribute list.
+
+Invalid middleware lists fail with `InvalidArgumentException('http-pipeline-middleware-invalid')`. Invalid continuation-policy combinations or protected-attribute lists fail with `InvalidArgumentException('http-pipeline-continuation-policy-invalid')`.
+
+The global Pipeline policy is selected through effective HttpApp participation.
+
+Without HttpApp:
+
+```php
+$pipeline = new Pipeline(
+    $middleware,
+    $terminal,
+    false,
+    [],
+    false,
+);
+```
+
+With HttpApp:
+
+```php
+$pipeline = new Pipeline(
+    $middleware,
+    $terminal,
+    true,
+    ['coretsia.http_app.route_dispatch'],
+    true,
+);
+```
+
+These examples describe the construction policy applied by HttpServiceFactory. Applications using the canonical HTTP runtime do not replace its shared Pipeline binding.
+
+HttpApp constructs its admitted invocation-local route-specific sequence using the same Pipeline API, with guarded execution, `[RouteDispatchState::ATTRIBUTE]`, and routing-input protection enabled.
+
+### Guarded continuation execution
+
+Ordinary execution preserves PSR-15 traversal and delegation without imposing guarded single-entry or protected-input constraints.
+
+Guarded execution gives each entered middleware invocation its own downstream continuation. Middleware may short-circuit without delegating or enter that continuation at most once.
+
+Single entry is consumed before protected-value validation and downstream execution. Neither validation failure nor a downstream Throwable restores continuation eligibility.
+
+The continuation expires through `finally` when its owning middleware process invocation returns or throws. Expiration releases its downstream handler reference, captured protected attribute values, and captured routing-input values.
+
+Guarded continuations cannot be cloned, reused, or entered after expiration. Middleware must not retain them for later invocation.
+
+### Protected attributes and routing inputs
+
+At guarded middleware entry, the Pipeline captures configured protected request attributes that are present in the incoming request, including explicitly present null values.
+
+At delegation, each captured attribute must still be present and its associated value must be strictly identical. Replacing a protected object with an equivalent but distinct instance is invalid.
+
+A previously absent protected attribute may be introduced. For HttpApp, RouterMiddleware owns introduction of the immutable routing handoff under `coretsia.http_app.route_dispatch`.
+
+Routing-input protection is separate from generic protected-attribute enforcement. When `protectRoutingInputs` is enabled and at least one configured protected attribute is present at middleware entry, the continuation also captures:
+
+```text
+ServerRequestInterface::getMethod()
+ServerRequestInterface::getUri()->getPath()
+ServerRequestInterface::getUri()->getHost()
+```
+
+These values are captured and compared exactly, without decoding, trimming, normalization, case folding, or empty-host conversion.
+
+Once the routing handoff is introduced, every subsequent guarded global and route-specific delegation must preserve its exact identity and the protected routing inputs.
+
+Changed routing inputs are rejected before the next middleware or terminal is entered. Delegating modified values and attempting to restore them later is forbidden. Terminal validation alone does not replace continuation-boundary protection.
+
+Unrelated request attributes, parsed-body adaptations, and other legitimate non-routing request changes remain supported.
+
+The fixed guarded continuation failure reasons are:
+
+```text
+http-pipeline-continuation-expired
+http-pipeline-continuation-reused
+http-pipeline-protected-attribute-changed
+http-pipeline-protected-routing-input-changed
+```
+
+These failures use LogicException and prevent further downstream execution. They propagate through the canonical outer error boundary rather than becoming application routing misses or method-mismatch exceptions.
+
+The policy permits at most one framework-owned action terminal entry per canonical matched HTTP invocation. It does not provide application transaction rollback, cross-request idempotency, retry safety, or a sandbox against deliberately hostile application PHP code.
+
+### Composition and lifecycle boundaries
+
+The reusable global Pipeline retains only its immutable construction-time middleware sequence, terminal handler, and explicit continuation policy.
+
+Each handle invocation creates its own traversal state. Invocation-local route-specific Pipeline instances, captured action terminals, and continuation state are not registered as reusable container services or stored in generated artifacts.
+
+Both compositions reuse the same PSR-15 execution engine. Neither owns service discovery, routing policy, exception normalization, ContextStore mutation, response finalization, UnitOfWork hooks, or reset orchestration.
+
+Foundation retains canonical service construction and shared/non-shared lifecycle semantics. HTTP retains PSR-15 execution ownership. HttpApp retains route-specific selection and application action dispatch policy.
+
+See [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md) for the authoritative composition and continuation contract.
 
 ## System route declarations and reserved-path matching
 
@@ -531,7 +745,7 @@ Important config rules:
 - `http.request.max_body_bytes=1048576` by default; the validated byte budget must be from `1` to `16777216`.
 - `http.request.json.enabled=true` enables eligible JSON parsing; `http.request.json.max_depth=32` by default and must be from `1` to `512`.
 - Unknown configuration keys, invalid values, and reserved `@*` directives are rejected through the existing Phase B configuration rules. HTTP-owned policies enforce additional semantic header, host, and proxy constraints.
-- No `http.middleware.auto.*` flags, concrete implementation class names, route matching, transport adapters, or future-only HTTP feature defaults are introduced.
+- No `http.middleware.auto.*` flags, optional concrete implementation class defaults, application routing declarations, route-specific middleware selection, or transport adapter configuration belongs to the HTTP middleware composition policy.
 
 The eight implemented baseline `system_pre` registrations, in canonical priority order, are:
 
@@ -544,7 +758,11 @@ The eight implemented baseline `system_pre` registrations, in canonical priority
 - `RequestBodySizeLimitMiddleware` — `830`, unconditional metadata `[]`.
 - `JsonBodyParserMiddleware` — `800`, `['toggle' => 'http.request.json.enabled']`.
 
-`ConfigKernel` Phase B supplies the validated target-local `http` subtree to canonical declarative DI through `ContainerDefinitionContext`. Other cataloged HTTP-owned middleware entries are future-only reservations, not implementations or default registrations. Optional middleware owners control their own module selection and DI contributions.
+`ConfigKernel` Phase B supplies the validated target-local `http` subtree to canonical declarative DI through `ContainerDefinitionContext`.
+
+Unimplemented catalog reservations do not participate as executable middleware registrations. Implemented optional middleware owners contribute their own declarative service definitions and tags under their applicable module activation policies.
+
+The canonical HttpApp matching and final dispatch roles participate through effective module composition, not manual defaults or independent HTTP feature toggles.
 
 ## Maintenance middleware
 
@@ -869,6 +1087,12 @@ The normative configuration, trust, validation, lifecycle, and response-header r
 
 `HttpKernel::handle()` accepts one `Psr\Http\Message\ServerRequestInterface` and coordinates at most one PSR-15 pipeline execution per invocation. The pipeline executes exactly once when Kernel UnitOfWork begin and pre-pipeline request preparation succeed. It calls `KernelRuntimeInterface::beginUnitOfWork('http')` before the pipeline and attempts one matching `afterUnitOfWork()` with the exact handle after HTTP completion. The Kernel owns hook execution, context lifetime, and reset; HTTP never registers a second reset pipeline or implements UnitOfWork internals.
 
+The reusable global Pipeline and any admitted invocation-local route-specific Pipeline execute within the same canonical HttpKernel invocation and Kernel UnitOfWork.
+
+Matched application responses, reserved-path terminal responses, and global or route-specific middleware short-circuits return through the existing global chain and canonical response-finalization boundary.
+
+Invocation-local composition does not introduce another HttpKernel, independent HTTP completion observation, nested UnitOfWork, or reset lifecycle. Canonical reset discovery remains independent of the middleware selected or executed for an individual route.
+
 The fixed completion sequence after successful begin, when request preparation, pipeline execution, and response finalization succeed, is:
 
 ```text
@@ -1056,6 +1280,12 @@ The debug forbidden descriptor uses the fixed reason `http-debug-forbidden`, sev
 
 Other Throwables return `null` from this mapper. Descriptor codes and messages are fixed and safe; raw parser errors, rejected hosts, request bodies, and untrusted header values are not exported. The canonical Errors subsystem owns exception normalization and mapper resolution; an explicitly selected Problem Details integration owns safe HTTP error adaptation and rendering. Without that outer boundary, downstream Throwables propagate. HTTP does not construct an independent `ErrorHandlerInterface`, exception registry, emergency response renderer, or replacement normalization path.
 
+When HttpApp participates, its application routing exceptions are mapped through the HttpApp-owned canonical exception mapper and adapted by the mandatory outermost Problem Details boundary.
+
+Application 404/405 classification and validated Allow-header materialization remain owned by HttpApp and Problem Details respectively. The HTTP-owned terminal continues to return its ordinary empty-body 404 for non-matching system endpoint dispatch.
+
+Guarded continuation failures retain their fixed safe reasons and propagate through the same canonical error boundary. They do not introduce another exception mapper, normalization path, or HTTP renderer.
+
 ## Security / Redaction
 
 HTTP request safety uses the selected and validated request policies: immediate-peer trust for forwarded metadata, bounded and canonical host admission, bounded body-size verification (including actual stream bytes), and JSON decoding only for eligible content types within the configured byte and depth limits. `RequestContextMiddleware` alone writes validated request-derived `CLIENT_IP`, `SCHEME`, `HOST`, `PATH`, and `USER_AGENT` through its mandatory `ContextWriterInterface` dependency; those values are not automatically exportable to observability sinks. `HttpServiceProvider` wires the shared writer, the validated `http.context.enrich.enabled` flag, and the validated `http.proxy.enabled` flag in constructor order. The middleware does not read context, write unrelated keys, or consume reset or lifecycle operations.
@@ -1070,12 +1300,23 @@ Request, response, and exception data must not disclose raw URLs, query strings,
 
 A non-seekable inbound request body must arrive complete and unread from its owning transport adapter; already consumed bytes cannot be recovered by HTTP middleware. Accepted bounded body verification and JSON parsing preserve downstream body availability without an unbounded buffering layer, spooling subsystem, or shared request cache. HTTP-owned policies do not rely on superglobals or mutable process-global request state.
 
+Application middleware must preserve the canonical routing handoff and protected routing inputs throughout subsequent guarded delegations.
+
+Method or URI rewriting must occur before application matching and before every applicable admission decision that depends on the rewritten values. Rewriting must not bypass maintenance, trusted-host, HTTPS, authorization, or other request-safety policies.
+
+Protected response caches must not short-circuit with protected content before applicable authorization has admitted the request. Route-specific authorization does not protect an earlier global middleware short-circuit.
+
+The routing handoff is request-local state, not a ContextKey or diagnostic export permission. Neither middleware registration nor execution grants additional context access or disclosure rights.
+
+Guarded continuation execution protects the framework-owned downstream execution path; application middleware remains trusted PHP code rather than sandboxed code.
+
 ## Non-goals
 
 This package does not provide:
 
 - SAPI front controllers, request-from-globals adapters, response emitters, browser-serving instructions, or deployment transport selection;
-- general application route matching, routing artifacts, application route admission or authorization, application routing delegation contracts, or a route-template extraction/handoff contract;
+- concrete application route matching algorithms, routing artifacts, application route admission or authorization, route-specific middleware selection policy, action resolution and invocation, or application-owned response mapping;
+- an independent route-specific middleware engine, middleware registration SPI, or replacement application dispatch lifecycle;
 - automatic module activation, Composer installation, arbitrary PSR factory-class configuration, provider scanning, or factory fallbacks;
 - consumer-specific DI provider registration, application target setup, or alternate container compilation;
 - CORS, content negotiation, rate limiting, session, authentication, multipart upload, or debugging middleware;
@@ -1093,6 +1334,8 @@ This package does not provide:
 - [HTTP Middleware Wiring SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-wiring.md)
 - [HTTP Middleware Catalog SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-middleware-catalog.md)
 - [HTTP System Endpoints SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-system-endpoints.md)
+- [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md)
+- [Routing and HttpApp Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-and-http-app-contracts.md)
 - [System Route Table SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/system-route-table.md)
 - [Reserved Path Matching SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/reserved-path-matching.md)
 - [Routing Artifact SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-artifact.md)
@@ -1110,4 +1353,5 @@ This package does not provide:
 - [Artifact Generations SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifact-generations.md)
 - [Artifacts and Fingerprint Behavior SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/artifacts-and-fingerprint.md)
 - [ADR-0041: Platform HTTP runtime pipeline and wiring](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md)
+- [ADR-0043: Platform HTTP App router middleware and action invoker](https://github.com/coretsia/monorepo/blob/main/docs/adr/ADR-0043-platform-http-app-router-middleware-action-invoker.md)
 - [Compile-time package dependencies](https://github.com/coretsia/monorepo/blob/main/docs/architecture/DEPENDENCIES.md)

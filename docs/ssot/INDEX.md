@@ -84,6 +84,7 @@ This document is the single navigation entrypoint for all SSoT (Single Source of
 - [ContextStore lifecycle SSoT](./context-lifecycle.md) — owner: core/foundation — ssotVersion: 1 — scope: context,context-store,lifecycle,reset,runtime,uow
 - [Context Store SSoT](./context-store.md) — owner: core/foundation — ssotVersion: 1 — scope: context,context-bag,context-store,correlation-id,reset,runtime
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md) — owner: core/foundation — ssotVersion: 1 — scope: di,discovery,middleware,ordering,runtime,tags
+- [HTTP Application Dispatch SSoT](./http-app-dispatch.md) — owner: platform/http-app — ssotVersion: 1 — scope: actions,dispatch,http,http-app,middleware,routing
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md) — owner: platform/http — ssotVersion: 1 — scope: composition,http,middleware,ordering,pipeline,runtime
 - [HTTP System Endpoints SSoT](./http-system-endpoints.md) — owner: platform/http — ssotVersion: 1 — scope: endpoints,http,ownership,routing,runtime
 - [Json-like Runtime Values SSoT](./json-like-runtime-values.md) — owner: core/foundation — ssotVersion: 1 — scope: json-like,normalization,runtime,serialization,uow

@@ -104,6 +104,7 @@ packages/platform/session/**
 packages/platform/auth/**
 packages/platform/security/**
 packages/platform/routing/**
+packages/platform/http-app/**
 packages/core/foundation/**
 packages/core/kernel/**
 ```
@@ -122,6 +123,10 @@ docs/ssot/config-roots.md
 docs/ssot/observability.md
 docs/ssot/observability-and-errors.md
 docs/ssot/uow-and-reset-contracts.md
+docs/ssot/http-middleware-wiring.md
+docs/ssot/di-tags-and-middleware-ordering.md
+docs/ssot/runtime-container-definitions.md
+docs/ssot/http-app-dispatch.md
 docs/architecture/PACKAGING.md
 docs/architecture/DEPENDENCIES.md
 ```
@@ -141,6 +146,12 @@ The config roots registry remains the canonical owner of reserved config roots a
 The observability SSoT remains the canonical owner of span names, metric names, metric label allowlist, and redaction law.
 
 The UoW and reset contracts SSoT remains the canonical owner of reset and hook contracts policy.
+
+The HTTP middleware wiring SSoT owns concrete global slot composition, canonical execution-role placement, public Pipeline composition, and guarded continuation execution.
+
+The DI tags and middleware ordering SSoT and runtime container definitions SSoT own canonical Foundation registration and discovery semantics.
+
+The HTTP application dispatch SSoT owns concrete application matching integration, route-specific middleware admission, request-local routing handoff, and action dispatch policy.
 
 The packaging document remains the canonical owner of package identity, namespace, Composer naming, publishable-unit, and runtime package shape rules.
 
@@ -186,6 +197,22 @@ For `platform/http`, the baseline compile-time policy is:
 Optional middleware owners listed in this catalog MUST NOT become class-string defaults inside `platform/http` config.
 
 Implemented optional package middleware MUST be registered by its owning package according to that package's activation policy. Package installation or module selection alone MUST NOT activate a future-only middleware reservation.
+
+Middleware-producing packages are independent contributors to the canonical HTTP composition boundary.
+
+- Middleware implementations consume their explicitly required PSR interfaces, Contracts ports, and owner-local dependencies according to the canonical package dependency policy.
+- Middleware service definitions and tagged contributions MUST be registered through the existing Foundation declarative DI APIs.
+- Providers MUST use `ContainerDefinitionBuilder` and the canonical `ReservedTags` identifiers for Coretsia-reserved middleware contributions.
+- Referencing a canonical middleware slot, catalog priority, or reserved tag identifier does not introduce a PHP source dependency on `platform/http`.
+- Middleware-producing packages MUST NOT depend on `platform/http` solely for middleware contribution registration, tagged discovery, or deterministic ordering.
+- Middleware-producing packages MUST NOT consume HTTP-internal stack builders, runtime factories, or execution machinery merely to contribute middleware.
+- Direct consumption of an explicitly public HTTP runtime API is permitted only under the canonical dependency policy.
+- Service resolution remains owned by the effective canonical Container. PSR-15 execution remains owned by `platform/http`.
+- Actual HTTP runtime participation remains governed by the effective target module composition and applicable owner-local activation policy.
+
+These registration and execution boundaries MUST NOT change owner-local middleware implementation, configuration, observability, ContextKeys permissions, redaction, or reset responsibilities.
+
+Foundation MUST NOT introduce a middleware registry, middleware-specific registration SPI, or PSR-15 execution engine.
 
 ## Tag taxonomy
 
@@ -293,15 +320,33 @@ Compiled artifacts MUST NOT redefine:
 - default optional package participation;
 - forbidden non-canonical tag policy.
 
-Deterministic ordering and discovery-consumption rules are Foundation-owned and MUST remain compatible with this taxonomy.
+Deterministic discovery ordering and tag deduplication are Foundation-owned and MUST remain compatible with this taxonomy.
+
+HTTP-specific slot composition, metadata admission, feature-toggle evaluation, canonical execution-role placement, and PSR-15 execution are HTTP-owned.
+
+Canonical outermost error-boundary placement and final action dispatch placement MUST follow `docs/ssot/http-middleware-wiring.md` without changing Foundation's discovery ordering algorithm.
 
 ## HTTP-owned middleware execution and final-response completion
 
 The implemented `platform/http` baseline consists of eight `http.middleware.system_pre` middleware registrations: `TraceContextMiddleware`, `MaintenanceMiddleware`, `TrustedProxyMiddleware`, `RequestContextMiddleware`, `TrustedHostMiddleware`, `HttpsRedirectMiddleware`, `RequestBodySizeLimitMiddleware`, and `JsonBodyParserMiddleware`. All other `platform/http` middleware catalog entries are future-only reservations, not executable registrations or configuration defaults.
 
-The canonical PSR-15 chain places an explicitly selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler. The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
+The canonical PSR-15 chain places the selected priority-`1000` Problem Details error boundary outermost, followed by `system_post`, `app_post`, and `route_post` response decorators, then request-phase slots `system_pre`, `system`, `app_pre`, `app`, `route_pre`, `route`, and the terminal handler.
+
+When `platform.http-app` is selected in the effective target module plan, the canonical Problem Details boundary is mandatory. The app slot includes the non-terminal `RouterMiddleware` contribution, and the route slot includes `ActionDispatchMiddleware` as its final effective contribution after all ordinary tagged and manually appended route middleware.
+
+The matching and dispatch contributions MUST participate as a validated pair according to `docs/ssot/http-middleware-wiring.md`. Successful application matching MUST preserve ordinary downstream global middleware participation.
+
+The response decorators execute in reverse order on normally returned responses, including request-phase short-circuits. Global `route_post` decorators enter before matching and are not matched-route-only middleware. Route-specific response decorators participate through the invocation-local middleware sequence selected by HttpApp.
+
+An error response produced by the outermost boundary after a downstream `Throwable` does not traverse the post decorators a second time.
 
 `FallbackRouterHandler` provides canonical terminal system-endpoint handling through the shared `FallbackRouter` and `FallbackResponses` services. Guarded development-only endpoint dispatch belongs to `DebugRouter`, `DebugGuard`, and the four diagnostic handlers within this same terminal boundary. These services execute outside the nine middleware slots and MUST NOT be registered as middleware, assigned middleware priorities or toggle metadata, added to manual append lists, or introduce additional catalog entries.
+
+The HTTP-owned terminal remains unchanged by HttpApp participation. The final application dispatch contribution delegates an explicit reserved-path handoff to that terminal.
+
+A successfully matched application route instead uses the admitted invocation-local route-specific middleware sequence and captured action terminal. Concrete application matching, middleware admission, action invocation, and response mapping remain governed by `docs/ssot/http-app-dispatch.md`.
+
+Without HttpApp, the ordinary global HTTP chain and existing HTTP-owned terminal behavior remain authoritative.
 
 Terminal system-endpoint behavior, reserved endpoint fallback responses, and development-only endpoint eligibility, authorization, and response contracts are governed by `docs/ssot/http-system-endpoints.md`. Earlier middleware responses retain their ordinary PSR-15 precedence over terminal execution. Debug activation MUST NOT change middleware participation, priorities, or error-boundary placement.
 
@@ -457,7 +502,15 @@ path_template
 
 `Coretsia\Platform\Routing\Runtime\CompiledRouter` is its sole authorized runtime writer through `ContextWriterInterface`. Matching through `RouterInterface` removes stale `PATH_TEMPLATE` at operation start and publishes the complete validated declared template only on success; a non-match leaves the key absent. Successful canonical Foundation reset clears the key. It MUST NOT be a metric label.
 
-The reserved HttpApp `RouterMiddleware` entry represents future middleware integration through `RouterInterface`, not direct ownership of `PATH_TEMPLATE`. `CompiledRouter` and other Routing services are not PSR-15 middleware and MUST NOT be registered as middleware by this catalog. See `docs/ssot/routing-artifact.md` and `docs/ssot/middleware-context-keys-map.md`.
+The HttpApp-owned `RouterMiddleware` integrates application route matching through the effective `RouterInterface`. `ActionDispatchMiddleware` consumes the request-local routing handoff and owns final application dispatch.
+
+Neither middleware owns direct ContextKeys reads or writes. `CompiledRouter` remains the sole authorized runtime writer of `PATH_TEMPLATE`. Allowed-method enumeration MUST NOT mutate that key or emit additional routing observations.
+
+The HttpApp routing handoff is an immutable request-local PSR-7 attribute, not a ContextKey. Middleware contribution registration and access to the handoff MUST NOT grant additional ContextStore mutation or diagnostic export permissions.
+
+`CompiledRouter` and other Routing services are not PSR-15 middleware and MUST NOT be registered as middleware by this catalog.
+
+See `docs/ssot/routing-artifact.md`, `docs/ssot/http-app-dispatch.md`, and `docs/ssot/middleware-context-keys-map.md`.
 
 The following keys are reserved for safe use by responsible owner packages and do not imply implemented baseline writers:
 
@@ -507,6 +560,14 @@ Runtime execution MUST NOT depend on `kernel.stateful`.
 `kernel.stateful` exists for enforcement and gates.
 
 Reset orchestration, ordering, error handling, diagnostics, and discovery are Foundation-owned.
+
+The reusable global Pipeline is composed during canonical HTTP runtime construction before HTTP UnitOfWork execution.
+
+Global middleware execution and invocation-local route-specific middleware composition and execution MUST remain inside the existing HTTP UnitOfWork.
+
+HttpApp does not introduce another UnitOfWork, reset executor, executed-middleware registry, or package-owned reset contribution.
+
+Route-specific lazy resolution by HttpApp MUST NOT filter independent canonical reset discovery. Middleware services retain their owner-local shared/non-shared lifecycle and existing reset obligations.
 
 Before-UoW and after-UoW hook discovery use:
 
@@ -718,7 +779,13 @@ http.middleware.system_pre
 
 with exact priority `1000` and metadata `[]`. The tag identifier is `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE`. This priority is reserved for the selected outermost error boundary, outside all HTTP response decorators. `platform/http` remains the owner of middleware execution, pipeline ordering, and tag metadata semantics defined by `docs/ssot/http-middleware-wiring.md`. Package installation alone MUST NOT activate `HttpErrorHandlingMiddleware`.
 
-This document does not introduce or require `platform/problem-details`.
+Problem Details participation remains optional for HTTP targets without HttpApp.
+
+Effective selection of `platform.http-app` requires the canonical `platform/problem-details` runtime dependency and actual outermost error-boundary participation.
+
+The HTTP composition boundary MUST enforce the required canonical service id, slot, priority, empty metadata, and resolved error-boundary identity according to `docs/ssot/http-middleware-wiring.md`.
+
+This catalog does not implement another error handler, exception mapper registry, or HTTP error renderer.
 
 ## Security and redaction policy
 
@@ -927,15 +994,27 @@ If installed, each optional owner SHOULD register itself.
 
 Application middleware is the main application-level middleware slot.
 
+Ordinary application middleware retains its canonical effective participation and ordering before and after application route matching.
+
 ### Optional package entries
 
 Optional package entries MUST NOT be referenced by `platform/http` defaults.
 
-If installed, each optional owner SHOULD register itself.
+| priority | owner package_id    | middleware class                                                | registration / metadata                         |
+|----------|---------------------|-----------------------------------------------------------------|-------------------------------------------------|
+| `100`    | `platform/http-app` | `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class` | only when `platform.http-app` is selected; `[]` |
 
-| priority | owner package_id    | middleware class                                                | registration                            |
-|----------|---------------------|-----------------------------------------------------------------|-----------------------------------------|
-| `100`    | `platform/http-app` | `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class` | if installed, it SHOULD register itself |
+The exact service id is `Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`.
+
+The canonical code-level tag identifier is `ReservedTags::HTTP_MIDDLEWARE_APP`.
+
+`RouterMiddleware` is the non-terminal application matching contribution. It MUST delegate successful matches and explicit reserved-path handoffs through the remaining global middleware without resolving or invoking application actions.
+
+Its participation requires effective selection of `platform.http-app` and the canonical paired `ActionDispatchMiddleware` contribution.
+
+Package installation alone MUST NOT activate this contribution.
+
+Canonical paired participation, role validation, guarded execution, and final dispatch placement are governed by `docs/ssot/http-middleware-wiring.md`.
 
 ## Slot: `http.middleware.app_post`
 
@@ -945,21 +1024,63 @@ It is empty by default.
 
 ## Slot: `http.middleware.route_pre`
 
-This slot is reserved.
+This slot contains ordinary global request-phase middleware entered after the application slot and before the main route slot.
 
-It is empty by default.
+The `platform/http` defaults contain no manual entries for this slot.
+
+Effective tagged and manually appended middleware MAY participate according to the canonical HTTP composition policy.
+
+Successful application route matching MUST preserve this slot's effective participation. The slot is not a matched-route-only middleware selection mechanism.
+
+Route-specific middleware selection belongs to HttpApp and MUST NOT replace the global `route_pre` slot.
 
 ## Slot: `http.middleware.route`
 
-This slot is reserved.
+This slot contains ordinary global route-phase middleware and, when HttpApp participates, the canonical final application action dispatch contribution.
 
-It is empty by default.
+The `platform/http` defaults contain no manual entries for this slot.
+
+Ordinary effective tagged and manually appended route middleware retain their canonical participation and ordering.
+
+### Optional package entries
+
+Optional package entries MUST NOT be referenced by `platform/http` defaults.
+
+| priority | owner package_id    | middleware class                                                        | registration / metadata                         |
+|----------|---------------------|-------------------------------------------------------------------------|-------------------------------------------------|
+| `-1000`  | `platform/http-app` | `\Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class` | only when `platform.http-app` is selected; `[]` |
+
+The exact service id is `Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class`.
+
+The canonical code-level tag identifier is `ReservedTags::HTTP_MIDDLEWARE_ROUTE`.
+
+`ActionDispatchMiddleware` is the canonical final effective route contribution.
+
+It MUST execute after all ordinary effective tagged and manually appended route middleware, including tagged contributions whose numerical priorities are lower than `-1000`.
+
+This final placement is an HTTP-owned execution-role rule and MUST NOT change Foundation's canonical tag discovery ordering.
+
+Its participation requires effective selection of `platform.http-app` and the canonical paired `RouterMiddleware` contribution. Package installation alone MUST NOT activate this contribution.
+
+The dispatcher consumes the validated request-local routing handoff. For matched application routes, it executes the admitted invocation-local route-specific middleware sequence before action invocation. For reserved-path handoffs, it delegates to the existing HTTP-owned terminal.
+
+Canonical paired participation, resolved role validation, final dispatch placement, and guarded continuation policy belong to `docs/ssot/http-middleware-wiring.md`.
+
+Route-specific middleware admission and concrete application action dispatch belong to `docs/ssot/http-app-dispatch.md`.
 
 ## Slot: `http.middleware.route_post`
 
-This slot is reserved.
+This slot contains ordinary global PSR-15 response decorators.
 
-It is empty by default.
+The `platform/http` defaults contain no manual entries for this slot.
+
+Effective middleware in this slot enters before the request-phase middleware, including before application route matching, according to the canonical outer-to-inner HTTP topology.
+
+Global route-post middleware is not selected by a matched route and MUST NOT be treated as matched-route-only middleware.
+
+Route-specific response decorators participate through the ordered invocation-local middleware sequence selected by HttpApp.
+
+Canonical response decoration and unwind semantics belong to `docs/ssot/http-middleware-wiring.md`.
 
 ## Opt-in middleware
 
@@ -998,6 +1119,16 @@ An optional owner MUST obey:
 - deterministic ordering rules defined by the owning discovery mechanism.
 
 Optional owners MUST NOT require `platform/http` to reference their middleware class strings in its defaults.
+
+Middleware-producing packages MUST register their own executable middleware services and contributions through Foundation declarative DI.
+
+Optional ownership does not grant access to HTTP-internal composition services or transfer middleware implementation, context, observability, configuration, or reset responsibilities to `platform/http`.
+
+The canonical HttpApp matching and dispatch contributions are optional for HTTP targets as a whole, but both are mandatory when `platform.http-app` is enabled in the effective target module plan.
+
+The required outermost Problem Details boundary is part of that effective composition contract.
+
+The HTTP composition boundary owns validation and execution of these roles. It MUST NOT register substitute owner-package implementations or introduce reverse package dependencies.
 
 ## Config policy
 
@@ -1087,7 +1218,7 @@ When a target with `platform.http` explicitly selected successfully completes an
 
 1. Kernel runtime successfully begins the HTTP UnitOfWork and establishes its base context;
 2. `HttpKernel` invokes its mandatory shared `RequestIdPolicy`, which establishes HTTP request identity when enabled, before the entire PSR-15 pipeline and independently of middleware participation;
-3. an explicitly selected priority-`1000` error boundary, if present, wraps the response decorators and request-phase chain;
+3. the selected priority-`1000` error boundary, mandatory when HttpApp is enabled and otherwise optional, wraps the response decorators and request-phase chain;
 4. `system_post`, `app_post`, and `route_post` decorators remain effective for ordinary returned short-circuit responses;
 5. implemented `system_pre` middleware participates according to its canonical tag metadata and validated feature toggles; `MaintenanceMiddleware` evaluates application-local runtime state before trusted-proxy, request-context, trusted-host, HTTPS redirect, and request-body processing, short-circuiting active or unavailable maintenance state with an HTTP `503` response except for the exact `/_alive` downstream bypass; when request processing reaches enabled and eligible `HttpsRedirectMiddleware`, it may short-circuit with a response constructed through the canonical PSR-17 response factory; maintenance and redirect decisions are observed independently of final HTTP request completion;
 6. `HttpResponseFinalizer` applies the enabled Kernel-owned correlation response-header policy before the independently enabled HTTP-owned request-id response-header policy, followed by independently enabled security-header application after the complete pipeline;
@@ -1101,6 +1232,18 @@ When a target with `platform.http` explicitly selected successfully completes an
 14. successful reset clears all UnitOfWork-local context, including the optional `request_id`;
 15. context and UnitOfWork-local state do not leak across the verified repeated runtime boundaries;
 16. concrete proof is provided by the owning runtime packages.
+
+When `platform.http-app` is selected, the same canonical HTTP invocation MUST additionally preserve the following composition invariants:
+
+- the matching and dispatch middleware roles participate as the exact canonical pair;
+- canonical Problem Details middleware occupies the actual outermost effective position;
+- successful application matching delegates through the remaining ordinary global app, route_pre, and route middleware;
+- final action dispatch follows every ordinary effective route contribution;
+- matched application routes execute the admitted ordered route-specific middleware sequence through the public guarded HTTP Pipeline;
+- reserved-path handoffs delegate to the existing HTTP-owned terminal without application action execution;
+- ordinary short-circuits retain precedence over downstream execution;
+- all subsequent guarded delegations preserve the original routing handoff and protected routing inputs;
+- application action execution and route-specific middleware do not introduce another HTTP completion or reset lifecycle.
 
 This scenario is expected runtime policy. Package installation alone does not select `platform.http` or make an HTTP front controller available.
 
@@ -1171,6 +1314,9 @@ This SSoT does not define:
 
 - [SSoT Index](./INDEX.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
+- [HTTP Application Dispatch SSoT](./http-app-dispatch.md)
+- [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)
+- [Runtime Container Definitions SSoT](./runtime-container-definitions.md)
 - [HTTP System Endpoints SSoT](./http-system-endpoints.md)
 - [Context Keys SSoT](./context-keys.md)
 - [Context Store SSoT](./context-store.md)

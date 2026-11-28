@@ -110,7 +110,7 @@ The canonical static API is:
 ```php
 public static function normalize(string $path): string
 public static function match(string $path): ?array
-````
+```
 
 Both classes are stateless and require no container registration, runtime configuration, filesystem access, or lifecycle participation.
 

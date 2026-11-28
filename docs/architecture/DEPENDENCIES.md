@@ -310,23 +310,24 @@ The canonical empty dependency marker is:
 
 ## 4) Canonical direct dependency matrix (MUST)
 
-| package_id                | depends_on                                   | notes |
-|---------------------------|----------------------------------------------|-------|
-| core/contracts            | —                                            |       |
-| core/dto-attribute        | —                                            |       |
-| core/foundation           | core/contracts                               |       |
-| core/kernel               | core/contracts, core/foundation              |       |
-| devtools/internal-toolkit | —                                            |       |
-| platform/cli              | core/contracts, core/foundation, core/kernel |       |
-| platform/errors           | core/contracts, core/foundation              |       |
-| platform/http             | core/contracts, core/foundation, core/kernel |       |
-| platform/logging          | core/contracts, core/foundation              |       |
-| platform/metrics          | core/contracts, core/foundation              |       |
-| platform/problem-details  | core/contracts, core/foundation              |       |
-| platform/redaction        | core/contracts, core/foundation              |       |
-| platform/routing          | core/contracts, core/foundation, core/kernel |       |
-| platform/tracing          | core/contracts, core/foundation              |       |
-| platform/worker           | core/contracts, core/foundation, core/kernel |       |
+| package_id                | depends_on                                     | notes |
+|---------------------------|------------------------------------------------|-------|
+| core/contracts            | —                                              |       |
+| core/dto-attribute        | —                                              |       |
+| core/foundation           | core/contracts                                 |       |
+| core/kernel               | core/contracts, core/foundation                |       |
+| devtools/internal-toolkit | —                                              |       |
+| platform/cli              | core/contracts, core/foundation, core/kernel   |       |
+| platform/errors           | core/contracts, core/foundation                |       |
+| platform/http             | core/contracts, core/foundation, core/kernel   |       |
+| platform/http-app         | core/contracts, core/foundation, platform/http |       |
+| platform/logging          | core/contracts, core/foundation                |       |
+| platform/metrics          | core/contracts, core/foundation                |       |
+| platform/problem-details  | core/contracts, core/foundation                |       |
+| platform/redaction        | core/contracts, core/foundation                |       |
+| platform/routing          | core/contracts, core/foundation, core/kernel   |       |
+| platform/tracing          | core/contracts, core/foundation                |       |
+| platform/worker           | core/contracts, core/foundation, core/kernel   |       |
 
 The `platform/cli` → `platform/errors` dependency is a runtime-only Composer edge backed by the direct `platform.errors` module requirement, not a PHP source permission. CLI consumes the canonical `ErrorHandlerInterface` from `core/contracts`.
 
@@ -335,6 +336,10 @@ The `platform/errors` → `platform/redaction` dependency is likewise a runtime-
 The `platform/logging` → `core/kernel` and `platform/logging` → `platform/redaction` edges are runtime-only Composer/module requirements. Kernel supplies the already selected app target through the contracts-level `AppTargetProviderInterface`; Redaction supplies the shared `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` services through contracts-level ports. `platform/logging` imports neither Kernel nor concrete Redaction implementation classes in production source. These runtime-only edges grant no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
 
 The `platform/http` → `platform/redaction` edge is a runtime-only Composer dependency backed by the direct `platform.redaction` module requirement. HTTP consumes `SensitiveDataRedactorInterface` and `SensitiveKeyClassifierInterface` through `core/contracts`, not concrete Redaction implementation classes. This runtime-only edge grants no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
+
+The `platform/http-app` → `platform/errors`, `platform/http-app` → `platform/problem-details`, and `platform/http-app` → `platform/routing` edges are runtime-only Composer/module requirements backed by the direct `platform.errors`, `platform.problem-details`, and `platform.routing` module requirements. Errors supplies canonical exception mapping, normalization, redaction, and eligible reporting; Problem Details supplies the canonical outer HTTP error boundary; Routing supplies the effective `RouterInterface` binding and routing artifact readiness. These runtime-only edges grant no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
+
+`platform/http-app` consumes only the explicitly public HTTP `Pipeline` composition API from `platform/http`. Middleware registration and tagged discovery remain Foundation-owned; registering a middleware contribution does not require a dependency on `platform/http`. PSR-15 execution remains HTTP-owned. HttpApp MUST NOT consume HTTP-internal composition or lifecycle implementations. Neither HTTP, Routing, Errors, nor Problem Details MAY declare a reverse PHP source, Composer, or runtime-module dependency on HttpApp.
 
 The `platform/routing` → `platform/redaction` edge is a runtime-only Composer dependency backed by the direct `platform.redaction` module requirement. Routing consumes sensitive-key classification and redaction through `SensitiveKeyClassifierInterface` and `SensitiveDataRedactorInterface` from `core/contracts`, not concrete Redaction implementation classes. This runtime-only edge grants no direct layered PHP source dependency and MUST NOT appear in `depends_on` or generated Deptrac source allowlists.
 

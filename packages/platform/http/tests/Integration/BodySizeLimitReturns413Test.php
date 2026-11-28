@@ -137,7 +137,13 @@ final class BodySizeLimitReturns413Test extends TestCase
             $streams,
         );
 
-        $pipeline = new Pipeline([$boundary, new RequestBodySizeLimitMiddleware($streams, $limit)], $terminal);
+        $pipeline = new Pipeline(
+            [$boundary, new RequestBodySizeLimitMiddleware($streams, $limit)],
+            $terminal,
+            false,
+            [],
+            false,
+        );
         self::assertSame($response, $pipeline->handle($request));
         self::assertSame(413, $response->getStatusCode());
         self::assertSame([

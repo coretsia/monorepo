@@ -34,6 +34,7 @@ use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
 use Coretsia\Platform\Http\HttpKernel;
 use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
@@ -461,6 +462,7 @@ final class AliveEndpointBypassesMaintenanceTest extends TestCase
             new ArrayConfigRepository(['http' => $http], []),
             new HttpMiddlewareStackBuilder($tags),
             $terminal,
+            new ModulePlan('web', [], [], [], []),
         );
     }
 

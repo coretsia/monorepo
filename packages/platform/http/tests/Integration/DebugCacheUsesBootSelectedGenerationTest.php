@@ -216,7 +216,7 @@ final class DebugCacheUsesBootSelectedGenerationTest extends TestCase
             'moduleOverrides' => [
                 'console' => [
                     'include' => [],
-                    'exclude' => ['platform.http', 'platform.problem-details'],
+                    'exclude' => ['platform.http', 'platform.http-app', 'platform.problem-details'],
                 ],
             ],
         ];

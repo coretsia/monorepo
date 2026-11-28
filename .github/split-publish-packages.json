@@ -32,6 +32,9 @@
       "package_id": "platform/http"
     },
     {
+      "package_id": "platform/http-app"
+    },
+    {
       "package_id": "platform/logging"
     },
     {

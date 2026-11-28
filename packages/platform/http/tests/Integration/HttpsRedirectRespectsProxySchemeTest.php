@@ -26,6 +26,7 @@ use Coretsia\Foundation\Context\ContextStore;
 use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Platform\Http\Host\TrustedHostPolicy;
 use Coretsia\Platform\Http\HttpsRedirect\HttpsRedirectPolicy;
 use Coretsia\Platform\Http\Maintenance\MaintenanceMiddleware;
@@ -97,7 +98,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
                 new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), $proxyEnabled),
                 new RequestContextMiddleware($context, $enrich, $proxyEnabled),
                 $middleware,
-            ], $terminal);
+            ], $terminal, false, [], false);
 
             self::assertSame($expected, $pipeline->handle($original));
             $verify();
@@ -438,6 +439,7 @@ final class HttpsRedirectRespectsProxySchemeTest extends TestCase
                 new ArrayConfigRepository(['http' => $http], []),
                 $stack,
                 $terminal,
+                new ModulePlan('web', [], [], [], []),
             );
             self::assertSame(
                 $enabled ? [HttpsRedirectMiddleware::class, RequestBodySizeLimitMiddleware::class]

@@ -82,7 +82,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                     RequestHandlerInterface $next,
                 ): ResponseInterface => $next->handle($request),
             );
-        $pipeline = new Pipeline([$middleware], $terminal);
+        $pipeline = new Pipeline([$middleware], $terminal, false, [], false);
 
         try {
             self::kernel($runtime, $pipeline)->handle($request);
@@ -138,7 +138,7 @@ final class CrossCuttingNoopDoesNotThrowTest extends TestCase
                 throw new \LogicException('unexpected-test-request');
             });
 
-        $kernel = self::kernel($runtime, new Pipeline([], $terminal));
+        $kernel = self::kernel($runtime, new Pipeline([], $terminal, false, [], false));
         self::assertSame($response, $kernel->handle($first));
         try {
             $kernel->handle($second);

@@ -83,10 +83,10 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
             $terminal->expects(self::never())->method('handle');
             $middleware = $this->createMock(MiddlewareInterface::class);
             $middleware->expects(self::once())->method('process')->willReturn($original);
-            $pipeline = new Pipeline([$middleware], $terminal);
+            $pipeline = new Pipeline([$middleware], $terminal, false, [], false);
         } else {
             $terminal->expects(self::once())->method('handle')->with($request)->willReturn($original);
-            $pipeline = new Pipeline([], $terminal);
+            $pipeline = new Pipeline([], $terminal, false, [], false);
         }
 
         $actual = self::kernel($runtime, $pipeline, $provider, true)->handle($request);
@@ -124,7 +124,7 @@ final class CorrelationHeaderAlwaysPresentTest extends TestCase
 
         self::assertSame(
             $response,
-            self::kernel($runtime, new Pipeline([], $terminal), $provider, false)->handle($request),
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $provider, false)->handle($request),
         );
         self::assertSame(self::CORRELATION, $handle->context()['correlationId']);
     }

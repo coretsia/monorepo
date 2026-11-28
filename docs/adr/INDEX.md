@@ -78,6 +78,7 @@ This document is the single navigation entrypoint for all ADR (Architecture Deci
 - [ADR-0040: Platform Problem Details HTTP adaptation](./ADR-0040-platform-problem-details-http-adaptation.md) — owner: platform/problem-details — adrVersion: 1 — scope: errors,http,problem-details,rfc7807,rfc9457,security
 - [ADR-0041: Platform HTTP runtime pipeline and wiring](./ADR-0041-platform-http-runtime-pipeline-wiring.md) — owner: platform/http — adrVersion: 1 — scope: container,di,http,middleware,pipeline,psr-17,runtime
 - [ADR-0042: System route table and reserved-path matching](./ADR-0042-system-route-table-and-reserved-path-matching.md) — owner: core/foundation — adrVersion: 1 — scope: http,matching,ownership,registry,reserved-paths,routing,versioning
+- [ADR-0043: Platform HTTP App router middleware and action invoker](./ADR-0043-platform-http-app-router-middleware-action-invoker.md) — owner: platform/http-app — adrVersion: 1 — scope: actions,dispatch,http,http-app,middleware,routing
 
 ## Cross-references
 

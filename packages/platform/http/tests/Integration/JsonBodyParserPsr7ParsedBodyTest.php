@@ -222,7 +222,7 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
             new Pipeline([
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, 32, 1024),
-            ], $terminal)->handle($request),
+            ], $terminal, false, [], false)->handle($request),
         );
         self::assertLessThanOrEqual(1025, \array_sum($reads));
     }
@@ -495,7 +495,7 @@ final class JsonBodyParserPsr7ParsedBodyTest extends TestCase
             new Pipeline([
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, 32, 1024),
-            ], $terminal),
+            ], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 false,

@@ -19,7 +19,17 @@ body:
       value: |
         Use this form for documentation defects or documentation improvement requests.
 
-        If the documentation change affects commands, config roots, tags, artifacts, gates, or roadmap scope, include the related SSoT or epic reference.
+        If the issue concerns documented commands, configuration, tags, artifacts, public contracts, runtime behavior, or architecture policies, include the relevant SSoT or ADR reference when known.
+
+        Do not include secrets, private paths, or sensitive diagnostic data. Report security vulnerabilities through the repository security policy, not public issues.
+
+  - type: checkboxes
+    id: existing-work
+    attributes:
+      label: Existing issues
+      options:
+        - label: I have searched existing issues and pull requests.
+          required: true
 
   - type: dropdown
     id: docs-area
@@ -27,13 +37,18 @@ body:
       label: Documentation area
       options:
         - SSoT
-        - Roadmap / epic
-        - Commands
+        - ADRs / architecture decisions
+        - Roadmap
+        - Commands / CLI reference
+        - Configuration / environment
+        - Public API / contracts
+        - Runtime guides
+        - Installation / dependency management
         - Development workflow
         - Architecture
         - Package documentation
         - Application template / skeleton distribution
-        - Generated structure
+        - Generated documentation / structure
         - README / contributing
         - Other / unsure
     validations:
@@ -64,7 +79,7 @@ body:
     id: expected
     attributes:
       label: Expected documentation
-      description: What should the documentation say or clarify?
+      description: Describe what should be corrected, clarified, or documented according to the canonical implementation and applicable documentation policy.
     validations:
       required: true
 
@@ -72,7 +87,7 @@ body:
     id: evidence
     attributes:
       label: Evidence
-      description: Provide links to code, tests, commands, or policy that support the correction.
+      description: Provide references to implementation, tests, ADRs, SSoT docs, commands, or sanitized diagnostic evidence supporting the correction.
       placeholder: |
         - composer ...
         - composer.json
@@ -86,9 +101,11 @@ body:
     attributes:
       label: Documentation policy checklist
       options:
-        - label: I checked whether this affects the canonical command catalog, SSoT docs, roadmap, or generated docs.
+        - label: I considered whether this issue affects SSoT docs, ADRs, guides, public API references, the command catalog, or generated documentation.
           required: true
-        - label: I removed secrets, private paths, and irrelevant environment details.
+        - label: I considered whether the documentation accurately reflects the canonical implementation.
+          required: true
+        - label: I removed secrets, private paths, and sensitive or irrelevant environment details.
           required: true
 
   - type: checkboxes

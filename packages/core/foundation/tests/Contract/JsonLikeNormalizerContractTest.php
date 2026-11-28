@@ -197,6 +197,79 @@ final class JsonLikeNormalizerContractTest extends TestCase
         );
     }
 
+    public function testRejectsCyclicMapsWithoutLeakingRejectedKeys(): void
+    {
+        $value = [];
+        $value['raw-secret-key'] = &$value;
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize($value),
+            expectedPath: 'value[<key>][<key>]',
+            expectedReason: JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
+            forbiddenDiagnosticsNeedles: [
+                'raw-secret-key',
+            ],
+        );
+    }
+
+    public function testRejectsCyclicLists(): void
+    {
+        $value = [];
+        $value[] = &$value;
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize($value),
+            expectedPath: 'value[0][0]',
+            expectedReason: JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
+        );
+    }
+
+    public function testRejectsIndirectCyclesAcrossMapsAndLists(): void
+    {
+        $map = [];
+        $list = [];
+
+        $map['next'] = &$list;
+        $list[] = &$map;
+
+        self::assertJsonLikeInvalid(
+            operation: static fn (): mixed => JsonLikeNormalizer::normalize($map),
+            expectedPath: 'value.next[0].next',
+            expectedReason: JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
+        );
+    }
+
+    public function testNormalizesSharedNonCyclicArrayReferences(): void
+    {
+        $shared = [
+            'z' => 2,
+            'a' => 1,
+        ];
+
+        $value = [
+            'right' => &$shared,
+            'left' => &$shared,
+        ];
+
+        $normalized = JsonLikeNormalizer::normalize($value);
+
+        $shared['a'] = 99;
+
+        self::assertSame(
+            [
+                'left' => [
+                    'a' => 1,
+                    'z' => 2,
+                ],
+                'right' => [
+                    'a' => 1,
+                    'z' => 2,
+                ],
+            ],
+            $normalized,
+        );
+    }
+
     public function testRejectsNonStringMapKeys(): void
     {
         self::assertJsonLikeInvalid(

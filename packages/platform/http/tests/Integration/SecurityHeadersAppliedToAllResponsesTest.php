@@ -38,6 +38,7 @@ use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
@@ -285,6 +286,7 @@ final class SecurityHeadersAppliedToAllResponsesTest extends TestCase
             new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
+            new ModulePlan('web', [], [], [], []),
         );
         $meter = $this->createStub(MeterPortInterface::class);
         $meter->method('increment')->willReturnCallback(

@@ -30,6 +30,7 @@ Install the applicable runtime packages and select the modules through the effec
 - Each `web` or `api` target whose routes are to be compiled needs `platform.routing` and its intended route-contributing modules in its own effective `ModulePlan`.
 - For an HTTP runtime, select `platform.http` independently and provide the intended HTTP runtime driver and compatible PSR-7/17 factory bindings. Routing does not supply these bindings or select HTTP.
 - Routing requires `core.foundation`, `core.kernel`, and `platform.redaction` through the module dependency graph.
+- For HTTP application action dispatch, explicitly select `platform.http-app` in the intended `web` or `api` target and satisfy its canonical runtime dependencies, including `platform.errors` and `platform.problem-details`. Routing and HTTP selection alone does not activate application action dispatch. Follow the [HTTP application dispatch guide](./http-app.md) for handler registration, middleware admission, and runtime prerequisites.
 
 File: `config/app.php`
 
@@ -131,7 +132,13 @@ final class CatalogRouteProvider implements RouteProviderInterface
                 pathTemplate: '/catalog/{item}',
                 handler: 'Catalog::show',
                 requirements: ['item' => '[0-9]+'],
-                metadata: ['section' => 'catalog'],
+                metadata: [
+                    'http_app_middleware' => [
+                        'catalog.route.authorize',
+                        'catalog.route.decorate',
+                    ],
+                    'section' => 'catalog',
+                ],
             ),
         ];
     }
@@ -139,6 +146,16 @@ final class CatalogRouteProvider implements RouteProviderInterface
 ```
 
 The handler is a logical identifier, not an executable callable or a filesystem path. Routing returns it as part of the match; it does not resolve or invoke the handler. Route names are unique across the complete target-local table, and provider identities are unique across distinct contributing services. Names, handler identifiers, and provider identities must be non-empty, at most 256 bytes, and match `[A-Za-z_][A-Za-z0-9_.:-]*` in full.
+
+When HttpApp participates in the effective HTTP target, the logical handler identifier is handed to its separately owned application dispatch boundary through `RouteMatch::handler()`.
+
+For example, `Catalog::show` remains an opaque logical identifier. It is not interpreted as a PHP static method or an implicit callable.
+
+The application must explicitly register the same logical value as an `action_id` in `http_app.handlers` and provide the corresponding application-owned invokable service. Follow the [HTTP application dispatch guide](./http-app.md) for handler registration, argument resolution, and invocation.
+
+The example `http_app_middleware` metadata member declares an ordered selection of consumer-owned middleware service identifiers. Routing preserves that list through compilation, hydration, and matching without resolving or executing its services.
+
+To dispatch this route through HttpApp, register both middleware services explicitly and admit their exact identifiers through `http_app.route_middleware`. The metadata alone neither registers the services nor establishes an authorization policy.
 
 Providers must not depend on request objects, request data, runtime artifacts, filesystem scanning, or controller and attribute discovery. An empty route list is valid.
 
@@ -203,7 +220,13 @@ final class ApiRouteProvider implements RouteProviderInterface
             '/teams/{team}',
             'teams',
             ['team' => '[0-9]+'],
-            ['section' => 'teams'],
+            [
+                'http_app_middleware' => [
+                    'teams.route.authorize',
+                    'teams.route.decorate',
+                ],
+                'section' => 'teams',
+            ],
         );
 
         return [
@@ -241,6 +264,10 @@ $standalone = new RouteDefinition(
     ],
     metadata: [
         'area' => 'api',
+        'http_app_middleware' => [
+            'teams.route.authorize',
+            'teams.route.decorate',
+        ],
         'section' => 'teams',
         'version' => 1,
         'view' => 'summary',
@@ -250,15 +277,29 @@ $standalone = new RouteDefinition(
 
 Equivalent standalone and grouped declarations produce identical fingerprints and artifact bytes when their ordered canonical descriptors and authoritative inputs are identical.
 
+The member route inherits the complete `http_app_middleware` list from the Teams group. Its declared order remains `teams.route.authorize`, then `teams.route.decorate`.
+
+The equivalent standalone declaration contains the same metadata list in the same order. Neither declaration registers or executes middleware.
+
+If the target uses HttpApp, the application must explicitly register and admit these synthetic middleware service identifiers before dispatching the route. See the [HTTP application dispatch guide](./http-app.md).
+
 ### 3.2 Inheritance and safe metadata
 
 - The root group has path prefix `/`, empty name prefix, and empty requirements and metadata. `group()` creates a new group without modifying its parent.
 - Paths join with exactly one literal slash; `/` is the identity prefix. Non-empty name prefixes join with `.`, and empty prefixes introduce no separator. Group name prefixes are dot-separated identifier components matching `[A-Za-z_][A-Za-z0-9_-]*`.
 - Group requirements may refer only to placeholders declared by that group's supplied prefix; a route's requirements refer only to its own supplied template. Combined requirements cannot override inherited keys, and placeholder names must be unique across the complete path.
 - Group and route metadata are deterministic JSON-like maps. Duplicate keys, including a key whose inherited value is `null`, are rejected rather than overwritten or recursively merged.
-- Methods, handler, and defaults belong to the individual route. Groups do not add middleware, authorization, or controller resolution.
+- Methods, handler, and defaults belong to the individual route. Groups may contribute safe consumer-owned metadata but do not register or execute middleware, perform authorization, or resolve actions.
+- List-valued metadata members retain their declared element order during inheritance. An inherited `http_app_middleware` list is not concatenated, sorted, deduplicated, or replaced by child declarations.
+- The existing duplicate inherited metadata-key rejection applies to middleware selection metadata exactly as it applies to every other metadata key.
 
 Keep metadata to safe static declaration data (for example, a logical area, version, or display category). Do not put credentials, sensitive keys, private customer data, raw request data, environment-derived values, or absolute filesystem paths in metadata. Slash-leading strings, backslash-leading strings, drive-qualified absolute paths, and `file://` values are rejected in metadata. The complete descriptor is checked by the canonical sensitive-key classifier and redactor; unsafe declarations are rejected, not rewritten. A redaction non-match is not proof of safety.
+
+For HttpApp-owned middleware selection, use only static canonical service identifiers in the ordered `http_app_middleware` list.
+
+Do not place middleware instances, factories, closures, executable values, credentials, or request-derived authorization data in route metadata.
+
+Routing validates generic metadata safety. The selected runtime consumer owns additional semantic admission. For HttpApp, explicit middleware service registration, admission, execution order, and short-circuit behavior are covered by the [HTTP application dispatch guide](./http-app.md).
 
 ### 3.3 Invalid group declarations
 
@@ -287,6 +328,29 @@ RouteGroup::root()
     ->group('/api', 'api', [], ['section' => null])
     ->group('/v1', 'v1', [], ['section' => 'catalog']);
 ```
+
+Duplicate inherited middleware metadata key (an empty child list cannot replace the inherited selection):
+
+```php
+RouteGroup::root()
+    ->group('/catalog', 'catalog', [], [
+        'http_app_middleware' => [
+            'catalog.route.authorize',
+            'catalog.route.decorate',
+        ],
+    ])
+    ->route(new RouteDefinition(
+        name: 'show',
+        methods: ['GET'],
+        pathTemplate: '/{item}',
+        handler: 'Catalog::show',
+        metadata: [
+            'http_app_middleware' => [],
+        ],
+    ));
+```
+
+The duplicate `http_app_middleware` key is rejected even though the child value is an empty list. An identical redeclaration is also invalid. RouteGroup does not provide a middleware override or recursive metadata merge policy.
 
 These operations fail during source declaration composition. If they occur inside `routes()`, the provider registry rejects the provider output through the safe compilation boundary. Successfully flattened routes still pass all global conflict, reserved-domain, safety, and resource checks.
 
@@ -466,12 +530,49 @@ $match = $router->match('GET', '/api/v1/teams/42/members/Alice');
 
 The expected match has name `api.v1.teams.member`, template `/api/v1/teams/{team}/members/{member}`, handler `Members::show`, and string parameters `member => Alice` and `team => 42`, together with the safe declared metadata. A miss returns `null`. For example, `/api/v1/teams/no/members/Alice`, `/api/v1/teams/42/members/Alice/`, and `/api/v1/teams/42/members/%41lice` do not match that declaration. Paths must be canonical encoded URI paths; percent-encoded octets are not decoded or case-normalized. Host is not a matching input.
 
+The matched metadata also contains the inherited middleware selection:
+
+```php
+$match?->metadata()['http_app_middleware'] ?? [];
+```
+
+For this matched member route, the expected list is:
+
+```php
+[
+    'teams.route.authorize',
+    'teams.route.decorate',
+]
+```
+
+This is declaration metadata, not a list of resolved middleware instances.
+
+The same routing port can enumerate the declared methods of all admitted routes whose complete matching domains accept the concrete path:
+
+```php
+$methods = $router->allowedMethods('/api/v1/teams/42/members/Alice');
+```
+
+With the declarations in section 3, the expected result is `['GET']`.
+
+The result contains unique exact declared methods in ascending byte order. Invalid, reserved, non-canonical, or unmatched paths return an empty list. GET does not imply HEAD, and OPTIONS is not added automatically.
+
+Allowed-method enumeration uses the same immutable route table and parsed templates. It does not perform another observed match or mutate routing context.
+
 The router removes a stale `PATH_TEMPLATE` at the start of matching and writes the complete declared template on success. It does not resolve actions, invoke handlers, or perform HTTP dispatch.
+
+When HttpApp is enabled, its non-terminal matching middleware hands the successful `RouteMatch` to the remaining global HTTP middleware through the request-local routing state.
+
+The final application dispatch contribution consumes the logical handler identifier and the admitted ordered middleware metadata. It owns action resolution and invocation separately from Routing.
+
+Routing does not construct application 404/405 responses or HTTP Allow headers. Follow the [HTTP application dispatch guide](./http-app.md) for the canonical dispatch and error behavior.
 
 ### 7.2 Artifact-only behavior
 
 - The reader captures bounded bytes and decodes the canonical PHP-array grammar without execution. Never load `routes.php` via `include`, `require`, `eval`, or an executable cache loader.
 - The table contains only validated flattened descriptors and their parsed templates. Runtime matching does not resolve providers, interpret source groups, scan source files, compile routes, or read the artifact again.
+- Ordered consumer-owned metadata lists are preserved in the existing canonical route descriptor through compilation and hydration. Routing does not resolve middleware identifiers or execute middleware.
+- Allowed-method enumeration consumes the same immutable table without reloading artifacts, mutating routing context, or emitting additional routing observations.
 - Missing or invalid artifacts fail closed. There is no runtime source fallback, regeneration, repair, or request-time reload.
 - A successfully hydrated route table remains unchanged when the artifact is replaced. Start a new runtime to consume the replacement, coordinating it with the intended Kernel generation. Do not edit generated artifact bytes by hand.
 
@@ -491,16 +592,31 @@ Check that the intended route-contributing module is enabled for the selected ta
 
 Check the complete flattened template, requirements, unique names, equivalent domains, and inherited metadata keys. Ensure metadata contains only safe declaration data. Fix the source declaration and run `routes:validate` again before publication.
 
+For inherited middleware metadata, check whether a child group or route redeclares an existing `http_app_middleware` key. Remove the duplicate declaration or place the complete ordered selection at the intended declaration level.
+
+Successful Routing validation establishes generic route and artifact admission. It does not establish HttpApp middleware service availability, semantic middleware admission, handler availability, or authorization correctness.
+
 ### 8.4 HTTP startup rejects the route artifact
 
 Check the target's authoritative artifact root, regular non-symlink file requirements, effective environment and readiness binding. Publish a valid route artifact from the intended source host and prepare the corresponding Kernel generation before restarting. Source validation alone cannot repair a missing deployment artifact.
+
+### 8.5 Route matches but application dispatch fails
+
+Check effective HttpApp module participation, explicit logical handler registration, middleware service registration, the configured route middleware admission list, and the supported action argument policy.
+
+Do not modify route matching or generated artifacts to bypass an application dispatch failure.
+
+Follow the [HTTP application dispatch guide](./http-app.md) for the separately owned application dispatch prerequisites and failure boundaries.
 
 ---
 
 ## 9) Related documentation
 
+- [HTTP application dispatch](./http-app.md) — explicit handler registration, route-specific middleware admission, guarded dispatch, action invocation, and response mapping.
 - `docs/ssot/routing-artifact.md` — canonical route grammar, grouping, artifact schema, publication, hydration, and readiness.
 - `docs/ssot/routing-and-http-app-contracts.md` — format-neutral routing descriptors and ports.
+- `docs/ssot/http-app-dispatch.md` — normative application dispatch and route-specific middleware policy.
+- `docs/ssot/http-middleware-wiring.md` — canonical HTTP composition and guarded continuation policy.
 - `docs/ssot/system-route-table.md` — canonical reserved endpoint declarations.
 - `docs/ssot/reserved-path-matching.md` — concrete encoded path normalization and reservation semantics.
 - `docs/ssot/tags.md` — provider tag ownership and ordering.

@@ -99,6 +99,14 @@ final class RouteMatcherStaticAndParamsTest extends TestCase
         self::assertNull($router->match('GET', '/Items/ABC/%2e'));
         self::assertNull($router->match('GET', '/items/ABC'));
         self::assertNull($router->match('GET', '/items/ABC/a/b'));
+
+        self::assertSame(['GET'], $router->allowedMethods('/'));
+        self::assertSame(['GET'], $router->allowedMethods('/items/fixed'));
+        self::assertSame(['GET', 'POST'], $router->allowedMethods('/items/%2F/Alice%2f'));
+        self::assertSame(['GET', 'POST'], $router->allowedMethods('/items/%2F/Alice%2f', 'unrelated.example'));
+        self::assertSame([], $router->allowedMethods('/Items/ABC/%2e'));
+        self::assertSame([], $router->allowedMethods('/items/ABC'));
+        self::assertSame([], $router->allowedMethods('/items/ABC/a/b'));
     }
 
     public function testCompleteSegmentRequirementsAndCanonicalMethodMatching(): void
@@ -116,6 +124,7 @@ final class RouteMatcherStaticAndParamsTest extends TestCase
         ], new ContextStore());
         foreach ([['/n/001', '001'], ['/a/Az', 'Az'], ['/w/Az_09-', 'Az_09-']] as [$path, $value]) {
             self::assertSame(['id' => $value], $router->match('GET', $path)?->parameters());
+            self::assertSame(['GET'], $router->allowedMethods($path));
         }
         foreach (
             [
@@ -132,10 +141,15 @@ final class RouteMatcherStaticAndParamsTest extends TestCase
             ] as $path
         ) {
             self::assertNull($router->match('GET', $path));
+            self::assertSame([], $router->allowedMethods($path), $path);
         }
         foreach (['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE', 'CONNECT'] as $method) {
             self::assertSame('all', $router->match($method, '/all')?->name());
         }
+        self::assertSame(
+            ['CONNECT', 'DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT', 'TRACE'],
+            $router->allowedMethods('/all'),
+        );
         foreach (['get', ' Get', 'GET ', '', 'OTHER', 'BREW', "GET\n"] as $method) {
             self::assertNull($router->match($method, '/all'));
         }
@@ -163,6 +177,25 @@ final class RouteMatcherStaticAndParamsTest extends TestCase
         self::assertSame('m.numeric', $reversed->match('GET', '/items/42')?->name());
         self::assertSame('z.generic', $reversed->match('GET', '/items/other')?->name());
         self::assertSame('z.generic', $router->match('GET', '/items/fixed')?->name());
+    }
+
+    public function testAllowedMethodsDeduplicateAndSortAcrossAllOverlappingDomains(): void
+    {
+        $generic = new RouteDefinition('z.generic', ['POST', 'GET'], '/items/{id}', 'Handler::generic');
+        $numeric = new RouteDefinition(
+            'm.numeric',
+            ['HEAD', 'GET', 'DELETE'],
+            '/items/{number}',
+            'Handler::numeric',
+            ['number' => '[0-9]+'],
+        );
+        $static = new RouteDefinition('a.static', ['PUT', 'OPTIONS', 'GET'], '/items/fixed', 'Handler::fixed');
+        foreach ([[$generic, $numeric, $static], [$static, $numeric, $generic]] as $routes) {
+            $router = $this->router($routes, new ContextStore());
+            self::assertSame(['GET', 'OPTIONS', 'POST', 'PUT'], $router->allowedMethods('/items/fixed'));
+            self::assertSame(['DELETE', 'GET', 'HEAD', 'POST'], $router->allowedMethods('/items/42'));
+            self::assertSame(['GET', 'POST'], $router->allowedMethods('/items/other'));
+        }
     }
 
     public function testInvalidReservedAndUnmatchedInputsNeverBecomeAliases(): void
@@ -201,8 +234,10 @@ final class RouteMatcherStaticAndParamsTest extends TestCase
             self::assertSame('/items/{id}', $context->get(ContextKeys::PATH_TEMPLATE));
             self::assertNull($router->match('GET', $path), $path);
             self::assertFalse($context->has(ContextKeys::PATH_TEMPLATE));
+            self::assertSame([], $router->allowedMethods($path), $path);
         }
         self::assertSame('near', $router->match('GET', '/healthcheck')?->name());
+        self::assertSame(['GET'], $router->allowedMethods('/healthcheck'));
     }
 
     public function testUnsupportedMatchingDeclarationsAreRejectedBeforeRuntime(): void

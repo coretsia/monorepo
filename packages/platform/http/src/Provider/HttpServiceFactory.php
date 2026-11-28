@@ -28,7 +28,6 @@ use Coretsia\Platform\Http\Middleware\Pipeline;
 use Coretsia\Platform\Http\Proxy\TrustedProxyPolicy;
 use Coretsia\Platform\Http\SecurityHeaders\SecurityHeadersPolicy;
 use Psr\Container\ContainerInterface;
-use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
@@ -47,25 +46,54 @@ final class HttpServiceFactory
         ConfigRepositoryInterface $config,
         HttpMiddlewareStackBuilder $stack,
         RequestHandlerInterface $terminal,
+        ModulePlan $modulePlan,
     ): Pipeline {
         $root = $config->get('http');
         if (!\is_array($root)) {
             throw new \InvalidArgumentException('http-config-invalid');
         }
 
-        $middleware = [];
-        foreach ($stack->build($root) as $id) {
-            // The canonical container owns both explicit bindings and permitted
-            // concrete-class autowiring, including its failure semantics.
-            $service = $container->get($id);
-            if (!$service instanceof MiddlewareInterface) {
-                throw new \InvalidArgumentException('http-middleware-instance-invalid');
-            }
+        $serviceIds = $stack->build($root);
+        $httpAppEnabled = $modulePlan->hasEnabledModule('platform.http-app');
 
-            $middleware[] = $service;
+        $hasRouter = \in_array(HttpMiddlewareStackBuilder::APP_ROUTER_SERVICE_ID, $serviceIds, true);
+        $hasDispatch = \in_array(HttpMiddlewareStackBuilder::APP_DISPATCH_SERVICE_ID, $serviceIds, true);
+        if ($hasRouter !== $httpAppEnabled || $hasDispatch !== $httpAppEnabled) {
+            throw new \InvalidArgumentException('http-middleware-app-dispatch-binding-invalid');
         }
 
-        return new Pipeline($middleware, $terminal);
+        if ($httpAppEnabled && ($serviceIds[0] ?? null) !== HttpMiddlewareStackBuilder::ERROR_BOUNDARY_SERVICE_ID) {
+            throw new \InvalidArgumentException('http-middleware-app-error-boundary-invalid');
+        }
+
+        $middleware = Pipeline::resolveServices($container, $serviceIds);
+
+        // Canonical role ids are also the exact cross-package runtime class names.
+        // Validate the already resolved instances without another container lookup.
+        foreach ($serviceIds as $index => $id) {
+            $class = $middleware[$index]::class;
+            if (
+                ($id === HttpMiddlewareStackBuilder::APP_ROUTER_SERVICE_ID) !== ($class === HttpMiddlewareStackBuilder::APP_ROUTER_SERVICE_ID)
+                || ($id === HttpMiddlewareStackBuilder::APP_DISPATCH_SERVICE_ID) !== ($class === HttpMiddlewareStackBuilder::APP_DISPATCH_SERVICE_ID)
+            ) {
+                throw new \InvalidArgumentException('http-middleware-app-dispatch-binding-invalid');
+            }
+
+            if (
+                $httpAppEnabled
+                && ($id === HttpMiddlewareStackBuilder::ERROR_BOUNDARY_SERVICE_ID) !== ($class === HttpMiddlewareStackBuilder::ERROR_BOUNDARY_SERVICE_ID)
+            ) {
+                throw new \InvalidArgumentException('http-middleware-app-error-boundary-invalid');
+            }
+        }
+
+        return new Pipeline(
+            $middleware,
+            $terminal,
+            $httpAppEnabled,
+            $httpAppEnabled ? ['coretsia.http_app.route_dispatch'] : [],
+            $httpAppEnabled,
+        );
     }
 
     public static function securityHeaders(

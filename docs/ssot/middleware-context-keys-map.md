@@ -178,7 +178,8 @@ Security-header application belongs to `HttpResponseFinalizer` outside the PSR-1
 | `\Coretsia\Platform\Security\Http\Middleware\CsrfMiddleware::class`                    | `http.middleware.app_pre`     | `platform/security`        | `—`                                                 | `—`                                                     | Optional owner. MUST NOT write CSRF tokens into ContextStore.                                                                                                                                       |
 | `\Coretsia\Platform\Uploads\Http\Middleware\MultipartFormDataMiddleware::class`        | `http.middleware.app_pre`     | `platform/uploads`         | `—`                                                 | `—`                                                     | Optional owner. MUST NOT write file payloads, upload temp paths, filenames, or multipart payloads into ContextStore.                                                                                |
 | `\Coretsia\Platform\Inbox\Http\Middleware\IdempotencyKeyMiddleware::class`             | `http.middleware.app_pre`     | `platform/inbox`           | `—`                                                 | `correlation_id`, `request_id`, `actor_id`, `tenant_id` | Optional owner. MUST NOT write raw idempotency keys into ContextStore unless a future SSoT introduces a safe hashed key.                                                                            |
-| `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`                        | `http.middleware.app`         | `platform/http-app`        | `—`                                                 | `path`                                                  | Optional owner; future integration delegates matching through RouterInterface. No direct ContextKeys writes.                                                                                        |
+| `\Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class`                        | `http.middleware.app`         | `platform/http-app`        | `—`                                                 | `—`                                                     | Implemented optional owner; non-terminal matching through `RouterInterface`. No direct ContextKeys reads or writes.                                                                                 |
+| `\Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class`                | `http.middleware.route`       | `platform/http-app`        | `—`                                                 | `—`                                                     | Implemented optional owner; final application dispatch through the request-local handoff. No direct ContextKeys reads or writes.                                                                    |
 | `\Coretsia\Platform\Auth\Http\Middleware\RequireAuthMiddleware::class`                 | route/policy opt-in           | `platform/auth`            | `—`                                                 | `actor_id`                                              | Opt-in middleware. MUST NOT write auth credentials, tokens, sessions, or raw identity data into ContextStore.                                                                                       |
 | `\Coretsia\Platform\Auth\Http\Middleware\RequireAbilityMiddleware::class`              | route/policy opt-in           | `platform/auth`            | `—`                                                 | `actor_id`, `tenant_id`                                 | Opt-in middleware. MUST NOT write ability names, permission payloads, tokens, sessions, or raw identity data into ContextStore.                                                                     |
 
@@ -195,6 +196,10 @@ Coretsia\Contracts\Context\ContextKeys
 Middleware MUST NOT create ad hoc ContextKeys.
 
 Middleware MUST use `Coretsia\Contracts\Context\ContextWriterInterface` for authorized mutations and `Coretsia\Contracts\Context\ContextAccessorInterface` for permitted reads. Both ports resolve to the same shared Foundation-owned context store. Middleware MUST NOT depend on concrete `ContextStore`, downcast either port, or consume snapshot, clear, or reset operations. Port availability does not grant additional key permissions.
+
+Context permissions are independent of middleware service registration, discovery, slot composition, and PSR-15 execution ownership. Middleware-producing packages consume these existing Contracts context ports for authorized access without requiring concrete HTTP runtime services or a dependency on `platform/http` solely for contribution registration.
+
+Registering a middleware contribution or selecting middleware for a route MUST NOT grant additional ContextKeys read or write permissions or diagnostic export permissions. Existing owner-specific restrictions apply in both global and invocation-local route-specific middleware execution.
 
 Middleware MUST NOT write, replace, or remove `ContextKeys::REQUEST_ID` or `ContextKeys::PATH_TEMPLATE`.
 
@@ -359,13 +364,19 @@ private customer data
 
 `path_template` is an active Routing-owned key. The sole authorized runtime writer is `Coretsia\Platform\Routing\Runtime\CompiledRouter`. During `RouterInterface::match()`, it removes stale `PATH_TEMPLATE` through `ContextWriterInterface` before input validation or route evaluation and sets the complete validated declared template only on success, before completion observability. A non-match leaves the key absent.
 
-The reserved HttpApp `RouterMiddleware` catalog entry describes future integration through `Coretsia\Contracts\Routing\RouterInterface`, not a direct context writer. Its permitted `path` read remains unchanged and MUST use `ContextAccessorInterface`. Neither middleware nor HTTP terminal dispatch may set or remove `PATH_TEMPLATE`. This map introduces no Routing middleware or middleware registration.
+`RouterMiddleware` and `ActionDispatchMiddleware` are separate implemented optional contributions owned by `platform/http-app`, participating as a canonical pair when `platform.http-app` is enabled in the effective target module plan. Neither middleware reads or writes ContextKeys directly.
+
+`RouterMiddleware` obtains the method and encoded path from the effective PSR-7 request and the host from its URI, and delegates matching through `Coretsia\Contracts\Routing\RouterInterface`. Allowed-method enumeration does not read or mutate ContextStore or emit additional routing observations. Only `CompiledRouter` owns `PATH_TEMPLATE` mutation during matching. Neither HttpApp middleware nor HTTP terminal dispatch may set or remove `PATH_TEMPLATE`.
+
+`ActionDispatchMiddleware` consumes the immutable request-local `RouteDispatchState` under the exact PSR-7 attribute `coretsia.http_app.route_dispatch`. This attribute is not a ContextKey. The handoff MUST NOT authorize either HttpApp middleware to publish the state or its captured routing inputs through ContextStore. Existing authorized request-context enrichment remains unaffected. Middleware MUST NOT publish `RouteMatch` parameters or complete metadata through ContextStore or treat the handoff as diagnostic export permission.
+
+The matching and dispatch handoff, continuation protection, and concrete dispatch policy belong to `docs/ssot/http-app-dispatch.md` and `docs/ssot/http-middleware-wiring.md`. This map introduces no Routing middleware or middleware registration.
 
 The template MUST NOT include concrete route parameter values or become a metric label. `path_template` is preferred over raw `path` for low-cardinality diagnostics. See `docs/ssot/routing-artifact.md`.
 
-### Reserved slots
+### Global slot participation
 
-The following slots are reserved or empty by default in the canonical catalog:
+The `platform/http` defaults contain no manual entries for the following slots:
 
 ```text
 http.middleware.system
@@ -375,9 +386,9 @@ http.middleware.route
 http.middleware.route_post
 ```
 
-This document does not add middleware entries to those slots.
+Effective tagged and manually appended contributions are governed by the canonical HTTP middleware catalog and wiring policy. In particular, the effective route slot contains the final `ActionDispatchMiddleware` contribution when HttpApp participates.
 
-If owner packages add middleware to those slots, this map MUST be updated only for their `ContextKeys` written/read behavior.
+This reference map does not register middleware or determine effective slot participation. Owner-package middleware entries MUST be recorded here only for their `ContextKeys` written/read behavior.
 
 ## Non-goals
 
@@ -414,6 +425,7 @@ This document does not define:
 - [HTTP Middleware Catalog SSoT](./http-middleware-catalog.md)
 - [HTTP Middleware Wiring SSoT](./http-middleware-wiring.md)
 - [Routing Artifact SSoT](./routing-artifact.md)
+- [HTTP Application Dispatch SSoT](./http-app-dispatch.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [DI Tags and Middleware Ordering SSoT](./di-tags-and-middleware-ordering.md)

@@ -531,16 +531,22 @@ final class SystemEndpointObservabilityTest extends TestCase
 
     private function pipeline(SystemEndpointRuntimeFixture $fixture, FallbackResponses $responses): Pipeline
     {
-        return new Pipeline([], new FallbackRouterHandler(
-            new FallbackRouter(
+        return new Pipeline(
+            [],
+            new FallbackRouterHandler(
+                new FallbackRouter(
+                    $responses,
+                    $fixture->clock(),
+                    $fixture->meter(),
+                    true,
+                    $fixture->container->get(DebugRouter::class),
+                ),
                 $responses,
-                $fixture->clock(),
-                $fixture->meter(),
-                true,
-                $fixture->container->get(DebugRouter::class),
             ),
-            $responses,
-        ));
+            false,
+            [],
+            false,
+        );
     }
 
     /**

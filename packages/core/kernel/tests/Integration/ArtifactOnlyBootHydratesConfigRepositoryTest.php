@@ -144,6 +144,7 @@ final class ArtifactOnlyBootHydratesConfigRepositoryTest extends TestCase
                             'include' => [],
                             'exclude' => [
                                 'platform.http',
+                                'platform.http-app',
                                 'platform.problem-details',
                             ],
                         ],

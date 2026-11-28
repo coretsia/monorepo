@@ -19,8 +19,13 @@ body:
       value: |
         Use this form for reproducible defects only.
 
-        Do not include secrets, tokens, private paths, private customer data, or full environment dumps.
-        If this is a security vulnerability, do not open a public issue. Use the repository security policy.
+        Include only minimal, sanitized reproduction evidence.
+
+        Do not include secrets, credentials, tokens, private paths, raw production configuration, private environment values, raw production request data, or private customer data.
+
+        Use synthetic or sanitized configuration, request data, headers, and other inputs when necessary to reproduce the issue.
+
+        If this is a security vulnerability, do not open a public issue. Follow the repository security policy.
 
   - type: checkboxes
     id: existing-issues
@@ -37,15 +42,22 @@ body:
       label: Affected area
       description: Select the closest affected area.
       options:
-        - Platform CLI
+        - Framework distribution / dependency management
         - Core contracts
-        - DTO attribute / DTO gates
-        - Foundation / Kernel policy
-        - Tooling gates
+        - DTO attribute / DTO policy
+        - Foundation / Kernel
+        - Platform CLI
+        - HTTP / HttpApp / Routing
+        - Errors / Problem Details
+        - Logging / Metrics / Tracing
+        - Redaction / data safety
+        - Worker runtime
+        - Runtime integrations
+        - Tooling / gates / CI
         - Architecture / Deptrac
-        - Package compliance / scaffold
-        - Application template / app defaults
-        - Documentation / SSoT / roadmap
+        - Package scaffold / compliance
+        - Application template / presets
+        - Documentation / SSoT
         - Other / unsure
     validations:
       required: true
@@ -55,7 +67,7 @@ body:
     attributes:
       label: Current behavior
       description: Describe what happens now.
-      placeholder: The command/test/gate currently fails with...
+      placeholder: Describe the observed result, failure, or unexpected runtime behavior.
     validations:
       required: true
 
@@ -64,7 +76,7 @@ body:
     attributes:
       label: Expected behavior
       description: Describe the expected behavior or invariant.
-      placeholder: The expected deterministic result is...
+      placeholder: Describe the expected result, documented behavior, or violated invariant.
     validations:
       required: true
 
@@ -72,23 +84,27 @@ body:
     id: reproduction
     attributes:
       label: Minimal reproduction
-      description: Provide the smallest reproducible case.
+      description: Provide the smallest reproducible case using synthetic data and sanitized configuration where applicable. For intermittent defects, describe the triggering conditions and observed frequency.
       placeholder: |
-        1. Checkout branch/commit ...
-        2. Run ...
-        3. Observe ...
+        1. Install or check out the affected version.
+        2. Prepare the minimal configuration or example.
+        3. Execute the affected operation.
+        4. Observe the unexpected behavior.
+
+        Triggering conditions or observed frequency, if intermittent:
     validations:
       required: true
 
   - type: textarea
     id: commands
     attributes:
-      label: Commands and sanitized output
-      description: Paste the exact command(s) and sanitized output. Remove secrets, absolute private paths, tokens, and environment values.
-      render: shell
+      label: Commands and sanitized diagnostic output
+      description: Include relevant commands, safe error codes, HTTP status codes, or sanitized diagnostic output. Do not include raw sensitive data.
+      render: text
       placeholder: |
-        composer gates
-        composer test
+        Command or operation:
+        Error code or HTTP status:
+        Sanitized output:
     validations:
       required: false
 
@@ -96,21 +112,26 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Provide only relevant environment details.
-      value: |
+      description: Provide relevant version and runtime details only. Do not include environment variable values or full environment dumps.
+      placeholder: |
         - OS:
-        - PHP:
-        - Composer:
-        - Git:
-        - Branch/commit:
+        - PHP version:
+        - Composer version:
+        - Git version, if relevant:
+        - Coretsia version or commit:
+        - Affected package versions:
+        - Application target, if relevant:
+        - Preset, if relevant:
+        - Runtime driver, if relevant:
+        - Source or compiled boot, if relevant:
     validations:
       required: true
 
   - type: textarea
     id: related-policy
     attributes:
-      label: Related policy / SSoT / epic
-      description: Link related roadmap item, SSoT document, gate, package, or policy if known.
+      label: Related references
+      description: Link relevant issues, ADRs, SSoT documents, roadmap entries, gates, package documentation, or public contracts if known.
       placeholder: |
         - docs/roadmap/...
         - docs/ssot/...
@@ -123,9 +144,9 @@ body:
     attributes:
       label: Safety checklist
       options:
-        - label: I removed secrets, credentials, tokens, private customer data, and irrelevant environment dumps.
+        - label: I removed secrets, credentials, tokens, private paths, sensitive request data, and irrelevant environment details.
           required: true
-        - label: I included deterministic reproduction evidence or explained why reproduction is not available.
+        - label: I provided minimal reproduction steps and sanitized evidence of the observed behavior.
           required: true
 
   - type: checkboxes

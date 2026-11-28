@@ -235,6 +235,40 @@ The exact allowed field families are:
 
 The HTTP completion producer `HttpAccessLogWriter` emits `http.request.completed` through `Psr\Log\LoggerInterface`, supplying bounded `method`, `status`, `outcome`, `duration_ms`, `route_template='unknown'`, and an optional structurally valid nested `correlation_id`. For a finalized response, the producer selects `outcome=success` with an integer status below `400`, or `outcome=handled_error` for integer statuses `400..599`. When no finalized response exists, it supplies `status=unknown` and `outcome=fatal_error`. These relationships are producer obligations: `LogRecordPolicy` validates `status`, `outcome`, and the other fields independently, even when a syntactically valid combination is inconsistent with HTTP completion semantics. Neither the sink nor `ContextBagProcessor` derives `route_template` from `path_template` or from requests.
 
+The HTTP action completion producer is the invocation-local action terminal of `ActionDispatchMiddleware`, owned by `platform/http-app`.
+
+When `http_app.logging.enabled` is `true`, the producer MUST attempt exactly one PSR-3 `debug` log per admitted action terminal entry using the fixed event identifier:
+
+```text
+http.action.completed
+```
+
+The producer-supplied context MUST contain exactly:
+
+- `method`: one of `GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE|CONNECT|OTHER`, using the canonical bounded action method classification;
+- `status`: a strict integer in `100..599` representing the mapped action response status when safely available, or exactly the string `unknown`;
+- `outcome`: exactly `returned` or `threw`.
+
+`outcome = returned` means that action dispatch and response mapping returned a `ResponseInterface`, independently of its HTTP status. Response status observation failure MUST preserve the `returned` outcome and use `status = unknown`.
+
+`outcome = threw` means that action dispatch or response mapping failed after admitted action terminal entry. This outcome MUST use `status = unknown`.
+
+The action completion event MUST NOT be emitted for unmatched routes, reserved paths, method-not-allowed decisions, invalid routing handoffs, middleware admission failures, or middleware short-circuits and failures before action terminal entry.
+
+Repeated or expired continuation entry MUST NOT duplicate the action completion event. A continuation-policy failure after completed action execution MUST NOT rewrite previously completed action observations.
+
+The producer MUST NOT add handler identifiers, service identifiers, route names, route metadata, reflection signatures, route parameter values, arguments, action return values, response bodies, Throwable objects, exception messages, duration fields, or caller-derived correlation or UnitOfWork fields to this producer context.
+
+Action completion status and outcome relationships are producer obligations. `LogRecordPolicy` remains producer-neutral and MUST NOT introduce event-specific field admission or action-specific status/outcome validation.
+
+Canonical root context and permitted `path_template` enrichment remain owned by the existing Logging boundary and `ContextBagProcessor`. Producer-supplied action fields remain distinct from sink-enriched fields.
+
+The action producer MUST use the effective PSR-3 logger binding and MUST NOT introduce an alternative logger, formatter, redactor, or sink. Logging failure MUST NOT change the returned response, replace the primary Throwable, suppress another otherwise eligible observation, or cause the completion event to be retried.
+
+The `http.action.completed` event is independent of `http.request.completed` and canonical handled-error reporting. It MUST NOT be used as a duplicate HTTP access log, a handled-error report, or evidence of finalized HTTP request status.
+
+The complete action observation lifecycle, feature flags, bounded field semantics, and failure-isolation policy are governed by [Observability SSoT](./observability.md#http-action-observability-policy).
+
 The following are the *only* admitted flat list fields.
 
 Each is a PHP list of strings, with the given maximum number of items, maximum bytes per item, and semantic validation:

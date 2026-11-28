@@ -29,7 +29,7 @@ packages/core/contracts/src/Routing/
 packages/core/contracts/src/HttpApp/
 ```
 
-Runtime routing and HttpApp packages need shared contracts for route declarations, route matching, action argument resolution, and action invocation without coupling `core/contracts` to HTTP transport APIs, platform implementations, integrations, generated artifacts, middleware implementations, or vendor-specific runtime objects.
+Runtime routing and HttpApp packages need shared contracts for route declarations, route matching, allowed-method enumeration, action argument resolution, and action invocation without coupling `core/contracts` to HTTP transport APIs, platform implementations, integrations, generated artifacts, middleware implementations, or vendor-specific runtime objects.
 
 The contracts package must remain a pure library boundary.
 
@@ -116,6 +116,8 @@ The safe exported public shapes include `schemaVersion`.
 
 `RouteMatch` parameters are a deterministic string map, not a generic object or runtime payload carrier.
 
+The existing `RouteDefinition::metadata()` and `RouteMatch::metadata()` maps carry safe format-neutral consumer-owned declarations, including the ordered `http_app_middleware` service-id list. List order is preserved; Contracts and Routing do not resolve or execute these services. HttpApp owns semantic admission and execution under `docs/ssot/http-app-dispatch.md`. No descriptor field or constructor argument is added.
+
 Both are format-neutral routing shapes/descriptors.
 
 They are not DTO-marker classes by default.
@@ -174,7 +176,7 @@ docs/ssot/routing-and-http-app-contracts.md
 
 ## Router decision
 
-`RouterInterface` is the contracts port for matching scalar routing input to a `RouteMatch`.
+`RouterInterface` is the contracts port for matching scalar routing input to a `RouteMatch` and enumerating declared methods for a concrete path.
 
 The router contract must remain format-neutral.
 
@@ -192,6 +194,7 @@ The canonical interface shape is:
 
 ```text
 match(string $method, string $path, ?string $host = null): ?RouteMatch
+allowedMethods(string $path, ?string $host = null): array
 ```
 
 A concrete router implementation may receive scalar matching input such as method, path, and optional host according to the interface shape.
@@ -201,6 +204,8 @@ Raw matching input is ephemeral and must not become canonical routing metadata.
 The normalized successful output is `RouteMatch`.
 
 A null return value represents no match.
+
+`allowedMethods()` returns a `list<non-empty-string>` containing the unique exact declared methods of all admitted route domains accepting the supplied concrete encoded path, including placeholder requirements. The list is sorted ascending by byte-order `strcmp`; invalid, non-canonical, reserved, and unmatched paths return `[]`. Enumeration does not change first-match precedence, add implicit HEAD or OPTIONS, mutate routing context, or emit additional routing observations. Host remains ephemeral and does not participate in matching. The implementation belongs to `platform/routing`, as defined in `docs/ssot/routing-artifact.md`.
 
 No-match rendering, exception mapping, or transport-specific error behavior is runtime-owned.
 
@@ -310,6 +315,8 @@ Both contracts must not require:
 
 Runtime owner packages adapt transport-specific data into safe contract-level invocation inputs.
 
+The concrete `platform/http-app` implementation preserves these exact port signatures. Standalone argument resolution does not require a PSR-7 request in the optional context map; standalone invocation consumes the explicitly supplied named arguments and returns the action result without HTTP adaptation. Request injection, same-instance combined action resolution and invocation, and HTTP response mapping remain owner-local runtime operations outside the format-neutral ports.
+
 Invocation return values are implementation-owned.
 
 A runtime adapter may convert invocation output into a transport-specific response outside `core/contracts`.
@@ -321,51 +328,24 @@ A runtime adapter may convert invocation output into a transport-specific respon
 - deterministic provider aggregation and source-only route grouping;
 - target-local route compilation and complete route admission;
 - `routes@1` artifact generation, publication, and validation;
-- immutable runtime route matching and owner-artifact readiness.
+- immutable runtime route matching, allowed-method enumeration, and owner-artifact readiness.
 
 The runtime router consumes only the validated immutable route table and does not resolve handlers or invoke actions. The detailed artifact and matching decision belongs to `docs/adr/ADR-0018-platform-routing-compiled-routes.md`.
 
-`platform/http-app` is the expected future owner of concrete HttpApp dispatch behavior.
+`platform/http-app` owns concrete HTTP application dispatch. It provides non-terminal application matching through `RouterMiddleware`, an immutable request-local routing handoff, final application dispatch through `ActionDispatchMiddleware`, ordered route-specific middleware admission and execution, concrete argument resolution and action invocation, response adaptation, and canonical application 404/405 exception mapping.
 
-It may provide:
+Its canonical contributions are:
 
-- router middleware;
-- action invoker implementation;
-- argument resolver implementation;
-- application action dispatch;
-- transport adapter integration.
+- `Coretsia\Platform\HttpApp\Middleware\RouterMiddleware::class` — `http.middleware.app`, priority `100`, metadata `[]`;
+- `Coretsia\Platform\HttpApp\Middleware\ActionDispatchMiddleware::class` — `http.middleware.route`, priority `-1000`, metadata `[]`.
 
-When installed, `platform/http-app` is expected to supply router middleware and wire it into the canonical app middleware slot with priority:
+The corresponding code-level tag identifiers are `ReservedTags::HTTP_MIDDLEWARE_APP` and `ReservedTags::HTTP_MIDDLEWARE_ROUTE`, owned by Foundation.
 
-```text
-100
-```
+Both contributions participate as a canonical pair only when `platform.http-app` is selected in the effective target module plan and its required runtime dependencies are satisfied. Package installation alone does not activate dispatch. Matching delegates successful matches and reserved paths through the remaining global chain; the dispatcher is the final effective route contribution after ordinary tagged and manual route middleware. Matched routes execute through the admitted invocation-local route-specific chain and action terminal; reserved handoffs delegate to the HTTP-owned terminal.
 
-The canonical middleware tag is:
+`platform/http` owns global middleware composition and the public Pipeline API, including guarded continuation execution and mandatory outermost Problem Details participation when HttpApp is enabled. The canonical nine-slot taxonomy and composition rules remain governed by `docs/ssot/http-middleware-wiring.md` and `docs/ssot/tags.md`.
 
-```text
-http.middleware.app
-```
-
-The canonical code-level identifier for this Coretsia-reserved DI tag is:
-
-```text
-Coretsia\Foundation\Tag\ReservedTags::HTTP_MIDDLEWARE_APP
-```
-
-This is runtime policy, not a `core/contracts` dependency.
-
-The canonical HTTP middleware taxonomy remains:
-
-```text
-system/app/route
-```
-
-Middleware slot ownership and tag semantics remain governed by:
-
-```text
-docs/ssot/tags.md
-```
+HttpApp dispatch and HTTP-specific adaptation are governed by `docs/ssot/http-app-dispatch.md` and `docs/adr/ADR-0043-platform-http-app-router-middleware-action-invoker.md`. These are runtime ownership rules, not dependencies of `core/contracts`.
 
 ## DI tag decision
 
@@ -479,7 +459,7 @@ Runtime packages can depend on stable routing and HttpApp contracts without depe
 
 `platform/routing` implements route matching and route compilation against stable descriptors.
 
-`platform/http-app` can implement dispatch, argument resolution, action invocation, and router middleware without forcing HTTP request or response types into `core/contracts`.
+`platform/http-app` implements application matching integration, final action dispatch, argument resolution, action invocation, and route-specific middleware execution without forcing HTTP request or response types into `core/contracts`.
 
 Routing produces and validates its owner artifact independently of the Kernel generation and the contracts package.
 
@@ -566,4 +546,6 @@ This ADR does not implement:
 - `docs/ssot/dto-policy.md`
 - `docs/ssot/artifacts.md`
 - `docs/ssot/routing-artifact.md`
+- `docs/ssot/http-app-dispatch.md`
+- `docs/ssot/http-middleware-wiring.md`
 - `docs/ssot/context-keys.md`

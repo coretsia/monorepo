@@ -47,6 +47,37 @@ The format is based on Keep a Changelog, with a single-choice heading rule: rele
 
 - _TBD_
 
+## v0.15.0
+
+### Added
+
+- Introduced the `coretsia/platform-http-app` runtime package with the `platform.http-app` module, validated `http_app` configuration root, deterministic routing integration, route-specific PSR-15 middleware execution, and explicit application action dispatch.
+- Added explicit logical action-to-service registration, invokable action resolution, allowlisted argument sources, and strict named argument invocation through the canonical Foundation Container.
+- Added ordered route-specific middleware selection through existing route metadata, explicit service admission, and lazy container-owned resolution.
+- Added deterministic action response mapping for supported JSON-like values, HTML strings, and existing PSR-7 responses.
+- Added canonical application HTTP 404 and 405 exception mapping through the existing error-handling and Problem Details boundaries, including deterministic `Allow` header generation.
+- Added action-level tracing, metrics, and diagnostic logging with independent feature flags and observability failure isolation.
+- Expanded contract, unit, integration, and artifact-backed end-to-end regression coverage for application dispatch, middleware ordering, source/compiled runtime parity, error handling, and repeated-request isolation.
+
+### Changed
+
+- Updated canonical `micro`, `express`, `hybrid`, and `enterprise` presets to select `platform.http-app`, preserving target-local module overrides and explicit Composer dependency synchronization.
+- Extended `RouterInterface` with deterministic allowed-method enumeration across all matching route domains, without implicit HEAD or OPTIONS handling.
+- Promoted the HTTP `Pipeline` to a public composition API with explicit continuation policies and shared middleware service resolution for global and route-specific execution.
+- Established separate canonical route matching and final action dispatch contributions within the existing nine-slot HTTP middleware pipeline, preserving ordinary middleware ordering and HTTP-owned system endpoint fallback.
+- Extended Problem Details HTTP adaptation with bounded 405 method metadata validation and atomic status, body, and `Allow` header construction.
+- Preserved existing route artifact schemas, Foundation declarative DI, Kernel-owned UnitOfWork, response finalization, and reset orchestration without introducing parallel runtime mechanisms.
+- Updated canonical configuration, package discovery, installation catalogs, architecture dependency definitions, and framework documentation.
+
+### Security
+
+- Enforced explicit handler and middleware registration, strict argument-source admission, and fail-closed dispatch without implicit class-name resolution, recursive argument autowiring, or silent middleware skipping.
+- Enforced canonical matching and dispatch participation and mandatory outermost Problem Details middleware when HttpApp is enabled.
+- Added guarded middleware continuations with at-most-once entry, expiration after middleware execution, protected routing handoff identity, and exact post-match method, encoded-path, and host preservation.
+- Restricted Problem Details 405 `Allow` header generation to validated canonical method lists, with safe emergency HTTP 500 responses for invalid metadata and no disclosure of internal descriptor extensions in public Problem Details JSON.
+- Restricted action diagnostics to bounded operational fields without exposing raw request data, route parameters, handler identifiers, service ids, argument values, action results, or raw Throwable details.
+- Preserved application-owned authorization and response-cache ordering responsibilities, ordinary middleware short-circuit behavior, and canonical error and observability failure isolation.
+
 ## v0.14.0
 
 ### Added

@@ -45,7 +45,13 @@ final class GroupedRoutesCompilationAndMatchingTest extends TestCase
 
     public static function exercise(string $root): void
     {
-        $group = RouteGroup::root()->group('/teams/{team}', 'teams', ['team' => '[0-9]+'], ['scope' => 'team']);
+        $middleware = ['app.middleware.z', 'app.middleware.a'];
+        $group = RouteGroup::root()->group(
+            '/teams/{team}',
+            'teams',
+            ['team' => '[0-9]+'],
+            ['scope' => 'team', 'http_app_middleware' => $middleware],
+        );
         $standalone = [
             new RouteDefinition(
                 'teams.members.z',
@@ -53,7 +59,12 @@ final class GroupedRoutesCompilationAndMatchingTest extends TestCase
                 '/teams/{team}/members/{member}/{id}',
                 'Handler::show',
                 ['team' => '[0-9]+', 'member' => '[A-Za-z]+'],
-                metadata: ['flag' => true, 'scope' => 'team', 'mode' => 'read'],
+                metadata: [
+                    'flag' => true,
+                    'scope' => 'team',
+                    'mode' => 'read',
+                    'http_app_middleware' => $middleware,
+                ],
             ),
             new RouteDefinition(
                 'teams.a',
@@ -61,7 +72,7 @@ final class GroupedRoutesCompilationAndMatchingTest extends TestCase
                 '/teams/{team}/members/alice/fixed',
                 'Handler::fixed',
                 ['team' => '[0-9]+'],
-                metadata: ['scope' => 'team'],
+                metadata: ['scope' => 'team', 'http_app_middleware' => $middleware],
             ),
         ];
         $low = new RouteDefinition('standalone', ['GET'], '/teams/{team}/members/alice/fixed', 'Handler::other');
@@ -165,7 +176,12 @@ final class GroupedRoutesCompilationAndMatchingTest extends TestCase
         $match = $router->match('GET', '/teams/42/members/alice/fixed');
         self::assertSame([
             'handler' => 'Handler::show',
-            'metadata' => ['flag' => true, 'mode' => 'read', 'scope' => 'team'],
+            'metadata' => [
+                'flag' => true,
+                'http_app_middleware' => ['app.middleware.z', 'app.middleware.a'],
+                'mode' => 'read',
+                'scope' => 'team',
+            ],
             'name' => 'teams.members.z',
             'parameters' => ['id' => 'fixed', 'member' => 'alice', 'team' => '42'],
             'pathTemplate' => '/teams/{team}/members/{member}/{id}',

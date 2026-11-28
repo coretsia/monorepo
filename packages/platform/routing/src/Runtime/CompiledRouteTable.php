@@ -89,4 +89,31 @@ final readonly class CompiledRouteTable
 
         return null;
     }
+
+    /**
+     * Enumerates declared methods across every matching hydrated route domain.
+     *
+     * @return list<non-empty-string>
+     */
+    public function allowedMethods(string $path): array
+    {
+        $methods = [];
+        foreach ($this->compiled as $entry) {
+            if ($entry['template']->match($path) === null) {
+                continue;
+            }
+
+            foreach ($entry['route']->methods() as $method) {
+                $methods[$method] = true;
+            }
+        }
+
+        $methods = \array_keys($methods);
+        \usort(
+            $methods,
+            static fn (string $left, string $right): int => \strcmp($left, $right),
+        );
+
+        return $methods;
+    }
 }

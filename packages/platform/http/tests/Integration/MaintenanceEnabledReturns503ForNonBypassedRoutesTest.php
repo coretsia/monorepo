@@ -40,6 +40,7 @@ use Coretsia\Foundation\Tag\ReservedTags;
 use Coretsia\Foundation\Tag\TagRegistry;
 use Coretsia\Foundation\Time\Stopwatch;
 use Coretsia\Kernel\Config\ArrayConfigRepository;
+use Coretsia\Kernel\Module\ModulePlan;
 use Coretsia\Kernel\Runtime\Hook\HookInvoker;
 use Coretsia\Kernel\Runtime\KernelRuntime;
 use Coretsia\Kernel\Runtime\RuntimePathContext;
@@ -794,6 +795,7 @@ final class MaintenanceEnabledReturns503ForNonBypassedRoutesTest extends TestCas
             new ArrayConfigRepository(['http' => $http], []),
             $stack,
             $terminal,
+            new ModulePlan('web', [], [], [], []),
         );
     }
 

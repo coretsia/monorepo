@@ -113,7 +113,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         });
         $meter->expects(self::once())->method('observe')->with('http.request_duration_ms');
 
-        $kernel = self::kernel($runtime, new Pipeline([], $terminal), $meter);
+        $kernel = self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter);
         self::assertSame($final, $kernel->handle($request));
         self::assertSame(['begin', 'pipeline', 'finalize', 'metric', 'after-reset'], $events);
     }
@@ -141,7 +141,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $terminal->expects(self::never())->method('handle');
 
         try {
-            self::kernel($runtime, new Pipeline([], $terminal), $meter)
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter)
                 ->handle($this->createStub(ServerRequestInterface::class));
             self::fail('Rejected begin must escape without entering the HTTP request lifecycle.');
         } catch (\RuntimeException $actual) {
@@ -198,7 +198,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $meter->expects(self::once())->method('observe')->with('http.request_duration_ms');
 
         try {
-            self::kernel($runtime, new Pipeline([], $terminal), $meter)->handle($request);
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter)->handle($request);
             self::fail('Uncaught downstream Throwable must not be swallowed.');
         } catch (\Throwable $actual) {
             self::assertSame($failure, $actual);
@@ -246,7 +246,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $request->method('getMethod')->willReturn('GET');
 
         try {
-            self::kernel($runtime, new Pipeline([], $terminal), $meter)->handle($request);
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter)->handle($request);
             self::fail('Intermediate response must not escape failed finalization.');
         } catch (\RuntimeException $actual) {
             self::assertSame($failure, $actual);
@@ -274,7 +274,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $request->method('getMethod')->willReturn('GET');
 
         try {
-            self::kernel($runtime, new Pipeline([], $terminal), $meter)->handle($request);
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter)->handle($request);
             self::fail('Kernel completion failure must propagate when no earlier HTTP Throwable exists.');
         } catch (\RuntimeException $actual) {
             self::assertSame($failure, $actual);
@@ -320,7 +320,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $terminal->expects(self::exactly(2))->method('handle')->willReturnOnConsecutiveCalls($one, $two);
         $request = $this->createStub(ServerRequestInterface::class);
         $request->method('getMethod')->willReturn('GET');
-        $kernel = self::kernel($runtime, new Pipeline([], $terminal), $meter);
+        $kernel = self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $meter);
 
         self::assertSame($one, $kernel->handle($request));
         self::assertSame($two, $kernel->handle($request));
@@ -426,7 +426,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline([$middleware], $terminal),
+            new Pipeline([$middleware], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,
@@ -687,7 +687,7 @@ final class HttpKernelInvokesKernelRuntimeUowHooksTest extends TestCase
         $pipeline = new Pipeline([
             $before,
             new RequestContextMiddleware($context, true, false),
-        ], $terminal);
+        ], $terminal, false, [], false);
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),

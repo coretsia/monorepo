@@ -333,7 +333,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
 
                     return $intermediate;
                 });
-            $pipeline = new Pipeline([$shortCircuit], $terminal);
+            $pipeline = new Pipeline([$shortCircuit], $terminal, false, [], false);
         } else {
             $terminal->expects(self::once())->method('handle')
                 ->willReturnCallback(
@@ -348,7 +348,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
                         return $intermediate;
                     },
                 );
-            $pipeline = new Pipeline([], $terminal);
+            $pipeline = new Pipeline([], $terminal, false, [], false);
         }
         $labels = ['method' => $expectedMethod, 'status' => $status, 'outcome' => $outcome];
         $measuredDuration = null;
@@ -634,7 +634,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $response,
             self::kernel(
                 $runtime,
-                new Pipeline([$boundary], $terminal),
+                new Pipeline([$boundary], $terminal, false, [], false),
                 $meter,
                 $logger,
                 $tracer,
@@ -775,7 +775,14 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         $span->expects($flags['tracing'] ? self::once() : self::never())->method('end');
         $tracer = $this->createMock(TracerPortInterface::class);
         $tracer->expects($flags['tracing'] ? self::once() : self::never())->method('startSpan')->willReturn($span);
-        $kernel = self::kernel($runtime, new Pipeline([], $terminal), $meter, $logger, $tracer, $flags);
+        $kernel = self::kernel(
+            $runtime,
+            new Pipeline([], $terminal, false, [], false),
+            $meter,
+            $logger,
+            $tracer,
+            $flags,
+        );
         self::assertSame($response, $kernel->handle($request));
 
         if ($disabled === 'tracing') {
@@ -849,7 +856,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $response,
             self::kernel(
                 $runtime,
-                new Pipeline([], $terminal),
+                new Pipeline([], $terminal, false, [], false),
                 $meter,
                 $logger,
                 $tracer,
@@ -967,7 +974,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline([], $terminal),
+            new Pipeline([], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlations,
                 true,
@@ -1107,7 +1114,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             $response,
             self::kernel(
                 $runtime,
-                new Pipeline([], $terminal),
+                new Pipeline([], $terminal, false, [], false),
                 $meter,
                 $logger,
                 $tracer,
@@ -1346,7 +1353,7 @@ final class HttpKernelFinalResponseObservabilityTest extends TestCase
             try {
                 self::kernel(
                     $runtime,
-                    new Pipeline([], $terminal),
+                    new Pipeline([], $terminal, false, [], false),
                     $meter,
                     $logger,
                     $tracer,

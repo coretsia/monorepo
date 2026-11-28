@@ -386,7 +386,20 @@ Canonical module and manifest semantics are defined by the corresponding monorep
 
 Routing and HTTP application contracts define cross-package ports without owning concrete transport integration.
 
-The format-neutral routing boundary under `Coretsia\Contracts\Routing` contains `RouteDefinition`, `RouteMatch`, `RouteProviderInterface`, and `RouterInterface`. The provider returns a deterministic flat list of ordinary route descriptors; the router returns a match descriptor or `null`.
+The format-neutral routing boundary under `Coretsia\Contracts\Routing` contains `RouteDefinition`, `RouteMatch`, `RouteProviderInterface`, and `RouterInterface`. The provider returns a deterministic flat list of ordinary route descriptors.
+
+The exact `RouterInterface` surface is:
+
+```text
+match(string $method, string $path, ?string $host = null): ?RouteMatch
+allowedMethods(string $path, ?string $host = null): array
+```
+
+`match()` returns a successful match descriptor or `null`.
+
+`allowedMethods()` returns a `list<non-empty-string>` containing the unique declared methods of all admitted route domains accepting the supplied concrete encoded path, sorted ascending by byte-order `strcmp`. Invalid, non-canonical, reserved, and unmatched paths return `[]`. Enumeration does not add implicit HEAD or OPTIONS methods, mutate routing context, or emit additional routing observations.
+
+Both operations remain format-neutral and expose no HTTP request, response, middleware, or concrete runtime objects.
 
 The independent transport-neutral artifact readiness port is:
 
@@ -396,7 +409,20 @@ Coretsia\Contracts\Routing\RoutingArtifactReadinessInterface
 
 Its only operation is `assertReady(): void`. Normal completion indicates readiness; failures use implementation-owned exceptions. It does not expose paths, payloads, filesystem APIs, or concrete router operations and does not extend `RouterInterface`.
 
-`platform/routing` owns route compilation, artifact validation and publication, and concrete matching. `Coretsia\Contracts\HttpApp\ArgumentResolverInterface` and `Coretsia\Contracts\HttpApp\ActionInvokerInterface` define the separate format-neutral action invocation boundary.
+`platform/routing` owns route compilation, artifact validation and publication, concrete matching, and allowed-method enumeration. `Coretsia\Contracts\HttpApp\ArgumentResolverInterface` and `Coretsia\Contracts\HttpApp\ActionInvokerInterface` define the separate format-neutral action invocation boundary.
+
+Their canonical signatures are:
+
+```text
+ArgumentResolverInterface::resolve(string $actionId, RouteMatch $match, array $context = []): array
+ActionInvokerInterface::invoke(string $actionId, array $arguments = []): mixed
+```
+
+Resolved arguments form a named `array<string, mixed>` map. Neither port requires a PSR-7 request or response.
+
+`platform/http-app` owns concrete application dispatch, including HTTP-specific argument resolution and response adaptation outside these format-neutral ports.
+
+The existing `RouteDefinition` and `RouteMatch` metadata maps carry safe consumer-owned declarations, including ordered route-specific middleware selections. Contracts does not interpret middleware admission or execution semantics, and neither descriptor acquires transport objects or middleware instances.
 
 The contracts package MUST NOT become the implementation owner for:
 
@@ -607,6 +633,7 @@ Redaction remains defense in depth. Producer-owned safe-by-construction output, 
 - [Context Keys SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/context-keys.md)
 - [Observability and Errors SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/observability-and-errors.md)
 - [Routing and HttpApp Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/routing-and-http-app-contracts.md)
+- [HTTP Application Dispatch SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/http-app-dispatch.md)
 - [Validation Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/validation-contracts.md)
 - [Filesystem Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/filesystem-contracts.md)
 - [Database Contracts SSoT](https://github.com/coretsia/monorepo/blob/main/docs/ssot/database-contracts.md)

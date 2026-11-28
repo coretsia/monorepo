@@ -21,7 +21,8 @@ namespace Coretsia\Contracts\Routing;
 /**
  * Format-neutral router matching boundary.
  *
- * This port accepts scalar matching input and returns a normalized route match.
+ * This port accepts scalar matching input and returns a normalized route match
+ * or enumerates the declared methods for a matching path.
  *
  * It MUST NOT require PSR-7 request objects, PSR-7 response objects, `platform/http`
  * request objects, `platform/http` response objects, middleware objects, route
@@ -52,4 +53,21 @@ interface RouterInterface
      * @param non-empty-string|null $host
      */
     public function match(string $method, string $path, ?string $host = null): ?RouteMatch;
+
+    /**
+     * Returns the unique declared methods of all admitted routes whose complete
+     * matching domains accept the supplied path, including placeholder requirements.
+     *
+     * Methods are returned in deterministic byte-order (strcmp). Invalid,
+     * non-canonical, reserved, and unmatched paths return an empty list.
+     * No implicit methods are added, including HEAD for GET or automatic OPTIONS.
+     *
+     * The raw path and host remain ephemeral and MUST NOT be emitted through
+     * diagnostics. Host-based matching is not supported; $host is unused.
+     *
+     * @param non-empty-string $path
+     * @param non-empty-string|null $host
+     * @return list<non-empty-string>
+     */
+    public function allowedMethods(string $path, ?string $host = null): array;
 }

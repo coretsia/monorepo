@@ -150,7 +150,7 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
         $kernel = new HttpKernel(
             $this->runtime('success', null),
             new Stopwatch(),
-            new Pipeline([$middleware], $terminal),
+            new Pipeline([$middleware], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,
@@ -643,7 +643,7 @@ final class NoopTracingAndMetricsNeverThrowInHttpEnvelopeContractTest extends Te
         return new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline([], $terminal),
+            new Pipeline([], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,

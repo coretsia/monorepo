@@ -234,7 +234,7 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal),
+            new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,
@@ -350,7 +350,7 @@ final class RequestContextMiddlewareContextKeysTest extends TestCase
         $kernel = new HttpKernel(
             $runtime,
             new Stopwatch(),
-            new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal),
+            new Pipeline([new RequestContextMiddleware($context, true, false)], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,

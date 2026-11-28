@@ -15,6 +15,9 @@ contact_links:
   - name: Security vulnerability report
     url: https://github.com/coretsia/monorepo/security/policy
     about: Please report security vulnerabilities through the repository security policy, not public issues.
-  - name: General contribution guide
+  - name: Questions and community discussions
+    url: https://github.com/coretsia/monorepo/discussions
+    about: Use GitHub Discussions for general questions, early-stage ideas, feedback, and community discussions.
+  - name: Contribution guide
     url: https://github.com/coretsia/monorepo/blob/main/CONTRIBUTING.md
-    about: Read the contribution workflow before opening broad or process-related issues.
+    about: Read the contribution guidelines, development workflow, and verification requirements before contributing.

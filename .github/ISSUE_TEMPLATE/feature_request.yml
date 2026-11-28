@@ -17,9 +17,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form for planned, non-security feature proposals.
+        Use this form to propose new capabilities or improvements to existing behavior.
 
-        Coretsia is roadmap- and SSoT-driven. Feature requests should define scope, invariants, affected packages, and verification evidence.
+        Coretsia is roadmap- and SSoT-driven. Describe the problem, desired behavior, scope, relevant invariants, and verifiable acceptance criteria.
+
+        Do not include secrets or sensitive data. Report security vulnerabilities through the repository security policy, not public issues.
 
   - type: checkboxes
     id: existing-work
@@ -34,11 +36,18 @@ body:
     attributes:
       label: Feature area
       options:
-        - Runtime package
+        - Framework distribution / dependency management
         - Core contracts
+        - DTO attribute / DTO policy
         - Foundation / Kernel
         - Platform CLI
-        - Tooling / gates
+        - HTTP / HttpApp / Routing
+        - Errors / Problem Details
+        - Logging / Metrics / Tracing
+        - Redaction / data safety
+        - Worker runtime
+        - Runtime integrations
+        - Tooling / gates / CI
         - Architecture / Deptrac
         - Package scaffold / compliance
         - Application template / presets
@@ -63,13 +72,15 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: Describe the desired behavior and public contract.
+      description: Describe the desired behavior, relevant invariants, and expected public contract. Include implementation details when known.
       placeholder: |
         Proposed behavior:
-        New/changed entrypoints:
-        New/changed config roots:
-        New/changed tags:
-        New/changed artifacts:
+        Expected invariants:
+        New or changed public APIs:
+        New or changed entrypoints:
+        New or changed configuration:
+        New or changed tags:
+        New or changed artifacts:
     validations:
       required: true
 
@@ -103,20 +114,20 @@ body:
   - type: textarea
     id: compatibility
     attributes:
-      label: Compatibility and migration
-      description: Describe backward compatibility, breaking changes, and migration needs.
+      label: Compatibility and public API
+      description: Describe potential compatibility implications and migration needs when known. Migration and deprecation requirements depend on the applicable release policy.
       placeholder: |
-        Breaking change: yes/no
-        Migration path:
-        Deprecation plan:
+        Affected public contracts:
+        Expected compatibility impact:
+        Migration or deprecation requirements, if applicable:
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: Provide verifiable criteria.
+      description: Describe observable outcomes and verifiable criteria that would demonstrate the feature is complete and correct.
       placeholder: |
         - [ ] ...
         - [ ] ...
@@ -130,6 +141,8 @@ body:
       label: Policy checklist
       options:
         - label: I considered whether SSoT docs need to change.
+          required: true
+        - label: I considered existing package responsibilities, dependency boundaries, and canonical mechanisms.
           required: true
         - label: I considered whether commands, config roots, tags, artifacts, gates, or public API policy need to change.
           required: true

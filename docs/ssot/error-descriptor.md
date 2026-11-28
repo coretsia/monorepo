@@ -141,14 +141,14 @@ The exported array shape MUST remain stable and contract-tested.
 
 ## Field reference
 
-| field           | type                  | required | meaning                                                                |
-|-----------------|-----------------------|----------|------------------------------------------------------------------------|
-| `code`          | `string`              | yes      | Stable machine-readable normalized error code.                         |
-| `extensions`    | `array<string,mixed>` | no       | Safe json-like extension map for deterministic non-transport metadata. |
-| `httpStatus`    | `int\|null`           | no       | Optional HTTP status hint only.                                        |
-| `message`       | `string`              | yes      | Safe human-readable message.                                           |
-| `schemaVersion` | `int`                 | yes      | Stable descriptor schema version.                                      |
-| `severity`      | `string`              | yes      | Stable normalized severity value.                                      |
+| field           | type                  | required | meaning                                                          |
+|-----------------|-----------------------|----------|------------------------------------------------------------------|
+| `code`          | `string`              | yes      | Stable machine-readable normalized error code.                   |
+| `extensions`    | `array<string,mixed>` | no       | Safe json-like extension map for bounded owner-defined metadata. |
+| `httpStatus`    | `int\|null`           | no       | Optional HTTP status hint only.                                  |
+| `message`       | `string`              | yes      | Safe human-readable message.                                     |
+| `schemaVersion` | `int`                 | yes      | Stable descriptor schema version.                                |
+| `severity`      | `string`              | yes      | Stable normalized severity value.                                |
 
 ## `schemaVersion`
 
@@ -437,6 +437,7 @@ Suggested mapping policy:
 | Authentication required.        | `401`      |
 | Authorization denied.           | `403`      |
 | Resource not found.             | `404`      |
+| HTTP method not allowed.        | `405`      |
 | Conflict with current state.    | `409`      |
 | Rate limit exceeded.            | `429`      |
 | Unexpected server failure.      | `500`      |
@@ -446,7 +447,11 @@ These hints are adapter policy, not a transport dependency.
 
 ## `extensions`
 
-`extensions` is a safe json-like extension map for deterministic non-transport metadata.
+`extensions` is a safe json-like extension map for deterministic, bounded owner-defined metadata.
+
+Owner-defined protocol metadata MAY be represented through explicitly admitted extension keys without introducing transport objects, transport-specific descriptor fields, or arbitrary header maps.
+
+The owning producer MUST establish the exact semantic meaning, value shape, source bounds, and safe derivation policy for such metadata. Structural acceptance by `ErrorDescriptor` does not authorize arbitrary transport adaptation or public disclosure.
 
 The root value MUST be a map with string keys.
 
@@ -524,6 +529,47 @@ An allowed key does not make an arbitrary raw value safe.
 Extension values MUST follow the json-like payload policy in this document.
 
 `extensions` MUST NOT be used as a dump for raw exception, request, response, database, queue, or profiler data.
+
+### HTTP method mismatch metadata
+
+The `platform/http-app` error mapper owns the bounded `allowed_methods` extension for canonical application route method mismatch.
+
+The extension is supplied through the existing `extensions` map:
+
+```php
+[
+    'allowed_methods' => ['GET', 'POST'],
+]
+```
+
+For the canonical HttpApp method mismatch descriptor:
+
+- `code` is exactly `CORETSIA_HTTP_405`;
+- `message` is exactly `http-app-method-not-allowed`;
+- `severity` is `ErrorSeverity::Error`;
+- `httpStatus` is `405`;
+- `extensions.allowed_methods` contains the validated allowed-method list.
+
+The owner-defined `allowed_methods` value MUST:
+
+- be an actual non-empty PHP list containing at most nine entries;
+- contain exact string values from the closed vocabulary `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, and `CONNECT`;
+- contain no duplicate methods;
+- preserve strictly ascending byte-order `strcmp` ordering.
+
+The producer MUST validate the existing list shape, exact string values, vocabulary membership, uniqueness, and ordering before constructing the descriptor.
+
+Invalid metadata MUST NOT be normalized, sorted, deduplicated, coerced, truncated, or repaired to obtain an admissible list. Rejected values MUST NOT be retained or included in diagnostics.
+
+`allowed_methods` represents bounded protocol metadata derived from canonical route method availability. It MUST NOT contain the rejected request method, raw request paths, hosts, request headers, handler identifiers, or arbitrary routing metadata.
+
+The extension remains subject to every existing `ErrorDescriptor.extensions` invariant, including recursive semantic-key rejection, json-like value admission, absolute-local-path rejection, resource budgets, deterministic normalization, and producer-owned safe derivation.
+
+Method-list semantics remain owner-defined. `ErrorDescriptor` does not perform HTTP method validation, route matching, header construction, or transport adaptation.
+
+Canonical error normalization and mandatory shared redaction remain owned by `platform/errors`.
+
+HTTP `Allow` header admission and materialization are owned by [Problem Details SSoT](./problem-details.md). The `allowed_methods` extension MUST NOT be published as a public Problem Details JSON member or interpreted as authorization for arbitrary descriptor-to-header mapping.
 
 ## Extensions payload constraints
 
@@ -900,16 +946,23 @@ Transport-specific output MUST NOT become the canonical descriptor shape.
 
 ### HTTP
 
-HTTP adapters MAY derive RFC7807/problem-details.
+The canonical HTTP Problem Details adapter derives a safe RFC9457 representation with the RFC7807-compatible baseline defined by [Problem Details SSoT](./problem-details.md).
 
-They MAY map:
+The canonical adaptation uses:
 
 ```text
-code → type or extension field
-message → title or detail according to adapter policy
-httpStatus → status
-extensions → safe extension members
+httpStatus → validated response status
+validated response status → fixed title
+type → about:blank
 ```
+
+For a descriptor with `httpStatus = 405`, the canonical HTTP adapter consumes only the exact `extensions.allowed_methods` member to derive the HTTP `Allow` header under the owner-defined method-list admission policy.
+
+This protocol metadata is consumed separately from the public Problem Details model and JSON representation.
+
+Descriptor `code`, `message`, `severity`, `schemaVersion`, and `extensions` MUST NOT be published as public Problem Details JSON members.
+
+No arbitrary descriptor-to-header mapping is permitted.
 
 HTTP adapters MUST NOT require `ErrorDescriptor` to contain PSR-7 objects, request objects, response objects, headers, or problem-details objects.
 
@@ -999,6 +1052,7 @@ This SSoT does not define:
 ## Cross-references
 
 - [Errors Boundary SSoT](./errors-boundary.md)
+- [Problem Details SSoT](./problem-details.md) — canonical HTTP status adaptation, bounded Allow-header materialization, and public disclosure policy.
 - [Observability and Errors SSoT](./observability-and-errors.md)
 - [Observability Naming, Metrics Catalog, and Labels Allowlist](./observability.md)
 - [DTO Policy](./dto-policy.md)

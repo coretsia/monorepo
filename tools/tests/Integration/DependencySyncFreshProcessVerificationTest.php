@@ -877,6 +877,11 @@ PHP,
                     $releaseVersion,
                 ],
                 [
+                    'coretsia/platform-http-app',
+                    $repoRoot . '/packages/platform/http-app',
+                    $releaseVersion,
+                ],
+                [
                     'coretsia/platform-logging',
                     $repoRoot . '/packages/platform/logging',
                     $releaseVersion,

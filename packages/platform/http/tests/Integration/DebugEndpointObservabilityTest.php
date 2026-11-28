@@ -348,7 +348,7 @@ final class DebugEndpointObservabilityTest extends TestCase
                             return $final;
                         },
                     );
-                    $pipeline = new Pipeline([], $terminal);
+                    $pipeline = new Pipeline([], $terminal, false, [], false);
                 }
 
                 $kernel = new HttpKernel(

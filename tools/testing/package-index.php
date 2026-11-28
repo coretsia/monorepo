@@ -161,6 +161,23 @@ return array(
     ),
     8 =>
     array(
+      'composerName' => 'coretsia/platform-http-app',
+      'defaultsConfigPath' => 'config/http_app.php',
+      'id' => 'platform.http-app',
+      'kind' => 'runtime',
+      'layer' => 'platform',
+      'moduleClass' => 'Coretsia\\Platform\\HttpApp\\Module\\HttpAppModule',
+      'moduleId' => 'platform.http-app',
+      'path' => 'packages/platform/http-app',
+      'providers' =>
+      array(
+        0 => 'Coretsia\\Platform\\HttpApp\\Provider\\HttpAppServiceProvider',
+      ),
+      'psr4' => 'Coretsia\\Platform\\HttpApp\\',
+      'slug' => 'http-app',
+    ),
+    9 =>
+    array(
       'composerName' => 'coretsia/platform-logging',
       'defaultsConfigPath' => 'config/logging.php',
       'id' => 'platform.logging',
@@ -176,7 +193,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Logging\\',
       'slug' => 'logging',
     ),
-    9 =>
+    10 =>
     array(
       'composerName' => 'coretsia/platform-metrics',
       'defaultsConfigPath' => 'config/metrics.php',
@@ -193,7 +210,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Metrics\\',
       'slug' => 'metrics',
     ),
-    10 =>
+    11 =>
     array(
       'composerName' => 'coretsia/platform-problem-details',
       'defaultsConfigPath' => 'config/problem_details.php',
@@ -210,7 +227,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\ProblemDetails\\',
       'slug' => 'problem-details',
     ),
-    11 =>
+    12 =>
     array(
       'composerName' => 'coretsia/platform-redaction',
       'defaultsConfigPath' => null,
@@ -227,7 +244,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Redaction\\',
       'slug' => 'redaction',
     ),
-    12 =>
+    13 =>
     array(
       'composerName' => 'coretsia/platform-routing',
       'defaultsConfigPath' => 'config/routing.php',
@@ -244,7 +261,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Routing\\',
       'slug' => 'routing',
     ),
-    13 =>
+    14 =>
     array(
       'composerName' => 'coretsia/platform-tracing',
       'defaultsConfigPath' => 'config/tracing.php',
@@ -261,7 +278,7 @@ return array(
       'psr4' => 'Coretsia\\Platform\\Tracing\\',
       'slug' => 'tracing',
     ),
-    14 =>
+    15 =>
     array(
       'composerName' => 'coretsia/platform-worker',
       'defaultsConfigPath' => 'config/worker.php',

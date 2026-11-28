@@ -1,48 +1,44 @@
-<!--
-  Coretsia Framework (Monorepo)
-
-  Project: Coretsia Framework (Monorepo)
-  Authors: Vladyslav Mudrichenko and contributors
-  Copyright (c) 2026 Vladyslav Mudrichenko
-
-  SPDX-FileCopyrightText: 2026 Vladyslav Mudrichenko
-  SPDX-License-Identifier: Apache-2.0
-
-  For contributors list, see git history.
-  See LICENSE and NOTICE in the project root for full license information.
--->
-
 ## Summary
 
 <!--
-Describe the change in concrete terms.
-Avoid broad narrative. State what changed and why.
+Describe what changed and why.
+Explain the problem, the implemented solution, and the expected outcome.
+Keep the description concrete and focused.
 -->
 
 ## Type of change
 
+<!-- Select all that apply. -->
+
 - [ ] Bug fix
 - [ ] Feature
 - [ ] Refactor
+- [ ] Performance improvement
+- [ ] Security hardening
 - [ ] Documentation
-- [ ] Tooling / gate / CI rail
-- [ ] Architecture / SSoT / roadmap policy
+- [ ] Architecture / SSoT
+- [ ] Tooling / gates / CI
 - [ ] Package scaffold / compliance
+- [ ] Dependency update
 - [ ] Test-only change
 
-## Linked issue / roadmap / SSoT
+## Related references
 
 <!--
-Required when applicable.
+Provide relevant references when applicable.
 
 Examples:
 - Closes #...
-- Epic: docs/roadmap/...
+- Related to #...
+- Discussion: #...
+- ADR: docs/adr/...
 - SSoT: docs/ssot/...
-- Command catalog: docs/guides/commands.md
+- Roadmap: docs/roadmap/...
 -->
 
 ## Affected areas
+
+<!-- Select all that apply. -->
 
 - [ ] `packages/framework/**`
 - [ ] `packages/applications/skeleton/**`
@@ -55,70 +51,195 @@ Examples:
 - [ ] `tools/**`
 - [ ] `.github/**`
 - [ ] `docs/**`
-- [ ] root Composer / workspace / repository metadata
+- [ ] Root Composer / workspace / repository metadata
 
-## Policy checklist
+## Architecture and compliance
 
-- [ ] I updated SSoT docs when changing commands, config roots, tags, artifacts, observability policy, public API, or architecture rules.
-- [ ] I updated `docs/guides/commands.md` when adding, changing, removing, or reclassifying a command.
-- [ ] I preserved deterministic output policy for gates and generators.
-- [ ] Diagnostics do not include secrets, raw config payloads, absolute paths, environment values, tokens, request bodies, headers, cookies, or private data.
-- [ ] Runtime packages do not import, read, execute, or reference tooling code or tooling-generated architecture artifacts.
-- [ ] Tooling gates use the canonical ConsoleOutput policy where applicable.
-- [ ] New or changed gates are separately invokable through repo-root Composer scripts when required.
-- [ ] Generated artifacts remain rerun-no-diff and have canonical envelope/header shape where applicable.
-- [ ] No lockfile was changed unless the change intentionally updates dependencies.
+<!--
+Check only requirements that are applicable and satisfied.
+Explain unchecked requirements in the reviewer notes.
+Any intentional policy exception must be explicitly justified and permitted
+by the applicable project policy.
+-->
+
+- [ ] Package ownership, dependency boundaries, and architectural layering are preserved.
+- [ ] Public contracts, SPIs, and documented APIs are respected.
+- [ ] Existing canonical owners and mechanisms are reused without introducing parallel implementations.
+- [ ] Explicit dependency injection, module composition, and runtime lifecycle contracts are preserved.
+- [ ] Production runtime code does not import, read, execute, or depend on tooling code or tooling-generated architecture artifacts.
+- [ ] Affected SSoT documents, ADRs, guides, and public API references are consistent with the canonical implementation and their applicable documentation policies.
+- [ ] `docs/guides/commands.md` is updated when command contracts or catalog entries change.
+- [ ] Deterministic serialization, ordering, artifacts, and output policies are preserved.
+- [ ] Diagnostics follow the canonical redaction and disclosure policies without exposing secrets, sensitive data, or unauthorized runtime information.
+- [ ] Tooling gates follow the canonical ConsoleOutput policy where applicable.
+- [ ] New or changed gates are exposed through the canonical Composer entrypoints where required.
+- [ ] Composer manifests, dependency constraints, and lockfiles remain consistent.
+- [ ] Lockfile changes are intentional, necessary, and consistent with the dependency management policy.
+- [ ] New or changed behavior is covered by appropriate tests, including regression coverage for bug fixes.
 
 ## Verification
 
 <!--
-Paste the commands you ran. Keep output summarized and sanitized.
-Use N/A only when a command is genuinely not applicable.
+Run all required and applicable commands from the repository root.
+
+Check only commands that were executed successfully and whose results
+remain valid for the changes included in this PR.
+
+For generators and synchronization commands, ensure the resulting changes
+are included in this PR and the corresponding verification checks pass.
+
+Repeat affected checks after further changes.
+Explain skipped, failed, or non-applicable checks in the verification notes.
+Include only concise, sanitized verification output.
 -->
 
+### Core verification
+
 - [ ] `composer sync:check`
-- [ ] `composer validate --strict`
+- [ ] `composer validate`
+- [ ] `composer security`
 - [ ] `composer gates`
 - [ ] `composer dto:gate`
 - [ ] `composer arch`
 - [ ] `composer quality`
 - [ ] `composer test`
+- [ ] `composer test:slow`
 - [ ] `composer lock:check`
+
+### Architecture and generated artifacts
+
+<!--
+Run the applicable generators when package manifests, package structure,
+dependency rules, architecture policies, release-line metadata, or other
+authoritative generator inputs change.
+
+Generate affected artifacts after their authoritative inputs have been
+updated and synchronized.
+Verify the resulting artifacts through the corresponding checks.
+-->
+
+- [ ] `composer arch:package-index:generate`
+- [ ] `composer arch:installation-catalog:generate`
+- [ ] `composer arch:deptrac:generate`
+
+### Package scaffold and compliance
+
+<!--
+Applicable when packages are created or modified in ways that affect
+canonical scaffolding, compliance policies, legal files, required package
+documentation, configuration scaffolding, or package structure.
+
+Run synchronization only when required.
+Verify scaffold consistency after all applicable changes.
+-->
+
+- [ ] `composer package-scaffold:sync`
+- [ ] `composer package-scaffold:check`
+
+### Release-line and publishing
+
+<!--
+Applicable when release-line metadata, internal package constraints,
+managed Composer repositories, or split publishing configuration change,
+or when packages are prepared for publication.
+
+Run the applicable synchronization commands before regenerating dependent
+artifacts. Regenerate the consumer installation catalog when its inputs change.
+Complete the corresponding release-line, catalog, and publishing checks.
+-->
+
+- [ ] `composer sync:repos`
+- [ ] `composer release-line:workspace:sync`
+- [ ] `composer release-line:public-constraints:sync`
+- [ ] `composer release-line:workspace:check`
+- [ ] `composer release-line:public-constraints:check`
+- [ ] `composer arch:installation-catalog:check`
+- [ ] `composer package-publish-safety:gate`
+
+### Final pre-commit verification
+
+<!--
+Verify the staged changes before creating the commit.
+Ensure only intended changes are included.
+-->
+
+- [ ] `git diff --cached --check`
+- [ ] `composer lock:check`
+- [ ] Staged changes have been reviewed.
+- [ ] No unintended unstaged or untracked files remain.
+
+### Final pre-push verification
+
+<!--
+Run the final verification against the exact committed revision intended
+for publication.
+
+If verification requires further changes, commit or amend those changes
+and repeat the affected checks before pushing.
+-->
+
+- [ ] `composer security`
+- [ ] `composer ci`
+- [ ] Working tree is clean after final verification.
 
 ### Verification output
 
 ```text
-# Paste concise sanitized output here.
+# Concise, sanitized verification results.
 ```
 
-## Determinism / generated files
-
-- [ ] This PR does not change generated files.
-- [ ] This PR changes generated files and rerun-no-diff checks pass.
-- [ ] This PR changes generated files intentionally; affected outputs are listed below.
-
-Affected generated outputs:
-
-```text
-# Example:
-# tools/testing/deptrac.yaml
-```
-
-## Backward compatibility
-
-- [ ] No public API or documented behavior change.
-- [ ] Public API or documented behavior changed; migration notes are included.
-- [ ] Internal-only change.
-- [ ] Not applicable.
-
-## Migration notes
+### Verification notes
 
 <!--
-Required if behavior, commands, config, package layout, public API, or SSoT policy changed.
+Document additional checks, skipped or non-applicable commands,
+failed checks, environment limitations, and known verification gaps.
+-->
+
+## Determinism and generated artifacts
+
+<!--
+Select exactly one option.
+Report incomplete or failed verification in the verification notes.
+-->
+
+- [ ] No generated files are changed and all applicable artifact checks pass.
+- [ ] Generated files are intentionally updated and all applicable artifact and rerun-no-diff checks pass.
+- [ ] Generated artifact verification is incomplete or failed.
+
+### Affected generated files
+
+<!--
+List affected generated files and explain why regeneration was required.
+Use N/A if no generated files are affected.
+-->
+
+## Compatibility and public API
+
+<!--
+Select exactly one option.
+If this PR includes both backward-compatible and breaking changes,
+select the breaking changes option.
+-->
+
+- [ ] No public API or documented behavior changes.
+- [ ] Backward-compatible public API or documented behavior changes.
+- [ ] Breaking public API or documented behavior changes.
+
+### Compatibility notes
+
+<!--
+Describe changes affecting public contracts, commands, configuration,
+environment variables, package dependencies, module composition,
+artifact formats, or documented runtime behavior.
+
+Explain the compatibility impact and include migration instructions
+only when required by the applicable release policy.
 -->
 
 ## Reviewer notes
 
 <!--
-Call out risky files, expected review focus, or intentional trade-offs.
+Highlight architectural decisions, security considerations,
+intentional trade-offs, affected runtime boundaries, or areas requiring
+particular review attention.
 -->

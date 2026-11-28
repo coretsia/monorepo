@@ -24,6 +24,7 @@ deptrac:
     - '../../packages/devtools/internal-toolkit/src'
     - '../../packages/platform/cli/src'
     - '../../packages/platform/errors/src'
+    - '../../packages/platform/http-app/src'
     - '../../packages/platform/http/src'
     - '../../packages/platform/logging/src'
     - '../../packages/platform/metrics/src'
@@ -71,6 +72,10 @@ deptrac:
       collectors:
         - type: classLike
           value: '^Coretsia\\Platform\\Http\\.*'
+    - name: 'platform.http_2d_app'
+      collectors:
+        - type: classLike
+          value: '^Coretsia\\Platform\\HttpApp\\.*'
     - name: 'platform.logging'
       collectors:
         - type: classLike
@@ -120,6 +125,10 @@ deptrac:
       - 'core.contracts'
       - 'core.foundation'
       - 'core.kernel'
+    'platform.http_2d_app':
+      - 'core.contracts'
+      - 'core.foundation'
+      - 'platform.http'
     'platform.logging':
       - 'core.contracts'
       - 'core.foundation'

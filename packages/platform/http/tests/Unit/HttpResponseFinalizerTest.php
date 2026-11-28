@@ -266,7 +266,7 @@ final class HttpResponseFinalizerTest extends TestCase
         $terminal->expects(self::once())->method('handle')->with($request)->willReturn($response);
         $provider = $this->createStub(CorrelationIdProviderInterface::class);
         $provider->method('correlationId')->willReturn(self::CORRELATION);
-        $kernel = self::kernel($runtime, new Pipeline([], $terminal), $provider);
+        $kernel = self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $provider);
 
         try {
             $kernel->handle($request);
@@ -294,7 +294,10 @@ final class HttpResponseFinalizerTest extends TestCase
         $provider = $this->createStub(CorrelationIdProviderInterface::class);
         $provider->method('correlationId')->willReturn(self::CORRELATION);
 
-        self::assertSame($final, self::kernel($runtime, new Pipeline([], $terminal), $provider)->handle($request));
+        self::assertSame(
+            $final,
+            self::kernel($runtime, new Pipeline([], $terminal, false, [], false), $provider)->handle($request),
+        );
     }
 
     #[DataProvider('identityHeaderConfigurations')]

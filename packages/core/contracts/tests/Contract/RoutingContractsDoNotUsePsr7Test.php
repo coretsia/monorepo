@@ -56,6 +56,41 @@ final class RoutingContractsDoNotUsePsr7Test extends TestCase
         self::assertStringContainsString('@param non-empty-string|null $host', $docComment);
     }
 
+    public function testRouterInterfaceAllowedMethodsShapeIsStableAndFormatNeutral(): void
+    {
+        $method = new \ReflectionMethod(RouterInterface::class, 'allowedMethods');
+
+        self::assertTrue($method->isPublic());
+        self::assertFalse($method->isStatic());
+        self::assertFalse($method->returnsReference());
+        self::assertSame(2, $method->getNumberOfParameters());
+        self::assertSame(1, $method->getNumberOfRequiredParameters());
+
+        $parameters = $method->getParameters();
+
+        self::assertSame('path', $parameters[0]->getName());
+        self::assertSame('host', $parameters[1]->getName());
+        self::assertNamedType($parameters[0]->getType(), 'string', false);
+        self::assertNamedType($parameters[1]->getType(), 'string', true);
+        self::assertFalse($parameters[0]->isOptional());
+        self::assertTrue($parameters[1]->isDefaultValueAvailable());
+        self::assertNull($parameters[1]->getDefaultValue());
+
+        foreach ($parameters as $parameter) {
+            self::assertFalse($parameter->isPassedByReference());
+            self::assertFalse($parameter->isVariadic());
+        }
+
+        self::assertNamedType($method->getReturnType(), 'array', false);
+
+        $docComment = $method->getDocComment();
+
+        self::assertIsString($docComment);
+        self::assertStringContainsString('@param non-empty-string $path', $docComment);
+        self::assertStringContainsString('@param non-empty-string|null $host', $docComment);
+        self::assertMatchesRegularExpression('/^\s*\*\s+@return list<non-empty-string>\s*$/m', $docComment);
+    }
+
     public function testRoutingContractsDoNotReferencePsr7OrRuntimePackages(): void
     {
         $files = self::phpFiles(self::contractsRoot() . '/src/Routing');

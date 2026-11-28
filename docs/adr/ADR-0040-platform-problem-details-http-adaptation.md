@@ -24,11 +24,11 @@ owner: platform/problem-details
 
 `core/contracts` defines the format-neutral `ErrorHandlerInterface` and `ErrorDescriptor`. The selected `platform.errors` runtime module owns canonical Throwable normalization, mapper dispatch, mandatory shared redaction, and eligible error reporting. Those responsibilities must remain independent of the HTTP response format. An HTTP adapter must not reinterpret raw exceptions or make `ErrorDescriptor` depend on PSR HTTP types.
 
-HTTP clients need a deterministic, bounded, and safe error representation. A normalized descriptor cannot be returned directly because its message and extensions are not a public-disclosure contract. The existing HTTP middleware taxonomy reserves `http.middleware.system_pre` for an optional outer error boundary, while `platform/http` remains the owner of middleware execution and pipeline ordering.
+HTTP clients need a deterministic, bounded, and safe error representation. A normalized descriptor cannot be returned directly because its message and extensions are not a public-disclosure contract. The canonical HTTP middleware taxonomy places the Problem Details boundary outermost through its `http.middleware.system_pre` contribution. Participation is mandatory when `platform.http-app` is enabled and otherwise optional. `platform/http` remains the owner of middleware execution and pipeline ordering.
 
 RFC9457 provides the normative Problem Details format. Its `type`, `title`, and `status` members support the required RFC7807-compatible baseline without enabling arbitrary public diagnostics, content negotiation, or custom problem-type catalogs. Foundation already provides stable JSON encoding and declarative service definitions; Kernel already provides explicit target-local module selection and source/compiled container composition.
 
-The HTTP target must provide compatible PSR response and stream factories. Package installation alone cannot establish an HTTP pipeline, and standalone middleware tests cannot prove the outermost position in a future runtime pipeline.
+The HTTP target must provide compatible PSR response and stream factories. Package installation alone does not establish effective HTTP middleware participation. Actual outermost placement is governed by `docs/ssot/http-middleware-wiring.md` and must be verified through the canonical HTTP runtime.
 
 ## Decision
 
@@ -52,7 +52,15 @@ type: about:blank
 
 The public JSON map is emitted with keys in deterministic order `status`, `title`, `type`. The problem type is the fixed URI reference `about:blank`, with no user-defined type URI or title override. No `detail`, `instance`, arbitrary extension, correlation identifier, descriptor code, message, severity, or debug member is admitted.
 
-`ErrorDescriptorToProblemDetailsAdapter` uses only `ErrorDescriptor.httpStatus` as an optional transport hint. Integer hints in `400..599` are accepted; a null, informational, success, redirection, or other unsupported hint produces status `500` with title `Internal Server Error`. The descriptor's own input validation remains authoritative and is not relaxed by the adapter.
+`ErrorDescriptorToProblemDetailsAdapter::map(ErrorDescriptor $descriptor): ProblemDetails` uses only `ErrorDescriptor::httpStatus()` as an optional transport hint for the public model. Integer hints in `400..599` are accepted; a null, informational, success, redirection, or other unsupported hint produces status `500` with title `Internal Server Error`. The descriptor's own input validation remains authoritative and is not relaxed by the adapter.
+
+The adapter separately exposes `allowHeader(ErrorDescriptor $descriptor): ?string`. It returns `null` when `httpStatus()` is not exactly `405`, regardless of extension metadata. For status `405`, it consumes only `extensions.allowed_methods`.
+
+The required method metadata must be an actual non-empty list of at most nine exact strings belonging to `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `TRACE`, or `CONNECT`. Entries must already be unique and strictly ascending by byte-order `strcmp`. The vocabulary defines membership, not ordering. The adapter must not trim, uppercase, coerce, sort, deduplicate, infer implicit methods, or otherwise repair the list.
+
+Missing, null, empty, malformed, oversized, duplicate-containing, unsorted, or unsupported method metadata fails with `InvalidArgumentException('problem-details-allow-invalid')` without exporting rejected values. The validated list is joined using exactly `', '`; for example, `['GET', 'POST']` produces `GET, POST`.
+
+The validated Allow value is the sole descriptor-extension-derived HTTP header. It is not a public model member and `allowed_methods` is never emitted in the JSON body. No general descriptor-to-header mapping or configurable header registry is permitted. Routing supplies declared method information; HttpApp owns application method-mismatch classification and descriptor mapping; Problem Details owns independent metadata validation and HTTP Allow-header materialization.
 
 Standard accepted HTTP errors use the fixed English status/title mapping owned solely by `ProblemDetails`. An accepted non-standard status uses exactly `HTTP Error`; `500` uses exactly `Internal Server Error`. The adapter and renderer do not maintain another title table, and neither title nor type depends on Throwable content, request data, locale, environment, or configuration. The canonical mapping is specified by `docs/ssot/problem-details.md`.
 
@@ -72,15 +80,19 @@ This package does not introduce an alternative serializer, renderer interface, r
 
 `HttpErrorHandlingMiddleware` implements the existing PSR-15 `MiddlewareInterface`. Successful downstream handling passes its response through unchanged. When downstream handling throws, the middleware calls the canonical handler once, adapts the descriptor, renders the public body, and constructs an HTTP response using the injected PSR response and stream factories.
 
-The actual HTTP status must equal the JSON `status` member. Generated errors have exactly `Content-Type: application/problem+json` and `Cache-Control: no-store`. The middleware does not inspect or forward request headers, cookies, bodies, raw exceptions, diagnostic context, or arbitrary descriptor extensions.
+The actual HTTP status must equal the JSON `status` member. Generated errors have `Content-Type: application/problem+json` and `Cache-Control: no-store` with those exact values.
 
-If the handler, adapter, or renderer fails, the middleware does not retry normalization or recursively invoke the renderer. It instead attempts one fixed emergency HTTP `500` response with the exact body below, including one final LF:
+The middleware obtains the model, rendered body, and optional validated Allow value through the adapter and renderer. The adapted status, body, and Allow value are committed together only after all operations succeed. A successfully adapted `405` response must set `Allow` to the exact validated value. Every other generated response, including emergency `500`, must contain no Allow header; a pre-existing factory-supplied Allow header must be removed.
+
+The middleware does not inspect or forward request headers, cookies, bodies, raw exceptions, diagnostic context, or arbitrary descriptor extensions. The admitted `allowed_methods` member is consumed exclusively for the validated 405 Allow value.
+
+If the handler, adapter, or renderer fails, including missing or invalid required 405 metadata, the middleware does not retry normalization, adaptation, or rendering. A failed adaptation must not produce a 405 without a valid Allow header or commit a partially adapted response. It instead attempts one fixed emergency HTTP `500` response with the exact body below, including one final LF:
 
 ```text
 {"status":500,"title":"Internal Server Error","type":"about:blank"}
 ```
 
-The emergency response uses the same content type and no-store cache policy as an ordinary generated error. The body is a fixed byte sequence rather than a second serialization implementation. If response creation, stream creation, header mutation, or body replacement fails, the original downstream `Throwable` is rethrown; collaborator or transport failures must not replace it or be reported as a successful response.
+The emergency response uses the same content type and no-store cache policy as an ordinary generated error and has no Allow header. The body is a fixed byte sequence rather than a second serialization implementation. If response creation, stream creation, header mutation, or body replacement fails, the original downstream `Throwable` is rethrown; collaborator or transport failures must not replace it or be reported as a successful response.
 
 No rendering failure initiates another exception-mapping, error-reporting, redaction, logging, tracing, or metrics pass. The middleware does not install a global PHP exception handler or take ownership of the HTTP runtime lifecycle.
 
@@ -90,6 +102,8 @@ The runtime module is `platform.problem-details`, with package id `platform/prob
 
 The target-local Kernel `ModulePlan` must explicitly select `platform.problem-details` in a compatible HTTP target. Installing the Composer package without selecting the module must not register or activate its middleware. An unselected target receives neither the middleware service nor its tag contribution.
 
+When `platform.http-app` is selected, its required runtime dependencies include `platform.problem-details`. The HTTP composition boundary must require actual outermost participation of the canonical `HttpErrorHandlingMiddleware` service and validate its exact resolved runtime class identity without resolving it again. When HttpApp is absent, Problem Details participation remains optional under its existing activation policy. Canonical declaration validation remains applicable; HttpApp-specific resolved error-boundary identity validation is conditional on effective HttpApp participation.
+
 Module requirements are `core.foundation` and `platform.errors`. The latter provides the canonical error handler and brings the existing `platform.redaction` module requirement. Production source may depend on `core/contracts`, `core/foundation`, and the declared PSR HTTP interfaces, but must not import concrete `platform/errors`, `platform/redaction`, or `platform/http` implementations, `core/kernel` classes, or logging, tracing, and metrics backends. The Composer/module dependency on `platform.errors` is a runtime binding requirement, not a source-import permission. Exact compile-time package import permissions remain governed by `docs/architecture/DEPENDENCIES.md`.
 
 A selected compatible HTTP target must provide `ResponseFactoryInterface` and `StreamFactoryInterface`. Missing required factory or handler bindings must fail through existing container validation or compilation, not trigger a package-owned fallback factory or implicit runtime activation.
@@ -98,7 +112,7 @@ A selected compatible HTTP target must provide `ResponseFactoryInterface` and `S
 
 `ProblemDetailsServiceProvider` declares exactly three class services: `ErrorDescriptorToProblemDetailsAdapter`, `ProblemDetailsJsonRenderer`, and `HttpErrorHandlingMiddleware`. It requires the existing `ErrorHandlerInterface`, PSR `ResponseFactoryInterface`, and PSR `StreamFactoryInterface` bindings, and wires constructor dependencies through canonical `ContainerValueReference::service()` references.
 
-The provider contributes exactly one existing `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` registration for `HttpErrorHandlingMiddleware` at priority `1000`, using metadata `[]`. The slot identifier is `http.middleware.system_pre`; its semantic owner is `platform/http`, as defined in `docs/ssot/http-middleware-catalog.md` and `docs/ssot/tags.md`. No package-local mirror tag, owner/path/mode metadata, competing middleware catalog, or pipeline implementation is introduced. A future nonempty metadata schema can be adopted only when defined by the HTTP slot owner.
+The provider contributes exactly one existing `ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE` registration for `HttpErrorHandlingMiddleware` at priority `1000`, using metadata `[]`. The slot identifier is `http.middleware.system_pre`; its semantic owner is `platform/http`, as defined in `docs/ssot/http-middleware-catalog.md` and `docs/ssot/tags.md`. No package-local mirror tag, owner/path/mode metadata, competing middleware catalog, or pipeline implementation is introduced. The contribution must use the canonical service id and exact empty metadata; HTTP owns its outermost placement.
 
 Provider definitions are the sole declarative wiring source. Kernel preserves target-local provider order and composes equivalent source and compiled service definitions and tag descriptors. No runtime closures, service locators, parallel imperative container graphs, or mutable provider registries are required.
 
@@ -110,17 +124,17 @@ There is no `debug`, `show_detail`, `show_detail_in_local`, raw exception disclo
 
 ### Decision 8: Preserve security, observability, context, and reset ownership
 
-The public response is safe by construction: only its validated status, canonical title, and fixed type may cross the HTTP boundary. Shared redaction in `platform/errors` remains mandatory for descriptor normalization, but successful redaction alone does not authorize exposing descriptor messages, extensions, request payloads, personal information, stack traces, credentials, or local paths. `platform/problem-details` neither re-redacts nor invents a sensitive-key classifier or hashing scheme.
+The public JSON body is safe by construction: only its validated status, canonical title, and fixed type are admitted. The separately validated 405 Allow value is bounded protocol metadata, not a public diagnostic field or permission to forward arbitrary extensions. Shared redaction in `platform/errors` remains mandatory for descriptor normalization, but successful redaction alone does not authorize exposing descriptor messages, extensions, request payloads, personal information, stack traces, credentials, or local paths. `platform/problem-details` neither re-redacts nor invents a sensitive-key classifier or hashing scheme.
 
 Kernel owns UnitOfWork lifecycle, correlation identity, and reset orchestration; Foundation retains its context and reset mechanisms. The model, adapter, renderer, provider, and middleware do not read or write `ContextStore`, derive public request identifiers, create mutable request-local registries, install reset hooks, or contribute `kernel.reset` registrations.
 
 No new logging pipeline, metric, span, error-event stream, exporter, tracer lifecycle, or reporter is introduced. Existing diagnostics and eligible reporting remain within the canonical error handler. Repeated independent requests cannot disclose earlier request state through this package.
 
-### Decision 9: Defer richer public formats and full HTTP pipeline integration
+### Decision 9: Keep public formats closed and verify canonical HTTP integration
 
-HTML error pages, JSON/HTML content negotiation, custom problem-type URI catalogs, localized or caller-supplied titles, public `detail` or `instance`, arbitrary extensions, and configurable disclosure are outside the baseline. Any future richer public payload requires a separately approved security policy and acceptance tests; it cannot be enabled implicitly through the existing descriptor fields.
+HTML error pages, JSON/HTML content negotiation, custom problem-type URI catalogs, localized or caller-supplied titles, public `detail` or `instance`, arbitrary extensions, and configurable disclosure are outside the public presentation policy. None may be enabled implicitly through existing descriptor fields.
 
-Standalone middleware tests and source/compiled definition parity checks can validate the package without a concrete `platform/http` pipeline. They do not establish full outermost pipeline execution. End-to-end HTTP ordering and transport integration must be verified against a compatible HTTP runtime when one is available; absent dependencies or an unexecuted integration test cannot be reported as a passing result.
+Standalone middleware tests and source/compiled definition parity checks validate package-local behavior but do not establish actual outermost execution. Integration verification must cover canonical HTTP ordering, application 404/405 error flow, exact Allow-header materialization, invalid required 405 metadata producing emergency 500 without Allow, original-Throwable precedence, final response completion, and repeated-request isolation through the canonical HTTP runtime.
 
 ## Consequences
 
@@ -138,7 +152,8 @@ Standalone middleware tests and source/compiled definition parity checks can val
 - only the safe `type`, `title`, and `status` members are public; applications cannot configure detailed error text or custom problem types in this baseline;
 - an HTTP target must explicitly select the module and supply compatible response and stream factories;
 - when PSR response construction fails, the original downstream Throwable propagates instead of a Problem Details response;
-- complete outermost pipeline integration remains unverified until the HTTP runtime owner provides an executable pipeline.
+- the HTTP composition boundary owns actual outermost placement and effective participation checks; package-local middleware verification does not replace runtime integration verification;
+- status 405 requires valid bounded method metadata; invalid or missing metadata produces the fixed emergency 500 instead of an incomplete 405 response.
 
 ## Rejected alternatives
 
@@ -180,7 +195,7 @@ Rejected because HTML rendering, content negotiation, and non-baseline public me
 
 ## Non-goals
 
-This decision does not establish a second `ErrorDescriptor` schema, exception hierarchy, canonical error handler, reporter, mapper registry, serializer, redaction engine, telemetry backend, middleware slot owner, or HTTP pipeline. It does not introduce HTML error pages, content negotiation, custom type catalogs, arbitrary public fields, diagnostic disclosure switches, request context storage, UnitOfWork hooks, mutable registries, or reset services. It does not claim full HTTP pipeline verification without a compatible runtime.
+This decision does not establish a second `ErrorDescriptor` schema, exception hierarchy, canonical error handler, reporter, mapper registry, serializer, redaction engine, telemetry backend, middleware slot owner, or HTTP pipeline. It does not introduce HTML error pages, content negotiation, custom type catalogs, arbitrary public fields, diagnostic disclosure switches, request context storage, UnitOfWork hooks, mutable registries, or reset services. It does not introduce arbitrary descriptor-to-header mapping or transfer HTTP composition ownership to Problem Details.
 
 ## Related SSoT
 
@@ -190,6 +205,8 @@ This decision does not establish a second `ErrorDescriptor` schema, exception hi
 - `docs/ssot/observability-and-errors.md`
 - `docs/ssot/sensitive-data-redaction.md`
 - `docs/ssot/http-middleware-catalog.md`
+- `docs/ssot/http-middleware-wiring.md`
+- `docs/ssot/http-app-dispatch.md`
 - `docs/ssot/tags.md`
 - `docs/ssot/config-roots.md`
 - `docs/ssot/modules-and-manifests.md`
@@ -205,3 +222,5 @@ This decision does not establish a second `ErrorDescriptor` schema, exception hi
 - `docs/adr/ADR-0029-kernel-container-compile-artifact.md`
 - `docs/adr/ADR-0030-canonical-runtime-container-definitions.md`
 - `docs/adr/ADR-0036-platform-errors-errorhandler-exception-mapper.md`
+- `docs/adr/ADR-0041-platform-http-runtime-pipeline-wiring.md`
+- `docs/adr/ADR-0043-platform-http-app-router-middleware-action-invoker.md`

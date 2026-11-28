@@ -31,6 +31,8 @@ use Coretsia\Foundation\Tag\TagRegistry;
  * The returned outer-to-inner order allows post-slot middleware to decorate
  * returned short-circuit responses. The externally selected error boundary is
  * outside those decorators, so its caught exceptions are a separate path.
+ * Canonical application dispatch, when present, follows all ordinary route
+ * middleware, including manually appended contributions.
  *
  * @internal
  */
@@ -50,7 +52,9 @@ final readonly class HttpMiddlewareStackBuilder
         'http.request.json.enabled' => true,
     ];
 
-    private const string ERROR_BOUNDARY_SERVICE_ID = 'Coretsia\\Platform\\ProblemDetails\\Http\\Middleware\\HttpErrorHandlingMiddleware';
+    public const string ERROR_BOUNDARY_SERVICE_ID = 'Coretsia\\Platform\\ProblemDetails\\Http\\Middleware\\HttpErrorHandlingMiddleware';
+    public const string APP_ROUTER_SERVICE_ID = 'Coretsia\\Platform\\HttpApp\\Middleware\\RouterMiddleware';
+    public const string APP_DISPATCH_SERVICE_ID = 'Coretsia\\Platform\\HttpApp\\Middleware\\ActionDispatchMiddleware';
 
     public function __construct(private TagRegistry $tags)
     {
@@ -88,6 +92,7 @@ final readonly class HttpMiddlewareStackBuilder
         $slots = [];
         $participation = [];
         $errorBoundary = [];
+        $appDispatch = [];
 
         foreach ($slotTags as $slot => $tag) {
             $entries = [];
@@ -100,27 +105,42 @@ final readonly class HttpMiddlewareStackBuilder
                 }
 
                 $metadata = $service->meta();
-                if ($metadata !== [] && (
-                    \count($metadata) !== 1
+                if (
+                    ($id === self::APP_ROUTER_SERVICE_ID && ($slot !== 'app' || $service->priority() !== 100 || $metadata !== []))
+                    || ($id === self::APP_DISPATCH_SERVICE_ID && ($slot !== 'route' || $service->priority() !== -1000 || $metadata !== []))
+                ) {
+                    throw new \InvalidArgumentException('http-middleware-app-dispatch-invalid');
+                }
+
+                if (
+                    $metadata !== [] && (
+                        \count($metadata) !== 1
                         || !\array_key_exists('toggle', $metadata)
                         || !\is_string($metadata['toggle'])
                         || !isset(self::BOOLEAN_TOGGLES[$metadata['toggle']])
-                )) {
+                    )
+                ) {
                     throw new \InvalidArgumentException('http-middleware-tag-meta-invalid');
                 }
 
                 if ($slot === 'system_pre') {
-                    if ($service->priority() >= 1000 && (
-                        $service->priority() !== 1000
+                    if (
+                        $service->priority() >= 1000 && (
+                            $service->priority() !== 1000
                             || $id !== self::ERROR_BOUNDARY_SERVICE_ID
-                    )) {
+                        )
+                    ) {
                         throw new \InvalidArgumentException('http-middleware-error-boundary-invalid');
                     }
                 }
 
-                if ($id === self::ERROR_BOUNDARY_SERVICE_ID && (
-                    $slot !== 'system_pre' || $service->priority() !== 1000 || $metadata !== []
-                )) {
+                if (
+                    $id === self::ERROR_BOUNDARY_SERVICE_ID && (
+                        $slot !== 'system_pre'
+                        || $service->priority() !== 1000
+                        || $metadata !== []
+                    )
+                ) {
                     throw new \InvalidArgumentException('http-middleware-error-boundary-invalid');
                 }
 
@@ -137,6 +157,11 @@ final readonly class HttpMiddlewareStackBuilder
                 $seen[$id] = true;
                 if ($id === self::ERROR_BOUNDARY_SERVICE_ID) {
                     $errorBoundary[] = $id;
+                    continue;
+                }
+
+                if ($id === self::APP_DISPATCH_SERVICE_ID) {
+                    $appDispatch[] = $id;
                     continue;
                 }
 
@@ -157,7 +182,12 @@ final readonly class HttpMiddlewareStackBuilder
                     throw new \InvalidArgumentException('http-middleware-error-boundary-invalid');
                 }
 
+                if ($id === self::APP_ROUTER_SERVICE_ID || $id === self::APP_DISPATCH_SERVICE_ID) {
+                    throw new \InvalidArgumentException('http-middleware-app-dispatch-invalid');
+                }
+
                 self::assertParticipation($participation, $id, $slot);
+
                 if (isset($seen[$id])) {
                     continue;
                 }
@@ -167,6 +197,10 @@ final readonly class HttpMiddlewareStackBuilder
             }
 
             $slots[$slot] = $entries;
+        }
+
+        if (isset($participation[self::APP_ROUTER_SERVICE_ID]) !== isset($participation[self::APP_DISPATCH_SERVICE_ID])) {
+            throw new \InvalidArgumentException('http-middleware-app-dispatch-pair-invalid');
         }
 
         return [
@@ -180,6 +214,7 @@ final readonly class HttpMiddlewareStackBuilder
             ...$slots['app'],
             ...$slots['route_pre'],
             ...$slots['route'],
+            ...$appDispatch,
         ];
     }
 

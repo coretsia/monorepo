@@ -80,7 +80,7 @@ final class TrustedProxyMetadataHandoffTest extends TestCase
             new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), true),
             new RequestContextMiddleware($context, true, true),
             new TrustedHostMiddleware(new TrustedHostPolicy(['example.com:443']), true, true),
-        ], $terminal);
+        ], $terminal, false, [], false);
 
         self::assertSame($response, $pipeline->handle($original));
         self::assertSame(['client_ip', 'scheme', 'host'], \array_keys($metadata));
@@ -121,7 +121,7 @@ final class TrustedProxyMetadataHandoffTest extends TestCase
             new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), true),
             new RequestContextMiddleware($context, true, true),
             new TrustedHostMiddleware(new TrustedHostPolicy(['origin.example']), true, true),
-        ], $terminal);
+        ], $terminal, false, [], false);
 
         self::assertSame($response, $pipeline->handle($original));
         self::assertSame('origin.example', $context->get(ContextKeys::HOST));
@@ -166,7 +166,7 @@ final class TrustedProxyMetadataHandoffTest extends TestCase
             new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), false),
             new RequestContextMiddleware($context, true, false),
             new TrustedHostMiddleware(new TrustedHostPolicy(['origin.example']), true, false),
-        ], $terminal);
+        ], $terminal, false, [], false);
 
         self::assertSame($response, $pipeline->handle($original));
         self::assertSame('origin.example', $context->get(ContextKeys::HOST));
@@ -200,7 +200,7 @@ final class TrustedProxyMetadataHandoffTest extends TestCase
             new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), true),
             new RequestContextMiddleware($context, true, true),
             new TrustedHostMiddleware(new TrustedHostPolicy(['origin.example']), true, true),
-        ], $terminal);
+        ], $terminal, false, [], false);
 
         self::assertSame($response, $pipeline->handle($original));
         self::assertSame('origin.example', $context->get(ContextKeys::HOST));
@@ -229,7 +229,7 @@ final class TrustedProxyMetadataHandoffTest extends TestCase
         $pipeline = new Pipeline([
             new TrustedProxyMiddleware(new TrustedProxyPolicy(['10.0.0.0/8']), true),
             new TrustedHostMiddleware(new TrustedHostPolicy(['allowed.example']), true, true),
-        ], $terminal);
+        ], $terminal, false, [], false);
 
         $this->expectException(TrustedHostRejectedException::class);
         $pipeline->handle($original);

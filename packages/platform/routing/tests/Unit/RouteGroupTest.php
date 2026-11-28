@@ -159,6 +159,34 @@ final class RouteGroupTest extends TestCase
         }
     }
 
+    public function testInheritedOrderedRouteMiddlewareMetadataCannotBeOverridden(): void
+    {
+        $middleware = ['app.middleware.z', 'app.middleware.a'];
+        $parent = RouteGroup::root()->group('/teams', 'teams', [], ['http_app_middleware' => $middleware]);
+        $child = $parent->group('/members', 'members', [], ['scope' => 'team']);
+        $route = new RouteDefinition('show', ['GET'], '/{id}', 'Handler::show', metadata: ['flag' => true]);
+        self::assertSame([
+            'flag' => true,
+            'http_app_middleware' => $middleware,
+            'scope' => 'team',
+        ], $child->route($route)->metadata());
+        self::assertSame(['flag' => true], $route->metadata());
+        foreach ([$middleware, \array_reverse($middleware), []] as $duplicate) {
+            self::assertRejected(
+                static fn () => $child->group('/detail', '', [], ['http_app_middleware' => $duplicate]),
+                RouteDefinitionInvalidException::REASON_METADATA_UNSAFE,
+            );
+            self::assertRejected(
+                static fn () => $child->route(
+                    new RouteDefinition('show', ['GET'], '/{id}', 'Handler::show', metadata: [
+                        'http_app_middleware' => $duplicate,
+                    ]),
+                ),
+                RouteDefinitionInvalidException::REASON_METADATA_UNSAFE,
+            );
+        }
+    }
+
     public function testOnlyFlatRouteDefinitionListsAreAccepted(): void
     {
         $group = RouteGroup::root();

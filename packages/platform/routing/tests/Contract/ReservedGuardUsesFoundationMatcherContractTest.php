@@ -105,12 +105,21 @@ final class ReservedGuardUsesFoundationMatcherContractTest extends TestCase
         self::assertStringContainsString('use ' . ReservedPathMatcher::class . ';', $runtime);
         self::assertMatchesRegularExpression(
             '/if\s*\(\s*ReservedPathMatcher::normalize\(\s*\$path\s*\)\s*!==\s*\$path\s*\)\s*\{'
+            . '\s*return\s+false\s*;\s*}/',
+            $runtime,
+        );
+        self::assertMatchesRegularExpression(
+            '/return\s+ReservedPathMatcher::match\(\s*\$path\s*\)\s*===\s*null\s*;/',
+            $runtime,
+        );
+        self::assertMatchesRegularExpression(
+            '/if\s*\(\s*!self::admitsPath\(\s*\$path\s*\)\s*\)\s*\{'
             . '\s*return\s+null\s*;\s*}/',
             $runtime,
         );
         self::assertMatchesRegularExpression(
-            '/if\s*\(\s*ReservedPathMatcher::match\(\s*\$path\s*\)\s*!==\s*null\s*\)\s*\{'
-            . '\s*return\s+null\s*;\s*}/',
+            '/if\s*\(\s*!self::admitsPath\(\s*\$path\s*\)\s*\)\s*\{'
+            . '\s*return\s+\[]\s*;\s*}/',
             $runtime,
         );
         self::assertDoesNotMatchRegularExpression(

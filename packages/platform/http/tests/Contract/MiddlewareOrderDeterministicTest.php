@@ -116,7 +116,7 @@ final class MiddlewareOrderDeterministicTest extends TestCase
             );
         }
 
-        $pipeline = new Pipeline($middleware, $terminal);
+        $pipeline = new Pipeline($middleware, $terminal, false, [], false);
         self::assertSame($response, $pipeline->handle($shortCircuitRequest));
         self::assertSame([
             'enter:App\\SystemPost',
@@ -175,7 +175,7 @@ final class MiddlewareOrderDeterministicTest extends TestCase
                     return $next->handle($request);
                 },
             ),
-        ], self::terminal($response, $events));
+        ], self::terminal($response, $events), false, [], false);
 
         try {
             $pipeline->handle($fail);
@@ -221,7 +221,7 @@ final class MiddlewareOrderDeterministicTest extends TestCase
                     return $next->handle($request);
                 },
             ),
-        ], self::terminal($response, $events));
+        ], self::terminal($response, $events), false, [], false);
 
         self::assertSame($response, $pipeline->handle($outer));
         self::assertSame([
@@ -264,7 +264,7 @@ final class MiddlewareOrderDeterministicTest extends TestCase
             );
         }
 
-        return new Pipeline($middleware, $terminal);
+        return new Pipeline($middleware, $terminal, false, [], false);
     }
 
     /** @param list<string> $events */

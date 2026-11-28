@@ -345,6 +345,7 @@ final class RoutingIntegrationFixture
         $excluded = [
             'platform.routing-fixture-hooks',
             'platform.cli',
+            'platform.http-app',
             'platform.logging',
             'platform.metrics',
             'platform.tracing',

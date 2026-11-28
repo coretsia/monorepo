@@ -1,0 +1,86 @@
+{
+  "name": "coretsia/platform-http-app",
+  "type": "library",
+  "description": "Coretsia HTTP application runtime package: deterministic routing integration, route-specific PSR-15 middleware, and explicit action dispatch.",
+  "keywords": [
+    "coretsia",
+    "php",
+    "framework",
+    "http-app",
+    "runtime",
+    "http",
+    "routing",
+    "psr-15",
+    "middleware",
+    "route-middleware",
+    "action-dispatch",
+    "action-invocation",
+    "argument-resolution",
+    "response-mapping",
+    "deterministic",
+    "observability"
+  ],
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Vladyslav Mudrichenko",
+      "email": "vladyslav@coretsia.dev",
+      "role": "Creator and Lead Developer"
+    }
+  ],
+  "homepage": "https://coretsia.dev/",
+  "support": {
+    "issues": "https://github.com/coretsia/monorepo/issues",
+    "source": "https://github.com/coretsia/monorepo"
+  },
+  "require": {
+    "php": "^8.4",
+    "coretsia/core-contracts": "^0.15.0",
+    "coretsia/core-foundation": "^0.15.0",
+    "coretsia/platform-errors": "^0.15.0",
+    "coretsia/platform-http": "^0.15.0",
+    "coretsia/platform-problem-details": "^0.15.0",
+    "coretsia/platform-routing": "^0.15.0",
+    "psr/container": "^2.0",
+    "psr/http-factory": "^1.0",
+    "psr/http-message": "^2.0",
+    "psr/http-server-handler": "^1.0",
+    "psr/http-server-middleware": "^1.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Coretsia\\Platform\\HttpApp\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Coretsia\\Platform\\HttpApp\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.4.0"
+    }
+  },
+  "extra": {
+    "coretsia": {
+      "kind": "runtime",
+      "moduleId": "platform.http-app",
+      "moduleClass": "Coretsia\\Platform\\HttpApp\\Module\\HttpAppModule",
+      "providers": [
+        "Coretsia\\Platform\\HttpApp\\Provider\\HttpAppServiceProvider"
+      ],
+      "requires": [
+        "core.foundation",
+        "platform.errors",
+        "platform.http",
+        "platform.problem-details",
+        "platform.routing"
+      ],
+      "conflicts": [],
+      "defaultsConfigPath": "config/http_app.php"
+    }
+  }
+}

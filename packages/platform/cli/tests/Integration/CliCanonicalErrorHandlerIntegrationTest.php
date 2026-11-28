@@ -82,6 +82,7 @@ use Coretsia\Platform\Cli\Tests\Integration\Support\CliIntegrationTestCase;
 use Coretsia\Platform\Errors\ErrorHandler;
 use Coretsia\Platform\Errors\Provider\ErrorsServiceProvider;
 use Coretsia\Platform\Http\Error\HttpExceptionMapper;
+use Coretsia\Platform\HttpApp\Error\HttpAppProblemMapper;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use Coretsia\Platform\Redaction\Redaction\DefaultSensitiveDataRedactor;
 
@@ -142,12 +143,15 @@ final class CliCanonicalErrorHandlerIntegrationTest extends CliIntegrationTestCa
 
             $registered = $container->get(TagRegistry::class)->all(ReservedTags::ERROR_MAPPER);
             self::assertSame(
-                [CliExceptionMapper::class, HttpExceptionMapper::class],
+                [HttpAppProblemMapper::class, CliExceptionMapper::class, HttpExceptionMapper::class],
                 \array_map(static fn ($tagged): string => $tagged->id(), $registered),
             );
-            self::assertSame(100, $registered[0]->priority());
+            self::assertSame(800, $registered[0]->priority());
             self::assertSame([], $registered[0]->meta());
-            self::assertInstanceOf(CliExceptionMapper::class, $container->get($registered[0]->id()));
+            self::assertInstanceOf(HttpAppProblemMapper::class, $container->get($registered[0]->id()));
+            self::assertSame(100, $registered[1]->priority());
+            self::assertSame([], $registered[1]->meta());
+            self::assertInstanceOf(CliExceptionMapper::class, $container->get($registered[1]->id()));
 
             $definitions = new ContainerDefinitionBuilder();
             new CliServiceProvider()->define($definitions, new ContainerDefinitionContext(self::config()));

@@ -175,7 +175,12 @@ final class AccessLogDoesNotLeakHeadersCookiesOrBodyTest extends TestCase
         }
         $correlations = $this->createStub(CorrelationIdProviderInterface::class);
         $correlations->method('correlationId')->willReturn(self::CORRELATION);
-        $kernel = $this->kernel($runtime, new Pipeline($middleware, $terminal), $logger, $correlations);
+        $kernel = $this->kernel(
+            $runtime,
+            new Pipeline($middleware, $terminal, false, [], false),
+            $logger,
+            $correlations,
+        );
 
         self::assertSame($response, $kernel->handle($request));
         self::assertCount(1, $records);
@@ -266,7 +271,7 @@ final class AccessLogDoesNotLeakHeadersCookiesOrBodyTest extends TestCase
             ->willThrowException(new \RuntimeException('SECRET_OPTIONAL_LOGGER_FAILURE'));
         $correlation = $this->createStub(CorrelationIdProviderInterface::class);
         $correlation->method('correlationId')->willReturn(self::CORRELATION);
-        $kernel = $this->kernel($runtime, new Pipeline([], $terminal), $logger, $correlation);
+        $kernel = $this->kernel($runtime, new Pipeline([], $terminal, false, [], false), $logger, $correlation);
 
         if (!$fatal) {
             self::assertSame($response, $kernel->handle($request));

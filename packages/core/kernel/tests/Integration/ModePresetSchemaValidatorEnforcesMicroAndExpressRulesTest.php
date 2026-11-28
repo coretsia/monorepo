@@ -42,6 +42,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                     'enterprise' => [
                         'platform.cli',
                         'platform.http',
+                        'platform.http-app',
                         'platform.logging',
                         'platform.metrics',
                         'platform.problem-details',
@@ -52,6 +53,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                     'hybrid' => [
                         'platform.cli',
                         'platform.http',
+                        'platform.http-app',
                         'platform.logging',
                         'platform.problem-details',
                         'platform.routing',
@@ -60,6 +62,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
                     default => [
                         'platform.cli',
                         'platform.http',
+                        'platform.http-app',
                         'platform.logging',
                         'platform.problem-details',
                         'platform.routing',
@@ -99,6 +102,7 @@ final class ModePresetSchemaValidatorEnforcesMicroAndExpressRulesTest extends Te
             [
                 'platform.cli',
                 'platform.http',
+                'platform.http-app',
                 'platform.logging',
                 'platform.problem-details',
                 'platform.routing',

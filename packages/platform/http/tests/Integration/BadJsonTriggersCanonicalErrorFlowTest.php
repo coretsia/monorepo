@@ -180,7 +180,7 @@ final class BadJsonTriggersCanonicalErrorFlowTest extends TestCase
                 $boundary,
                 new RequestBodySizeLimitMiddleware($streams, 1024),
                 new JsonBodyParserMiddleware($streams, true, $maxDepth, 1024),
-            ], $terminal),
+            ], $terminal, false, [], false),
             new HttpResponseFinalizer(
                 $correlation,
                 true,

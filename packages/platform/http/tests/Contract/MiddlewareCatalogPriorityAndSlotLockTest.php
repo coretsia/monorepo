@@ -33,6 +33,7 @@ use Coretsia\Platform\Http\Middleware\TraceContextMiddleware;
 use Coretsia\Platform\Http\Middleware\TrustedHostMiddleware;
 use Coretsia\Platform\Http\Middleware\TrustedProxyMiddleware;
 use Coretsia\Platform\Http\Provider\HttpServiceProvider;
+use Coretsia\Platform\HttpApp\Provider\HttpAppServiceProvider;
 use Coretsia\Platform\Redaction\Provider\RedactionServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Server\MiddlewareInterface;
@@ -40,6 +41,8 @@ use Psr\Http\Server\MiddlewareInterface;
 final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
 {
     private const string PROBLEM_DETAILS = 'Coretsia\\Platform\\ProblemDetails\\Http\\Middleware\\HttpErrorHandlingMiddleware';
+    private const string APP_ROUTER = 'Coretsia\\Platform\\HttpApp\\Middleware\\RouterMiddleware';
+    private const string APP_DISPATCH = 'Coretsia\\Platform\\HttpApp\\Middleware\\ActionDispatchMiddleware';
 
     /** @var array<string, array{priority: int, meta: array<string, string>}> */
     private const array BASELINE = [
@@ -213,6 +216,119 @@ final class MiddlewareCatalogPriorityAndSlotLockTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('http-middleware-error-boundary-invalid');
         new HttpMiddlewareStackBuilder($tags)->build(require __DIR__ . '/../../config/http.php');
+    }
+
+    public function testHttpAppContributesTheExactCanonicalPairAndDispatchIsFinal(): void
+    {
+        $builder = new ContainerDefinitionBuilder();
+        new HttpAppServiceProvider()->define($builder, new ContainerDefinitionContext([
+            'http_app' => require __DIR__ . '/../../../http-app/config/http_app.php',
+        ]));
+        $actual = [];
+        $tags = new TagRegistry();
+        foreach ($builder->build()->toDescriptorStream() as $operation) {
+            if (($operation['kind'] ?? null) !== 'tag' || !\in_array($operation['tag'], self::httpTags(), true)) {
+                continue;
+            }
+            $actual[] = [$operation['serviceId'], $operation['tag'], $operation['priority'], $operation['meta']];
+            $tags->add($operation['tag'], $operation['serviceId'], $operation['priority'], $operation['meta']);
+        }
+        self::assertSame([
+            [self::APP_ROUTER, ReservedTags::HTTP_MIDDLEWARE_APP, 100, []],
+            [self::APP_DISPATCH, ReservedTags::HTTP_MIDDLEWARE_ROUTE, -1000, []],
+        ], $actual);
+        $tags->add(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, self::PROBLEM_DETAILS, 1000, []);
+        $tags->add(ReservedTags::HTTP_MIDDLEWARE_ROUTE, 'App\\OrdinaryRoute', -1001, []);
+        $http = require __DIR__ . '/../../config/http.php';
+        $http['middleware']['route'] = ['App\\ManualRoute'];
+        self::assertSame([
+            self::PROBLEM_DETAILS,
+            self::APP_ROUTER,
+            'App\\OrdinaryRoute',
+            'App\\ManualRoute',
+            self::APP_DISPATCH,
+        ], new HttpMiddlewareStackBuilder($tags)->build($http));
+    }
+
+    public function testIncompleteHttpAppPairIsRejected(): void
+    {
+        foreach (
+            [
+                [self::APP_ROUTER, ReservedTags::HTTP_MIDDLEWARE_APP, 100],
+                [self::APP_DISPATCH, ReservedTags::HTTP_MIDDLEWARE_ROUTE, -1000],
+            ] as [$id, $tag, $priority]
+        ) {
+            $tags = new TagRegistry();
+            $tags->add($tag, $id, $priority, []);
+            self::assertStackRejected(
+                $tags,
+                require __DIR__ . '/../../config/http.php',
+                'http-middleware-app-dispatch-pair-invalid',
+            );
+        }
+    }
+
+    public function testMalformedCanonicalHttpAppRolesFailBeforeGenericValidation(): void
+    {
+        foreach (
+            [
+                [self::APP_ROUTER, ReservedTags::HTTP_MIDDLEWARE_APP, 100],
+                [self::APP_DISPATCH, ReservedTags::HTTP_MIDDLEWARE_ROUTE, -1000],
+            ] as [$id, $canonicalTag, $priority]
+        ) {
+            $invalid = [
+                [$canonicalTag, $priority - 1, []],
+                [$canonicalTag, $priority + 1, []],
+                [$canonicalTag, $priority, ['toggle' => 'http.metrics.enabled']],
+                [$canonicalTag, $priority, ['toggle' => false]],
+                [$canonicalTag, $priority, ['unknown' => 'value']],
+                [ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, 1000, []],
+                [ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, 1001, ['unknown' => 'value']],
+            ];
+            foreach (self::httpTags() as $tag) {
+                if ($tag !== $canonicalTag) {
+                    $invalid[] = [$tag, $priority, []];
+                }
+            }
+            foreach ($invalid as [$tag, $invalidPriority, $metadata]) {
+                $tags = new TagRegistry();
+                $tags->add($tag, $id, $invalidPriority, $metadata);
+                self::assertStackRejected(
+                    $tags,
+                    require __DIR__ . '/../../config/http.php',
+                    'http-middleware-app-dispatch-invalid',
+                );
+            }
+            $http = require __DIR__ . '/../../config/http.php';
+            foreach (\array_keys($http['middleware']) as $slot) {
+                $manual = $http;
+                $manual['middleware'][$slot] = [$id];
+                self::assertStackRejected(new TagRegistry(), $manual, 'http-middleware-app-dispatch-invalid');
+            }
+        }
+    }
+
+    public function testOrdinaryAndProblemDetailsValidationKeepTheirExistingReasons(): void
+    {
+        $http = require __DIR__ . '/../../config/http.php';
+        $tags = new TagRegistry();
+        $tags->add(ReservedTags::HTTP_MIDDLEWARE_APP, 'App\\Ordinary', 100, ['unknown' => 'value']);
+        self::assertStackRejected($tags, $http, 'http-middleware-tag-meta-invalid');
+
+        $tags = new TagRegistry();
+        $tags->add(ReservedTags::HTTP_MIDDLEWARE_SYSTEM_PRE, self::PROBLEM_DETAILS, 999, []);
+        self::assertStackRejected($tags, $http, 'http-middleware-error-boundary-invalid');
+    }
+
+    /** @param array<string, mixed> $http */
+    private static function assertStackRejected(TagRegistry $tags, array $http, string $reason): void
+    {
+        try {
+            new HttpMiddlewareStackBuilder($tags)->build($http);
+            self::fail('Expected middleware composition rejection.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame($reason, $exception->getMessage());
+        }
     }
 
     /** @return list<array<string, mixed>> */

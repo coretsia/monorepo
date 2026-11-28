@@ -100,6 +100,37 @@ final class RoutesArtifactSchemaTest extends TestCase
         self::assertBoundedRoundTrip($schema, $expected);
     }
 
+    public function testOrderedRouteMiddlewareMetadataSurvivesCanonicalArtifactRoundTrip(): void
+    {
+        $schema = self::schema();
+        $middleware = ['app.middleware.z', 'app.middleware.a'];
+        $metadata = ['http_app_middleware' => $middleware, 'scope' => 'public'];
+        $route = self::route(0, $metadata);
+        $descriptor = [
+            'defaults' => [],
+            'handler' => 'Handler::show',
+            'metadata' => $metadata,
+            'methods' => ['GET'],
+            'name' => 'route.0',
+            'pathTemplate' => '/r0',
+            'requirements' => [],
+            'schemaVersion' => 1,
+        ];
+        $expected = self::envelope(['app' => 'web', 'routes' => [$descriptor]], 'local');
+        $envelope = $schema->createEnvelope([$route], 'web', 'local');
+        self::assertSame($expected, $envelope);
+        $bytes = $schema->serializeEnvelope($envelope, 'web', 'local');
+        $parsed = new StablePhpArrayParser()->parseBounded($bytes, RoutesArtifactSchema::limits());
+        self::assertSame($expected, $parsed);
+        self::assertSame([$descriptor], self::descriptors($schema->hydrateEnvelope($parsed, 'web', 'local')));
+        self::assertReaderRoundTrip($schema, [$route], $bytes);
+
+        $reversed = $schema->createEnvelope([
+            self::route(0, ['http_app_middleware' => \array_reverse($middleware), 'scope' => 'public']),
+        ], 'web', 'local');
+        self::assertNotSame($envelope['_meta']['fingerprint'], $reversed['_meta']['fingerprint']);
+    }
+
     public function testFingerprintBindsTargetFrozenEnvironmentOrderPayloadAndReservedTable(): void
     {
         $schema = self::schema();
@@ -361,6 +392,9 @@ final class RoutesArtifactSchemaTest extends TestCase
                 ['value' => 'file:///private/file'],
                 ['value' => 'FILE://server/share'],
                 ['value' => [['/private/path']]],
+                ['http_app_middleware' => ['app.middleware.z', 'Bearer synthetic-secret']],
+                ['http_app_middleware' => ['app.middleware.z', '/srv/private']],
+                ['http_app_middleware' => [['access_token' => false]]],
             ] as $metadata
         ) {
             $route = self::route(0, $metadata);
@@ -433,7 +467,7 @@ final class RoutesArtifactSchemaTest extends TestCase
     {
         $routes = [
             new RouteDefinition('detail', ['GET'], '/items/{id}', 'Handler::show', ['id' => '[0-9]+']),
-            self::route(1),
+            self::route(1, ['http_app_middleware' => ['app.middleware.z', 'app.middleware.a']]),
         ];
         $spy = new RoutingSchemaRedactorFixture('identity');
         $schema = self::schema($spy);

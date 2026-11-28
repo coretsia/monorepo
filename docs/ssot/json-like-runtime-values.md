@@ -451,6 +451,14 @@ Streams and filesystem handles are forbidden.
 
 Unsupported PHP value types MUST be rejected with the generic type-forbidden reason.
 
+Cycle detection MUST remain active during canonical recursive normalization even when no optional resource limits are supplied.
+
+A detected cyclic PHP array MUST be rejected with the generic type-forbidden reason. Existing validation and resource-limit failure precedence MUST remain unchanged.
+
+Shared non-cyclic array references MUST remain supported. Cycle detection MUST distinguish references active on the current traversal branch from references encountered in previously completed branches.
+
+Normalization MUST NOT mutate caller-supplied arrays or export PHP reference identities in diagnostics.
+
 If a future owner needs decimal data, it MUST represent the value as a string with a documented safe format.
 
 ## Array model

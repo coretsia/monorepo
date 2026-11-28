@@ -89,6 +89,8 @@ Group requirements apply to placeholders declared in that group's supplied prefi
 
 The individual route owns its methods, handler, and defaults. Group composition does not modify parent group instances or establish a mutable route registry. The helper returns flattened descriptors in the supplied order, and providers complete flattening before returning through `RouteProviderInterface::routes()`.
 
+Consumer-owned list-valued metadata, including HttpApp's `http_app_middleware` selection, preserves its element order through grouping, compilation, serialization, hydration, and matching. Generic metadata safety and duplicate inherited-key rejection remain authoritative. Routing does not interpret consumer-specific middleware semantics, resolve services, or execute middleware. HttpApp owns those policies under `docs/ssot/http-app-dispatch.md`.
+
 Every flattened declaration is subject to the same complete template, conflict, reserved-domain, metadata, and resource validation as a standalone declaration. Equivalent grouped and standalone declarations produce identical fingerprints and artifact bytes when their ordered canonical descriptors and authoritative fingerprint inputs are identical.
 
 ### Decision 5: Preserve contract descriptor and artifact schema ownership
@@ -146,7 +148,13 @@ The shared primitives do not own `routes@1` schema, fingerprint policy, artifact
 
 `CompiledRouter` accepts only canonical encoded concrete paths whose Foundation normalization result equals the supplied path byte-for-byte. Invalid paths, non-root trailing slash paths, reserved concrete paths, unsupported methods, and unmatched inputs produce no match. Percent-encoded octets are not decoded or case-normalized. Methods are compared exactly, and the first successful match returns a canonical `RouteMatch` with declared name, complete template, logical handler, encoded string parameters, and safe metadata. The optional host does not participate in matching.
 
-Runtime matching does not read artifact files, resolve route providers, compile declarations, reconstruct or traverse groups, resolve handlers, or invoke actions. Once hydrated, the table remains independent of subsequent artifact replacement. An independently booted runtime may consume a replacement snapshot.
+`RouterInterface::allowedMethods(string $path, ?string $host = null): array` consumes the same immutable `CompiledRouteTable` and parsed templates. It applies the same canonical concrete encoded-path admission and reserved-path exclusion as `match()`, returning `[]` for invalid, non-canonical, reserved, or unmatched paths. It collects declared methods from every matching template domain, including placeholder requirements, removes duplicates, and sorts the exact method strings ascending by byte-order `strcmp`. Host remains unused; no implicit HEAD or OPTIONS methods are added.
+
+Method enumeration does not apply first-match-wins to the method set or change ordinary matching precedence, stored route order, descriptor shapes, or the `routes@1` schema and fingerprint. It does not invoke another observed match, read or mutate routing context, or emit additional routing spans, metrics, or logs.
+
+Routing exposes matching information only. HttpApp owns ordinary application 404/405 exception classification, and Problem Details owns HTTP adaptation and validated Allow-header materialization. Routing does not generate HTTP 405 responses or construct an Allow header.
+
+Runtime matching and allowed-method enumeration do not read artifact files, resolve route providers, compile declarations, reconstruct or traverse groups, resolve or execute middleware, resolve handlers, or invoke actions. Once hydrated, the table remains independent of subsequent artifact replacement. An independently booted runtime may consume a replacement snapshot.
 
 Routing owns `ContextKeys::PATH_TEMPLATE` mutation through `ContextWriterInterface`: it removes a stale template at the beginning of matching and writes only the complete declared template after success, before completion observability. The router and table do not own context storage, context reset, or UnitOfWork lifecycle. Routing observability uses the canonical ports and policies; raw matching input and handler values do not become routing signals, and the path template is not a metric label.
 
@@ -219,7 +227,7 @@ Rejected. The readiness port is the transport-neutral integration boundary. Dire
 ## Non-goals
 
 - HTTP middleware implementation, system-endpoint execution, controller discovery, action argument resolution, or action invocation.
-- Group-level middleware, authorization, or controller resolution.
+- Group-level middleware registration or execution, authorization, or controller resolution.
 - Host-based matching, implicit GET-to-HEAD fallback, automatic OPTIONS handling, redirects, 405 response generation, arbitrary regular expressions, wildcard segments, or optional segments.
 - Runtime route registration, artifact repair, request-time reload, or route inspection and public metadata export.
 - A competing routing descriptor, group-specific artifact schema, reservation registry, matching mechanism, context store, observability backend, or reset orchestration.
@@ -229,6 +237,8 @@ Rejected. The readiness port is the transport-neutral integration boundary. Dire
 
 - `docs/ssot/routing-artifact.md`
 - `docs/ssot/routing-and-http-app-contracts.md`
+- `docs/ssot/http-app-dispatch.md`
+- `docs/ssot/problem-details.md`
 - `docs/ssot/system-route-table.md`
 - `docs/ssot/reserved-path-matching.md`
 - `docs/ssot/artifacts.md`

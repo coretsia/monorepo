@@ -26,7 +26,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ContextStoreRejectsSelfReferentialArraysDeterministicallyTest extends TestCase
 {
-    public function testSelfReferenceIsRejectedByDepthBudget(): void
+    public function testSelfReferenceIsRejectedAsForbiddenType(): void
     {
         $value = [];
         $value['self'] = &$value;
@@ -42,12 +42,11 @@ final class ContextStoreRejectsSelfReferentialArraysDeterministicallyTest extend
             );
         } catch (ContextWriteForbiddenException $exception) {
             self::assertSame(
-                'context-write-forbidden-max-depth',
+                'context-write-forbidden-type',
                 $exception->reason(),
             );
             self::assertSame(
-                'path_template.self.self.self.self'
-                . '.self.self.self.self',
+                'path_template.self.self',
                 $exception->safePath(),
             );
 
@@ -58,7 +57,7 @@ final class ContextStoreRejectsSelfReferentialArraysDeterministicallyTest extend
                 $previous,
             );
             self::assertSame(
-                JsonLikeNormalizationException::REASON_MAX_DEPTH_EXCEEDED,
+                JsonLikeNormalizationException::REASON_TYPE_FORBIDDEN,
                 $previous->reason(),
             );
         }
